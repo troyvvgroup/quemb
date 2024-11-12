@@ -2,9 +2,10 @@
 #            Oinam Meitei
 #
 
+from functools import reduce
+
 import numpy
 import scipy
-from functools import reduce
 
 
 def dot_gen(A, B, ovlp):

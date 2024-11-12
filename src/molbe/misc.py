@@ -1,10 +1,10 @@
 # Author(s): Minsik Cho, Leah Weisburn
 
-import numpy
 import os
-from pyscf import gto, scf
 import time
 
+import numpy
+from pyscf import gto, scf
 from pyscf.lib import chkfile
 
 
@@ -115,9 +115,9 @@ def be2fcidump(be_obj, fcidump_prefix, basis):
         'embedding' to get the integrals in the embedding basis
         'fragment_mo' to get the integrals in the fragment MO basis
     """
+    import h5py
     from pyscf import ao2mo
     from pyscf.tools import fcidump
-    import h5py
 
     for fidx, frag in enumerate(be_obj.Fobjs):
         # Read in eri
@@ -170,9 +170,9 @@ def ube2fcidump(be_obj, fcidump_prefix, basis):
         'embedding' to get the integrals in the embedding basis
         'fragment_mo' to get the integrals in the fragment MO basis
     """
+    import h5py
     from pyscf import ao2mo
     from pyscf.tools import fcidump
-    import h5py
 
     for fidx, frag in enumerate(be_obj.Fobjs_a):
         # Read in eri

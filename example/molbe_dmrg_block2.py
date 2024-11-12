@@ -3,9 +3,11 @@
 # Garnet-Chan group at Caltech: https://block2.readthedocs.io/en/latest/index.html
 
 import os
-import numpy
+
 import matplotlib.pyplot as plt
-from pyscf import gto, scf, fci, cc
+import numpy
+from pyscf import cc, fci, gto, scf
+
 from molbe import BE, fragpart
 
 # We'll consider the dissociation curve for a 1D chain of 8 H-atoms:

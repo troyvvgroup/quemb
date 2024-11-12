@@ -6,8 +6,10 @@ Author(s): Minsik Cho
 
 import os
 import unittest
+
 from pyscf import gto, scf
-from molbe import fragpart, BE
+
+from molbe import BE, fragpart
 
 
 class TestBE_restricted(unittest.TestCase):

@@ -3,7 +3,6 @@
 #         The code has been slightly modified.
 #
 import numpy as np
-
 from pyscf import ao2mo
 
 

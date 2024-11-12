@@ -1,7 +1,7 @@
 # Author(s): Oinam Romesh Meitei
 
-from pyscf import lib
 import numpy
+from pyscf import lib
 
 
 def sgeom(cell, kmesh=None):

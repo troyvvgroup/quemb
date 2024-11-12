@@ -1,10 +1,11 @@
 # Author(s): Oinam Romesh Meitei
 #            Leah Weisburn
 
-import numpy
-import sys
 import functools
+import sys
+
 import h5py
+import numpy
 from pyscf import ao2mo
 
 
@@ -35,6 +36,7 @@ def get_veff(eri_, dm, S, TA, hf_veff):
     """
 
     import functools
+
     from pyscf import scf
 
     # Transform the density matrix
@@ -167,8 +169,8 @@ def get_eri(i_frag, Nao, symm=8, ignore_symm=False, eri_file="eri_file.h5"):
     numpy.ndarray
         Electron repulsion integrals, possibly restored with symmetry.
     """
-    from pyscf import lib
     import h5py
+    from pyscf import lib
 
     # Open the HDF5 file and read the ERI for the specified fragment
     r = h5py.File(eri_file, "r")

@@ -6,9 +6,11 @@ Author(s): Shaun Weatherly
 """
 
 import unittest
+
 import numpy
-from pyscf.pbc import gto, scf, df
-from kbe import fragpart, BE
+from pyscf.pbc import df, gto, scf
+
+from kbe import BE, fragpart
 
 
 class Test_kBE_Full(unittest.TestCase):

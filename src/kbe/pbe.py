@@ -1,14 +1,16 @@
 # Author(s): Oinam Romesh Meitei
 
-from .pfrag import Frags
-import molbe.be_var as be_var
-import numpy
-import sys
-import pickle
-import h5py
 import os
+import pickle
+import sys
+
+import h5py
+import numpy
+
+import molbe.be_var as be_var
 
 from .misc import storePBE
+from .pfrag import Frags
 
 
 class BE:
@@ -319,10 +321,10 @@ class BE:
         if not restart:
             self.initialize(mf._eri, compute_hf)
 
-    from ._opt import optimize
-
     # this is a molbe method not BEOPT
     from molbe.external.optqn import get_be_error_jacobian
+
+    from ._opt import optimize
     from .lo import localize
 
     def print_ini(self):
@@ -377,12 +379,12 @@ class BE:
         restart : bool, optional
             Whether to restart from a previous calculation, by default False.
         """
+        import os
         from multiprocessing import Pool
 
         import h5py
-        import os
-        from pyscf import ao2mo
         from libdmet.basis_transform.eri_transform import get_emb_eri_fast_gdf
+        from pyscf import ao2mo
 
         if compute_hf:
             E_hf = 0.0
@@ -604,8 +606,8 @@ class BE:
         clean_eri : bool, optional
             Whether to clean up ERI files after calculation, by default False.
         """
-        from .solver import be_func
         from .be_parallel import be_func_parallel
+        from .solver import be_func
 
         print("Calculating Energy by Fragment? ", calc_frag_energy)
         if nproc == 1:
@@ -762,8 +764,9 @@ def eritransform_parallel(a, atom, basis, kpts, C_ao_emb, cderi):
     """
     Wrapper for parallel eri transformation
     """
+    from pyscf.pbc import df, gto
+
     from molbe.external.eri_transform import get_emb_eri_fast_gdf
-    from pyscf.pbc import gto, df
 
     cell = gto.Cell()
     cell.a = a
@@ -786,7 +789,7 @@ def parallel_fock_wrapper(dname, nao, dm, S, TA, hf_veff, eri_file):
     """
     Wrapper for parallel Fock transformation
     """
-    from .helper import get_veff, get_eri
+    from .helper import get_eri, get_veff
 
     eri_ = get_eri(dname, nao, eri_file=eri_file, ignore_symm=True)
     veff0, veff_ = get_veff(eri_, dm, S, TA, hf_veff, return_veff0=True)

@@ -1,7 +1,8 @@
 # Illustrates parallelized BE computation on octane
 
-from pyscf import gto, scf, cc
-from molbe import fragpart, BE
+from pyscf import cc, gto, scf
+
+from molbe import BE, fragpart
 
 # Perform pyscf HF calculation to get mol & mf objects
 mol = gto.M(

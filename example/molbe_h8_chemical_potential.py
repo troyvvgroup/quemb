@@ -1,7 +1,8 @@
 # Illustrates a simple molecular BE calculation with chemical
 # potential matching
 
-from pyscf import gto, scf, fci
+from pyscf import fci, gto, scf
+
 from molbe import BE, fragpart
 
 # PySCF HF generated mol & mf (molecular desciption & HF object)

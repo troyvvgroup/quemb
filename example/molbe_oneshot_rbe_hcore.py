@@ -5,7 +5,8 @@
 # PySCF formats
 
 import numpy
-from pyscf import gto, scf, qmmm
+from pyscf import gto, qmmm, scf
+
 from molbe.misc import be2puffin
 
 # variables for scratch handling

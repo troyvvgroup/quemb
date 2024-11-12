@@ -4,9 +4,7 @@
 #
 
 import numpy as np
-
 from pyscf import ao2mo
-
 
 """ Derivative of approximate t1 amplitudes
 t_ia = ((2*t2-t2)_ibjc g_cjba - g_ikbj (2*t2-t2)_jbka) / (e_i - e_a)

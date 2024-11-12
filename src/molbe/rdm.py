@@ -231,7 +231,7 @@ def compute_energy_full(
     energy components are printed as part of the function's output.
     """
 
-    from pyscf import scf, ao2mo
+    from pyscf import ao2mo, scf
 
     # Compute the one-particle reduced density matrix (RDM1) and the cumulant (Kumul) in the full basis
     rdm1f, Kumul, rdm1_lo, rdm2_lo = self.rdm1_fullbasis(

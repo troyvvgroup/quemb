@@ -1,11 +1,14 @@
 # Author(s): Oinam Romesh Meitei
 
-from .pfrag import Frags
-import molbe.be_var as be_var
-import numpy
-import pickle
-import h5py
 import os
+import pickle
+
+import h5py
+import numpy
+
+import molbe.be_var as be_var
+
+from .pfrag import Frags
 
 
 class storeBE:
@@ -292,10 +295,11 @@ class BE:
         else:
             self.initialize(None, compute_hf, restart=True)
 
-    from ._opt import optimize
     from molbe.external.optqn import get_be_error_jacobian
+
+    from ._opt import optimize
     from .lo import localize
-    from .rdm import rdm1_fullbasis, compute_energy_full
+    from .rdm import compute_energy_full, rdm1_fullbasis
 
     def print_ini(self):
         """
@@ -483,8 +487,8 @@ class BE:
         clean_eri : bool, optional
             Whether to clean up ERI files after calculation, by default False.
         """
-        from .solver import be_func
         from .be_parallel import be_func_parallel
+        from .solver import be_func
 
         self.scratch_dir = scratch_dir
         self.solver_kwargs = solver_kwargs

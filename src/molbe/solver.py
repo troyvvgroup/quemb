@@ -1,15 +1,17 @@
 # Author(s): Oinam Romesh Meitei, Leah Weisburn, Shaun Weatherly
 
-import numpy
 import functools
-import sys
 import os
+import sys
+
+import numpy
+
 from molbe import be_var
 from molbe.external.ccsd_rdm import (
     make_rdm1_ccsd_t1,
-    make_rdm2_urlx,
     make_rdm1_uccsd,
     make_rdm2_uccsd,
+    make_rdm2_urlx,
 )
 
 
@@ -85,9 +87,10 @@ def be_func(
     float or tuple
         Depending on the options, it returns the norm of the error vector, the energy, or a combination of these values.
     """
-    from pyscf import fci
     import os
-    from pyscf import ao2mo
+
+    from pyscf import ao2mo, fci
+
     from .helper import get_frag_energy
 
     rdm_return = False
@@ -201,8 +204,7 @@ def be_func(
             rdm1_tmp, rdm2s = mch.fcisolver.make_rdm12(0, nmo, nelec)
 
         elif solver == "SCI":
-            from pyscf import cornell_shci
-            from pyscf import ao2mo, mcscf
+            from pyscf import ao2mo, cornell_shci, mcscf
 
             nao, nmo = fobj._mf.mo_coeff.shape
             nelec = (fobj.nsocc, fobj.nsocc)
@@ -384,8 +386,9 @@ def be_func_u(
     float or tuple
         Depending on the options, it returns the norm of the error vector, the energy, or a combination of these values.
     """
-    from .helper import get_frag_energy_u
     from molbe.external.unrestricted_utils import make_uhf_obj
+
+    from .helper import get_frag_energy_u
 
     rdm_return = False
     if relax_density:
@@ -778,7 +781,7 @@ def solve_block2(mf: object, nocc: int, frag_scratch: str = None, **solver_kwarg
 
 
     """
-    from pyscf import mcscf, dmrgscf
+    from pyscf import dmrgscf, mcscf
 
     use_cumulant = solver_kwargs.pop("use_cumulant", True)
     norb = solver_kwargs.pop("norb", mf.mo_coeff.shape[1])
@@ -930,7 +933,8 @@ def solve_uccsd(
         - rdm1 (tuple, numpy.ndarray, optional): One-particle density matrix (if rdm_return is True).
         - rdm2 (tuple, numpy.ndarray, optional): Two-particle density matrix (if rdm2_return is True and rdm_return is True).
     """
-    from pyscf import cc, ao2mo
+    from pyscf import ao2mo, cc
+
     from molbe.external.uccsd_eri import make_eris_incore
 
     C = mf.mo_coeff

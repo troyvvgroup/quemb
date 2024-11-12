@@ -8,8 +8,10 @@ Author(s): Leah Weisburn
 
 import os
 import unittest
+
 from pyscf import gto, scf
-from molbe import fragpart, UBE
+
+from molbe import UBE, fragpart
 
 
 class TestOneShot_Unrestricted(unittest.TestCase):

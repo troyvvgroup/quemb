@@ -5,9 +5,7 @@
 
 import numpy as np
 import scipy.linalg as slg
-
 from pyscf import ao2mo
-
 
 """ RMP2 implementation
 """

@@ -1,7 +1,9 @@
 # Author(s): Oinam Romesh Meitei
 
 import sys
+
 from molbe.helper import get_core
+
 from .autofrag import autogen
 
 

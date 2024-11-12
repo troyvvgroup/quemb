@@ -1,15 +1,23 @@
 # Author(s): Oinam Romesh Meitei, Leah Weisburn
 
-from .solver import solve_error
-from .solver import solve_mp2, solve_ccsd, make_rdm1_ccsd_t1, solve_uccsd
-from .solver import make_rdm2_urlx
-from .helper import get_frag_energy
-from molbe.external.unrestricted_utils import make_uhf_obj
-from molbe.external.ccsd_rdm import make_rdm1_uccsd, make_rdm2_uccsd
 import functools
-import numpy
 import sys
+
+import numpy
+
+from molbe.external.ccsd_rdm import make_rdm1_uccsd, make_rdm2_uccsd
+from molbe.external.unrestricted_utils import make_uhf_obj
+
 from .helper import *
+from .helper import get_frag_energy
+from .solver import (
+    make_rdm1_ccsd_t1,
+    make_rdm2_urlx,
+    solve_ccsd,
+    solve_error,
+    solve_mp2,
+    solve_uccsd,
+)
 
 
 def run_solver(
@@ -122,7 +130,7 @@ def run_solver(
         efci, civec = mc_.kernel()
         rdm1_tmp = mc_.make_rdm1(civec, mc_.norb, mc_.nelec)
     elif solver == "HCI":
-        from pyscf import hci, ao2mo
+        from pyscf import ao2mo, hci
 
         nao, nmo = mf_.mo_coeff.shape
         eri = ao2mo.kernel(mf_._eri, mf_.mo_coeff, aosym="s4", compact=False).reshape(
@@ -166,8 +174,7 @@ def run_solver(
         rdm1_tmp, rdm2s = mch.fcisolver.make_rdm12(0, nmo, nelec)
 
     elif solver == "SCI":
-        from pyscf import cornell_shci
-        from pyscf import ao2mo, mcscf
+        from pyscf import ao2mo, cornell_shci, mcscf
 
         nao, nmo = mf_.mo_coeff.shape
         nelec = (nocc, nocc)
@@ -454,8 +461,8 @@ def be_func_parallel(
         Depending on the parameters, returns the error norm or a tuple containing the error norm,
         error vector, and the computed energy.
     """
-    from multiprocessing import Pool
     import os
+    from multiprocessing import Pool
 
     nfrag = len(Fobjs)
     # Create directories for fragments if required
@@ -621,8 +628,8 @@ def be_func_parallel_u(
     float
         Returns the computed energy
     """
-    from multiprocessing import Pool
     import os
+    from multiprocessing import Pool
 
     # Set the number of OpenMP threads
     os.system("export OMP_NUM_THREADS=" + str(ompnum))

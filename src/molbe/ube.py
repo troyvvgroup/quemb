@@ -12,11 +12,14 @@ TODO
   Add iterative UBE
 """
 
-import numpy
 import os
+
+import numpy
+
+import molbe.be_var as be_var
+
 from .mbe import BE
 from .pfrag import Frags
-import molbe.be_var as be_var
 
 
 class UBE(BE):  # 🍠
@@ -413,8 +416,8 @@ class UBE(BE):  # 🍠
     def oneshot(
         self, solver="UCCSD", nproc=1, ompnum=4, calc_frag_energy=False, clean_eri=False
     ):
-        from .solver import be_func_u
         from .be_parallel import be_func_parallel_u
+        from .solver import be_func_u
 
         if nproc == 1:
             E, E_comp = be_func_u(

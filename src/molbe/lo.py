@@ -1,7 +1,9 @@
 # Author(s): Henry Tran, Oinam Meitei, Shaun Weatherly
 #
-import numpy
 import sys
+
+import numpy
+
 from molbe.external.lo_helper import (
     get_aoind_by_atom,
     reorder_by_atom_,
@@ -257,8 +259,10 @@ def localize(
        If this option is set to True, all calculation will be performed in the valence basis in the IAO partitioning.
        This is an experimental feature.
     """
-    from numpy.linalg import eigh
     import functools
+
+    from numpy.linalg import eigh
+
     from .helper import ncore_
 
     if lo_method == "lowdin":

@@ -4,10 +4,12 @@ Author(s): Shaun Weatherly
 """
 
 import os
-import unittest
 import tempfile
+import unittest
+
 from pyscf import gto, scf
-from molbe import fragpart, BE
+
+from molbe import BE, fragpart
 
 
 class TestBE_DMRG(unittest.TestCase):

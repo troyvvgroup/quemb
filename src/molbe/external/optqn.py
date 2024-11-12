@@ -6,6 +6,7 @@
 #
 
 import numpy
+
 from .. import be_var
 
 
@@ -300,7 +301,7 @@ def get_be_error_jacobian(self, jac_solver="HF"):
 
 
 def get_atbe_Jblock_frag(fobj, res_func):
-    from molbe.helper import get_scfObj, get_eri
+    from molbe.helper import get_eri, get_scfObj
 
     vpots = get_vpots_frag(fobj.nao, fobj.edge_idx, fobj.fsites)
     eri_ = get_eri(fobj.dname, fobj.nao, eri_file=fobj.eri_file)

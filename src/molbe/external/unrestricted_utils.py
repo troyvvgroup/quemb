@@ -1,8 +1,9 @@
 # Authors: Leah Weisburn, Hongzhou Ye, Henry Tran
 
+import functools
+
 import h5py
 import numpy
-import functools
 
 
 def make_uhf_obj(fobj_a, fobj_b, frozen=False):
@@ -99,6 +100,7 @@ def restore_eri_gen(targetsym, eri, norb1, norb2):
 
 def _convert_eri_gen(origsym, targetsym, eri, norb1, norb2):
     import ctypes
+
     from pyscf import lib
 
     libao2mo = lib.load_library("libao2mo")

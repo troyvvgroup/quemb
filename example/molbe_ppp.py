@@ -1,7 +1,8 @@
 # Perform BE calculation with 6-31g basis set
 
 from pyscf import gto, scf
-from molbe import fragpart, BE
+
+from molbe import BE, fragpart
 
 # Perform pyscf HF calculation to get mol & mf objects
 mol = gto.M(
