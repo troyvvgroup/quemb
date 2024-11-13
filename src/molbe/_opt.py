@@ -282,8 +282,9 @@ def optimize(
     if not only_chem:
         pot = self.pot
         if self.be_type == "be1":
-            sys.exit(
-                "BE1 only works with chemical potential optimization. Set only_chem=True"
+            raise ValueError(
+                "BE1 only works with chemical potential optimization. "
+                "Set only_chem=True"
             )
     else:
         pot = [0.0]
