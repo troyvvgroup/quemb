@@ -50,7 +50,7 @@ kpoint_energy = kmf.kernel()
 # Define fragment in the supercell
 kfrag = fragpart(be_type="be2", mol=cell, kpt=kpt, frozen_core=True)
 # Initialize BE
-mykbe = BE(kmf, fobj, kpts=kpts)
+mykbe = BE(kmf, kfrag, kpts=kpts)
 
 # Perform BE density matching
 mykbe.optimize(solver="CCSD")
