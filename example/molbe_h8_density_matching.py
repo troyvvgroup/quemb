@@ -32,18 +32,6 @@ print(f"*** FCI Correlation Energy: {fci_ecorr:>14.8f} Ha", flush=True)
 
 # Perform BE calculations with different fragment schemes:
 
-# Define BE1 fragments
-fobj = fragpart(be_type="be1", mol=mol)
-# Initialize BE
-mybe = BE(mf, fobj)
-# Density matching in BE
-mybe.optimize(solver="FCI")
-
-# Compute BE error
-be_ecorr = mybe.ebe_tot - mybe.ebe_hf
-err_ = (fci_ecorr - be_ecorr) * 100.0 / fci_ecorr
-print(f"*** BE1 Correlation Energy Error (%) : {err_:>8.4f} %")
-
 # Define BE2 fragments
 fobj = fragpart(be_type="be2", mol=mol)
 mybe = BE(mf, fobj)
