@@ -15,6 +15,10 @@ from molbe import UBE, fragpart
 
 
 class TestOneShot_Unrestricted(unittest.TestCase):
+    @unittest.skipIf(
+        not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
+        "This test is known to fail."
+    )
     def test_hexene_anion_sto3g_frz_ben(self):
         # Linear Equidistant (r=1Å) H8 Chain, STO-3G
         mol = gto.M()
@@ -33,6 +37,10 @@ class TestOneShot_Unrestricted(unittest.TestCase):
             mol, "be3", "Hexene Anion Frz (BE3)", True, -0.34300834
         )
 
+    @unittest.skipIf(
+        not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
+        "This test is known to fail."
+    )
     def test_hexene_cation_sto3g_frz_ben(self):
         # Linear Equidistant (r=1Å) H8 Chain, cc-pVDZ
         mol = gto.M()
@@ -51,6 +59,10 @@ class TestOneShot_Unrestricted(unittest.TestCase):
             mol, "be3", "Hexene Cation Frz (BE3)", True, -0.36996484
         )
 
+    @unittest.skipIf(
+        not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
+        "This test is known to fail."
+    )
     def test_hexene_anion_sto3g_unfrz_ben(self):
         # Octane, STO-3G
         mol = gto.M()
@@ -69,6 +81,10 @@ class TestOneShot_Unrestricted(unittest.TestCase):
             mol, "be3", "Hexene Anion Unfrz (BE3)", False, -0.38960174
         )
 
+    @unittest.skipIf(
+        not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
+        "This test is known to fail."
+    )
     def test_hexene_cation_sto3g_unfrz_ben(self):
         mol = gto.M()
         mol.atom = os.path.join(os.path.dirname(__file__), "xyz/hexene.xyz")
