@@ -27,28 +27,35 @@ def prepare_system():
     oct_be = BE(mf, fobj)
     return oct_be
 
-@pytest.mark.skipif(not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
-                    reason="This test is known to fail.")
-def test_fcidump_writing():
+
+def verify_fcidump_writing(kind_of_MO : str):
     oct_be = prepare_system()
     tmp_dir = Path(mkdtemp())
     data_dir = Path("data/octane_FCIDUMPs/")
+    (tmp_dir / kind_of_MO).mkdir()
 
     # Write out fcidump file for each fragment
-    be2fcidump(oct_be, str(tmp_dir / "octane"), "fragment_mo")
+    be2fcidump(oct_be, str(tmp_dir / kind_of_MO / "octane"), kind_of_MO)
 
     for i in range(6):
-        reference = fcidump.read(data_dir / f'octanef{i}')
-        new = fcidump.read(tmp_dir / f'octanef{i}')
+        reference = fcidump.read(data_dir / kind_of_MO / f'octanef{i}')
+        new = fcidump.read(tmp_dir / kind_of_MO / f'octanef{i}')
 
         if (abs(new["H1"] - reference["H1"]).max() > 1e-5):
             print(reference["H1"][abs(new["H1"] - reference["H1"]) > 1e-5])
-
-
         assert np.allclose(new["H1"], reference["H1"])
         assert np.allclose(new["H2"], reference["H2"])
     rmtree(tmp_dir)
 
 
-if __name__ == "__main__":
-    test_fcidump_writing()
+@pytest.mark.skipif(not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
+                    reason="This test is known to fail.")
+def test_embedding():
+    verify_fcidump_writing("embedding")
+
+
+@pytest.mark.skipif(not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
+                    reason="This test is known to fail.")
+def test_fragment_mo():
+    verify_fcidump_writing("fragment_mo")
+
