@@ -1,11 +1,13 @@
 # Illustrates how fcidump file containing fragment hamiltonian
 # can be generated using be2fcidump
 
+import os
 from pathlib import Path
 from shutil import rmtree
 from tempfile import mkdtemp
 
 import numpy as np
+import pytest
 from pyscf.lib.misc import with_omp_threads
 from pyscf.tools import fcidump
 
@@ -32,6 +34,8 @@ def prepare_system():
     return oct_be
 
 
+# @pytest.mark.skipif(not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
+#                     reason="This test is known to fail.")
 def verify_fcidump_writing(kind_of_MO : str):
     oct_be = prepare_system()
     tmp_dir = Path(mkdtemp())
