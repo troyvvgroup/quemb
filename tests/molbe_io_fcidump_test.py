@@ -45,8 +45,10 @@ def verify_fcidump_writing(kind_of_MO : str):
         reference = fcidump.read(data_dir / kind_of_MO / f'octanef{i}')
         new = fcidump.read(tmp_dir / kind_of_MO / f'octanef{i}')
 
-        assert np.allclose(new["H1"], reference["H1"])
-        assert np.allclose(new["H2"], reference["H2"])
+        for key in ['H1', 'H2']:
+            if not np.allclose(new[key], reference[key]):
+                print(abs(new[key], reference[key]).max())
+                raise ValueError("too large difference")
     rmtree(tmp_dir)
 
 
