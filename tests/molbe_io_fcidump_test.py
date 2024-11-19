@@ -17,7 +17,8 @@ def prepare_system():
     # Read in molecular integrals expressed in libint basis ordering
     # numpy.loadtxt takes care of the input under the hood
     mol, mf = libint2pyscf(
-        "data/octane.xyz", "data/hcore_libint_octane.dat", "STO-3G", hcore_skiprows=1
+        "data/distorted_octane.xyz", "data/hcore_libint_octane.dat",
+        "STO-3G", hcore_skiprows=1
     )
     with with_omp_threads(1):
         # multi-threaded HF execution can lead to non-deterministic
@@ -55,3 +56,7 @@ def test_embedding():
 
 def test_fragment_mo():
     verify_fcidump_writing("fragment_mo")
+
+if __name__ == '__main__':
+    test_embedding()
+    test_fragment_mo()
