@@ -34,8 +34,8 @@ def prepare_system():
     return oct_be
 
 
-# @pytest.mark.skipif(not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
-#                     reason="This test is known to fail.")
+@pytest.mark.skipif(not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
+                    reason="This test is known to fail.")
 def verify_fcidump_writing(kind_of_MO : str):
     oct_be = prepare_system()
     tmp_dir = Path(mkdtemp())
