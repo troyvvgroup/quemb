@@ -47,7 +47,7 @@ def verify_fcidump_writing(kind_of_MO : str):
 
         for key in ['H1', 'H2']:
             if not np.allclose(new[key], reference[key]):
-                print(abs(new[key], reference[key]).max())
+                print(abs(new[key] - reference[key]).max())
                 raise ValueError("too large difference")
     rmtree(tmp_dir)
 
