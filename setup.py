@@ -21,10 +21,6 @@ setup(
         'scipy>=1.7.0',
         'pyscf>=2.0.0',
         'matplotlib',
-        # TODO this temporarily points to mcocdawc/libdmet_preview.
-        # as soon as this PR: https://github.com/gkclab/libdmet_preview/pull/21
-        # is merged, let it point to the original libdmet
-        # https://github.com/gkclab/libdmet_preview
-        'libdmet @ git+https://github.com/mcocdawc/libdmet_preview.git@add_fixes_for_BE'
+        'libdmet @ git+https://github.com/gkclab/libdmet_preview.git',
     ],
 )
