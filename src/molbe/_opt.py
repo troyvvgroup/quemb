@@ -177,6 +177,7 @@ class BEOPT:
         import sys
 
         from molbe.external.optqn import FrankQN
+
         print("-----------------------------------------------------", flush=True)
         print("             Starting BE optimization ", flush=True)
         print("             Solver : ", self.solver, flush=True)

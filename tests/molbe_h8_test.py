@@ -31,7 +31,7 @@ def prepare_system():
     return mol, mf
 
 
-def do_BE(mol, mf, be_type : str, only_chem : bool):
+def do_BE(mol, mf, be_type: str, only_chem: bool):
     fobj = fragpart(be_type=be_type, mol=mol)
     mybe = BE(mf, fobj)
     mybe.optimize(solver="FCI", only_chem=only_chem)
@@ -64,6 +64,6 @@ def test_BE_chemical_potential():
     assert np.isclose(BE3.ebe_tot - BE3.ebe_hf, -0.1332017928466369)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_BE_chemical_potential()
     test_BE_density_matching()
