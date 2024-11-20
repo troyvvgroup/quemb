@@ -12,16 +12,16 @@ from pyscf import gto, scf
 from molbe import BE, fragpart
 
 
-
-
 class TestBE_DMRG(unittest.TestCase):
     try:
         from pyscf import dmrgscf
     except ImportError:
         dmrgscf = None
 
-    @unittest.skipIf(not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
-                     reason="This test is known to fail.")
+    @unittest.skipIf(
+        not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
+        reason="This test is known to fail.",
+    )
     def test_h8_sto3g_pipek(self):
         mol = gto.M()
         mol.atom = [["H", (0.0, 0.0, i * 1.2)] for i in range(8)]

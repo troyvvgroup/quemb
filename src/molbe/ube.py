@@ -22,8 +22,6 @@ from .mbe import BE
 from .pfrag import Frags
 
 
-
-
 class UBE(BE):  # 🍠
     def __init__(
         self,
@@ -457,8 +455,16 @@ class UBE(BE):  # 🍠
         print(flush=True)
 
         self.ebe_tot = E + self.uhf_full_e
-        print("Total Energy : {:>12.8f} Ha".format((self.ebe_tot), ))
-        print("Corr  Energy : {:>12.8f} Ha".format((E), ))
+        print(
+            "Total Energy : {:>12.8f} Ha".format(
+                (self.ebe_tot),
+            )
+        )
+        print(
+            "Corr  Energy : {:>12.8f} Ha".format(
+                (E),
+            )
+        )
 
         if clean_eri == True:
             try:

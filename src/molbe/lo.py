@@ -365,7 +365,6 @@ def localize(
             self.lmo_coeff = self.W.T @ self.S @ self.C[:, self.ncore :]
 
     elif lo_method == "iao":
-
         loc_type = "SO"
         val_basis = "sto-3g"
 
@@ -468,7 +467,6 @@ def localize(
             self.lmo_coeff = self.W.T @ self.S @ self.C[:, self.ncore :]
 
     elif lo_method == "boys":
-
         es_, vs_ = eigh(self.S)
         edx = es_ > 1.0e-15
         W_ = numpy.dot(vs_[:, edx] / numpy.sqrt(es_[edx]), vs_[:, edx].T)

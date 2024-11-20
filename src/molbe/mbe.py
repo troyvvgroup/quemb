@@ -5,7 +5,6 @@ import pickle
 
 import h5py
 import numpy
-import pyscf
 
 import molbe.be_var as be_var
 
@@ -67,6 +66,7 @@ class BE:
     lo_method : str
         Method for orbital localization, default is 'lowdin'.
     """
+
     def __init__(
         self,
         mf,

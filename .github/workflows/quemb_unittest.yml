@@ -52,7 +52,7 @@ jobs:
 
     - name: Check formatting
       run: |
-        ruff format --diff || true    # for the moment we want to report always report success
+        ruff format --diff
 
 
     - name: Static analysis

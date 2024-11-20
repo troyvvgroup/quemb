@@ -11,8 +11,6 @@ from pyscf import gto, scf
 from molbe import BE, fragpart
 
 
-
-
 class TestBE_restricted(unittest.TestCase):
     # TODO: Add test against known values (molecular_restrict_test)
     def test_h8_sto3g_ben_trustRegion(self):

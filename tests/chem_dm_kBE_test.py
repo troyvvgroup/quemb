@@ -13,8 +13,6 @@ from pyscf.pbc import df, gto, scf
 from kbe import BE, fragpart
 
 
-
-
 class Test_kBE_Full(unittest.TestCase):
     try:
         import libdmet

@@ -235,7 +235,6 @@ class Frags:
             Alpha (0) or beta (1) spin for unrestricted calculation, by default None
         """
 
-
         if self._mf is not None:
             self._mf = None
         if self._mc is not None:
