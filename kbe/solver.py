@@ -1,6 +1,7 @@
 # Author(s): Oinam Romesh Meitei
 
-import numpy,functools,sys, time,os, h5py
+import numpy, functools, sys, time, os, h5py
+
 
 def schmidt_decomp_svd(rdm, Frag_sites):
     """
@@ -28,18 +29,16 @@ def schmidt_decomp_svd(rdm, Frag_sites):
     thres = 1.0e-10
     Tot_sites = rdm.shape[0]
 
-    Fragsites = [i if i>=0 else Tot_sites+i for i in Frag_sites]
+    Fragsites = [i if i >= 0 else Tot_sites + i for i in Frag_sites]
 
-    Env_sites1 = numpy.array([i for i in range(Tot_sites)
-                              if not i in Fragsites])
+    Env_sites1 = numpy.array([i for i in range(Tot_sites) if not i in Fragsites])
     nfs = len(Frag_sites)
 
     Denv = rdm[Env_sites1][:, Fragsites]
-    U, sigma, V = scipy.linalg.svd(Denv, full_matrices=False, lapack_driver='gesvd')
-    nbath = ( sigma >= thres).sum()
+    U, sigma, V = scipy.linalg.svd(Denv, full_matrices=False, lapack_driver="gesvd")
+    nbath = (sigma >= thres).sum()
     TA = numpy.zeros((Tot_sites, nfs + nbath), dtype=numpy.complex128)
     TA[Fragsites, :nfs] = numpy.eye(nfs)
-    TA[Env_sites1, nfs:] = U[:,:nbath]
+    TA[Env_sites1, nfs:] = U[:, :nbath]
 
     return TA
-

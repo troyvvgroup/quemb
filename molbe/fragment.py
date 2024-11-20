@@ -4,6 +4,7 @@ import numpy, sys
 from .helper import get_core
 from .autofrag import autogen
 
+
 class fragpart:
     """Fragment/partitioning definition
 
@@ -38,18 +39,24 @@ class fragpart:
         Whether to write 'fragment.xyz' file which contains all the fragments in cartesian coordinates.
     """
 
-    def __init__(self, frag_type='autogen',
-                 closed=False,
-                 valence_basis=None,valence_only=False,
-                 print_frags=True, write_geom=False,
-                 be_type='be2', mol=None, frozen_core=False):
-
+    def __init__(
+        self,
+        frag_type="autogen",
+        closed=False,
+        valence_basis=None,
+        valence_only=False,
+        print_frags=True,
+        write_geom=False,
+        be_type="be2",
+        mol=None,
+        frozen_core=False,
+    ):
         # Initialize class attributes
         self.mol = mol
         self.frag_type = frag_type
         self.fsites = []
         self.Nfrag = 0
-        self.edge= []
+        self.edge = []
         self.center = []
         self.ebe_weight = []
         self.edge_idx = []
@@ -71,101 +78,125 @@ class fragpart:
             self.ncore, self.no_core_idx, self.core_list = get_core(mol)
 
         # Check type of fragmentation function
-        if frag_type=='hchain_simple':
+        if frag_type == "hchain_simple":
             # This is an experimental feature.
             self.hchain_simple()
-        elif frag_type=='chain':
+        elif frag_type == "chain":
             if mol is None:
-                print('Provide pyscf gto.M object in fragpart() and restart!',
-                      flush=True)
-                print('exiting',flush=True)
+                print(
+                    "Provide pyscf gto.M object in fragpart() and restart!", flush=True
+                )
+                print("exiting", flush=True)
                 sys.exit()
-            self.chain(mol, frozen_core=frozen_core,closed=closed)
-        elif frag_type=='autogen':
+            self.chain(mol, frozen_core=frozen_core, closed=closed)
+        elif frag_type == "autogen":
             if mol is None:
-                print('Provide pyscf gto.M object in fragpart() and restart!',
-                      flush=True)
-                print('exiting',flush=True)
+                print(
+                    "Provide pyscf gto.M object in fragpart() and restart!", flush=True
+                )
+                print("exiting", flush=True)
                 sys.exit()
 
-            fgs = autogen(mol, be_type=be_type, frozen_core=frozen_core,write_geom=write_geom,
-                          valence_basis=valence_basis, valence_only=valence_only, print_frags=print_frags)
+            fgs = autogen(
+                mol,
+                be_type=be_type,
+                frozen_core=frozen_core,
+                write_geom=write_geom,
+                valence_basis=valence_basis,
+                valence_only=valence_only,
+                print_frags=print_frags,
+            )
 
-            self.fsites, self.edge, self.center, self.edge_idx, self.center_idx, self.centerf_idx, self.ebe_weight, self.Frag_atom, self.center_atom, self.hlist_atom, self.add_center_atom = fgs
+            (
+                self.fsites,
+                self.edge,
+                self.center,
+                self.edge_idx,
+                self.center_idx,
+                self.centerf_idx,
+                self.ebe_weight,
+                self.Frag_atom,
+                self.center_atom,
+                self.hlist_atom,
+                self.add_center_atom,
+            ) = fgs
             self.Nfrag = len(self.fsites)
 
         else:
-            print('Fragmentation type = ',frag_type,' not implemented!',
-                  flush=True)
-            print('exiting',flush=True)
+            print("Fragmentation type = ", frag_type, " not implemented!", flush=True)
+            print("exiting", flush=True)
             sys.exit()
 
     from .lchain import chain
+
     def hchain_simple(self):
-        """Hard coded fragmentation feature
-        """
+        """Hard coded fragmentation feature"""
         self.natom = self.mol.natm
-        if self.be_type=='be1':
+        if self.be_type == "be1":
             for i in range(self.natom):
                 self.fsites.append([i])
                 self.edge.append([])
             self.Nfrag = len(self.fsites)
 
-        elif self.be_type=='be2':
-            for i in range(self.natom-2):
-                self.fsites.append([i, i+1, i+2])
+        elif self.be_type == "be2":
+            for i in range(self.natom - 2):
+                self.fsites.append([i, i + 1, i + 2])
                 self.centerf_idx.append([1])
             self.Nfrag = len(self.fsites)
 
             self.edge.append([[2]])
             for i in self.fsites[1:-1]:
-                self.edge.append([[i[0]],[i[-1]]])
+                self.edge.append([[i[0]], [i[-1]]])
             self.edge.append([[self.fsites[-1][0]]])
 
             self.center.append([1])
-            for i in range(self.Nfrag-2):
-                self.center.append([i,i+2])
-            self.center.append([self.Nfrag-2])
+            for i in range(self.Nfrag - 2):
+                self.center.append([i, i + 2])
+            self.center.append([self.Nfrag - 2])
 
-        elif self.be_type=='be3':
-            for i in range(self.natom-4):
-                self.fsites.append([i, i+1, i+2, i+3, i+4])
+        elif self.be_type == "be3":
+            for i in range(self.natom - 4):
+                self.fsites.append([i, i + 1, i + 2, i + 3, i + 4])
                 self.centerf_idx.append([2])
             self.Nfrag = len(self.fsites)
 
-            self.edge.append([[3],[4]])
+            self.edge.append([[3], [4]])
             for i in self.fsites[1:-1]:
-                self.edge.append([[i[0]],[i[1]],[i[-2]],[i[-1]]])
-            self.edge.append([[self.fsites[-1][0]],[self.fsites[-1][1]]])
+                self.edge.append([[i[0]], [i[1]], [i[-2]], [i[-1]]])
+            self.edge.append([[self.fsites[-1][0]], [self.fsites[-1][1]]])
 
-            self.center.append([1,2])
-            self.center.append([0,0,2,3])
-            for i in range(self.Nfrag-4):
-                self.center.append([i,i+1, i+3,i+4])
+            self.center.append([1, 2])
+            self.center.append([0, 0, 2, 3])
+            for i in range(self.Nfrag - 4):
+                self.center.append([i, i + 1, i + 3, i + 4])
 
-            self.center.append([self.Nfrag-4,self.Nfrag-3,
-                                self.Nfrag-1,self.Nfrag-1])
-            self.center.append([self.Nfrag-3,self.Nfrag-2])
+            self.center.append(
+                [self.Nfrag - 4, self.Nfrag - 3, self.Nfrag - 1, self.Nfrag - 1]
+            )
+            self.center.append([self.Nfrag - 3, self.Nfrag - 2])
 
         for ix, i in enumerate(self.fsites):
             tmp_ = []
-            elist_ = [ xx for yy in self.edge[ix] for xx in yy]
+            elist_ = [xx for yy in self.edge[ix] for xx in yy]
             for j in i:
-                if not j in elist_: tmp_.append(i.index(j))
+                if not j in elist_:
+                    tmp_.append(i.index(j))
             self.ebe_weight.append([1.0, tmp_])
 
-        if not self.be_type=='be1':
+        if not self.be_type == "be1":
             for i in range(self.Nfrag):
                 idx = []
                 for j in self.edge[i]:
-
                     idx.append([self.fsites[i].index(k) for k in j])
                 self.edge_idx.append(idx)
 
             for i in range(self.Nfrag):
                 idx = []
                 for j in range(len(self.center[i])):
-                    idx.append([self.fsites[self.center[i][j]].index(k)
-                                for k in self.edge[i][j]])
+                    idx.append(
+                        [
+                            self.fsites[self.center[i][j]].index(k)
+                            for k in self.edge[i][j]
+                        ]
+                    )
                 self.center_idx.append(idx)
-

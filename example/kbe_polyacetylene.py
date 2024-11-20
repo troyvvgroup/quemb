@@ -9,18 +9,18 @@ from kbe import fragpart, BE
 kpt = [1, 1, 3]
 cell = gto.Cell()
 
-a = 8.
-b = 8.
-c = 2.455 *2.
+a = 8.0
+b = 8.0
+c = 2.455 * 2.0
 
 lat = numpy.eye(3)
-lat[0,0] = a
-lat[1,1] = b
-lat[2,2] = c
+lat[0, 0] = a
+lat[1, 1] = b
+lat[2, 2] = c
 
 cell.a = lat
 
-cell.atom='''
+cell.atom = """
 H      1.4285621630072645    0.0    -0.586173422487319
 C      0.3415633681566205    0.0    -0.5879921146011252
 H     -1.4285621630072645    0.0     0.586173422487319
@@ -29,11 +29,11 @@ H      1.4285621630072645    0.0     1.868826577512681
 C      0.3415633681566205    0.0     1.867007885398875
 H     -1.4285621630072645    0.0     3.041173422487319
 C     -0.3415633681566205    0.0     3.0429921146011254
-'''
+"""
 
-cell.unit='Angstrom'
-cell.basis = 'sto-3g'
-cell.verbose=0
+cell.unit = "Angstrom"
+cell.basis = "sto-3g"
+cell.verbose = 0
 cell.build()
 
 kpts = cell.make_kpts(kpt, wrap_around=True)
@@ -47,11 +47,9 @@ kmf.conv_tol = 1e-12
 kpoint_energy = kmf.kernel()
 
 # Define fragment in the supercell
-kfrag = fragpart(be_type='be2', mol=cell,
-                 kpt=kpt, frozen_core=True)
+kfrag = fragpart(be_type="be2", mol=cell, kpt=kpt, frozen_core=True)
 # Initialize BE
-mykbe = BE(kmf, fobj,
-           kpts=kpts)
+mykbe = BE(kmf, fobj, kpts=kpts)
 
 # Perform BE density matching
-mykbe.optimize(solver='CCSD')
+mykbe.optimize(solver="CCSD")
