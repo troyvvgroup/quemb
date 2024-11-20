@@ -5,6 +5,7 @@ import pickle
 
 import h5py
 import numpy
+import pyscf
 
 import molbe.be_var as be_var
 
@@ -57,7 +58,7 @@ class BE:
 
     Attributes
     ----------
-    mf : pyscf.scf.SCF
+    mf : pyscf.scf.hf.SCF
         PySCF mean-field object.
     fobj : molbe.fragpart
         Fragment object containing sites, centers, edges, and indices.
@@ -66,7 +67,6 @@ class BE:
     lo_method : str
         Method for orbital localization, default is 'lowdin'.
     """
-
     def __init__(
         self,
         mf,
@@ -95,7 +95,7 @@ class BE:
 
         Parameters
         ----------
-        mf : pyscf.scf.SCF
+        mf : pyscf.scf.hf.SCF
             PySCF mean-field object.
         fobj : molbe.fragpart
             Fragment object containing sites, centers, edges, and indices.

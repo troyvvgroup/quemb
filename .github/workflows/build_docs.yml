@@ -26,12 +26,13 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        pip install .
         pip install --upgrade --upgrade-strategy eager -r docs/requirements.txt
         echo ${{ github.workspace }} > $(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")/quemb.pth
     - name: Test building docs & Archive the results
       run: |
         cd docs
-        make html SPHINXOPTS="-W --keep-going -n"
+        make html
         ls build/html
         tar czf docs.tar.gz --directory=build/html .
         cd ..

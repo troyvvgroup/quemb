@@ -1,5 +1,2 @@
+# the additional (!) requirements for building the doc
 sphinx_rtd_theme
-numpy
-scipy
-h5py
-pyscf

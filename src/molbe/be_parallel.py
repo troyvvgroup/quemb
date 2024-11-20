@@ -294,7 +294,7 @@ def run_solver_u(
 
     Returns
     -------
-
+    float
         As implemented, only returns the UCCSD fragment energy
     """
     print("obj type", type(fobj_a))
