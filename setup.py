@@ -18,10 +18,10 @@ setup(
     package_dir={"": "src"},
     python_requires=">=3.7",
     install_requires=[
-        'numpy>=1.22.0',
-        'scipy>=1.7.0',
-        'pyscf>=2.0.0',
-        'matplotlib',
-        'libdmet @ git+https://github.com/gkclab/libdmet_preview.git',
+        "numpy>=1.22.0",
+        "scipy>=1.7.0",
+        "pyscf>=2.0.0",
+        "matplotlib",
+        "libdmet @ git+https://github.com/gkclab/libdmet_preview.git",
     ],
 )

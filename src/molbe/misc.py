@@ -409,7 +409,6 @@ def be2puffin(
                 use_df = False
                 jk = None
             elif use_df and jk is None:
-
                 mf = scf.RHF(mol).density_fit(auxbasis=df_aux_basis)
             else:
                 mf = scf.RHF(mol)

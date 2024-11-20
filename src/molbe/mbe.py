@@ -67,6 +67,7 @@ class BE:
     lo_method : str
         Method for orbital localization, default is 'lowdin'.
     """
+
     def __init__(
         self,
         mf,

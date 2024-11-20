@@ -11,8 +11,11 @@ from molbe import BE, fragpart
 # TODO: actually add meaningful tests for energies etc.
 #   At the moment the test fails already for technical reasons.
 
-@pytest.mark.skipif(not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
-                    reason="This test is known to fail.")
+
+@pytest.mark.skipif(
+    not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
+    reason="This test is known to fail.",
+)
 def test_octane_molbe():
     # Perform pyscf HF calculation to get mol & mf objects
     mol = gto.M(
@@ -47,7 +50,6 @@ def test_octane_molbe():
         basis="sto-3g",
         charge=0,
     )
-
 
     mf = scf.RHF(mol)
     mf.conv_tol = 1e-12

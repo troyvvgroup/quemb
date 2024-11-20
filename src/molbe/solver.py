@@ -133,7 +133,6 @@ def be_func(
                 rdm1_tmp = make_rdm1_ccsd_t1(fobj.t1)
 
         elif solver == "FCI":
-
             mc = fci.FCI(fobj._mf, fobj._mf.mo_coeff)
             efci, civec = mc.kernel()
             rdm1_tmp = mc.make_rdm1(civec, mc.norb, mc.nelec)

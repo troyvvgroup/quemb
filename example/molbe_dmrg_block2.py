@@ -56,11 +56,11 @@ for a in seps:
 
     # Next, run BE-DMRG with default parameters and maxM=100.
     mybe.oneshot(
-        solver='block2',                                # or 'DMRG', 'DMRGSCF', 'DMRGCI'
-        scratch_dir=scratch,                            # Scratch dir for fragment DMRG
-        maxM=100,                                       # Max fragment bond dimension
-        force_cleanup=True,                             # Remove all fragment DMRG tmpfiles
-        )
+        solver="block2",  # or 'DMRG', 'DMRGSCF', 'DMRGCI'
+        scratch_dir=scratch,  # Scratch dir for fragment DMRG
+        maxM=100,  # Max fragment bond dimension
+        force_cleanup=True,  # Remove all fragment DMRG tmpfiles
+    )
 
     bedmrg_ecorr.append(mybe.ebe_tot - mf.e_tot)
     # Setting `force_cleanup=True` will clean the scratch directory after each
@@ -136,5 +136,5 @@ mybe.optimize(
 # and `[scratch]/dmrg.out`, which are the fragment DMRG inputs and outputs, respectively, used
 # by `block2`.
 
-#NOTE: Parameters in `schedule_kwargs` will overwrite any other DMRG kwargs.
-#NOTE: The DMRG schedule kwargs and related syntax follows the standard notation used in block2.
+# NOTE: Parameters in `schedule_kwargs` will overwrite any other DMRG kwargs.
+# NOTE: The DMRG schedule kwargs and related syntax follows the standard notation used in block2.
