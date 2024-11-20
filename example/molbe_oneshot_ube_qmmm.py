@@ -2,9 +2,7 @@
 # using the be2puffin functionality.
 # Returns UBE UCCSD energy for the system
 
-import numpy
 from molbe.misc import be2puffin
-from molbe import be_var
 
 # variables for scratch handling
 # pbe_var.SCRATCH = '{}'

@@ -2,9 +2,12 @@
 # `block2` is a DMRG and sparse tensor network library developed by the
 # Garnet-Chan group at Caltech: https://block2.readthedocs.io/en/latest/index.html
 
-import os, numpy, sys
+import os
+
 import matplotlib.pyplot as plt
-from pyscf import gto, scf, fci, cc
+import numpy
+from pyscf import cc, fci, gto, scf
+
 from molbe import BE, fragpart
 
 # We'll consider the dissociation curve for a 1D chain of 8 H-atoms:
@@ -54,7 +57,7 @@ for a in seps:
     # Next, run BE-DMRG with default parameters and maxM=100.
     mybe.oneshot(
         solver="block2",  # or 'DMRG', 'DMRGSCF', 'DMRGCI'
-        scratch=scratch,  # Scratch dir for fragment DMRG
+        scratch_dir=scratch,  # Scratch dir for fragment DMRG
         maxM=100,  # Max fragment bond dimension
         force_cleanup=True,  # Remove all fragment DMRG tmpfiles
     )

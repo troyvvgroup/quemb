@@ -1,11 +1,8 @@
 # Illustrates how fcidump file containing fragment hamiltonian
 # can be generated using be2fcidump
 
-from pyscf import gto, scf
-from molbe import BE
-from molbe import fragpart
-from molbe.misc import *
-from molbe import be_var
+from molbe import BE, be_var, fragpart
+from molbe.misc import be2fcidump, libint2pyscf
 
 be_var.PRINT_LEVEL = 3
 

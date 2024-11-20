@@ -1,7 +1,8 @@
 # Illustrates a simple molecular BE calculation with BE
 # density matching between edge & centers of fragments.
 
-from pyscf import gto, scf, fci
+from pyscf import fci, gto, scf
+
 from molbe import BE, fragpart
 
 # PySCF HF generated mol & mf (molecular desciption & HF object)
@@ -30,18 +31,6 @@ fci_ecorr = mc.kernel()[0] - mf.e_tot
 print(f"*** FCI Correlation Energy: {fci_ecorr:>14.8f} Ha", flush=True)
 
 # Perform BE calculations with different fragment schemes:
-
-# Define BE1 fragments
-fobj = fragpart(be_type="be1", mol=mol)
-# Initialize BE
-mybe = BE(mf, fobj)
-# Density matching in BE
-mybe.optimize(solver="FCI")
-
-# Compute BE error
-be_ecorr = mybe.ebe_tot - mybe.ebe_hf
-err_ = (fci_ecorr - be_ecorr) * 100.0 / fci_ecorr
-print(f"*** BE1 Correlation Energy Error (%) : {err_:>8.4f} %")
 
 # Define BE2 fragments
 fobj = fragpart(be_type="be2", mol=mol)

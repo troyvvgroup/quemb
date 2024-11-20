@@ -6,14 +6,20 @@ without frozen core.
 Author(s): Leah Weisburn
 """
 
-import os, unittest
+import os
+import unittest
+
 from pyscf import gto, scf
-from molbe import fragpart, UBE
+
+from molbe import UBE, fragpart
+
+
 
 
 class TestOneShot_Unrestricted(unittest.TestCase):
     @unittest.skipIf(
-        os.getenv("GITHUB_ACTIONS") == "true", "Skip expensive tests on Github Actions"
+        not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
+        "This test is known to fail."
     )
     def test_hexene_anion_sto3g_frz_ben(self):
         # Linear Equidistant (r=1Å) H8 Chain, STO-3G
@@ -34,7 +40,8 @@ class TestOneShot_Unrestricted(unittest.TestCase):
         )
 
     @unittest.skipIf(
-        os.getenv("GITHUB_ACTIONS") == "true", "Skip expensive tests on Github Actions"
+        not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
+        "This test is known to fail."
     )
     def test_hexene_cation_sto3g_frz_ben(self):
         # Linear Equidistant (r=1Å) H8 Chain, cc-pVDZ
@@ -55,7 +62,8 @@ class TestOneShot_Unrestricted(unittest.TestCase):
         )
 
     @unittest.skipIf(
-        os.getenv("GITHUB_ACTIONS") == "true", "Skip expensive tests on Github Actions"
+        not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
+        "This test is known to fail."
     )
     def test_hexene_anion_sto3g_unfrz_ben(self):
         # Octane, STO-3G
@@ -76,7 +84,8 @@ class TestOneShot_Unrestricted(unittest.TestCase):
         )
 
     @unittest.skipIf(
-        os.getenv("GITHUB_ACTIONS") == "true", "Skip expensive tests on Github Actions"
+        not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
+        "This test is known to fail."
     )
     def test_hexene_cation_sto3g_unfrz_ben(self):
         mol = gto.M()

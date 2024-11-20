@@ -5,9 +5,9 @@
 # PySCF formats
 
 import numpy
-from pyscf import gto, scf, qmmm
+from pyscf import gto, qmmm, scf
+
 from molbe.misc import be2puffin
-from molbe import be_var
 
 # variables for scratch handling
 # pbe_var.SCRATCH = '{}'

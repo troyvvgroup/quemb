@@ -3,8 +3,9 @@
 # pyscf's periodic HF calculation
 
 import numpy
-from pyscf.pbc import gto, scf, df
-from kbe import fragpart, BE
+from pyscf.pbc import df, gto, scf
+
+from kbe import BE, fragpart
 
 kpt = [1, 1, 3]
 cell = gto.Cell()
@@ -49,7 +50,7 @@ kpoint_energy = kmf.kernel()
 # Define fragment in the supercell
 kfrag = fragpart(be_type="be2", mol=cell, kpt=kpt, frozen_core=True)
 # Initialize BE
-mykbe = BE(kmf, fobj, kpts=kpts)
+mykbe = BE(kmf, kfrag, kpts=kpts)
 
 # Perform BE density matching
 mykbe.optimize(solver="CCSD")

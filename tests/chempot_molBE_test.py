@@ -4,9 +4,14 @@ This script tests the correlation energies of sample restricted molecular BE cal
 Author(s): Minsik Cho
 """
 
-import os, unittest
-from pyscf import cc, gto, scf
-from molbe import fragpart, BE
+import os
+import unittest
+
+from pyscf import gto, scf
+
+from molbe import BE, fragpart
+
+
 
 
 class TestBE_restricted(unittest.TestCase):
@@ -27,9 +32,6 @@ class TestBE_restricted(unittest.TestCase):
             mol, "be3", "H8 (BE3)", "hchain_simple", -4.30649890, only_chem=True
         )
 
-    @unittest.skipIf(
-        os.getenv("GITHUB_ACTIONS") == "true", "Skip expensive tests on Github Actions"
-    )
     def test_octane_sto3g_ben(self):
         # Octane, STO-3G
         # CCSD Total Energy: -310.3344616 Ha

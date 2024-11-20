@@ -2,10 +2,7 @@
 # using the be2puffin functionality, starting from a checkfile.
 # Returns BE CCSD energy for the system
 
-import numpy
-from pyscf import gto, scf, qmmm
 from molbe.misc import be2puffin
-from molbe import be_var
 
 # variables for scratch handling
 # pbe_var.SCRATCH = '{}'
