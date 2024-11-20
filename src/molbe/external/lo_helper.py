@@ -26,7 +26,6 @@ def get_symm_mat_pow(A, p, check_symm=True, thresh=1.0e-8):
 
 
 def get_aoind_by_atom(mol, atomind_by_motif=None):
-
     natom = mol.natm
     aoslice_by_atom = mol.aoslice_by_atom()
     aoshift_by_atom = [0] + [aoslice_by_atom[ia][-1] for ia in range(natom)]
