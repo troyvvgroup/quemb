@@ -4,21 +4,38 @@ import numpy, sys
 from molbe.helper import get_core
 from .autofrag import autogen
 
+
 def print_mol_missing():
-    print('Provide pyscf gto.Cell object in fragpart() and restart!',
-          flush=True)
-    print('exiting',flush=True)
+    print("Provide pyscf gto.Cell object in fragpart() and restart!", flush=True)
+    print("exiting", flush=True)
     sys.exit()
 
-class fragpart:
 
-    def __init__(self, natom=0, dim=1, frag_type='autogen',
-                 unitcell=1,
-                 gamma_2d = False, gamma_1d=False, interlayer=False,
-                 long_bond=False, perpend_dist = 4.0, perpend_dist_tol = 1e-3,
-                 nx=False, ny=False, nz=False,closed=False,
-                 kpt = None, valence_basis=None,
-                 be_type='be2', mol=None, frozen_core=False, self_match=False, allcen=True):
+class fragpart:
+    def __init__(
+        self,
+        natom=0,
+        dim=1,
+        frag_type="autogen",
+        unitcell=1,
+        gamma_2d=False,
+        gamma_1d=False,
+        interlayer=False,
+        long_bond=False,
+        perpend_dist=4.0,
+        perpend_dist_tol=1e-3,
+        nx=False,
+        ny=False,
+        nz=False,
+        closed=False,
+        kpt=None,
+        valence_basis=None,
+        be_type="be2",
+        mol=None,
+        frozen_core=False,
+        self_match=False,
+        allcen=True,
+    ):
         """Fragment/partitioning definition
 
         Interfaces two main fragmentation functions (autogen & polychain) in MolBE. It defines edge &
@@ -60,10 +77,10 @@ class fragpart:
         # No. of unitcells to use for fragment construction
         self.unitcell = unitcell
         self.mol = mol
-        self.frag_type=frag_type
+        self.frag_type = frag_type
         self.fsites = []
         self.Nfrag = 0
-        self.edge= []
+        self.edge = []
         self.center = []
         self.ebe_weight = []
         self.edge_idx = []
@@ -73,40 +90,59 @@ class fragpart:
         self.natom = natom
         self.frozen_core = frozen_core
         self.self_match = self_match
-        self.allcen=allcen
-        self.valence_basis=valence_basis
+        self.allcen = allcen
+        self.valence_basis = valence_basis
         self.kpt = kpt
-        self.molecule = False ### remove this
+        self.molecule = False  ### remove this
 
         # Check for frozen core approximation
         if frozen_core:
             self.ncore, self.no_core_idx, self.core_list = get_core(mol)
 
-        if frag_type=='polychain':
-            if mol is None: print_mol_missing()
+        if frag_type == "polychain":
+            if mol is None:
+                print_mol_missing()
             self.polychain(mol, frozen_core=frozen_core, unitcell=unitcell)
-        elif frag_type=='autogen':
-            if mol is None: print_mol_missing()
+        elif frag_type == "autogen":
+            if mol is None:
+                print_mol_missing()
             if kpt is None:
-                print('Provide kpt mesh in fragpart() and restart!',
-                      flush=True)
-                print('exiting',flush=True)
+                print("Provide kpt mesh in fragpart() and restart!", flush=True)
+                print("exiting", flush=True)
                 sys.exit()
 
-            fgs = autogen(mol, kpt, be_type=be_type, frozen_core=frozen_core,
-                          valence_basis=valence_basis, unitcell=unitcell,
-                          nx=nx, ny=ny, nz=nz,
-                          long_bond=long_bond,
-                          perpend_dist = perpend_dist, perpend_dist_tol = perpend_dist_tol,
-                          gamma_2d=gamma_2d, gamma_1d=gamma_1d,interlayer=interlayer)
+            fgs = autogen(
+                mol,
+                kpt,
+                be_type=be_type,
+                frozen_core=frozen_core,
+                valence_basis=valence_basis,
+                unitcell=unitcell,
+                nx=nx,
+                ny=ny,
+                nz=nz,
+                long_bond=long_bond,
+                perpend_dist=perpend_dist,
+                perpend_dist_tol=perpend_dist_tol,
+                gamma_2d=gamma_2d,
+                gamma_1d=gamma_1d,
+                interlayer=interlayer,
+            )
 
-            self.fsites, self.edge, self.center, self.edge_idx, self.center_idx, self.centerf_idx, self.ebe_weight = fgs
+            (
+                self.fsites,
+                self.edge,
+                self.center,
+                self.edge_idx,
+                self.center_idx,
+                self.centerf_idx,
+                self.ebe_weight,
+            ) = fgs
             self.Nfrag = len(self.fsites)
 
         else:
-            print('Fragmentation type = ',frag_type,' not implemented!',
-                  flush=True)
-            print('exiting',flush=True)
+            print("Fragmentation type = ", frag_type, " not implemented!", flush=True)
+            print("exiting", flush=True)
             sys.exit()
 
     from .chain import polychain

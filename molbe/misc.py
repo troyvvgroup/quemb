@@ -6,8 +6,17 @@ import time
 
 from pyscf.lib import chkfile
 
-def libint2pyscf(xyzfile, hcore, basis, hcore_skiprows=1,
-        use_df=False, unrestricted=False, spin=0, charge=0):
+
+def libint2pyscf(
+    xyzfile,
+    hcore,
+    basis,
+    hcore_skiprows=1,
+    use_df=False,
+    unrestricted=False,
+    spin=0,
+    charge=0,
+):
     """Build a pyscf Mole and RHF/UHF object using the given xyz file
     and core Hamiltonian (in libint standard format)
     c.f.
@@ -83,7 +92,8 @@ def libint2pyscf(xyzfile, hcore, basis, hcore_skiprows=1,
 
         mydf = df.DF(mol).build()
         mf.with_df = mydf
-    else: mf = scf.UHF(mol) if unrestricted else scf.RHF(mol)
+    else:
+        mf = scf.UHF(mol) if unrestricted else scf.RHF(mol)
     mf.get_hcore = lambda *args: hcore_pyscf
 
     return mol, mf
@@ -135,7 +145,12 @@ def be2fcidump(be_obj, fcidump_prefix, basis):
             raise Exception("Basis should be either embedding or fragment_mo")
 
         fcidump.from_integrals(
-            fcidump_prefix + "f" + str(fidx), h1e, h2e, frag.TA.shape[1], frag.nsocc, ms=0
+            fcidump_prefix + "f" + str(fidx),
+            h1e,
+            h2e,
+            frag.TA.shape[1],
+            frag.nsocc,
+            ms=0,
         )
 
 
@@ -185,7 +200,12 @@ def ube2fcidump(be_obj, fcidump_prefix, basis):
             raise Exception("Basis should be either embedding or fragment_mo")
 
         fcidump.from_integrals(
-            fcidump_prefix + "f" + str(fidx) + "a", h1e, h2e, frag.TA.shape[1], frag.nsocc, ms=0
+            fcidump_prefix + "f" + str(fidx) + "a",
+            h1e,
+            h2e,
+            frag.TA.shape[1],
+            frag.nsocc,
+            ms=0,
         )
 
     for fidx, frag in enumerate(be_obj.Fobjs_b):
@@ -215,7 +235,12 @@ def ube2fcidump(be_obj, fcidump_prefix, basis):
             raise Exception("Basis should be either embedding or fragment_mo")
 
         fcidump.from_integrals(
-            fcidump_prefix + "f" + str(fidx) + "b", h1e, h2e, frag.TA.shape[1], frag.nsocc, ms=0
+            fcidump_prefix + "f" + str(fidx) + "b",
+            h1e,
+            h2e,
+            frag.TA.shape[1],
+            frag.nsocc,
+            ms=0,
         )
 
 
@@ -231,15 +256,15 @@ def be2puffin(
     spin=0,
     nproc=1,
     ompnum=1,
-    be_type='be1',
+    be_type="be1",
     df_aux_basis=None,
     frozen_core=True,
-    localization_method='lowdin',
+    localization_method="lowdin",
     localization_basis=None,
     unrestricted=False,
     from_chk=False,
     checkfile=None,
-    ecp=None
+    ecp=None,
 ):
     """Front-facing API bridge tailored for SCINE Puffin
     Returns the CCSD oneshot energies
@@ -307,9 +332,9 @@ def be2puffin(
     mol = gto.M(atom=xyzfile, basis=basis, charge=charge, spin=spin)
 
     if not from_chk:
-        if hcore is None: #from point charges OR with no external potential
+        if hcore is None:  # from point charges OR with no external potential
             hcore_pyscf = None
-        else: #from starting Hamiltonian in Libint format
+        else:  # from starting Hamiltonian in Libint format
             if libint_inp == True:
                 libint2pyscf = []
                 for labelidx, label in enumerate(mol.ao_labels()):
@@ -331,8 +356,12 @@ def be2puffin(
                 hcore_pyscf = hcore
         if not jk is None:
             jk_pyscf = (
-                jk[0][numpy.ix_(libint2pyscf, libint2pyscf, libint2pyscf, libint2pyscf)],
-                jk[1][numpy.ix_(libint2pyscf, libint2pyscf, libint2pyscf, libint2pyscf)],
+                jk[0][
+                    numpy.ix_(libint2pyscf, libint2pyscf, libint2pyscf, libint2pyscf)
+                ],
+                jk[1][
+                    numpy.ix_(libint2pyscf, libint2pyscf, libint2pyscf, libint2pyscf)
+                ],
             )
 
         mol.incore_anyway = True
@@ -343,34 +372,52 @@ def be2puffin(
             if hcore is None:
                 if pts_and_charges:
                     from pyscf import qmmm
-                    print("Using QM/MM Point Charges: Assuming QM structure in Angstrom and MM Coordinates in Bohr !!!")
-                    mf1 = scf.UHF(mol).set(max_cycle = 200) #using SOSCF is more reliable
-                    #mf1 = scf.UHF(mol).set(max_cycle = 200, level_shift = (0.3, 0.2))
+
+                    print(
+                        "Using QM/MM Point Charges: Assuming QM structure in Angstrom and MM Coordinates in Bohr !!!"
+                    )
+                    mf1 = scf.UHF(mol).set(
+                        max_cycle=200
+                    )  # using SOSCF is more reliable
+                    # mf1 = scf.UHF(mol).set(max_cycle = 200, level_shift = (0.3, 0.2))
                     # using level shift helps, but not always. level_shift and
                     # scf.addons.dynamic_level_shift do not seem to work with QM/MM
                     # note: from the SCINE database, the structure is in Angstrom but the MM point charges
                     # are in Bohr !!
-                    mf = qmmm.mm_charge(mf1, pts_and_charges[0], pts_and_charges[1], unit='bohr').newton() #mf object, coordinates, charges
+                    mf = qmmm.mm_charge(
+                        mf1, pts_and_charges[0], pts_and_charges[1], unit="bohr"
+                    ).newton()  # mf object, coordinates, charges
                 else:
-                    mf = scf.UHF(mol).set(max_cycle = 200, level_shift = (0.3, 0.2))
+                    mf = scf.UHF(mol).set(max_cycle=200, level_shift=(0.3, 0.2))
             else:
-                mf = scf.UHF(mol).set(max_cycle = 200).newton()
-        else: # restricted
-            if pts_and_charges: # running QM/MM
+                mf = scf.UHF(mol).set(max_cycle=200).newton()
+        else:  # restricted
+            if pts_and_charges:  # running QM/MM
                 from pyscf import qmmm
-                print("Using QM/MM Point Charges: Assuming QM structure in Angstrom and MM Coordinates in Bohr !!!")
-                mf1 = scf.RHF(mol).set(max_cycle = 200)
-                mf = qmmm.mm_charge(mf1, pts_and_charges[0], pts_and_charges[1], unit='bohr').newton()
-                print("Setting use_df to false and jk to none: have not tested DF and QM/MM from point charges at the same time")
+
+                print(
+                    "Using QM/MM Point Charges: Assuming QM structure in Angstrom and MM Coordinates in Bohr !!!"
+                )
+                mf1 = scf.RHF(mol).set(max_cycle=200)
+                mf = qmmm.mm_charge(
+                    mf1, pts_and_charges[0], pts_and_charges[1], unit="bohr"
+                ).newton()
+                print(
+                    "Setting use_df to false and jk to none: have not tested DF and QM/MM from point charges at the same time"
+                )
                 use_df = False
                 jk = None
             elif use_df and jk is None:
                 from pyscf import df
-                mf = scf.RHF(mol).density_fit(auxbasis=df_aux_basis)
-            else: mf = scf.RHF(mol)
 
-        if not hcore is None: mf.get_hcore = lambda *args: hcore_pyscf
-        if not jk is None: mf.get_jk = lambda *args: jk_pyscf
+                mf = scf.RHF(mol).density_fit(auxbasis=df_aux_basis)
+            else:
+                mf = scf.RHF(mol)
+
+        if not hcore is None:
+            mf.get_hcore = lambda *args: hcore_pyscf
+        if not jk is None:
+            mf.get_jk = lambda *args: jk_pyscf
 
         if checkfile:
             print("Saving checkfile to:", checkfile)
@@ -384,13 +431,17 @@ def be2puffin(
             print("Reference HF Unconverged -- stopping the calculation", flush=True)
             sys.exit()
         if use_df:
-            print("Using auxillary basis in density fitting: ", mf.with_df.auxmol.basis, flush=True)
+            print(
+                "Using auxillary basis in density fitting: ",
+                mf.with_df.auxmol.basis,
+                flush=True,
+            )
             print("DF auxillary nao_nr", mf.with_df.auxmol.nao_nr(), flush=True)
         print("Time for mf kernel to run: ", time_post_mf - time_pre_mf, flush=True)
 
     elif from_chk:
         print("Running from chkfile", checkfile, flush=True)
-        scf_result_dic = chkfile.load(checkfile, 'scf')
+        scf_result_dic = chkfile.load(checkfile, "scf")
         if unrestricted:
             mf = scf.UHF(mol)
         else:
@@ -406,43 +457,41 @@ def be2puffin(
 
     fobj = fragpart(
         be_type=be_type, frag_type="autogen", mol=mol, frozen_core=frozen_core
-        )
+    )
     time_post_fragpart = time.time()
-    print("Time for fragmentation to run: ", time_post_fragpart - time_post_mf, flush=True)
+    print(
+        "Time for fragmentation to run: ", time_post_fragpart - time_post_mf, flush=True
+    )
 
     # Run embedding setup
 
     if unrestricted:
         mybe = UBE(mf, fobj, lo_method="lowdin")
-        solver="UCCSD"
+        solver = "UCCSD"
     else:
         mybe = BE(mf, fobj, lo_method="lowdin")
-        solver="CCSD"
+        solver = "CCSD"
 
     # Run oneshot embedding and return system energy
 
-    mybe.oneshot(solver=solver, nproc=nproc, ompnum=ompnum, calc_frag_energy=True, clean_eri=True)
+    mybe.oneshot(
+        solver=solver, nproc=nproc, ompnum=ompnum, calc_frag_energy=True, clean_eri=True
+    )
     return mybe.ebe_tot
 
 
-
 def print_energy(ecorr, e_V_Kapprox, e_F_dg, e_hf):
-
-
     # Print energy results
-    print('-----------------------------------------------------',
-          flush=True)
-    print(' BE ENERGIES with cumulant-based expression', flush=True)
+    print("-----------------------------------------------------", flush=True)
+    print(" BE ENERGIES with cumulant-based expression", flush=True)
 
-    print('-----------------------------------------------------',
-          flush=True)
-    print(' E_BE = E_HF + Tr(F del g) + Tr(V K_approx)', flush=True)
-    print(' E_HF            : {:>14.8f} Ha'.format(e_hf), flush=True)
-    print(' Tr(F del g)     : {:>14.8f} Ha'.format(e_F_dg), flush=True)
-    print(' Tr(V K_aprrox)  : {:>14.8f} Ha'.format(e_V_Kapprox), flush=True)
-    print(' E_BE            : {:>14.8f} Ha'.format(ecorr + e_hf), flush=True)
-    print(' Ecorr BE        : {:>14.8f} Ha'.format(ecorr), flush=True)
-    print('-----------------------------------------------------',
-          flush=True)
+    print("-----------------------------------------------------", flush=True)
+    print(" E_BE = E_HF + Tr(F del g) + Tr(V K_approx)", flush=True)
+    print(" E_HF            : {:>14.8f} Ha".format(e_hf), flush=True)
+    print(" Tr(F del g)     : {:>14.8f} Ha".format(e_F_dg), flush=True)
+    print(" Tr(V K_aprrox)  : {:>14.8f} Ha".format(e_V_Kapprox), flush=True)
+    print(" E_BE            : {:>14.8f} Ha".format(ecorr + e_hf), flush=True)
+    print(" Ecorr BE        : {:>14.8f} Ha".format(ecorr), flush=True)
+    print("-----------------------------------------------------", flush=True)
 
     print(flush=True)

@@ -2,7 +2,7 @@
 
 from .solver import be_func
 from .be_parallel import be_func_parallel
-import scipy,sys,numpy,time, h5py
+import scipy, sys, numpy, time, h5py
 
 
 class BEOPT:
@@ -40,29 +40,45 @@ class BEOPT:
        Hartree-Fock energy. Defaults to 0.0
     """
 
-    def __init__(self, pot, Fobjs, Nocc, enuc,solver='MP2', ecore=0.,
-                 nproc=1,ompnum=4,
-                 only_chem=False, hf_veff = None,
-                 hci_pt=False,hci_cutoff=0.001, ci_coeff_cutoff = None, select_cutoff=None,
-                 max_space=500, conv_tol = 1.e-6,relax_density = False,
-                 ebe_hf =0., scratch_dir=None, **solver_kwargs):
-
+    def __init__(
+        self,
+        pot,
+        Fobjs,
+        Nocc,
+        enuc,
+        solver="MP2",
+        ecore=0.0,
+        nproc=1,
+        ompnum=4,
+        only_chem=False,
+        hf_veff=None,
+        hci_pt=False,
+        hci_cutoff=0.001,
+        ci_coeff_cutoff=None,
+        select_cutoff=None,
+        max_space=500,
+        conv_tol=1.0e-6,
+        relax_density=False,
+        ebe_hf=0.0,
+        scratch_dir=None,
+        **solver_kwargs,
+    ):
         # Initialize class attributes
-        self.ebe_hf=ebe_hf
+        self.ebe_hf = ebe_hf
         self.hf_veff = hf_veff
         self.pot = pot
         self.Fobjs = Fobjs
         self.Nocc = Nocc
         self.enuc = enuc
-        self.solver=solver
+        self.solver = solver
         self.ecore = ecore
         self.iter = 0
         self.err = 0.0
         self.Ebe = 0.0
-        self.max_space=max_space
+        self.max_space = max_space
         self.nproc = nproc
         self.ompnum = ompnum
-        self.only_chem=only_chem
+        self.only_chem = only_chem
         self.conv_tol = conv_tol
         self.relax_density = relax_density
         # HCI parameters
@@ -70,8 +86,8 @@ class BEOPT:
         self.ci_coeff_cutoff = ci_coeff_cutoff
         self.select_cutoff = select_cutoff
         self.hci_pt = hci_pt
-        self.solver_kwargs=solver_kwargs
-        self.scratch_dir=scratch_dir
+        self.solver_kwargs = solver_kwargs
+        self.scratch_dir = scratch_dir
 
     def objfunc(self, xk):
         """
@@ -92,33 +108,58 @@ class BEOPT:
 
         # Choose the appropriate function based on the number of processors
         if self.nproc == 1:
-            err_, errvec_,ebe_ = be_func(xk, self.Fobjs, self.Nocc, self.solver, self.enuc,
-                                         eeval=True, return_vec=True, hf_veff = self.hf_veff,
-                                         only_chem=self.only_chem,
-                                         hci_cutoff=self.hci_cutoff,
-                                         nproc=self.ompnum, relax_density=self.relax_density,
-                                         ci_coeff_cutoff = self.ci_coeff_cutoff,
-                                         select_cutoff = self.select_cutoff, hci_pt=self.hci_pt,
-                                         ecore=self.ecore, ebe_hf=self.ebe_hf, be_iter=self.iter,
-                                         scratch_dir=self.scratch_dir, **self.solver_kwargs)
+            err_, errvec_, ebe_ = be_func(
+                xk,
+                self.Fobjs,
+                self.Nocc,
+                self.solver,
+                self.enuc,
+                eeval=True,
+                return_vec=True,
+                hf_veff=self.hf_veff,
+                only_chem=self.only_chem,
+                hci_cutoff=self.hci_cutoff,
+                nproc=self.ompnum,
+                relax_density=self.relax_density,
+                ci_coeff_cutoff=self.ci_coeff_cutoff,
+                select_cutoff=self.select_cutoff,
+                hci_pt=self.hci_pt,
+                ecore=self.ecore,
+                ebe_hf=self.ebe_hf,
+                be_iter=self.iter,
+                scratch_dir=self.scratch_dir,
+                **self.solver_kwargs,
+            )
         else:
-            err_, errvec_,ebe_ = be_func_parallel(xk, self.Fobjs, self.Nocc, self.solver, self.enuc,
-                                                  eeval=True, return_vec=True, hf_veff = self.hf_veff,
-                                                  nproc=self.nproc, ompnum=self.ompnum,
-                                                  only_chem=self.only_chem,
-                                                  hci_cutoff=self.hci_cutoff,relax_density=self.relax_density,
-                                                  ci_coeff_cutoff = self.ci_coeff_cutoff,
-                                                  select_cutoff = self.select_cutoff,
-                                                  ecore=self.ecore, ebe_hf=self.ebe_hf, be_iter=self.iter,
-                                                  scratch_dir=self.scratch_dir, **self.solver_kwargs)
+            err_, errvec_, ebe_ = be_func_parallel(
+                xk,
+                self.Fobjs,
+                self.Nocc,
+                self.solver,
+                self.enuc,
+                eeval=True,
+                return_vec=True,
+                hf_veff=self.hf_veff,
+                nproc=self.nproc,
+                ompnum=self.ompnum,
+                only_chem=self.only_chem,
+                hci_cutoff=self.hci_cutoff,
+                relax_density=self.relax_density,
+                ci_coeff_cutoff=self.ci_coeff_cutoff,
+                select_cutoff=self.select_cutoff,
+                ecore=self.ecore,
+                ebe_hf=self.ebe_hf,
+                be_iter=self.iter,
+                scratch_dir=self.scratch_dir,
+                **self.solver_kwargs,
+            )
 
         # Update error and BE energy
         self.err = err_
         self.Ebe = ebe_
         return errvec_
 
-
-    def optimize(self, method, J0 = None, trust_region=False):
+    def optimize(self, method, J0=None, trust_region=False):
         """Main kernel to perform BE optimization
 
         Parameters
@@ -133,59 +174,72 @@ class BEOPT:
         from molbe.external.optqn import FrankQN
         import sys
 
-        print('-----------------------------------------------------',
-                  flush=True)
-        print('             Starting BE optimization ', flush=True)
-        print('             Solver : ',self.solver,flush=True)
+        print("-----------------------------------------------------", flush=True)
+        print("             Starting BE optimization ", flush=True)
+        print("             Solver : ", self.solver, flush=True)
         if self.only_chem:
-            print('             Chemical Potential Optimization', flush=True)
-        print('-----------------------------------------------------',
-                  flush=True)
+            print("             Chemical Potential Optimization", flush=True)
+        print("-----------------------------------------------------", flush=True)
         print(flush=True)
 
-        if method=='QN':
-
-            print('-- In iter ',self.iter, flush=True)
+        if method == "QN":
+            print("-- In iter ", self.iter, flush=True)
 
             # Initial step
             f0 = self.objfunc(self.pot)
 
-            print('Error in density matching      :   {:>2.4e}'.format(self.err), flush=True)
+            print(
+                "Error in density matching      :   {:>2.4e}".format(self.err),
+                flush=True,
+            )
             print(flush=True)
 
             # Initialize the Quasi-Newton optimizer
-            optQN = FrankQN(self.objfunc, numpy.array(self.pot),
-                            f0, J0,
-                            max_space=self.max_space)
+            optQN = FrankQN(
+                self.objfunc, numpy.array(self.pot), f0, J0, max_space=self.max_space
+            )
 
             if self.err < self.conv_tol:
                 print(flush=True)
-                print('CONVERGED w/o Optimization Steps',flush=True)
+                print("CONVERGED w/o Optimization Steps", flush=True)
                 print(flush=True)
             else:
                 # Perform optimization steps
                 for iter_ in range(self.max_space):
-                    print('-- In iter ',self.iter, flush=True)
+                    print("-- In iter ", self.iter, flush=True)
                     optQN.next_step(trust_region=trust_region)
                     self.iter += 1
-                    print('Error in density matching      :   {:>2.4e}'.format(self.err), flush=True)
+                    print(
+                        "Error in density matching      :   {:>2.4e}".format(self.err),
+                        flush=True,
+                    )
                     print(flush=True)
                     if self.err < self.conv_tol:
                         print(flush=True)
-                        print('CONVERGED',flush=True)
+                        print("CONVERGED", flush=True)
                         print(flush=True)
                         break
         else:
-            print('This optimization method for BE is not supported')
+            print("This optimization method for BE is not supported")
             sys.exit()
 
 
-
-
-def optimize(self, solver='MP2',method='QN',
-             only_chem=False, conv_tol = 1.e-6, relax_density=False, use_cumulant=True,
-             J0=None, nproc=1, ompnum=4, max_iter=500, scratch_dir=None, trust_region=False,
-             **solver_kwargs):
+def optimize(
+    self,
+    solver="MP2",
+    method="QN",
+    only_chem=False,
+    conv_tol=1.0e-6,
+    relax_density=False,
+    use_cumulant=True,
+    J0=None,
+    nproc=1,
+    ompnum=4,
+    max_iter=500,
+    scratch_dir=None,
+    trust_region=False,
+    **solver_kwargs,
+):
     """BE optimization function
 
     Interfaces BEOPT to perform bootstrap embedding optimization.
@@ -223,37 +277,53 @@ def optimize(self, solver='MP2',method='QN',
     # Check if only chemical potential optimization is required
     if not only_chem:
         pot = self.pot
-        if self.be_type=='be1':
-            sys.exit('BE1 only works with chemical potential optimization. Set only_chem=True')
+        if self.be_type == "be1":
+            sys.exit(
+                "BE1 only works with chemical potential optimization. Set only_chem=True"
+            )
     else:
-        pot = [0.]
+        pot = [0.0]
 
     # Initialize the BEOPT object
-    be_ = BEOPT(pot, self.Fobjs, self.Nocc, self.enuc, hf_veff = self.hf_veff,
-                nproc=nproc, ompnum=ompnum, scratch_dir=scratch_dir,
-                max_space=max_iter,conv_tol = conv_tol,
-                only_chem=only_chem,
-                hci_cutoff=self.hci_cutoff,
-                ci_coeff_cutoff = self.ci_coeff_cutoff,relax_density=relax_density,
-                select_cutoff = self.select_cutoff,hci_pt=self.hci_pt,
-                solver=solver, ecore=self.E_core, ebe_hf=self.ebe_hf,
-                **solver_kwargs)
+    be_ = BEOPT(
+        pot,
+        self.Fobjs,
+        self.Nocc,
+        self.enuc,
+        hf_veff=self.hf_veff,
+        nproc=nproc,
+        ompnum=ompnum,
+        scratch_dir=scratch_dir,
+        max_space=max_iter,
+        conv_tol=conv_tol,
+        only_chem=only_chem,
+        hci_cutoff=self.hci_cutoff,
+        ci_coeff_cutoff=self.ci_coeff_cutoff,
+        relax_density=relax_density,
+        select_cutoff=self.select_cutoff,
+        hci_pt=self.hci_pt,
+        solver=solver,
+        ecore=self.E_core,
+        ebe_hf=self.ebe_hf,
+        **solver_kwargs,
+    )
 
-    if method=='QN':
+    if method == "QN":
         # Prepare the initial Jacobian matrix
         if only_chem:
-            J0 = [[0.]]
-            J0 = self.get_be_error_jacobian(jac_solver='HF')
-            J0 = [[J0[-1,-1]]]
+            J0 = [[0.0]]
+            J0 = self.get_be_error_jacobian(jac_solver="HF")
+            J0 = [[J0[-1, -1]]]
         else:
-            J0 = self.get_be_error_jacobian(jac_solver='HF')
+            J0 = self.get_be_error_jacobian(jac_solver="HF")
 
         # Perform the optimization
         be_.optimize(method, J0=J0, trust_region=trust_region)
         self.ebe_tot = self.ebe_hf + be_.Ebe[0]
         # Print the energy components
-        print_energy(be_.Ebe[0], be_.Ebe[1][1], be_.Ebe[1][0]+be_.Ebe[1][2], self.ebe_hf)
+        print_energy(
+            be_.Ebe[0], be_.Ebe[1][1], be_.Ebe[1][0] + be_.Ebe[1][2], self.ebe_hf
+        )
     else:
-        print('This optimization method for BE is not supported')
+        print("This optimization method for BE is not supported")
         sys.exit()
-
