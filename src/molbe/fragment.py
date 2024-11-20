@@ -6,8 +6,6 @@ from .autofrag import autogen
 from .helper import get_core
 
 
-
-
 class fragpart:
     """Fragment/partitioning definition
 

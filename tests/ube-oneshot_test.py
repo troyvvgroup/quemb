@@ -14,8 +14,6 @@ from pyscf import gto, scf
 from molbe import UBE, fragpart
 
 
-
-
 class TestOneShot_Unrestricted(unittest.TestCase):
     @unittest.skipIf(
         not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",

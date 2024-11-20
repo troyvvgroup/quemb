@@ -12,8 +12,6 @@ from pyscf import gto, scf
 from molbe import BE, fragpart
 
 
-
-
 class TestBE_DMRG(unittest.TestCase):
     try:
         from pyscf import dmrgscf
