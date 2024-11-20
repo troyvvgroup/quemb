@@ -55,7 +55,7 @@ jobs:
         ruff format --diff || true    # for the moment we want to report always report success
 
 
-    - name: Static analyis
+    - name: Static analysis
       run: |
         ruff check . || true    # for the moment we want to report always report success
 
