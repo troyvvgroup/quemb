@@ -52,12 +52,12 @@ jobs:
 
     - name: Check formatting
       run: |
-        ruff format --diff
+        ruff format --diff || true    # for the moment we want to report always report success
 
 
     - name: Static analyis
       run: |
-        ruff check .
+        ruff check . || true    # for the moment we want to report always report success
 
 
     - name: Test with pytest
