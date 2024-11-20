@@ -14,6 +14,7 @@ from .pfrag import Frags
 
 
 
+
 class BE:
     """
     Class for handling periodic bootstrap embedding (BE) calculations.

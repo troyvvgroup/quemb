@@ -13,6 +13,7 @@ from molbe import BE, fragpart
 
 
 
+
 class TestHFinHF_restricted(unittest.TestCase):
     def test_h8_sto3g_ben(self):
         # Linear Equidistant (r=1Å) H8 Chain, STO-3G

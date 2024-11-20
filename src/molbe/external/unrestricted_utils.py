@@ -7,6 +7,7 @@ import numpy
 
 
 
+
 def make_uhf_obj(fobj_a, fobj_b, frozen=False):
     from pyscf import scf
 
