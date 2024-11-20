@@ -13,8 +13,6 @@ from .misc import storePBE
 from .pfrag import Frags
 
 
-
-
 class BE:
     """
     Class for handling periodic bootstrap embedding (BE) calculations.

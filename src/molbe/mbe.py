@@ -5,7 +5,6 @@ import pickle
 
 import h5py
 import numpy
-import pyscf
 
 import molbe.be_var as be_var
 
