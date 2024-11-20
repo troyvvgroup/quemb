@@ -27,15 +27,20 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
+    - name: Prepare pip
+      run: |
+        python -m pip install --upgrade pip
+
+
     - uses: actions/cache@v4
       with:
         path: ${{ env.pythonLocation }}
         key: ${{ env.pythonLocation }}-${{ hashFiles('setup.py') }}-${{ hashFiles('dev-requirements.txt') }}
 
+
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install --upgrade --upgrade-strategy eager pytest
+        pip install --upgrade --upgrade-strategy eager pytest ruff
         if [ -f requirements.txt ]; then pip install --upgrade --upgrade-strategy eager -r requirements.txt; fi
         pip install git+https://github.com/pyscf/dmrgscf
         PYSCFHOME=$(pip show pyscf-dmrgscf | grep 'Location' | tr ' ' '\n' | tail -n 1)
@@ -43,6 +48,17 @@ jobs:
         mv settings.py.example ${PYSCFHOME}/pyscf/dmrgscf/settings.py
         pip install .
         echo ${{ github.workspace }} > $(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")/quemb.pth
+
+
+    - name: Check formatting
+      run: |
+        ruff format --diff
+
+
+    - name: Static analyis
+      run: |
+        ruff check .
+
 
     - name: Test with pytest
       run: |
