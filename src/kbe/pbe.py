@@ -15,7 +15,6 @@ from pyscf.pbc.df.df_jk import _ewald_exxdiv_for_G0
 import molbe.be_var as be_var
 from kbe.misc import storePBE
 from kbe.pfrag import Frags
-from kbe.solver import be_func
 
 
 class BE:
@@ -602,7 +601,9 @@ class BE:
         clean_eri : bool, optional
             Whether to clean up ERI files after calculation, by default False.
         """
-        from kbe.be_parallel import be_func_parallel
+        # has to be here because of circular dependency
+        from .be_parallel import be_func_parallel  # noqa: PLC0415
+        from .solver import be_func  # noqa: PLC0415
 
         print("Calculating Energy by Fragment? ", calc_frag_energy)
         if nproc == 1:
