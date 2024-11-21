@@ -3,8 +3,11 @@
 import sys
 
 import numpy
+from pyscf import lib
 
 from molbe.helper import get_core
+
+from .misc import sgeom
 
 
 def warn_large_fragment():
@@ -324,10 +327,6 @@ def autogen(
         Weights for each fragment. Each entry contains a weight and a list of LO
         indices.
     """
-    from pyscf import lib
-
-    from .misc import sgeom
-
     if not float(unitcell).is_integer():
         print("Fractional unitcell is not supported!")
         sys.exit()

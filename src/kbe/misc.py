@@ -2,6 +2,7 @@
 
 import numpy
 from pyscf import lib
+from pyscf.pbc import tools
 
 
 def sgeom(cell, kmesh=None):
@@ -15,11 +16,7 @@ def sgeom(cell, kmesh=None):
     kmesh : list of int
        Number of k-points in each lattice vector dimension
     """
-    from pyscf.pbc import tools
-
-    scell = tools.super_cell(cell, kmesh)
-
-    return scell
+    return tools.super_cell(cell, kmesh)
 
 
 def get_phase(cell, kpts, kmesh):

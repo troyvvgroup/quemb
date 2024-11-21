@@ -156,4 +156,6 @@ class fragpart:
             print("exiting", flush=True)
             sys.exit()
 
-    from .chain import polychain
+    # This import makes polychain a method of the class and
+    #  cannot be moved to the top of the file
+    from .chain import polychain  # noqa: PLC0415

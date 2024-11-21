@@ -3,14 +3,20 @@
 import os
 import pickle
 import sys
+from multiprocessing import Pool
 
 import h5py
 import numpy
+from libdmet.basis_transform.eri_transform import get_emb_eri_fast_gdf
+from pyscf import ao2mo
+from pyscf.pbc import df, gto
+from pyscf.pbc.df.df_jk import _ewald_exxdiv_for_G0
 
 import molbe.be_var as be_var
 
 from .misc import storePBE
 from .pfrag import Frags
+from .solver import be_func
 
 
 class BE:
@@ -322,11 +328,12 @@ class BE:
         if not restart:
             self.initialize(mf._eri, compute_hf)
 
-    # this is a molbe method not BEOPT
-    from molbe.external.optqn import get_be_error_jacobian
+    # The following import of these functions turns them into
+    # proper methods of the class.
+    from molbe.external.optqn import get_be_error_jacobian  # noqa: PLC0415
 
-    from ._opt import optimize
-    from .lo import localize
+    from ._opt import optimize  # noqa: PLC0415
+    from .lo import localize  # noqa: PLC0415
 
     def print_ini(self):
         """
@@ -349,8 +356,6 @@ class BE:
         print(flush=True)
 
     def ewald_sum(self, kpts=None):
-        from pyscf.pbc.df.df_jk import _ewald_exxdiv_for_G0
-
         dm_ = self.mf.make_rdm1()
         nk, nao, nao = dm_.shape
 
@@ -380,13 +385,6 @@ class BE:
         restart : bool, optional
             Whether to restart from a previous calculation, by default False.
         """
-        import os
-        from multiprocessing import Pool
-
-        import h5py
-        from libdmet.basis_transform.eri_transform import get_emb_eri_fast_gdf
-        from pyscf import ao2mo
-
         if compute_hf:
             E_hf = 0.0
         EH1 = 0.0
@@ -610,7 +608,6 @@ class BE:
             Whether to clean up ERI files after calculation, by default False.
         """
         from .be_parallel import be_func_parallel
-        from .solver import be_func
 
         print("Calculating Energy by Fragment? ", calc_frag_energy)
         if nproc == 1:
@@ -768,10 +765,6 @@ def eritransform_parallel(a, atom, basis, kpts, C_ao_emb, cderi):
     """
     Wrapper for parallel eri transformation
     """
-    from pyscf.pbc import df, gto
-
-    from molbe.external.eri_transform import get_emb_eri_fast_gdf
-
     cell = gto.Cell()
     cell.a = a
     cell.atom = atom
