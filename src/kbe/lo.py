@@ -363,7 +363,7 @@ def localize(
                     self.Nocc - self.ncore,
                 )
                 # Find virtual orbitals that lie in the span of LOs
-                u, l, vt = numpy.linalg.svd(
+                _, l, vt = numpy.linalg.svd(
                     self.W[k].conj().T @ self.S[k] @ Cv[k], full_matrices=False
                 )
                 nvlo = nlo - self.Nocc - self.ncore
@@ -414,7 +414,7 @@ def localize(
                 S_lnc = reduce(
                     numpy.dot, (lorb_nocore[k].conj().T, self.S[k], lorb_nocore[k])
                 )
-                e__, v__ = scipy.linalg.eigh(fock_lnc, S_lnc)
+                e__, _ = scipy.linalg.eigh(fock_lnc, S_lnc)
                 mo_energy_nc.append(e__)
             lmf = KMF(
                 self.mol, kpts=self.kpts, mo_coeff=lorb_nocore, mo_energy=mo_energy_nc
