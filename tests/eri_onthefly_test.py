@@ -1,5 +1,6 @@
 """
-This script tests the on-the-fly DF-based ERI transformation routine for molecular systems.
+This script tests the on-the-fly DF-based ERI transformation routine for
+molecular systems.
 
 Author(s): Minsik Cho
 """

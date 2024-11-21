@@ -8,7 +8,8 @@ from pyscf import ao2mo
 
 """ Derivative of approximate t1 amplitudes
 t_ia = ((2*t2-t2)_ibjc g_cjba - g_ikbj (2*t2-t2)_jbka) / (e_i - e_a)
-This approximate t1 is by substituting the MP2 t2 amplitudes into the CCSD equation and run it for one cycle.
+This approximate t1 is by substituting the MP2 t2 amplitudes into the CCSD equation and
+run it for one cycle.
 """
 
 

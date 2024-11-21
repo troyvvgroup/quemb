@@ -51,7 +51,6 @@ def make_uhf_obj(fobj_a, fobj_b, frozen=False):
         ]
     else:
         full_uhf.gcores_raw = [full_uhf.veff0_a, full_uhf.veff0_b]
-        #        full_uhf.gcores_raw = [fobj_a.TA.T @ fobj_a.hf_veff @ fobj_a.TA, fobj_b.TA.T @ fobj_b.hf_veff @ fobj_b.TA]
         full_uhf.core_veffs = None
 
     return full_uhf, Vs

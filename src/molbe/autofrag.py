@@ -19,27 +19,34 @@ def autogen(
     """
     Automatic molecular partitioning
 
-    Partitions a molecule into overlapping fragments as defined in BE atom-based fragmentations.
-    It automatically detects branched chemical chains and ring systems and partitions accordingly.
-    For efficiency, it only checks two atoms for connectivity (chemical bond) if they are within 3.5 Angstrom.
-    This value is hardcoded as normdist. Two atoms are defined as bonded if they are within 1.8 Angstrom (1.2 for Hydrogen atom).
+    Partitions a molecule into overlapping fragments as defined in BE atom-based
+    fragmentations.  It automatically detects branched chemical chains and ring systems
+    and partitions accordingly.  For efficiency, it only checks two atoms
+    for connectivity (chemical bond) if they are within 3.5 Angstrom.
+    This value is hardcoded as normdist. Two atoms are defined as bonded
+    if they are within 1.8 Angstrom (1.2 for Hydrogen atom).
     This is also hardcoded as bond & hbond.
 
     Parameters
     ----------
     mol : pyscf.gto.Molecule
-        pyscf.gto.Molecule object. This is required for the options, 'autogen' and 'chain' as frag_type.
+        pyscf.gto.Molecule object. This is required for the options, 'autogen',
+        and 'chain' as frag_type.
     frozen_core : bool, optional
         Whether to invoke frozen core approximation. Defaults to True.
     be_type : str, optional
-        Specifies the order of bootstrap calculation in the atom-based fragmentation. Supported values are 'be1', 'be2', 'be3', and 'be4'.
+        Specifies the order of bootstrap calculation in the atom-based fragmentation.
+        Supported values are 'be1', 'be2', 'be3', and 'be4'.
         Defaults to 'be2'.
     write_geom : bool, optional
-        Whether to write a 'fragment.xyz' file which contains all the fragments in Cartesian coordinates. Defaults to False.
+        Whether to write a 'fragment.xyz' file which contains all the fragments in
+        Cartesian coordinates. Defaults to False.
     valence_basis : str, optional
-        Name of minimal basis set for IAO scheme. 'sto-3g' is sufficient for most cases. Defaults to None.
+        Name of minimal basis set for IAO scheme. 'sto-3g' is sufficient for most cases.
+        Defaults to None.
     valence_only : bool, optional
-        If True, all calculations will be performed in the valence basis in the IAO partitioning. This is an experimental feature. Defaults to False.
+        If True, all calculations will be performed in the valence basis in
+        the IAO partitioning. This is an experimental feature. Defaults to False.
     print_frags : bool, optional
         Whether to print out the list of resulting fragments. Defaults to True.
 
@@ -52,13 +59,16 @@ def autogen(
     center : list of list of int
         List of center indices for each edge.
     edge_idx : list of list of list of int
-        List of edge indices for each fragment where each edge index is a list of LO indices.
+        List of edge indices for each fragment where each edge index is a list of
+        LO indices.
     center_idx : list of list of list of int
-        List of center indices for each fragment where each center index is a list of LO indices.
+        List of center indices for each fragment where each center index is a list of
+        LO indices.
     centerf_idx : list of list of int
         List of center fragment indices.
     ebe_weight : list of list
-        Weights for each fragment. Each entry contains a weight and a list of LO indices.
+        Weights for each fragment. Each entry contains a weight and a list of
+        LO indices.
     Frag: list of lists
         Heavy atom indices for each fragment, per fragment
     cen: list
@@ -66,8 +76,8 @@ def autogen(
     hlist: list of lists
         All hydrogen atom indices for each fragment, per fragment
     add_centers: list of lists
-        "additional centers" for all fragments, per fragment: contains heavy atoms which are not
-        centers in any other fragments
+        "additional centers" for all fragments, per fragment: contains heavy atoms
+        which are not centers in any other fragments
 
     """
 

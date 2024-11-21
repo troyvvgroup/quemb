@@ -11,10 +11,11 @@ from pyscf import ao2mo
 
 def get_veff(eri_, dm, S, TA, hf_veff):
     """
-    Calculate the effective HF potential (Veff) for a given density matrix and electron repulsion integrals.
+    Calculate the effective HF potential (Veff) for a given density matrix and
+    electron repulsion integrals.
 
-    This function computes the effective potential by transforming the density matrix, computing the Coulomb (J) and
-    exchange (K) integrals.
+    This function computes the effective potential by transforming the density matrix,
+    computing the Coulomb (J) and exchange (K) integrals.
 
     Parameters
     ----------
@@ -70,8 +71,9 @@ def get_scfObj(
     """
     Initialize and run a restricted Hartree-Fock (RHF) calculation.
 
-    This function sets up an SCF (Self-Consistent Field) object using the provided one-electron Hamiltonian, electron
-    repulsion integrals, and number of occupied orbitals. It then runs the SCF procedure, optionally using an initial
+    This function sets up an SCF (Self-Consistent Field) object using the provided
+    one-electron Hamiltonian, electron repulsion integrals, and number
+    of occupied orbitals. It then runs the SCF procedure, optionally using an initial
     density matrix.
 
     Parameters
@@ -83,7 +85,8 @@ def get_scfObj(
     nocc : int
         Number of occupied orbitals.
     dm0 : numpy.ndarray, optional
-        Initial density matrix. If not provided, the SCF calculation will start from scratch. Defaults to None.
+        Initial density matrix. If not provided, the SCF calculation will start
+        from scratch. Defaults to None.
     enuc : float, optional
         Nuclear repulsion energy. Defaults to 0.0.
 
@@ -147,9 +150,11 @@ def get_scfObj(
 
 def get_eri(i_frag, Nao, symm=8, ignore_symm=False, eri_file="eri_file.h5"):
     """
-    Retrieve and optionally restore electron repulsion integrals (ERI) from an HDF5 file.
+    Retrieve and optionally restore electron repulsion integrals (ERI)
+    from an HDF5 file.
 
-    This function reads the ERI for a given fragment from an HDF5 file, and optionally restores the symmetry of the ERI.
+    This function reads the ERI for a given fragment from an HDF5 file, and optionally
+    restores the symmetry of the ERI.
 
     Parameters
     ----------
@@ -162,7 +167,8 @@ def get_eri(i_frag, Nao, symm=8, ignore_symm=False, eri_file="eri_file.h5"):
     ignore_symm : bool, optional
         If True, the symmetry step is skipped. Defaults to False.
     eri_file : str, optional
-        Filename of the HDF5 file containing the electron repulsion integrals. Defaults to 'eri_file.h5'.
+        Filename of the HDF5 file containing the electron repulsion integrals.
+        Defaults to 'eri_file.h5'.
 
     Returns
     -------
@@ -253,8 +259,9 @@ def get_frag_energy(
     """
     Compute the fragment energy.
 
-    This function calculates the energy contribution of a fragment within a larger molecular system
-    using the provided molecular orbital coefficients, density matrices, and effective potentials.
+    This function calculates the energy contribution of a fragment within a
+    larger molecular system using the provided molecular orbital coefficients,
+    density matrices, and effective potentials.
 
     Parameters
     ----------
@@ -279,7 +286,8 @@ def get_frag_energy(
     dname : str
         Dataset name in the HDF5 file.
     eri_file : str, optional
-        Filename of the HDF5 file containing the electron repulsion integrals. Defaults to 'eri_file.h5'.
+        Filename of the HDF5 file containing the electron repulsion integrals.
+        Defaults to 'eri_file.h5'.
 
     Returns
     -------
@@ -369,8 +377,9 @@ def get_frag_energy_u(
     """
     Compute the fragment energy for unrestricted calculations
 
-    This function calculates the energy contribution of a fragment within a larger molecular system
-    using the provided molecular orbital coefficients, density matrices, and effective potentials.
+    This function calculates the energy contribution of a fragment within
+    a larger molecular system using the provided molecular orbital coefficients,
+    density matrices, and effective potentials.
 
     Parameters
     ----------
@@ -395,7 +404,8 @@ def get_frag_energy_u(
     dname : list
         Dataset name in the HDF5 file.
     eri_file : str, optional
-        Filename of the HDF5 file containing the electron repulsion integrals. Defaults to 'eri_file.h5'.
+        Filename of the HDF5 file containing the electron repulsion integrals.
+        Defaults to 'eri_file.h5'.
     gcores :
 
     frozen : bool, optional

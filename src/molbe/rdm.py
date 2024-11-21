@@ -24,7 +24,8 @@ def rdm1_fullbasis(
     only_rdm2 : bool, optional
         Whether to compute only the RDM2. Default is False.
     return_lo : bool, optional
-        Whether to return the RDMs in the localized orbital (LO) basis. Default is False.
+        Whether to return the RDMs in the localized orbital (LO) basis.
+        Default is False.
     return_RDM2 : bool, optional
         Whether to return the two-particle RDM (RDM2). Default is True.
     print_energy : bool, optional
@@ -41,9 +42,11 @@ def rdm1_fullbasis(
     rdm2LO : numpy.ndarray
         The two-particle RDM in the LO basis (if return_lo and return_RDM2 are True).
     rdm1MO : numpy.ndarray
-        The one-particle RDM in the molecular orbital (MO) basis (if return_ao is False).
+        The one-particle RDM in the molecular orbital (MO) basis
+        (if return_ao is False).
     rdm2MO : numpy.ndarray
-        The two-particle RDM in the MO basis (if return_ao is False and return_RDM2 is True).
+        The two-particle RDM in the MO basis
+        (if return_ao is False and return_RDM2 is True).
     """
     from pyscf import ao2mo
 
@@ -61,7 +64,8 @@ def rdm1_fullbasis(
             drdm1 = fobjs.__rdm1.copy()
             drdm1[numpy.diag_indices(fobjs.nsocc)] -= 2.0
 
-            # Compute the two-particle reduced density matrix (RDM2) and subtract non-connected component
+            # Compute the two-particle reduced density matrix (RDM2) and subtract
+            #   non-connected component
             dm_nc = numpy.einsum(
                 "ij,kl->ijkl", drdm1, drdm1, dtype=numpy.float64, optimize=True
             ) - 0.5 * numpy.einsum(
@@ -212,7 +216,8 @@ def compute_energy_full(
     Parameters
     ----------
     approx_cumulant : bool, optional
-        If True, use an approximate cumulant for the energy computation. Default is False.
+        If True, use an approximate cumulant for the energy computation.
+        Default is False.
     use_full_rdm : bool, optional
         If True, use the full two-particle RDM for energy computation. Default is False.
     return_rdm : bool, optional
@@ -221,25 +226,28 @@ def compute_energy_full(
     Returns
     -------
     tuple of numpy.ndarray or None
-        If `return_rdm` is True, returns a tuple containing the one-particle and two-particle
-        reduced density matrices (RDM1 and RDM2). Otherwise, returns None.
+        If `return_rdm` is True, returns a tuple containing the one-particle
+        and two-particle reduced density matrices (RDM1 and RDM2).
+        Otherwise, returns None.
 
     Notes
     -----
     This function computes the total energy in the full basis, with options to use
-    approximate or true cumulants, and to return the reduced density matrices (RDMs). The
-    energy components are printed as part of the function's output.
+    approximate or true cumulants, and to return the reduced density matrices (RDMs).
+    The energy components are printed as part of the function's output.
     """
 
     from pyscf import ao2mo, scf
 
-    # Compute the one-particle reduced density matrix (RDM1) and the cumulant (Kumul) in the full basis
+    # Compute the one-particle reduced density matrix (RDM1) and the cumulant (Kumul)
+    #   in the full basis
     rdm1f, Kumul, rdm1_lo, rdm2_lo = self.rdm1_fullbasis(
         return_lo=True, return_RDM2=False
     )
 
     if not approx_cumulant:
-        # Compute the true two-particle reduced density matrix (RDM2) if not using approximate cumulant
+        # Compute the true two-particle reduced density matrix (RDM2) if not using
+        # approximate cumulant
         Kumul_T = self.rdm1_fullbasis(only_rdm2=True)
 
     if return_rdm:

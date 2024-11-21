@@ -12,7 +12,8 @@ from . import be_var
 
 
 def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
-    """Calculate AO density-fitted 3-center integrals on-the-fly and transform to Schmidt space for given fragment objects
+    """Calculate AO density-fitted 3-center integrals on-the-fly and transform to
+    Schmidt space for given fragment objects
 
     Parameters
     ----------
@@ -20,20 +21,24 @@ def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
         Mean-field object for the chemical system (typically BE.mf)
     Fobjs : list of BE.Frags
         List containing fragment objects (typically BE.Fobjs)
-        The MO coefficients are taken from Frags.TA and the transformed ERIs are stored in Frags.dname as h5py datasets.
+        The MO coefficients are taken from Frags.TA and the transformed ERIs are stored
+        in Frags.dname as h5py datasets.
     file_eri : h5py.File
         HDF5 file object to store the transformed fragment ERIs
     auxbasis : string, optional
-        Auxiliary basis used for density fitting. If not provided, use pyscf's default choice for the basis set used to construct mf object; by default None
+        Auxiliary basis used for density fitting. If not provided, use pyscf's default
+        choice for the basis set used to construct mf object; by default None
     """
 
     def calculate_pqL(aux_range):
-        """Internal function to calculate the 3-center integrals for a given range of auxiliary indices
+        """Internal function to calculate the 3-center integrals for a given range of
+        auxiliary indices
 
         Parameters
         ----------
         aux_range : tuple of int
-            (start index, end index) of the auxiliary basis functions to calculate the 3-center integrals, i.e. (pq|L) with L ∈ [start, end) is returned
+            (start index, end index) of the auxiliary basis functions to calculate the
+            3-center integrals, i.e. (pq|L) with L ∈ [start, end) is returned
         """
         if be_var.PRINT_LEVEL > 10:
             print("Start calculating (μν|P) for range", aux_range, flush=True)
@@ -63,7 +68,8 @@ def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
         return ints
 
     def block_step_size(nfrag, naux, nao):
-        """Internal function to calculate the block step size for the 3-center integrals calculation
+        """Internal function to calculate the block step size for the 3-center
+        integrals calculation
 
         Parameters
         ----------
@@ -92,7 +98,8 @@ def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
             "Evaluating fragment ERIs on-the-fly using density fitting...", flush=True
         )
         print(
-            "In this case, note that HF-in-HF error includes DF error on top of numerical error from embedding.",
+            "In this case, note that HF-in-HF error includes DF error on top of "
+            "numerical error from embedding.",
             flush=True,
         )
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)

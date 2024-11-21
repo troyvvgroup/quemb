@@ -42,9 +42,9 @@ class UBE(BE):  # 🍠
     ):
         """Initialize Unrestricted BE Object (ube🍠)
         ** NOTE **
-            Currently only supports embedding Hamiltonian construction for molecular systems
-            In conjunction with molbe.misc.ube2fcidump, embedding Hamiltonians can be written
-            for external use.
+            Currently only supports embedding Hamiltonian construction for molecular
+            systems In conjunction with molbe.misc.ube2fcidump,
+            embedding Hamiltonians can be written for external use.
             See `unrestricted` branch for a work-in-progress full implmentation
 
         Parameters
@@ -56,7 +56,8 @@ class UBE(BE):  # 🍠
         eri_file : str, optional
             h5py file with ERIs, by default "eri_file.h5"
         lo_method : str, optional
-            Method for orbital localization. Supports 'lowdin', 'boys', and 'wannier', by default "lowdin"
+            Method for orbital localization. Supports 'lowdin', 'boys', and 'wannier',
+            by default "lowdin"
         """
         self.unrestricted = True
 
@@ -289,7 +290,8 @@ class UBE(BE):  # 🍠
             b_TA = fobj_b.TA.shape
             if eri_ is None and self.mf.with_df is not None:
                 # NOT IMPLEMENTED: should not be called, as no unrestricted DF tested
-                # for density-fitted integrals; if mf is provided, pyscf.ao2mo uses DF object in an outcore fashion
+                # for density-fitted integrals; if mf is provided, pyscf.ao2mo uses DF
+                # object in an outcore fashion
                 eri_a = ao2mo.kernel(self.mf.mol, fobj_a.TA, compact=True)
                 eri_b = ao2mo.kernel(self.mf.mol, fobj_b.TA, compact=True)
             else:
@@ -371,7 +373,7 @@ class UBE(BE):  # 🍠
         )
         for I in range(self.Nfrag):
             print(
-                "|    {:>2}    | ({:>3},{:>3}) |   ({:>3},{:>3})   | ({:>3},{:>3}) |   ({:>3},{:>3})   |".format(
+                "|    {:>2}    | ({:>3},{:>3}) |   ({:>3},{:>3})   | ({:>3},{:>3}) |   ({:>3},{:>3})   |".format(  # noqa: E501
                     I,
                     all_noccs[I][0],
                     all_noccs[I][1],

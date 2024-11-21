@@ -360,18 +360,21 @@ def get_cpuhf_A_spin_eri(C, moe, eri, no):
 
 
 def get_cpuhf_A(C, moe, eri, no):
-    """eri could be a single numpy array (in spinless basis) or a tuple/list of 3 numpy arrays in the order [aa,bb,ab]"""
+    """eri could be a single numpy array (in spinless basis) or a tuple/list of
+    3 numpy arrays in the order [aa,bb,ab]"""
     if isinstance(eri, np.ndarray):
         return get_cpuhf_A_spinless_eri(C, moe, eri, no)
     elif isinstance(eri, (list, tuple)):
         if len(eri) != 3:
             raise ValueError(
-                "Input eri must be a list/tuple of 3 numpy arrays in the order [aa,bb,ab]"
+                "Input eri must be a list/tuple of 3 numpy arrays in the order "
+                "[aa,bb,ab]"
             )
         return get_cpuhf_A_spin_eri(C, moe, eri, no)
     else:
         raise ValueError(
-            "Input eri must be either a numpy array or a list/tuple of 3 numpy arrays in the order [aa,bb,ab]."
+            "Input eri must be either a numpy array or a list/tuple of 3 numpy arrays "
+            "in the order [aa,bb,ab]."
         )
 
 

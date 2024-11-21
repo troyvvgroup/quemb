@@ -45,13 +45,17 @@ class Frags:
         ifrag : int
             fragment index (∈ [0, pbe.Nfrag])
         edge : list, optional
-            list of lists of edge site AOs for each atom in the fragment, by default None
+            list of lists of edge site AOs for each atom in the fragment,
+            by default None
         center : list, optional
-            list of fragment indices where edge site AOs are center site, by default None
+            list of fragment indices where edge site AOs are center site,
+            by default None
         edge_idx : list, optional
-            list of lists of indices for edge site AOs within the fragment, by default None
+            list of lists of indices for edge site AOs within the fragment,
+            by default None
         center_idx : list, optional
-            list of lists of indices within the fragment specified in `center` that points to the edge site AOs , by default None
+            list of lists of indices within the fragment specified in `center` that
+            points to the edge site AOs , by default None
         efac : list, optional
             weight used for energy contributions, by default None
         eri_file : str, optional

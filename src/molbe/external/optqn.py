@@ -1,7 +1,8 @@
 # Author(s): Hong-Zhou Ye
 #            Oinam Romesh Meitei
 #            Minsik Cho
-# NOTICE: The following code is mostly written by Hong-Zhou Ye (except for the trust region routine)
+# NOTICE: The following code is mostly written by Hong-Zhou Ye
+#   (except for the trust region routine)
 #         The code has been slightly modified.
 #
 
@@ -11,7 +12,8 @@ from .. import be_var
 
 
 def line_search_LF(func, xold, fold, dx, iter_):
-    """Adapted from D.-H. Li and M. Fukushima, Optimization Metheods and Software, 13, 181 (2000)"""
+    """Adapted from D.-H. Li and M. Fukushima, Optimization Metheods and Software,
+    13, 181 (2000)"""
     beta = 0.1
     rho = 0.9
     sigma1 = 1e-3
@@ -47,7 +49,8 @@ def line_search_LF(func, xold, fold, dx, iter_):
 
 
 def trustRegion(func, xold, fold, Binv, c=0.5):
-    """Perform Trust Region Optimization. See "A Broyden Trust Region Quasi-Newton Method
+    """Perform Trust Region Optimization. See
+    "A Broyden Trust Region Quasi-Newton Method
     for Nonlinear Equations" (https://www.iaeng.org/IJCS/issues_v46/issue_3/IJCS_46_3_09.pdf)
     Algorithm 1 for more information
 
@@ -60,7 +63,8 @@ def trustRegion(func, xold, fold, Binv, c=0.5):
     fold : list or numpy.ndarray
         Current f(x_p) (error vector)
     Binv : numpy.ndarray
-        Inverse of Jacobian approximate (B^{-1}); This is updated in Broyden's Method through Sherman-Morrison formula
+        Inverse of Jacobian approximate (B^{-1}); This is updated in Broyden's Method
+        through Sherman-Morrison formula
     c : float, optional
         Initial value of trust radius ∈ (0, 1), by default 0.5
 
@@ -110,7 +114,9 @@ def trustRegion(func, xold, fold, Binv, c=0.5):
             )
             tdx_sd = t * dx_sd
             diff = dx_gn - tdx_sd
-            # s = (-dx_sd.T@diff + numpy.sqrt((dx_sd.T@diff)**2 - numpy.linalg.norm(diff)**2*(numpy.linalg.norm(dx_sd)**2-(c ** microiter)**2))) / (numpy.linalg.norm(dx_sd))**2
+            # s = (-dx_sd.T@diff + numpy.sqrt((dx_sd.T@diff)**2 -
+            #   norm(diff)**2*(norm(dx_sd)**2-(c ** microiter)**2)))
+            #   / (norm(dx_sd))**2
             # s is largest value in [0, 1] s.t. ||dx|| \le trust radius
             s = 1
             dx = tdx_sd + s * diff
