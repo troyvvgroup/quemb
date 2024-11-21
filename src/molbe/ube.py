@@ -164,12 +164,12 @@ class UBE(BE):  # 🍠
         jobid = ""
         if be_var.CREATE_SCRATCH_DIR:
             jobid = os.environ.get("SLURM_JOB_ID", "")
-        if be_var.SCRATCH:
+        if be_var.SCRATCH != "":
             self.scratch_dir = be_var.SCRATCH + str(jobid)
             os.system("mkdir -p " + self.scratch_dir)
         else:
             self.scratch_dir = None
-        if not jobid:
+        if jobid == "":
             self.eri_file = be_var.SCRATCH + eri_file
         else:
             self.eri_file = self.scratch_dir + "/" + eri_file
