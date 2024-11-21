@@ -111,7 +111,7 @@ def get_iao_k(Co, S12, S1, S2=None, ortho=True):
         S2: valence AO ovlp
     """
 
-    nk, nao, nmo = S12.shape
+    nk, nao, _ = S12.shape
     P1 = numpy.zeros_like(S1, dtype=numpy.complex128)
     P2 = numpy.zeros_like(S2, dtype=numpy.complex128)
 
@@ -160,7 +160,7 @@ def get_pao_k(Ciao, S, S12, S2):
         Cpao (orthogonalized)
     """
 
-    nk, nao, niao = Ciao.shape
+    nk, nao, _ = Ciao.shape
     Cpao = []
     for k in range(nk):
         s12 = scipy.linalg.inv(S[k]) @ S12[k]

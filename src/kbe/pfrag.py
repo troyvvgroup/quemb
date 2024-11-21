@@ -207,7 +207,7 @@ class Frags:
             One-electron Hamiltonian matrix.
         """
 
-        nk, nao, teo = self.TA.shape
+        nk, _, teo = self.TA.shape
         h1_eo = numpy.zeros((teo, teo), dtype=numpy.complex128)
         for k in range(nk):
             h1_eo += functools.reduce(
@@ -380,8 +380,7 @@ class Frags:
 
         if cout is None:
             cout = self.udim
-        else:
-            cout = cout
+
         if not no_chempot:
             for i, fi in enumerate(self.fsites):
                 if not any(i in sublist for sublist in self.edge_idx):

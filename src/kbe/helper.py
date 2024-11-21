@@ -30,7 +30,7 @@ def get_veff(eri_, dm, S, TA, hf_veff, return_veff0=False):
     """
 
     # construct rdm
-    nk, nao, neo = TA.shape
+    nk, _, neo = TA.shape
     P_ = numpy.zeros((neo, neo), dtype=numpy.complex128)
     for k in range(nk):
         Cinv = numpy.dot(TA[k].conj().T, S[k])
