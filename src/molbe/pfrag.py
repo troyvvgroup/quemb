@@ -278,8 +278,6 @@ class Frags:
 
         if cout is None:
             cout = self.udim
-        else:
-            cout = cout
 
         for i, fi in enumerate(self.fsites):
             if not any(i in sublist for sublist in self.edge_idx):

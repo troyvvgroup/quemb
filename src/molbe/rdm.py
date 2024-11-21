@@ -51,7 +51,7 @@ def rdm1_fullbasis(
     """
     # Copy the molecular orbital coefficients
     C_mo = self.C.copy()
-    nao, nmo = C_mo.shape
+    nao = C_mo.shape[0]
 
     # Initialize density matrices for atomic orbitals (AO)
     rdm1AO = numpy.zeros((nao, nao))

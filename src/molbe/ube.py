@@ -283,8 +283,6 @@ class UBE(BE):  # 🍠
 
             all_noccs.append(self.Nocc)
 
-            a_TA = fobj_a.TA.shape
-            b_TA = fobj_b.TA.shape
             if eri_ is None and self.mf.with_df is not None:
                 # NOT IMPLEMENTED: should not be called, as no unrestricted DF tested
                 # for density-fitted integrals; if mf is provided, pyscf.ao2mo uses DF
@@ -325,7 +323,7 @@ class UBE(BE):  # 🍠
             )
 
             if compute_hf:
-                eh1_a, ecoul_a, ef_a = fobj_a.energy_hf(
+                eh1_a, ecoul_a, _ = fobj_a.energy_hf(
                     return_e1=True, unrestricted=True, spin_ind=0
                 )
                 EH1 += eh1_a
@@ -347,7 +345,7 @@ class UBE(BE):  # 🍠
             )
 
             if compute_hf:
-                eh1_b, ecoul_b, ef_b = fobj_b.energy_hf(
+                eh1_b, ecoul_b, _ = fobj_b.energy_hf(
                     return_e1=True, unrestricted=True, spin_ind=1
                 )
                 EH1 += eh1_b
@@ -416,7 +414,7 @@ class UBE(BE):  # 🍠
         self, solver="UCCSD", nproc=1, ompnum=4, calc_frag_energy=False, clean_eri=False
     ):
         if nproc == 1:
-            E, E_comp = be_func_u(
+            E, _ = be_func_u(
                 None,
                 zip(self.Fobjs_a, self.Fobjs_b),
                 solver,
@@ -429,7 +427,7 @@ class UBE(BE):  # 🍠
                 frozen=self.frozen_core,
             )
         else:
-            E, E_comp = be_func_parallel_u(
+            E, _ = be_func_parallel_u(
                 None,
                 zip(self.Fobjs_a, self.Fobjs_b),
                 solver,
