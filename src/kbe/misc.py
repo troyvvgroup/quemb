@@ -1,7 +1,6 @@
 # Author(s): Oinam Romesh Meitei
 
-import numpy as np
-from numpy import arange
+from numpy import arange, exp, sqrt
 from pyscf.lib import cartesian_prod
 from pyscf.pbc import tools
 
@@ -24,13 +23,13 @@ def get_phase(cell, kpts, kmesh):
     a_vec = cell.lattice_vectors()
     Ts = cartesian_prod((arange(kmesh[0]), arange(kmesh[1]), arange(kmesh[2])))
     NRs = Ts.shape[0]
-    return 1 / np.sqrt(NRs) * np.exp(1j * (Ts @ a_vec @ kpts.T))
+    return 1 / sqrt(NRs) * exp(1j * (Ts @ a_vec @ kpts.T))
 
 
 def get_phase1(cell, kpts, kmesh):
     a_vec = cell.lattice_vectors()
     Ts = cartesian_prod((arange(kmesh[0]), arange(kmesh[1]), arange(kmesh[2])))
-    return np.exp(-1.0j * (Ts @ a_vec @ kpts.T))
+    return exp(-1.0j * (Ts @ a_vec @ kpts.T))
 
 
 class storePBE:
