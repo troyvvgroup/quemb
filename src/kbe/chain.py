@@ -31,7 +31,6 @@ def polychain(self, mol, frozen_core=False, unitcell=1):
     """
 
     # group H
-    hset = [None] * mol.natm
     baslist = mol.aoslice_by_atom()
 
     mol2 = mol.copy()
