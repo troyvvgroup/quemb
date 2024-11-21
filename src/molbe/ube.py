@@ -465,7 +465,7 @@ class UBE(BE):  # 🍠
             )
         )
 
-        if clean_eri == True:
+        if clean_eri:
             try:
                 os.remove(self.eri_file)
                 os.rmdir(self.scratch_dir)

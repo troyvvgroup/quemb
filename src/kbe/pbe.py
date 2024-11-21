@@ -669,7 +669,7 @@ class BE:
         if not calc_frag_energy:
             self.compute_energy_full(approx_cumulant=True, return_rdm=False)
 
-        if clean_eri == True:
+        if clean_eri:
             try:
                 os.remove(self.eri_file)
                 os.rmdir(self.scratch_dir)
