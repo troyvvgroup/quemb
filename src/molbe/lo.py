@@ -203,7 +203,7 @@ def get_pao_native(Ciao, S, mol, valence_basis):
 
     try:
         Cpao = symm_orth(Cpao, ovlp=S)
-    except:
+    except ValueError:
         print("Symm orth PAO failed. Switch to cano orth", flush=True)
         npao0 = Cpao.shape[1]
         Cpao = cano_orth(Cpao, ovlp=S)

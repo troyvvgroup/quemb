@@ -979,7 +979,8 @@ def solve_uccsd(
                     )
             try:
                 return ao2mo.incore.general(Vos, moish, compact=False)
-            except:
+            except NotImplementedError:
+                # ao2mo.incore.general is not implemented for complex numbers
                 return numpy.einsum(
                     "ijkl,ip,jq,kr,ls->pqrs",
                     Vos,
