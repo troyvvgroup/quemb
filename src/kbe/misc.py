@@ -40,10 +40,7 @@ def get_phase1(cell, kpts, kmesh):
         (numpy.arange(kmesh[0]), numpy.arange(kmesh[1]), numpy.arange(kmesh[2]))
     )
 
-    Rs = numpy.dot(Ts, a_vec)
-    NRs = Rs.shape[0]
-    phase = numpy.exp(-1.0j * numpy.dot(Rs, kpts.T))
-    return phase
+    return numpy.exp(-1.0j * (Ts @ a_vec @ kpts.T))
 
 
 class storePBE:
