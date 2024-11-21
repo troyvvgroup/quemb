@@ -13,10 +13,9 @@ from pyscf.pbc import df, gto
 from pyscf.pbc.df.df_jk import _ewald_exxdiv_for_G0
 
 import molbe.be_var as be_var
-
-from .misc import storePBE
-from .pfrag import Frags
-from .solver import be_func
+from kbe.misc import storePBE
+from kbe.pfrag import Frags
+from kbe.solver import be_func
 
 
 class BE:
@@ -330,10 +329,9 @@ class BE:
 
     # The following import of these functions turns them into
     # proper methods of the class.
+    from kbe._opt import optimize  # noqa: PLC0415
+    from kbe.lo import localize  # noqa: PLC0415
     from molbe.external.optqn import get_be_error_jacobian  # noqa: PLC0415
-
-    from ._opt import optimize  # noqa: PLC0415
-    from .lo import localize  # noqa: PLC0415
 
     def print_ini(self):
         """
@@ -607,7 +605,7 @@ class BE:
         clean_eri : bool, optional
             Whether to clean up ERI files after calculation, by default False.
         """
-        from .be_parallel import be_func_parallel
+        from kbe.be_parallel import be_func_parallel
 
         print("Calculating Energy by Fragment? ", calc_frag_energy)
         if nproc == 1:

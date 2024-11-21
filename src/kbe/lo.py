@@ -10,16 +10,15 @@ import numpy
 import scipy.linalg
 from libdmet.lo import pywannier90
 
-from molbe.external.lo_helper import get_aoind_by_atom, reorder_by_atom_
-from molbe.helper import ncore_
-
-from .lo_k import (
+from kbe.lo_k import (
     get_iao_k,
     get_pao_native_k,
     get_xovlp_k,
     remove_core_mo_k,
     symm_orth_k,
 )
+from molbe.external.lo_helper import get_aoind_by_atom, reorder_by_atom_
+from molbe.helper import ncore_
 
 # iao tmp
 

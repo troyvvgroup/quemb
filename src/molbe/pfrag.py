@@ -6,8 +6,8 @@ import h5py
 import numpy
 import scipy.linalg
 
-from .helper import get_eri, get_scfObj, get_veff
-from .solver import schmidt_decomposition
+from molbe.helper import get_eri, get_scfObj, get_veff
+from molbe.solver import schmidt_decomposition
 
 
 class Frags:

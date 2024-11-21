@@ -7,8 +7,8 @@ import numpy as np
 import scipy.linalg as slg
 from pyscf import ao2mo, scf
 
-from .cphf_utils import cphf_kernel_batch as cphf_kernel
-from .cphf_utils import get_cpuhf_u_batch as cpuhf_kernel
+from molbe.external.cphf_utils import cphf_kernel_batch as cphf_kernel
+from molbe.external.cphf_utils import get_cpuhf_u_batch as cpuhf_kernel
 
 """ RMP2 implementation
 """

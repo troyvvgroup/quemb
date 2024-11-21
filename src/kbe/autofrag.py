@@ -5,9 +5,8 @@ import sys
 import numpy
 from pyscf import lib
 
+from kbe.misc import sgeom
 from molbe.helper import get_core
-
-from .misc import sgeom
 
 
 def warn_large_fragment():

@@ -17,8 +17,7 @@ from molbe.external.ccsd_rdm import (
 )
 from molbe.external.uccsd_eri import make_eris_incore
 from molbe.external.unrestricted_utils import make_uhf_obj
-
-from .helper import get_frag_energy, get_frag_energy_u
+from molbe.helper import get_frag_energy, get_frag_energy_u
 
 
 def be_func(

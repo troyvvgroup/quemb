@@ -6,11 +6,10 @@ import sys
 import h5py
 import numpy
 
+from kbe.helper import get_veff
+from kbe.misc import get_phase, get_phase1
+from kbe.solver import schmidt_decomp_svd
 from molbe.helper import get_eri, get_scfObj
-
-from .helper import get_veff
-from .misc import get_phase, get_phase1
-from .solver import schmidt_decomp_svd
 
 
 class Frags:

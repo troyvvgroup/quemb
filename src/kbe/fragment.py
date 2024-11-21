@@ -2,9 +2,8 @@
 
 import sys
 
+from kbe.autofrag import autogen
 from molbe.helper import get_core
-
-from .autofrag import autogen
 
 
 def print_mol_missing():
@@ -104,7 +103,7 @@ class fragpart:
         self.allcen = allcen
         self.valence_basis = valence_basis
         self.kpt = kpt
-        self.molecule = False  ### remove this
+        self.molecule = False  # remove this
 
         # Check for frozen core approximation
         if frozen_core:
@@ -158,4 +157,4 @@ class fragpart:
 
     # This import makes polychain a method of the class and
     #  cannot be moved to the top of the file
-    from .chain import polychain  # noqa: PLC0415
+    from kbe.chain import polychain  # noqa: PLC0415

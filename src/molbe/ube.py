@@ -19,11 +19,10 @@ import numpy
 from pyscf import ao2mo
 
 import molbe.be_var as be_var
-
-from .be_parallel import be_func_parallel_u
-from .mbe import BE
-from .pfrag import Frags
-from .solver import be_func_u
+from molbe.be_parallel import be_func_parallel_u
+from molbe.mbe import BE
+from molbe.pfrag import Frags
+from molbe.solver import be_func_u
 
 
 class UBE(BE):  # 🍠

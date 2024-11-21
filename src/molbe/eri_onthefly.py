@@ -8,7 +8,7 @@ from pyscf.gto import mole
 from pyscf.gto.moleintor import getints3c, make_cintopt, make_loc
 from scipy.linalg import cholesky, solve_triangular
 
-from . import be_var
+from molbe import be_var
 
 
 def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):

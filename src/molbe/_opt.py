@@ -4,11 +4,10 @@ import sys
 
 import numpy
 
+from molbe.be_parallel import be_func_parallel
 from molbe.external.optqn import FrankQN
-
-from .be_parallel import be_func_parallel
-from .misc import print_energy
-from .solver import be_func
+from molbe.misc import print_energy
+from molbe.solver import be_func
 
 
 class BEOPT:

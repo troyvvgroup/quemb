@@ -10,9 +10,9 @@ from pyscf import ao2mo, df, gto, qmmm, scf
 from pyscf.lib import chkfile
 from pyscf.tools import fcidump
 
-from .fragment import fragpart
-from .mbe import BE
-from .ube import UBE
+from molbe.fragment import fragpart
+from molbe.mbe import BE
+from molbe.ube import UBE
 
 
 def libint2pyscf(
