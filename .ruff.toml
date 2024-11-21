@@ -17,5 +17,9 @@ ignore = [
     "PLW1514",
         # https://docs.astral.sh/ruff/rules/unspecified-encoding/
         # we just assume today that everything is UTF-8
+    "PLC2701"
+        # https://docs.astral.sh/ruff/rules/import-private-name/
+        # if people import stuff with a leading underscore
+        # they (should) know that this is private by convention
 ]
 preview = true
