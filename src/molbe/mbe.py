@@ -565,7 +565,7 @@ class BE:
             try:
                 os.remove(self.eri_file)
                 os.rmdir(self.scratch_dir)
-            except FileNotFoundError:
+            except (FileNotFoundError, TypeError):
                 print("Scratch directory not removed")
 
     def update_fock(self, heff=None):
