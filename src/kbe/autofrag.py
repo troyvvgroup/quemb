@@ -471,7 +471,7 @@ def autogen(
             sys.exit()
         # kmesh lkpt ends
 
-    ## starts here
+    # starts here
     normlist = []
     for i in coord:
         normlist.append(numpy.linalg.norm(i))
@@ -572,7 +572,7 @@ def autogen(
         # part of l,r,d,u,m,t but are in the
         # unit cell that is their k is 1
         # for example, klsts[i] = 1
-        ## WARNING !!!
+        # WARNING !!!
         # For systems like Graphene, BN, SiC, hexagonal 2D sheets,
         # BE4 can give wrong fragmentations
         # the following code adds in redundant atoms

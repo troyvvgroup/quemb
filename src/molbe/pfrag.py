@@ -323,7 +323,7 @@ class Frags:
         return cout
 
     def energy(self, rdm2s, eri=None, print_fragE=False):
-        ## This function uses old energy expression and will be removed
+        # This function uses old energy expression and will be removed
         rdm2s = numpy.einsum(
             "ijkl,pi,qj,rk,sl->pqrs",
             0.5 * rdm2s,

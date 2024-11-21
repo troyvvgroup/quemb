@@ -813,7 +813,7 @@ def solve_block2(mf: object, nocc: int, frag_scratch: str = None, **solver_kwarg
 
     mc = mcscf.CASCI(mf, norb, nelec)
     mc.fcisolver = dmrgscf.DMRGCI(mf.mol)
-    ###Sweep scheduling
+    # Sweep scheduling
     mc.fcisolver.scheduleSweeps = schedule_kwargs.pop(
         "scheduleSweeps",
         [
@@ -844,7 +844,7 @@ def solve_block2(mf: object, nocc: int, frag_scratch: str = None, **solver_kwarg
         "scheduleNoises",
         [max_noise, max_noise, max_noise / 10, max_noise / 100, max_noise / 100, 0.0],
     )
-    ###Other DMRG parameters
+    # Other DMRG parameters
     mc.fcisolver.threads = int(os.environ.get("OMP_NUM_THREADS", 8))
     mc.fcisolver.twodot_to_onedot = int(twodot_to_onedot)
     mc.fcisolver.maxIter = int(max_iter)
@@ -857,7 +857,7 @@ def solve_block2(mf: object, nocc: int, frag_scratch: str = None, **solver_kwarg
     mc.kernel(orbs)
     rdm1, rdm2 = dmrgscf.DMRGCI.make_rdm12(mc.fcisolver, root, norb, nelec)
 
-    ###Subtract off non-cumulant contribution to correlated 2RDM.
+    # Subtract off non-cumulant contribution to correlated 2RDM.
     if use_cumulant:
         hf_dm = numpy.zeros_like(rdm1)
         hf_dm[numpy.diag_indices(nocc)] += 2.0
