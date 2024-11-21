@@ -23,6 +23,6 @@ setup(
         "scipy>=1.7.0",
         "pyscf>=2.0.0",
         "matplotlib",
-        "libdmet @ git+https://github.com/mcocdawc/libdmet_preview.git@add_fixes_for_BE",
+        "libdmet @ git+https://github.com/gkclab/libdmet_preview.git",
     ],
 )
