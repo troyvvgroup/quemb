@@ -1,7 +1,8 @@
 # Author(s): Oinam Romesh Meitei
 
-import numpy
-from pyscf import lib
+import numpy as np
+from numpy import arange
+from pyscf.lib import cartesian_prod
 from pyscf.pbc import tools
 
 
@@ -21,26 +22,15 @@ def sgeom(cell, kmesh=None):
 
 def get_phase(cell, kpts, kmesh):
     a_vec = cell.lattice_vectors()
-    Ts = lib.cartesian_prod(
-        (numpy.arange(kmesh[0]), numpy.arange(kmesh[1]), numpy.arange(kmesh[2]))
-    )
-    Rs = numpy.dot(Ts, a_vec)
-
-    tmp_ = numpy.dot(Rs, kpts.T)
-
-    NRs = Rs.shape[0]
-    phase = 1 / numpy.sqrt(NRs) * numpy.exp(1j * numpy.dot(Rs, kpts.T))
-
-    return phase
+    Ts = cartesian_prod((arange(kmesh[0]), arange(kmesh[1]), arange(kmesh[2])))
+    NRs = Ts.shape[0]
+    return 1 / np.sqrt(NRs) * np.exp(1j * (Ts @ a_vec @ kpts.T))
 
 
 def get_phase1(cell, kpts, kmesh):
     a_vec = cell.lattice_vectors()
-    Ts = lib.cartesian_prod(
-        (numpy.arange(kmesh[0]), numpy.arange(kmesh[1]), numpy.arange(kmesh[2]))
-    )
-
-    return numpy.exp(-1.0j * (Ts @ a_vec @ kpts.T))
+    Ts = cartesian_prod((arange(kmesh[0]), arange(kmesh[1]), arange(kmesh[2])))
+    return np.exp(-1.0j * (Ts @ a_vec @ kpts.T))
 
 
 class storePBE:
