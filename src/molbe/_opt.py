@@ -11,14 +11,16 @@ from .solver import be_func
 class BEOPT:
     """Perform BE optimization.
 
-    Implements optimization algorithms for bootstrap optimizations, namely, chemical potential optimization
-    and density matching. The main technique used in the optimization is a Quasi-Newton method. It interface to external
+    Implements optimization algorithms for bootstrap optimizations, namely,
+    chemical potential optimization and density matching. The main technique used in
+    the optimization is a Quasi-Newton method. It interface to external
     (adapted version) module originally written by Hong-Zhou Ye.
 
     Parameters
     ----------
     pot : list
-       List of initial BE potentials. The last element is for the global chemical potential.
+       List of initial BE potentials. The last element is for the global
+       chemical potential.
     Fobjs : MolBE.fragpart
        Fragment object
     Nocc : int
@@ -26,17 +28,22 @@ class BEOPT:
     enuc : float
        Nuclear component of the energy.
     solver : str
-       High-level solver in bootstrap embedding. 'MP2', 'CCSD', 'FCI' are supported. Selected CI versions,
+       High-level solver in bootstrap embedding. 'MP2', 'CCSD', 'FCI' are supported.
+       Selected CI versions,
        'HCI', 'SHCI', & 'SCI' are also supported. Defaults to 'MP2'
     only_chem : bool
-       Whether to perform chemical potential optimization only. Refer to bootstrap embedding literatures.
+       Whether to perform chemical potential optimization only.
+       Refer to bootstrap embedding literatures.
     nproc : int
-       Total number of processors assigned for the optimization. Defaults to 1. When nproc > 1, Python multithreading
+       Total number of processors assigned for the optimization. Defaults to 1.
+       When nproc > 1, Python multithreading
        is invoked.
     ompnum : int
-       If nproc > 1, ompnum sets the number of cores for OpenMP parallelization. Defaults to 4
+       If nproc > 1, ompnum sets the number of cores for OpenMP parallelization.
+       Defaults to 4
     max_space : int
-       Maximum number of bootstrap optimizaiton steps, after which the optimization is called converged.
+       Maximum number of bootstrap optimizaiton steps, after which the optimization
+       is called converged.
     conv_tol : float
        Convergence criteria for optimization. Defaults to 1e-6
     ebe_hf : float
@@ -96,7 +103,8 @@ class BEOPT:
         """
         Computes error vectors, RMS error, and BE energies.
 
-        If nproc (set in initialization) > 1, a multithreaded function is called to perform high-level computations.
+        If nproc (set in initialization) > 1, a multithreaded function is called to
+        perform high-level computations.
 
         Parameters
         ----------
@@ -255,22 +263,27 @@ def optimize(
     method : str, optional
         Optimization method, by default 'QN'
     only_chem : bool, optional
-        If true, density matching is not performed -- only global chemical potential is optimized, by default False
+        If true, density matching is not performed -- only global chemical potential
+        is optimized, by default False
     conv_tol : _type_, optional
         Convergence tolerance, by default 1.e-6
     relax_density : bool, optional
         Whether to use relaxed or unrelaxed densities, by default False
-        This option is for using CCSD as solver. Relaxed density here uses Lambda amplitudes, whereas unrelaxed density only uses T amplitudes.
-        c.f. See http://classic.chem.msu.su/cgi-bin/ceilidh.exe/gran/gamess/forum/?C34df668afbHW-7216-1405+00.htm for the distinction between the two
+        This option is for using CCSD as solver. Relaxed density here uses
+        Lambda amplitudes, whereas unrelaxed density only uses T amplitudes.
+        c.f. See http://classic.chem.msu.su/cgi-bin/ceilidh.exe/gran/gamess/forum/?C34df668afbHW-7216-1405+00.htm
+        for the distinction between the two
     use_cumulant : bool, optional
         Use cumulant-based energy expression, by default True
     max_iter : int, optional
         Maximum number of optimization steps, by default 500
     nproc : int
-       Total number of processors assigned for the optimization. Defaults to 1. When nproc > 1, Python multithreading
+       Total number of processors assigned for the optimization. Defaults to 1.
+       When nproc > 1, Python multithreading
        is invoked.
     ompnum : int
-       If nproc > 1, ompnum sets the number of cores for OpenMP parallelization. Defaults to 4
+       If nproc > 1, ompnum sets the number of cores for OpenMP parallelization.
+       Defaults to 4
     J0 : list of list of float
        Initial Jacobian.
     trust_region : bool, optional

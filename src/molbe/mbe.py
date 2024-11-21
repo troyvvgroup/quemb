@@ -51,8 +51,9 @@ class BE:
     """
     Class for handling bootstrap embedding (BE) calculations.
 
-    This class encapsulates the functionalities required for performing bootstrap embedding calculations,
-    including setting up the BE environment, initializing fragments, performing SCF calculations, and
+    This class encapsulates the functionalities required for performing
+    bootstrap embedding calculations, including setting up the BE environment,
+    initializing fragments, performing SCF calculations, and
     evaluating energies.
 
     Attributes
@@ -116,13 +117,17 @@ class BE:
         save_file : str, optional
             Path to the file storing save information, by default 'storebe.pk'.
         nproc : int, optional
-            Number of processors for parallel calculations, by default 1. If set to >1, threaded parallel computation is invoked.
+            Number of processors for parallel calculations, by default 1. If set to >1,
+            threaded parallel computation is invoked.
         ompnum : int, optional
             Number of OpenMP threads, by default 4.
         integral_direct_DF: bool, optional
-            If mf._eri is None (i.e. ERIs are not saved in memory using incore_anyway), this flag is used to determine if the ERIs are computed integral-directly using density fitting; by default False.
+            If mf._eri is None (i.e. ERIs are not saved in memory using incore_anyway),
+            this flag is used to determine if the ERIs are computed integral-directly
+            using density fitting; by default False.
         auxbasis : str, optional
-            Auxiliary basis for density fitting, by default None (uses default auxiliary basis defined in PySCF).
+            Auxiliary basis for density fitting, by default None
+            (uses default auxiliary basis defined in PySCF).
         """
 
         if restart:
@@ -379,13 +384,15 @@ class BE:
             # Do we have full (ij|kl)?
             #   Yes -- ao2mo, incore version
             #   No  -- Do we have (ij|P) from density fitting?
-            #            Yes -- ao2mo, outcore version, using saved (ij|P)
-            #            No  -- if integral_direct_DF is requested, invoke on-the-fly routine
+            #       Yes -- ao2mo, outcore version, using saved (ij|P)
+            #       No  -- if integral_direct_DF is requested, invoke on-the-fly routine
             assert (
                 (eri_ is not None)
                 or (hasattr(self.mf, "with_df"))
                 or (self.integral_direct_DF)
-            ), "Input mean-field object is missing ERI (mf._eri) or DF (mf.with_df) object AND integral direct DF routine was not requested. Please check your inputs."
+            ), "Input mean-field object is missing ERI (mf._eri) or DF (mf.with_df) "
+            "object AND integral direct DF routine was not requested. "
+            "Please check your inputs."
             if (
                 eri_ is not None
             ):  # incore ao2mo using saved eri from mean-field calculation
@@ -393,7 +400,8 @@ class BE:
                     eri = ao2mo.incore.full(eri_, self.Fobjs[I].TA, compact=True)
                     file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
             elif hasattr(self.mf, "with_df") and self.mf.with_df is not None:
-                # pyscf.ao2mo uses DF object in an outcore fashion using (ij|P) in pyscf temp directory
+                # pyscf.ao2mo uses DF object in an outcore fashion using (ij|P)
+                #   in pyscf temp directory
                 for I in range(self.Nfrag):
                     eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)
                     file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
@@ -477,9 +485,11 @@ class BE:
         Parameters
         ----------
         solver : str, optional
-            High-level quantum chemistry method, by default 'MP2'. 'CCSD', 'FCI', and variants of selected CI are supported.
+            High-level quantum chemistry method, by default 'MP2'. 'CCSD', 'FCI',
+            and variants of selected CI are supported.
         nproc : int, optional
-            Number of processors for parallel calculations, by default 1. If set to >1, threaded parallel computation is invoked.
+            Number of processors for parallel calculations, by default 1.
+            If set to >1, multi-threaded parallel computation is invoked.
         ompnum : int, optional
             Number of OpenMP threads, by default 4.
         calc_frag_energy : bool, optional
@@ -615,9 +625,10 @@ def initialize_pot(Nfrag, edge_idx):
     """
     Initialize the potential array for bootstrap embedding.
 
-    This function initializes a potential array for a given number of fragments (`Nfrag`)
-    and their corresponding edge indices (`edge_idx`). The potential array is initialized
-    with zeros for each pair of edge site indices within each fragment, followed by an
+    This function initializes a potential array for a given number of fragments
+    (`Nfrag`) and their corresponding edge indices (`edge_idx`).
+    The potential array is initialized with zeros for each pair of edge site indices
+    within each fragment, followed by an
     additional zero for the global chemical potential.
 
     Parameters
@@ -625,8 +636,8 @@ def initialize_pot(Nfrag, edge_idx):
     Nfrag : int
         Number of fragments.
     edge_idx : list of list of list of int
-        List of edge indices for each fragment. Each element is a list of lists, where each
-        sublist contains the indices of edge sites for a particular fragment.
+        List of edge indices for each fragment. Each element is a list of lists,
+        where each sublist contains the indices of edge sites for a particular fragment.
 
     Returns
     -------

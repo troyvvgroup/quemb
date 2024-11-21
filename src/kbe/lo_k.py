@@ -40,8 +40,9 @@ def get_symm_orth_mat_k(A, thr=1.0e-7, ovlp=None):
     e, u = scipy.linalg.eigh(S)
     if int(numpy.sum(e < thr)) > 0:
         raise ValueError(
-            "Linear dependence is detected in the column space of A: smallest eigenvalue (%.3E) is less than thr (%.3E). Please use 'cano_orth' instead."
-            % (numpy.min(e), thr)
+            "Linear dependence is detected in the column space of A: "
+            "smallest eigenvalue (%.3E) is less than thr (%.3E). "
+            "Please use 'cano_orth' instead." % (numpy.min(e), thr)
         )
     U = reduce(numpy.dot, (u, numpy.diag(e**-0.5), u.conj().T))
     # U = reduce(numpy.dot, (u/numpy.sqrt(e), u.conj().T))

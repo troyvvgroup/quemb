@@ -1,5 +1,6 @@
 """
-This script tests the period BE1 and BE2 workflows using chemical potential and density matching, respectively.
+This script tests the period BE1 and BE2 workflows using chemical potential
+and density matching, respectively.
 Also tests the gaussian density fitting interface, which is typically used by default.
 
 Author(s): Shaun Weatherly

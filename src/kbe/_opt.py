@@ -1,5 +1,7 @@
 # Author(s): Oinam Romesh Meitei
 
+import sys
+
 from molbe._opt import BEOPT
 
 
@@ -27,22 +29,27 @@ def optimize(
     method : str, optional
         Optimization method, by default 'QN'
     only_chem : bool, optional
-        If true, density matching is not performed -- only global chemical potential is optimized, by default False
+        If true, density matching is not performed -- only global chemical potential is
+        optimized, by default False
     conv_tol : _type_, optional
         Convergence tolerance, by default 1.e-6
     relax_density : bool, optional
         Whether to use relaxed or unrelaxed densities, by default False
-        This option is for using CCSD as solver. Relaxed density here uses Lambda amplitudes, whereas unrelaxed density only uses T amplitudes.
-        c.f. See http://classic.chem.msu.su/cgi-bin/ceilidh.exe/gran/gamess/forum/?C34df668afbHW-7216-1405+00.htm for the distinction between the two
+        This option is for using CCSD as solver. Relaxed density here uses
+        Lambda amplitudes, whereas unrelaxed density only uses T amplitudes.
+        c.f. See http://classic.chem.msu.su/cgi-bin/ceilidh.exe/gran/gamess/forum/?C34df668afbHW-7216-1405+00.htm
+        for the distinction between the two
     use_cumulant : bool, optional
         Use cumulant-based energy expression, by default True
     max_iter : int, optional
         Maximum number of optimization steps, by default 500
     nproc : int
-       Total number of processors assigned for the optimization. Defaults to 1. When nproc > 1, Python multithreading
+       Total number of processors assigned for the optimization. Defaults to 1.
+       When nproc > 1, Python multithreading
        is invoked.
     ompnum : int
-       If nproc > 1, ompnum sets the number of cores for OpenMP parallelization. Defaults to 4
+       If nproc > 1, ompnum sets the number of cores for OpenMP parallelization.
+       Defaults to 4
     J0 : list of list of float
        Initial Jacobian.
     """
@@ -53,7 +60,8 @@ def optimize(
         pot = self.pot
         if self.be_type == "be1":
             sys.exit(
-                "BE1 only works with chemical potential optimization. Set only_chem=True"
+                "BE1 only works with chemical potential optimization. "
+                "Set only_chem=True"
             )
     else:
         pot = [0.0]

@@ -71,7 +71,8 @@ def run_solver(
     h1_e : numpy.ndarray
         One-electron integral matrix.
     solver : str, optional
-        Solver to use for the calculation ('MP2', 'CCSD', 'FCI', 'HCI', 'SHCI', 'SCI'). Default is 'MP2'.
+        Solver to use for the calculation ('MP2', 'CCSD', 'FCI', 'HCI', 'SHCI', 'SCI').
+        Default is 'MP2'.
     eri_file : str, optional
         Filename for the electron repulsion integrals. Default is 'eri_file.h5'.
     ompnum : int, optional
@@ -81,7 +82,8 @@ def run_solver(
     eeval : bool, optional
         If True, evaluate the electronic energy. Default is True.
     return_rdm_ao : bool, optional
-        If True, return the reduced density matrices in the atomic orbital basis. Default is True.
+        If True, return the reduced density matrices in the atomic orbital basis.
+        Default is True.
     use_cumulant : bool, optional
         If True, use the cumulant approximation for RDM2. Default is True.
     frag_energy : bool, optional
@@ -93,7 +95,8 @@ def run_solver(
     -------
     tuple
         Depending on the input parameters, returns the molecular orbital coefficients,
-        one-particle and two-particle reduced density matrices, and optionally the fragment energy.
+        one-particle and two-particle reduced density matrices, and optionally the
+        fragment energy.
     """
 
     # Get electron repulsion integrals (ERI)
@@ -413,31 +416,36 @@ def be_func_parallel(
     """
     Embarrassingly Parallel High-Level Computation
 
-    Performs high-level bootstrap embedding (BE) computation for each fragment. Computes 1-RDMs
-    and 2-RDMs for each fragment. It also computes error vectors in BE density match. For selected
-    CI solvers, this function exposes thresholds used in selected CI calculations (hci_cutoff, ci_coeff_cutoff, select_cutoff).
+    Performs high-level bootstrap embedding (BE) computation for each fragment.
+    Computes 1-RDMs and 2-RDMs for each fragment. It also computes error vectors
+    in BE density match. For selected CI solvers, this function exposes thresholds used
+    in selected CI calculations (hci_cutoff, ci_coeff_cutoff, select_cutoff).
 
     Parameters
     ----------
     pot : list of float
-        Potentials (local & global) that are added to the 1-electron Hamiltonian component.
-        The last element in the list is the chemical potential.
+        Potentials (local & global) that are added to the 1-electron Hamiltonian
+        component.  The last element in the list is the chemical potential.
     Fobjs : list of MolBE.fragpart
         Fragment definitions.
     Nocc : int
         Number of occupied orbitals for the full system.
     solver : str
-        High-level solver in bootstrap embedding. Supported values are 'MP2', 'CCSD', 'FCI', 'HCI', 'SHCI', and 'SCI'.
+        High-level solver in bootstrap embedding. Supported values are 'MP2', 'CCSD',
+        'FCI', 'HCI', 'SHCI', and 'SCI'.
     enuc : float
         Nuclear component of the energy.
     hf_veff : numpy.ndarray, optional
         Hartree-Fock effective potential.
     nproc : int, optional
-        Total number of processors assigned for the optimization. Defaults to 1. When nproc > 1, Python multithreading is invoked.
+        Total number of processors assigned for the optimization. Defaults to 1.
+        When nproc > 1, Python multithreading is invoked.
     ompnum : int, optional
-        If nproc > 1, sets the number of cores for OpenMP parallelization. Defaults to 4.
+        If nproc > 1, sets the number of cores for OpenMP parallelization.
+        Defaults to 4.
     only_chem : bool, optional
-        Whether to perform chemical potential optimization only. Refer to bootstrap embedding literature. Defaults to False.
+        Whether to perform chemical potential optimization only.
+        Refer to bootstrap embedding literature. Defaults to False.
     eeval : bool, optional
         Whether to evaluate energies. Defaults to False.
     ereturn : bool, optional
@@ -458,8 +466,8 @@ def be_func_parallel(
     Returns
     -------
     float or tuple
-        Depending on the parameters, returns the error norm or a tuple containing the error norm,
-        error vector, and the computed energy.
+        Depending on the parameters, returns the error norm or a tuple containing
+        the error norm, error vector, and the computed energy.
     """
     import os
     from multiprocessing import Pool
@@ -589,14 +597,15 @@ def be_func_parallel_u(
     """
     Embarrassingly Parallel High-Level Computation
 
-    Performs high-level unrestricted bootstrap embedding (UBE) computation for each fragment. Computes 1-RDMs
-    and 2-RDMs for each fragment to return the energy. As such, this currently is equipped for one-shot U-CCSD BE.
+    Performs high-level unrestricted bootstrap embedding (UBE) computation for each
+    fragment. Computes 1-RDMs and 2-RDMs for each fragment to return the energy.
+    As such, this currently is equipped for one-shot U-CCSD BE.
 
     Parameters
     ----------
     pot : list of float
-        Potentials (local & global) that are added to the 1-electron Hamiltonian component.
-        The last element in the list is the chemical potential.
+        Potentials (local & global) that are added to the 1-electron
+        Hamiltonian component.  The last element in the list is the chemical potential.
         Should always be 0, as this is still a one-shot only implementation
     Fobjs : list of tuples of MolBE.fragpart
         Fragment definitions, alpha and beta components.
@@ -607,9 +616,11 @@ def be_func_parallel_u(
     hf_veff : tuple of numpy.ndarray, optional
         Alpha and beta Hartree-Fock effective potential.
     nproc : int, optional
-        Total number of processors assigned for the optimization. Defaults to 1. When nproc > 1, Python multithreading is invoked.
+        Total number of processors assigned for the optimization. Defaults to 1.
+        When nproc > 1, Python multithreading is invoked.
     ompnum : int, optional
-        If nproc > 1, sets the number of cores for OpenMP parallelization. Defaults to 4.
+        If nproc > 1, sets the number of cores for OpenMP parallelization.
+        Defaults to 4.
     eeval : bool, optional
         Whether to evaluate energies. Defaults to False.
     ereturn : bool, optional

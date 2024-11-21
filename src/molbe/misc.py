@@ -376,7 +376,8 @@ def be2puffin(
                     from pyscf import qmmm
 
                     print(
-                        "Using QM/MM Point Charges: Assuming QM structure in Angstrom and MM Coordinates in Bohr !!!"
+                        "Using QM/MM Point Charges: Assuming QM structure in Angstrom "
+                        "and MM Coordinates in Bohr !!!"
                     )
                     mf1 = scf.UHF(mol).set(
                         max_cycle=200
@@ -384,8 +385,8 @@ def be2puffin(
                     # mf1 = scf.UHF(mol).set(max_cycle = 200, level_shift = (0.3, 0.2))
                     # using level shift helps, but not always. level_shift and
                     # scf.addons.dynamic_level_shift do not seem to work with QM/MM
-                    # note: from the SCINE database, the structure is in Angstrom but the MM point charges
-                    # are in Bohr !!
+                    # note: from the SCINE database, the structure is in Angstrom but
+                    # the MM point charges are in Bohr !!
                     mf = qmmm.mm_charge(
                         mf1, pts_and_charges[0], pts_and_charges[1], unit="bohr"
                     ).newton()  # mf object, coordinates, charges
@@ -398,14 +399,16 @@ def be2puffin(
                 from pyscf import qmmm
 
                 print(
-                    "Using QM/MM Point Charges: Assuming QM structure in Angstrom and MM Coordinates in Bohr !!!"
+                    "Using QM/MM Point Charges: Assuming QM structure in Angstrom and "
+                    "MM Coordinates in Bohr !!!"
                 )
                 mf1 = scf.RHF(mol).set(max_cycle=200)
                 mf = qmmm.mm_charge(
                     mf1, pts_and_charges[0], pts_and_charges[1], unit="bohr"
                 ).newton()
                 print(
-                    "Setting use_df to false and jk to none: have not tested DF and QM/MM from point charges at the same time"
+                    "Setting use_df to false and jk to none: have not tested DF and "
+                    "QM/MM from point charges at the same time"
                 )
                 use_df = False
                 jk = None

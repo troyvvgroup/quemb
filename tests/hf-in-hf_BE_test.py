@@ -1,5 +1,6 @@
 """
-This script tests the HF-in-HF energies of sample restricted molecular and periodic systems
+This script tests the HF-in-HF energies of sample restricted molecular
+and periodic systems
 
 Author(s): Minsik Cho
 """

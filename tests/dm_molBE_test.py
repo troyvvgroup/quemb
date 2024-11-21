@@ -1,5 +1,6 @@
 """
-This script tests the correlation energies of sample restricted molecular BE calculations from density matching
+This script tests the correlation energies of sample restricted molecular
+BE calculations from density matching
 
 Author(s): Minsik Cho
 """

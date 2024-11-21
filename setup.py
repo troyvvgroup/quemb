@@ -9,7 +9,8 @@ long_description = (this_directory / "README.md").read_text()
 setup(
     name="quemb",
     version="1.0",
-    description="QuEmb: A framework for efficient simulation of large molecules, surfaces, and solids via Bootstrap Embedding",
+    description="QuEmb: A framework for efficient simulation of large molecules, "
+    "surfaces, and solids via Bootstrap Embedding",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/oimeitei/quemb",

@@ -67,8 +67,8 @@ for a in seps:
     # fragment DMRG calculation finishes. DMRG tempfiles can be quite large, so
     # be sure to keep an eye on them if `force_cleanup=False` (default).
 
-    # NOTE: This does *not* delete the log files `dmrg.conf` and `dmrg.out`for each frag,
-    # which can still be found in `/scratch/`.
+    # NOTE: This does *not* delete the log files `dmrg.conf` and `dmrg.out`for
+    #   each frag, which can still be found in `/scratch/`.
 
 # Finally, plot the resulting potential energy curves:
 fig, ax = plt.subplots()
@@ -94,10 +94,11 @@ mol.build()
 fobj = fragpart(be_type="be2", mol=mol)
 mybe = BE(mf, fobj, lo_method="pipek-mezey", pop_method="lowdin")
 
-# We automatically construct the fragment DMRG schedules based on user keywords. The following
-# input, for example, yields a 60 sweep schedule which uses the two-dot algorithm from sweeps 0-49,
-# and the one-dot algo from 50-60. The fragment orbitals are also reordered according the Fiedler
-# vector procedure, along with a few other tweaks:
+# We automatically construct the fragment DMRG schedules based on user keywords.
+# The following # input, for example, yields a 60 sweep schedule which uses
+# the two-dot algorithm from sweeps 0-49,
+# and the one-dot algo from 50-60. The fragment orbitals are also reordered according
+# to the Fiedler vector procedure, along with a few other tweaks:
 
 mybe.optimize(
     solver="block2",  # or 'DMRG', 'DMRGSCF', 'DMRGCI'
@@ -132,9 +133,10 @@ mybe.optimize(
     only_chem=True,
 )
 
-# To make sure the calculation is proceeding as expected, make sure to check `[scratch]/dmrg.conf`
-# and `[scratch]/dmrg.out`, which are the fragment DMRG inputs and outputs, respectively, used
-# by `block2`.
+# To make sure the calculation is proceeding as expected, make sure to check
+# `[scratch]/dmrg.conf` # and `[scratch]/dmrg.out`,
+# which are the fragment DMRG inputs and outputs, respectively, used by `block2`.
 
 # NOTE: Parameters in `schedule_kwargs` will overwrite any other DMRG kwargs.
-# NOTE: The DMRG schedule kwargs and related syntax follows the standard notation used in block2.
+# NOTE: The DMRG schedule kwargs and related syntax follows the standard notation
+#   used in block2.

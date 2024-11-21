@@ -263,35 +263,45 @@ def autogen(
     """
     Automatic cell partitioning
 
-    Partitions a unitcell into overlapping fragments as defined in BE atom-based fragmentations.
-    It automatically detects branched chemical chains and ring systems and partitions accordingly.
-    For efficiency, it only checks two atoms for connectivity (chemical bond) if they are within 3.5 Angstrom.
-    This value is hardcoded as normdist. Two atoms are defined as bonded if they are within 1.8 Angstrom (1.2 for Hydrogen atom).
-    This is also hardcoded as bond & hbond. Neighboring unitcells are used in the fragmentation, exploiting translational symmetry.
+    Partitions a unitcell into overlapping fragments as defined in
+    BE atom-based fragmentations.  It automatically detects branched chemical chains
+    and ring systems and partitions accordingly.
+    For efficiency, it only checks two atoms for connectivity (chemical bond)
+    if they are within 3.5 Angstrom.  This value is hardcoded as normdist.
+    Two atoms are defined as bonded if they are within 1.8 Angstrom
+    (1.2 for Hydrogen atom).
+    This is also hardcoded as bond & hbond. Neighboring unitcells are used in the
+    fragmentation, exploiting translational symmetry.
 
     Parameters
     ----------
     mol : pyscf.pbc.gto.Cell
-        pyscf.pbc.gto.Cell object. This is required for the options, 'autogen' and 'chain' as frag_type.
+        pyscf.pbc.gto.Cell object. This is required for the options, 'autogen',
+        and 'chain' as frag_type.
     kpt : list of int
         Number of k-points in each lattice vector dimension.
     frozen_core : bool, optional
         Whether to invoke frozen core approximation. Defaults to True.
     be_type : str, optional
-        Specifies the order of bootstrap calculation in the atom-based fragmentation. Supported values are 'be1', 'be2', 'be3', and 'be4'.
+        Specifies the order of bootstrap calculation in the atom-based fragmentation.
+        Supported values are 'be1', 'be2', 'be3', and 'be4'.
         Defaults to 'be2'.
     write_geom : bool, optional
-        Whether to write a 'fragment.xyz' file which contains all the fragments in Cartesian coordinates. Defaults to False.
+        Whether to write a 'fragment.xyz' file which contains all the fragments in
+        Cartesian coordinates. Defaults to False.
     valence_basis : str, optional
-        Name of minimal basis set for IAO scheme. 'sto-3g' is sufficient for most cases. Defaults to None.
+        Name of minimal basis set for IAO scheme. 'sto-3g' is sufficient for most cases.
+        Defaults to None.
     valence_only : bool, optional
-        If True, all calculations will be performed in the valence basis in the IAO partitioning. This is an experimental feature. Defaults to False.
+        If True, all calculations will be performed in the valence basis in
+        the IAO partitioning. This is an experimental feature. Defaults to False.
     print_frags : bool, optional
         Whether to print out the list of resulting fragments. Defaults to True.
     interlayer : bool
         Whether the periodic system has two stacked monolayers.
     long_bond : bool
-        For systems with longer than 1.8 Angstrom covalent bond, set this to True otherwise the fragmentation might fail.
+        For systems with longer than 1.8 Angstrom covalent bond,
+        set this to True otherwise the fragmentation might fail.
 
 
     Returns
@@ -303,13 +313,16 @@ def autogen(
     center : list of list of int
         List of center indices for each edge.
     edge_idx : list of list of list of int
-        List of edge indices for each fragment where each edge index is a list of LO indices.
+        List of edge indices for each fragment where each edge index is a list of
+        LO indices.
     center_idx : list of list of list of int
-        List of center indices for each fragment where each center index is a list of LO indices.
+        List of center indices for each fragment where each center index is a list of
+        LO indices.
     centerf_idx : list of list of int
         List of center fragment indices.
     ebe_weight : list of list
-        Weights for each fragment. Each entry contains a weight and a list of LO indices.
+        Weights for each fragment. Each entry contains a weight and a list of LO
+        indices.
     """
     from pyscf import lib
 
@@ -344,7 +357,8 @@ def autogen(
                 if n_ > kpt[idx]:
                     print("Use a larger number of k-points; ", flush=True)
                     print(
-                        "Fragment cell larger than all k-points combined is not supported",
+                        "Fragment cell larger than all k-points combined "
+                        "is not supported",
                         flush=True,
                     )
                     sys.exit()

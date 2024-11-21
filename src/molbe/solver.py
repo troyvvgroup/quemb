@@ -43,7 +43,8 @@ def be_func(
     """
     Perform bootstrap embedding calculations for each fragment.
 
-    This function computes the energy and/or error for each fragment in a molecular system using various quantum chemistry solvers.
+    This function computes the energy and/or error for each fragment in a
+    molecular system using various quantum chemistry solvers.
 
     Parameters
     ----------
@@ -85,7 +86,8 @@ def be_func(
     Returns
     -------
     float or tuple
-        Depending on the options, it returns the norm of the error vector, the energy, or a combination of these values.
+        Depending on the options, it returns the norm of the error vector, the energy,
+        or a combination of these values.
     """
     import os
 
@@ -348,14 +350,16 @@ def be_func_u(
     """
     Perform bootstrap embedding calculations for each fragment with UCCSD.
 
-    This function computes the energy and/or error for each fragment in a molecular system using various quantum chemistry solvers.
+    This function computes the energy and/or error for each fragment in a
+    molecular system using various quantum chemistry solvers.
 
     Parameters
     ----------
     pot : list
         List of potentials.
     Fobjs : zip list of MolBE.fragpart, alpha and beta
-        List of fragment objects. Each element is a tuple with the alpha and beta components
+        List of fragment objects. Each element is a tuple with the alpha and
+        beta components
     solver : str
         Quantum chemistry solver to use ('UCCSD').
     enuc : float
@@ -383,7 +387,8 @@ def be_func_u(
     Returns
     -------
     float or tuple
-        Depending on the options, it returns the norm of the error vector, the energy, or a combination of these values.
+        Depending on the options, it returns the norm of the error vector, the energy,
+        or a combination of these values.
     """
     from molbe.external.unrestricted_utils import make_uhf_obj
 
@@ -488,9 +493,9 @@ def solve_error(Fobjs, Nocc, only_chem=False):
     """
     Compute the error for self-consistent fragment density matrix matching.
 
-    This function calculates the error in the one-particle density matrix for a given fragment,
-    matching the density matrix elements of the edges and centers. It returns the norm of the error
-    vector and the error vector itself.
+    This function calculates the error in the one-particle density matrix
+    for a given fragment, matching the density matrix elements of the edges and centers.
+    It returns the norm of the error vector and the error vector itself.
 
     Parameters
     ----------
@@ -565,8 +570,8 @@ def solve_mp2(mf, frozen=None, mo_coeff=None, mo_occ=None, mo_energy=None):
     """
     Perform an MP2 (2nd order Moller-Plesset perturbation theory) calculation.
 
-    This function sets up and runs an MP2 calculation using the provided mean-field object.
-    It returns the MP2 object after the calculation.
+    This function sets up and runs an MP2 calculation using the provided
+    mean-field object.  It returns the MP2 object after the calculation.
 
     Parameters
     ----------
@@ -623,8 +628,9 @@ def solve_ccsd(
     """
     Solve the CCSD (Coupled Cluster with Single and Double excitations) equations.
 
-    This function sets up and solves the CCSD equations using the provided mean-field object.
-    It can return the CCSD amplitudes (t1, t2), the one- and two-particle density matrices, and the CCSD object.
+    This function sets up and solves the CCSD equations using the provided
+    mean-field object.  It can return the CCSD amplitudes (t1, t2),
+    the one- and two-particle density matrices, and the CCSD object.
 
     Parameters
     ----------
@@ -639,7 +645,8 @@ def solve_ccsd(
     use_cumulant : bool, optional
         Whether to use cumulant-based energy expression. Defaults to False.
     with_dm1 : bool, optional
-        Whether to include one-particle density matrix in the two-particle density matrix calculation. Defaults to True.
+        Whether to include one-particle density matrix in the two-particle
+        density matrix calculation. Defaults to True.
     rdm2_return : bool, optional
         Whether to return the two-particle density matrix. Defaults to False.
     mo_occ : numpy.ndarray, optional
@@ -656,9 +663,12 @@ def solve_ccsd(
     tuple
         - t1 (numpy.ndarray): Single excitation amplitudes.
         - t2 (numpy.ndarray): Double excitation amplitudes.
-        - rdm1a (numpy.ndarray, optional): One-particle density matrix (if rdm_return is True).
-        - rdm2s (numpy.ndarray, optional): Two-particle density matrix (if rdm2_return is True and rdm_return is True).
-        - cc__ (pyscf.cc.ccsd.CCSD, optional): CCSD object (if rdm_return is True and rdm2_return is False).
+        - rdm1a (numpy.ndarray, optional): One-particle density matrix
+            (if rdm_return is True).
+        - rdm2s (numpy.ndarray, optional): Two-particle density matrix
+            (if rdm2_return is True and rdm_return is True).
+        - cc__ (pyscf.cc.ccsd.CCSD, optional): CCSD object
+            (if rdm_return is True and rdm2_return is False).
     """
     from pyscf import cc
     from pyscf.cc.ccsd_rdm import make_rdm2
@@ -735,9 +745,11 @@ def solve_block2(mf: object, nocc: int, frag_scratch: str = None, **solver_kwarg
     Parameters
     ----------
         mf: pyscf.scf.hf.RHF
-            Mean field object or similar following the data signature of the pyscf.RHF class.
+            Mean field object or similar following the data signature of the
+            pyscf.RHF class.
         nocc: int
-            Number of occupied MOs in the fragment, used for constructing the fragment 1- and 2-RDMs.
+            Number of occupied MOs in the fragment, used for constructing the
+            fragment 1- and 2-RDMs.
         frag_scratch: str|pathlike, optional
             Fragment-level DMRG scratch directory.
         max_mem: int, optional
@@ -751,7 +763,8 @@ def solve_block2(mf: object, nocc: int, frag_scratch: str = None, **solver_kwarg
         max_iter: int, optional
             Maximum number of sweeps.
         twodot_to_onedot: int, optional
-            Sweep index at which to transition to one-dot DMRG algorithm. All sweeps prior to this will use the two-dot algorithm.
+            Sweep index at which to transition to one-dot DMRG algorithm.
+            All sweeps prior to this will use the two-dot algorithm.
         block_extra_keyword: list(str), optional
             Other keywords to be passed to block2. See: https://block2.readthedocs.io/en/latest/user/keywords.html
 
@@ -893,9 +906,11 @@ def solve_uccsd(
     verbose=0,
 ):
     """
-    Solve the U-CCSD (Unrestricted Coupled Cluster with Single and Double excitations) equations.
+    Solve the U-CCSD (Unrestricted Coupled Cluster with Single and Double excitations)
+    equations.
 
-    This function sets up and solves the UCCSD equations using the provided mean-field object.
+    This function sets up and solves the UCCSD equations using the provided
+    mean-field object.
     It can return the one- and two-particle density matrices and the UCCSD object.
 
     Parameters
@@ -913,7 +928,8 @@ def solve_uccsd(
     use_cumulant : bool, optional
         Whether to use cumulant-based energy expression. Defaults to False.
     with_dm1 : bool, optional
-        Whether to include one-particle density matrix in the two-particle density matrix calculation. Defaults to True.
+        Whether to include one-particle density matrix in the two-particle
+        density matrix calculation. Defaults to True.
     rdm2_return : bool, optional
         Whether to return the two-particle density matrix. Defaults to False.
     mo_occ : numpy.ndarray, optional
@@ -929,8 +945,10 @@ def solve_uccsd(
     -------
     tuple
         - ucc (pyscf.cc.ccsd.UCCSD): UCCSD object
-        - rdm1 (tuple, numpy.ndarray, optional): One-particle density matrix (if rdm_return is True).
-        - rdm2 (tuple, numpy.ndarray, optional): Two-particle density matrix (if rdm2_return is True and rdm_return is True).
+        - rdm1 (tuple, numpy.ndarray, optional): One-particle density matrix
+            (if rdm_return is True).
+        - rdm2 (tuple, numpy.ndarray, optional): Two-particle density matrix
+            (if rdm2_return is True and rdm_return is True).
     """
     from pyscf import ao2mo, cc
 
@@ -956,11 +974,11 @@ def solve_uccsd(
                     s = ss
                     break
             if s < 0:
-                raise RuntimeError("Input mo coeff matrix matches neither moa nor mob.")
+                raise ValueError("Input mo coeff matrix matches neither moa nor mob.")
             return ao2mo.incore.full(Vss[s], moish, compact=False)
         elif isinstance(moish, list) or isinstance(moish, tuple):
             if len(moish) != 4:
-                raise RuntimeError(
+                raise ValueError(
                     "Expect a list/tuple of 4 numpy arrays but get %d of them."
                     % len(moish)
                 )
@@ -971,8 +989,9 @@ def solve_uccsd(
                     numpy.allclose(moish_feature[2 * s], Cs_feature)
                     and numpy.allclose(moish_feature[2 * s + 1], Cs_feature)
                 ):
-                    raise RuntimeError(
-                        "Expect a list/tuple of 4 numpy arrays in the order (moa,moa,mob,mob)."
+                    raise ValueError(
+                        "Expect a list/tuple of 4 numpy arrays in the order "
+                        "(moa,moa,mob,mob)."
                     )
             try:
                 return ao2mo.incore.general(Vos, moish, compact=False)
@@ -987,7 +1006,7 @@ def solve_uccsd(
                     optimize=True,
                 )
         else:
-            raise RuntimeError(
+            raise TypeError(
                 "moish must be either a numpy array or a list/tuple of 4 numpy arrays."
             )
 
@@ -1036,7 +1055,8 @@ def schmidt_decomposition(
     cinv : numpy.ndarray, optional
         Inverse of the transformation matrix. Defaults to None.
     rdm : numpy.ndarray, optional
-        Reduced density matrix. If not provided, it will be computed from the molecular orbitals. Defaults to None.
+        Reduced density matrix. If not provided, it will be computed from the molecular
+        orbitals. Defaults to None.
     norb : int, optional
         Specifies number of bath orbitals. Used for UBE to make alpha and beta
         spaces the same size. Defaults to None
@@ -1050,7 +1070,8 @@ def schmidt_decomposition(
         Transformation matrix (TA) including both fragment and entangled bath orbitals.
     if return_orb_count:
         numpy.ndarray, int, int
-        returns TA (above), number of orbitals in the fragment space, and number of orbitals in bath space
+        returns TA (above), number of orbitals in the fragment space, and number of
+        orbitals in bath space
     """
 
     import functools

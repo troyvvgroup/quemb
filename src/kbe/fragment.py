@@ -40,41 +40,50 @@ class fragpart:
     ):
         """Fragment/partitioning definition
 
-        Interfaces two main fragmentation functions (autogen & polychain) in MolBE. It defines edge &
-        center for density matching and energy estimation. It also forms the base for IAO/PAO partitioning for
-        a large basis set bootstrap calculation. Fragments are constructed based on atoms within a unitcell.
+        Interfaces two main fragmentation functions (autogen & polychain) in MolBE.
+        It defines edge & center for density matching and energy estimation.
+        It also forms the base for IAO/PAO partitioning for
+        a large basis set bootstrap calculation. Fragments are constructed based
+        on atoms within a unitcell.
 
         Parameters
         ----------
         frag_type : str
-            Name of fragmentation function. 'autogen', 'hchain_simple', and 'chain' are supported. Defaults to 'autogen'
-            For systems with only hydrogen, use 'chain'; everything else should use 'autogen'
+            Name of fragmentation function. 'autogen', 'hchain_simple', and 'chain' are
+            supported. Defaults to 'autogen'
+            For systems with only hydrogen, use 'chain';
+            everything else should use 'autogen'
         be_type : str
-            Specifies order of bootsrap calculation in the atom-based fragmentation. 'be1', 'be2', 'be3', & 'be4' are supported.
+            Specifies order of bootsrap calculation in the atom-based fragmentation.
+            'be1', 'be2', 'be3', & 'be4' are supported.
             Defaults to 'be2'
             For a simple linear system A-B-C-D,
             be1 only has fragments [A], [B], [C], [D]
             be2 has [A, B, C], [B, C, D]
             ben ...
         mol : pyscf.pbc.gto.Cell
-            pyscf.pbc.gto.Cell object. This is required for the options, 'autogen' and 'chain' as frag_type.
+            pyscf.pbc.gto.Cell object. This is required for the options, 'autogen',
+            and 'chain' as frag_type.
         valence_basis: str
             Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
         valence_only: bool
-            If this option is set to True, all calculation will be performed in the valence basis in the IAO partitioning.
+            If this option is set to True, all calculation will be performed in the
+            valence basis in the IAO partitioning.
             This is an experimental feature.
         frozen_core: bool
             Whether to invoke frozen core approximation. This is set to False by default
         print_frags: bool
             Whether to print out list of resulting fragments. True by default
         write_geom: bool
-            Whether to write 'fragment.xyz' file which contains all the fragments in cartesian coordinates.
+            Whether to write 'fragment.xyz' file which contains all the fragments in
+            cartesian coordinates.
         kpt : list of int
             No. of k-points in each lattice vector direction. This is the same as kmesh.
         interlayer : bool
             Whether the periodic system has two stacked monolayers.
         long_bond : bool
-            For systems with longer than 1.8 Angstrom covalent bond, set this to True otherwise the fragmentation might fail.
+            For systems with longer than 1.8 Angstrom covalent bond, set this to True
+            otherwise the fragmentation might fail.
         """
         # No. of unitcells to use for fragment construction
         self.unitcell = unitcell

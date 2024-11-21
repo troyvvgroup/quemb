@@ -1,5 +1,6 @@
 """
-This script tests the correlation energies of sample restricted molecular BE calculations from chemical potential matching
+This script tests the correlation energies of sample restricted molecular
+BE calculations from chemical potential matching
 
 Author(s): Minsik Cho
 """
