@@ -28,7 +28,7 @@ def frank_get_veff(mycc, dm, Vss, Vos):
 
 
 def frank_get_fock(mycc, vhf, frozen):
-    if frozen == False:
+    if not frozen:
         mycc._scf.full_gcore = None
         mycc._scf.full_hs = None
         fock = [mycc._scf.h1[s] + mycc._scf.gcores_raw[s] for s in [0, 1]]
