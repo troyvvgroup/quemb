@@ -333,7 +333,7 @@ def get_atbe_Jblock_frag(fobj, res_func):
             for k_ in range(len(edge)):
                 if j_ > k_:
                     continue
-                ## response w.r.t matching pot
+                # response w.r.t matching pot
                 # edges
                 tmpje_ = []
 
@@ -366,7 +366,7 @@ def get_atbe_Jblock_frag(fobj, res_func):
 
                 Jc.append(tmpjc_)
 
-                ## response w.r.t. chem pot
+                # response w.r.t. chem pot
                 # edge
                 xe.append(dP_mu[edge[j_], edge[k_]])
                 cout += 1
