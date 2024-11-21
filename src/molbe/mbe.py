@@ -209,10 +209,7 @@ class BE:
         # Set scratch directory
         jobid = ""
         if be_var.CREATE_SCRATCH_DIR:
-            try:
-                jobid = str(os.environ["SLURM_JOB_ID"])
-            except:
-                jobid = ""
+            jobid = os.environ.get("SLURM_JOB_ID", "")
         if not be_var.SCRATCH == "":
             self.scratch_dir = be_var.SCRATCH + str(jobid)
             os.system("mkdir -p " + self.scratch_dir)
