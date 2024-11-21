@@ -51,6 +51,12 @@ jobs:
         echo ${{ github.workspace }} > $(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")/quemb.pth
 
 
+    - name: Test with pytest
+      run: |
+        cd tests
+        QUEMB_SKIP_EXPENSIVE_TESTS=true pytest --doctest-modules --junitxml=junit/quemb-test-results_${{ matrix.python-version }}.xml
+
+
     - name: Check formatting
       run: |
         ruff format --diff
@@ -76,11 +82,6 @@ jobs:
         cd src
         mypy . || true    # for the moment we want to report always report success
 
-
-    - name: Test with pytest
-      run: |
-        cd tests
-        QUEMB_SKIP_EXPENSIVE_TESTS=true pytest --doctest-modules --junitxml=junit/quemb-test-results_${{ matrix.python-version }}.xml
 
     - name: Upload pytest junit results
       uses: actions/upload-artifact@v4
