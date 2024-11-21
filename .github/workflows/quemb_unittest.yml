@@ -40,7 +40,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install --upgrade --upgrade-strategy eager pytest ruff pylint
+        pip install --upgrade --upgrade-strategy eager pytest ruff pylint mypy scipy-stubs numpy-stubs
         if [ -f requirements.txt ]; then pip install --upgrade --upgrade-strategy eager -r requirements.txt; fi
         pip install git+https://github.com/pyscf/dmrgscf
         PYSCFHOME=$(pip show pyscf-dmrgscf | grep 'Location' | tr ' ' '\n' | tail -n 1)
@@ -67,6 +67,11 @@ jobs:
         # TODO: if they add it to ruff as well https://github.com/astral-sh/ruff/issues/9103
         #   remove pylint.
         pylint --disable=all --enable=E0401,R0401,E0611 . || true    # for the moment we want to report always report success
+
+
+    - name: Static analysis with mypy
+      run: |
+        mypy . || true    # for the moment we want to report always report success
 
 
     - name: Test with pytest
