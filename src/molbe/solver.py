@@ -139,6 +139,7 @@ def be_func(
             rdm1_tmp = mc.make_rdm1(civec, mc.norb, mc.nelec)
 
         elif solver == "HCI":
+            # pylint: disable-next=E0611
             from pyscf import hci  # noqa: PLC0415    # optional module
 
             nao, nmo = fobj._mf.mo_coeff.shape
@@ -172,6 +173,7 @@ def be_func(
             rdm2s = rdm2aa + rdm2ab + rdm2ab.transpose(2, 3, 0, 1) + rdm2bb
 
         elif solver == "SHCI":
+            # pylint: disable-next=E0611,E0401
             from pyscf.shciscf import shci  # noqa: PLC0415    # shci is optional
 
             if scratch_dir is None and be_var.CREATE_SCRATCH_DIR:
@@ -203,6 +205,7 @@ def be_func(
             rdm1_tmp, rdm2s = mch.fcisolver.make_rdm12(0, nmo, nelec)
 
         elif solver == "SCI":
+            # pylint: disable-next=E0611
             from pyscf import cornell_shci  # noqa: PLC0415  # optional module
 
             nao, nmo = fobj._mf.mo_coeff.shape
@@ -777,6 +780,7 @@ def solve_block2(mf: object, nocc: int, frag_scratch: str = None, **solver_kwarg
 
 
     """
+    # pylint: disable-next=E0611
     from pyscf import dmrgscf  # noqa: PLC0415   # optional module
 
     use_cumulant = solver_kwargs.pop("use_cumulant", True)
