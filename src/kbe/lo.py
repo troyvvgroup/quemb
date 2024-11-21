@@ -20,8 +20,6 @@ from kbe.lo_k import (
 from molbe.external.lo_helper import get_aoind_by_atom, reorder_by_atom_
 from molbe.helper import ncore_
 
-# iao tmp
-
 
 class KMF:
     def __init__(self, cell, kpts=None, mo_coeff=None, mo_energy=None):
