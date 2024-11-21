@@ -40,7 +40,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install --upgrade --upgrade-strategy eager pytest ruff pylint mypy scipy-stubs numpy-stubs
+        pip install --upgrade --upgrade-strategy eager pytest ruff pylint mypy scipy-stubs
         if [ -f requirements.txt ]; then pip install --upgrade --upgrade-strategy eager -r requirements.txt; fi
         pip install git+https://github.com/pyscf/dmrgscf
         PYSCFHOME=$(pip show pyscf-dmrgscf | grep 'Location' | tr ' ' '\n' | tail -n 1)
