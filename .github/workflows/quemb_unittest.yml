@@ -40,7 +40,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install --upgrade --upgrade-strategy eager ruff pylint
+        pip install --upgrade --upgrade-strategy eager ruff pylint mypy scipy-stubs
         pip install .
 
 
@@ -65,9 +65,7 @@ jobs:
 
     - name: Static analysis with mypy
       run: |
-        pip install mypy scipy-stubs
-        cd src
-        mypy . || true    # for the moment we want to report always report success
+        mypy src/ || true    # for the moment we want to report always report success
 
 
 
