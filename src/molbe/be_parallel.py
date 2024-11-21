@@ -132,6 +132,7 @@ def run_solver(
         efci, civec = mc_.kernel()
         rdm1_tmp = mc_.make_rdm1(civec, mc_.norb, mc_.nelec)
     elif solver == "HCI":
+        # pylint: disable-next=E0611
         from pyscf import hci  # noqa: PLC0415  # hci is an optional module
 
         nao, nmo = mf_.mo_coeff.shape
@@ -158,6 +159,7 @@ def run_solver(
         rdm2s = rdm2aa + rdm2ab + rdm2ab.transpose(2, 3, 0, 1) + rdm2bb
 
     elif solver == "SHCI":
+        # pylint: disable-next=E0401,E0611
         from pyscf.shciscf import shci  # noqa: PLC0415    # shci is an optional module
 
         nao, nmo = mf_.mo_coeff.shape
@@ -176,9 +178,8 @@ def run_solver(
         rdm1_tmp, rdm2s = mch.fcisolver.make_rdm12(0, nmo, nelec)
 
     elif solver == "SCI":
-        from pyscf import (  # noqa: PLC0415  # cornell_shci is an optional module
-            cornell_shci,
-        )
+        # pylint: disable-next=E0611
+        from pyscf import cornell_shci  # noqa: PLC0415  # optional module
 
         nao, nmo = mf_.mo_coeff.shape
         nelec = (nocc, nocc)
