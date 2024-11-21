@@ -129,7 +129,7 @@ def run_solver(
             )
     elif solver == "FCI":
         mc_ = fci.FCI(mf_, mf_.mo_coeff)
-        efci, civec = mc_.kernel()
+        _, civec = mc_.kernel()
         rdm1_tmp = mc_.make_rdm1(civec, mc_.norb, mc_.nelec)
     elif solver == "HCI":
         # pylint: disable-next=E0611
@@ -151,7 +151,7 @@ def run_solver(
 
         nelec = (nocc, nocc)
         h1_ = functools.reduce(numpy.dot, (mf_.mo_coeff.T, h1, mf_.mo_coeff))
-        eci, civec = ci_.kernel(h1_, eri, nmo, nelec)
+        _, civec = ci_.kernel(h1_, eri, nmo, nelec)
         civec = numpy.asarray(civec)
 
         (rdm1a_, rdm1b_), (rdm2aa, rdm2ab, rdm2bb) = ci_.make_rdm12s(civec, nmo, nelec)
@@ -184,7 +184,7 @@ def run_solver(
         nao, nmo = mf_.mo_coeff.shape
         nelec = (nocc, nocc)
         cas = mcscf.CASCI(mf_, nmo, nelec)
-        h1, ecore = cas.get_h1eff(mo_coeff=mf_.mo_coeff)
+        h1, _ = cas.get_h1eff(mo_coeff=mf_.mo_coeff)
         eri = ao2mo.kernel(mf_._eri, mf_.mo_coeff, aosym="s4", compact=False).reshape(
             4 * ((nmo),)
         )

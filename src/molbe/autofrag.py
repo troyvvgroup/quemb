@@ -88,7 +88,7 @@ def autogen(
         cell.basis = valence_basis
         cell.build()
 
-    ncore, no_core_idx, core_list = get_core(cell)
+    _, _, core_list = get_core(cell)
     coord = cell.atom_coords()
     ang2bohr = 1.88973
     normdist = 3.5 * ang2bohr
@@ -122,7 +122,6 @@ def autogen(
         tmplist = list(tmplist)
 
         clist = []
-        cout = 0
         for jdx, j in enumerate(tmplist):
             if not idx == jdx and (not cell.atom_pure_symbol(jdx) == "H" or hchain):
                 if abs(j) < normdist:
