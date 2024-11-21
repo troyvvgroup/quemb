@@ -11,8 +11,6 @@ from pyscf.lib import chkfile
 from pyscf.tools import fcidump
 
 from molbe.fragment import fragpart
-from molbe.mbe import BE
-from molbe.ube import UBE
 
 
 def libint2pyscf(
@@ -320,6 +318,11 @@ def be2puffin(
         syntax: {'Atom_X': 'ECP_for_X'; 'Atom_Y': 'ECP_for_Y'}
         By default None
     """
+    # The following imports have to happen here to avoid
+    # circular dependencies.
+    from molbe.mbe import BE  # noqa: PLC0415
+    from molbe.ube import UBE  # noqa: PLC0415
+
     # Check input validity
     assert os.path.exists(xyzfile), "Input xyz file does not exist"
 
