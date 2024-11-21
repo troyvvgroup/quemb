@@ -183,10 +183,7 @@ class BE:
         # Set scratch directory
         jobid = ""
         if be_var.CREATE_SCRATCH_DIR:
-            try:
-                jobid = str(os.environ["SLURM_JOB_ID"])
-            except:
-                jobid = ""
+            jobid = os.environ.get("SLURM_JOB_ID", "")
         if not be_var.SCRATCH == "":
             os.system("mkdir " + be_var.SCRATCH + str(jobid))
         if jobid == "":
@@ -672,7 +669,7 @@ class BE:
             try:
                 os.remove(self.eri_file)
                 os.rmdir(self.scratch_dir)
-            except:
+            except FileNotFoundError:
                 print("Scratch directory not removed")
 
     def update_fock(self, heff=None):

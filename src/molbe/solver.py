@@ -685,16 +685,11 @@ def solve_ccsd(
     try:
         cc__.verbose = verbose
         cc__.kernel(eris=eris)
-    except:
+    except Exception as e:
         print(flush=True)
-        print(
-            "Exception in CCSD -> applying level_shift=0.2, diis_space=25", flush=True
-        )
+        print("Exception in CCSD, play with different CC options.", flush=True)
         print(flush=True)
-        cc__.verbose = 4
-        cc__.diis_space = 25
-        cc__.level_shift = 0.2
-        cc__.kernel(eris=eris)
+        raise e
 
     # Extract the CCSD amplitudes
     t1 = cc__.t1

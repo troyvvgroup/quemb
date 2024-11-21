@@ -46,16 +46,12 @@ def get_symm_orth_mat_k(A, thr=1.0e-7, ovlp=None):
             "Please use 'cano_orth' instead." % (numpy.min(e), thr)
         )
     U = reduce(numpy.dot, (u, numpy.diag(e**-0.5), u.conj().T))
-    # U = reduce(numpy.dot, (u/numpy.sqrt(e), u.conj().T))
     return U
 
 
 def symm_orth_k(A, thr=1.0e-7, ovlp=None):
     """Symmetrically orthogonalize columns of A"""
-    U = get_symm_orth_mat_k(A, thr, ovlp)
-    AU = numpy.dot(A, U)
-
-    return AU
+    return A @ get_symm_orth_mat_k(A, thr, ovlp)
 
 
 def get_xovlp_k(cell, kpts, basis="sto-3g"):
@@ -212,7 +208,7 @@ def get_pao_native_k(Ciao, S, mol, valence_basis, kpts, ortho=True):
         if ortho:
             try:
                 Cpao[k] = symm_orth_k(cpao_, ovlp=S[k])
-            except:
+            except ValueError:
                 print("Symm orth PAO failed. Switch to cano orth", flush=True)
                 npao0 = cpao_.shape[1]
                 Cpao[k] = cano_orth(cpao_, ovlp=S[k])
