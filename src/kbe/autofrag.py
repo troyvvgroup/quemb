@@ -3,7 +3,9 @@
 import sys
 
 import numpy
+from pyscf import lib
 
+from kbe.misc import sgeom
 from molbe.helper import get_core
 
 
@@ -324,10 +326,6 @@ def autogen(
         Weights for each fragment. Each entry contains a weight and a list of LO
         indices.
     """
-    from pyscf import lib
-
-    from .misc import sgeom
-
     if not float(unitcell).is_integer():
         print("Fractional unitcell is not supported!")
         sys.exit()

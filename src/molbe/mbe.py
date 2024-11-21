@@ -5,10 +5,13 @@ import pickle
 
 import h5py
 import numpy
+from pyscf import ao2mo
 
 import molbe.be_var as be_var
-
-from .pfrag import Frags
+from molbe.be_parallel import be_func_parallel
+from molbe.eri_onthefly import integral_direct_DF
+from molbe.pfrag import Frags
+from molbe.solver import be_func
 
 
 class storeBE:
@@ -300,11 +303,12 @@ class BE:
         else:
             self.initialize(None, compute_hf, restart=True)
 
-    from molbe.external.optqn import get_be_error_jacobian
-
-    from ._opt import optimize
-    from .lo import localize
-    from .rdm import compute_energy_full, rdm1_fullbasis
+    # The following imports turn the imported functions into proper methods
+    #  cannot be moved to head of file.
+    from molbe._opt import optimize  # noqa: PLC0415
+    from molbe.external.optqn import get_be_error_jacobian  # noqa: PLC0415
+    from molbe.lo import localize  # noqa: PLC0415
+    from molbe.rdm import compute_energy_full, rdm1_fullbasis  # noqa: PLC0415
 
     def print_ini(self):
         """
@@ -339,9 +343,6 @@ class BE:
         restart : bool, optional
             Whether to restart from a previous calculation, by default False.
         """
-        import h5py
-        from pyscf import ao2mo
-
         if compute_hf:
             E_hf = 0.0
 
@@ -410,8 +411,6 @@ class BE:
                 if (
                     self.integral_direct_DF
                 ):  # Use density fitting to generate fragment ERIs on-the-fly
-                    from .eri_onthefly import integral_direct_DF
-
                     integral_direct_DF(
                         self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis
                     )
@@ -497,9 +496,6 @@ class BE:
         clean_eri : bool, optional
             Whether to clean up ERI files after calculation, by default False.
         """
-        from .be_parallel import be_func_parallel
-        from .solver import be_func
-
         self.scratch_dir = scratch_dir
         self.solver_kwargs = solver_kwargs
 

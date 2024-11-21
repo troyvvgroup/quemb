@@ -6,11 +6,10 @@ import sys
 import h5py
 import numpy
 
+from kbe.helper import get_veff
+from kbe.misc import get_phase, get_phase1
+from kbe.solver import schmidt_decomp_svd
 from molbe.helper import get_eri, get_scfObj
-
-from .helper import *
-from .misc import *
-from .solver import schmidt_decomp_svd
 
 
 class Frags:
@@ -141,9 +140,6 @@ class Frags:
         kmesh : list of int
             Number of k-points in each lattice vector direction
         """
-
-        from .misc import get_phase
-
         nk, nao, nlo = lao.shape
         rdm1_lo_k = numpy.zeros((nk, nlo, nlo), dtype=numpy.result_type(lmo, lmo))
         for k in range(nk):

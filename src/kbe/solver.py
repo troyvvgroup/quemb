@@ -1,6 +1,7 @@
 # Author(s): Oinam Romesh Meitei
 
 import numpy
+import scipy.linalg
 
 
 def schmidt_decomp_svd(rdm, Frag_sites):
@@ -23,8 +24,6 @@ def schmidt_decomp_svd(rdm, Frag_sites):
     numpy.ndarray
         Transformation matrix (TA) including both fragment and entangled bath orbitals.
     """
-    import scipy.linalg
-
     thres = 1.0e-10
     Tot_sites = rdm.shape[0]
 

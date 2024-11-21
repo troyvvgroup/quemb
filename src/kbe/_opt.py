@@ -2,6 +2,7 @@
 
 import sys
 
+from kbe.misc import print_energy
 from molbe._opt import BEOPT
 
 
@@ -53,8 +54,6 @@ def optimize(
     J0 : list of list of float
        Initial Jacobian.
     """
-    from .misc import print_energy
-
     # Check if only chemical potential optimization is required
     if not only_chem:
         pot = self.pot

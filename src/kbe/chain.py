@@ -3,10 +3,10 @@
 
 # Old fragmentation code - do not use other than debugging!
 
+import math
+
 
 def findH(mol, nh, tmphlist=[]):
-    import math
-
     coord_ = mol.atom_coords()
 
     hidx = []

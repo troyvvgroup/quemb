@@ -13,13 +13,13 @@ from pyscf.pbc import df, gto, scf
 
 from kbe import BE, fragpart
 
+try:
+    import libdmet
+except ImportError:
+    libdmet = None
+
 
 class Test_kBE_Full(unittest.TestCase):
-    try:
-        import libdmet
-    except ImportError:
-        libdmet = None
-
     @unittest.skipIf(libdmet is None, "Module `libdmet` not imported correctly.")
     def test_kc2_sto3g_be1_chempot(self):
         kpt = [1, 1, 1]

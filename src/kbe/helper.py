@@ -3,11 +3,10 @@
 import functools
 
 import numpy
+from pyscf import scf
 
 
 def get_veff(eri_, dm, S, TA, hf_veff, return_veff0=False):
-    from pyscf import scf
-
     """
     Calculate the effective HF potential (Veff) for a given density matrix
     and electron repulsion integrals.

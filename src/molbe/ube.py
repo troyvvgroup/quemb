@@ -14,12 +14,15 @@ TODO
 
 import os
 
+import h5py
 import numpy
+from pyscf import ao2mo
 
 import molbe.be_var as be_var
-
-from .mbe import BE
-from .pfrag import Frags
+from molbe.be_parallel import be_func_parallel_u
+from molbe.mbe import BE
+from molbe.pfrag import Frags
+from molbe.solver import be_func_u
 
 
 class UBE(BE):  # 🍠
@@ -177,9 +180,6 @@ class UBE(BE):  # 🍠
         self.initialize(mf._eri, compute_hf)
 
     def initialize(self, eri_, compute_hf):
-        import h5py
-        from pyscf import ao2mo
-
         if compute_hf:
             E_hf = 0.0
         EH1 = 0.0
@@ -418,9 +418,6 @@ class UBE(BE):  # 🍠
     def oneshot(
         self, solver="UCCSD", nproc=1, ompnum=4, calc_frag_energy=False, clean_eri=False
     ):
-        from .be_parallel import be_func_parallel_u
-        from .solver import be_func_u
-
         if nproc == 1:
             E, E_comp = be_func_u(
                 None,

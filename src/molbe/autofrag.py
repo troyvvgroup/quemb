@@ -4,7 +4,7 @@ import sys
 
 import numpy
 
-from .helper import get_core
+from molbe.helper import get_core
 
 
 def autogen(

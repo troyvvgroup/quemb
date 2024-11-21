@@ -6,6 +6,7 @@ from functools import reduce
 
 import numpy
 import scipy
+from pyscf.pbc import gto as pgto
 
 
 def dot_gen(A, B, ovlp):
@@ -67,9 +68,6 @@ def get_xovlp_k(cell, kpts, basis="sto-3g"):
         S12 - Overlap of two basis sets
         S22 - Overlap in new basis set
     """
-
-    from pyscf.pbc import gto as pgto  # intor_cross
-
     cell_alt = cell.copy()
     cell_alt.basis = basis
     cell_alt.build()

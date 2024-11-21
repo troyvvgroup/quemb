@@ -6,6 +6,9 @@
 import numpy as np
 from pyscf import ao2mo
 
+from molbe.external.cphf_utils import cphf_kernel_batch
+from molbe.external.cpmp2_utils import get_dF_r, get_Diajb_r, get_dmoe_F_r
+
 """ Derivative of approximate t1 amplitudes
 t_ia = ((2*t2-t2)_ibjc g_cjba - g_ikbj (2*t2-t2)_jbka) / (e_i - e_a)
 This approximate t1 is by substituting the MP2 t2 amplitudes into the CCSD equation and
@@ -99,8 +102,6 @@ def get_dt1ao_an(no, V, C, moe, Qs, us=None):
         return moe_[:no_].reshape(-1, 1) - moe_[no_:]
 
     # prepare integrals
-    from .cpmp2_utils import get_Diajb_r
-
     Vovov = get_Vmogen_r(no, V, C, "ovov")
     Vvovv = get_Vmogen_r(no, V, C, "vovv")
     Voovo = get_Vmogen_r(no, V, C, "oovo")
@@ -111,16 +112,12 @@ def get_dt1ao_an(no, V, C, moe, Qs, us=None):
 
     # solve CPHF get u
     if us is None:
-        from .cphf_utils import cphf_kernel_batch
-
         us = cphf_kernel_batch(C, moe, V, no, Qs)
 
     dt1s = [None] * len(Qs)
     iu = 0
     for u, Q in zip(us, Qs):
         # get A
-        from .cpmp2_utils import get_dF_r
-
         A = -get_dF_r(no, V, C, Q, u)
         Aoo = Co.T @ A @ Co
         Avv = Cv.T @ A @ Cv
@@ -137,8 +134,6 @@ def get_dt1ao_an(no, V, C, moe, Qs, us=None):
         dVoovo = get_dVmogen_r(no, V, C, u, "oovo")
 
         # get dmoe and deov
-        from .cpmp2_utils import get_dmoe_F_r
-
         dmoe = get_dmoe_F_r(C, -A)
         deov = get_Dia_r(dmoe, no)
 
@@ -170,8 +165,6 @@ def get_dt1ao_an(no, V, C, moe, Qs, us=None):
 
 def get_dPccsdurlx_batch_u(C, moe, eri, no, vpots):
     # cphf
-    from .cphf_utils import cphf_kernel_batch
-
     us = cphf_kernel_batch(C, moe, eri, no, vpots)
     # get mp2 part
     dPt1aos = get_dt1ao_an(no, eri, C, moe, vpots, us=us)

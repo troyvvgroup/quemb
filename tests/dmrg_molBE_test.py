@@ -11,13 +11,13 @@ from pyscf import gto, scf
 
 from molbe import BE, fragpart
 
+try:
+    from pyscf import dmrgscf
+except ImportError:
+    dmrgscf = None
+
 
 class TestBE_DMRG(unittest.TestCase):
-    try:
-        from pyscf import dmrgscf
-    except ImportError:
-        dmrgscf = None
-
     @unittest.skipIf(
         not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
         reason="This test is known to fail.",

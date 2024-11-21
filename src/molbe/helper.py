@@ -6,7 +6,7 @@ import sys
 
 import h5py
 import numpy
-from pyscf import ao2mo
+from pyscf import ao2mo, gto, lib, scf
 
 
 def get_veff(eri_, dm, S, TA, hf_veff):
@@ -35,10 +35,6 @@ def get_veff(eri_, dm, S, TA, hf_veff):
     numpy.ndarray
         Effective HF potential in the embedding basis.
     """
-
-    import functools
-
-    from pyscf import scf
 
     # Transform the density matrix
     ST = numpy.dot(S, TA)
@@ -96,8 +92,6 @@ def get_scfObj(
         The SCF object after running the Hartree-Fock calculation.
     """
     # from 40-customizing_hamiltonian.py in pyscf examples
-    from pyscf import gto, scf
-
     nao = h1.shape[0]
 
     # Initialize a dummy molecule with the required number of electrons
@@ -175,9 +169,6 @@ def get_eri(i_frag, Nao, symm=8, ignore_symm=False, eri_file="eri_file.h5"):
     numpy.ndarray
         Electron repulsion integrals, possibly restored with symmetry.
     """
-    import h5py
-    from pyscf import lib
-
     # Open the HDF5 file and read the ERI for the specified fragment
     r = h5py.File(eri_file, "r")
     eri__ = numpy.array(r.get(i_frag))

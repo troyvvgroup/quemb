@@ -4,8 +4,10 @@ import sys
 
 import numpy
 
-from .be_parallel import be_func_parallel
-from .solver import be_func
+from molbe.be_parallel import be_func_parallel
+from molbe.external.optqn import FrankQN
+from molbe.misc import print_energy
+from molbe.solver import be_func
 
 
 class BEOPT:
@@ -182,10 +184,6 @@ class BEOPT:
         trust_region : bool, optional
            Use trust-region based QN optimization, by default False
         """
-        import sys
-
-        from molbe.external.optqn import FrankQN
-
         print("-----------------------------------------------------", flush=True)
         print("             Starting BE optimization ", flush=True)
         print("             Solver : ", self.solver, flush=True)
@@ -289,8 +287,6 @@ def optimize(
     trust_region : bool, optional
        Use trust-region based QN optimization, by default False
     """
-    from .misc import print_energy
-
     # Check if only chemical potential optimization is required
     if not only_chem:
         pot = self.pot
