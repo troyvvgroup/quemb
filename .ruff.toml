@@ -1,6 +1,6 @@
 [lint]
 # see the rules [here](https://docs.astral.sh/ruff/rules/)
-select = ["E", "F", "I", "NPY", "ARG", "PL"]
+select = ["E", "F", "I", "NPY", "PL"]
 ignore = [
     "S101",
         # https://docs.astral.sh/ruff/rules/assert/
@@ -14,5 +14,8 @@ ignore = [
         # https://docs.astral.sh/ruff/rules/#refactor-r
         # while these warnings are nice for a fresh codebase,
         # they are too many to fix now and not important enough
+    "PLW1514",
+        # https://docs.astral.sh/ruff/rules/unspecified-encoding/
+        # we just assume today that everything is UTF-8
 ]
 preview = true
