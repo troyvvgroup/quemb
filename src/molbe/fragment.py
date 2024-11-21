@@ -133,7 +133,8 @@ class fragpart:
             print("exiting", flush=True)
             sys.exit()
 
-    from .lchain import chain
+    # importing the function here turns it into a proper method
+    from .lchain import chain  # noqa: PLC0415
 
     def hchain_simple(self):
         """Hard coded fragmentation feature"""
