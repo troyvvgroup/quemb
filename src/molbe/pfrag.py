@@ -4,6 +4,7 @@ import functools
 
 import h5py
 import numpy
+import scipy.linalg
 
 from .helper import get_eri, get_scfObj, get_veff
 from .solver import schmidt_decomposition
@@ -201,8 +202,6 @@ class Frags:
         numpy.ndarray
             Projected density matrix.
         """
-        import scipy.linalg
-
         C_ = functools.reduce(numpy.dot, (self.TA.T, S, C[:, ncore : ncore + nocc]))
         P_ = numpy.dot(C_, C_.T)
         nsocc_ = numpy.trace(P_)

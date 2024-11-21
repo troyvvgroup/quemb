@@ -48,8 +48,6 @@ def get_aoind_by_atom(mol, atomind_by_motif=None):
 
 
 def reorder_by_atom_(Clo, aoind_by_atom, S, thr=0.5):
-    import numpy as np
-
     natom = len(aoind_by_atom)
     nlo = Clo.shape[1]
     X = get_symm_mat_pow(S, 0.5)
@@ -61,8 +59,8 @@ def reorder_by_atom_(Clo, aoind_by_atom, S, thr=0.5):
     loshift = 0
     for ia in range(natom):
         ra = aoind_by_atom[ia]
-        poplo_by_atom = np.sum(Clo_soao[ra] ** 2.0, axis=0)
-        loind_a = np.where(poplo_by_atom > thr)[0].tolist()
+        poplo_by_atom = numpy.sum(Clo_soao[ra] ** 2.0, axis=0)
+        loind_a = numpy.where(poplo_by_atom > thr)[0].tolist()
         loind_reorder += loind_a
         nlo_a = len(loind_a)
         loind_by_atom[ia] = list(range(loshift, loshift + nlo_a))

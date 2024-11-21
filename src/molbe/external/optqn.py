@@ -8,6 +8,11 @@
 
 import numpy
 
+from molbe.external.cphf_utils import cphf_kernel_batch, get_rhf_dP_from_u
+from molbe.external.cpmp2_utils import get_dPmp2_batch_r
+from molbe.external.jac_utils import get_dPccsdurlx_batch_u
+from molbe.helper import get_eri, get_scfObj
+
 from .. import be_var
 
 
@@ -307,8 +312,6 @@ def get_be_error_jacobian(self, jac_solver="HF"):
 
 
 def get_atbe_Jblock_frag(fobj, res_func):
-    from molbe.helper import get_eri, get_scfObj
-
     vpots = get_vpots_frag(fobj.nao, fobj.edge_idx, fobj.fsites)
     eri_ = get_eri(fobj.dname, fobj.nao, eri_file=fobj.eri_file)
     dm0 = (
@@ -416,8 +419,6 @@ def get_be_error_jacobian_selffrag(self, jac_solver="HF"):
 
 
 def hfres_func(mf, vpots, eri, nsocc):
-    from molbe.external.cphf_utils import cphf_kernel_batch, get_rhf_dP_from_u
-
     C = mf.mo_coeff
     moe = mf.mo_energy
     eri = mf._eri
@@ -431,8 +432,6 @@ def hfres_func(mf, vpots, eri, nsocc):
 
 
 def mp2res_func(mf, vpots, eri, nsocc):
-    from molbe.external.cpmp2_utils import get_dPmp2_batch_r
-
     C = mf.mo_coeff
     moe = mf.mo_energy
     eri = mf._eri
@@ -446,8 +445,6 @@ def mp2res_func(mf, vpots, eri, nsocc):
 
 
 def ccsdres_func(mf, vpots, eri, nsocc):
-    from molbe.external.jac_utils import get_dPccsdurlx_batch_u
-
     C = mf.mo_coeff
     moe = mf.mo_energy
     eri = mf._eri

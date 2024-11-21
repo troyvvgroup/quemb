@@ -1,7 +1,8 @@
 [lint]
 # see the rules [here](https://docs.astral.sh/ruff/rules/)
-select = ["E", "F", "I", "NPY", "ARG"]
+# select = ["E", "F", "I", "NPY", "ARG"]
 # select = ["F403", "F405"]
+select = ["PLC0415"]
 ignore = [
     "S101",
         # https://docs.astral.sh/ruff/rules/assert/
@@ -12,3 +13,4 @@ ignore = [
         # Prevents the use of the characters 'l', 'O', or 'I' as variable names.
         # Overly restrictive, in particular when implementing mathematical expressions.
 ]
+preview = true

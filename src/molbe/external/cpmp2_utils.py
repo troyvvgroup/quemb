@@ -5,7 +5,10 @@
 
 import numpy as np
 import scipy.linalg as slg
-from pyscf import ao2mo
+from pyscf import ao2mo, scf
+
+from .cphf_utils import cphf_kernel_batch as cphf_kernel
+from .cphf_utils import get_cpuhf_u_batch as cpuhf_kernel
 
 """ RMP2 implementation
 """
@@ -17,14 +20,10 @@ def get_Diajb_r(moe, no):
     eo = moe[:no]
     ev = moe[no:]
     Dia = (eo.reshape(-1, 1) - ev).ravel()
-    Diajb = (Dia.reshape(-1, 1) + Dia).reshape(no, nv, no, nv)
-
-    return Diajb
+    return (Dia.reshape(-1, 1) + Dia).reshape(no, nv, no, nv)
 
 
 def get_dF_r(no, V, C, Q, u):
-    from pyscf import scf
-
     n = C.shape[0]
     nv = n - no
     Co = C[:, :no]
@@ -33,15 +32,11 @@ def get_dF_r(no, V, C, Q, u):
     dP = -Co @ uov @ Cv.T
     dP += dP.T
     vj, vk = scf.hf.dot_eri_dm(V, dP * 2.0, hermi=1)
-    dF = Q + vj - 0.5 * vk
-
-    return dF
+    return Q + vj - 0.5 * vk
 
 
 def get_dmoe_F_r(C, dF):
-    de = np.einsum("pi,qi,pq->i", C, C, dF)
-
-    return de
+    return np.einsum("pi,qi,pq->i", C, C, dF)
 
 
 def get_full_u_F_r(no, C, moe, dF, u):
@@ -107,8 +102,6 @@ def get_dPmp2_batch_r(C, moe, V, no, Qs, aorep=True):
     Vovov = ao2mo.incore.general(V, (Co, Cv, Co, Cv)).reshape(no, nv, no, nv)
     Diajb = get_Diajb_r(moe, no)
     t2 = Vovov / Diajb
-
-    from .cphf_utils import cphf_kernel_batch as cphf_kernel
 
     us = cphf_kernel(C, moe, V, no, Qs)
     nQ = len(Qs)
@@ -311,9 +304,7 @@ def get_dPmp2_batch_u(C, moe, V, no, Qs, aorep=True):
     Diajb = get_Diajb_u(moe, no)
     t2 = [Vovov[s] / Diajb[s] for s in range(3)]
 
-    from .cphf_utils import get_cpuhf_u_batch as cphf_kernel
-
-    us = cphf_kernel(C, moe, V, no, Qs)
+    us = cpuhf_kernel(C, moe, V, no, Qs)
     nQ = len(Qs)
     dPs = [None] * nQ
     Phf = [np.diag([1 if i < no[s] else 0 for i in range(n[s])]) for s in [0, 1]]
