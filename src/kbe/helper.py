@@ -12,8 +12,7 @@ def get_veff(eri_, dm, S, TA, hf_veff, return_veff0=False):
     and electron repulsion integrals.
 
     This function computes the effective potential by transforming the density matrix,
-    computing the Coulomb (J) and
-    exchange (K) integrals.
+    computing the Coulomb (J) and exchange (K) integrals.
 
     Parameters
     ----------
