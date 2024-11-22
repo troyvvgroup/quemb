@@ -162,7 +162,6 @@ def get_pao_k(Ciao, S, S12, S2):
     Return:
         Cpao (orthogonalized)
     """
-
     nk, nao, niao = Ciao.shape
     unused(niao)
     Cpao = []
