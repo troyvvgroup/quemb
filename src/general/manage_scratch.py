@@ -38,6 +38,7 @@ class ScratchManager:
 
         self.scratch_area.mkdir(parents=True, exist_ok=True)
         if any(self.scratch_area.iterdir()):
+            self.cleanup_at_end = False
             raise ValueError("scratch_area has to be empty.")
 
     def __enter__(self) -> ScratchManager:
@@ -49,12 +50,15 @@ class ScratchManager:
         value: BaseException | None,
         traceback: TracebackType | None,
     ) -> Literal[False]:
-        self.__del__()
+        if value is None:
+            self.__del__()
+        else:
+            self.cleanup_at_end = False
         return False
 
     @classmethod
     def from_environment(
-        cls,
+        cls, *,
         user_defined_name: PathLike | None = None,
         user_defined_root: PathLike | None = None,
         prefix: str = 'QuEmb_',
