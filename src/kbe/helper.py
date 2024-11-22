@@ -5,6 +5,8 @@ import functools
 import numpy
 from pyscf import scf
 
+from molbe.helper import unused
+
 
 def get_veff(eri_, dm, S, TA, hf_veff, return_veff0=False):
     """
@@ -30,7 +32,8 @@ def get_veff(eri_, dm, S, TA, hf_veff, return_veff0=False):
     """
 
     # construct rdm
-    nk, _, neo = TA.shape
+    nk, nao, neo = TA.shape
+    unused(nao)
     P_ = numpy.zeros((neo, neo), dtype=numpy.complex128)
     for k in range(nk):
         Cinv = numpy.dot(TA[k].conj().T, S[k])

@@ -17,7 +17,7 @@ from molbe.external.ccsd_rdm import (
 )
 from molbe.external.uccsd_eri import make_eris_incore
 from molbe.external.unrestricted_utils import make_uhf_obj
-from molbe.helper import get_frag_energy, get_frag_energy_u
+from molbe.helper import get_frag_energy, get_frag_energy_u, unused
 
 
 def be_func(
@@ -163,7 +163,8 @@ def be_func(
             h1_ = functools.reduce(
                 numpy.dot, (fobj._mf.mo_coeff.T, h1_, fobj._mf.mo_coeff)
             )
-            _, civec = ci_.kernel(h1_, eri, nmo, nelec)
+            eci, civec = ci_.kernel(h1_, eri, nmo, nelec)
+            unused(eci)
             civec = numpy.asarray(civec)
 
             (rdm1a_, rdm1b_), (rdm2aa, rdm2ab, rdm2bb) = ci_.make_rdm12s(

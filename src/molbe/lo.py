@@ -11,7 +11,7 @@ from molbe.external.lo_helper import (
     get_aoind_by_atom,
     reorder_by_atom_,
 )
-from molbe.helper import ncore_
+from molbe.helper import ncore_, unused
 
 
 def dot_gen(A, B, ovlp):
@@ -441,7 +441,8 @@ def localize(
                     self.Nocc - self.ncore,
                 )
                 # Find virtual orbitals that lie in the span of LOs
-                _, l, vt = numpy.linalg.svd(self.W.T @ self.S @ Cv, full_matrices=False)
+                u, l, vt = numpy.linalg.svd(self.W.T @ self.S @ Cv, full_matrices=False)
+                unused(u)
                 nvlo = nlo - self.Nocc - self.ncore
                 assert numpy.allclose(numpy.sum(l[:nvlo]), nvlo)
                 C_ = numpy.hstack([Co_nocore, Cv @ vt[:nvlo].T])

@@ -8,6 +8,8 @@ import numpy
 import scipy
 from pyscf.pbc import gto as pgto
 
+from molbe.helper import unused
+
 
 def dot_gen(A, B, ovlp):
     if ovlp is None:
@@ -111,7 +113,8 @@ def get_iao_k(Co, S12, S1, S2=None, ortho=True):
         S2: valence AO ovlp
     """
 
-    nk, nao, _ = S12.shape
+    nk, nao, nmo = S12.shape
+    unused(nmo)
     P1 = numpy.zeros_like(S1, dtype=numpy.complex128)
     P2 = numpy.zeros_like(S2, dtype=numpy.complex128)
 
@@ -159,8 +162,8 @@ def get_pao_k(Ciao, S, S12, S2):
     Return:
         Cpao (orthogonalized)
     """
-
-    nk, nao, _ = Ciao.shape
+    nk, nao, niao = Ciao.shape
+    unused(niao)
     Cpao = []
     for k in range(nk):
         s12 = scipy.linalg.inv(S[k]) @ S12[k]
@@ -172,9 +175,7 @@ def get_pao_k(Ciao, S, S12, S2):
         numpy.o0 = cpao_.shape[-1]
         Cpao.append(cano_orth(cpao_, ovlp=S[k]))
         numpy.o1 = Cpao[k].shape[-1]
-    Cpao = numpy.asarray(Cpao)
-
-    return Cpao
+    return numpy.asarray(Cpao)
 
 
 def get_pao_native_k(Ciao, S, mol, valence_basis, kpts, ortho=True):
