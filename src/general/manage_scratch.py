@@ -3,9 +3,11 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from shutil import rmtree
+from types import TracebackType
 from typing import TypeAlias
 
 from attr import define
+from typing_extensions import Literal
 
 from general.be_var import SCRATCH
 
@@ -30,7 +32,7 @@ class ScratchManager:
     scratch_area: Path
     cleanup_at_end: bool
 
-    def __init__(self, scratch_area: PathLike, cleanup_at_end: bool) -> None:
+    def __init__(self, scratch_area: PathLike, cleanup_at_end: bool = True) -> None:
         self.scratch_area = Path(scratch_area)
         self.cleanup_at_end = cleanup_at_end
 
@@ -38,18 +40,29 @@ class ScratchManager:
         if any(self.scratch_area.iterdir()):
             raise ValueError("scratch_area has to be empty.")
 
+    def __enter__(self) -> ScratchManager:
+        return self
+
+    def __exit__(
+        self,
+        type_: type[BaseException] | None,
+        value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> Literal[False]:
+        self.__del__()
+        return False
+
     @classmethod
     def from_environment(
         cls,
         user_defined_name: PathLike | None = None,
         user_defined_root: PathLike | None = None,
-        prefix: str = '',
+        prefix: str = 'QuEmb_',
         do_cleanup: bool = True,
     ) -> ScratchManager:
-        if user_defined_name and (user_defined_root or prefix):
+        if user_defined_name and user_defined_root:
             raise TypeError(
-                "Don't use both `user_defined_name` and "
-                "(`user_defined_root` or `prefix`)")
+                "Don't use both `user_defined_name` and `user_defined_root`")
 
         if user_defined_name:
             return cls(Path(user_defined_name), do_cleanup)
@@ -76,4 +89,7 @@ class ScratchManager:
             rmtree(self.scratch_area)
 
     def __del__(self) -> None:
-        self.cleanup()
+        try:
+            self.cleanup()
+        except FileNotFoundError:
+            pass
