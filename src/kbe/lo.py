@@ -7,8 +7,8 @@ import sys
 from functools import reduce
 
 import numpy
-import scipy.linalg
 from libdmet.lo import pywannier90
+from numpy.linalg import eigh, svd
 
 from kbe.lo_k import (
     get_iao_k,
@@ -18,9 +18,7 @@ from kbe.lo_k import (
     symm_orth_k,
 )
 from molbe.external.lo_helper import get_aoind_by_atom, reorder_by_atom_
-from molbe.helper import ncore_
-
-# iao tmp
+from molbe.helper import ncore_, unused
 
 
 class KMF:
@@ -88,7 +86,7 @@ def localize(
             cinv_ = numpy.zeros((nk, nmo, nao), dtype=numpy.complex128)
 
         for k in range(self.nkpt):
-            es_, vs_ = scipy.linalg.eigh(self.S[k])
+            es_, vs_ = eigh(self.S[k])
             edx = es_ > 1.0e-14
 
             W[k] = numpy.dot(vs_[:, edx] / numpy.sqrt(es_[edx]), vs_[:, edx].conj().T)
@@ -110,7 +108,7 @@ def localize(
 
                 S_ = functools.reduce(numpy.dot, (C_.conj().T, self.S[k], C_))
 
-                es_, vs_ = scipy.linalg.eigh(S_)
+                es_, vs_ = eigh(S_)
                 edx = es_ > 1.0e-14
                 W_ = numpy.dot(vs_[:, edx] / numpy.sqrt(es_[edx]), vs_[:, edx].conj().T)
                 W_nocore[k] = numpy.dot(C_, W_)
@@ -268,7 +266,8 @@ def localize(
                     numpy.dot, (Ciao_[k].conj().T, self.FOCK[k], Ciao_[k])
                 )
                 S_iao = reduce(numpy.dot, (Ciao_[k].conj().T, self.S[k], Ciao_[k]))
-                e_iao, v_iao = scipy.linalg.eigh(fock_iao, S_iao)
+                e_iao, v_iao = eigh(fock_iao, S_iao)
+                unused(v_iao)
                 mo_energy_.append(e_iao)
             iaomf = KMF(self.mol, kpts=self.kpts, mo_coeff=Ciao_, mo_energy=mo_energy_)
 
@@ -363,9 +362,10 @@ def localize(
                     self.Nocc - self.ncore,
                 )
                 # Find virtual orbitals that lie in the span of LOs
-                u, l, vt = numpy.linalg.svd(
+                u, l, vt = svd(
                     self.W[k].conj().T @ self.S[k] @ Cv[k], full_matrices=False
                 )
+                unused(u)
                 nvlo = nlo - self.Nocc - self.ncore
                 assert numpy.allclose(numpy.sum(l[:nvlo]), nvlo)
                 C_ = numpy.hstack([Co_nocore[k], Cv[k] @ vt[:nvlo].conj().T])
@@ -393,7 +393,7 @@ def localize(
         lorb = numpy.zeros((nk, nao, nmo), dtype=numpy.complex128)
         lorb_nocore = numpy.zeros((nk, nao, nmo - self.ncore), dtype=numpy.complex128)
         for k in range(nk):
-            es_, vs_ = scipy.linalg.eigh(self.S[k])
+            es_, vs_ = eigh(self.S[k])
             edx = es_ > 1.0e-14
             lorb[k] = numpy.dot(
                 vs_[:, edx] / numpy.sqrt(es_[edx]), vs_[:, edx].conj().T
@@ -414,7 +414,8 @@ def localize(
                 S_lnc = reduce(
                     numpy.dot, (lorb_nocore[k].conj().T, self.S[k], lorb_nocore[k])
                 )
-                e__, v__ = scipy.linalg.eigh(fock_lnc, S_lnc)
+                e__, v__ = eigh(fock_lnc, S_lnc)
+                unused(v__)
                 mo_energy_nc.append(e__)
             lmf = KMF(
                 self.mol, kpts=self.kpts, mo_coeff=lorb_nocore, mo_energy=mo_energy_nc

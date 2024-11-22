@@ -20,6 +20,7 @@ from pyscf import ao2mo
 
 import molbe.be_var as be_var
 from molbe.be_parallel import be_func_parallel_u
+from molbe.helper import unused
 from molbe.mbe import BE
 from molbe.pfrag import Frags
 from molbe.solver import be_func_u
@@ -164,12 +165,12 @@ class UBE(BE):  # 🍠
         jobid = ""
         if be_var.CREATE_SCRATCH_DIR:
             jobid = os.environ.get("SLURM_JOB_ID", "")
-        if not be_var.SCRATCH == "":
+        if be_var.SCRATCH:
             self.scratch_dir = be_var.SCRATCH + str(jobid)
             os.system("mkdir -p " + self.scratch_dir)
         else:
             self.scratch_dir = None
-        if jobid == "":
+        if not jobid:
             self.eri_file = be_var.SCRATCH + eri_file
         else:
             self.eri_file = self.scratch_dir + "/" + eri_file
@@ -283,8 +284,6 @@ class UBE(BE):  # 🍠
 
             all_noccs.append(self.Nocc)
 
-            a_TA = fobj_a.TA.shape
-            b_TA = fobj_b.TA.shape
             if eri_ is None and self.mf.with_df is not None:
                 # NOT IMPLEMENTED: should not be called, as no unrestricted DF tested
                 # for density-fitted integrals; if mf is provided, pyscf.ao2mo uses DF
@@ -328,6 +327,7 @@ class UBE(BE):  # 🍠
                 eh1_a, ecoul_a, ef_a = fobj_a.energy_hf(
                     return_e1=True, unrestricted=True, spin_ind=0
                 )
+                unused(ef_a)
                 EH1 += eh1_a
                 ECOUL += ecoul_a
                 E_hf += fobj_a.ebe_hf
@@ -350,6 +350,7 @@ class UBE(BE):  # 🍠
                 eh1_b, ecoul_b, ef_b = fobj_b.energy_hf(
                     return_e1=True, unrestricted=True, spin_ind=1
                 )
+                unused(ef_b)
                 EH1 += eh1_b
                 ECOUL += ecoul_b
                 E_hf += fobj_b.ebe_hf
@@ -443,6 +444,7 @@ class UBE(BE):  # 🍠
                 nproc=nproc,
                 ompnum=ompnum,
             )
+        unused(E_comp)
 
         print("-----------------------------------------------------", flush=True)
         print("             One Shot BE ", flush=True)

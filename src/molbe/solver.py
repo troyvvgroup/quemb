@@ -17,7 +17,7 @@ from molbe.external.ccsd_rdm import (
 )
 from molbe.external.uccsd_eri import make_eris_incore
 from molbe.external.unrestricted_utils import make_uhf_obj
-from molbe.helper import get_frag_energy, get_frag_energy_u
+from molbe.helper import get_frag_energy, get_frag_energy_u, unused
 
 
 def be_func(
@@ -135,7 +135,7 @@ def be_func(
 
         elif solver == "FCI":
             mc = fci.FCI(fobj._mf, fobj._mf.mo_coeff)
-            efci, civec = mc.kernel()
+            _, civec = mc.kernel()
             rdm1_tmp = mc.make_rdm1(civec, mc.norb, mc.nelec)
 
         elif solver == "HCI":
@@ -164,6 +164,7 @@ def be_func(
                 numpy.dot, (fobj._mf.mo_coeff.T, h1_, fobj._mf.mo_coeff)
             )
             eci, civec = ci_.kernel(h1_, eri, nmo, nelec)
+            unused(eci)
             civec = numpy.asarray(civec)
 
             (rdm1a_, rdm1b_), (rdm2aa, rdm2ab, rdm2bb) = ci_.make_rdm12s(
@@ -208,7 +209,7 @@ def be_func(
             # pylint: disable-next=E0611
             from pyscf import cornell_shci  # noqa: PLC0415  # optional module
 
-            nao, nmo = fobj._mf.mo_coeff.shape
+            nmo = fobj._mf.mo_coeff.shape[1]
             nelec = (fobj.nsocc, fobj.nsocc)
             cas = mcscf.CASCI(fobj._mf, nmo, nelec)
             h1, ecore = cas.get_h1eff(mo_coeff=fobj._mf.mo_coeff)

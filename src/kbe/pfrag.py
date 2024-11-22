@@ -9,7 +9,7 @@ import numpy
 from kbe.helper import get_veff
 from kbe.misc import get_phase, get_phase1
 from kbe.solver import schmidt_decomp_svd
-from molbe.helper import get_eri, get_scfObj
+from molbe.helper import get_eri, get_scfObj, unused
 
 
 class Frags:
@@ -208,6 +208,7 @@ class Frags:
         """
 
         nk, nao, teo = self.TA.shape
+        unused(nao)
         h1_eo = numpy.zeros((teo, teo), dtype=numpy.complex128)
         for k in range(nk):
             h1_eo += functools.reduce(
@@ -380,8 +381,7 @@ class Frags:
 
         if cout is None:
             cout = self.udim
-        else:
-            cout = cout
+
         if not no_chempot:
             for i, fi in enumerate(self.fsites):
                 if not any(i in sublist for sublist in self.edge_idx):

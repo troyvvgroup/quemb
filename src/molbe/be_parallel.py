@@ -10,7 +10,7 @@ from pyscf import ao2mo, fci, mcscf
 
 from molbe.external.ccsd_rdm import make_rdm1_uccsd, make_rdm2_uccsd
 from molbe.external.unrestricted_utils import make_uhf_obj
-from molbe.helper import get_eri, get_frag_energy, get_frag_energy_u, get_scfObj
+from molbe.helper import get_eri, get_frag_energy, get_frag_energy_u, get_scfObj, unused
 from molbe.solver import (
     make_rdm1_ccsd_t1,
     make_rdm2_urlx,
@@ -130,6 +130,7 @@ def run_solver(
     elif solver == "FCI":
         mc_ = fci.FCI(mf_, mf_.mo_coeff)
         efci, civec = mc_.kernel()
+        unused(efci)
         rdm1_tmp = mc_.make_rdm1(civec, mc_.norb, mc_.nelec)
     elif solver == "HCI":
         # pylint: disable-next=E0611
@@ -152,6 +153,7 @@ def run_solver(
         nelec = (nocc, nocc)
         h1_ = functools.reduce(numpy.dot, (mf_.mo_coeff.T, h1, mf_.mo_coeff))
         eci, civec = ci_.kernel(h1_, eri, nmo, nelec)
+        unused(eci)
         civec = numpy.asarray(civec)
 
         (rdm1a_, rdm1b_), (rdm2aa, rdm2ab, rdm2bb) = ci_.make_rdm12s(civec, nmo, nelec)
@@ -185,6 +187,7 @@ def run_solver(
         nelec = (nocc, nocc)
         cas = mcscf.CASCI(mf_, nmo, nelec)
         h1, ecore = cas.get_h1eff(mo_coeff=mf_.mo_coeff)
+        unused(ecore)
         eri = ao2mo.kernel(mf_._eri, mf_.mo_coeff, aosym="s4", compact=False).reshape(
             4 * ((nmo),)
         )

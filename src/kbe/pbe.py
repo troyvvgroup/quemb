@@ -183,9 +183,9 @@ class BE:
         jobid = ""
         if be_var.CREATE_SCRATCH_DIR:
             jobid = os.environ.get("SLURM_JOB_ID", "")
-        if not be_var.SCRATCH == "":
+        if be_var.SCRATCH:
             os.system("mkdir " + be_var.SCRATCH + str(jobid))
-        if jobid == "":
+        if not jobid:
             self.eri_file = be_var.SCRATCH + eri_file
             if cderi:
                 self.cderi = be_var.SCRATCH + cderi
@@ -230,7 +230,7 @@ class BE:
             if not restart:
                 self.Nocc -= self.ncore
 
-                nk, nao, nao = self.hf_dm.shape
+                nk, nao = self.hf_dm.shape[:2]
 
                 dm_nocore = numpy.zeros(
                     (nk, nao, nao), dtype=numpy.result_type(self.C, self.C)
@@ -351,7 +351,7 @@ class BE:
 
     def ewald_sum(self, kpts=None):
         dm_ = self.mf.make_rdm1()
-        nk, nao, nao = dm_.shape
+        nk, nao = dm_.shape[:2]
 
         vk_kpts = numpy.zeros(dm_.shape) * 1j
         _ewald_exxdiv_for_G0(
