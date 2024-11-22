@@ -3,6 +3,8 @@
 import numpy
 import scipy.linalg
 
+from molbe.helper import unused
+
 
 def schmidt_decomp_svd(rdm, Frag_sites):
     """
@@ -33,7 +35,8 @@ def schmidt_decomp_svd(rdm, Frag_sites):
     nfs = len(Frag_sites)
 
     Denv = rdm[Env_sites1][:, Fragsites]
-    U, sigma, _ = scipy.linalg.svd(Denv, full_matrices=False, lapack_driver="gesvd")
+    U, sigma, V = scipy.linalg.svd(Denv, full_matrices=False, lapack_driver="gesvd")
+    unused(V)
     nbath = (sigma >= thres).sum()
     TA = numpy.zeros((Tot_sites, nfs + nbath), dtype=numpy.complex128)
     TA[Fragsites, :nfs] = numpy.eye(nfs)

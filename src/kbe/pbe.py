@@ -230,9 +230,7 @@ class BE:
             if not restart:
                 self.Nocc -= self.ncore
 
-                nk, nao, nao_2nd_dim = self.hf_dm.shape
-                assert nao == nao_2nd_dim
-                del nao_2nd_dim
+                nk, nao = self.hf_dm.shape[:2]
 
                 dm_nocore = numpy.zeros(
                     (nk, nao, nao), dtype=numpy.result_type(self.C, self.C)
@@ -353,9 +351,7 @@ class BE:
 
     def ewald_sum(self, kpts=None):
         dm_ = self.mf.make_rdm1()
-        nk, nao, nao_2nd_dim = dm_.shape
-        assert nao == nao_2nd_dim
-        del nao_2nd_dim
+        nk, nao = dm_.shape[:2]
 
         vk_kpts = numpy.zeros(dm_.shape) * 1j
         _ewald_exxdiv_for_G0(

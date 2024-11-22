@@ -20,6 +20,7 @@ from pyscf import ao2mo
 
 import molbe.be_var as be_var
 from molbe.be_parallel import be_func_parallel_u
+from molbe.helper import unused
 from molbe.mbe import BE
 from molbe.pfrag import Frags
 from molbe.solver import be_func_u
@@ -323,9 +324,10 @@ class UBE(BE):  # 🍠
             )
 
             if compute_hf:
-                eh1_a, ecoul_a, _ = fobj_a.energy_hf(
+                eh1_a, ecoul_a, ef_a = fobj_a.energy_hf(
                     return_e1=True, unrestricted=True, spin_ind=0
                 )
+                unused(ef_a)
                 EH1 += eh1_a
                 ECOUL += ecoul_a
                 E_hf += fobj_a.ebe_hf
@@ -345,9 +347,10 @@ class UBE(BE):  # 🍠
             )
 
             if compute_hf:
-                eh1_b, ecoul_b, _ = fobj_b.energy_hf(
+                eh1_b, ecoul_b, ef_b = fobj_b.energy_hf(
                     return_e1=True, unrestricted=True, spin_ind=1
                 )
+                unused(ef_b)
                 EH1 += eh1_b
                 ECOUL += ecoul_b
                 E_hf += fobj_b.ebe_hf
@@ -414,7 +417,7 @@ class UBE(BE):  # 🍠
         self, solver="UCCSD", nproc=1, ompnum=4, calc_frag_energy=False, clean_eri=False
     ):
         if nproc == 1:
-            E, _ = be_func_u(
+            E, E_comp = be_func_u(
                 None,
                 zip(self.Fobjs_a, self.Fobjs_b),
                 solver,
@@ -427,7 +430,7 @@ class UBE(BE):  # 🍠
                 frozen=self.frozen_core,
             )
         else:
-            E, _ = be_func_parallel_u(
+            E, E_comp = be_func_parallel_u(
                 None,
                 zip(self.Fobjs_a, self.Fobjs_b),
                 solver,
@@ -441,6 +444,7 @@ class UBE(BE):  # 🍠
                 nproc=nproc,
                 ompnum=ompnum,
             )
+        unused(E_comp)
 
         print("-----------------------------------------------------", flush=True)
         print("             One Shot BE ", flush=True)
