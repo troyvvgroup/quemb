@@ -12,7 +12,7 @@ from pyscf import ao2mo
 from pyscf.pbc import df, gto
 from pyscf.pbc.df.df_jk import _ewald_exxdiv_for_G0
 
-import molbe.be_var as be_var
+from general import be_var
 from kbe.misc import storePBE
 from kbe.pfrag import Frags
 

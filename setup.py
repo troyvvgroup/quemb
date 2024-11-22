@@ -24,5 +24,6 @@ setup(
         "pyscf>=2.0.0",
         "matplotlib",
         "libdmet @ git+https://github.com/gkclab/libdmet_preview.git",
+        "attrs",
     ],
 )

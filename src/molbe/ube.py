@@ -18,7 +18,7 @@ import h5py
 import numpy
 from pyscf import ao2mo
 
-import molbe.be_var as be_var
+from general import be_var
 from molbe.be_parallel import be_func_parallel_u
 from molbe.mbe import BE
 from molbe.pfrag import Frags
