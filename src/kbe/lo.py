@@ -268,7 +268,7 @@ def localize(
                     numpy.dot, (Ciao_[k].conj().T, self.FOCK[k], Ciao_[k])
                 )
                 S_iao = reduce(numpy.dot, (Ciao_[k].conj().T, self.S[k], Ciao_[k]))
-                e_iao, _ = scipy.linalg.eigh(fock_iao, S_iao)
+                e_iao, _ = scipy.linalg.eigh(fock_iao, S_iao) # e_iao, v_iao
                 mo_energy_.append(e_iao)
             iaomf = KMF(self.mol, kpts=self.kpts, mo_coeff=Ciao_, mo_energy=mo_energy_)
 
