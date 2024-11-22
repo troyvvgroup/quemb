@@ -139,6 +139,7 @@ def be_func(
             rdm1_tmp = mc.make_rdm1(civec, mc.norb, mc.nelec)
 
         elif solver == "HCI":
+            # pylint: disable-next=E0611
             from pyscf import hci  # noqa: PLC0415    # optional module
 
             nao, nmo = fobj._mf.mo_coeff.shape
@@ -172,6 +173,7 @@ def be_func(
             rdm2s = rdm2aa + rdm2ab + rdm2ab.transpose(2, 3, 0, 1) + rdm2bb
 
         elif solver == "SHCI":
+            # pylint: disable-next=E0611,E0401
             from pyscf.shciscf import shci  # noqa: PLC0415    # shci is optional
 
             if scratch_dir is None and be_var.CREATE_SCRATCH_DIR:
@@ -203,6 +205,7 @@ def be_func(
             rdm1_tmp, rdm2s = mch.fcisolver.make_rdm12(0, nmo, nelec)
 
         elif solver == "SCI":
+            # pylint: disable-next=E0611
             from pyscf import cornell_shci  # noqa: PLC0415  # optional module
 
             nao, nmo = fobj._mf.mo_coeff.shape
@@ -685,16 +688,11 @@ def solve_ccsd(
     try:
         cc__.verbose = verbose
         cc__.kernel(eris=eris)
-    except:
+    except Exception as e:
         print(flush=True)
-        print(
-            "Exception in CCSD -> applying level_shift=0.2, diis_space=25", flush=True
-        )
+        print("Exception in CCSD, play with different CC options.", flush=True)
         print(flush=True)
-        cc__.verbose = 4
-        cc__.diis_space = 25
-        cc__.level_shift = 0.2
-        cc__.kernel(eris=eris)
+        raise e
 
     # Extract the CCSD amplitudes
     t1 = cc__.t1
@@ -782,6 +780,7 @@ def solve_block2(mf: object, nocc: int, frag_scratch: str = None, **solver_kwarg
 
 
     """
+    # pylint: disable-next=E0611
     from pyscf import dmrgscf  # noqa: PLC0415   # optional module
 
     use_cumulant = solver_kwargs.pop("use_cumulant", True)
@@ -813,7 +812,7 @@ def solve_block2(mf: object, nocc: int, frag_scratch: str = None, **solver_kwarg
 
     mc = mcscf.CASCI(mf, norb, nelec)
     mc.fcisolver = dmrgscf.DMRGCI(mf.mol)
-    ###Sweep scheduling
+    # Sweep scheduling
     mc.fcisolver.scheduleSweeps = schedule_kwargs.pop(
         "scheduleSweeps",
         [
@@ -844,7 +843,7 @@ def solve_block2(mf: object, nocc: int, frag_scratch: str = None, **solver_kwarg
         "scheduleNoises",
         [max_noise, max_noise, max_noise / 10, max_noise / 100, max_noise / 100, 0.0],
     )
-    ###Other DMRG parameters
+    # Other DMRG parameters
     mc.fcisolver.threads = int(os.environ.get("OMP_NUM_THREADS", 8))
     mc.fcisolver.twodot_to_onedot = int(twodot_to_onedot)
     mc.fcisolver.maxIter = int(max_iter)
@@ -857,7 +856,7 @@ def solve_block2(mf: object, nocc: int, frag_scratch: str = None, **solver_kwarg
     mc.kernel(orbs)
     rdm1, rdm2 = dmrgscf.DMRGCI.make_rdm12(mc.fcisolver, root, norb, nelec)
 
-    ###Subtract off non-cumulant contribution to correlated 2RDM.
+    # Subtract off non-cumulant contribution to correlated 2RDM.
     if use_cumulant:
         hf_dm = numpy.zeros_like(rdm1)
         hf_dm[numpy.diag_indices(nocc)] += 2.0
