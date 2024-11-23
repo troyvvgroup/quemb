@@ -81,7 +81,7 @@ class ScratchManager:
 
         if "SLURM_JOB_ID" in os.environ:
             # we can safely assume that the SLURM_JOB_ID is unique
-            subdir = Path(f"{prefix}{os.environ["SLURM_JOB_ID"]}/")
+            subdir = Path(f"{prefix}{os.environ['SLURM_JOB_ID']}/")
         else:
             # We cannot safely assume that PIDs are unique
             id = os.getpid()
