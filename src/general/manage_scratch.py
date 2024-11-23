@@ -29,6 +29,7 @@ class ScratchManager:
     The ScratchManager also exists as a ContextManager;
     then the cleanup is performed when leaving the ContextManager.
     """
+
     scratch_area: Path
     cleanup_at_end: bool
 
@@ -58,15 +59,17 @@ class ScratchManager:
 
     @classmethod
     def from_environment(
-        cls, *,
+        cls,
+        *,
         user_defined_name: PathLike | None = None,
         user_defined_root: PathLike | None = None,
-        prefix: str = 'QuEmb_',
+        prefix: str = "QuEmb_",
         do_cleanup: bool = True,
     ) -> ScratchManager:
         if user_defined_name and user_defined_root:
             raise TypeError(
-                "Don't use both `user_defined_name` and `user_defined_root`")
+                "Don't use both `user_defined_name` and `user_defined_root`"
+            )
 
         if user_defined_name:
             return cls(Path(user_defined_name), do_cleanup)
