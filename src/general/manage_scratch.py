@@ -77,7 +77,7 @@ class ScratchManager:
         if user_defined_root:
             scratch_root = Path(user_defined_root)
         else:
-            scratch_root = SCRATCH
+            scratch_root = Path(SCRATCH)
 
         if "SLURM_JOB_ID" in os.environ:
             # we can safely assume that the SLURM_JOB_ID is unique
