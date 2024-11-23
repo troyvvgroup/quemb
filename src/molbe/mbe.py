@@ -7,7 +7,7 @@ import h5py
 import numpy
 from pyscf import ao2mo
 
-import molbe.be_var as be_var
+from general import be_var
 from molbe.be_parallel import be_func_parallel
 from molbe.eri_onthefly import integral_direct_DF
 from molbe.pfrag import Frags

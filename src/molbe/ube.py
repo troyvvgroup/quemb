@@ -18,7 +18,7 @@ import h5py
 import numpy
 from pyscf import ao2mo
 
-import molbe.be_var as be_var
+from general import be_var
 from molbe.be_parallel import be_func_parallel_u
 from molbe.helper import unused
 from molbe.mbe import BE
@@ -324,7 +324,7 @@ class UBE(BE):  # 🍠
             )
 
             if compute_hf:
-                eh1_a, ecoul_a, ef_a = fobj_a.energy_hf(
+                eh1_a, ecoul_a, _ = fobj_a.energy_hf(
                     return_e1=True, unrestricted=True, spin_ind=0
                 )
                 unused(ef_a)
@@ -347,7 +347,7 @@ class UBE(BE):  # 🍠
             )
 
             if compute_hf:
-                eh1_b, ecoul_b, ef_b = fobj_b.energy_hf(
+                eh1_b, ecoul_b, _ = fobj_b.energy_hf(
                     return_e1=True, unrestricted=True, spin_ind=1
                 )
                 unused(ef_b)
@@ -417,7 +417,7 @@ class UBE(BE):  # 🍠
         self, solver="UCCSD", nproc=1, ompnum=4, calc_frag_energy=False, clean_eri=False
     ):
         if nproc == 1:
-            E, E_comp = be_func_u(
+            E, _ = be_func_u(
                 None,
                 zip(self.Fobjs_a, self.Fobjs_b),
                 solver,
@@ -430,7 +430,7 @@ class UBE(BE):  # 🍠
                 frozen=self.frozen_core,
             )
         else:
-            E, E_comp = be_func_parallel_u(
+            E, _ = be_func_parallel_u(
                 None,
                 zip(self.Fobjs_a, self.Fobjs_b),
                 solver,

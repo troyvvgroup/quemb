@@ -8,7 +8,7 @@ import numpy
 from pyscf import ao2mo, cc, fci, mcscf, mp
 from pyscf.cc.ccsd_rdm import make_rdm2
 
-from molbe import be_var
+from general import be_var
 from molbe.external.ccsd_rdm import (
     make_rdm1_ccsd_t1,
     make_rdm1_uccsd,

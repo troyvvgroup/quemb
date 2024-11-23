@@ -8,7 +8,7 @@
 
 import numpy
 
-from molbe import be_var
+from general import be_var
 from molbe.external.cphf_utils import cphf_kernel_batch, get_rhf_dP_from_u
 from molbe.external.cpmp2_utils import get_dPmp2_batch_r
 from molbe.external.jac_utils import get_dPccsdurlx_batch_u
