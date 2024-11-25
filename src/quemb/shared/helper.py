@@ -1,19 +1,29 @@
 # Author(s): Oskar Weser
 
+from collections.abc import Callable
 from functools import partial
 
 import h5py
 import numpy
 from numpy import float64
 from pyscf import ao2mo, gto, lib, scf
-from typing_extensions import Any, List, Optional, Tuple
+from typing_extensions import Any, List, Optional, ParamSpec, Tuple
 
 from quemb.shared.typing import Matrix, Tensor4D
+
+Parameters = ParamSpec("Parameters")
 
 
 def unused(*args: Any) -> None:
     for arg in args:
         del arg
+
+
+def add_docstring[T, **Parameters](
+    f: Callable[Parameters, T], doc: str
+) -> Callable[Parameters, T]:
+    f.__doc__ = doc
+    return f
 
 
 def ncore_(z: int) -> int:
