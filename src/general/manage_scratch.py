@@ -25,15 +25,21 @@ class WorkDir:
     If `do_cleanup` is true, then the scratch area is deleted,
     when if `self.cleanup` is called.
 
+    Not that the `/` is overloaded for this class and it can be used
+    as `pathlib.Path` in that regard, see example below.
+
+
     The `WorkDir` also exists as a ContextManager;
-    then the cleanup is performed when leaving the ContextManager:
+    then the cleanup is performed when leaving the ContextManager.
+    See an example below.
 
     Examples
     --------
-    with WorkDir('./test_dir') as scratch:
-        pass # do stuff with scratch
-
-    # './test_dir' does not exist anymore.
+    >>> with WorkDir('./test_dir') as scratch:
+    >>>     with open(scratch / 'test.txt', 'w') as f:
+    >>>         f.write('hello world')
+    './test_dir' does not exist anymore, if the outer contextmanager is left
+    without errors.
     """
     path: Path
     cleanup_at_end: bool
