@@ -6,7 +6,7 @@ import os
 
 import pytest
 
-from molbe.misc import be2puffin
+from quemb.molbe.misc import be2puffin
 
 # variables for scratch handling
 # pbe_var.SCRATCH = '{}'

@@ -5,7 +5,7 @@
 import numpy
 from pyscf.pbc import df, gto, scf
 
-from kbe import BE, fragpart
+from quemb.kbe import BE, fragpart
 
 kpt = [1, 1, 3]
 cell = gto.Cell()

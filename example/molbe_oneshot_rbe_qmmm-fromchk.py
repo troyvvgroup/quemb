@@ -2,7 +2,7 @@
 # using the be2puffin functionality, starting from a checkfile.
 # Returns BE CCSD energy for the system
 
-from molbe.misc import be2puffin
+from quemb.molbe.misc import be2puffin
 
 # variables for scratch handling
 # pbe_var.SCRATCH = '{}'
