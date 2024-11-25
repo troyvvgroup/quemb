@@ -1,5 +1,7 @@
 # Author(s): Oskar Weser
 
+from functools import partial
+
 import h5py
 import numpy
 from numpy import float64
@@ -191,3 +193,47 @@ def get_eri(
         eri__ = ao2mo.restore(symm, eri__, Nao)
 
     return eri__
+
+
+def get_veff(
+    eri_: Tensor4D[float64],
+    dm: Matrix[float64],
+    S: Matrix[float64],
+    TA: Matrix[float64],
+    hf_veff: Matrix[float64],
+) -> Matrix[float64]:
+    """
+    Calculate the effective HF potential (Veff) for a given density matrix and
+    electron repulsion integrals.
+
+    This function computes the effective potential by transforming the density matrix,
+    computing the Coulomb (J) and exchange (K) integrals.
+
+    Parameters
+    ----------
+    eri_ : numpy.ndarray
+        Electron repulsion integrals.
+    dm : numpy.ndarray
+        Density matrix. 2D array.
+    S : numpy.ndarray
+        Overlap matrix.
+    TA : numpy.ndarray
+        Transformation matrix.
+    hf_veff : numpy.ndarray
+        Hartree-Fock effective potential for the full system.
+
+    Returns
+    -------
+    numpy.ndarray
+        Effective HF potential in the embedding basis.
+    """
+    as_f8_array = partial(numpy.asarray, dtype=numpy.float64)
+    # Transform the density matrix
+    # Ensure the transformed density matrix and ERI are real and double-precision
+    ST = S @ TA
+    P_ = as_f8_array(ST.T @ dm @ ST)
+    eri_ = as_f8_array(eri_)
+
+    # Compute the Coulomb (J) and exchange (K) integrals
+    vj, vk = scf.hf.dot_eri_dm(eri_, P_, hermi=1, with_j=True, with_k=True)
+    return TA.T @ hf_veff @ TA - vj - 0.5 * vk

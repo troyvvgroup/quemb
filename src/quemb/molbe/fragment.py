@@ -3,7 +3,7 @@
 import sys
 
 from quemb.molbe.autofrag import autogen
-from quemb.molbe.helper import get_core
+from quemb.shared.helper import get_core
 
 
 class fragpart:

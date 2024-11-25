@@ -10,12 +10,7 @@ from pyscf import ao2mo, fci, mcscf
 
 from quemb.molbe.external.ccsd_rdm import make_rdm1_uccsd, make_rdm2_uccsd
 from quemb.molbe.external.unrestricted_utils import make_uhf_obj
-from quemb.molbe.helper import (
-    get_eri,
-    get_frag_energy,
-    get_frag_energy_u,
-    get_scfObj,
-)
+from quemb.molbe.helper import get_frag_energy, get_frag_energy_u
 from quemb.molbe.solver import (
     make_rdm1_ccsd_t1,
     make_rdm2_urlx,
@@ -24,7 +19,7 @@ from quemb.molbe.solver import (
     solve_mp2,
     solve_uccsd,
 )
-from quemb.shared.helper import unused
+from quemb.shared.helper import get_eri, get_scfObj, unused
 
 
 def run_solver(

@@ -5,50 +5,6 @@ import functools
 
 import h5py
 import numpy
-from pyscf import scf
-
-
-def get_veff(eri_, dm, S, TA, hf_veff):
-    """
-    Calculate the effective HF potential (Veff) for a given density matrix and
-    electron repulsion integrals.
-
-    This function computes the effective potential by transforming the density matrix,
-    computing the Coulomb (J) and exchange (K) integrals.
-
-    Parameters
-    ----------
-    eri_ : numpy.ndarray
-        Electron repulsion integrals.
-    dm : numpy.ndarray
-        Density matrix. 2D array.
-    S : numpy.ndarray
-        Overlap matrix.
-    TA : numpy.ndarray
-        Transformation matrix.
-    hf_veff : numpy.ndarray
-        Hartree-Fock effective potential for the full system.
-
-    Returns
-    -------
-    numpy.ndarray
-        Effective HF potential in the embedding basis.
-    """
-
-    # Transform the density matrix
-    ST = numpy.dot(S, TA)
-    P_ = functools.reduce(numpy.dot, (ST.T, dm, ST))
-
-    # Ensure the transformed density matrix and ERI are real and double-precision
-    P_ = numpy.asarray(P_.real, dtype=numpy.double)
-    eri_ = numpy.asarray(eri_, dtype=numpy.double)
-
-    # Compute the Coulomb (J) and exchange (K) integrals
-    vj, vk = scf.hf.dot_eri_dm(eri_, P_, hermi=1, with_j=True, with_k=True)
-    Veff_ = vj - 0.5 * vk
-    Veff = functools.reduce(numpy.dot, (TA.T, hf_veff, TA)) - Veff_
-
-    return Veff
 
 
 def get_frag_energy(

@@ -6,8 +6,8 @@ import h5py
 import numpy
 import scipy.linalg
 
-from quemb.molbe.helper import get_eri, get_scfObj, get_veff
 from quemb.molbe.solver import schmidt_decomposition
+from quemb.shared.helper import get_eri, get_scfObj, get_veff
 
 
 class Frags:

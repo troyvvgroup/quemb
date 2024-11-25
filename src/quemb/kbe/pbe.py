@@ -15,6 +15,7 @@ from pyscf.pbc.df.df_jk import _ewald_exxdiv_for_G0
 from quemb.kbe.misc import storePBE
 from quemb.kbe.pfrag import Frags
 from quemb.shared import config
+from quemb.shared.helper import get_eri, get_scfObj, get_veff
 
 
 class BE:
@@ -782,8 +783,6 @@ def parallel_fock_wrapper(dname, nao, dm, S, TA, hf_veff, eri_file):
     """
     Wrapper for parallel Fock transformation
     """
-    from .helper import get_eri, get_veff
-
     eri_ = get_eri(dname, nao, eri_file=eri_file, ignore_symm=True)
     veff0, veff_ = get_veff(eri_, dm, S, TA, hf_veff, return_veff0=True)
 
@@ -794,8 +793,6 @@ def parallel_scf_wrapper(dname, nao, nocc, h1, dm_init, eri_file):
     """
     Wrapper for performing fragment scf calculation
     """
-    from .helper import get_eri, get_scfObj
-
     eri = get_eri(dname, nao, eri_file=eri_file)
     mf_ = get_scfObj(h1, eri, nocc, dm_init)
 

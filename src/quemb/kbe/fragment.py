@@ -3,7 +3,7 @@
 import sys
 
 from quemb.kbe.autofrag import autogen
-from quemb.molbe.helper import get_core
+from quemb.shared.helper import get_core
 
 
 def print_mol_missing():
