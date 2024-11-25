@@ -41,6 +41,7 @@ class WorkDir:
     './test_dir' does not exist anymore, if the outer contextmanager is left
     without errors.
     """
+
     path: Path
     cleanup_at_end: bool
 
@@ -73,7 +74,7 @@ class WorkDir:
         user_defined_root: PathLike | None = None,
         prefix: str = "QuEmb_",
         do_cleanup: bool = True,
-        ) -> WorkDir:
+    ) -> WorkDir:
         """Create a WorkDir based on the environment.
 
         The naming scheme is `${user_defined_root}/${prefix}${SLURM_JOB_ID}`

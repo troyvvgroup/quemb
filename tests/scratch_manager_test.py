@@ -79,8 +79,8 @@ def test_creation_PID():
 def test_dunder_methods():
     "Test if we can use an instance of `WorkDir` as if it was a `Path`"
     with WorkDir(scratch_area=Path("./scratch")) as scratch:
-        with open(scratch / 'test.txt', 'w') as f:
-            f.write('hello world')
+        with open(scratch / "test.txt", "w") as f:
+            f.write("hello world")
 
-        with open(scratch.path / 'test.txt') as f:
-            assert f.read() == 'hello world'
+        with open(scratch.path / "test.txt") as f:
+            assert f.read() == "hello world"
