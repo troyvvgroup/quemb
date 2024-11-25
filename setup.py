@@ -26,5 +26,6 @@ setup(
         "libdmet @ git+https://github.com/gkclab/libdmet_preview.git",
         "attrs",
         "typing_extensions",
+        "nptyping",
     ],
 )
