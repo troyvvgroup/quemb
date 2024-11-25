@@ -6,11 +6,11 @@ from shutil import rmtree
 from types import TracebackType
 
 from attr import define
-from typing_extensions import Literal, TypeAlias
+from typing_extensions import Literal, Optional, TypeAlias, Union
 
-from general.be_var import SCRATCH
+from quemb.general.be_var import SCRATCH
 
-PathLike: TypeAlias = str | os.PathLike
+PathLike: TypeAlias = Union[str, os.PathLike]
 
 
 @define(order=False)
@@ -58,9 +58,9 @@ class WorkDir:
 
     def __exit__(
         self,
-        type_: type[BaseException] | None,
-        value: BaseException | None,
-        traceback: TracebackType | None,
+        type_: Optional[type[BaseException]],
+        value: Optional[BaseException],
+        traceback: Optional[TracebackType],
     ) -> Literal[False]:
         if value is None:
             self.cleanup()
@@ -70,7 +70,7 @@ class WorkDir:
     def from_environment(
         cls,
         *,
-        user_defined_root: PathLike | None = None,
+        user_defined_root: Optional[PathLike] = None,
         prefix: str = "QuEmb_",
         do_cleanup: bool = True,
     ) -> WorkDir:

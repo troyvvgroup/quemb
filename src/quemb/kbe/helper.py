@@ -5,7 +5,7 @@ import functools
 import numpy
 from pyscf import scf
 
-from molbe.helper import unused
+from quemb.molbe.helper import unused
 
 
 def get_veff(eri_, dm, S, TA, hf_veff, return_veff0=False):

@@ -8,7 +8,7 @@ import numpy
 import scipy
 from pyscf.pbc import gto as pgto
 
-from molbe.helper import unused
+from quemb.molbe.helper import unused
 
 
 def dot_gen(A, B, ovlp):

@@ -2,8 +2,8 @@
 
 import sys
 
-from molbe.autofrag import autogen
-from molbe.helper import get_core
+from quemb.molbe.autofrag import autogen
+from quemb.molbe.helper import get_core
 
 
 class fragpart:
@@ -134,7 +134,7 @@ class fragpart:
             sys.exit()
 
     # importing the function here turns it into a proper method
-    from molbe.lchain import chain  # noqa: PLC0415
+    from quemb.molbe.lchain import chain  # noqa: PLC0415
 
     def hchain_simple(self):
         """Hard coded fragmentation feature"""

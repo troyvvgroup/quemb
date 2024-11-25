@@ -8,10 +8,16 @@ from multiprocessing import Pool
 import numpy
 from pyscf import ao2mo, fci, mcscf
 
-from molbe.external.ccsd_rdm import make_rdm1_uccsd, make_rdm2_uccsd
-from molbe.external.unrestricted_utils import make_uhf_obj
-from molbe.helper import get_eri, get_frag_energy, get_frag_energy_u, get_scfObj, unused
-from molbe.solver import (
+from quemb.molbe.external.ccsd_rdm import make_rdm1_uccsd, make_rdm2_uccsd
+from quemb.molbe.external.unrestricted_utils import make_uhf_obj
+from quemb.molbe.helper import (
+    get_eri,
+    get_frag_energy,
+    get_frag_energy_u,
+    get_scfObj,
+    unused,
+)
+from quemb.molbe.solver import (
     make_rdm1_ccsd_t1,
     make_rdm2_urlx,
     solve_ccsd,

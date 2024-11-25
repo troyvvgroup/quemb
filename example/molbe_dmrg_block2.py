@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy
 from pyscf import cc, fci, gto, scf
 
-from molbe import BE, fragpart
+from quemb.molbe import BE, fragpart
 
 # We'll consider the dissociation curve for a 1D chain of 8 H-atoms:
 num_points = 3

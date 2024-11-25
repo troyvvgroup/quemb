@@ -1,21 +1,23 @@
 # Author(s): Oinam Romesh Meitei
 
 import functools
+import sys
 
 import h5py
 import numpy
-import scipy.linalg
 
-from molbe.helper import get_eri, get_scfObj, get_veff
-from molbe.solver import schmidt_decomposition
+from quemb.kbe.helper import get_veff
+from quemb.kbe.misc import get_phase, get_phase1
+from quemb.kbe.solver import schmidt_decomp_svd
+from quemb.molbe.helper import get_eri, get_scfObj, unused
 
 
 class Frags:
     """
-    Class for handling fragments in bootstrap embedding.
+    Class for handling fragments in periodic bootstrap embedding.
 
     This class contains various functionalities required for managing and manipulating
-    fragments for BE calculations.
+    fragments for periodic BE calculations.
     """
 
     def __init__(
@@ -28,17 +30,19 @@ class Frags:
         center_idx=None,
         efac=None,
         eri_file="eri_file.h5",
+        unitcell_nkpt=1,
+        ewald_ek=None,
         centerf_idx=None,
-        unrestricted=False,
+        unitcell=1,
     ):
         """Constructor function for `Frags` class.
 
         Parameters
         ----------
         fsites : list
-            list of AOs in the fragment (i.e. BE.fsites[i] or fragpart.fsites[i])
+            list of AOs in the fragment (i.e. pbe.fsites[i] or fragpart.fsites[i])
         ifrag : int
-            fragment index (∈ [0, BE.Nfrag])
+            fragment index (∈ [0, pbe.Nfrag])
         edge : list, optional
             list of lists of edge site AOs for each atom in the fragment,
             by default None
@@ -49,32 +53,25 @@ class Frags:
             list of lists of indices for edge site AOs within the fragment,
             by default None
         center_idx : list, optional
-            list of lists of indices within the fragment specified in `center`
-            that points to the edge site AOs , by default None
+            list of lists of indices within the fragment specified in `center` that
+            points to the edge site AOs , by default None
         efac : list, optional
             weight used for energy contributions, by default None
         eri_file : str, optional
             two-electron integrals stored as h5py file, by default 'eri_file.h5'
         centerf_idx : list, optional
             indices of the center site atoms in the fragment, by default None
-        unrestricted : bool, optional
-            unrestricted calculation, by default False
         """
 
         self.fsites = fsites
+        self.unitcell = unitcell
+        self.unitcell_nkpt = unitcell_nkpt
         self.nfsites = len(fsites)
         self.TA = None
         self.TA_lo_eo = None
         self.h1 = None
         self.ifrag = ifrag
-        if unrestricted:
-            self.dname = [
-                "f" + str(ifrag) + "/aa",
-                "f" + str(ifrag) + "/bb",
-                "f" + str(ifrag) + "/ab",
-            ]
-        else:
-            self.dname = "f" + str(ifrag)
+        self.dname = "f" + str(ifrag)
         self.nao = None
         self.mo_coeffs = None
         self._mo_coeffs = None
@@ -97,20 +94,34 @@ class Frags:
         self._rdm1 = None
         self.__rdm1 = None
         self.__rdm2 = None
+        self._del_rdm1 = None
         self.rdm1 = None
         self.genvs = None
         self.ebe = 0.0
         self.ebe_hf = 0.0
         self.efac = efac
+        self.ewald_ek = ewald_ek
         self.fock = None
         self.veff = None
         self.veff0 = None
         self.dm_init = None
         self.dm0 = None
         self.eri_file = eri_file
-        self.unitcell_nkpt = 1.0
+        self.pot = None
+        self.ebe_hf0 = 0.0
+        self.rdm1_lo_k = None
 
-    def sd(self, lao, lmo, nocc, norb=None, return_orb_count=False):
+    def sd(
+        self,
+        lao,
+        lmo,
+        nocc,
+        frag_type="autogen",
+        cell=None,
+        kpts=None,
+        kmesh=None,
+        h1=None,
+    ):
         """
         Perform Schmidt decomposition for the fragment.
 
@@ -122,27 +133,69 @@ class Frags:
             Local molecular orbital coefficients.
         nocc : int
             Number of occupied orbitals.
-        norb : int, optional
-            Specify number of bath orbitals.
-            Used for UBE, where different number of alpha and beta orbitals
-            Default is None, allowing orbitals to be chosen by threshold
-        return_orb_count : bool, optional
-            Retrun the number of orbitals in each space, for UBE use/
-            Default is False
+        cell : pyscf.pbc.gto.Cell
+            PySCF pbc.gto.Cell object defining the unit cell and lattice vectors.
+        kpts : list of list of float
+            k-points in the reciprocal space for periodic computations
+        kmesh : list of int
+            Number of k-points in each lattice vector direction
         """
+        nk, nao, nlo = lao.shape
+        rdm1_lo_k = numpy.zeros((nk, nlo, nlo), dtype=numpy.result_type(lmo, lmo))
+        for k in range(nk):
+            rdm1_lo_k[k] += numpy.dot(lmo[k][:, :nocc], lmo[k][:, :nocc].conj().T)
+        self.rdm1_lo_k = rdm1_lo_k
+        phase = get_phase(cell, kpts, kmesh)
+        supcell_rdm = numpy.einsum("Rk,kuv,Sk->RuSv", phase, rdm1_lo_k, phase.conj())
+        supcell_rdm = supcell_rdm.reshape(nk * nlo, nk * nlo)
 
-        if return_orb_count:
-            TA, n_f, n_b = schmidt_decomposition(
-                lmo, nocc, self.fsites, norb=norb, return_orb_count=return_orb_count
-            )
+        if numpy.abs(supcell_rdm.imag).max() < 1.0e-6:
+            supcell_rdm = supcell_rdm.real
         else:
-            TA = schmidt_decomposition(lmo, nocc, self.fsites)
-        self.C_lo_eo = TA
-        TA = numpy.dot(lao, TA)
-        self.nao = TA.shape[1]
-        self.TA = TA
-        if return_orb_count:
-            return [n_f, n_b]
+            print("Imaginary density in Full SD", numpy.abs(supcell_rdm.imag).max())
+            sys.exit()
+
+        Sites = [i + (nlo * 0) for i in self.fsites]
+        if not frag_type == "autogen":
+            Sites.sort()
+
+        TA_R = schmidt_decomp_svd(supcell_rdm, Sites)
+        teo = TA_R.shape[-1]
+        TA_R = TA_R.reshape(nk, nlo, teo)
+
+        phase1 = get_phase1(cell, kpts, kmesh)
+        TA_k = numpy.einsum("Rim, Rk -> kim", TA_R, phase1)
+        self.TA_lo_eo = TA_k
+
+        TA_ao_eo_k = numpy.zeros(
+            (nk, nao, teo), dtype=numpy.result_type(lao.dtype, TA_k.dtype)
+        )
+        for k in range(nk):
+            TA_ao_eo_k[k] = numpy.dot(lao[k], TA_k[k])
+
+        self.TA = TA_ao_eo_k
+        self.nao = TA_ao_eo_k.shape[-1]
+
+        # useful for debugging --
+        rdm1_eo = numpy.zeros((teo, teo), dtype=numpy.complex128)
+        for k in range(nk):
+            rdm1_eo += functools.reduce(
+                numpy.dot, (TA_k[k].conj().T, rdm1_lo_k[k], TA_k[k])
+            )
+        rdm1_eo /= float(nk)
+
+        h1_eo = numpy.zeros((teo, teo), dtype=numpy.complex128)
+        for k in range(nk):
+            h1_eo += functools.reduce(
+                numpy.dot, (self.TA[k].conj().T, h1[k], self.TA[k])
+            )
+        h1_eo /= float(nk)
+        e1 = 2.0 * numpy.einsum(
+            "ij,ij->i", h1_eo[: self.nfsites], rdm1_eo[: self.nfsites]
+        )
+        e_h1 = 0.0
+        for i in self.efac[1]:
+            e_h1 += self.efac[0] * e1[i]
 
     def cons_h1(self, h1):
         """
@@ -154,8 +207,20 @@ class Frags:
             One-electron Hamiltonian matrix.
         """
 
-        h1_tmp = functools.reduce(numpy.dot, (self.TA.T, h1, self.TA))
-        self.h1 = h1_tmp
+        nk, nao, teo = self.TA.shape
+        unused(nao)
+        h1_eo = numpy.zeros((teo, teo), dtype=numpy.complex128)
+        for k in range(nk):
+            h1_eo += functools.reduce(
+                numpy.dot, (self.TA[k].conj().T, h1[k], self.TA[k])
+            )
+        h1_eo /= float(nk)
+
+        if numpy.abs(h1_eo.imag).max() < 1.0e-7:
+            self.h1 = h1_eo.real
+        else:
+            print("Imaginary Hcore ", numpy.abs(h1_eo.imag).max())
+            sys.exit()
 
     def cons_fock(self, hf_veff, S, dm, eri_=None):
         """
@@ -178,8 +243,13 @@ class Frags:
                 self.dname, self.TA.shape[1], ignore_symm=True, eri_file=self.eri_file
             )
 
-        veff_ = get_veff(eri_, dm, S, self.TA, hf_veff)
-        self.veff = veff_.real
+        veff0, veff_ = get_veff(eri_, dm, S, self.TA, hf_veff, return_veff0=True)
+        if numpy.abs(veff_.imag).max() < 1.0e-6:
+            self.veff = veff_.real
+            self.veff0 = veff0.real
+        else:
+            print("Imaginary Veff ", numpy.abs(veff_.imag).max())
+            sys.exit()
         self.fock = self.h1 + veff_.real
 
     def get_nsocc(self, S, C, nocc, ncore=0):
@@ -202,22 +272,39 @@ class Frags:
         numpy.ndarray
             Projected density matrix.
         """
-        C_ = functools.reduce(numpy.dot, (self.TA.T, S, C[:, ncore : ncore + nocc]))
-        P_ = numpy.dot(C_, C_.T)
+
+        nk, nao, neo = self.TA.shape
+        dm_ = numpy.zeros((nk, nao, nao), dtype=numpy.result_type(C, C))
+        for k in range(nk):
+            dm_[k] = 2.0 * numpy.dot(
+                C[k][:, ncore : ncore + nocc], C[k][:, ncore : ncore + nocc].conj().T
+            )
+        P_ = numpy.zeros((neo, neo), dtype=numpy.complex128)
+        for k in range(nk):
+            Cinv = numpy.dot(self.TA[k].conj().T, S[k])
+            P_ += functools.reduce(numpy.dot, (Cinv, dm_[k], Cinv.conj().T))
+
+        P_ /= float(nk)
+        if numpy.abs(P_.imag).max() < 1.0e-6:
+            P_ = P_.real
+        else:
+            print("Imaginary density in get_nsocc ", numpy.abs(P_.imag).max())
+            sys.exit()
         nsocc_ = numpy.trace(P_)
-        nsocc = int(numpy.round(nsocc_))
+        nsocc = int(numpy.round(nsocc_.real) / 2)
 
-        try:
-            mo_coeffs = scipy.linalg.svd(C_)[0]
-        except:
-            mo_coeffs = scipy.linalg.eigh(C_)[1][:, -nsocc:]
-
-        self._mo_coeffs = mo_coeffs
         self.nsocc = nsocc
         return P_
 
     def scf(
-        self, heff=None, fs=False, eri=None, dm0=None, unrestricted=False, spin_ind=None
+        self,
+        heff=None,
+        fs=False,
+        eri=None,
+        pert_h=False,
+        pert_list=None,
+        save_chkfile=False,
+        dm0=None,
     ):
         """
         Perform self-consistent field (SCF) calculation for the fragment.
@@ -232,10 +319,6 @@ class Frags:
             Electron repulsion integrals, by default None.
         dm0 : numpy.ndarray, optional
             Initial density matrix, by default None.
-        unrestricted : bool, optional
-            Specify if unrestricted calculation, by default False
-        spin_ind : int, optional
-            Alpha (0) or beta (1) spin for unrestricted calculation, by default None
         """
 
         if self._mf is not None:
@@ -246,11 +329,7 @@ class Frags:
             heff = self.heff
 
         if eri is None:
-            if unrestricted:
-                dname = self.dname[spin_ind]
-            else:
-                dname = self.dname
-            eri = get_eri(dname, self.nao, eri_file=self.eri_file)
+            eri = get_eri(self.dname, self.nao, eri_file=self.eri_file)
 
         if dm0 is None:
             dm0 = (
@@ -261,15 +340,39 @@ class Frags:
                 * 2.0
             )
 
-        mf_ = get_scfObj(self.fock + heff, eri, self.nsocc, dm0=dm0)
+        mf_ = get_scfObj(
+            self.fock + heff,
+            eri,
+            self.nsocc,
+            dm0=dm0,
+            fname=self.dname,
+            pert_h=pert_h,
+            pert_list=pert_list,
+            save_chkfile=save_chkfile,
+        )
+
+        if pert_h:
+            return mf_
+
         if not fs:
             self._mf = mf_
             self.mo_coeffs = mf_.mo_coeff.copy()
         else:
             self._mo_coeffs = mf_.mo_coeff.copy()
+
+            dm0 = mf_.make_rdm1()
         mf_ = None
 
-    def update_heff(self, u, cout=None, return_heff=False, only_chem=False):
+    def update_heff(
+        self,
+        u,
+        cout=None,
+        return_heff=False,
+        be_iter=None,
+        no_chempot=False,
+        tmp_add=False,
+        only_chem=False,
+    ):
         """
         Update the effective Hamiltonian for the fragment.
         """
@@ -279,9 +382,10 @@ class Frags:
         if cout is None:
             cout = self.udim
 
-        for i, fi in enumerate(self.fsites):
-            if not any(i in sublist for sublist in self.edge_idx):
-                heff_[i, i] -= u[-1]
+        if not no_chempot:
+            for i, fi in enumerate(self.fsites):
+                if not any(i in sublist for sublist in self.edge_idx):
+                    heff_[i, i] -= u[-1]
 
         if only_chem:
             self.heff = heff_
@@ -292,10 +396,10 @@ class Frags:
                     return (cout, heff_)
             return cout
 
-        for i in self.edge_idx:
+        for idx, i in enumerate(self.edge_idx):
             for j in range(len(i)):
                 for k in range(len(i)):
-                    if j > k:  # or j==k:
+                    if j > k:
                         continue
 
                     heff_[i[j], i[k]] = u[cout]
@@ -320,70 +424,8 @@ class Frags:
                     cout += 1
         return cout
 
-    def energy(self, rdm2s, eri=None, print_fragE=False):
-        # This function uses old energy expression and will be removed
-        rdm2s = numpy.einsum(
-            "ijkl,pi,qj,rk,sl->pqrs",
-            0.5 * rdm2s,
-            *([self.mo_coeffs] * 4),
-            optimize=True,
-        )
-
-        e1 = 2.0 * numpy.einsum(
-            "ij,ij->i", self.h1[: self.nfsites], self._rdm1[: self.nfsites]
-        )
-        ec = numpy.einsum(
-            "ij,ij->i", self.veff[: self.nfsites], self._rdm1[: self.nfsites]
-        )
-
-        if self.TA.ndim == 3:
-            jmax = self.TA[0].shape[1]
-        else:
-            jmax = self.TA.shape[1]
-
-        if eri is None:
-            r = h5py.File(self.eri_file, "r")
-            eri = r[self.dname][()]
-            r.close()
-
-        e2 = numpy.zeros_like(e1)
-        for i in range(self.nfsites):
-            for j in range(jmax):
-                ij = i * (i + 1) // 2 + j if i > j else j * (j + 1) // 2 + i
-                Gij = rdm2s[i, j, :jmax, :jmax].copy()
-                Gij[numpy.diag_indices(jmax)] *= 0.5
-                Gij += Gij.T
-
-                e2[i] += Gij[numpy.tril_indices(jmax)] @ eri[ij]
-
-        e_ = e1 + e2 + ec
-        etmp = 0.0
-        e1_ = 0.0
-        ec_ = 0.0
-        e2_ = 0.0
-        for i in self.efac[1]:
-            etmp += self.efac[0] * e_[i]
-            e1_ += self.efac[0] * e1[i]
-            ec_ += self.efac[0] * ec[i]
-            e2_ += self.efac[0] * e2[i]
-
-        print(
-            "BE Energy Frag-{:>3}   {:>12.7f}  {:>12.7f}  {:>12.7f};   Total : {:>12.7f}".format(  # noqa: E501
-                self.dname, e1_, ec_, e2_, etmp
-            )
-        )
-
-        self.ebe = etmp
-        return e1 + e2 + ec
-
     def energy_hf(
-        self,
-        rdm_hf=None,
-        mo_coeffs=None,
-        eri=None,
-        return_e1=False,
-        unrestricted=False,
-        spin_ind=None,
+        self, rdm_hf=None, mo_coeffs=None, eri=None, return_e1=False, unrestricted=False
     ):
         if mo_coeffs is None:
             mo_coeffs = self._mo_coeffs
@@ -393,15 +435,15 @@ class Frags:
                 mo_coeffs[:, : self.nsocc], mo_coeffs[:, : self.nsocc].conj().T
             )
 
-        unrestricted_fac = 1.0 if unrestricted else 2.0
+        unrestricted = 1.0 if unrestricted else 2.0
 
-        e1 = unrestricted_fac * numpy.einsum(
+        e1 = unrestricted * numpy.einsum(
             "ij,ij->i", self.h1[: self.nfsites], rdm_hf[: self.nfsites]
         )
 
         ec = (
             0.5
-            * unrestricted_fac
+            * unrestricted
             * numpy.einsum(
                 "ij,ij->i", self.veff[: self.nfsites], rdm_hf[: self.nfsites]
             )
@@ -413,10 +455,7 @@ class Frags:
             jmax = self.TA.shape[1]
         if eri is None:
             r = h5py.File(self.eri_file, "r")
-            if isinstance(self.dname, list):
-                eri = [r[self.dname[0]][()], r[self.dname[1]][()]]
-            else:
-                eri = r[self.dname][()]
+            eri = r[self.dname][()]
 
             r.close()
 
@@ -429,27 +468,20 @@ class Frags:
                 ]
                 Gij[numpy.diag_indices(jmax)] *= 0.5
                 Gij += Gij.T
-                if (
-                    unrestricted
-                ):  # unrestricted ERI file has 3 spin components: a, b, ab
-                    e2[i] += (
-                        0.5
-                        * unrestricted_fac
-                        * Gij[numpy.tril_indices(jmax)]
-                        @ eri[spin_ind][ij]
-                    )
-                else:
-                    e2[i] += (
-                        0.5 * unrestricted_fac * Gij[numpy.tril_indices(jmax)] @ eri[ij]
-                    )
+                e2[i] += 0.5 * unrestricted * Gij[numpy.tril_indices(jmax)] @ eri[ij]
 
         e_ = e1 + e2 + ec
         etmp = 0.0
+        e1_ = 0.0
+        e2_ = 0.0
+        ec_ = 0.0
         for i in self.efac[1]:
             etmp += self.efac[0] * e_[i]
+            e1_ += self.efac[0] * e1[i]
+            e2_ += self.efac[0] * e2[i]
+            ec_ += self.efac[0] * ec[i]
 
         self.ebe_hf = etmp
-
         if return_e1:
             e_h1 = 0.0
             e_coul = 0.0

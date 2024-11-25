@@ -4,7 +4,7 @@ from tempfile import mkdtemp
 
 from pytest import raises
 
-from general.manage_scratch import WorkDir
+from quemb.general.manage_scratch import WorkDir
 
 
 def test_already_created():

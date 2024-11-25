@@ -9,7 +9,7 @@ import unittest
 
 from pyscf import gto, scf
 
-from molbe import BE, fragpart
+from quemb.molbe import BE, fragpart
 
 try:
     from pyscf import dmrgscf

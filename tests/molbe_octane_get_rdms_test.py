@@ -5,7 +5,7 @@ import os
 import pytest
 from pyscf import gto, scf
 
-from molbe import BE, fragpart
+from quemb.molbe import BE, fragpart
 
 # TODO: actually add meaningful tests for RDM elements,
 #   energies etc.
