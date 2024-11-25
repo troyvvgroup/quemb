@@ -1,11 +1,11 @@
 # Illustrates how fcidump file containing fragment hamiltonian
 # can be generated using be2fcidump
 
-from quemb.general import be_var
+from quemb.general import config
 from quemb.molbe import BE, fragpart
 from quemb.molbe.misc import be2fcidump, libint2pyscf
 
-be_var.PRINT_LEVEL = 3
+config.PRINT_LEVEL = 3
 
 # Read in molecular integrals expressed in libint basis ordering
 # numpy.loadtxt takes care of the input under the hood

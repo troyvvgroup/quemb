@@ -8,7 +8,7 @@ from types import TracebackType
 from attr import define
 from typing_extensions import Literal, Optional, TypeAlias, Union
 
-from quemb.general.be_var import SCRATCH
+from quemb.general.config import SCRATCH
 
 PathLike: TypeAlias = Union[str, os.PathLike]
 

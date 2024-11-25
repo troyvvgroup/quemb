@@ -8,7 +8,7 @@ import numpy
 from pyscf import ao2mo, cc, fci, mcscf, mp
 from pyscf.cc.ccsd_rdm import make_rdm2
 
-from quemb.general import be_var
+from quemb.general import config
 from quemb.molbe.external.ccsd_rdm import (
     make_rdm1_ccsd_t1,
     make_rdm1_uccsd,
@@ -177,10 +177,10 @@ def be_func(
             # pylint: disable-next=E0611,E0401
             from pyscf.shciscf import shci  # noqa: PLC0415    # shci is optional
 
-            if scratch_dir is None and be_var.CREATE_SCRATCH_DIR:
-                tmp = os.path.join(be_var.SCRATCH, str(os.getpid()), str(fobj.dname))
+            if scratch_dir is None and config.CREATE_SCRATCH_DIR:
+                tmp = os.path.join(config.SCRATCH, str(os.getpid()), str(fobj.dname))
             elif scratch_dir is None:
-                tmp = be_var.SCRATCH
+                tmp = config.SCRATCH
             else:
                 tmp = os.path.join(scratch_dir, str(os.getpid()), str(fobj.dname))
             if not os.path.isdir(tmp):
@@ -229,8 +229,8 @@ def be_func(
 
         elif solver in ["block2", "DMRG", "DMRGCI", "DMRGSCF"]:
             solver_kwargs_ = solver_kwargs.copy()
-            if scratch_dir is None and be_var.CREATE_SCRATCH_DIR:
-                tmp = os.path.join(be_var.SCRATCH, str(os.getpid()), str(fobj.dname))
+            if scratch_dir is None and config.CREATE_SCRATCH_DIR:
+                tmp = os.path.join(config.SCRATCH, str(os.getpid()), str(fobj.dname))
             else:
                 tmp = os.path.join(scratch_dir, str(os.getpid()), str(fobj.dname))
             if not os.path.isdir(tmp):

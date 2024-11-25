@@ -12,7 +12,7 @@ from pyscf import ao2mo
 from pyscf.pbc import df, gto
 from pyscf.pbc.df.df_jk import _ewald_exxdiv_for_G0
 
-from quemb.general import be_var
+from quemb.general import config
 from quemb.kbe.misc import storePBE
 from quemb.kbe.pfrag import Frags
 
@@ -181,18 +181,18 @@ class BE:
 
         # Set scratch directory
         jobid = ""
-        if be_var.CREATE_SCRATCH_DIR:
+        if config.CREATE_SCRATCH_DIR:
             jobid = os.environ.get("SLURM_JOB_ID", "")
-        if be_var.SCRATCH:
-            os.system("mkdir " + be_var.SCRATCH + str(jobid))
+        if config.SCRATCH:
+            os.system("mkdir " + config.SCRATCH + str(jobid))
         if not jobid:
-            self.eri_file = be_var.SCRATCH + eri_file
+            self.eri_file = config.SCRATCH + eri_file
             if cderi:
-                self.cderi = be_var.SCRATCH + cderi
+                self.cderi = config.SCRATCH + cderi
         else:
-            self.eri_file = be_var.SCRATCH + str(jobid) + "/" + eri_file
+            self.eri_file = config.SCRATCH + str(jobid) + "/" + eri_file
             if cderi:
-                self.cderi = be_var.SCRATCH + str(jobid) + "/" + cderi
+                self.cderi = config.SCRATCH + str(jobid) + "/" + cderi
 
         if exxdiv == "ewald":
             if not restart:

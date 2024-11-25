@@ -8,7 +8,7 @@ from pyscf.gto import mole
 from pyscf.gto.moleintor import getints3c, make_cintopt, make_loc
 from scipy.linalg import cholesky, solve_triangular
 
-from quemb.general import be_var
+from quemb.general import config
 
 
 def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
@@ -40,7 +40,7 @@ def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
             (start index, end index) of the auxiliary basis functions to calculate the
             3-center integrals, i.e. (pq|L) with L ∈ [start, end) is returned
         """
-        if be_var.PRINT_LEVEL > 10:
+        if config.PRINT_LEVEL > 10:
             print("Start calculating (μν|P) for range", aux_range, flush=True)
         p0, p1 = aux_range
         shls_slice = (
@@ -63,7 +63,7 @@ def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
             cintopt,
             out=None,
         )
-        if be_var.PRINT_LEVEL > 10:
+        if config.PRINT_LEVEL > 10:
             print("Finish calculating (μν|P) for range", aux_range, flush=True)
         return ints
 
@@ -83,7 +83,7 @@ def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
         return max(
             1,
             int(
-                be_var.INTEGRAL_TRANSFORM_MAX_MEMORY
+                config.INTEGRAL_TRANSFORM_MAX_MEMORY
                 * 1e9
                 / 8
                 / nao
@@ -93,7 +93,7 @@ def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
             ),
         )  # max(int(500*.24e6/8/nao),1)
 
-    if be_var.PRINT_LEVEL > 2:
+    if config.PRINT_LEVEL > 2:
         print(
             "Evaluating fragment ERIs on-the-fly using density fitting...", flush=True
         )
@@ -120,17 +120,17 @@ def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
             0, auxmol.nbas, block_step_size(len(Fobjs), auxmol.nbas, mf.mol.nao)
         )
     ]
-    if be_var.PRINT_LEVEL > 4:
+    if config.PRINT_LEVEL > 4:
         print("Aux Basis Block Info: ", blockranges, flush=True)
 
     for idx, ints in enumerate(lib.map_with_prefetch(calculate_pqL, blockranges)):
-        if be_var.PRINT_LEVEL > 4:
+        if config.PRINT_LEVEL > 4:
             print("Calculating pq|L block #", idx, blockranges[idx], flush=True)
         # Transform pq (AO) to fragment space (ij)
         start = end
         end += ints.shape[2]
         for fragidx in range(len(Fobjs)):
-            if be_var.PRINT_LEVEL > 10:
+            if config.PRINT_LEVEL > 10:
                 print("(μν|P) -> (ij|P) for frag #", fragidx, flush=True)
             Lqp = numpy.transpose(ints, axes=(2, 1, 0))
             Lqi = Lqp @ Fobjs[fragidx].TA
@@ -138,11 +138,11 @@ def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
             pqL_frag[fragidx][start:end, :, :] = Liq @ Fobjs[fragidx].TA
     # Fit to get B_{ij}^{L}
     for fragidx in range(len(Fobjs)):
-        if be_var.PRINT_LEVEL > 10:
+        if config.PRINT_LEVEL > 10:
             print("Fitting B_{ij}^{L} for frag #", fragidx, flush=True)
         b = pqL_frag[fragidx].reshape(auxmol.nao, -1)
         bb = solve_triangular(low, b, lower=True, overwrite_b=True, check_finite=False)
-        if be_var.PRINT_LEVEL > 10:
+        if config.PRINT_LEVEL > 10:
             print("Finished obtaining B_{ij}^{L} for frag #", fragidx, flush=True)
         eri_nosym = bb.T @ bb
         eri = restore("4", eri_nosym, Fobjs[fragidx].nao)

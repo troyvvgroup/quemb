@@ -8,7 +8,7 @@
 
 import numpy
 
-from quemb.general import be_var
+from quemb.general import config
 from quemb.molbe.external.cphf_utils import cphf_kernel_batch, get_rhf_dP_from_u
 from quemb.molbe.external.cpmp2_utils import get_dPmp2_batch_r
 from quemb.molbe.external.jac_utils import get_dPccsdurlx_batch_u
@@ -139,7 +139,7 @@ def trustRegion(func, xold, fold, Binv, c=0.5):
         # r = ared/pred \le rho
         ratio = ared / pred
         microiter += 1
-        if prevdx is None or not numpy.all(dx == prevdx) and be_var.PRINT_LEVEL > 2:
+        if prevdx is None or not numpy.all(dx == prevdx) and config.PRINT_LEVEL > 2:
             print("    ||δx||: ", numpy.linalg.norm(dx), flush=True)
             print(
                 "    Reduction Ratio (Actual / Predicted): ",

@@ -7,7 +7,7 @@ import h5py
 import numpy
 from pyscf import ao2mo
 
-from quemb.general import be_var
+from quemb.general import config
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
 from quemb.molbe.pfrag import Frags
@@ -208,15 +208,15 @@ class BE:
 
         # Set scratch directory
         jobid = ""
-        if be_var.CREATE_SCRATCH_DIR:
+        if config.CREATE_SCRATCH_DIR:
             jobid = os.environ.get("SLURM_JOB_ID", "")
-        if be_var.SCRATCH:
-            self.scratch_dir = be_var.SCRATCH + str(jobid)
+        if config.SCRATCH:
+            self.scratch_dir = config.SCRATCH + str(jobid)
             os.system("mkdir -p " + self.scratch_dir)
         else:
             self.scratch_dir = None
         if not jobid:
-            self.eri_file = be_var.SCRATCH + eri_file
+            self.eri_file = config.SCRATCH + eri_file
         else:
             self.eri_file = self.scratch_dir + "/" + eri_file
 
