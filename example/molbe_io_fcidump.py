@@ -1,9 +1,9 @@
 # Illustrates how fcidump file containing fragment hamiltonian
 # can be generated using be2fcidump
 
-from quemb.shared import config
 from quemb.molbe import BE, fragpart
 from quemb.molbe.misc import be2fcidump, libint2pyscf
+from quemb.shared import config
 
 config.PRINT_LEVEL = 3
 

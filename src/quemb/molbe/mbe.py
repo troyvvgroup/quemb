@@ -7,11 +7,11 @@ import h5py
 import numpy
 from pyscf import ao2mo
 
-from quemb.shared import config
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import be_func
+from quemb.shared import config
 
 
 class storeBE:

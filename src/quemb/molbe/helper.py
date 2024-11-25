@@ -517,8 +517,3 @@ def get_frag_energy_u(
             ec_tmp += efac[s][0] * ec[s][i]
 
     return [e1_tmp, e2_tmp, ec_tmp]
-
-
-def unused(*args) -> None:
-    for arg in args:
-        del arg
