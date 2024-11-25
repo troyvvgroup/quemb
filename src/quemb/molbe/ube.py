@@ -18,7 +18,7 @@ import h5py
 import numpy
 from pyscf import ao2mo
 
-from quemb.general import config
+from quemb.shared import config
 from quemb.molbe.be_parallel import be_func_parallel_u
 from quemb.molbe.helper import unused
 from quemb.molbe.mbe import BE

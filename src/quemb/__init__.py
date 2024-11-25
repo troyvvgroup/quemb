@@ -1,3 +1,3 @@
-from quemb import general, kbe, molbe
+from quemb import shared, kbe, molbe
 
-__all__ = ["molbe", "kbe", "general"]
+__all__ = ["molbe", "kbe", "shared"]

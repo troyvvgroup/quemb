@@ -8,7 +8,7 @@ from pyscf.gto import mole
 from pyscf.gto.moleintor import getints3c, make_cintopt, make_loc
 from scipy.linalg import cholesky, solve_triangular
 
-from quemb.general import config
+from quemb.shared import config
 
 
 def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):

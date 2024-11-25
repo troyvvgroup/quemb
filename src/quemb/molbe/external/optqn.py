@@ -8,7 +8,7 @@
 
 import numpy
 
-from quemb.general import config
+from quemb.shared import config
 from quemb.molbe.external.cphf_utils import cphf_kernel_batch, get_rhf_dP_from_u
 from quemb.molbe.external.cpmp2_utils import get_dPmp2_batch_r
 from quemb.molbe.external.jac_utils import get_dPccsdurlx_batch_u
