@@ -4,10 +4,9 @@ import os
 from pathlib import Path
 from shutil import rmtree
 from types import TracebackType
-from typing import TypeAlias
 
 from attr import define
-from typing_extensions import Literal
+from typing_extensions import Literal, TypeAlias
 
 from general.be_var import SCRATCH
 
