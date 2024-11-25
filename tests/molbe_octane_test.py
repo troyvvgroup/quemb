@@ -6,7 +6,7 @@ import os
 import pytest
 from pyscf import cc, gto, scf
 
-from molbe import BE, fragpart
+from quemb.molbe import BE, fragpart
 
 # TODO: actually add meaningful tests for energies etc.
 #   At the moment the test fails already for technical reasons.

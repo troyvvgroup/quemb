@@ -11,7 +11,7 @@ QuEmb requires molecular & Hartree-Fock calculation objects from pyscf. Refer to
 
 Simple example of BE calculation on molecular system::
 
-  from molbe import fragpart, BE
+  from quemb.molbe import fragpart, BE
 
   # Perform pyscf calculations to get mol, mf objects
   # See quemb/example/molbe_h8_density_matching.py
@@ -30,7 +30,7 @@ Simple example of BE calculation on molecular system::
 
 Simple example of periodic BE calculation on 1D periodic system::
 
-  from kbe import fragpart, BE
+  from quemb.kbe import fragpart, BE
 
   # Perform pyscf pbc calculations to get cell, kmf, kpts
   # See quemb/example/kbe_polyacetylene.py

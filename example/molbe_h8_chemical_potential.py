@@ -3,7 +3,7 @@
 
 from pyscf import fci, gto, scf
 
-from molbe import BE, fragpart
+from quemb.molbe import BE, fragpart
 
 # PySCF HF generated mol & mf (molecular desciption & HF object)
 mol = gto.M(

@@ -4,7 +4,7 @@
 
 from pyscf import gto, scf
 
-from molbe import UBE, fragpart
+from quemb.molbe import UBE, fragpart
 
 # Set up scratch directory settings
 # be_var.SCRATCH='{scratch location}'

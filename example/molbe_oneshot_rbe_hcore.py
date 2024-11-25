@@ -7,7 +7,7 @@
 import numpy
 from pyscf import gto, qmmm, scf
 
-from molbe.misc import be2puffin
+from quemb.molbe.misc import be2puffin
 
 # variables for scratch handling
 # pbe_var.SCRATCH = '{}'

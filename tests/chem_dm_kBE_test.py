@@ -11,7 +11,7 @@ import unittest
 import numpy
 from pyscf.pbc import df, gto, scf
 
-from kbe import BE, fragpart
+from quemb.kbe import BE, fragpart
 
 try:
     import libdmet
