@@ -79,6 +79,7 @@ def get_scfObj(
     dm0: Optional[Matrix[float64]] = None,
     enuc: float = 0.0,
     pert_h: bool = False,
+    pert_list: None = None,
     save_chkfile: bool = False,
     fname: str = "f0",
 ) -> scf.hf.RHF:
