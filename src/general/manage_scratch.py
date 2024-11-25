@@ -15,34 +15,39 @@ PathLike: TypeAlias = str | os.PathLike
 
 
 @define(order=False)
-class ScratchManager:
+class WorkDir:
     """Manage a scratch area.
 
-    Upon initialisation of the object the `scratch_area` is created,
+    Upon initialisation of the object the `path` is created,
     if it does not exist yet.
     If it already exists, it is ensured, that it is empty.
 
-    If `do_cleanup` is true, then `scratch_area` is deleted,
-    when the ScratchManager goes out of scope or
-    if `self.cleanup` is called.
+    If `do_cleanup` is true, then the scratch area is deleted,
+    when if `self.cleanup` is called.
 
-    The ScratchManager also exists as a ContextManager;
-    then the cleanup is performed when leaving the ContextManager.
+    The `WorkDir` also exists as a ContextManager;
+    then the cleanup is performed when leaving the ContextManager:
+
+    Examples
+    --------
+    with WorkDir('./test_dir') as scratch:
+        pass # do stuff with scratch
+
+    # './test_dir' does not exist anymore.
     """
-
-    scratch_area: Path
+    path: Path
     cleanup_at_end: bool
 
     def __init__(self, scratch_area: PathLike, cleanup_at_end: bool = True) -> None:
-        self.scratch_area = Path(scratch_area)
+        self.path = Path(scratch_area).resolve()
         self.cleanup_at_end = cleanup_at_end
 
-        self.scratch_area.mkdir(parents=True, exist_ok=True)
-        if any(self.scratch_area.iterdir()):
+        self.path.mkdir(parents=True, exist_ok=True)
+        if any(self.path.iterdir()):
             self.cleanup_at_end = False
             raise ValueError("scratch_area has to be empty.")
 
-    def __enter__(self) -> ScratchManager:
+    def __enter__(self) -> WorkDir:
         return self
 
     def __exit__(
@@ -52,32 +57,40 @@ class ScratchManager:
         traceback: TracebackType | None,
     ) -> Literal[False]:
         if value is None:
-            self.__del__()
-        else:
-            self.cleanup_at_end = False
+            self.cleanup()
         return False
 
     @classmethod
     def from_environment(
         cls,
         *,
-        user_defined_name: PathLike | None = None,
         user_defined_root: PathLike | None = None,
         prefix: str = "QuEmb_",
         do_cleanup: bool = True,
-    ) -> ScratchManager:
-        if user_defined_name and user_defined_root:
-            raise TypeError(
-                "Don't use both `user_defined_name` and `user_defined_root`"
-            )
+        ) -> WorkDir:
+        """Create a WorkDir based on the environment.
 
-        if user_defined_name:
-            return cls(Path(user_defined_name), do_cleanup)
+        The naming scheme is `${user_defined_root}/${prefix}${SLURM_JOB_ID}`
+        on systems with `SLURM`.
+        If `SLURM` is not available, then the process ID is used instead.
 
-        if user_defined_root:
-            scratch_root = Path(user_defined_root)
-        else:
-            scratch_root = Path(SCRATCH)
+        Parameters
+        ----------
+        user_defined_root: PathLike, optional
+            The root directory where to create temporary directories
+            e.g. `/tmp` or `/scratch`.
+            If `None`, then the value from `quemb.config.SCRATCH` is taken.
+        prefix: str, default: "QuEmb_"
+            The prefix for the subdirectory.
+        do_cleanup: bool, default: True
+            Perform cleanup when calling `self.cleanup`.
+
+        Returns
+        -------
+        WorkDir
+            A ready to use `WorkDir`
+        """
+        scratch_root = Path(user_defined_root) if user_defined_root else Path(SCRATCH)
 
         if "SLURM_JOB_ID" in os.environ:
             # we can safely assume that the SLURM_JOB_ID is unique
@@ -91,12 +104,22 @@ class ScratchManager:
                 subdir = Path(f"{prefix}{id}/")
         return cls(scratch_root / subdir, do_cleanup)
 
-    def cleanup(self, force_cleanup: bool | None = False) -> None:
-        if self.cleanup_at_end or force_cleanup:
-            rmtree(self.scratch_area)
+    def cleanup(self, force_cleanup: bool = False) -> None:
+        """Conditionally cleanup the working directory.
 
-    def __del__(self) -> None:
-        try:
-            self.cleanup()
-        except FileNotFoundError:
-            pass
+        Parameters
+        ----------
+        force_cleanup : bool, optional
+            If the instance was initialized with `cleanup_at_end=True`,
+            or the argument `force_cleanup` is given, then
+            the working directory is deleted.
+            Otherwise nothing happens.
+        """
+        if self.cleanup_at_end or force_cleanup:
+            rmtree(self.path)
+
+    def __fspath__(self) -> str:
+        return self.path.__fspath__()
+
+    def __truediv__(self, other_path: PathLike) -> Path:
+        return self.path / other_path
