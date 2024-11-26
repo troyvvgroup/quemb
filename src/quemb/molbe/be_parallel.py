@@ -8,8 +8,6 @@ from multiprocessing import Pool
 import numpy
 from pyscf import ao2mo, fci, mcscf
 
-from quemb.shared.external.ccsd_rdm import make_rdm1_uccsd, make_rdm2_uccsd
-from quemb.shared.external.unrestricted_utils import make_uhf_obj
 from quemb.molbe.helper import (
     get_eri,
     get_frag_energy,
@@ -25,6 +23,8 @@ from quemb.molbe.solver import (
     solve_mp2,
     solve_uccsd,
 )
+from quemb.shared.external.ccsd_rdm import make_rdm1_uccsd, make_rdm2_uccsd
+from quemb.shared.external.unrestricted_utils import make_uhf_obj
 
 
 def run_solver(

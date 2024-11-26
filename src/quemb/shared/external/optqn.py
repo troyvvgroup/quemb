@@ -8,11 +8,11 @@
 
 import numpy
 
+from quemb.molbe.helper import get_eri, get_scfObj
+from quemb.shared import be_var
 from quemb.shared.external.cphf_utils import cphf_kernel_batch, get_rhf_dP_from_u
 from quemb.shared.external.cpmp2_utils import get_dPmp2_batch_r
 from quemb.shared.external.jac_utils import get_dPccsdurlx_batch_u
-from quemb.molbe.helper import get_eri, get_scfObj
-from quemb.shared import be_var
 
 
 def line_search_LF(func, xold, fold, dx, iter_):
@@ -250,13 +250,13 @@ class FrankQN:
         return vs[0]
 
 
-def get_be_error_jacobian(self, jac_solver="HF"):
-    Jes = [None] * self.Nfrag
-    Jcs = [None] * self.Nfrag
-    xes = [None] * self.Nfrag
-    xcs = [None] * self.Nfrag
-    ys = [None] * self.Nfrag
-    alphas = [None] * self.Nfrag
+def get_be_error_jacobian(Nfrag: int, Fobjs, jac_solver: str = "HF"):
+    Jes = [None] * Nfrag
+    Jcs = [None] * Nfrag
+    xes = [None] * Nfrag
+    xcs = [None] * Nfrag
+    ys = [None] * Nfrag
+    alphas = [None] * Nfrag
 
     if jac_solver == "MP2":
         res_func = mp2res_func
@@ -265,10 +265,10 @@ def get_be_error_jacobian(self, jac_solver="HF"):
     elif jac_solver == "HF":
         res_func = hfres_func
 
-    Ncout = [None] * self.Nfrag
-    for A in range(self.Nfrag):
+    Ncout = [None] * Nfrag
+    for A in range(Nfrag):
         Jes[A], Jcs[A], xes[A], xcs[A], ys[A], alphas[A], Ncout[A] = (
-            get_atbe_Jblock_frag(self.Fobjs[A], res_func)
+            get_atbe_Jblock_frag(Fobjs[A], res_func)
         )
 
     alpha = sum(alphas)
@@ -288,7 +288,7 @@ def get_be_error_jacobian(self, jac_solver="HF"):
     J = numpy.zeros((N_ + 1, N_ + 1))
     cout = 0
 
-    for findx, fobj in enumerate(self.Fobjs):
+    for findx, fobj in enumerate(Fobjs):
         J[cout : Ncout[findx] + cout, cout : Ncout[findx] + cout] = Jes[findx]
         J[cout : Ncout[findx] + cout, N_:] = numpy.array(xes[findx]).reshape(-1, 1)
         J[N_:, cout : Ncout[findx] + cout] = ys[findx]

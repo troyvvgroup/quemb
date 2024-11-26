@@ -16,6 +16,7 @@ from quemb.kbe.lo import Mixin_k_Localize
 from quemb.kbe.misc import storePBE
 from quemb.kbe.pfrag import Frags
 from quemb.shared import be_var
+from quemb.shared.external.optqn import get_be_error_jacobian
 
 
 class BE(Mixin_k_Localize):
@@ -327,7 +328,9 @@ class BE(Mixin_k_Localize):
     # The following import of these functions turns them into
     # proper methods of the class.
     from quemb.kbe._opt import optimize  # noqa: PLC0415
-    from quemb.shared.external.optqn import get_be_error_jacobian  # noqa: PLC0415
+
+    def get_be_error_jacobian(self, jac_solver="HF"):
+        return get_be_error_jacobian(self.Nfrag, self.Fobjs, jac_solver)
 
     def print_ini(self):
         """

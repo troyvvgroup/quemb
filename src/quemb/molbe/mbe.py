@@ -13,6 +13,7 @@ from quemb.molbe.lo import MixinLocalize
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import be_func
 from quemb.shared import be_var
+from quemb.shared.external.optqn import get_be_error_jacobian
 
 
 class storeBE:
@@ -304,8 +305,10 @@ class BE(MixinLocalize):
     # The following imports turn the imported functions into proper methods
     #  cannot be moved to head of file.
     from quemb.molbe._opt import optimize  # noqa: PLC0415
-    from quemb.shared.external.optqn import get_be_error_jacobian  # noqa: PLC0415
     from quemb.molbe.rdm import compute_energy_full, rdm1_fullbasis  # noqa: PLC0415
+
+    def get_be_error_jacobian(self, jac_solver="HF"):
+        return get_be_error_jacobian(self.Nfrag, self.Fobjs, jac_solver)
 
     def print_ini(self):
         """

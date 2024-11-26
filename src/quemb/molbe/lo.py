@@ -7,11 +7,11 @@ import numpy
 from numpy.linalg import eigh, multi_dot, svd
 from pyscf.gto import intor_cross
 
+from quemb.molbe.helper import ncore_, unused
 from quemb.shared.external.lo_helper import (
     get_aoind_by_atom,
     reorder_by_atom_,
 )
-from quemb.molbe.helper import ncore_, unused
 
 
 def dot_gen(A, B, ovlp):
