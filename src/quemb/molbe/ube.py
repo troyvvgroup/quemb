@@ -18,12 +18,12 @@ import h5py
 import numpy
 from pyscf import ao2mo
 
-from quemb.shared import be_var
 from quemb.molbe.be_parallel import be_func_parallel_u
 from quemb.molbe.helper import unused
 from quemb.molbe.mbe import BE
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import be_func_u
+from quemb.shared import be_var
 
 
 class UBE(BE):  # 🍠
