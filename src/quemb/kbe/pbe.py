@@ -3,6 +3,7 @@
 import os
 import pickle
 import sys
+from functools import wraps
 from multiprocessing import Pool
 
 import h5py
@@ -432,6 +433,7 @@ class BE(Mixin_k_Localize):
             print("This optimization method for BE is not supported")
             sys.exit()
 
+        @wraps(_ext_get_be_error_jacobian)
         def get_be_error_jacobian(self, jac_solver="HF"):
             return _ext_get_be_error_jacobian(self.Nfrag, self.Fobjs, jac_solver)
 

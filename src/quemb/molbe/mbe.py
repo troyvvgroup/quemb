@@ -3,6 +3,7 @@
 import os
 import pickle
 import sys
+from functools import wraps
 
 import h5py
 import numpy
@@ -520,144 +521,146 @@ class BE(MixinLocalize):
         if not return_ao:
             return rdm1MO, rdm2MO
 
+    def compute_energy_full(
+        self, approx_cumulant=False, use_full_rdm=False, return_rdm=True
+    ):
+        """
+        Compute the total energy using rdms in the full basis.
 
-def compute_energy_full(
-    self, approx_cumulant=False, use_full_rdm=False, return_rdm=True
-):
-    """
-    Compute the total energy using rdms in the full basis.
+        Parameters
+        ----------
+        approx_cumulant : bool, optional
+            If True, use an approximate cumulant for the energy computation.
+            Default is False.
+        use_full_rdm : bool, optional
+            If True, use the full two-particle RDM for energy computation. Default is False.
+        return_rdm : bool, optional
+            If True, return the computed reduced density matrices (RDMs). Default is True.
 
-    Parameters
-    ----------
-    approx_cumulant : bool, optional
-        If True, use an approximate cumulant for the energy computation.
-        Default is False.
-    use_full_rdm : bool, optional
-        If True, use the full two-particle RDM for energy computation. Default is False.
-    return_rdm : bool, optional
-        If True, return the computed reduced density matrices (RDMs). Default is True.
+        Returns
+        -------
+        tuple of numpy.ndarray or None
+            If `return_rdm` is True, returns a tuple containing the one-particle
+            and two-particle reduced density matrices (RDM1 and RDM2).
+            Otherwise, returns None.
 
-    Returns
-    -------
-    tuple of numpy.ndarray or None
-        If `return_rdm` is True, returns a tuple containing the one-particle
-        and two-particle reduced density matrices (RDM1 and RDM2).
-        Otherwise, returns None.
-
-    Notes
-    -----
-    This function computes the total energy in the full basis, with options to use
-    approximate or true cumulants, and to return the reduced density matrices (RDMs).
-    The energy components are printed as part of the function's output.
-    """
-    # Compute the one-particle reduced density matrix (RDM1) and the cumulant (Kumul)
-    #   in the full basis
-    rdm1f, Kumul, rdm1_lo, rdm2_lo = self.rdm1_fullbasis(
-        return_lo=True, return_RDM2=False
-    )
-
-    if not approx_cumulant:
-        # Compute the true two-particle reduced density matrix (RDM2) if not using
-        # approximate cumulant
-        Kumul_T = self.rdm1_fullbasis(only_rdm2=True)
-
-    if return_rdm:
-        # Construct the full RDM2 from RDM1
-        RDM2_full = (
-            numpy.einsum(
-                "ij,kl->ijkl", rdm1f, rdm1f, dtype=numpy.float64, optimize=True
-            )
-            - numpy.einsum(
-                "ij,kl->iklj", rdm1f, rdm1f, dtype=numpy.float64, optimize=True
-            )
-            * 0.5
+        Notes
+        -----
+        This function computes the total energy in the full basis, with options to use
+        approximate or true cumulants, and to return the reduced density matrices (RDMs).
+        The energy components are printed as part of the function's output.
+        """
+        # Compute the one-particle reduced density matrix (RDM1) and the cumulant (Kumul)
+        #   in the full basis
+        rdm1f, Kumul, rdm1_lo, rdm2_lo = self.rdm1_fullbasis(
+            return_lo=True, return_RDM2=False
         )
 
-        # Add the cumulant part to RDM2
         if not approx_cumulant:
-            RDM2_full += Kumul_T
-        else:
-            RDM2_full += Kumul
+            # Compute the true two-particle reduced density matrix (RDM2) if not using
+            # approximate cumulant
+            Kumul_T = self.rdm1_fullbasis(only_rdm2=True)
 
-    # Compute the change in the one-particle density matrix (delta_gamma)
-    del_gamma = rdm1f - self.hf_dm
+        if return_rdm:
+            # Construct the full RDM2 from RDM1
+            RDM2_full = (
+                numpy.einsum(
+                    "ij,kl->ijkl", rdm1f, rdm1f, dtype=numpy.float64, optimize=True
+                )
+                - numpy.einsum(
+                    "ij,kl->iklj", rdm1f, rdm1f, dtype=numpy.float64, optimize=True
+                )
+                * 0.5
+            )
 
-    # Compute the effective potential
-    veff = scf.hf.get_veff(self.mol, rdm1f, hermi=0)
+            # Add the cumulant part to RDM2
+            if not approx_cumulant:
+                RDM2_full += Kumul_T
+            else:
+                RDM2_full += Kumul
 
-    # Compute the one-electron energy
-    Eh1 = numpy.einsum("ij,ij", self.hcore, rdm1f, optimize=True)
+        # Compute the change in the one-particle density matrix (delta_gamma)
+        del_gamma = rdm1f - self.hf_dm
 
-    # Compute the energy due to the effective potential
-    EVeff = numpy.einsum("ij,ij", veff, rdm1f, optimize=True)
+        # Compute the effective potential
+        veff = scf.hf.get_veff(self.mol, rdm1f, hermi=0)
 
-    # Compute the change in the one-electron energy
-    Eh1_dg = numpy.einsum("ij,ij", self.hcore, del_gamma, optimize=True)
+        # Compute the one-electron energy
+        Eh1 = numpy.einsum("ij,ij", self.hcore, rdm1f, optimize=True)
 
-    # Compute the change in the effective potential energy
-    Eveff_dg = numpy.einsum("ij,ij", self.hf_veff, del_gamma, optimize=True)
+        # Compute the energy due to the effective potential
+        EVeff = numpy.einsum("ij,ij", veff, rdm1f, optimize=True)
 
-    # Restore the electron repulsion integrals (ERI)
-    eri = ao2mo.restore(1, self.mf._eri, self.mf.mo_coeff.shape[1])
+        # Compute the change in the one-electron energy
+        Eh1_dg = numpy.einsum("ij,ij", self.hcore, del_gamma, optimize=True)
 
-    # Compute the cumulant part of the two-electron energy
-    EKumul = numpy.einsum("pqrs,pqrs", eri, Kumul, optimize=True)
+        # Compute the change in the effective potential energy
+        Eveff_dg = numpy.einsum("ij,ij", self.hf_veff, del_gamma, optimize=True)
 
-    if not approx_cumulant:
-        # Compute the true two-electron energy if not using approximate cumulant
-        EKumul_T = numpy.einsum("pqrs,pqrs", eri, Kumul_T, optimize=True)
+        # Restore the electron repulsion integrals (ERI)
+        eri = ao2mo.restore(1, self.mf._eri, self.mf.mo_coeff.shape[1])
 
-    if use_full_rdm and return_rdm:
-        # Compute the full two-electron energy using the full RDM2
-        E2 = numpy.einsum("pqrs,pqrs", eri, RDM2_full, optimize=True)
+        # Compute the cumulant part of the two-electron energy
+        EKumul = numpy.einsum("pqrs,pqrs", eri, Kumul, optimize=True)
 
-    # Compute the approximate BE total energy
-    EKapprox = self.ebe_hf + Eh1_dg + Eveff_dg + EKumul / 2.0
-    self.ebe_tot = EKapprox
+        if not approx_cumulant:
+            # Compute the true two-electron energy if not using approximate cumulant
+            EKumul_T = numpy.einsum("pqrs,pqrs", eri, Kumul_T, optimize=True)
 
-    if not approx_cumulant:
-        # Compute the true BE total energy if not using approximate cumulant
-        EKtrue = Eh1 + EVeff / 2.0 + EKumul_T / 2.0 + self.enuc + self.E_core
-        self.ebe_tot = EKtrue
-
-    # Print energy results
-    print("-----------------------------------------------------", flush=True)
-    print(" BE ENERGIES with cumulant-based expression", flush=True)
-
-    print("-----------------------------------------------------", flush=True)
-    print(" E_BE = E_HF + Tr(F del g) + Tr(V K_approx)", flush=True)
-    print(" E_HF            : {:>14.8f} Ha".format(self.ebe_hf), flush=True)
-    print(" Tr(F del g)     : {:>14.8f} Ha".format(Eh1_dg + Eveff_dg), flush=True)
-    print(" Tr(V K_aprrox)  : {:>14.8f} Ha".format(EKumul / 2.0), flush=True)
-    print(" E_BE            : {:>14.8f} Ha".format(EKapprox), flush=True)
-    print(" Ecorr BE        : {:>14.8f} Ha".format(EKapprox - self.ebe_hf), flush=True)
-
-    if not approx_cumulant:
-        print(flush=True)
-        print(" E_BE = Tr(F[g] g) + Tr(V K_true)", flush=True)
-        print(" Tr(h1 g)        : {:>14.8f} Ha".format(Eh1), flush=True)
-        print(" Tr(Veff[g] g)   : {:>14.8f} Ha".format(EVeff / 2.0), flush=True)
-        print(" Tr(V K_true)    : {:>14.8f} Ha".format(EKumul_T / 2.0), flush=True)
-        print(" E_BE            : {:>14.8f} Ha".format(EKtrue), flush=True)
         if use_full_rdm and return_rdm:
+            # Compute the full two-electron energy using the full RDM2
+            E2 = numpy.einsum("pqrs,pqrs", eri, RDM2_full, optimize=True)
+
+        # Compute the approximate BE total energy
+        EKapprox = self.ebe_hf + Eh1_dg + Eveff_dg + EKumul / 2.0
+        self.ebe_tot = EKapprox
+
+        if not approx_cumulant:
+            # Compute the true BE total energy if not using approximate cumulant
+            EKtrue = Eh1 + EVeff / 2.0 + EKumul_T / 2.0 + self.enuc + self.E_core
+            self.ebe_tot = EKtrue
+
+        # Print energy results
+        print("-----------------------------------------------------", flush=True)
+        print(" BE ENERGIES with cumulant-based expression", flush=True)
+
+        print("-----------------------------------------------------", flush=True)
+        print(" E_BE = E_HF + Tr(F del g) + Tr(V K_approx)", flush=True)
+        print(" E_HF            : {:>14.8f} Ha".format(self.ebe_hf), flush=True)
+        print(" Tr(F del g)     : {:>14.8f} Ha".format(Eh1_dg + Eveff_dg), flush=True)
+        print(" Tr(V K_aprrox)  : {:>14.8f} Ha".format(EKumul / 2.0), flush=True)
+        print(" E_BE            : {:>14.8f} Ha".format(EKapprox), flush=True)
+        print(
+            " Ecorr BE        : {:>14.8f} Ha".format(EKapprox - self.ebe_hf), flush=True
+        )
+
+        if not approx_cumulant:
+            print(flush=True)
+            print(" E_BE = Tr(F[g] g) + Tr(V K_true)", flush=True)
+            print(" Tr(h1 g)        : {:>14.8f} Ha".format(Eh1), flush=True)
+            print(" Tr(Veff[g] g)   : {:>14.8f} Ha".format(EVeff / 2.0), flush=True)
+            print(" Tr(V K_true)    : {:>14.8f} Ha".format(EKumul_T / 2.0), flush=True)
+            print(" E_BE            : {:>14.8f} Ha".format(EKtrue), flush=True)
+            if use_full_rdm and return_rdm:
+                print(
+                    " E(g+G)          : {:>14.8f} Ha".format(
+                        Eh1 + 0.5 * E2 + self.E_core + self.enuc
+                    ),
+                    flush=True,
+                )
             print(
-                " E(g+G)          : {:>14.8f} Ha".format(
-                    Eh1 + 0.5 * E2 + self.E_core + self.enuc
-                ),
+                " Ecorr BE        : {:>14.8f} Ha".format(EKtrue - self.ebe_hf),
                 flush=True,
             )
-        print(
-            " Ecorr BE        : {:>14.8f} Ha".format(EKtrue - self.ebe_hf), flush=True
-        )
+            print(flush=True)
+            print(" True - approx   : {:>14.4e} Ha".format(EKtrue - EKapprox))
+        print("-----------------------------------------------------", flush=True)
+
         print(flush=True)
-        print(" True - approx   : {:>14.4e} Ha".format(EKtrue - EKapprox))
-    print("-----------------------------------------------------", flush=True)
 
-    print(flush=True)
-
-    # Return the RDMs if requested
-    if return_rdm:
-        return (rdm1f, RDM2_full)
+        # Return the RDMs if requested
+        if return_rdm:
+            return (rdm1f, RDM2_full)
 
     def optimize(
         self,
@@ -767,6 +770,7 @@ def compute_energy_full(
             print("This optimization method for BE is not supported")
             sys.exit()
 
+    @wraps(_ext_get_be_error_jacobian)
     def get_be_error_jacobian(self, jac_solver="HF"):
         return _ext_get_be_error_jacobian(self.Nfrag, self.Fobjs, jac_solver)
 
