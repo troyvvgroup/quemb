@@ -6,12 +6,12 @@ Fragments for molecular systems
 
 .. toctree::
    :maxdepth: 4
-.. autoclass:: molbe.fragment.fragpart
+.. autoclass:: quemb.molbe.fragment.fragpart
     :members:
     :show-inheritance:
     :undoc-members:
 
-.. automodule:: molbe.autofrag
+.. automodule:: quemb.molbe.autofrag
     :members:
 
 Fragments for perioric systems
@@ -19,9 +19,9 @@ Fragments for perioric systems
 
 .. toctree::
    :maxdepth: 4
-.. autoclass:: kbe.fragment.fragpart
+.. autoclass:: quemb.kbe.fragment.fragpart
     :members:
     :show-inheritance:
     :undoc-members:
 
-.. autofunction:: kbe.autofrag.autogen
+.. autofunction:: quemb.kbe.autofrag.autogen

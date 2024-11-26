@@ -13,9 +13,9 @@ the Python implementation of the BE methods, including periodic bootstrap embedd
 The code leverages `PySCF <https://github.com/pyscf/pyscf>`_ library for quantum chemistry calculations and utlizes Python's
 multiprocessing module to enable parallel computations in high-performance computing environments.
 
-QuEmb includes two libraries: ``molbe`` and ``kbe``.
-The ``molbe`` library implements BE for molecules and supramolecular complexes,
-while the ``kbe`` library is designed to handle periodic systems such as surfaces and solids using periodic BE.
+QuEmb includes two libraries: ``quemb.molbe`` and ``quemb.kbe``.
+The ``quemb.molbe`` library implements BE for molecules and supramolecular complexes,
+while the ``quemb.kbe`` library is designed to handle periodic systems such as surfaces and solids using periodic BE.
 
 References
 ==========

@@ -6,7 +6,7 @@ Molecular BE kernel
 
 .. toctree::
    :maxdepth: 4
-.. automodule:: molbe.mbe
+.. automodule:: quemb.molbe.mbe
     :members:
 
 Periodic BE kernel
@@ -14,7 +14,7 @@ Periodic BE kernel
 
 .. toctree::
    :maxdepth: 4
-.. automodule:: kbe.pbe
+.. automodule:: quemb.kbe.pbe
     :members:
 
 Parallel BE Solver
@@ -22,7 +22,7 @@ Parallel BE Solver
 
 .. toctree::
    :maxdepth: 4
-.. automodule:: molbe.be_parallel
+.. automodule:: quemb.molbe.be_parallel
     :members:
 
 Serial BE Solver
@@ -30,6 +30,6 @@ Serial BE Solver
 
 .. toctree::
    :maxdepth: 4
-.. autofunction:: molbe.solver.be_func
+.. autofunction:: quemb.molbe.solver.be_func
 
 

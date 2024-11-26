@@ -6,7 +6,7 @@ Molecular fragments
 
 .. toctree::
    :maxdepth: 4
-.. automodule:: molbe.pfrag
+.. automodule:: quemb.molbe.pfrag
    :members:
 
 
@@ -15,6 +15,6 @@ Periodic fragments
 
 .. toctree::
    :maxdepth: 4
-.. automodule:: kbe.pfrag
+.. automodule:: quemb.kbe.pfrag
    :members:
 
