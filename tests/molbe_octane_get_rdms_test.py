@@ -1,13 +1,10 @@
 # Illustrates BE computation on octane with RDMs
 
-import os
 
 import numpy as np
-import pytest
 from pyscf import gto, scf
 
 from quemb.molbe import BE, fragpart
-from quemb.shared import be_var
 
 # TODO: actually add meaningful tests for RDM elements,
 #   energies etc.
