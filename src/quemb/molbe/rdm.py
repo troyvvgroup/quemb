@@ -235,6 +235,7 @@ def compute_energy_full(
     approximate or true cumulants, and to return the reduced density matrices (RDMs).
     The energy components are printed as part of the function's output.
     """
+    raise ValueError("This should fail.")
     # Compute the one-particle reduced density matrix (RDM1) and the cumulant (Kumul)
     #   in the full basis
     rdm1f, Kumul, rdm1_lo, rdm2_lo = self.rdm1_fullbasis(
