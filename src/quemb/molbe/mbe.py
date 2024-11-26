@@ -9,6 +9,7 @@ from pyscf import ao2mo
 
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
+from quemb.molbe.lo import MixinLocalize
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import be_func
 from quemb.shared import be_var
@@ -50,7 +51,7 @@ class storeBE:
         self.mo_energy = mo_energy
 
 
-class BE:
+class BE(MixinLocalize):
     """
     Class for handling bootstrap embedding (BE) calculations.
 
@@ -304,7 +305,6 @@ class BE:
     #  cannot be moved to head of file.
     from quemb.molbe._opt import optimize  # noqa: PLC0415
     from quemb.molbe.external.optqn import get_be_error_jacobian  # noqa: PLC0415
-    from quemb.molbe.lo import localize  # noqa: PLC0415
     from quemb.molbe.rdm import compute_energy_full, rdm1_fullbasis  # noqa: PLC0415
 
     def print_ini(self):
