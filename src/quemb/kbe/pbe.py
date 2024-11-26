@@ -12,12 +12,13 @@ from pyscf import ao2mo
 from pyscf.pbc import df, gto
 from pyscf.pbc.df.df_jk import _ewald_exxdiv_for_G0
 
+from quemb.kbe.lo import Mixin_k_Localize
 from quemb.kbe.misc import storePBE
 from quemb.kbe.pfrag import Frags
 from quemb.shared import be_var
 
 
-class BE:
+class BE(Mixin_k_Localize):
     """
     Class for handling periodic bootstrap embedding (BE) calculations.
 
@@ -326,7 +327,6 @@ class BE:
     # The following import of these functions turns them into
     # proper methods of the class.
     from quemb.kbe._opt import optimize  # noqa: PLC0415
-    from quemb.kbe.lo import localize  # noqa: PLC0415
     from quemb.molbe.external.optqn import get_be_error_jacobian  # noqa: PLC0415
 
     def print_ini(self):
