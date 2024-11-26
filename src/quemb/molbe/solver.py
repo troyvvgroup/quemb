@@ -255,7 +255,7 @@ def be_func(
 
         if solver == "MP2":
             rdm1_tmp = fobj._mc.make_rdm1()
-        fobj.__rdm1 = rdm1_tmp.copy()
+        fobj.rdm1__ = rdm1_tmp.copy()
         fobj._rdm1 = (
             functools.reduce(
                 numpy.dot,
@@ -295,7 +295,7 @@ def be_func(
                         + numpy.einsum("ij,kl->iklj", del_rdm1, hf_dm)
                     ) * 0.5
                     rdm2s -= nc
-            fobj.__rdm2 = rdm2s.copy()
+            fobj.rdm2__ = rdm2s.copy()
             if frag_energy or eeval:
                 # Find the energy of a given fragment, with the cumulant definition.
                 # Return [e1, e2, ec] as e_f and add to the running total_e.
@@ -428,7 +428,7 @@ def be_func_u(
             print("exiting", flush=True)
             sys.exit()
 
-        fobj_a.__rdm1 = rdm1_tmp[0].copy()
+        fobj_a.rdm1__ = rdm1_tmp[0].copy()
         fobj_b._rdm1 = (
             functools.reduce(
                 numpy.dot, (fobj_a._mf.mo_coeff, rdm1_tmp[0], fobj_a._mf.mo_coeff.T)
@@ -436,7 +436,7 @@ def be_func_u(
             * 0.5
         )
 
-        fobj_b.__rdm1 = rdm1_tmp[1].copy()
+        fobj_b.rdm1__ = rdm1_tmp[1].copy()
         fobj_b._rdm1 = (
             functools.reduce(
                 numpy.dot, (fobj_b._mf.mo_coeff, rdm1_tmp[1], fobj_b._mf.mo_coeff.T)
@@ -450,8 +450,8 @@ def be_func_u(
                 if use_cumulant:
                     with_dm1 = False
                 rdm2s = make_rdm2_uccsd(ucc, with_dm1=with_dm1)
-            fobj_a.__rdm2 = rdm2s[0].copy()
-            fobj_b.__rdm2 = rdm2s[1].copy()
+            fobj_a.rdm2__ = rdm2s[0].copy()
+            fobj_b.rdm2__ = rdm2s[1].copy()
             if frag_energy:
                 if frozen:
                     h1_ab = [

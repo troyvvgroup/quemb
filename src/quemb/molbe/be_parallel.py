@@ -342,7 +342,7 @@ def run_solver_u(
         raise NotImplementedError("Only UCCSD Solver implemented")
 
     # Compute RDM1
-    fobj_a.__rdm1 = rdm1_tmp[0].copy()
+    fobj_a.rdm1__ = rdm1_tmp[0].copy()
     fobj_a._rdm1 = (
         functools.reduce(
             numpy.dot, (fobj_a._mf.mo_coeff, rdm1_tmp[0], fobj_a._mf.mo_coeff.T)
@@ -350,7 +350,7 @@ def run_solver_u(
         * 0.5
     )
 
-    fobj_b.__rdm1 = rdm1_tmp[1].copy()
+    fobj_b.rdm1__ = rdm1_tmp[1].copy()
     fobj_b._rdm1 = (
         functools.reduce(
             numpy.dot, (fobj_b._mf.mo_coeff, rdm1_tmp[1], fobj_b._mf.mo_coeff.T)
@@ -368,8 +368,8 @@ def run_solver_u(
         else:
             raise NotImplementedError("RDM Return not Implemented")
 
-        fobj_a.__rdm2 = rdm2s[0].copy()
-        fobj_b.__rdm2 = rdm2s[1].copy()
+        fobj_a.rdm2__ = rdm2s[0].copy()
+        fobj_b.rdm2__ = rdm2s[1].copy()
 
         # Calculate energy on a per-fragment basis
         if frag_energy:
@@ -570,8 +570,8 @@ def be_func_parallel(
         e_c += rdms[idx][0][2]
         fobj.mo_coeffs = rdms[idx][1]
         fobj._rdm1 = rdms[idx][2]
-        fobj.__rdm2 = rdms[idx][3]
-        fobj.__rdm1 = rdms[idx][4]
+        fobj.rdm2__ = rdms[idx][3]
+        fobj.rdm1__ = rdms[idx][4]
 
     del rdms
     ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem)

@@ -366,7 +366,7 @@ class BE(MixinLocalize):
         for fobjs in self.Fobjs:
             if return_RDM2:
                 # Adjust the one-particle reduced density matrix (RDM1)
-                drdm1 = fobjs.__rdm1.copy()
+                drdm1 = fobjs.rdm1__.copy()
                 drdm1[numpy.diag_indices(fobjs.nsocc)] -= 2.0
 
                 # Compute the two-particle reduced density matrix (RDM2) and subtract
@@ -376,7 +376,7 @@ class BE(MixinLocalize):
                 ) - 0.5 * numpy.einsum(
                     "ij,kl->iklj", drdm1, drdm1, dtype=numpy.float64, optimize=True
                 )
-                fobjs.__rdm2 -= dm_nc
+                fobjs.rdm2__ -= dm_nc
 
             # Generate the projection matrix
             cind = [fobjs.fsites[i] for i in fobjs.efac[1]]
@@ -392,7 +392,7 @@ class BE(MixinLocalize):
             if not only_rdm2:
                 # Compute RDM1 in the localized orbital (LO) basis
                 #   and transform to AO basis
-                rdm1_eo = fobjs.mo_coeffs @ fobjs.__rdm1 @ fobjs.mo_coeffs.T
+                rdm1_eo = fobjs.mo_coeffs @ fobjs.rdm1__ @ fobjs.mo_coeffs.T
                 rdm1_center = Pc_ @ rdm1_eo
                 rdm1_ao = fobjs.TA @ rdm1_center @ fobjs.TA.T
                 rdm1AO += rdm1_ao
@@ -401,7 +401,7 @@ class BE(MixinLocalize):
                 # Transform RDM2 to AO basis
                 rdm2s = numpy.einsum(
                     "ijkl,pi,qj,rk,sl->pqrs",
-                    fobjs.__rdm2,
+                    fobjs.rdm2__,
                     *([fobjs.mo_coeffs] * 4),
                     optimize=True,
                 )
