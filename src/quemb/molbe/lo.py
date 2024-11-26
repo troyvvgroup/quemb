@@ -7,7 +7,7 @@ import numpy
 from numpy.linalg import eigh, multi_dot, svd
 from pyscf.gto import intor_cross
 
-from quemb.molbe.external.lo_helper import (
+from quemb.shared.external.lo_helper import (
     get_aoind_by_atom,
     reorder_by_atom_,
 )

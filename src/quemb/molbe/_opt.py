@@ -5,7 +5,7 @@ import sys
 import numpy
 
 from quemb.molbe.be_parallel import be_func_parallel
-from quemb.molbe.external.optqn import FrankQN
+from quemb.shared.external.optqn import FrankQN
 from quemb.molbe.misc import print_energy
 from quemb.molbe.solver import be_func
 

@@ -327,7 +327,7 @@ class BE(Mixin_k_Localize):
     # The following import of these functions turns them into
     # proper methods of the class.
     from quemb.kbe._opt import optimize  # noqa: PLC0415
-    from quemb.molbe.external.optqn import get_be_error_jacobian  # noqa: PLC0415
+    from quemb.shared.external.optqn import get_be_error_jacobian  # noqa: PLC0415
 
     def print_ini(self):
         """
