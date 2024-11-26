@@ -8,7 +8,6 @@ import numpy
 from pyscf import ao2mo, cc, fci, mcscf, mp
 from pyscf.cc.ccsd_rdm import make_rdm2
 
-from quemb.shared import be_var
 from quemb.molbe.external.ccsd_rdm import (
     make_rdm1_ccsd_t1,
     make_rdm1_uccsd,
@@ -18,6 +17,7 @@ from quemb.molbe.external.ccsd_rdm import (
 from quemb.molbe.external.uccsd_eri import make_eris_incore
 from quemb.molbe.external.unrestricted_utils import make_uhf_obj
 from quemb.molbe.helper import get_frag_energy, get_frag_energy_u, unused
+from quemb.shared import be_var
 
 
 def be_func(

@@ -12,9 +12,9 @@ from pyscf import ao2mo
 from pyscf.pbc import df, gto
 from pyscf.pbc.df.df_jk import _ewald_exxdiv_for_G0
 
-from quemb.shared import be_var
 from quemb.kbe.misc import storePBE
 from quemb.kbe.pfrag import Frags
+from quemb.shared import be_var
 
 
 class BE:
