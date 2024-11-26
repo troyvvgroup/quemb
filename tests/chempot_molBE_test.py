@@ -10,7 +10,7 @@ import unittest
 
 from pyscf import gto, scf
 
-from molbe import BE, fragpart
+from quemb.molbe import BE, fragpart
 
 
 class TestBE_restricted(unittest.TestCase):

@@ -2,8 +2,8 @@
 
 import sys
 
-from kbe.autofrag import autogen
-from molbe.helper import get_core
+from quemb.kbe.autofrag import autogen
+from quemb.molbe.helper import get_core
 
 
 def print_mol_missing():
@@ -157,4 +157,4 @@ class fragpart:
 
     # This import makes polychain a method of the class and
     #  cannot be moved to the top of the file
-    from kbe.chain import polychain  # noqa: PLC0415
+    from quemb.kbe.chain import polychain  # noqa: PLC0415

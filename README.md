@@ -60,12 +60,12 @@ processors.
 
 ```bash
 # Molecular
-from molbe import fragpart
-from molbe import BE
+from quemb.molbe import fragpart
+from quemb.molbe import BE
 
 # Periodic
-#from kbe import fragpart
-#from kbe import BE
+#from quemb.kbe import fragpart
+#from quemb.kbe import BE
 
 # Perform pyscf HF/KHF calculations
 # get mol: pyscf.gto.M or pyscf.pbc.gto.Cell

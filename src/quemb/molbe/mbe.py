@@ -7,11 +7,11 @@ import h5py
 import numpy
 from pyscf import ao2mo
 
-import molbe.be_var as be_var
-from molbe.be_parallel import be_func_parallel
-from molbe.eri_onthefly import integral_direct_DF
-from molbe.pfrag import Frags
-from molbe.solver import be_func
+from quemb.molbe.be_parallel import be_func_parallel
+from quemb.molbe.eri_onthefly import integral_direct_DF
+from quemb.molbe.pfrag import Frags
+from quemb.molbe.solver import be_func
+from quemb.shared import be_var
 
 
 class storeBE:
@@ -302,10 +302,10 @@ class BE:
 
     # The following imports turn the imported functions into proper methods
     #  cannot be moved to head of file.
-    from molbe._opt import optimize  # noqa: PLC0415
-    from molbe.external.optqn import get_be_error_jacobian  # noqa: PLC0415
-    from molbe.lo import localize  # noqa: PLC0415
-    from molbe.rdm import compute_energy_full, rdm1_fullbasis  # noqa: PLC0415
+    from quemb.molbe._opt import optimize  # noqa: PLC0415
+    from quemb.molbe.external.optqn import get_be_error_jacobian  # noqa: PLC0415
+    from quemb.molbe.lo import localize  # noqa: PLC0415
+    from quemb.molbe.rdm import compute_energy_full, rdm1_fullbasis  # noqa: PLC0415
 
     def print_ini(self):
         """

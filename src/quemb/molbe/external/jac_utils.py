@@ -6,8 +6,8 @@
 import numpy as np
 from pyscf import ao2mo
 
-from molbe.external.cphf_utils import cphf_kernel_batch
-from molbe.external.cpmp2_utils import get_dF_r, get_Diajb_r, get_dmoe_F_r
+from quemb.molbe.external.cphf_utils import cphf_kernel_batch
+from quemb.molbe.external.cpmp2_utils import get_dF_r, get_Diajb_r, get_dmoe_F_r
 
 """ Derivative of approximate t1 amplitudes
 t_ia = ((2*t2-t2)_ibjc g_cjba - g_ikbj (2*t2-t2)_jbka) / (e_i - e_a)

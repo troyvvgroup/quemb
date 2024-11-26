@@ -5,7 +5,7 @@
 import numpy as np
 from pyscf.pbc import df, gto, scf
 
-from kbe import BE, fragpart
+from quemb.kbe import BE, fragpart
 
 
 def test_polyacetylene():

@@ -2,8 +2,8 @@
 
 import sys
 
-from kbe.misc import print_energy
-from molbe._opt import BEOPT
+from quemb.kbe.misc import print_energy
+from quemb.molbe._opt import BEOPT
 
 
 def optimize(
