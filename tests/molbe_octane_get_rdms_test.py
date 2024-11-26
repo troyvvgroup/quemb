@@ -1,21 +1,19 @@
-# Illustrates parallelized BE computation on octane
+# Illustrates BE computation on octane with RDMs
 
 import os
 
+import numpy as np
 import pytest
 from pyscf import gto, scf
 
 from quemb.molbe import BE, fragpart
+from quemb.shared import be_var
 
 # TODO: actually add meaningful tests for RDM elements,
 #   energies etc.
 #   At the moment the test fails already for technical reasons.
 
 
-@pytest.mark.skipif(
-    not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
-    reason="This test is known to fail.",
-)
 def test_rdm():
     # Perform pyscf HF calculation to get mol & mf objects
     mol = gto.M(
@@ -61,8 +59,15 @@ def test_rdm():
     mybe = BE(mf, fobj)
 
     # Perform BE density matching.
-    # Uses 20 procs, each fragment calculation assigned OMP_NUM_THREADS to 4
-    # effectively running 5 fragment calculations in parallel
-    mybe.optimize(solver="CCSD", nproc=20, ompnum=4)
+    mybe.optimize(solver="CCSD", nproc=1, ompnum=1)
 
     rdm1_ao, rdm2_ao = mybe.rdm1_fullbasis(return_ao=True)
+
+    assert np.isclose(mybe.ebe_tot, -310.3311676424482)
+
+    rdm1, rdm2 = mybe.compute_energy_full(approx_cumulant=False, return_rdm=True)
+
+    assert np.isclose(mybe.ebe_tot, -310.3311676424482)
+
+
+test_rdm()
