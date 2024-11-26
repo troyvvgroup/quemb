@@ -3,7 +3,7 @@
 import numpy
 import scipy.linalg
 
-from molbe.helper import unused
+from quemb.molbe.helper import unused
 
 
 def schmidt_decomp_svd(rdm, Frag_sites):

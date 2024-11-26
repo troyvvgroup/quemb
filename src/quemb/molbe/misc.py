@@ -10,7 +10,7 @@ from pyscf import ao2mo, df, gto, qmmm, scf
 from pyscf.lib import chkfile
 from pyscf.tools import fcidump
 
-from molbe.fragment import fragpart
+from quemb.molbe.fragment import fragpart
 
 
 def libint2pyscf(
@@ -320,8 +320,8 @@ def be2puffin(
     """
     # The following imports have to happen here to avoid
     # circular dependencies.
-    from molbe.mbe import BE  # noqa: PLC0415
-    from molbe.ube import UBE  # noqa: PLC0415
+    from quemb.molbe.mbe import BE  # noqa: PLC0415
+    from quemb.molbe.ube import UBE  # noqa: PLC0415
 
     # Check input validity
     assert os.path.exists(xyzfile), "Input xyz file does not exist"

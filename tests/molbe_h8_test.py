@@ -5,7 +5,7 @@
 import numpy as np
 from pyscf import gto, scf
 
-from molbe import BE, fragpart
+from quemb.molbe import BE, fragpart
 
 
 def prepare_system():

@@ -12,9 +12,9 @@ from pyscf import ao2mo
 from pyscf.pbc import df, gto
 from pyscf.pbc.df.df_jk import _ewald_exxdiv_for_G0
 
-import molbe.be_var as be_var
-from kbe.misc import storePBE
-from kbe.pfrag import Frags
+from quemb.shared import be_var
+from quemb.kbe.misc import storePBE
+from quemb.kbe.pfrag import Frags
 
 
 class BE:
@@ -325,9 +325,9 @@ class BE:
 
     # The following import of these functions turns them into
     # proper methods of the class.
-    from kbe._opt import optimize  # noqa: PLC0415
-    from kbe.lo import localize  # noqa: PLC0415
-    from molbe.external.optqn import get_be_error_jacobian  # noqa: PLC0415
+    from quemb.kbe._opt import optimize  # noqa: PLC0415
+    from quemb.kbe.lo import localize  # noqa: PLC0415
+    from quemb.molbe.external.optqn import get_be_error_jacobian  # noqa: PLC0415
 
     def print_ini(self):
         """

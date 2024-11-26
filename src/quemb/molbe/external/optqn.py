@@ -8,11 +8,11 @@
 
 import numpy
 
-from molbe import be_var
-from molbe.external.cphf_utils import cphf_kernel_batch, get_rhf_dP_from_u
-from molbe.external.cpmp2_utils import get_dPmp2_batch_r
-from molbe.external.jac_utils import get_dPccsdurlx_batch_u
-from molbe.helper import get_eri, get_scfObj
+from quemb.shared import be_var
+from quemb.molbe.external.cphf_utils import cphf_kernel_batch, get_rhf_dP_from_u
+from quemb.molbe.external.cpmp2_utils import get_dPmp2_batch_r
+from quemb.molbe.external.jac_utils import get_dPccsdurlx_batch_u
+from quemb.molbe.helper import get_eri, get_scfObj
 
 
 def line_search_LF(func, xold, fold, dx, iter_):

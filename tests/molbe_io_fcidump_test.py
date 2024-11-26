@@ -11,8 +11,8 @@ import pytest
 from pyscf.lib.misc import with_omp_threads
 from pyscf.tools import fcidump
 
-from molbe import BE, fragpart
-from molbe.misc import be2fcidump, libint2pyscf
+from quemb.molbe import BE, fragpart
+from quemb.molbe.misc import be2fcidump, libint2pyscf
 
 
 def prepare_system():

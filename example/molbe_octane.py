@@ -2,7 +2,7 @@
 
 from pyscf import cc, gto, scf
 
-from molbe import BE, fragpart
+from quemb.molbe import BE, fragpart
 
 # Perform pyscf HF calculation to get mol & mf objects
 mol = gto.M(

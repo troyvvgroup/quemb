@@ -11,7 +11,7 @@ import unittest
 
 from pyscf import gto, scf
 
-from molbe import UBE, fragpart
+from quemb.molbe import UBE, fragpart
 
 
 class TestOneShot_Unrestricted(unittest.TestCase):
