@@ -58,11 +58,11 @@ def test_rdm():
     # Perform BE density matching.
     mybe.optimize(solver="CCSD", nproc=1, ompnum=1)
 
-    rdm1_ao, rdm2_ao = mybe.rdm1_fullbasis(return_ao=True)
+    rdm1_ao, rdm2_ao = mybe.rdm1_fullbasis(return_ao=False)  # noqa: F841
 
     assert np.isclose(mybe.ebe_tot, -310.3311676424482)
 
-    rdm1, rdm2 = mybe.compute_energy_full(approx_cumulant=True, return_rdm=True)
+    rdm1, rdm2 = mybe.compute_energy_full(approx_cumulant=True, return_rdm=True)  # noqa: F841
 
     assert np.isclose(mybe.ebe_tot, -310.3311676424482)
 
