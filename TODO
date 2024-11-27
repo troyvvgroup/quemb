@@ -1,7 +1,0 @@
-switch to pyprojects.toml
-
-turn quemb.pbe.lo.KMF into dataclass (what it is)
-
-unify kbe and be pfrags.Frags class
-
-add non-trivial test for RDM elements to molbe_octane_get_rdms_test.py
