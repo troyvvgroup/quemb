@@ -23,6 +23,12 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+
+    - name: Check trailing whitespace
+      run: |
+        git diff-tree --check $(git hash-object -t tree /dev/null) HEAD
+
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:
@@ -42,11 +48,6 @@ jobs:
       run: |
         pip install --upgrade --upgrade-strategy eager ruff pylint mypy scipy-stubs
         pip install .
-
-
-    - name: Check trailing whitespace
-      run: |
-        [ "`git diff --check --cached | wc -c`" -eq 0 ]
 
 
     - name: Check formatting
