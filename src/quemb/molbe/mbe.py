@@ -533,9 +533,11 @@ class BE(MixinLocalize):
             If True, use an approximate cumulant for the energy computation.
             Default is False.
         use_full_rdm : bool, optional
-            If True, use the full two-particle RDM for energy computation. Default is False.
+            If True, use the full two-particle RDM for energy computation.
+            Default is False.
         return_rdm : bool, optional
-            If True, return the computed reduced density matrices (RDMs). Default is True.
+            If True, return the computed reduced density matrices (RDMs).
+            Default is True.
 
         Returns
         -------
@@ -547,11 +549,12 @@ class BE(MixinLocalize):
         Notes
         -----
         This function computes the total energy in the full basis, with options to use
-        approximate or true cumulants, and to return the reduced density matrices (RDMs).
-        The energy components are printed as part of the function's output.
+        approximate or true cumulants, and to return the
+        reduced density matrices (RDMs).  The energy components are printed as part
+        of the function's output.
         """
-        # Compute the one-particle reduced density matrix (RDM1) and the cumulant (Kumul)
-        #   in the full basis
+        # Compute the one-particle reduced density matrix (RDM1) and the cumulant
+        # (Kumul) in the full basis
         rdm1f, Kumul, rdm1_lo, rdm2_lo = self.rdm1_fullbasis(
             return_lo=True, return_RDM2=False
         )
