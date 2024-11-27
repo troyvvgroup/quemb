@@ -35,7 +35,7 @@ mf.kernel()
 fobj = fragpart(be_type="be2", mol=mol, valence_basis="sto-3g", frozen_core=True)
 
 # Initialize BE
-mybe = BE(mg, fobj, lo_method="iao")
+mybe = BE(mf, fobj, lo_method="iao")
 
 # Density matching with CCSD as local solver
 mybe.optimize(solver="CCSD")
