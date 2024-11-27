@@ -17,8 +17,8 @@ from quemb.kbe.lo_k import (
     remove_core_mo_k,
     symm_orth_k,
 )
-from quemb.molbe.helper import ncore_, unused
 from quemb.shared.external.lo_helper import get_aoind_by_atom, reorder_by_atom_
+from quemb.shared.helper import ncore_, unused
 
 
 class KMF:
