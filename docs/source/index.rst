@@ -36,5 +36,3 @@ References
    optimize
    solvers
    misc
-
-

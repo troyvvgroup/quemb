@@ -32,7 +32,7 @@ def test_rbe_qmmm_fromchk():
 
     # returns BE energy with CCSD solver from RHF reference,
     # using checkfile from converged RHF
-    be_energy = be2puffin(
+    be_energy = be2puffin(  # noqa: F841
         structure,  # the QM region XYZ geometry
         "sto-3g",  # the chosen basis set
         pts_and_charges=[coords, charges],  # the loaded hamiltonian
