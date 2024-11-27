@@ -433,35 +433,35 @@ class BE(Mixin_k_Localize):
             print("This optimization method for BE is not supported")
             sys.exit()
 
-        @wraps(_ext_get_be_error_jacobian)
-        def get_be_error_jacobian(self, jac_solver="HF"):
-            return _ext_get_be_error_jacobian(self.Nfrag, self.Fobjs, jac_solver)
+    @wraps(_ext_get_be_error_jacobian)
+    def get_be_error_jacobian(self, jac_solver="HF"):
+        return _ext_get_be_error_jacobian(self.Nfrag, self.Fobjs, jac_solver)
 
-        def print_ini(self):
-            """
-            Print initialization banner for the kBE calculation.
-            """
-            print(
-                "-----------------------------------------------------------",
-                flush=True,
-            )
+    def print_ini(self):
+        """
+        Print initialization banner for the kBE calculation.
+        """
+        print(
+            "-----------------------------------------------------------",
+            flush=True,
+        )
 
-            print("             BBBBBBB    EEEEEEE ", flush=True)
-            print("             BB     B   EE      ", flush=True)
-            print("   PP   PP   BB     B   EE      ", flush=True)
-            print("   PP  PP    BBBBBBB    EEEEEEE ", flush=True)
-            print("   PPPP      BB     B   EE      ", flush=True)
-            print("   PP  PP    BB     B   EE      ", flush=True)
-            print("   PP   PP   BBBBBBB    EEEEEEE ", flush=True)
-            print(flush=True)
+        print("             BBBBBBB    EEEEEEE ", flush=True)
+        print("             BB     B   EE      ", flush=True)
+        print("   PP   PP   BB     B   EE      ", flush=True)
+        print("   PP  PP    BBBBBBB    EEEEEEE ", flush=True)
+        print("   PPPP      BB     B   EE      ", flush=True)
+        print("   PP  PP    BB     B   EE      ", flush=True)
+        print("   PP   PP   BBBBBBB    EEEEEEE ", flush=True)
+        print(flush=True)
 
-            print("            PERIODIC BOOTSTRAP EMBEDDING", flush=True)
-            print("           BEn = ", self.be_type, flush=True)
-            print(
-                "-----------------------------------------------------------",
-                flush=True,
-            )
-            print(flush=True)
+        print("            PERIODIC BOOTSTRAP EMBEDDING", flush=True)
+        print("           BEn = ", self.be_type, flush=True)
+        print(
+            "-----------------------------------------------------------",
+            flush=True,
+        )
+        print(flush=True)
 
     def ewald_sum(self, kpts=None):
         dm_ = self.mf.make_rdm1()
