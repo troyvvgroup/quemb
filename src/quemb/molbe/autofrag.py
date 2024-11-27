@@ -4,7 +4,8 @@ import sys
 
 import numpy
 
-from quemb.molbe.helper import get_core, unused
+from quemb.molbe.helper import get_core
+from quemb.shared.helper import unused
 
 
 def autogen(

@@ -31,5 +31,3 @@ Serial BE Solver
 .. toctree::
    :maxdepth: 4
 .. autofunction:: quemb.molbe.solver.be_func
-
-
