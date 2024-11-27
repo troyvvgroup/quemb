@@ -62,7 +62,7 @@ def test_rdm():
 
     assert np.isclose(mybe.ebe_tot, -310.3311676424482)
 
-    rdm1, rdm2 = mybe.compute_energy_full(approx_cumulant=False, return_rdm=True)
+    rdm1, rdm2 = mybe.compute_energy_full(approx_cumulant=True, return_rdm=True)
 
     assert np.isclose(mybe.ebe_tot, -310.3311676424482)
 
