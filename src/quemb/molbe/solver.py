@@ -3,6 +3,7 @@
 import functools
 import os
 import sys
+from typing import Optional
 
 import numpy
 from pyscf import ao2mo, cc, fci, mcscf, mp
@@ -727,7 +728,9 @@ def solve_ccsd(
     return (t1, t2)
 
 
-def solve_block2(mf: object, nocc: int, frag_scratch: str = None, **solver_kwargs):
+def solve_block2(
+    mf: object, nocc: int, frag_scratch: Optional[str] = None, **solver_kwargs
+):
     """DMRG fragment solver using the pyscf.dmrgscf wrapper.
 
     Parameters
