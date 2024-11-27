@@ -1,5 +1,5 @@
 import sys
-from typing import Any, Callable, TypeVar
+from typing import Any, Callable, TypeVar, Optional
 
 Function = TypeVar("Function", bound=Callable)
 
@@ -8,7 +8,7 @@ Function = TypeVar("Function", bound=Callable)
 # This is **intentional**.
 # The inner function `update_doc` takes a function
 # and returns a function **with** the exact same signature.
-def add_docstring(doc: str) -> Callable[[Function], Function]:
+def add_docstring(doc: Optional[str]) -> Callable[[Function], Function]:
     """Add a docstring to a function as decorator.
 
     Is useful for programmatically generating docstrings.
@@ -38,8 +38,6 @@ def add_docstring(doc: str) -> Callable[[Function], Function]:
 
 def copy_docstring(f: Callable) -> Callable[[Function], Function]:
     """Copy docstring from another function as decorator."""
-    if f.__doc__ is None:
-        return f
     return add_docstring(f.__doc__)
 
 
