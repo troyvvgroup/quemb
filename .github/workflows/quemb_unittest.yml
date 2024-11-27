@@ -44,6 +44,11 @@ jobs:
         pip install .
 
 
+    - name: Check trailing whitespace
+      run: |
+        [ "`git diff --check --cached | wc -c`" -eq 0 ]
+
+
     - name: Check formatting
       run: |
         ruff format --diff
