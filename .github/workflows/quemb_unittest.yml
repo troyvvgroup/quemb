@@ -25,8 +25,10 @@ jobs:
 
 
     - name: Check trailing whitespace
+      # Idea taken from https://peter.eisentraut.org/blog/2014/11/04/checking-whitespace-with-git
+      # Windows uses different new line convention, thats why we exclude docs/make.bat
       run: |
-        git diff-tree --check $(git hash-object -t tree /dev/null) HEAD
+        git diff-tree --check $(git hash-object -t tree /dev/null)  HEAD -- '(exclude)docs/make.bat'
 
 
     - name: Set up Python ${{ matrix.python-version }}
@@ -56,16 +58,17 @@ jobs:
 
 
     - name: Static analysis with ruff
+      # for the moment we want to report always report success
       run: |
-        ruff check . || true    # for the moment we want to report always report success
+        ruff check . || true
 
 
     - name: Static analysis with pylint
+      # ruff does nearly everything that we want from pylint
+      # except for detecting unresolved imports
+      # TODO: if they add it to ruff as well https://github.com/astral-sh/ruff/issues/9103
+      #   remove pylint.
       run: |
-        # ruff does nearly everything that we want from pylint
-        # except for detecting unresolved imports
-        # TODO: if they add it to ruff as well https://github.com/astral-sh/ruff/issues/9103
-        #   remove pylint.
         pylint --disable=all --enable=E0401,R0401,E0611 . || true    # for the moment we want to report always report success
 
 
