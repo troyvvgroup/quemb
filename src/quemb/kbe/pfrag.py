@@ -9,7 +9,8 @@ import numpy
 from quemb.kbe.helper import get_veff
 from quemb.kbe.misc import get_phase, get_phase1
 from quemb.kbe.solver import schmidt_decomp_svd
-from quemb.molbe.helper import get_eri, get_scfObj, unused
+from quemb.molbe.helper import get_eri, get_scfObj
+from quemb.shared.helper import unused
 
 
 class Frags:
