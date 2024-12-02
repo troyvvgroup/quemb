@@ -1,5 +1,5 @@
 import sys
-from typing import Any, Callable, TypeVar, Optional
+from typing import Any, Callable, Optional, TypeVar
 
 Function = TypeVar("Function", bound=Callable)
 
