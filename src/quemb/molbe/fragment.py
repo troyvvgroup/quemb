@@ -1,11 +1,11 @@
 # Author: Oinam Romesh Meitei
 
 import sys
-from functools import wraps
 
 from quemb.molbe.autofrag import autogen
 from quemb.molbe.helper import get_core
 from quemb.molbe.lchain import chain as _ext_chain
+from quemb.shared.helper import copy_docstring
 
 
 class fragpart:
@@ -135,7 +135,7 @@ class fragpart:
             print("exiting", flush=True)
             sys.exit()
 
-    @wraps(_ext_chain)
+    @copy_docstring(_ext_chain)
     def chain(self, mol, frozen_core=False, closed=False):
         return _ext_chain(self, mol, frozen_core=frozen_core, closed=closed)
 
