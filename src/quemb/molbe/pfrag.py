@@ -95,8 +95,8 @@ class Frags:
         self.udim = None
 
         self._rdm1 = None
-        self.__rdm1 = None
-        self.__rdm2 = None
+        self.rdm1__ = None
+        self.rdm2__ = None
         self.rdm1 = None
         self.genvs = None
         self.ebe = 0.0

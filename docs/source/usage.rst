@@ -47,4 +47,3 @@ Simple example of periodic BE calculation on 1D periodic system::
 
   # Perform density matching in BE
   mybe.optimize(solver='CCSD')
-

@@ -17,4 +17,3 @@ Periodic fragments
    :maxdepth: 4
 .. automodule:: quemb.kbe.pfrag
    :members:
-

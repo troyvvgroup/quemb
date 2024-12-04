@@ -3,7 +3,9 @@
 import sys
 
 from quemb.kbe.autofrag import autogen
+from quemb.kbe.chain import polychain as _ext_polychain
 from quemb.molbe.helper import get_core
+from quemb.shared.helper import copy_docstring
 
 
 def print_mol_missing():
@@ -155,6 +157,6 @@ class fragpart:
             print("exiting", flush=True)
             sys.exit()
 
-    # This import makes polychain a method of the class and
-    #  cannot be moved to the top of the file
-    from quemb.kbe.chain import polychain  # noqa: PLC0415
+    @copy_docstring(_ext_polychain)
+    def polychain(self, mol, frozen_core=False, unitcell=1):
+        return _ext_polychain(self, mol, frozen_core=frozen_core, unitcell=unitcell)

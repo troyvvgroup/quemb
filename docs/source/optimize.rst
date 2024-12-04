@@ -12,4 +12,4 @@ Main BE optimization
 Quasi-Newton optimization
 =========================
 
-.. autoclass:: quemb.molbe.external.optqn.FrankQN
+.. autoclass:: quemb.shared.external.optqn.FrankQN

@@ -2,11 +2,12 @@
 #            Leah Weisburn
 
 import functools
-import sys
 
 import h5py
 import numpy
 from pyscf import ao2mo, gto, lib, scf
+
+from quemb.shared.helper import ncore_
 
 
 def get_veff(eri_, dm, S, TA, hf_veff):
@@ -182,29 +183,6 @@ def get_eri(i_frag, Nao, symm=8, ignore_symm=False, eri_file="eri_file.h5"):
     r.close()
 
     return eri__
-
-
-def ncore_(z):
-    if 1 <= z <= 2:
-        nc = 0
-    elif 2 <= z <= 5:
-        nc = 1
-    elif 5 <= z <= 12:
-        nc = 1
-    elif 12 <= z <= 30:
-        nc = 5
-    elif 31 <= z <= 38:
-        nc = 9
-    elif 39 <= z <= 48:
-        nc = 14
-    elif 49 <= z <= 56:
-        nc = 18
-    else:
-        print("Ncore not computed in helper.ncore(), add it yourself!", flush=True)
-        print("exiting", flush=True)
-        sys.exit()
-
-    return nc
 
 
 def get_core(mol):
@@ -517,8 +495,3 @@ def get_frag_energy_u(
             ec_tmp += efac[s][0] * ec[s][i]
 
     return [e1_tmp, e2_tmp, ec_tmp]
-
-
-def unused(*args) -> None:
-    for arg in args:
-        del arg
