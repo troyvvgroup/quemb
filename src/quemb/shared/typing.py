@@ -14,7 +14,6 @@ import numpy as np
 # We want the dtype to behave covariant, i.e. if a
 #  Vector[float] is allowed, then the more specific
 #  Vector[float64] should also be allowed.
-#
 # Also see here:
 # https://stackoverflow.com/questions/61568462/what-does-typevara-b-covariant-true-mean
 T_dtype_co = TypeVar("T_dtype_co", bound=np.generic, covariant=True)
