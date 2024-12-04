@@ -3,7 +3,6 @@
 import os
 import pickle
 import sys
-from functools import wraps
 
 import h5py
 import numpy
@@ -20,6 +19,7 @@ from quemb.shared import be_var
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
+from quemb.shared.helper import copy_docstring
 
 
 class storeBE:
@@ -773,7 +773,7 @@ class BE(MixinLocalize):
             print("This optimization method for BE is not supported")
             sys.exit()
 
-    @wraps(_ext_get_be_error_jacobian)
+    @copy_docstring(_ext_get_be_error_jacobian)
     def get_be_error_jacobian(self, jac_solver="HF"):
         return _ext_get_be_error_jacobian(self.Nfrag, self.Fobjs, jac_solver)
 

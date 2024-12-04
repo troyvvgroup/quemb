@@ -1,11 +1,11 @@
 # Author(s): Oinam Romesh Meitei
 
 import sys
-from functools import wraps
 
 from quemb.kbe.autofrag import autogen
 from quemb.kbe.chain import polychain as _ext_polychain
 from quemb.molbe.helper import get_core
+from quemb.shared.helper import copy_docstring
 
 
 def print_mol_missing():
@@ -157,6 +157,6 @@ class fragpart:
             print("exiting", flush=True)
             sys.exit()
 
-    @wraps(_ext_polychain)
+    @copy_docstring(_ext_polychain)
     def polychain(self, mol, frozen_core=False, unitcell=1):
         return _ext_polychain(self, mol, frozen_core=frozen_core, unitcell=unitcell)
