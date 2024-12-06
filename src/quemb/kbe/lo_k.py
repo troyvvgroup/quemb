@@ -6,6 +6,7 @@ from functools import reduce
 
 import numpy
 import scipy
+from numpy.linalg import eigh, inv, norm
 from pyscf.pbc import gto as pgto
 
 from quemb.shared.helper import unused
@@ -21,7 +22,7 @@ def dot_gen(A, B, ovlp):
 
 def get_cano_orth_mat(A, thr=1.0e-7, ovlp=None):
     S = dot_gen(A, A, ovlp)
-    e, u = numpy.linalg.eigh(S)
+    e, u = eigh(S)
     if thr > 0:
         idx_keep = e / e[-1] > thr
     else:
@@ -131,7 +132,7 @@ def get_iao_k(Co, S12, S1, S2=None, ortho=True):
 
         Po = numpy.dot(Co[k], Co[k].conj().T)
 
-        Stil_inv = numpy.linalg.inv(Stil)
+        Stil_inv = inv(Stil)
 
         Potil = reduce(numpy.dot, (Cotil, Stil_inv, Cotil.conj().T))
 
@@ -144,7 +145,7 @@ def get_iao_k(Co, S12, S1, S2=None, ortho=True):
         if ortho:
             Ciao[k] = symm_orth_k(Ciao[k], ovlp=S1[k])
 
-            rep_err = numpy.linalg.norm(Ciao[k] @ Ciao[k].conj().T @ S1[k] @ Po - Po)
+            rep_err = norm(Ciao[k] @ Ciao[k].conj().T @ S1[k] @ Po - Po)
             if rep_err > 1.0e-10:
                 raise RuntimeError
 

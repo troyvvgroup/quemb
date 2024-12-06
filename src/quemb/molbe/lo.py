@@ -4,7 +4,7 @@ import functools
 import sys
 
 import numpy
-from numpy.linalg import eigh, multi_dot, svd
+from numpy.linalg import eigh, inv, multi_dot, norm, svd
 from pyscf.gto import intor_cross
 
 from quemb.shared.external.lo_helper import (
@@ -20,7 +20,7 @@ def dot_gen(A, B, ovlp):
 
 def get_cano_orth_mat(A, thr=1.0e-6, ovlp=None):
     S = dot_gen(A, A, ovlp)
-    e, u = numpy.linalg.eigh(S)
+    e, u = eigh(S)
     if thr > 0:
         idx_keep = e / e[-1] > thr
     else:
@@ -38,7 +38,7 @@ def cano_orth(A, thr=1.0e-6, ovlp=None):
 
 def get_symm_orth_mat(A, thr=1.0e-6, ovlp=None):
     S = dot_gen(A, A, ovlp)
-    e, u = numpy.linalg.eigh(S)
+    e, u = eigh(S)
     if int(numpy.sum(e < thr)) > 0:
         raise ValueError(
             "Linear dependence is detected in the column space of A: "
@@ -106,9 +106,9 @@ def get_iao(Co, S12, S1, S2=None):
     # define projection operators
     n = Co.shape[0]
     if S2 is None:
-        S2 = S12.T @ numpy.linalg.inv(S1) @ S12
-    P1 = numpy.linalg.inv(S1)
-    P2 = numpy.linalg.inv(S2)
+        S2 = S12.T @ inv(S1) @ S12
+    P1 = inv(S1)
+    P2 = inv(S2)
 
     # depolarized occ mo
     Cotil = P1 @ S12 @ P2 @ S12.T @ Co
@@ -118,13 +118,13 @@ def get_iao(Co, S12, S1, S2=None):
     Stil = Cotil.T @ S1 @ Cotil
 
     Po = Co @ Co.T
-    Potil = Cotil @ numpy.linalg.inv(Stil) @ Cotil.T
+    Potil = Cotil @ inv(Stil) @ Cotil.T
 
     Ciao = (numpy.eye(n) - (Po + Potil - 2 * Po @ S1 @ Potil) @ S1) @ ptil
     Ciao = symm_orth(Ciao, ovlp=S1)
 
     # check span
-    rep_err = numpy.linalg.norm(Ciao @ Ciao.T @ S1 @ Po - Po)
+    rep_err = norm(Ciao @ Ciao.T @ S1 @ Po - Po)
     if rep_err > 1.0e-10:
         raise RuntimeError
     return Ciao
@@ -142,7 +142,7 @@ def get_pao(Ciao, S, S12, S2, mol):
         Cpao (orthogonalized)
     """
     n = Ciao.shape[0]
-    s12 = numpy.linalg.inv(S) @ S12
+    s12 = inv(S) @ S12
     nonval = (
         numpy.eye(n) - s12 @ s12.T
     )  # set of orbitals minus valence (orth in working basis)
