@@ -249,7 +249,7 @@ class FrankQN:
         return vs[0]
 
 
-def get_be_error_jacobian(Nfrag: int, Fobjs, jac_solver: str = "HF"):
+def get_be_error_jacobian(Nfrag, Fobjs, jac_solver="HF"):
     Jes = [None] * Nfrag
     Jcs = [None] * Nfrag
     xes = [None] * Nfrag

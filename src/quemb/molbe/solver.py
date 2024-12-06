@@ -720,9 +720,7 @@ def solve_ccsd(
     return (t1, t2)
 
 
-def solve_block2(
-    mf: object, nocc: int, frag_scratch: Optional[str] = None, **solver_kwargs
-):
+def solve_block2(mf, nocc, frag_scratch, **solver_kwargs):
     """DMRG fragment solver using the pyscf.dmrgscf wrapper.
 
     Parameters
