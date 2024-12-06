@@ -5,6 +5,7 @@
 #
 
 import numpy
+from numpy.linalg import eigh, matrix_power, norm
 
 
 def get_symm_mat_pow(A, p, check_symm=True, thresh=1.0e-8):
@@ -14,12 +15,12 @@ def get_symm_mat_pow(A, p, check_symm=True, thresh=1.0e-8):
         For integer p, it calls numpy.linalg.matrix_power
     """
     if abs(int(p) - p) < thresh:
-        return numpy.linalg.matrix_power(A, int(p))
+        return matrix_power(A, int(p))
 
     if check_symm:
-        assert numpy.linalg.norm(A - A.conj().T) < thresh
+        assert norm(A - A.conj().T) < thresh
 
-    e, u = numpy.linalg.eigh(A)
+    e, u = eigh(A)
     Ap = u @ numpy.diag(e**p) @ u.conj().T
 
     return Ap

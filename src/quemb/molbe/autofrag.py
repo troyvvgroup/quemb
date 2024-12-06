@@ -2,7 +2,7 @@
 
 import sys
 
-import numpy
+from numpy.linalg import norm
 
 from quemb.molbe.helper import get_core
 from quemb.shared.helper import unused
@@ -100,7 +100,7 @@ def autogen(
     # Compute the norm (magnitude) of each atomic coordinate
     normlist = []
     for i in coord:
-        normlist.append(numpy.linalg.norm(i))
+        normlist.append(norm(i))
     Frag = []
     pedge = []
     cen = []
@@ -134,14 +134,14 @@ def autogen(
 
         if not be_type == "be1":
             for jdx in clist:
-                dist = numpy.linalg.norm(coord[idx] - coord[jdx])
+                dist = norm(coord[idx] - coord[jdx])
                 if dist <= bond:
                     flist.append(jdx)
                     pedg.append(jdx)
                     if be_type == "be3" or be_type == "be4":
                         for kdx in clist:
                             if not kdx == jdx:
-                                dist = numpy.linalg.norm(coord[jdx] - coord[kdx])
+                                dist = norm(coord[jdx] - coord[kdx])
                                 if dist <= bond:
                                     if kdx not in pedg:
                                         flist.append(kdx)
@@ -158,7 +158,7 @@ def autogen(
                                                 or ldx in pedg
                                             ):
                                                 continue
-                                            dist = numpy.linalg.norm(coord[kdx] - l)
+                                            dist = norm(coord[kdx] - l)
                                             if dist <= bond:
                                                 flist.append(ldx)
                                                 pedg.append(ldx)
@@ -198,7 +198,7 @@ def autogen(
                         if abs(j) < normdist:
                             clist.append(jdx)
                 for jdx in clist:
-                    dist = numpy.linalg.norm(coord[idx] - coord[jdx])
+                    dist = norm(coord[idx] - coord[jdx])
                     if dist <= hbond:
                         hlist[jdx].append(idx)
 

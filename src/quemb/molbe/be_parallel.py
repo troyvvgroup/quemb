@@ -6,6 +6,7 @@ import sys
 from multiprocessing import Pool
 
 import numpy
+from numpy.linalg import multi_dot
 from pyscf import ao2mo, fci, mcscf
 
 from quemb.molbe.helper import (
@@ -157,7 +158,7 @@ def run_solver(
         ci_.ci_coeff_cutoff = ci_coeff_cutoff
 
         nelec = (nocc, nocc)
-        h1_ = functools.reduce(numpy.dot, (mf_.mo_coeff.T, h1, mf_.mo_coeff))
+        h1_ = multi_dot((mf_.mo_coeff.T, h1, mf_.mo_coeff))
         eci, civec = ci_.kernel(h1_, eri, nmo, nelec)
         unused(eci)
         civec = numpy.asarray(civec)
@@ -214,7 +215,7 @@ def run_solver(
         sys.exit()
 
     # Compute RDM1
-    rdm1 = functools.reduce(numpy.dot, (mf_.mo_coeff, rdm1_tmp, mf_.mo_coeff.T)) * 0.5
+    rdm1 = multi_dot((mf_.mo_coeff, rdm1_tmp, mf_.mo_coeff.T)) * 0.5
     if eeval:
         if solver == "CCSD" and not rdm_return:
             with_dm1 = True
