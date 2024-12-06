@@ -29,7 +29,7 @@ def get_cano_orth_mat(A, thr=1.0e-7, ovlp=None):
 
 def cano_orth(A, thr=1.0e-7, ovlp=None):
     """Canonically orthogonalize columns of A"""
-    return get_cano_orth_mat(A, thr, ovlp)
+    return A @ get_cano_orth_mat(A, thr, ovlp)
 
 
 def get_symm_orth_mat_k(A, thr=1.0e-7, ovlp=None):
