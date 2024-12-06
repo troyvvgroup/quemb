@@ -1,14 +1,12 @@
 # Author(s): Oinam Meitei
 #            Henry Tran
 #
-import functools
 import os
 import sys
-from functools import reduce
 
 import numpy
 from libdmet.lo import pywannier90
-from numpy.linalg import eigh, svd
+from numpy.linalg import eigh, multi_dot, svd
 
 from quemb.kbe.lo_k import (
     get_iao_k,
@@ -101,29 +99,26 @@ class Mixin_k_Localize:
                     # PYSCF has basis in 1s2s3s2p2p2p3p3p3p format
                     # fix no_core_idx - use population for now
                     # C_ = C_[:,self.no_core_idx]
-                    Cpop = functools.reduce(numpy.dot, (C_.conj().T, self.S[k], C_))
+                    Cpop = multi_dot((C_.conj().T, self.S[k], C_))
                     Cpop = numpy.diag(Cpop.real)
 
                     no_core_idx = numpy.where(Cpop > 0.7)[0]
                     C_ = C_[:, no_core_idx]
 
-                    S_ = functools.reduce(numpy.dot, (C_.conj().T, self.S[k], C_))
+                    S_ = multi_dot((C_.conj().T, self.S[k], C_))
 
                     es_, vs_ = eigh(S_)
                     edx = es_ > 1.0e-14
                     W_ = (vs_[:, edx] / numpy.sqrt(es_[edx])) @ vs_[:, edx].conj().T
                     W_nocore[k] = numpy.dot(C_, W_)
 
-                    lmo_coeff[k] = functools.reduce(
-                        numpy.dot,
+                    lmo_coeff[k] = multi_dot(
                         (W_nocore[k].conj().T, self.S[k], self.C[k][:, self.ncore :]),
                     )
                     cinv_[k] = numpy.dot(W_nocore[k].conj().T, self.S[k])
 
                 else:
-                    lmo_coeff[k] = functools.reduce(
-                        numpy.dot, (W[k].conj().T, self.S[k], self.C[k])
-                    )
+                    lmo_coeff[k] = multi_dot((W[k].conj().T, self.S[k], self.C[k]))
                     cinv_[k] = numpy.dot(W[k].conj().T, self.S[k])
             if self.frozen_core:
                 self.W = W_nocore
@@ -273,10 +268,8 @@ class Mixin_k_Localize:
             if iao_wannier:
                 mo_energy_ = []
                 for k in range(nk):
-                    fock_iao = reduce(
-                        numpy.dot, (Ciao_[k].conj().T, self.FOCK[k], Ciao_[k])
-                    )
-                    S_iao = reduce(numpy.dot, (Ciao_[k].conj().T, self.S[k], Ciao_[k]))
+                    fock_iao = multi_dot((Ciao_[k].conj().T, self.FOCK[k], Ciao_[k]))
+                    S_iao = multi_dot((Ciao_[k].conj().T, self.S[k], Ciao_[k]))
                     e_iao, v_iao = eigh(fock_iao, S_iao)
                     unused(v_iao)
                     mo_energy_.append(e_iao)
@@ -399,8 +392,7 @@ class Mixin_k_Localize:
                     lmo_coeff.append(lmo_)
             else:
                 for k in range(self.nkpt):
-                    lmo_coeff[k] = reduce(
-                        numpy.dot,
+                    lmo_coeff[k] = multi_dot(
                         (self.W[k].conj().T, self.S[k], self.C[k][:, self.ncore :]),
                     )
                     cinv_[k] = numpy.dot(self.W[k].conj().T, self.S[k])
@@ -437,12 +429,11 @@ class Mixin_k_Localize:
             else:
                 mo_energy_nc = []
                 for k in range(nk):
-                    fock_lnc = reduce(
-                        numpy.dot,
+                    fock_lnc = multi_dot(
                         (lorb_nocore[k].conj().T, self.FOCK[k], lorb_nocore[k]),
                     )
-                    S_lnc = reduce(
-                        numpy.dot, (lorb_nocore[k].conj().T, self.S[k], lorb_nocore[k])
+                    S_lnc = multi_dot(
+                        (lorb_nocore[k].conj().T, self.S[k], lorb_nocore[k])
                     )
                     e__, v__ = eigh(fock_lnc, S_lnc)
                     unused(v__)
@@ -493,8 +484,7 @@ class Mixin_k_Localize:
             cinv_ = numpy.zeros((self.nkpt, nlo, nao), dtype=numpy.complex128)
 
             for k in range(nk):
-                lmo_coeff[k] = reduce(
-                    numpy.dot,
+                lmo_coeff[k] = multi_dot(
                     (self.W[k].conj().T, self.S[k], self.C[k][:, self.ncore :]),
                 )
                 cinv_[k] = numpy.dot(self.W[k].conj().T, self.S[k])

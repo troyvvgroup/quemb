@@ -1,10 +1,10 @@
 # Author(s): Oinam Romesh Meitei
 
-import functools
 import sys
 
 import h5py
 import numpy
+from numpy.linalg import multi_dot
 
 from quemb.kbe.helper import get_veff
 from quemb.kbe.misc import get_phase, get_phase1
@@ -180,16 +180,12 @@ class Frags:
         # useful for debugging --
         rdm1_eo = numpy.zeros((teo, teo), dtype=numpy.complex128)
         for k in range(nk):
-            rdm1_eo += functools.reduce(
-                numpy.dot, (TA_k[k].conj().T, rdm1_lo_k[k], TA_k[k])
-            )
+            rdm1_eo += multi_dot((TA_k[k].conj().T, rdm1_lo_k[k], TA_k[k]))
         rdm1_eo /= float(nk)
 
         h1_eo = numpy.zeros((teo, teo), dtype=numpy.complex128)
         for k in range(nk):
-            h1_eo += functools.reduce(
-                numpy.dot, (self.TA[k].conj().T, h1[k], self.TA[k])
-            )
+            h1_eo += multi_dot((self.TA[k].conj().T, h1[k], self.TA[k]))
         h1_eo /= float(nk)
         e1 = 2.0 * numpy.einsum(
             "ij,ij->i", h1_eo[: self.nfsites], rdm1_eo[: self.nfsites]
@@ -212,9 +208,7 @@ class Frags:
         unused(nao)
         h1_eo = numpy.zeros((teo, teo), dtype=numpy.complex128)
         for k in range(nk):
-            h1_eo += functools.reduce(
-                numpy.dot, (self.TA[k].conj().T, h1[k], self.TA[k])
-            )
+            h1_eo += multi_dot((self.TA[k].conj().T, h1[k], self.TA[k]))
         h1_eo /= float(nk)
 
         if numpy.abs(h1_eo.imag).max() < 1.0e-7:
@@ -283,7 +277,7 @@ class Frags:
         P_ = numpy.zeros((neo, neo), dtype=numpy.complex128)
         for k in range(nk):
             Cinv = numpy.dot(self.TA[k].conj().T, S[k])
-            P_ += functools.reduce(numpy.dot, (Cinv, dm_[k], Cinv.conj().T))
+            P_ += multi_dot((Cinv, dm_[k], Cinv.conj().T))
 
         P_ /= float(nk)
         if numpy.abs(P_.imag).max() < 1.0e-6:

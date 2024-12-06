@@ -262,38 +262,32 @@ class MixinLocalize:
                         for s in [0, 1]
                     ]
                     C_ = numpy.dot(P_core, self.W)
-                    Cpop = [
-                        functools.reduce(numpy.dot, (C_[s].T, self.S, C_[s]))
-                        for s in [0, 1]
-                    ]
+                    Cpop = [multi_dot((C_[s].T, self.S, C_[s])) for s in [0, 1]]
                     Cpop = [numpy.diag(Cpop[s]) for s in [0, 1]]
                     no_core_idx = [numpy.where(Cpop[s] > 0.7)[0] for s in [0, 1]]
                     C_ = [C_[s][:, no_core_idx[s]] for s in [0, 1]]
-                    S_ = [
-                        functools.reduce(numpy.dot, (C_[s].T, self.S, C_[s]))
-                        for s in [0, 1]
-                    ]
+                    S_ = [multi_dot((C_[s].T, self.S, C_[s])) for s in [0, 1]]
                     W_ = []
                     for s in [0, 1]:
                         es_, vs_ = eigh(S_[s])
                         s_ = numpy.sqrt(es_)
                         s_ = numpy.diag(1.0 / s_)
-                        W_.append(functools.reduce(numpy.dot, (vs_, s_, vs_.T)))
+                        W_.append(multi_dot((vs_, s_, vs_.T)))
                     self.W = [numpy.dot(C_[s], W_[s]) for s in [0, 1]]
                 else:
                     P_core = numpy.eye(self.W.shape[0]) - numpy.dot(self.P_core, self.S)
                     C_ = numpy.dot(P_core, self.W)
                     # NOTE: PYSCF has basis in 1s2s3s2p2p2p3p3p3p format
                     # fix no_core_idx - use population for now
-                    Cpop = functools.reduce(numpy.dot, (C_.T, self.S, C_))
+                    Cpop = multi_dot((C_.T, self.S, C_))
                     Cpop = numpy.diag(Cpop)
                     no_core_idx = numpy.where(Cpop > 0.7)[0]
                     C_ = C_[:, no_core_idx]
-                    S_ = functools.reduce(numpy.dot, (C_.T, self.S, C_))
+                    S_ = multi_dot((C_.T, self.S, C_))
                     es_, vs_ = eigh(S_)
                     s_ = numpy.sqrt(es_)
                     s_ = numpy.diag(1.0 / s_)
-                    W_ = functools.reduce(numpy.dot, (vs_, s_, vs_.T))
+                    W_ = multi_dot((vs_, s_, vs_.T))
                     self.W = numpy.dot(C_, W_)
 
             if self.unrestricted:
@@ -330,15 +324,15 @@ class MixinLocalize:
             if self.frozen_core:
                 P_core = numpy.eye(W_.shape[0]) - numpy.dot(self.P_core, self.S)
                 C_ = numpy.dot(P_core, W_)
-                Cpop = functools.reduce(numpy.dot, (C_.T, self.S, C_))
+                Cpop = multi_dot((C_.T, self.S, C_))
                 Cpop = numpy.diag(Cpop)
                 no_core_idx = numpy.where(Cpop > 0.55)[0]
                 C_ = C_[:, no_core_idx]
-                S_ = functools.reduce(numpy.dot, (C_.T, self.S, C_))
+                S_ = multi_dot((C_.T, self.S, C_))
                 es_, vs_ = eigh(S_)
                 s_ = numpy.sqrt(es_)
                 s_ = numpy.diag(1.0 / s_)
-                W_ = functools.reduce(numpy.dot, (vs_, s_, vs_.T))
+                W_ = multi_dot((vs_, s_, vs_.T))
                 W_ = numpy.dot(C_, W_)
 
             self.W = get_loc(
@@ -464,15 +458,15 @@ class MixinLocalize:
             if self.frozen_core:
                 P_core = numpy.eye(W_.shape[0]) - numpy.dot(self.P_core, self.S)
                 C_ = numpy.dot(P_core, W_)
-                Cpop = functools.reduce(numpy.dot, (C_.T, self.S, C_))
+                Cpop = multi_dot((C_.T, self.S, C_))
                 Cpop = numpy.diag(Cpop)
                 no_core_idx = numpy.where(Cpop > 0.55)[0]
                 C_ = C_[:, no_core_idx]
-                S_ = functools.reduce(numpy.dot, (C_.T, self.S, C_))
+                S_ = multi_dot((C_.T, self.S, C_))
                 es_, vs_ = eigh(S_)
                 s_ = numpy.sqrt(es_)
                 s_ = numpy.diag(1.0 / s_)
-                W_ = functools.reduce(numpy.dot, (vs_, s_, vs_.T))
+                W_ = multi_dot((vs_, s_, vs_.T))
                 W_ = numpy.dot(C_, W_)
 
             self.W = get_loc(self.mol, W_, "BOYS")
