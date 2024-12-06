@@ -7,7 +7,7 @@
 #
 
 import numpy
-from numpy.linalg import inv, norm
+from numpy.linalg import inv, norm, pinv
 
 from quemb.molbe.helper import get_eri, get_scfObj
 from quemb.shared import be_var
