@@ -1,5 +1,6 @@
 import os
 import sys
+from pathlib import Path
 from pyscf.tools.cubegen import orbital
 from quemb import molbe
 from quemb.shared.manage_scratch import PathLike
@@ -89,6 +90,7 @@ def write_cube(
     kwargs: Any
         Keyword arguments passed to cubegen.orbital.
     """
+    cube_file_path = Path(cube_file_path)
     if not isinstance(be_object, molbe.BE):
         raise NotImplementedError("Support for Periodic BE not implemented yet.")
     if not fragment_idx:
@@ -97,7 +99,7 @@ def write_cube(
         for emb_orb_idx in range(be_object.Fobjs[idx].TA.shape[1]):
             orbital(
                 be_object.mol,
-                os.path.join(cube_file_path, f"frag_{idx}_orb_{emb_orb_idx}.cube"),
+                cube_file_path / f"frag_{idx}_orb_{emb_orb_idx}.cube",
                 be_object.Fobjs[idx].TA[:, emb_orb_idx],
                 **kwargs,
             )
