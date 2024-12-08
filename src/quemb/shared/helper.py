@@ -2,11 +2,11 @@ import os
 import sys
 from pyscf.tools.cubegen import orbital
 from quemb import molbe
+from quemb.shared.manage_scratch import PathLike
 from typing import Any, Callable, Optional, TypeVar, Union
 from typing_extensions import TypeAlias
 
 Function = TypeVar("Function", bound=Callable)
-PathLike: TypeAlias = Union[str, os.PathLike]
 
 
 # Note that we have once Callable and once Function.
@@ -89,9 +89,8 @@ def write_cube(
     kwargs: Any
         Keyword arguments passed to cubegen.orbital.
     """
-    assert type(be_object) is molbe.BE, NotImplementedError(
-        "Support for Periodic BE not implemented yet."
-    )
+    if not isinstance(be_object, molbe.BE):
+        raise NotImplementedError("Support for Periodic BE not implemented yet.")
     if not fragment_idx:
         fragment_idx = range(be_object.Nfrag)
     for idx in fragment_idx:
