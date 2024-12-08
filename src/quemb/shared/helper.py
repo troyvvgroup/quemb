@@ -1,7 +1,12 @@
+import os
 import sys
-from typing import Any, Callable, Optional, TypeVar
+from pyscf.tools.cubegen import orbital
+from quemb import molbe
+from typing import Any, Callable, Optional, TypeVar, Union
+from typing_extensions import TypeAlias
 
 Function = TypeVar("Function", bound=Callable)
+PathLike: TypeAlias = Union[str, os.PathLike]
 
 
 # Note that we have once Callable and once Function.
@@ -66,3 +71,34 @@ def ncore_(z: int) -> int:
         print("exiting", flush=True)
         sys.exit()
     return nc
+
+
+def write_cube(
+    be_object: object, cube_file_path: PathLike, fragment_idx: Optional[list], **kwargs
+) -> None:
+    """Write cube files of embedding orbitals from a BE object.
+
+    Parameters
+    ----------
+    be_object : object
+        BE object containing the fragments, each of which contains embedding orbitals.
+    cube_file_path : PathLike
+        Directory to write the cube files to.
+    fragment_idx : Optional[list]
+        Index of the fragments to write the cube files for. If None, all fragments are written.
+    kwargs: Any
+        Keyword arguments passed to cubegen.orbital.
+    """
+    assert type(be_object) is molbe.BE, NotImplementedError(
+        "Support for Periodic BE not implemented yet."
+    )
+    if not fragment_idx:
+        fragment_idx = range(be_object.Nfrag)
+    for idx in fragment_idx:
+        for emb_orb_idx in range(be_object.Fobjs[idx].TA.shape[1]):
+            orbital(
+                be_object.mol,
+                os.path.join(cube_file_path, f"frag_{idx}_orb_{emb_orb_idx}.cube"),
+                be_object.Fobjs[idx].TA[:, emb_orb_idx],
+                **kwargs,
+            )

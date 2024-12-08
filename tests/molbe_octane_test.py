@@ -2,11 +2,14 @@
 
 
 import os
+import numpy as np
+import tempfile
 
 import pytest
 from pyscf import cc, gto, scf
 
 from quemb.molbe import BE, fragpart
+from quemb.shared.helper import write_cube
 
 # TODO: actually add meaningful tests for energies etc.
 #   At the moment the test fails already for technical reasons.
@@ -17,7 +20,58 @@ from quemb.molbe import BE, fragpart
     reason="This test is known to fail.",
 )
 def test_octane_molbe():
-    # Perform pyscf HF calculation to get mol & mf objects
+    # Prepare octane molecule
+    mol, mf = prepare_octane()
+
+    # Perform CCSD calculation to get reference energy for comparison
+    mc = cc.CCSD(mf, frozen=8)
+    mc.verbose = 0
+    ccsd_ecorr = mc.kernel()[0]
+    print(f"*** CCSD Correlation Energy: {ccsd_ecorr:>14.8f} Ha", flush=True)
+
+    # initialize fragments (use frozen core approximation)
+    fobj = fragpart(be_type="be2", mol=mol, frozen_core=True)
+    # Initialize BE
+    mybe = BE(mf, fobj)
+
+    # Perform BE density matching.
+    # Uses 20 procs, each fragment calculation assigned OMP_NUM_THREADS to 4
+    # effectively running 5 fragment calculations in parallel
+    mybe.optimize(solver="CCSD", nproc=20, ompnum=4)
+
+    # Compute error
+    be_ecorr = mybe.ebe_tot - mybe.ebe_hf
+    err_ = (ccsd_ecorr - be_ecorr) * 100.0 / ccsd_ecorr
+    print(f"*** BE2 Correlation Energy Error (%) : {err_:>8.4f} %")
+
+
+def test_cubegen():
+    # Prepare octane molecule
+    mol, mf = prepare_octane()
+    # Build fragments
+    fobj = fragpart(be_type="be2", mol=mol, frozen_core=True)
+    # Run BE2
+    mybe = BE(mf, fobj)
+    mybe.optimize(solver="CCSD", nproc=1, ompnum=1)
+    # Write cube file to a temporary location
+    with tempfile.TemporaryDirectory() as tmpdir:
+        write_cube(mybe, tmpdir, fragment_idx=[3], resolution=5)
+        with open(os.path.join(tmpdir, "frag_3_orb_2.cube"), "r") as f:
+            cube_content = f.read()
+            cube_content = np.fromstring(
+                "".join(cube_content.split("\n")[2:]), sep=" ", dtype=float
+            )
+        with open("tests/data/octane_frag_3_orb_2.cube", "r") as f:
+            reference_content = f.read()
+            reference_content = np.fromstring(
+                "".join(reference_content.split("\n")[2:]), sep=" ", dtype=float
+            )
+        assert np.isclose(
+            cube_content, reference_content
+        ).all(), "Cube file content does not match reference content."
+
+
+def prepare_octane():
     mol = gto.M(
         atom="""
     C   0.4419364699  -0.6201930287   0.0000000000
@@ -54,24 +108,4 @@ def test_octane_molbe():
     mf = scf.RHF(mol)
     mf.conv_tol = 1e-12
     mf.kernel()
-
-    # Perform CCSD calculation to get reference energy for comparison
-    mc = cc.CCSD(mf, frozen=8)
-    mc.verbose = 0
-    ccsd_ecorr = mc.kernel()[0]
-    print(f"*** CCSD Correlation Energy: {ccsd_ecorr:>14.8f} Ha", flush=True)
-
-    # initialize fragments (use frozen core approximation)
-    fobj = fragpart(be_type="be2", mol=mol, frozen_core=True)
-    # Initialize BE
-    mybe = BE(mf, fobj)
-
-    # Perform BE density matching.
-    # Uses 20 procs, each fragment calculation assigned OMP_NUM_THREADS to 4
-    # effectively running 5 fragment calculations in parallel
-    mybe.optimize(solver="CCSD", nproc=20, ompnum=4)
-
-    # Compute error
-    be_ecorr = mybe.ebe_tot - mybe.ebe_hf
-    err_ = (ccsd_ecorr - be_ecorr) * 100.0 / ccsd_ecorr
-    print(f"*** BE2 Correlation Energy Error (%) : {err_:>8.4f} %")
+    return mol, mf
