@@ -1,10 +1,9 @@
 # Author(s): Oinam Romesh Meitei
 
-import functools
-
 import h5py
 import numpy
 import scipy.linalg
+from numpy.linalg import multi_dot
 
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
 from quemb.molbe.solver import schmidt_decomposition
@@ -154,7 +153,7 @@ class Frags:
             One-electron Hamiltonian matrix.
         """
 
-        h1_tmp = functools.reduce(numpy.dot, (self.TA.T, h1, self.TA))
+        h1_tmp = multi_dot((self.TA.T, h1, self.TA))
         self.h1 = h1_tmp
 
     def cons_fock(self, hf_veff, S, dm, eri_=None):
@@ -202,7 +201,7 @@ class Frags:
         numpy.ndarray
             Projected density matrix.
         """
-        C_ = functools.reduce(numpy.dot, (self.TA.T, S, C[:, ncore : ncore + nocc]))
+        C_ = multi_dot((self.TA.T, S, C[:, ncore : ncore + nocc]))
         P_ = numpy.dot(C_, C_.T)
         nsocc_ = numpy.trace(P_)
         nsocc = int(numpy.round(nsocc_))

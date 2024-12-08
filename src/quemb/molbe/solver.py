@@ -1,11 +1,11 @@
 # Author(s): Oinam Romesh Meitei, Leah Weisburn, Shaun Weatherly
 
-import functools
 import os
 import sys
 from typing import Optional
 
 import numpy
+from numpy.linalg import multi_dot
 from pyscf import ao2mo, cc, fci, mcscf, mp
 from pyscf.cc.ccsd_rdm import make_rdm2
 
@@ -162,9 +162,7 @@ def be_func(
 
             nelec = (fobj.nsocc, fobj.nsocc)
             h1_ = fobj.fock + fobj.heff
-            h1_ = functools.reduce(
-                numpy.dot, (fobj._mf.mo_coeff.T, h1_, fobj._mf.mo_coeff)
-            )
+            h1_ = multi_dot((fobj._mf.mo_coeff.T, h1_, fobj._mf.mo_coeff))
             eci, civec = ci_.kernel(h1_, eri, nmo, nelec)
             unused(eci)
             civec = numpy.asarray(civec)
@@ -259,8 +257,7 @@ def be_func(
             rdm1_tmp = fobj._mc.make_rdm1()
         fobj.rdm1__ = rdm1_tmp.copy()
         fobj._rdm1 = (
-            functools.reduce(
-                numpy.dot,
+            multi_dot(
                 (
                     fobj.mo_coeffs,
                     # fobj._mc.make_rdm1(),
@@ -432,18 +429,12 @@ def be_func_u(
 
         fobj_a.rdm1__ = rdm1_tmp[0].copy()
         fobj_b._rdm1 = (
-            functools.reduce(
-                numpy.dot, (fobj_a._mf.mo_coeff, rdm1_tmp[0], fobj_a._mf.mo_coeff.T)
-            )
-            * 0.5
+            multi_dot((fobj_a._mf.mo_coeff, rdm1_tmp[0], fobj_a._mf.mo_coeff.T)) * 0.5
         )
 
         fobj_b.rdm1__ = rdm1_tmp[1].copy()
         fobj_b._rdm1 = (
-            functools.reduce(
-                numpy.dot, (fobj_b._mf.mo_coeff, rdm1_tmp[1], fobj_b._mf.mo_coeff.T)
-            )
-            * 0.5
+            multi_dot((fobj_b._mf.mo_coeff, rdm1_tmp[1], fobj_b._mf.mo_coeff.T)) * 0.5
         )
 
         if eeval or ereturn:
@@ -1072,7 +1063,7 @@ def schmidt_decomposition(
     if rdm is None:
         Dhf = numpy.dot(C, C.T)
         if cinv is not None:
-            Dhf = functools.reduce(numpy.dot, (cinv, Dhf, cinv.conj().T))
+            Dhf = multi_dot((cinv, Dhf, cinv.conj().T))
     else:
         Dhf = rdm
 
