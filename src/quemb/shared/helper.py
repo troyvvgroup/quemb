@@ -1,11 +1,11 @@
-import os
 import sys
 from pathlib import Path
+from typing import Any, Callable, Optional, TypeVar
+
 from pyscf.tools.cubegen import orbital
+
 from quemb import molbe
 from quemb.shared.manage_scratch import PathLike
-from typing import Any, Callable, Optional, TypeVar, Union
-from typing_extensions import TypeAlias
 
 Function = TypeVar("Function", bound=Callable)
 
@@ -86,7 +86,8 @@ def write_cube(
     cube_file_path : PathLike
         Directory to write the cube files to.
     fragment_idx : Optional[list]
-        Index of the fragments to write the cube files for. If None, all fragments are written.
+        Index of the fragments to write the cube files for.
+        If None, write all fragments.
     kwargs: Any
         Keyword arguments passed to cubegen.orbital.
     """

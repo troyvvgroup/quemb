@@ -2,9 +2,9 @@
 
 
 import os
-import numpy as np
 import tempfile
 
+import numpy as np
 import pytest
 from pyscf import cc, gto, scf
 
