@@ -39,7 +39,6 @@ def be_func(
     frag_energy=False,
     relax_density=False,
     return_vec=False,
-    ecore=0.0,
     ebe_hf=0.0,
     be_iter=None,
     use_cumulant=True,
@@ -80,8 +79,6 @@ def be_func(
         Whether to relax the density. Defaults to False.
     return_vec : bool, optional
         Whether to return the error vector. Defaults to False.
-    ecore : float, optional
-        Core energy. Defaults to 0.
     ebe_hf : float, optional
         Hartree-Fock energy. Defaults to 0.
     be_iter : int or None, optional
@@ -208,7 +205,7 @@ def be_func(
             nmo = fobj._mf.mo_coeff.shape[1]
             nelec = (fobj.nsocc, fobj.nsocc)
             cas = mcscf.CASCI(fobj._mf, nmo, nelec)
-            h1, ecore = cas.get_h1eff(mo_coeff=fobj._mf.mo_coeff)
+            h1, _ = cas.get_h1eff(mo_coeff=fobj._mf.mo_coeff)
             eri = ao2mo.kernel(
                 fobj._mf._eri, fobj._mf.mo_coeff, aosym="s4", compact=False
             ).reshape(4 * ((nmo),))
@@ -338,7 +335,6 @@ def be_func_u(
     ereturn=False,
     frag_energy=True,
     relax_density=False,
-    ecore=0.0,
     ebe_hf=0.0,
     scratch_dir=None,
     use_cumulant=True,
@@ -373,8 +369,6 @@ def be_func_u(
         Whether to relax the density. Defaults to False.
     return_vec : bool, optional
         Whether to return the error vector. Defaults to False.
-    ecore : float, optional
-        Core energy. Defaults to 0.
     ebe_hf : float, optional
         Hartree-Fock energy. Defaults to 0.
     use_cumulant : bool, optional

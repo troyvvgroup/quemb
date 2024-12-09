@@ -58,7 +58,6 @@ class BEOPT:
         Nocc,
         enuc,
         solver="MP2",
-        ecore=0.0,
         nproc=1,
         ompnum=4,
         only_chem=False,
@@ -82,7 +81,6 @@ class BEOPT:
         self.Nocc = Nocc
         self.enuc = enuc
         self.solver = solver
-        self.ecore = ecore
         self.iter = 0
         self.err = 0.0
         self.Ebe = 0.0
@@ -136,7 +134,6 @@ class BEOPT:
                 ci_coeff_cutoff=self.ci_coeff_cutoff,
                 select_cutoff=self.select_cutoff,
                 hci_pt=self.hci_pt,
-                ecore=self.ecore,
                 ebe_hf=self.ebe_hf,
                 be_iter=self.iter,
                 scratch_dir=self.scratch_dir,
@@ -159,7 +156,6 @@ class BEOPT:
                 relax_density=self.relax_density,
                 ci_coeff_cutoff=self.ci_coeff_cutoff,
                 select_cutoff=self.select_cutoff,
-                ecore=self.ecore,
                 ebe_hf=self.ebe_hf,
                 be_iter=self.iter,
                 scratch_dir=self.scratch_dir,
