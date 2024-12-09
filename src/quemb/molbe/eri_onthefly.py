@@ -25,7 +25,7 @@ def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
         in Frags.dname as h5py datasets.
     file_eri : h5py.File
         HDF5 file object to store the transformed fragment ERIs
-    auxbasis : string, optional
+    auxbasis : str, optional
         Auxiliary basis used for density fitting. If not provided, use pyscf's default
         choice for the basis set used to construct mf object; by default None
     """
