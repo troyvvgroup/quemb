@@ -98,7 +98,6 @@ def be_func(
     rdm_return = False
     if relax_density:
         rdm_return = True
-    E = 0.0
     if frag_energy or eeval:
         total_e = [0.0, 0.0, 0.0]
 
@@ -106,9 +105,7 @@ def be_func(
     for fobj in Fobjs:
         # Update the effective Hamiltonian
         if pot is not None:
-            heff_ = fobj.update_heff(pot, return_heff=True, only_chem=only_chem)
-        else:
-            heff_ = None
+            fobj.update_heff(pot, return_heff=True, only_chem=only_chem)
 
         # Compute the one-electron Hamiltonian
         h1_ = fobj.fock + fobj.heff
@@ -143,7 +140,7 @@ def be_func(
             # pylint: disable-next=E0611
             from pyscf import hci  # noqa: PLC0415    # optional module
 
-            nao, nmo = fobj._mf.mo_coeff.shape
+            nmo = fobj._mf.mo_coeff.shape[1]
 
             eri = ao2mo.kernel(
                 fobj._mf._eri, fobj._mf.mo_coeff, aosym="s4", compact=False
@@ -184,7 +181,7 @@ def be_func(
                 tmp = os.path.join(scratch_dir, str(os.getpid()), str(fobj.dname))
             if not os.path.isdir(tmp):
                 os.system("mkdir -p " + tmp)
-            nao, nmo = fobj._mf.mo_coeff.shape
+            nmo = fobj._mf.mo_coeff.shape[1]
 
             nelec = (fobj.nsocc, fobj.nsocc)
             mch = shci.SHCISCF(fobj._mf, nmo, nelec, orbpath=fobj.dname)
@@ -399,8 +396,6 @@ def be_func_u(
 
     # Loop over each fragment and solve using the specified solver
     for fobj_a, fobj_b in Fobjs:
-        heff_ = None  # No outside chemical potential implemented for unrestricted yet
-
         fobj_a.scf(unrestricted=True, spin_ind=0)
         fobj_b.scf(unrestricted=True, spin_ind=1)
 
@@ -932,7 +927,6 @@ def solve_uccsd(
             (if rdm2_return is True and rdm_return is True).
     """
     C = mf.mo_coeff
-    nao = [C[s].shape[0] for s in [0, 1]]
 
     Vss = eris_inp[:2]
     Vos = eris_inp[-1]

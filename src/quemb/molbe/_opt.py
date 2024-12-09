@@ -74,7 +74,7 @@ class BEOPT:
         scratch_dir=None,
         **solver_kwargs,
     ):
-        # Initialize class attributes
+        # Initialize instance attributes
         self.ebe_hf = ebe_hf
         self.hf_veff = hf_veff
         self.pot = pot

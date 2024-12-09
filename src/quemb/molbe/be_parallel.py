@@ -193,7 +193,6 @@ def run_solver(
         nelec = (nocc, nocc)
         cas = mcscf.CASCI(mf_, nmo, nelec)
         h1, ecore = cas.get_h1eff(mo_coeff=mf_.mo_coeff)
-        unused(ecore)
         eri = ao2mo.kernel(mf_._eri, mf_.mo_coeff, aosym="s4", compact=False).reshape(
             4 * ((nmo),)
         )
