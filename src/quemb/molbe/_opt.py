@@ -22,7 +22,7 @@ class BEOPT:
     pot : list
        List of initial BE potentials. The last element is for the global
        chemical potential.
-    Fobjs : quemb.molbe.fragment.fragpartasdf
+    Fobjs : quemb.molbe.fragment.fragpart
        Fragment object
     Nocc : int
        No. of occupied orbitals for the full system.
