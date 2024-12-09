@@ -748,7 +748,6 @@ class BE(MixinLocalize):
             select_cutoff=self.select_cutoff,
             hci_pt=self.hci_pt,
             solver=solver,
-            ecore=self.E_core,
             ebe_hf=self.ebe_hf,
             **solver_kwargs,
         )
