@@ -2,7 +2,6 @@
 
 import os
 import sys
-from typing import Optional
 
 import numpy
 from numpy.linalg import multi_dot
