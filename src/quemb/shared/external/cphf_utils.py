@@ -30,8 +30,6 @@ def get_cphf_A(C, moe, eri, no):
 
 
 def get_cphf_rhs(C, no, v):
-    nao = C.shape[0]
-    nv = nao - no
     Co = C[:, :no]
     Cv = C[:, no:]
 
@@ -39,9 +37,6 @@ def get_cphf_rhs(C, no, v):
 
 
 def cphf_kernel(C, moe, eri, no, v):
-    nao = C.shape[0]
-    nv = nao - no
-
     # build RHS vector, B0
     B0 = get_cphf_rhs(C, no, v)
 
@@ -379,9 +374,6 @@ def get_cpuhf_A(C, moe, eri, no):
 
 
 def get_cpuhf_u(C, moe, eri, no, vpot):
-    n = C[0].shape[0]
-    nv = [n - no[s] for s in [0, 1]]
-    nov = [no[s] * nv[s] for s in [0, 1]]
     Co = [C[s][:, : no[s]] for s in [0, 1]]
     Cv = [C[s][:, no[s] :] for s in [0, 1]]
 
@@ -398,9 +390,6 @@ def get_cpuhf_u(C, moe, eri, no, vpot):
 
 
 def get_cpuhf_u_batch(C, moe, eri, no, vpots):
-    n = C[0].shape[0]
-    nv = [n - no[s] for s in [0, 1]]
-    nov = [no[s] * nv[s] for s in [0, 1]]
     Co = [C[s][:, : no[s]] for s in [0, 1]]
     Cv = [C[s][:, no[s] :] for s in [0, 1]]
 
