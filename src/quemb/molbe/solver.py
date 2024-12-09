@@ -105,7 +105,7 @@ def be_func(
     for fobj in Fobjs:
         # Update the effective Hamiltonian
         if pot is not None:
-            fobj.update_heff(pot, return_heff=True, only_chem=only_chem)
+            fobj.update_heff(pot, only_chem=only_chem)
 
         # Compute the one-electron Hamiltonian
         h1_ = fobj.fock + fobj.heff
