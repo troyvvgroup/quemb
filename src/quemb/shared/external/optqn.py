@@ -400,9 +400,7 @@ def get_be_error_jacobian_selffrag(self, jac_solver="HF"):
     elif jac_solver == "HF":
         res_func = hfres_func
 
-    Jes, _, xes, xcs, ys, alphas, Ncout = get_atbe_Jblock_frag(
-        self.Fobjs[0], res_func
-    )
+    Jes, _, xes, xcs, ys, alphas, Ncout = get_atbe_Jblock_frag(self.Fobjs[0], res_func)
 
     N_ = Ncout
     J = numpy.zeros((N_ + 1, N_ + 1))
