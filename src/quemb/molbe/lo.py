@@ -65,8 +65,8 @@ def remove_core_mo(Clo, Ccore, S, thr=0.5):
 
 
 def get_xovlp(mol, basis="sto-3g"):
-    """
-    Gets set of valence orbitals based on smaller (should be minimal) basis
+    """Gets set of valence orbitals based on smaller (should be minimal) basis
+
     inumpy.t:
         mol - pyscf mol object, just need it for the working basis
         basis - the IAO basis, Knizia recommended 'minao'
@@ -232,16 +232,15 @@ class MixinLocalize:
         Parameters
         ----------
         lo_method : str
-        Localization method in quantum chemistry. 'lowdin', 'boys', and 'iao'
-        are supported.
-        mol : pyscf.gto.Molecule
-        pyscf.gto.Molecule object.
+            Localization method in quantum chemistry. 'lowdin', 'boys', and 'iao'
+            are supported.
+        mol: pyscf.gto.mole.Mole
         valence_basis: str
-        Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
+            Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
         valence_only: bool
-        If this option is set to True, all calculation will be performed in the valence
-        basis in the IAO partitioning.
-        This is an experimental feature.
+            If this option is set to True, all calculation will be performed in the
+            valence basis in the IAO partitioning.
+            This is an experimental feature.
         """
         if lo_method == "lowdin":
             es_, vs_ = eigh(self.S)

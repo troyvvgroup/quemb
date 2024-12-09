@@ -30,8 +30,8 @@ def autogen(
 
     Parameters
     ----------
-    mol : pyscf.gto.Molecule
-        pyscf.gto.Molecule object. This is required for the options, 'autogen',
+    mol: pyscf.gto.mole.Mole
+        This is required for the options, 'autogen',
         and 'chain' as frag_type.
     frozen_core : bool, optional
         Whether to invoke frozen core approximation. Defaults to True.
