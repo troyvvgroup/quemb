@@ -47,11 +47,11 @@ def libint2pyscf(
 
     Parameters
     ----------
-    xyzfile : string
+    xyzfile : str
         Path to the xyz file
-    hcore : string
+    hcore : str
         Path to the core Hamiltonian
-    basis : string
+    basis : str
         Name of the basis set
     hcore_skiprows : int, optional
         # of first rows to skip from the core Hamiltonian file, by default 1
@@ -66,11 +66,13 @@ def libint2pyscf(
 
     Returns
     -------
-    (pyscf.gto.Mole, pyscf.scf.RHF or pyscf.scf.UHF)
+    (pyscf.gto.mole.Mole, pyscf.scf.hf.RHF, or pyscf.pbc.scf.uhf.UHF)
     """
     # Check input validity
-    assert os.path.exists(xyzfile), "Input xyz file does not exist"
-    assert os.path.exists(hcore), "Input core Hamiltonian file does not exist"
+    if not os.path.exists(xyzfile):
+        raise ValueError("Input xyz file does not exist")
+    if not os.path.exists(hcore):
+        raise ValueError("Input core Hamiltonian file does not exist")
 
     mol = gto.M(atom=xyzfile, basis=basis, spin=spin, charge=charge)
     hcore_libint = numpy.loadtxt(hcore, skiprows=hcore_skiprows)
@@ -111,10 +113,10 @@ def be2fcidump(be_obj, fcidump_prefix, basis):
     ----------
     be_obj : molbe.mbe.BE
         BE object
-    fcidump_prefix : string
+    fcidump_prefix : str
         Prefix for path & filename to the output fcidump files
         Each file is named [fcidump_prefix]_f0, ...
-    basis : string
+    basis : str
         'embedding' to get the integrals in the embedding basis
         'fragment_mo' to get the integrals in the fragment MO basis
     """
@@ -162,10 +164,10 @@ def ube2fcidump(be_obj, fcidump_prefix, basis):
     ----------
     be_obj : molbe.mbe.BE
         BE object
-    fcidump_prefix : string
+    fcidump_prefix : str
         Prefix for path & filename to the output fcidump files
         Each file is named [fcidump_prefix]_f0, ...
-    basis : string
+    basis : str
         'embedding' to get the integrals in the embedding basis
         'fragment_mo' to get the integrals in the fragment MO basis
     """
@@ -274,18 +276,18 @@ def be2puffin(
 
     Parameters
     ----------
-    xyzfile : string
+    xyzfile : str
         Path to the xyz file
-    basis : string
+    basis : str
         Name of the basis set
-    hcore : numpy.array
+    hcore : numpy.ndarray
         Two-dimensional array of the core Hamiltonian
     libint_inp : bool
         True for hcore provided in Libint format. Else, hcore input is in PySCF format
         Default is False, i.e., hcore input is in PySCF format
-    pts_and_charges : tuple of numpy.array
+    pts_and_charges : tuple of numpy.ndarray
         QM/MM (points, charges). Use pyscf's QM/MM instead of starting Hamiltonian
-    jk : numpy.array
+    jk : numpy.ndarray
         Coulomb and Exchange matrices (pyscf will calculate this if not given)
     use_df : bool, optional
         If true, use density-fitting to evaluate the two-electron integrals
@@ -294,26 +296,26 @@ def be2puffin(
     spin : int, optional
         Total spin of the system, pyscf definition
     nproc : int, optional
-    ompnum: int, optional
+    ompnum : int, optional
         Set number of processors and ompnum for the jobs
-    frozen_core: bool, optional
+    frozen_core : bool, optional
         Whether frozen core approximation is used or not, by default True
-    localization_method: string, optional
+    localization_method : str, optional
         For now, lowdin is best supported for all cases. IAOs to be expanded
         By default 'lowdin'
-    localization_basis: string, optional
+    localization_basis : str, optional
         IAO minimal-like basis, only nead specification with IAO localization
         By default None
-    unrestricted: bool, optional
+    unrestricted : bool, optional
         Unrestricted vs restricted HF and CCSD, by default False
-    from_chk: bool, optional
+    from_chk : bool, optional
         Run calculation from converged RHF/UHF checkpoint. By default False
-    checkfile: string, optional
+    checkfile : str, optional
         if not None:
         - if from_chk: specify the checkfile to run the embedding calculation
         - if not from_chk: specify where to save the checkfile
         By default None
-    ecp: string, optional
+    ecp : str, optional
         specify the ECP for any atoms, accompanying the basis set
         syntax: {'Atom_X': 'ECP_for_X'; 'Atom_Y': 'ECP_for_Y'}
         By default None

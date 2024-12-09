@@ -25,9 +25,9 @@ def findH(mol, nh, tmphlist=[]):
 
 
 def polychain(self, mol, frozen_core=False, unitcell=1):
-    """
-    Hard coded fragmentation for polymer chains. This is not recommended
-    for any production level calculations.
+    """Hard coded fragmentation for polymer chains.
+
+    This is not recommended for any production level calculations.
     """
 
     # group H

@@ -32,7 +32,7 @@ jobs:
     - name: Test building docs & Archive the results
       run: |
         cd docs
-        make html
+        make html SPHINXOPTS="-W --keep-going -n"
         ls build/html
         tar czf docs.tar.gz --directory=build/html .
         cd ..

@@ -134,8 +134,8 @@ class Frags:
             Local molecular orbital coefficients.
         nocc : int
             Number of occupied orbitals.
-        cell : pyscf.pbc.gto.Cell
-            PySCF pbc.gto.Cell object defining the unit cell and lattice vectors.
+        cell : pyscf.pbc.gto.cell.Cell
+            PySCF pbc.gto.cell.Cell object defining the unit cell and lattice vectors.
         kpts : list of list of float
             k-points in the reciprocal space for periodic computations
         kmesh : list of int

@@ -71,7 +71,7 @@ class BE(MixinLocalize):
     ----------
     mf : pyscf.scf.hf.SCF
         PySCF mean-field object.
-    fobj : molbe.fragpart
+    fobj : quemb.molbe.fragment.fragpart
         Fragment object containing sites, centers, edges, and indices.
     eri_file : str
         Path to the file storing two-electron integrals.
@@ -109,7 +109,7 @@ class BE(MixinLocalize):
         ----------
         mf : pyscf.scf.hf.SCF
             PySCF mean-field object.
-        fobj : molbe.fragpart
+        fobj : quemb.molbe.fragment.fragpart
             Fragment object containing sites, centers, edges, and indices.
         eri_file : str, optional
             Path to the file storing two-electron integrals, by default 'eri_file.h5'.
@@ -317,12 +317,10 @@ class BE(MixinLocalize):
         return_RDM2=True,
         print_energy=False,
     ):
-        """
-        Compute the one-particle and two-particle reduced density matrices
-        (RDM1 and RDM2).
+        """Compute the one- and two-particle reduced density matrices (RDM1 and RDM2).
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         return_ao : bool, optional
             Whether to return the RDMs in the AO basis. Default is True.
         only_rdm1 : bool, optional
@@ -337,8 +335,8 @@ class BE(MixinLocalize):
         print_energy : bool, optional
             Whether to print the energy contributions. Default is False.
 
-        Returns:
-        --------
+        Returns
+        -------
         rdm1AO : numpy.ndarray
             The one-particle RDM in the AO basis.
         rdm2AO : numpy.ndarray
@@ -524,8 +522,7 @@ class BE(MixinLocalize):
     def compute_energy_full(
         self, approx_cumulant=False, use_full_rdm=False, return_rdm=True
     ):
-        """
-        Compute the total energy using rdms in the full basis.
+        """Compute the total energy using rdms in the full basis.
 
         Parameters
         ----------
@@ -694,7 +691,7 @@ class BE(MixinLocalize):
         only_chem : bool, optional
             If true, density matching is not performed -- only global chemical potential
             is optimized, by default False
-        conv_tol : _type_, optional
+        conv_tol : float, optional
             Convergence tolerance, by default 1.e-6
         relax_density : bool, optional
             Whether to use relaxed or unrelaxed densities, by default False
@@ -707,16 +704,15 @@ class BE(MixinLocalize):
         max_iter : int, optional
             Maximum number of optimization steps, by default 500
         nproc : int
-        Total number of processors assigned for the optimization. Defaults to 1.
-        When nproc > 1, Python multithreading
-        is invoked.
+            Total number of processors assigned for the optimization. Defaults to 1.
+            When nproc > 1, Python multithreading is invoked.
         ompnum : int
-        If nproc > 1, ompnum sets the number of cores for OpenMP parallelization.
-        Defaults to 4
+            If nproc > 1, ompnum sets the number of cores for OpenMP parallelization.
+            Defaults to 4
         J0 : list of list of float
-        Initial Jacobian.
+            Initial Jacobian.
         trust_region : bool, optional
-        Use trust-region based QN optimization, by default False
+            Use trust-region based QN optimization, by default False
         """
         # Check if only chemical potential optimization is required
         if not only_chem:

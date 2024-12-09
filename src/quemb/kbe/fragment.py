@@ -62,8 +62,8 @@ class fragpart:
             be1 only has fragments [A], [B], [C], [D]
             be2 has [A, B, C], [B, C, D]
             ben ...
-        mol : pyscf.pbc.gto.Cell
-            pyscf.pbc.gto.Cell object. This is required for the options, 'autogen',
+        mol : pyscf.pbc.gto.cell.Cell
+            pyscf.pbc.gto.cell.Cell object. This is required for the options, 'autogen',
             and 'chain' as frag_type.
         valence_basis: str
             Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
