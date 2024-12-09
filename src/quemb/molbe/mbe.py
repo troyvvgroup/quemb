@@ -71,7 +71,7 @@ class BE(MixinLocalize):
     ----------
     mf : pyscf.scf.hf.SCF
         PySCF mean-field object.
-    fobj : molbe.fragpart
+    fobj : quemb.molbe.fragment.fragpart
         Fragment object containing sites, centers, edges, and indices.
     eri_file : str
         Path to the file storing two-electron integrals.
@@ -524,8 +524,7 @@ class BE(MixinLocalize):
     def compute_energy_full(
         self, approx_cumulant=False, use_full_rdm=False, return_rdm=True
     ):
-        """
-        Compute the total energy using rdms in the full basis.
+        """Compute the total energy using rdms in the full basis.
 
         Parameters
         ----------

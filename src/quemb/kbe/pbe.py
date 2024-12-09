@@ -35,7 +35,7 @@ class BE(Mixin_k_Localize):
     ----------
     mf : pyscf.scf.SCF
         PySCF mean-field object.
-    fobj : molbe.fragpart
+    fobj : quemb.kbe.fragment.fragpart
         Fragment object containing sites, centers, edges, and indices.
     eri_file : str
         Path to the file storing two-electron integrals.

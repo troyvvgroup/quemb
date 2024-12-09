@@ -55,7 +55,7 @@ class UBE(BE):  # 🍠
         ----------
         mf : pyscf.scf.UHF
             pyscf meanfield UHF object
-        fobj : molbe.fragpart
+        fobj : quemb.molbe.fragment.fragpart
             object that contains fragment information
         eri_file : str, optional
             h5py file with ERIs, by default "eri_file.h5"
