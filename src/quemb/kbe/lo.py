@@ -50,9 +50,9 @@ class Mixin_k_Localize:
             Localization method in quantum chemistry. 'lowdin', 'boys','iao', and 'wannier'
             are supported.
         mol: pyscf.gto.mole.Mole
-        valence_basis: str
+        valence_basis : str
             Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
-        valence_only: bool
+        valence_only : bool
             If this option is set to True, all calculation will be performed in the valence
             basis in the IAO partitioning.
             This is an experimental feature.

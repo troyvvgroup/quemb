@@ -296,26 +296,26 @@ def be2puffin(
     spin : int, optional
         Total spin of the system, pyscf definition
     nproc : int, optional
-    ompnum: int, optional
+    ompnum : int, optional
         Set number of processors and ompnum for the jobs
-    frozen_core: bool, optional
+    frozen_core : bool, optional
         Whether frozen core approximation is used or not, by default True
-    localization_method: str, optional
+    localization_method : str, optional
         For now, lowdin is best supported for all cases. IAOs to be expanded
         By default 'lowdin'
-    localization_basis: str, optional
+    localization_basis : str, optional
         IAO minimal-like basis, only nead specification with IAO localization
         By default None
-    unrestricted: bool, optional
+    unrestricted : bool, optional
         Unrestricted vs restricted HF and CCSD, by default False
-    from_chk: bool, optional
+    from_chk : bool, optional
         Run calculation from converged RHF/UHF checkpoint. By default False
-    checkfile: str, optional
+    checkfile : str, optional
         if not None:
         - if from_chk: specify the checkfile to run the embedding calculation
         - if not from_chk: specify where to save the checkfile
         By default None
-    ecp: str, optional
+    ecp : str, optional
         specify the ECP for any atoms, accompanying the basis set
         syntax: {'Atom_X': 'ECP_for_X'; 'Atom_Y': 'ECP_for_Y'}
         By default None

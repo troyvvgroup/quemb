@@ -17,11 +17,11 @@ class fragpart:
 
     Parameters
     ----------
-    frag_type: str
+    frag_type : str
         Name of fragmentation function. 'autogen', 'hchain_simple', and 'chain'
         are supported. Defaults to 'autogen' For systems with only hydrogen,
         use 'chain'; everything else should use 'autogen'
-    be_type: str
+    be_type : str
         Specifies order of bootsrap calculation in the atom-based fragmentation.
         'be1', 'be2', 'be3', & 'be4' are supported.
         Defaults to 'be2'
@@ -29,7 +29,7 @@ class fragpart:
         be1 only has fragments [A], [B], [C], [D]
         be2 has [A, B, C], [B, C, D]
         ben ...
-    mol: pyscf.gto.mole.Mole
+    mol : pyscf.gto.mole.Mole
         This is required for the options, 'autogen'
         and 'chain' as frag_type.
     valence_basis: str

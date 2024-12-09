@@ -30,7 +30,7 @@ def autogen(
 
     Parameters
     ----------
-    mol: pyscf.gto.mole.Mole
+    mol : pyscf.gto.mole.Mole
         This is required for the options, 'autogen',
         and 'chain' as frag_type.
     frozen_core : bool, optional
