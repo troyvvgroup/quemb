@@ -87,6 +87,7 @@ def trustRegion(func, xold, fold, Binv, c=0.5):
     dx_sd = -B.T @ fold  # Steepest Descent step
     t = numpy.linalg.norm(dx_sd) ** 2 / numpy.linalg.norm(B @ dx_sd) ** 2
     prevdx = None
+    ared = 0.0  # Reduction in the objective function; Initialize value to 0
     while ratio < rho or ared < 0.0:
         # Trust Region subproblem
         # minimize (1/2) ||F_k + B_k d||^2 w.r.t. d, s.t. d w/i trust radius
@@ -207,7 +208,6 @@ class FrankQN:
                 dx_i @ self.Binv @ df_i
             )
             self.Binv += tmp__
-            us_tmp = self.Binv @ self.fnew
 
         if trust_region:
             self.xnew, self.fnew = trustRegion(
@@ -216,7 +216,7 @@ class FrankQN:
         else:
             self.us[self.iter_] = self.get_Bnfn(self.iter_)
 
-            alp, self.xnew, self.fnew = line_search_LF(
+            _, self.xnew, self.fnew = line_search_LF(
                 self.func, self.xold, self.fold, -self.us[self.iter_], self.iter_
             )
 
@@ -374,7 +374,7 @@ def get_atbe_Jblock_frag(fobj, res_func):
     Jc = numpy.array(Jc).T
 
     alpha = 0.0
-    for fidx, fval in enumerate(fobj.fsites):
+    for fidx, _ in enumerate(fobj.fsites):
         if not any(fidx in sublist for sublist in fobj.edge_idx):
             alpha += dP_mu[fidx, fidx]
 
@@ -388,7 +388,6 @@ def get_atbe_Jblock_frag(fobj, res_func):
 
 def get_be_error_jacobian_selffrag(self, jac_solver="HF"):
     Jes = [None] * self.Nfrag
-    Jcs = [None] * self.Nfrag
     xes = [None] * self.Nfrag
     xcs = [None] * self.Nfrag
     ys = [None] * self.Nfrag
@@ -401,7 +400,7 @@ def get_be_error_jacobian_selffrag(self, jac_solver="HF"):
     elif jac_solver == "HF":
         res_func = hfres_func
 
-    Jes, Jcs, xes, xcs, ys, alphas, Ncout = get_atbe_Jblock_frag(
+    Jes, _, xes, xcs, ys, alphas, Ncout = get_atbe_Jblock_frag(
         self.Fobjs[0], res_func
     )
 
