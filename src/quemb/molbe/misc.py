@@ -280,14 +280,14 @@ def be2puffin(
         Path to the xyz file
     basis : str
         Name of the basis set
-    hcore : numpy.array
+    hcore : numpy.ndarray
         Two-dimensional array of the core Hamiltonian
     libint_inp : bool
         True for hcore provided in Libint format. Else, hcore input is in PySCF format
         Default is False, i.e., hcore input is in PySCF format
-    pts_and_charges : tuple of numpy.array
+    pts_and_charges : tuple of numpy.ndarray
         QM/MM (points, charges). Use pyscf's QM/MM instead of starting Hamiltonian
-    jk : numpy.array
+    jk : numpy.ndarray
         Coulomb and Exchange matrices (pyscf will calculate this if not given)
     use_df : bool, optional
         If true, use density-fitting to evaluate the two-electron integrals
