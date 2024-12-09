@@ -656,7 +656,7 @@ def solve_ccsd(
             (if rdm_return is True).
         - rdm2s (numpy.ndarray, optional): Two-particle density matrix
             (if rdm2_return is True and rdm_return is True).
-        - cc__ (pyscf.cc.ccsd.CCSD, optional): CCSD object
+        - cc (pyscf.cc.ccsd.CCSD, optional): CCSD object
             (if rdm_return is True and rdm2_return is False).
     """
     # Set default values for optional parameters
@@ -668,20 +668,20 @@ def solve_ccsd(
         mo_occ = mf.mo_occ
 
     # Initialize the CCSD object
-    cc__ = cc.CCSD(mf, frozen=frozen, mo_coeff=mo_coeff, mo_occ=mo_occ)
-    cc__.verbose = 0
+    cc = cc.CCSD(mf, frozen=frozen, mo_coeff=mo_coeff, mo_occ=mo_occ)
+    cc.verbose = 0
     mf = None
-    cc__.incore_complete = True
+    cc.incore_complete = True
 
     # Prepare the integrals and Fock matrix
-    eris = cc__.ao2mo()
+    eris = cc.ao2mo()
     eris.mo_energy = mo_energy
     eris.fock = numpy.diag(mo_energy)
 
     # Solve the CCSD equations
     try:
-        cc__.verbose = verbose
-        cc__.kernel(eris=eris)
+        cc.verbose = verbose
+        cc.kernel(eris=eris)
     except Exception as e:
         print(flush=True)
         print("Exception in CCSD, play with different CC options.", flush=True)
@@ -689,33 +689,33 @@ def solve_ccsd(
         raise e
 
     # Extract the CCSD amplitudes
-    t1 = cc__.t1
-    t2 = cc__.t2
+    t1 = cc.t1
+    t2 = cc.t2
 
     # Compute and return the density matrices if requested
     if rdm_return:
         if not relax:
             l1 = numpy.zeros_like(t1)
             l2 = numpy.zeros_like(t2)
-            rdm1a = cc.ccsd_rdm.make_rdm1(cc__, t1, t2, l1, l2)
+            rdm1a = cc.ccsd_rdm.make_rdm1(cc, t1, t2, l1, l2)
         else:
-            rdm1a = cc__.make_rdm1(with_frozen=False)
+            rdm1a = cc.make_rdm1(with_frozen=False)
 
         if rdm2_return:
             if use_cumulant:
                 with_dm1 = False
             rdm2s = make_rdm2(
-                cc__,
-                cc__.t1,
-                cc__.t2,
-                cc__.l1,
-                cc__.l2,
+                cc,
+                cc.t1,
+                cc.t2,
+                cc.l1,
+                cc.l2,
                 with_frozen=False,
                 ao_repr=False,
                 with_dm1=with_dm1,
             )
             return (t1, t2, rdm1a, rdm2s)
-        return (t1, t2, rdm1a, cc__)
+        return (t1, t2, rdm1a, cc)
 
     return (t1, t2)
 
