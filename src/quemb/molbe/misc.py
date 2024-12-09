@@ -66,11 +66,13 @@ def libint2pyscf(
 
     Returns
     -------
-    (pyscf.gto.Mole, pyscf.scf.RHF or pyscf.scf.UHF)
+    (pyscf.gto.mole.Mole, pyscf.scf.hf.RHF, or pyscf.pbc.scf.uhf.UHF)
     """
     # Check input validity
-    assert os.path.exists(xyzfile), "Input xyz file does not exist"
-    assert os.path.exists(hcore), "Input core Hamiltonian file does not exist"
+    if not os.path.exists(xyzfile):
+        raise ValueError("Input xyz file does not exist")
+    if not os.path.exists(hcore):
+        raise ValueError("Input core Hamiltonian file does not exist")
 
     mol = gto.M(atom=xyzfile, basis=basis, spin=spin, charge=charge)
     hcore_libint = numpy.loadtxt(hcore, skiprows=hcore_skiprows)
