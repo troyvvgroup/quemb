@@ -1,6 +1,5 @@
 # Author(s): Oinam Romesh Meitei, Leah Weisburn
 
-import functools
 import os
 import sys
 from multiprocessing import Pool
@@ -345,18 +344,12 @@ def run_solver_u(
     # Compute RDM1
     fobj_a.rdm1__ = rdm1_tmp[0].copy()
     fobj_a._rdm1 = (
-        functools.reduce(
-            numpy.dot, (fobj_a._mf.mo_coeff, rdm1_tmp[0], fobj_a._mf.mo_coeff.T)
-        )
-        * 0.5
+        multi_dot((fobj_a._mf.mo_coeff, rdm1_tmp[0], fobj_a._mf.mo_coeff.T)) * 0.5
     )
 
     fobj_b.rdm1__ = rdm1_tmp[1].copy()
     fobj_b._rdm1 = (
-        functools.reduce(
-            numpy.dot, (fobj_b._mf.mo_coeff, rdm1_tmp[1], fobj_b._mf.mo_coeff.T)
-        )
-        * 0.5
+        multi_dot((fobj_b._mf.mo_coeff, rdm1_tmp[1], fobj_b._mf.mo_coeff.T)) * 0.5
     )
 
     # Calculate Energies

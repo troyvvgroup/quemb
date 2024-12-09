@@ -131,7 +131,7 @@ def get_iao_k(Co, S12, S1, S2=None, ortho=True):
         if ortho:
             Ciao[k] = symm_orth_k(Ciao[k], ovlp=S1[k])
 
-            rep_err = norm(Ciao[k] @ Ciao[k].conj().T @ S1[k] @ Po - Po)
+            rep_err = norm(multi_dot(Ciao[k], Ciao[k].conj().T, S1[k], Po) - Po)
             if rep_err > 1.0e-10:
                 raise RuntimeError
 

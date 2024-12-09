@@ -1,6 +1,5 @@
 # Author(s): Henry Tran, Oinam Meitei, Shaun Weatherly
 #
-import functools
 import sys
 
 import numpy
@@ -31,9 +30,7 @@ def get_cano_orth_mat(A, thr=1.0e-6, ovlp=None):
 
 def cano_orth(A, thr=1.0e-6, ovlp=None):
     """Canonically orthogonalize columns of A"""
-    U = get_cano_orth_mat(A, thr, ovlp)
-
-    return A @ U
+    return A @ get_cano_orth_mat(A, thr, ovlp)
 
 
 def get_symm_orth_mat(A, thr=1.0e-6, ovlp=None):
@@ -45,15 +42,12 @@ def get_symm_orth_mat(A, thr=1.0e-6, ovlp=None):
             "smallest eigenvalue (%.3E) is less than thr (%.3E). "
             "Please use 'cano_orth' instead." % (numpy.min(e), thr)
         )
-    U = u @ numpy.diag(e**-0.5) @ u.T
-
-    return U
+    return u @ numpy.diag(e**-0.5) @ u.T
 
 
 def symm_orth(A, thr=1.0e-6, ovlp=None):
     """Symmetrically orthogonalize columns of A"""
-    U = get_symm_orth_mat(A, thr, ovlp)
-    return A @ U
+    return A @ get_symm_orth_mat(A, thr, ovlp)
 
 
 def remove_core_mo(Clo, Ccore, S, thr=0.5):
@@ -67,9 +61,7 @@ def remove_core_mo(Clo, Ccore, S, thr=0.5):
     pop = numpy.diag(Clo1.T @ S @ Clo1)
     idx_keep = numpy.where(pop > thr)[0]
     assert len(idx_keep) == nlo - ncore
-    Clo2 = symm_orth(Clo1[:, idx_keep], ovlp=S)
-
-    return Clo2
+    return symm_orth(Clo1[:, idx_keep], ovlp=S)
 
 
 def get_xovlp(mol, basis="sto-3g"):
@@ -292,23 +284,19 @@ class MixinLocalize:
 
             if self.unrestricted:
                 if self.frozen_core:
-                    self.lmo_coeff_a = functools.reduce(
-                        numpy.dot, (self.W[0].T, self.S, self.C_a[:, self.ncore :])
+                    self.lmo_coeff_a = multi_dot(
+                        (self.W[0].T, self.S, self.C_a[:, self.ncore :])
                     )
-                    self.lmo_coeff_b = functools.reduce(
-                        numpy.dot, (self.W[1].T, self.S, self.C_b[:, self.ncore :])
+                    self.lmo_coeff_b = multi_dot(
+                        (self.W[1].T, self.S, self.C_b[:, self.ncore :])
                     )
                 else:
-                    self.lmo_coeff_a = functools.reduce(
-                        numpy.dot, (self.W.T, self.S, self.C_a)
-                    )
-                    self.lmo_coeff_b = functools.reduce(
-                        numpy.dot, (self.W.T, self.S, self.C_b)
-                    )
+                    self.lmo_coeff_a = multi_dot((self.W.T, self.S, self.C_a))
+                    self.lmo_coeff_b = multi_dot((self.W.T, self.S, self.C_b))
             else:
                 if self.frozen_core:
-                    self.lmo_coeff = functools.reduce(
-                        numpy.dot, (self.W.T, self.S, self.C[:, self.ncore :])
+                    self.lmo_coeff = multi_dot(
+                        (self.W.T, self.S, self.C[:, self.ncore :])
                     )
                 else:
                     self.lmo_coeff = multi_dot((self.W.T, self.S, self.C))
