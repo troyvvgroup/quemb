@@ -19,7 +19,10 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx_rtd_theme",
     "sphinx.ext.intersphinx",
+    "sphinx_autodoc_typehints",
+    # https://github.com/tox-dev/sphinx-autodoc-typehints
 ]
+
 napoleon_google_docstring = False
 napoleon_include_init_with_doc = True
 napoleon_numpy_docstring = True

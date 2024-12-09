@@ -79,7 +79,6 @@ def autogen(
     add_centers: list of lists
         "additional centers" for all fragments, per fragment: contains heavy atoms
         which are not centers in any other fragments
-
     """
 
     if not valence_only:
