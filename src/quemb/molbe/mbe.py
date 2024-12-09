@@ -319,8 +319,8 @@ class BE(MixinLocalize):
     ):
         """Compute the one- and two-particle reduced density matrices (RDM1 and RDM2).
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         return_ao : bool, optional
             Whether to return the RDMs in the AO basis. Default is True.
         only_rdm1 : bool, optional
@@ -335,8 +335,8 @@ class BE(MixinLocalize):
         print_energy : bool, optional
             Whether to print the energy contributions. Default is False.
 
-        Returns:
-        --------
+        Returns
+        -------
         rdm1AO : numpy.ndarray
             The one-particle RDM in the AO basis.
         rdm2AO : numpy.ndarray
