@@ -1,11 +1,11 @@
 # Author(s): Oinam Romesh Meitei, Leah Weisburn
 
-import functools
 import os
 import sys
 from multiprocessing import Pool
 
 import numpy
+from numpy.linalg import multi_dot
 from pyscf import ao2mo, fci, mcscf
 
 from quemb.molbe.helper import (
@@ -157,7 +157,7 @@ def run_solver(
         ci_.ci_coeff_cutoff = ci_coeff_cutoff
 
         nelec = (nocc, nocc)
-        h1_ = functools.reduce(numpy.dot, (mf_.mo_coeff.T, h1, mf_.mo_coeff))
+        h1_ = multi_dot((mf_.mo_coeff.T, h1, mf_.mo_coeff))
         eci, civec = ci_.kernel(h1_, eri, nmo, nelec)
         unused(eci)
         civec = numpy.asarray(civec)
@@ -214,7 +214,7 @@ def run_solver(
         sys.exit()
 
     # Compute RDM1
-    rdm1 = functools.reduce(numpy.dot, (mf_.mo_coeff, rdm1_tmp, mf_.mo_coeff.T)) * 0.5
+    rdm1 = multi_dot((mf_.mo_coeff, rdm1_tmp, mf_.mo_coeff.T)) * 0.5
     if eeval:
         if solver == "CCSD" and not rdm_return:
             with_dm1 = True
@@ -344,18 +344,12 @@ def run_solver_u(
     # Compute RDM1
     fobj_a.rdm1__ = rdm1_tmp[0].copy()
     fobj_a._rdm1 = (
-        functools.reduce(
-            numpy.dot, (fobj_a._mf.mo_coeff, rdm1_tmp[0], fobj_a._mf.mo_coeff.T)
-        )
-        * 0.5
+        multi_dot((fobj_a._mf.mo_coeff, rdm1_tmp[0], fobj_a._mf.mo_coeff.T)) * 0.5
     )
 
     fobj_b.rdm1__ = rdm1_tmp[1].copy()
     fobj_b._rdm1 = (
-        functools.reduce(
-            numpy.dot, (fobj_b._mf.mo_coeff, rdm1_tmp[1], fobj_b._mf.mo_coeff.T)
-        )
-        * 0.5
+        multi_dot((fobj_b._mf.mo_coeff, rdm1_tmp[1], fobj_b._mf.mo_coeff.T)) * 0.5
     )
 
     # Calculate Energies

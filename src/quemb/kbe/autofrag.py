@@ -3,6 +3,7 @@
 import sys
 
 import numpy
+from numpy.linalg import norm
 from pyscf import lib
 
 from quemb.kbe.misc import sgeom
@@ -39,7 +40,7 @@ def nearestof2coord(coord1, coord2, bond=2.6 * 1.88973):
         for jdx, j in enumerate(coord2):
             if idx == jdx:
                 continue
-            dist = numpy.linalg.norm(i - j)
+            dist = norm(i - j)
 
             if dist < mind or dist - mind < 0.1:
                 if dist <= bond:
@@ -58,7 +59,7 @@ def nearestof2coord(coord1, coord2, bond=2.6 * 1.88973):
 
             if idx == lmin[0] and jdx == lmin[1]:
                 continue
-            dist = numpy.linalg.norm(i - j)
+            dist = norm(i - j)
             if dist - mind < 0.1 and dist <= bond:
                 lunit_.append(idx)
                 runit_.append(jdx)
@@ -110,7 +111,7 @@ def sidefunc(
                     and jdx not in unit2
                     and not cell.atom_pure_symbol(jdx) == "H"
                 ):
-                    dist = numpy.linalg.norm(coord[lmin1] - j)
+                    dist = norm(coord[lmin1] - j)
                     if dist <= bond:
                         if jdx not in sub_list:  # avoid repeated occurence
                             main_list.append(jdx)
@@ -126,7 +127,7 @@ def sidefunc(
                                         and kdx not in unit2
                                         and not cell.atom_pure_symbol(kdx) == "H"
                                     ):
-                                        dist = numpy.linalg.norm(coord[jdx] - k)
+                                        dist = norm(coord[jdx] - k)
                                         if dist <= bond:
                                             main_list.append(kdx)
                                             sub_list.append(kdx)
@@ -473,7 +474,7 @@ def autogen(
     # starts here
     normlist = []
     for i in coord:
-        normlist.append(numpy.linalg.norm(i))
+        normlist.append(norm(i))
     Frag = []
     pedge = []
     cen = []
@@ -509,7 +510,7 @@ def autogen(
                     continue
                 if ai[inter_layer_axis] == aj[inter_layer_axis]:
                     continue
-                dist = numpy.linalg.norm(ai - aj)
+                dist = norm(ai - aj)
                 if dist > bond:
                     if inter_dist > dist:
                         inter_dist = dist
@@ -520,7 +521,7 @@ def autogen(
                     continue
                 if ai[inter_layer_axis] == aj[inter_layer_axis]:
                     continue
-                dist = numpy.linalg.norm(ai - aj)
+                dist = norm(ai - aj)
                 if abs(dist - inter_dist) < perpend_dist_tol:
                     inter_dist_.append(dist)
                     inter_idx_.append(ajdx)
@@ -1313,7 +1314,7 @@ def autogen(
         cen.append(idx)
 
         for jdx in clist:
-            dist = numpy.linalg.norm(coord[idx] - coord[jdx])
+            dist = norm(coord[idx] - coord[jdx])
 
             if (dist <= bond) or (
                 interlayer
@@ -1348,7 +1349,7 @@ def autogen(
                                     or cell.atom_pure_symbol(kdx) == "H"
                                 ):
                                     continue
-                                dist = numpy.linalg.norm(coord[lmin1] - k)
+                                dist = norm(coord[lmin1] - k)
                                 if dist <= bond:
                                     if (
                                         kdx in lsts
@@ -1428,7 +1429,7 @@ def autogen(
                                     or cell.atom_pure_symbol(kdx) == "H"
                                 ):
                                     continue
-                                dist = numpy.linalg.norm(coord[rmin1] - k)
+                                dist = norm(coord[rmin1] - k)
                                 if dist <= bond:
                                     if (
                                         kdx in rsts
@@ -1499,7 +1500,7 @@ def autogen(
                                     or cell.atom_pure_symbol(kdx) == "H"
                                 ):
                                     continue
-                                dist = numpy.linalg.norm(coord[umin1] - k)
+                                dist = norm(coord[umin1] - k)
                                 if dist <= bond:
                                     if (
                                         kdx in usts
@@ -1567,7 +1568,7 @@ def autogen(
                                     or cell.atom_pure_symbol(kdx) == "H"
                                 ):
                                     continue
-                                dist = numpy.linalg.norm(coord[dmin1] - k)
+                                dist = norm(coord[dmin1] - k)
                                 if dist <= bond:
                                     if (
                                         kdx in dsts
@@ -1634,7 +1635,7 @@ def autogen(
                                     or cell.atom_pure_symbol(kdx) == "H"
                                 ):
                                     continue
-                                dist = numpy.linalg.norm(coord[mmin1] - k)
+                                dist = norm(coord[mmin1] - k)
                                 if dist <= bond:
                                     if (
                                         kdx in msts
@@ -1689,7 +1690,7 @@ def autogen(
                                     or cell.atom_pure_symbol(kdx) == "H"
                                 ):
                                     continue
-                                dist = numpy.linalg.norm(coord[tmin1] - k)
+                                dist = norm(coord[tmin1] - k)
                                 if dist <= bond:
                                     if (
                                         kdx in tsts
@@ -1734,7 +1735,7 @@ def autogen(
 
                     for kdx in clist:
                         if not kdx == jdx:
-                            dist = numpy.linalg.norm(coord[jdx] - coord[kdx])
+                            dist = norm(coord[jdx] - coord[kdx])
                             if (dist <= bond) or (
                                 interlayer
                                 and dist in inter_layer_dict[jdx][1]
@@ -1833,7 +1834,7 @@ def autogen(
                                             or ldx in pedg
                                         ):
                                             continue
-                                        dist = numpy.linalg.norm(coord[kdx] - l)
+                                        dist = norm(coord[kdx] - l)
                                         if dist <= bond:
                                             flist.append(ldx)
                                             pedg.append(ldx)
@@ -1867,7 +1868,7 @@ def autogen(
                         clist.append(jdx)
 
             for jdx in clist:
-                dist = numpy.linalg.norm(coord[idx] - coord[jdx])
+                dist = norm(coord[idx] - coord[jdx])
                 if dist <= hbond:
                     hlist[jdx].append(idx)
     if print_frags:

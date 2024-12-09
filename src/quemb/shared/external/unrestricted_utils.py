@@ -1,10 +1,10 @@
 # Authors: Leah Weisburn, Hongzhou Ye, Henry Tran
 
 import ctypes
-import functools
 
 import h5py
 import numpy
+from numpy.linalg import multi_dot
 from pyscf import ao2mo, lib, scf
 
 
@@ -27,12 +27,8 @@ def make_uhf_obj(fobj_a, fobj_b, frozen=False):
     full_uhf.h1 = (fobj_a.h1, fobj_b.h1)
 
     # Define the HF veff in alpha and beta spin Schmidt spaces
-    full_uhf.veff0_a = functools.reduce(
-        numpy.dot, (fobj_a.TA.T, fobj_a.hf_veff, fobj_a.TA)
-    )
-    full_uhf.veff0_b = functools.reduce(
-        numpy.dot, (fobj_b.TA.T, fobj_b.hf_veff, fobj_b.TA)
-    )
+    full_uhf.veff0_a = multi_dot((fobj_a.TA.T, fobj_a.hf_veff, fobj_a.TA))
+    full_uhf.veff0_b = multi_dot((fobj_b.TA.T, fobj_b.hf_veff, fobj_b.TA))
 
     # Build correct eris
     Vs = uccsd_restore_eris((1, 1, 1), fobj_a, fobj_b)

@@ -1,10 +1,9 @@
 # Author(s): Henry Tran, Oinam Meitei, Shaun Weatherly
 #
-import functools
 import sys
 
 import numpy
-from numpy.linalg import eigh, multi_dot, svd
+from numpy.linalg import eigh, inv, multi_dot, norm, svd
 from pyscf.gto import intor_cross
 
 from quemb.shared.external.lo_helper import (
@@ -20,7 +19,7 @@ def dot_gen(A, B, ovlp):
 
 def get_cano_orth_mat(A, thr=1.0e-6, ovlp=None):
     S = dot_gen(A, A, ovlp)
-    e, u = numpy.linalg.eigh(S)
+    e, u = eigh(S)
     if thr > 0:
         idx_keep = e / e[-1] > thr
     else:
@@ -31,29 +30,24 @@ def get_cano_orth_mat(A, thr=1.0e-6, ovlp=None):
 
 def cano_orth(A, thr=1.0e-6, ovlp=None):
     """Canonically orthogonalize columns of A"""
-    U = get_cano_orth_mat(A, thr, ovlp)
-
-    return A @ U
+    return A @ get_cano_orth_mat(A, thr, ovlp)
 
 
 def get_symm_orth_mat(A, thr=1.0e-6, ovlp=None):
     S = dot_gen(A, A, ovlp)
-    e, u = numpy.linalg.eigh(S)
+    e, u = eigh(S)
     if int(numpy.sum(e < thr)) > 0:
         raise ValueError(
             "Linear dependence is detected in the column space of A: "
             "smallest eigenvalue (%.3E) is less than thr (%.3E). "
             "Please use 'cano_orth' instead." % (numpy.min(e), thr)
         )
-    U = u @ numpy.diag(e**-0.5) @ u.T
-
-    return U
+    return u @ numpy.diag(e**-0.5) @ u.T
 
 
 def symm_orth(A, thr=1.0e-6, ovlp=None):
     """Symmetrically orthogonalize columns of A"""
-    U = get_symm_orth_mat(A, thr, ovlp)
-    return A @ U
+    return A @ get_symm_orth_mat(A, thr, ovlp)
 
 
 def remove_core_mo(Clo, Ccore, S, thr=0.5):
@@ -67,9 +61,7 @@ def remove_core_mo(Clo, Ccore, S, thr=0.5):
     pop = numpy.diag(Clo1.T @ S @ Clo1)
     idx_keep = numpy.where(pop > thr)[0]
     assert len(idx_keep) == nlo - ncore
-    Clo2 = symm_orth(Clo1[:, idx_keep], ovlp=S)
-
-    return Clo2
+    return symm_orth(Clo1[:, idx_keep], ovlp=S)
 
 
 def get_xovlp(mol, basis="sto-3g"):
@@ -106,9 +98,9 @@ def get_iao(Co, S12, S1, S2=None):
     # define projection operators
     n = Co.shape[0]
     if S2 is None:
-        S2 = S12.T @ numpy.linalg.inv(S1) @ S12
-    P1 = numpy.linalg.inv(S1)
-    P2 = numpy.linalg.inv(S2)
+        S2 = S12.T @ inv(S1) @ S12
+    P1 = inv(S1)
+    P2 = inv(S2)
 
     # depolarized occ mo
     Cotil = P1 @ S12 @ P2 @ S12.T @ Co
@@ -118,13 +110,13 @@ def get_iao(Co, S12, S1, S2=None):
     Stil = Cotil.T @ S1 @ Cotil
 
     Po = Co @ Co.T
-    Potil = Cotil @ numpy.linalg.inv(Stil) @ Cotil.T
+    Potil = Cotil @ inv(Stil) @ Cotil.T
 
     Ciao = (numpy.eye(n) - (Po + Potil - 2 * Po @ S1 @ Potil) @ S1) @ ptil
     Ciao = symm_orth(Ciao, ovlp=S1)
 
     # check span
-    rep_err = numpy.linalg.norm(Ciao @ Ciao.T @ S1 @ Po - Po)
+    rep_err = norm(Ciao @ Ciao.T @ S1 @ Po - Po)
     if rep_err > 1.0e-10:
         raise RuntimeError
     return Ciao
@@ -142,7 +134,7 @@ def get_pao(Ciao, S, S12, S2, mol):
         Cpao (orthogonalized)
     """
     n = Ciao.shape[0]
-    s12 = numpy.linalg.inv(S) @ S12
+    s12 = inv(S) @ S12
     nonval = (
         numpy.eye(n) - s12 @ s12.T
     )  # set of orbitals minus valence (orth in working basis)
@@ -262,59 +254,49 @@ class MixinLocalize:
                         for s in [0, 1]
                     ]
                     C_ = numpy.dot(P_core, self.W)
-                    Cpop = [
-                        functools.reduce(numpy.dot, (C_[s].T, self.S, C_[s]))
-                        for s in [0, 1]
-                    ]
+                    Cpop = [multi_dot((C_[s].T, self.S, C_[s])) for s in [0, 1]]
                     Cpop = [numpy.diag(Cpop[s]) for s in [0, 1]]
                     no_core_idx = [numpy.where(Cpop[s] > 0.7)[0] for s in [0, 1]]
                     C_ = [C_[s][:, no_core_idx[s]] for s in [0, 1]]
-                    S_ = [
-                        functools.reduce(numpy.dot, (C_[s].T, self.S, C_[s]))
-                        for s in [0, 1]
-                    ]
+                    S_ = [multi_dot((C_[s].T, self.S, C_[s])) for s in [0, 1]]
                     W_ = []
                     for s in [0, 1]:
                         es_, vs_ = eigh(S_[s])
                         s_ = numpy.sqrt(es_)
                         s_ = numpy.diag(1.0 / s_)
-                        W_.append(functools.reduce(numpy.dot, (vs_, s_, vs_.T)))
+                        W_.append(multi_dot((vs_, s_, vs_.T)))
                     self.W = [numpy.dot(C_[s], W_[s]) for s in [0, 1]]
                 else:
                     P_core = numpy.eye(self.W.shape[0]) - numpy.dot(self.P_core, self.S)
                     C_ = numpy.dot(P_core, self.W)
                     # NOTE: PYSCF has basis in 1s2s3s2p2p2p3p3p3p format
                     # fix no_core_idx - use population for now
-                    Cpop = functools.reduce(numpy.dot, (C_.T, self.S, C_))
+                    Cpop = multi_dot((C_.T, self.S, C_))
                     Cpop = numpy.diag(Cpop)
                     no_core_idx = numpy.where(Cpop > 0.7)[0]
                     C_ = C_[:, no_core_idx]
-                    S_ = functools.reduce(numpy.dot, (C_.T, self.S, C_))
+                    S_ = multi_dot((C_.T, self.S, C_))
                     es_, vs_ = eigh(S_)
                     s_ = numpy.sqrt(es_)
                     s_ = numpy.diag(1.0 / s_)
-                    W_ = functools.reduce(numpy.dot, (vs_, s_, vs_.T))
+                    W_ = multi_dot((vs_, s_, vs_.T))
                     self.W = numpy.dot(C_, W_)
 
             if self.unrestricted:
                 if self.frozen_core:
-                    self.lmo_coeff_a = functools.reduce(
-                        numpy.dot, (self.W[0].T, self.S, self.C_a[:, self.ncore :])
+                    self.lmo_coeff_a = multi_dot(
+                        (self.W[0].T, self.S, self.C_a[:, self.ncore :])
                     )
-                    self.lmo_coeff_b = functools.reduce(
-                        numpy.dot, (self.W[1].T, self.S, self.C_b[:, self.ncore :])
+                    self.lmo_coeff_b = multi_dot(
+                        (self.W[1].T, self.S, self.C_b[:, self.ncore :])
                     )
                 else:
-                    self.lmo_coeff_a = functools.reduce(
-                        numpy.dot, (self.W.T, self.S, self.C_a)
-                    )
-                    self.lmo_coeff_b = functools.reduce(
-                        numpy.dot, (self.W.T, self.S, self.C_b)
-                    )
+                    self.lmo_coeff_a = multi_dot((self.W.T, self.S, self.C_a))
+                    self.lmo_coeff_b = multi_dot((self.W.T, self.S, self.C_b))
             else:
                 if self.frozen_core:
-                    self.lmo_coeff = functools.reduce(
-                        numpy.dot, (self.W.T, self.S, self.C[:, self.ncore :])
+                    self.lmo_coeff = multi_dot(
+                        (self.W.T, self.S, self.C[:, self.ncore :])
                     )
                 else:
                     self.lmo_coeff = multi_dot((self.W.T, self.S, self.C))
@@ -330,15 +312,15 @@ class MixinLocalize:
             if self.frozen_core:
                 P_core = numpy.eye(W_.shape[0]) - numpy.dot(self.P_core, self.S)
                 C_ = numpy.dot(P_core, W_)
-                Cpop = functools.reduce(numpy.dot, (C_.T, self.S, C_))
+                Cpop = multi_dot((C_.T, self.S, C_))
                 Cpop = numpy.diag(Cpop)
                 no_core_idx = numpy.where(Cpop > 0.55)[0]
                 C_ = C_[:, no_core_idx]
-                S_ = functools.reduce(numpy.dot, (C_.T, self.S, C_))
+                S_ = multi_dot((C_.T, self.S, C_))
                 es_, vs_ = eigh(S_)
                 s_ = numpy.sqrt(es_)
                 s_ = numpy.diag(1.0 / s_)
-                W_ = functools.reduce(numpy.dot, (vs_, s_, vs_.T))
+                W_ = multi_dot((vs_, s_, vs_.T))
                 W_ = numpy.dot(C_, W_)
 
             self.W = get_loc(
@@ -464,15 +446,15 @@ class MixinLocalize:
             if self.frozen_core:
                 P_core = numpy.eye(W_.shape[0]) - numpy.dot(self.P_core, self.S)
                 C_ = numpy.dot(P_core, W_)
-                Cpop = functools.reduce(numpy.dot, (C_.T, self.S, C_))
+                Cpop = multi_dot((C_.T, self.S, C_))
                 Cpop = numpy.diag(Cpop)
                 no_core_idx = numpy.where(Cpop > 0.55)[0]
                 C_ = C_[:, no_core_idx]
-                S_ = functools.reduce(numpy.dot, (C_.T, self.S, C_))
+                S_ = multi_dot((C_.T, self.S, C_))
                 es_, vs_ = eigh(S_)
                 s_ = numpy.sqrt(es_)
                 s_ = numpy.diag(1.0 / s_)
-                W_ = functools.reduce(numpy.dot, (vs_, s_, vs_.T))
+                W_ = multi_dot((vs_, s_, vs_.T))
                 W_ = numpy.dot(C_, W_)
 
             self.W = get_loc(self.mol, W_, "BOYS")
