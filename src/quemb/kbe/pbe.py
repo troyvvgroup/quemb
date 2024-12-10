@@ -16,11 +16,7 @@ from quemb.kbe.lo import Mixin_k_Localize
 from quemb.kbe.misc import print_energy, storePBE
 from quemb.kbe.pfrag import Frags
 from quemb.molbe._opt import BEOPT
-from quemb.molbe.helper import (
-    get_eri,
-    get_scfObj,
-    get_veff
-    )
+from quemb.molbe.helper import get_eri, get_scfObj, get_veff
 from quemb.shared import be_var
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
