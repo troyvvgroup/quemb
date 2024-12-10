@@ -464,6 +464,4 @@ class MixinLocalize:
                 self.lmo_coeff = self.W.T @ self.S @ self.C[:, self.ncore :]
 
         else:
-            print("lo_method = ", lo_method, " not implemented!", flush=True)
-            print("exiting", flush=True)
-            sys.exit()
+            raise ValueError(f"lo_method = {lo_method} not implemented!")

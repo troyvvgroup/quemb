@@ -67,9 +67,7 @@ def ncore_(z: int) -> int:
     elif 49 <= z <= 56:
         nc = 18
     else:
-        print("Ncore not computed in helper.ncore(), add it yourself!", flush=True)
-        print("exiting", flush=True)
-        sys.exit()
+        raise ValueError("Ncore not computed in helper.ncore(), add it yourself!")
     return nc
 
 

@@ -151,7 +151,7 @@ def run_solver(
             select_cutoff = hci_cutoff
             ci_coeff_cutoff = hci_cutoff
         elif select_cutoff is None or ci_coeff_cutoff is None:
-            sys.exit()
+            raise ValueError
 
         ci_.select_cutoff = select_cutoff
         ci_.ci_coeff_cutoff = ci_coeff_cutoff
@@ -209,9 +209,7 @@ def run_solver(
         rdm1_tmp, rdm2s = ci.make_rdm12(0, nmo, nelec)
 
     else:
-        print("Solver not implemented", flush=True)
-        print("exiting", flush=True)
-        sys.exit()
+        raise ValueError("Solver not implemented")
 
     # Compute RDM1
     rdm1 = multi_dot((mf_.mo_coeff, rdm1_tmp, mf_.mo_coeff.T)) * 0.5

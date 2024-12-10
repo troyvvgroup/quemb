@@ -26,8 +26,8 @@ def chain(self, mol, frozen_core=False, closed=False):
         if not len(lnext) == 0:
             nk1 = lnext[0]
         else:
-            print("Gamma point does not work")
-            sys.exit()
+            raise ValueError("Gamma point does not work")
+
         Ns = mol.aoslice_by_atom()[-1][3]
 
     if self.be_type == "be2":
@@ -235,8 +235,8 @@ def chain(self, mol, frozen_core=False, closed=False):
             self.centerf_idx.append([self.fsites[i].index(j) for j in fs[i][3]])
 
     if self.be_type == "be4" and closed:
-        print("Will add this soon!")
-        sys.exit()
+        raise ValueError("Will add this soon!")
+
     if not closed:
         for ix, i in enumerate(self.fsites):
             tmp_ = []
