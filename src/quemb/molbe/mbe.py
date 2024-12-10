@@ -557,7 +557,7 @@ class BE(MixinLocalize):
         # (Kumul) in the full basis
         rdm1f, Kumul, _, _ = self.rdm1_fullbasis(
             return_lo=True, return_RDM2=False
-        )  # rdm1f, Kumul, rdm1_lo, rdm2_lo
+        )  # rdm1f, Kumul, rdm1_lo, rdm2_lo !!
 
         if not approx_cumulant:
             # Compute the true two-particle reduced density matrix (RDM2) if not using
