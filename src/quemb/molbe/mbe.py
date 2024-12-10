@@ -555,9 +555,9 @@ class BE(MixinLocalize):
         """
         # Compute the one-particle reduced density matrix (RDM1) and the cumulant
         # (Kumul) in the full basis
-        rdm1f, Kumul, rdm1_lo, rdm2_lo = self.rdm1_fullbasis(
+        rdm1f, Kumul, _, _ = self.rdm1_fullbasis(
             return_lo=True, return_RDM2=False
-        )
+        )  # rdm1f, Kumul, rdm1_lo, rdm2_lo
 
         if not approx_cumulant:
             # Compute the true two-particle reduced density matrix (RDM2) if not using
@@ -891,7 +891,7 @@ class BE(MixinLocalize):
         for fobjs_ in self.Fobjs:
             # Process each fragment
             eri = numpy.array(file_eri.get(fobjs_.dname))
-            dm_init = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
+            _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
 
             fobjs_.cons_h1(self.hcore)
 
@@ -912,7 +912,7 @@ class BE(MixinLocalize):
             )
 
             if compute_hf:
-                eh1, ecoul, ef = fobjs_.energy_hf(return_e1=True)
+                _, _, _ = fobjs_.energy_hf(return_e1=True)  # eh1, ecoul, ef
                 E_hf += fobjs_.ebe_hf
 
         if not restart:
