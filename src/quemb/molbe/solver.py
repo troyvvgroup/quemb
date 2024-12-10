@@ -37,7 +37,7 @@ def be_func(
     select_cutoff=None,
     eeval=False,
     ereturn=False,
-    frag_energy=False,
+    frag_energy=True,
     relax_density=False,
     return_vec=False,
     ecore=0.0,
@@ -298,7 +298,7 @@ def be_func(
                     ) * 0.5
                     rdm2s -= nc
             fobj.rdm2__ = rdm2s.copy()
-            if frag_energy or eeval:
+            if frag_energy:
                 # Find the energy of a given fragment, with the cumulant definition.
                 # Return [e1, e2, ec] as e_f and add to the running total_e.
                 e_f = get_frag_energy(
@@ -318,11 +318,17 @@ def be_func(
                 total_e = [sum(x) for x in zip(total_e, e_f)]
                 fobj.energy_hf()
 
-    if frag_energy or eeval:
+    if frag_energy and eeval:
+        # Return energy evaluated fragment-by-fragment
         Ecorr = sum(total_e)
-
-    if frag_energy:
-        return (Ecorr, total_e)
+        if not return_vec:
+            return (Ecorr, total_e)
+    
+    elif eeval:
+        # Return energy, not evaluated fragment-by-fragment
+        # Will require something like the "compute_energy_full" included in mbe BE class
+        raise NotImplementedError("""Evaluating the energy on supported 
+                                    fragment-by-fragment basis. Use frag_energy=True""")
 
     ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem)
 

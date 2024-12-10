@@ -72,6 +72,7 @@ class BEOPT:
         relax_density=False,
         ebe_hf=0.0,
         scratch_dir=None,
+        frag_energy=True,
         **solver_kwargs,
     ):
         # Initialize class attributes
@@ -92,6 +93,7 @@ class BEOPT:
         self.only_chem = only_chem
         self.conv_tol = conv_tol
         self.relax_density = relax_density
+        self.frag_energy = frag_energy
         # HCI parameters
         self.hci_cutoff = hci_cutoff
         self.ci_coeff_cutoff = ci_coeff_cutoff
@@ -136,6 +138,7 @@ class BEOPT:
                 ci_coeff_cutoff=self.ci_coeff_cutoff,
                 select_cutoff=self.select_cutoff,
                 hci_pt=self.hci_pt,
+                frag_energy=self.frag_energy,
                 ecore=self.ecore,
                 ebe_hf=self.ebe_hf,
                 be_iter=self.iter,
@@ -159,6 +162,7 @@ class BEOPT:
                 relax_density=self.relax_density,
                 ci_coeff_cutoff=self.ci_coeff_cutoff,
                 select_cutoff=self.select_cutoff,
+                frag_energy=self.frag_energy,
                 ecore=self.ecore,
                 ebe_hf=self.ebe_hf,
                 be_iter=self.iter,

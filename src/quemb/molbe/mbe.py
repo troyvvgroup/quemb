@@ -93,6 +93,7 @@ class BE(MixinLocalize):
         mo_energy=None,
         save_file="storebe.pk",
         hci_pt=False,
+        frag_energy=True,
         nproc=1,
         ompnum=4,
         scratch_dir=None,
@@ -127,6 +128,9 @@ class BE(MixinLocalize):
             Molecular orbital energies, by default None.
         save_file : str, optional
             Path to the file storing save information, by default 'storebe.pk'.
+        frag_energy : bool, optional
+            Calculate energies of all fragments, rather than constructing any 
+            full system RDMs, by default True
         nproc : int, optional
             Number of processors for parallel calculations, by default 1. If set to >1,
             threaded parallel computation is invoked.
@@ -183,6 +187,8 @@ class BE(MixinLocalize):
 
         self.ebe_hf = 0.0
         self.ebe_tot = 0.0
+
+        self.frag_energy = frag_energy
 
         # HCI parameters
         self.hci_cutoff = hci_cutoff
@@ -750,6 +756,7 @@ class BE(MixinLocalize):
             solver=solver,
             ecore=self.E_core,
             ebe_hf=self.ebe_hf,
+            frag_energy=self.frag_energy,
             **solver_kwargs,
         )
 
@@ -940,7 +947,7 @@ class BE(MixinLocalize):
         solver="MP2",
         nproc=1,
         ompnum=4,
-        calc_frag_energy=False,
+        frag_energy=True,
         clean_eri=False,
         scratch_dir=None,
         **solver_kwargs,
@@ -958,15 +965,15 @@ class BE(MixinLocalize):
             If set to >1, multi-threaded parallel computation is invoked.
         ompnum : int, optional
             Number of OpenMP threads, by default 4.
-        calc_frag_energy : bool, optional
-            Whether to calculate fragment energies, by default False.
+        frag_energy : bool, optional
+            Whether to calculate fragment energies, by default True.
         clean_eri : bool, optional
             Whether to clean up ERI files after calculation, by default False.
         """
         self.scratch_dir = scratch_dir
         self.solver_kwargs = solver_kwargs
 
-        print("Calculating Energy by Fragment? ", calc_frag_energy)
+        print("Calculating Energy by Fragment? ", self.frag_energy)
         if nproc == 1:
             rets = be_func(
                 None,
@@ -979,7 +986,7 @@ class BE(MixinLocalize):
                 ci_coeff_cutoff=self.ci_coeff_cutoff,
                 select_cutoff=self.select_cutoff,
                 nproc=ompnum,
-                frag_energy=calc_frag_energy,
+                frag_energy=self.frag_energy,
                 ereturn=True,
                 eeval=True,
                 scratch_dir=self.scratch_dir,
@@ -998,7 +1005,7 @@ class BE(MixinLocalize):
                 select_cutoff=self.select_cutoff,
                 ereturn=True,
                 eeval=True,
-                frag_energy=calc_frag_energy,
+                frag_energy=self.frag_energy,
                 nproc=nproc,
                 ompnum=ompnum,
                 scratch_dir=self.scratch_dir,
@@ -1010,7 +1017,7 @@ class BE(MixinLocalize):
         print("             Solver : ", solver, flush=True)
         print("-----------------------------------------------------", flush=True)
         print(flush=True)
-        if calc_frag_energy:
+        if self.frag_energy:
             print(
                 "Final Tr(F del g) is         : {:>12.8f} Ha".format(
                     rets[1][0] + rets[1][2]
@@ -1028,7 +1035,7 @@ class BE(MixinLocalize):
 
             self.ebe_tot = rets[0]
 
-        if not calc_frag_energy:
+        if not self.frag_energy:
             self.compute_energy_full(approx_cumulant=True, return_rdm=False)
 
         if clean_eri:
