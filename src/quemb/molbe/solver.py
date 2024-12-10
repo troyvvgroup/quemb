@@ -205,7 +205,8 @@ def be_func(
             nmo = fobj._mf.mo_coeff.shape[1]
             nelec = (fobj.nsocc, fobj.nsocc)
             cas = mcscf.CASCI(fobj._mf, nmo, nelec)
-            h1, _ = cas.get_h1eff(mo_coeff=fobj._mf.mo_coeff)
+            h1, ecore = cas.get_h1eff(mo_coeff=fobj._mf.mo_coeff)
+            unused(ecore)
             eri = ao2mo.kernel(
                 fobj._mf._eri, fobj._mf.mo_coeff, aosym="s4", compact=False
             ).reshape(4 * ((nmo),))

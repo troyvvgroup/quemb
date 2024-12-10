@@ -48,8 +48,7 @@ def copy_docstring(f: Callable) -> Callable[[Function], Function]:
 
 
 def unused(*args: Any) -> None:
-    for arg in args:
-        del arg
+    pass
 
 
 def ncore_(z: int) -> int:
