@@ -21,7 +21,7 @@ except ImportError:
 
 class Test_kBE_Full(unittest.TestCase):
     @unittest.skipIf(libdmet is None, "Module `libdmet` not imported correctly.")
-    def test_kc2_sto3g_be1_chempot(self):
+    def test_kc2_sto3g_be1_chempot(self) -> None:
         kpt = [1, 1, 1]
         cell = gto.Cell()
 
@@ -46,7 +46,7 @@ class Test_kBE_Full(unittest.TestCase):
             cell, kpt, "be1", "C2 (kBE1)", "autogen", -74.64695833012868, only_chem=True
         )
 
-    def test_kc4_sto3g_be2_density(self):
+    def test_kc4_sto3g_be2_density(self) -> None:
         kpt = [1, 1, 1]
         cell = gto.Cell()
 
@@ -87,7 +87,7 @@ class Test_kBE_Full(unittest.TestCase):
         target,
         delta=1e-4,
         only_chem=True,
-    ):
+    ) -> None:
         kpts = cell.make_kpts(kpt, wrap_around=True)
         mydf = df.GDF(cell, kpts)
         mydf.build()
