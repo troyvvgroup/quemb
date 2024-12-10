@@ -74,7 +74,7 @@ jobs:
 
     - name: Static analysis with mypy
       run: |
-        mypy tests/ example/ src/ || true    # for the moment we want to report always report success
+        mypy tests/ example/ src/
 
 
 
