@@ -1,7 +1,6 @@
 # Author(s): Minsik Cho, Leah Weisburn
 
 import os
-import sys
 import time
 
 import h5py
@@ -424,8 +423,7 @@ def be2puffin(
         if mf.converged:
             print("Reference HF Converged", flush=True)
         else:
-            print("Reference HF Unconverged -- stopping the calculation", flush=True)
-            sys.exit()
+            raise ValueError("Reference HF Unconverged -- stopping the calculation")
         if use_df:
             print(
                 "Using auxillary basis in density fitting: ",

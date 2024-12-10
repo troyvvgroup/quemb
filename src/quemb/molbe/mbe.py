@@ -2,7 +2,6 @@
 
 import os
 import pickle
-import sys
 
 import h5py
 import numpy
@@ -765,8 +764,7 @@ class BE(MixinLocalize):
                 be_.Ebe[0], be_.Ebe[1][1], be_.Ebe[1][0] + be_.Ebe[1][2], self.ebe_hf
             )
         else:
-            print("This optimization method for BE is not supported")
-            sys.exit()
+            raise ValueError("This optimization method for BE is not supported")
 
     @copy_docstring(_ext_get_be_error_jacobian)
     def get_be_error_jacobian(self, jac_solver="HF"):

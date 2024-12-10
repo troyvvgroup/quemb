@@ -1,17 +1,10 @@
 # Author(s): Oinam Romesh Meitei
 
-import sys
 
 from quemb.kbe.autofrag import autogen
 from quemb.kbe.chain import polychain as _ext_polychain
 from quemb.molbe.helper import get_core
 from quemb.shared.helper import copy_docstring
-
-
-def print_mol_missing():
-    print("Provide pyscf gto.Cell object in fragpart() and restart!", flush=True)
-    print("exiting", flush=True)
-    sys.exit()
 
 
 class fragpart:
@@ -113,15 +106,17 @@ class fragpart:
 
         if frag_type == "polychain":
             if mol is None:
-                print_mol_missing()
+                raise ValueError(
+                    "Provide pyscf gto.Cell object in fragpart() and restart!"
+                )
             self.polychain(mol, frozen_core=frozen_core, unitcell=unitcell)
         elif frag_type == "autogen":
             if mol is None:
-                print_mol_missing()
+                raise ValueError(
+                    "Provide pyscf gto.Cell object in fragpart() and restart!"
+                )
             if kpt is None:
-                print("Provide kpt mesh in fragpart() and restart!", flush=True)
-                print("exiting", flush=True)
-                sys.exit()
+                raise ValueError("Provide kpt mesh in fragpart() and restart!")
 
             fgs = autogen(
                 mol,
@@ -153,9 +148,7 @@ class fragpart:
             self.Nfrag = len(self.fsites)
 
         else:
-            print("Fragmentation type = ", frag_type, " not implemented!", flush=True)
-            print("exiting", flush=True)
-            sys.exit()
+            raise ValueError(f"Fragmentation type = {frag_type} not implemented!")
 
     @copy_docstring(_ext_polychain)
     def polychain(self, mol, frozen_core=False, unitcell=1):
