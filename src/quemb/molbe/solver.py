@@ -1,7 +1,6 @@
 # Author(s): Oinam Romesh Meitei, Leah Weisburn, Shaun Weatherly
 
 import os
-import sys
 
 import numpy
 from numpy.linalg import multi_dot

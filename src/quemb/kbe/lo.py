@@ -2,7 +2,6 @@
 #            Henry Tran
 #
 import os
-import sys
 
 import numpy
 from libdmet.lo import pywannier90

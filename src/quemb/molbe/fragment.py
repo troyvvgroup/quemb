@@ -1,6 +1,5 @@
 # Author: Oinam Romesh Meitei
 
-import sys
 
 from quemb.molbe.autofrag import autogen
 from quemb.molbe.helper import get_core

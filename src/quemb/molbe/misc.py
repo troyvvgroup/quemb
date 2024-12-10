@@ -1,7 +1,6 @@
 # Author(s): Minsik Cho, Leah Weisburn
 
 import os
-import sys
 import time
 
 import h5py

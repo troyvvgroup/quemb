@@ -2,7 +2,6 @@
 
 import os
 import pickle
-import sys
 from multiprocessing import Pool
 
 import h5py

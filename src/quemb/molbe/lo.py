@@ -1,6 +1,5 @@
 # Author(s): Henry Tran, Oinam Meitei, Shaun Weatherly
 #
-import sys
 
 import numpy
 from numpy.linalg import eigh, inv, multi_dot, norm, svd

@@ -1,7 +1,6 @@
 # Author(s): Oinam Romesh Meitei, Leah Weisburn
 
 import os
-import sys
 from multiprocessing import Pool
 
 import numpy

@@ -1,6 +1,5 @@
 # Author: Oinam Romesh Meitei
 
-import sys
 
 from numpy.linalg import norm
 

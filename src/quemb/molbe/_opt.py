@@ -1,6 +1,5 @@
 # Author(s): Oinam Romesh Meitei
 
-import sys
 
 import numpy
 

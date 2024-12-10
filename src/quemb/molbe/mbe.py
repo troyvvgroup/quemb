@@ -2,7 +2,6 @@
 
 import os
 import pickle
-import sys
 
 import h5py
 import numpy
