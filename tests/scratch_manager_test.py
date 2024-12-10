@@ -7,7 +7,7 @@ from pytest import raises
 from quemb.shared.manage_scratch import WorkDir
 
 
-def test_already_created():
+def test_already_created() -> None:
     my_tmp = Path(mkdtemp())
     assert my_tmp.exists()
 
@@ -20,7 +20,7 @@ def test_already_created():
         scratch.cleanup()
 
 
-def test_keep_upon_error():
+def test_keep_upon_error() -> None:
     my_tmp = Path(mkdtemp())
     assert my_tmp.exists()
 
@@ -34,7 +34,7 @@ def test_keep_upon_error():
     assert not my_tmp.exists()
 
 
-def test_already_created_non_empty():
+def test_already_created_non_empty() -> None:
     my_tmp = Path(mkdtemp())
 
     assert my_tmp.exists()
@@ -48,7 +48,7 @@ def test_already_created_non_empty():
     assert my_tmp.exists()
 
 
-def test_context_manager():
+def test_context_manager() -> None:
     my_tmp = Path(mkdtemp())
     assert my_tmp.exists()
 
@@ -58,7 +58,7 @@ def test_context_manager():
     assert not my_tmp.exists()
 
 
-def test_creation_user_defined():
+def test_creation_user_defined() -> None:
     test_dir = Path("./scratch_test")
     with WorkDir("./scratch_test") as scratch:
         assert test_dir.exists()
@@ -66,9 +66,9 @@ def test_creation_user_defined():
     assert not test_dir.exists()
 
 
-def test_creation_PID():
+def test_creation_PID() -> None:
     PID = os.getpid()
-    with WorkDir(scratch_area=Path("./scratch_root")) as scratch_root:
+    with WorkDir(path=Path("./scratch_root")) as scratch_root:
         tmp_root = scratch_root.path
         with WorkDir.from_environment(user_defined_root=tmp_root) as dir:
             assert dir.path == tmp_root / f"QuEmb_{PID}"
@@ -76,9 +76,9 @@ def test_creation_PID():
                 assert dir_2.path == tmp_root / f"QuEmb_{PID + 1}"
 
 
-def test_dunder_methods():
+def test_dunder_methods() -> None:
     "Test if we can use an instance of `WorkDir` as if it was a `Path`"
-    with WorkDir(scratch_area=Path("./scratch")) as scratch:
+    with WorkDir(path=Path("./scratch")) as scratch:
         with open(scratch / "test.txt", "w") as f:
             f.write("hello world")
 
