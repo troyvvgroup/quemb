@@ -82,14 +82,12 @@ def get_dVovov_r(no, V, C, u):
 
 def get_Pmp2_r(t2l, t2r):
     assert t2l.ndim == t2r.ndim == 4
-    no = t2l.shape[0]
     Poo = -np.einsum(
         "iajb,majb->im", t2l, 2.0 * t2r - t2r.transpose(0, 3, 2, 1), optimize=True
     )
     Pvv = np.einsum(
         "iajb,icjb->ac", t2l, 2.0 * t2r - t2r.transpose(0, 3, 2, 1), optimize=True
     )
-
     return slg.block_diag(Poo, Pvv)
 
 
@@ -210,7 +208,6 @@ def get_full_u_F_u(no, C, moe, dF, u):
 def get_dVovov_u(no, V, C, u):
     n = [C[s].shape[0] for s in [0, 1]]
     nv = [n[s] - no[s] for s in [0, 1]]
-    nov = [no[s] * nv[s] for s in [0, 1]]
     Co = [C[s][:, : no[s]] for s in [0, 1]]
     Cv = [C[s][:, no[s] :] for s in [0, 1]]
     dCo = [None] * 2
@@ -248,7 +245,6 @@ def get_dVovov_u(no, V, C, u):
 def get_Pmp2_u(t2l, t2r):
     assert len(t2l) == len(t2r) == 3  # aa,bb,ab
     assert t2l[0].ndim == t2r[0].ndim == 4  # ovov
-    no = [t2l[s].shape[0] for s in [0, 1]]
     es_pattern = ["iajb,majb->im", "iajb,iamb->jm"]
     Poo = [
         -(

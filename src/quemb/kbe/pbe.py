@@ -404,7 +404,6 @@ class BE(Mixin_k_Localize):
             relax_density=relax_density,
             select_cutoff=self.select_cutoff,
             solver=solver,
-            ecore=self.E_core,
             ebe_hf=self.ebe_hf,
         )
 

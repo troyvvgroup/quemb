@@ -413,7 +413,6 @@ def be_func_parallel(
     ci_coeff_cutoff=None,
     select_cutoff=None,
     return_vec=False,
-    ecore=0.0,
     ebe_hf=0.0,
     be_iter=None,
     writeh1=False,
@@ -459,8 +458,6 @@ def be_func_parallel(
         Whether to compute fragment energy. Defaults to False.
     return_vec : bool, optional
         Whether to return the error vector. Defaults to False.
-    ecore : float, optional
-        Core energy. Defaults to 0.
     ebe_hf : float, optional
         Hartree-Fock energy. Defaults to 0.
     be_iter : int or None, optional
@@ -592,7 +589,6 @@ def be_func_parallel_u(
     eeval=False,
     ereturn=False,
     frag_energy=False,
-    ecore=0.0,
     ebe_hf=0.0,
     frozen=False,
 ):
@@ -629,8 +625,6 @@ def be_func_parallel_u(
         Whether to return the computed energy. Defaults to False.
     frag_energy : bool, optional
         Whether to compute fragment energy. Defaults to False.
-    ecore : float, optional
-        Core energy. Defaults to 0.
     ebe_hf : float, optional
         Hartree-Fock energy. Defaults to 0.
     frozen : bool, optional

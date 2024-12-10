@@ -268,11 +268,10 @@ class Frags:
             self._mo_coeffs = mf_.mo_coeff.copy()
         mf_ = None
 
-    def update_heff(self, u, cout=None, return_heff=False, only_chem=False):
+    def update_heff(self, u, cout=None, only_chem=False):
         """
         Update the effective Hamiltonian for the fragment.
         """
-
         heff_ = numpy.zeros_like(self.h1)
 
         if cout is None:
@@ -284,31 +283,20 @@ class Frags:
 
         if only_chem:
             self.heff = heff_
-            if return_heff:
-                if cout is None:
-                    return heff_
-                else:
-                    return (cout, heff_)
-            return cout
+            return
+        else:
+            for i in self.edge_idx:
+                for j in range(len(i)):
+                    for k in range(len(i)):
+                        if j > k:  # or j==k:
+                            continue
 
-        for i in self.edge_idx:
-            for j in range(len(i)):
-                for k in range(len(i)):
-                    if j > k:  # or j==k:
-                        continue
+                        heff_[i[j], i[k]] = u[cout]
+                        heff_[i[k], i[j]] = u[cout]
 
-                    heff_[i[j], i[k]] = u[cout]
-                    heff_[i[k], i[j]] = u[cout]
+                        cout += 1
 
-                    cout += 1
-
-        self.heff = heff_
-        if return_heff:
-            if cout is None:
-                return heff_
-            else:
-                return (cout, heff_)
-        return cout
+            self.heff = heff_
 
     def set_udim(self, cout):
         for i in self.edge_idx:

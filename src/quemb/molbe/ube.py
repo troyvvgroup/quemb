@@ -182,7 +182,6 @@ class UBE(BE):  # 🍠
             E_hf = 0.0
         EH1 = 0.0
         ECOUL = 0.0
-        EF = 0.0
 
         file_eri = h5py.File(self.eri_file, "w")
         lentmp = len(self.edge_idx)
@@ -308,8 +307,8 @@ class UBE(BE):  # 🍠
             file_eri.create_dataset(fobj_a.dname[1], data=eri_b)
             file_eri.create_dataset(fobj_a.dname[2], data=eri_ab)
 
-            sab = self.C_a @ self.S @ self.C_b
-            dm_init = fobj_a.get_nsocc(self.S, self.C_a, self.Nocc[0], ncore=self.ncore)
+            # sab = self.C_a @ self.S @ self.C_b
+            _ = fobj_a.get_nsocc(self.S, self.C_a, self.Nocc[0], ncore=self.ncore)
 
             fobj_a.cons_h1(self.hcore)
             eri_a = ao2mo.restore(8, eri_a, fobj_a.nao)
@@ -332,7 +331,7 @@ class UBE(BE):  # 🍠
                 ECOUL += ecoul_a
                 E_hf += fobj_a.ebe_hf
 
-            dm_init = fobj_b.get_nsocc(self.S, self.C_b, self.Nocc[1], ncore=self.ncore)
+            _ = fobj_b.get_nsocc(self.S, self.C_b, self.Nocc[1], ncore=self.ncore)
 
             fobj_b.cons_h1(self.hcore)
             eri_b = ao2mo.restore(8, eri_b, fobj_b.nao)

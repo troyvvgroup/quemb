@@ -2,7 +2,6 @@
 
 import os
 import sys
-from typing import Optional
 
 import numpy
 from numpy.linalg import multi_dot
@@ -40,7 +39,6 @@ def be_func(
     frag_energy=False,
     relax_density=False,
     return_vec=False,
-    ecore=0.0,
     ebe_hf=0.0,
     be_iter=None,
     use_cumulant=True,
@@ -81,8 +79,6 @@ def be_func(
         Whether to relax the density. Defaults to False.
     return_vec : bool, optional
         Whether to return the error vector. Defaults to False.
-    ecore : float, optional
-        Core energy. Defaults to 0.
     ebe_hf : float, optional
         Hartree-Fock energy. Defaults to 0.
     be_iter : int or None, optional
@@ -99,7 +95,6 @@ def be_func(
     rdm_return = False
     if relax_density:
         rdm_return = True
-    E = 0.0
     if frag_energy or eeval:
         total_e = [0.0, 0.0, 0.0]
 
@@ -107,9 +102,7 @@ def be_func(
     for fobj in Fobjs:
         # Update the effective Hamiltonian
         if pot is not None:
-            heff_ = fobj.update_heff(pot, return_heff=True, only_chem=only_chem)
-        else:
-            heff_ = None
+            fobj.update_heff(pot, only_chem=only_chem)
 
         # Compute the one-electron Hamiltonian
         h1_ = fobj.fock + fobj.heff
@@ -144,7 +137,7 @@ def be_func(
             # pylint: disable-next=E0611
             from pyscf import hci  # noqa: PLC0415    # optional module
 
-            nao, nmo = fobj._mf.mo_coeff.shape
+            nmo = fobj._mf.mo_coeff.shape[1]
 
             eri = ao2mo.kernel(
                 fobj._mf._eri, fobj._mf.mo_coeff, aosym="s4", compact=False
@@ -185,7 +178,7 @@ def be_func(
                 tmp = os.path.join(scratch_dir, str(os.getpid()), str(fobj.dname))
             if not os.path.isdir(tmp):
                 os.system("mkdir -p " + tmp)
-            nao, nmo = fobj._mf.mo_coeff.shape
+            nmo = fobj._mf.mo_coeff.shape[1]
 
             nelec = (fobj.nsocc, fobj.nsocc)
             mch = shci.SHCISCF(fobj._mf, nmo, nelec, orbpath=fobj.dname)
@@ -213,6 +206,7 @@ def be_func(
             nelec = (fobj.nsocc, fobj.nsocc)
             cas = mcscf.CASCI(fobj._mf, nmo, nelec)
             h1, ecore = cas.get_h1eff(mo_coeff=fobj._mf.mo_coeff)
+            unused(ecore)
             eri = ao2mo.kernel(
                 fobj._mf._eri, fobj._mf.mo_coeff, aosym="s4", compact=False
             ).reshape(4 * ((nmo),))
@@ -342,7 +336,6 @@ def be_func_u(
     ereturn=False,
     frag_energy=True,
     relax_density=False,
-    ecore=0.0,
     ebe_hf=0.0,
     scratch_dir=None,
     use_cumulant=True,
@@ -377,8 +370,6 @@ def be_func_u(
         Whether to relax the density. Defaults to False.
     return_vec : bool, optional
         Whether to return the error vector. Defaults to False.
-    ecore : float, optional
-        Core energy. Defaults to 0.
     ebe_hf : float, optional
         Hartree-Fock energy. Defaults to 0.
     use_cumulant : bool, optional
@@ -400,8 +391,6 @@ def be_func_u(
 
     # Loop over each fragment and solve using the specified solver
     for fobj_a, fobj_b in Fobjs:
-        heff_ = None  # No outside chemical potential implemented for unrestricted yet
-
         fobj_a.scf(unrestricted=True, spin_ind=0)
         fobj_b.scf(unrestricted=True, spin_ind=1)
 
@@ -933,7 +922,6 @@ def solve_uccsd(
             (if rdm2_return is True and rdm_return is True).
     """
     C = mf.mo_coeff
-    nao = [C[s].shape[0] for s in [0, 1]]
 
     Vss = eris_inp[:2]
     Vos = eris_inp[-1]
