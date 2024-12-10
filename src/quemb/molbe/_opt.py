@@ -1,6 +1,5 @@
 # Author(s): Oinam Romesh Meitei
 
-import sys
 
 import numpy
 
@@ -225,5 +224,4 @@ class BEOPT:
                         print(flush=True)
                         break
         else:
-            print("This optimization method for BE is not supported")
-            sys.exit()
+            raise ValueError("This optimization method for BE is not supported")

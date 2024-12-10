@@ -1,6 +1,5 @@
 # Author(s): Henry Tran, Oinam Meitei, Shaun Weatherly
 #
-import sys
 
 import numpy
 from numpy.linalg import eigh, inv, multi_dot, norm, svd
@@ -464,6 +463,4 @@ class MixinLocalize:
                 self.lmo_coeff = self.W.T @ self.S @ self.C[:, self.ncore :]
 
         else:
-            print("lo_method = ", lo_method, " not implemented!", flush=True)
-            print("exiting", flush=True)
-            sys.exit()
+            raise ValueError(f"lo_method = {lo_method} not implemented!")

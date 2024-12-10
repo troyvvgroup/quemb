@@ -2,7 +2,6 @@
 
 import os
 import pickle
-import sys
 from multiprocessing import Pool
 
 import h5py
@@ -284,8 +283,9 @@ class BE(Mixin_k_Localize):
                 if numpy.abs(E_core.imag).max() < 1.0e-10:
                     self.E_core = E_core.real
                 else:
-                    print("Imaginary density in E_core ", numpy.abs(E_core.imag).max())
-                    sys.exit()
+                    raise ValueError(
+                        f"Imaginary density in E_core {numpy.abs(E_core.imag).max()}"
+                    )
 
                 for k in range(nk):
                     self.hf_veff[k] -= self.core_veff[k]
@@ -381,7 +381,7 @@ class BE(Mixin_k_Localize):
         if not only_chem:
             pot = self.pot
             if self.be_type == "be1":
-                sys.exit(
+                raise ValueError(
                     "BE1 only works with chemical potential optimization. "
                     "Set only_chem=True"
                 )
@@ -429,8 +429,7 @@ class BE(Mixin_k_Localize):
                 self.unitcell_nkpt,
             )
         else:
-            print("This optimization method for BE is not supported")
-            sys.exit()
+            raise ValueError("This optimization method for BE is not supported")
 
     @copy_docstring(_ext_get_be_error_jacobian)
     def get_be_error_jacobian(self, jac_solver="HF"):
@@ -567,8 +566,7 @@ class BE(Mixin_k_Localize):
         # ERI & Fock parallelization for periodic calculations
         if self.cderi:
             if self.nproc == 1:
-                print("If cderi is set, try again with nproc > 1")
-                sys.exit()
+                raise ValueError("If cderi is set, try again with nproc > 1")
 
             nprocs = int(self.nproc / self.ompnum)
             pool_ = Pool(nprocs)
@@ -623,8 +621,8 @@ class BE(Mixin_k_Localize):
                     self.Fobjs[frg].veff = veff_.real
                     self.Fobjs[frg].veff0 = veff0.real
                 else:
-                    print("Imaginary Veff ", numpy.abs(veff_.imag).max())
-                    sys.exit()
+                    raise ValueError(f"Imaginary Veff {numpy.abs(veff_.imag).max()}")
+
                 self.Fobjs[frg].fock = self.Fobjs[frg].h1 + veff_.real
             veffs = None
 

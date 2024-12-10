@@ -1,6 +1,5 @@
 # Author(s): Oinam Romesh Meitei
 
-import sys
 
 import h5py
 import numpy
@@ -153,8 +152,9 @@ class Frags:
         if numpy.abs(supcell_rdm.imag).max() < 1.0e-6:
             supcell_rdm = supcell_rdm.real
         else:
-            print("Imaginary density in Full SD", numpy.abs(supcell_rdm.imag).max())
-            sys.exit()
+            raise ValueError(
+                f"Imaginary density in Full SD {numpy.abs(supcell_rdm.imag).max()}"
+            )
 
         Sites = [i + (nlo * 0) for i in self.fsites]
         if not frag_type == "autogen":
@@ -214,8 +214,7 @@ class Frags:
         if numpy.abs(h1_eo.imag).max() < 1.0e-7:
             self.h1 = h1_eo.real
         else:
-            print("Imaginary Hcore ", numpy.abs(h1_eo.imag).max())
-            sys.exit()
+            raise ValueError(f"Imaginary Hcore {numpy.abs(h1_eo.imag).max()}")
 
     def cons_fock(self, hf_veff, S, dm, eri_=None):
         """
@@ -243,8 +242,8 @@ class Frags:
             self.veff = veff_.real
             self.veff0 = veff0.real
         else:
-            print("Imaginary Veff ", numpy.abs(veff_.imag).max())
-            sys.exit()
+            raise ValueError(f"Imaginary Veff {numpy.abs(veff_.imag).max()}")
+
         self.fock = self.h1 + veff_.real
 
     def get_nsocc(self, S, C, nocc, ncore=0):
@@ -283,8 +282,10 @@ class Frags:
         if numpy.abs(P_.imag).max() < 1.0e-6:
             P_ = P_.real
         else:
-            print("Imaginary density in get_nsocc ", numpy.abs(P_.imag).max())
-            sys.exit()
+            raise ValueError(
+                f"Imaginary density in get_nsocc {numpy.abs(P_.imag).max()}"
+            )
+
         nsocc_ = numpy.trace(P_)
         nsocc = int(numpy.round(nsocc_.real) / 2)
 

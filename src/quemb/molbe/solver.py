@@ -1,7 +1,6 @@
 # Author(s): Oinam Romesh Meitei, Leah Weisburn, Shaun Weatherly
 
 import os
-import sys
 
 import numpy
 from numpy.linalg import multi_dot
@@ -148,7 +147,7 @@ def be_func(
                 select_cutoff = hci_cutoff
                 ci_coeff_cutoff = hci_cutoff
             elif select_cutoff is None or ci_coeff_cutoff is None:
-                sys.exit()
+                raise ValueError
 
             ci_.select_cutoff = select_cutoff
             ci_.ci_coeff_cutoff = ci_coeff_cutoff
@@ -243,9 +242,7 @@ def be_func(
                     os.system("rm -r " + os.path.join(tmp, "node*"))
 
         else:
-            print("Solver not implemented", flush=True)
-            print("exiting", flush=True)
-            sys.exit()
+            raise ValueError("Solver not implemented")
 
         if solver == "MP2":
             rdm1_tmp = fobj._mc.make_rdm1()
@@ -412,9 +409,7 @@ def be_func_u(
                 )
                 rdm1_tmp = make_rdm1_uccsd(ucc, relax=relax_density)
         else:
-            print("Solver not implemented", flush=True)
-            print("exiting", flush=True)
-            sys.exit()
+            raise ValueError("Solver not implemented")
 
         fobj_a.rdm1__ = rdm1_tmp[0].copy()
         fobj_b._rdm1 = (

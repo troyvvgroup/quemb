@@ -2,7 +2,6 @@
 #            Henry Tran
 #
 import os
-import sys
 
 import numpy
 from libdmet.lo import pywannier90
@@ -65,10 +64,8 @@ class Mixin_k_Localize:
             elif valence_basis == "minao":
                 from .basis_minao_core_val import core_basis, val_basis  # noqa: PLC0415
             elif iao_val_core:
-                sys.exit(
-                    "valence_basis="
-                    + valence_basis
-                    + " not supported for iao_val_core=True"
+                raise ValueError(
+                    f"valence_basis={valence_basis} not supported for iao_val_core=True"
                 )
 
         if lo_method == "lowdin":
@@ -495,6 +492,4 @@ class Mixin_k_Localize:
             self.cinv = cinv_
 
         else:
-            print("lo_method = ", lo_method, " not implemented!", flush=True)
-            print("exiting", flush=True)
-            sys.exit()
+            raise ValueError(f"lo_method = {lo_method} not implemented!")
