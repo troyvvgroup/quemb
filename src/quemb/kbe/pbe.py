@@ -15,6 +15,8 @@ from quemb.kbe.lo import Mixin_k_Localize
 from quemb.kbe.misc import print_energy, storePBE
 from quemb.kbe.pfrag import Frags
 from quemb.molbe._opt import BEOPT
+from quemb.molbe.be_parallel import be_func_parallel
+from quemb.molbe.solver import be_func
 from quemb.shared import be_var
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
@@ -711,10 +713,6 @@ class BE(Mixin_k_Localize):
         clean_eri : bool, optional
             Whether to clean up ERI files after calculation, by default False.
         """
-        # has to be here because of circular dependency
-        from .be_parallel import be_func_parallel  # noqa: PLC0415
-        from .solver import be_func  # noqa: PLC0415
-
         print("Calculating Energy by Fragment? ", calc_frag_energy)
         if nproc == 1:
             rets = be_func(
