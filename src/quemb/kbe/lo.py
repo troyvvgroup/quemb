@@ -58,15 +58,8 @@ class Mixin_k_Localize:
         iao_wannier : bool
             Whether to perform Wannier localization in the IAO space
         """
-        if lo_method == "iao":
-            if valence_basis == "sto-3g":
-                from .basis_sto3g_core_val import core_basis, val_basis  # noqa: PLC0415
-            elif valence_basis == "minao":
-                from .basis_minao_core_val import core_basis, val_basis  # noqa: PLC0415
-            elif iao_val_core:
-                raise ValueError(
-                    f"valence_basis={valence_basis} not supported for iao_val_core=True"
-                )
+        if lo_method == "iao" and iao_val_core:
+            raise NotImplementedError("iao_val_core and lo_method='iao' not supported.")
 
         if lo_method == "lowdin":
             # Lowdin orthogonalization with k-points
