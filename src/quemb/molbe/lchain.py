@@ -233,7 +233,9 @@ def chain(self, mol, frozen_core=False, closed=False):
             self.centerf_idx.append([self.fsites[i].index(j) for j in fs[i][3]])
 
     if self.be_type == "be4" and closed:
-        raise ValueError("Will add this soon!")
+        raise NotImplementedError(
+            "be4 is not implemented for this case. Contact developers if it is needed."
+        )
 
     if not closed:
         for ix, i in enumerate(self.fsites):
