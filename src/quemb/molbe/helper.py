@@ -191,7 +191,7 @@ def get_core(mol):
 
     Parameters
     ----------
-    mol : pyscf.gto.Mole
+    mol : pyscf.gto.mole.Mole
         Molecule object from PySCF.
 
     Returns

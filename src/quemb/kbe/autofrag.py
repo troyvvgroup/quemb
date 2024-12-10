@@ -277,8 +277,8 @@ def autogen(
 
     Parameters
     ----------
-    mol : pyscf.pbc.gto.Cell
-        pyscf.pbc.gto.Cell object. This is required for the options, 'autogen',
+    mol : pyscf.pbc.gto.cell.Cell
+        pyscf.pbc.gto.cell.Cell object. This is required for the options, 'autogen',
         and 'chain' as frag_type.
     kpt : list of int
         Number of k-points in each lattice vector dimension.

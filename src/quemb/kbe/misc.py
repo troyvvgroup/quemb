@@ -7,12 +7,11 @@ from pyscf.pbc import tools
 
 def sgeom(cell, kmesh=None):
     """
-    Get a supercell pyscf.pbc.gto.Cell object
+    Get a supercell pyscf.pbc.gto.cell.Cell object
 
     Parameters
     ----------
-    cell : pyscf.pbc.gto.Cell
-       Pyscf pbc.gto.Cell object.
+    cell : pyscf.pbc.gto.cell.Cell
     kmesh : list of int
        Number of k-points in each lattice vector dimension
     """

@@ -33,9 +33,9 @@ class BE(Mixin_k_Localize):
 
     Attributes
     ----------
-    mf : pyscf.scf.SCF
+    mf : pyscf.scf.hf.SCF
         PySCF mean-field object.
-    fobj : molbe.fragpart
+    fobj : quemb.kbe.fragment.fragpart
         Fragment object containing sites, centers, edges, and indices.
     eri_file : str
         Path to the file storing two-electron integrals.
@@ -72,9 +72,9 @@ class BE(Mixin_k_Localize):
 
         Parameters
         ----------
-        mf : pyscf.pbc.scf.SCF
+        mf : pyscf.pbc.scf.hf.SCF
             PySCF periodic mean-field object.
-        fobj : kbe.fragpart
+        fobj : quemb.kbe.fragment.fragpart
             Fragment object containing sites, centers, edges, and indices.
         kpts : list of list of float
             k-points in the reciprocal space for periodic computation
@@ -355,7 +355,7 @@ class BE(Mixin_k_Localize):
         only_chem : bool, optional
             If true, density matching is not performed --
             only global chemical potential is optimized, by default False
-        conv_tol : _type_, optional
+        conv_tol : float, optional
             Convergence tolerance, by default 1.e-6
         relax_density : bool, optional
             Whether to use relaxed or unrelaxed densities, by default False
@@ -368,14 +368,13 @@ class BE(Mixin_k_Localize):
         max_iter : int, optional
             Maximum number of optimization steps, by default 500
         nproc : int
-        Total number of processors assigned for the optimization. Defaults to 1.
-        When nproc > 1, Python multithreading
-        is invoked.
+            Total number of processors assigned for the optimization. Defaults to 1.
+            When nproc > 1, Python multithreading is invoked.
         ompnum : int
-        If nproc > 1, ompnum sets the number of cores for OpenMP parallelization.
-        Defaults to 4
+            If nproc > 1, ompnum sets the number of cores for OpenMP parallelization.
+            Defaults to 4
         J0 : list of list of float
-        Initial Jacobian.
+            Initial Jacobian.
         """
         # Check if only chemical potential optimization is required
         if not only_chem:

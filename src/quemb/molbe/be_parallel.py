@@ -430,7 +430,7 @@ def be_func_parallel(
     pot : list of float
         Potentials (local & global) that are added to the 1-electron Hamiltonian
         component.  The last element in the list is the chemical potential.
-    Fobjs : list of MolBE.fragpart
+    Fobjs : list of quemb.molbe.fragment.fragpart
         Fragment definitions.
     Nocc : int
         Number of occupied orbitals for the full system.
@@ -605,7 +605,7 @@ def be_func_parallel_u(
         Potentials (local & global) that are added to the 1-electron
         Hamiltonian component.  The last element in the list is the chemical potential.
         Should always be 0, as this is still a one-shot only implementation
-    Fobjs : list of tuples of MolBE.fragpart
+    Fobjs : list of tuple of quemb.molbe.fragment.fragpart
         Fragment definitions, alpha and beta components.
     solver : str
         High-level solver in bootstrap embedding. Supported value is 'UCCSD'.
