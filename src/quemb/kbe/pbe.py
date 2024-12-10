@@ -253,8 +253,8 @@ class BE(Mixin_k_Localize):
 
                 for k in range(nk):
                     dm_nocore[k] += 2.0 * numpy.dot(
-                        self.C[k][:, self.ncore: self.ncore + self.Nocc],
-                        self.C[k][:, self.ncore: self.ncore + self.Nocc].conj().T,
+                        self.C[k][:, self.ncore : self.ncore + self.Nocc],
+                        self.C[k][:, self.ncore : self.ncore + self.Nocc].conj().T,
                     )
                     C_core[k] += self.C[k][:, : self.ncore]
                     P_core[k] += numpy.dot(C_core[k], C_core[k].conj().T)
