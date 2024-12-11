@@ -89,7 +89,6 @@ class BE(MixinLocalize):
         restart=False,
         save=False,
         restart_file="storebe.pk",
-        mo_energy=None,
         save_file="storebe.pk",
         hci_pt=False,
         nproc=1,
@@ -122,8 +121,6 @@ class BE(MixinLocalize):
             Whether to save intermediate objects for restart, by default False.
         restart_file : str, optional
             Path to the file storing restart information, by default 'storebe.pk'.
-        mo_energy : numpy.ndarray, optional
-            Molecular orbital energies, by default None.
         save_file : str, optional
             Path to the file storing save information, by default 'storebe.pk'.
         nproc : int, optional
@@ -668,7 +665,6 @@ class BE(MixinLocalize):
         only_chem=False,
         conv_tol=1.0e-6,
         relax_density=False,
-        use_cumulant=True,
         J0=None,
         nproc=1,
         ompnum=4,
