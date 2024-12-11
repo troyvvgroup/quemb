@@ -48,11 +48,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-<<<<<<< HEAD
         pip install -r tests/static_analysis_requirements.txt
-=======
-        pip install --upgrade --upgrade-strategy eager ruff pylint mypy scipy-stubs pytest
->>>>>>> fbbcef8 (changed quemb unittest to install pytest earlier)
         pip install .
 
 
