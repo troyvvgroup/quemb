@@ -58,10 +58,6 @@ class fragpart:
             and 'chain' as frag_type.
         valence_basis: str
             Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
-        valence_only: bool
-            If this option is set to True, all calculation will be performed in the
-            valence basis in the IAO partitioning.
-            This is an experimental feature.
         frozen_core: bool
             Whether to invoke frozen core approximation. This is set to False by default
         print_frags: bool
