@@ -141,7 +141,7 @@ def get_full_u(C, moe, eri, no, v, u, thresh=1e8):
     return U
 
 
-def get_full_u_batch(C, moe, eri, no, vs, us, thresh=1e10, timing=False):
+def get_full_u_batch(C, moe, eri, no, vs, us, thresh=1e10):
     nao = C.shape[0]
     nv = nao - no
     npot = len(vs)

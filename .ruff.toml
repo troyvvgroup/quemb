@@ -1,6 +1,7 @@
 [lint]
 # see the rules [here](https://docs.astral.sh/ruff/rules/)
-select = ["E", "F", "I", "NPY", "PL"]
+# select = ["E", "F", "I", "NPY", "PL"]
+select = ["ARG"]
 ignore = [
     "S101",
         # https://docs.astral.sh/ruff/rules/assert/
