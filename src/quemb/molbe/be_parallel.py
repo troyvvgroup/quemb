@@ -411,7 +411,6 @@ def be_func_parallel(
     select_cutoff=None,
     return_vec=False,
     ebe_hf=0.0,
-    be_iter=None,
     writeh1=False,
 ):
     """
@@ -457,8 +456,6 @@ def be_func_parallel(
         Whether to return the error vector. Defaults to False.
     ebe_hf : float, optional
         Hartree-Fock energy. Defaults to 0.
-    be_iter : int or None, optional
-        Iteration number for bootstrap embedding. Defaults to None.
     writeh1 : bool, optional
         Whether to write the one-electron integrals. Defaults to False.
 
