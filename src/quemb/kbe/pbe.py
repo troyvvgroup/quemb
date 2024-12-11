@@ -325,7 +325,7 @@ class BE(Mixin_k_Localize):
             rfile.close()
 
         if not restart:
-            self.initialize(mf._eri, compute_hf)
+            self.initialize(compute_hf)
 
     def optimize(
         self,
