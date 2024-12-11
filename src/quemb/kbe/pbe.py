@@ -161,6 +161,7 @@ class BE(Mixin_k_Localize):
         self.hci_pt = hci_pt
 
         if not restart:
+            self.mo_energy = mf.mo_energy
             mf.exxdiv = None
             self.mf = mf
             self.Nocc = mf.cell.nelectron // 2
