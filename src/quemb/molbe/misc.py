@@ -99,7 +99,8 @@ def libint2pyscf(
         mf.with_df = mydf
     else:
         mf = scf.UHF(mol) if unrestricted else scf.RHF(mol)
-    mf.get_hcore = lambda *args: hcore_pyscf
+
+    mf.get_hcore = lambda *args: hcore_pyscf  # noqa: ARG005
 
     return mol, mf
 
