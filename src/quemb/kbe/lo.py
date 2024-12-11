@@ -45,10 +45,12 @@ class Mixin_k_Localize:
         Parameters
         ----------
         lo_method : str
-            Localization method in quantum chemistry. 'lowdin', 'boys','iao', and 'wannier'
-            are supported.
+            Localization method in quantum chemistry. 'lowdin', 'boys','iao',
+            and 'wannier' are supported.
         valence_basis : str
-            Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
+            Name of valence basis set for IAO scheme. 'sto-3g' suffice for most cases.
+        core_basis : str
+            Name of core basis set for IAO scheme. 'sto-3g' suffice for most cases.
         iao_wannier : bool
             Whether to perform Wannier localization in the IAO space
         """
