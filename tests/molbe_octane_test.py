@@ -3,6 +3,7 @@
 
 import os
 import tempfile
+from typing import Tuple
 
 import numpy as np
 import pytest
@@ -19,7 +20,7 @@ from quemb.shared.io import write_cube
     not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
     reason="This test is known to fail.",
 )
-def test_octane_molbe():
+def test_octane_molbe() -> None:
     # Prepare octane molecule
     mol, mf = prepare_octane()
 
@@ -45,7 +46,7 @@ def test_octane_molbe():
     print(f"*** BE2 Correlation Energy Error (%) : {err_:>8.4f} %")
 
 
-def test_cubegen():
+def test_cubegen() -> None:
     # Prepare octane molecule
     mol, mf = prepare_octane()
     # Build fragments
@@ -55,23 +56,21 @@ def test_cubegen():
     mybe.optimize(solver="CCSD", nproc=1, ompnum=1)
     # Write cube file to a temporary location
     with tempfile.TemporaryDirectory() as tmpdir:
-        write_cube(mybe, tmpdir, fragment_idx=[3], resolution=5)
+        write_cube(mybe, tmpdir, fragment_idx=[3], cubegen_kwargs=dict(resolution=5))
         with open(os.path.join(tmpdir, "frag_3_orb_2.cube"), "r") as f:
-            cube_content = f.read()
             cube_content = np.fromstring(
-                "".join(cube_content.split("\n")[2:]), sep=" ", dtype=float
+                "".join(f.read().split("\n")[2:]), sep=" ", dtype=float
             )
         with open("data/octane_frag_3_orb_2.cube", "r") as f:
-            reference_content = f.read()
             reference_content = np.fromstring(
-                "".join(reference_content.split("\n")[2:]), sep=" ", dtype=float
+                "".join(f.read().split("\n")[2:]), sep=" ", dtype=float
             )
         assert np.isclose(
             cube_content, reference_content
         ).all(), "Cube file content does not match reference content."
 
 
-def prepare_octane():
+def prepare_octane() -> Tuple[gto.Mole, scf.hf.RHF]:
     mol = gto.M(
         atom="""
     C   0.4419364699  -0.6201930287   0.0000000000
