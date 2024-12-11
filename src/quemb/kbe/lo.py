@@ -308,7 +308,7 @@ class Mixin_k_Localize:
                 for k in range(self.nkpt):
                     Ciao[k] = numpy.dot(Ciao_[k], u_mat[k])
 
-            # Stack Ciao|Cpao
+            # Stack Ciao
             Wstack = numpy.zeros(
                 (self.nkpt, Ciao.shape[1], Ciao.shape[2] + Cpao.shape[2]),
                 dtype=numpy.complex128,

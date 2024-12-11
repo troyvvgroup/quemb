@@ -2,31 +2,23 @@
 
 
 def chain(self, mol, frozen_core=False, closed=False):
-    """
-    Hard coded linear chain fragment constructor
-    """
+    """Hard coded linear chain fragment constructor"""
     sites = []
     coreshift = 0
+    assert self.kpt is None
+
     for adx, bas in enumerate(mol.aoslice_by_atom()):
         start_ = bas[2]
         stop_ = bas[3]
 
         if not frozen_core:
-            sites.append([i for i in range(start_, stop_)])
+            sites.append(list(range(start_, stop_)))
         else:
             start_ -= coreshift
             ncore_ = self.core_list[adx]
             stop_ -= coreshift + ncore_
             coreshift = ncore_ + coreshift
-            sites.append([i for i in range(start_, stop_)])
-    if closed:
-        lnext = [i for i in self.kpt if i > 1]
-        if not len(lnext) == 0:
-            nk1 = lnext[0]
-        else:
-            raise ValueError("Gamma point does not work")
-
-        Ns = mol.aoslice_by_atom()[-1][3]
+            sites.append(list(range(start_, stop_)))
 
     if self.be_type == "be2":
         fs = []
