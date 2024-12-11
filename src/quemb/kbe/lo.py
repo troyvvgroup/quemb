@@ -32,10 +32,9 @@ class Mixin_k_Localize:
     def localize(
         self,
         lo_method,
-        mol=None,
         valence_basis="sto-3g",
+        core_basis="sto-3g",
         iao_wannier=True,
-        valence_only=False,
         iao_val_core=True,
     ):
         """Orbital localization
@@ -46,27 +45,17 @@ class Mixin_k_Localize:
         Parameters
         ----------
         lo_method : str
-            Localization method in quantum chemistry. 'lowdin', 'boys','iao', and 'wannier'
-            are supported.
-        mol: pyscf.gto.mole.Mole
+            Localization method in quantum chemistry. 'lowdin', 'boys','iao',
+            and 'wannier' are supported.
         valence_basis : str
-            Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
-        valence_only : bool
-            If this option is set to True, all calculation will be performed in the valence
-            basis in the IAO partitioning.
-            This is an experimental feature.
+            Name of valence basis set for IAO scheme. 'sto-3g' suffice for most cases.
+        core_basis : str
+            Name of core basis set for IAO scheme. 'sto-3g' suffice for most cases.
         iao_wannier : bool
             Whether to perform Wannier localization in the IAO space
         """
-        if lo_method == "iao":
-            if valence_basis == "sto-3g":
-                from .basis_sto3g_core_val import core_basis, val_basis  # noqa: PLC0415
-            elif valence_basis == "minao":
-                from .basis_minao_core_val import core_basis, val_basis  # noqa: PLC0415
-            elif iao_val_core:
-                raise ValueError(
-                    f"valence_basis={valence_basis} not supported for iao_val_core=True"
-                )
+        if lo_method == "iao" and iao_val_core:
+            raise NotImplementedError("This does not work. Contact Developers.")
 
         if lo_method == "lowdin":
             # Lowdin orthogonalization with k-points
@@ -198,7 +187,9 @@ class Mixin_k_Localize:
                     ciao_core[k] = symm_orth_k(ciao_core[k], ovlp=self.S[k])
 
                 # Begin valence
-                s12_val_, s2_val = get_xovlp_k(self.cell, self.kpts, basis=val_basis)
+                s12_val_, s2_val = get_xovlp_k(
+                    self.cell, self.kpts, basis=valence_basis
+                )
                 C_nocore = self.C[:, :, self.ncore :].copy()
                 C_nocore_occ_ = C_nocore[:, :, : self.Nocc].copy()
                 nk_, nao_, nmo_ = C_nocore.shape
@@ -298,7 +289,7 @@ class Mixin_k_Localize:
                     if i_init:
                         A_matrix[k] = numpy.eye(num_wann, dtype=numpy.complex128)
                     else:
-                        ovlp_ciao = uciao[k].conj().T @ self.S[k] @ Ciao[k]
+                        ovlp_ciao = Ciao[k].conj().T @ self.S[k] @ Ciao[k]
                         A_matrix[k] = ovlp_ciao
                 A_matrix = A_matrix.transpose(1, 2, 0)
 
