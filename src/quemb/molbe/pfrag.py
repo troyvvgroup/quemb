@@ -209,9 +209,6 @@ class Frags:
             mo_coeffs = scipy.linalg.svd(C_)[0]
         except scipy.linalg.LinAlgError:
             mo_coeffs = scipy.linalg.eigh(C_)[1][:, -nsocc:]
-        finally:
-            raise ValueError("""linalg svd and eigh failed to get mo_coeffs
-            for a fragment while running get_nsocc""")
 
         self._mo_coeffs = mo_coeffs
         self.nsocc = nsocc
