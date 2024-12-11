@@ -396,7 +396,7 @@ def be_func_parallel(
     Fobjs,
     Nocc,
     solver,
-    enuc,
+    enuc,  # noqa: ARG001
     hf_veff=None,
     nproc=1,
     ompnum=4,
@@ -404,13 +404,11 @@ def be_func_parallel(
     relax_density=False,
     use_cumulant=True,
     eeval=False,
-    ereturn=False,
     frag_energy=False,
     hci_cutoff=0.001,
     ci_coeff_cutoff=None,
     select_cutoff=None,
     return_vec=False,
-    ebe_hf=0.0,
     writeh1=False,
 ):
     """
@@ -448,8 +446,6 @@ def be_func_parallel(
         Refer to bootstrap embedding literature. Defaults to False.
     eeval : bool, optional
         Whether to evaluate energies. Defaults to False.
-    ereturn : bool, optional
-        Whether to return the computed energy. Defaults to False.
     frag_energy : bool, optional
         Whether to compute fragment energy. Defaults to False.
     return_vec : bool, optional
