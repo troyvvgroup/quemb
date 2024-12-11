@@ -138,14 +138,12 @@ def get_iao_k(Co, S12, S1, S2=None, ortho=True):
     return Ciao
 
 
-def get_pao_k(Ciao, S, S12, S2):
+def get_pao_k(Ciao, S, S12):
     """
     Args:
         Ciao: output of :func:`get_iao`
         S: ao ovlp matrix
         S12: valence orbitals projected into ao basis
-        S2: valence ovlp matrix
-        mol: pyscf mol instance
     Return:
         Cpao (orthogonalized)
     """
@@ -159,13 +157,11 @@ def get_pao_k(Ciao, S, S12, S2):
         Piao = Ciao[k] @ Ciao[k].conj().T @ S[k]
         cpao_ = (numpy.eye(nao) - Piao) @ nonval
 
-        numpy.o0 = cpao_.shape[-1]
         Cpao.append(cano_orth(cpao_, ovlp=S[k]))
-        numpy.o1 = Cpao[k].shape[-1]
     return numpy.asarray(Cpao)
 
 
-def get_pao_native_k(Ciao, S, mol, valence_basis, kpts, ortho=True):
+def get_pao_native_k(Ciao, S, mol, valence_basis, ortho=True):
     """
     Args:
         Ciao: output of :func:`get_iao_native`
@@ -175,7 +171,6 @@ def get_pao_native_k(Ciao, S, mol, valence_basis, kpts, ortho=True):
     Return:
         Cpao (symmetrically orthogonalized)
     """
-
     nk, nao, niao = Ciao.shape
 
     # Form a mol object with the valence basis for the ao_labels

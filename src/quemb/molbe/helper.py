@@ -59,14 +59,8 @@ def get_scfObj(
     Eri,
     nocc,
     dm0=None,
-    enuc=0.0,
-    pert_h=False,
-    pert_list=None,
-    save_chkfile=False,
-    fname="f0",
 ):
-    """
-    Initialize and run a restricted Hartree-Fock (RHF) calculation.
+    """Initialize and run a restricted Hartree-Fock (RHF) calculation.
 
     This function sets up an SCF (Self-Consistent Field) object using the provided
     one-electron Hamiltonian, electron repulsion integrals, and number
@@ -84,8 +78,6 @@ def get_scfObj(
     dm0 : numpy.ndarray, optional
         Initial density matrix. If not provided, the SCF calculation will start
         from scratch. Defaults to None.
-    enuc : float, optional
-        Nuclear repulsion energy. Defaults to 0.0.
 
     Returns
     -------
@@ -103,8 +95,8 @@ def get_scfObj(
 
     # Initialize an RHF object
     mf_ = scf.RHF(mol)
-    mf_.get_hcore = lambda *args: h1
-    mf_.get_ovlp = lambda *args: S
+    mf_.get_hcore = lambda *args: h1  # noqa: ARG005
+    mf_.get_ovlp = lambda *args: S  # noqa: ARG005
     mf_._eri = Eri
     mf_.incore_anyway = True
     mf_.max_cycle = 50

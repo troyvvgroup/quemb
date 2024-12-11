@@ -11,7 +11,6 @@ class fragpart:
     def __init__(
         self,
         natom=0,
-        dim=1,
         frag_type="autogen",
         unitcell=1,
         gamma_2d=False,
@@ -23,7 +22,6 @@ class fragpart:
         nx=False,
         ny=False,
         nz=False,
-        closed=False,
         kpt=None,
         valence_basis=None,
         be_type="be2",
@@ -60,10 +58,6 @@ class fragpart:
             and 'chain' as frag_type.
         valence_basis: str
             Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
-        valence_only: bool
-            If this option is set to True, all calculation will be performed in the
-            valence basis in the IAO partitioning.
-            This is an experimental feature.
         frozen_core: bool
             Whether to invoke frozen core approximation. This is set to False by default
         print_frags: bool

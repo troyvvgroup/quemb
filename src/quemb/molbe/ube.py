@@ -32,17 +32,8 @@ class UBE(BE):  # 🍠
         mf,
         fobj,
         eri_file="eri_file.h5",
-        exxdiv="ewald",
         lo_method="lowdin",
         compute_hf=True,
-        restart=False,
-        save=False,
-        restart_file="storebe.pk",
-        mo_energy=None,
-        iao_wannier=True,
-        save_file="storebe.pk",
-        debug00=False,
-        debug001=False,
     ):
         """Initialize Unrestricted BE Object (ube🍠)
         ** NOTE **
@@ -157,7 +148,6 @@ class UBE(BE):  # 🍠
 
         self.localize(
             lo_method,
-            mol=self.mol,
             valence_basis=fobj.valence_basis,
             valence_only=fobj.valence_only,
         )
@@ -430,18 +420,16 @@ class UBE(BE):  # 🍠
             )
         else:
             E, E_comp = be_func_parallel_u(
-                None,
-                zip(self.Fobjs_a, self.Fobjs_b),
-                solver,
-                self.enuc,
+                pot=None,
+                Fobjs=zip(self.Fobjs_a, self.Fobjs_b),
+                solver=solver,
+                enuc=self.enuc,
                 hf_veff=self.hf_veff,
-                eeval=True,
-                ereturn=True,
+                nproc=nproc,
+                ompnum=ompnum,
                 relax_density=False,
                 frag_energy=calc_frag_energy,
                 frozen=self.frozen_core,
-                nproc=nproc,
-                ompnum=ompnum,
             )
         unused(E_comp)
 

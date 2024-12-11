@@ -89,7 +89,6 @@ class BE(MixinLocalize):
         restart=False,
         save=False,
         restart_file="storebe.pk",
-        mo_energy=None,
         save_file="storebe.pk",
         hci_pt=False,
         nproc=1,
@@ -122,8 +121,6 @@ class BE(MixinLocalize):
             Whether to save intermediate objects for restart, by default False.
         restart_file : str, optional
             Path to the file storing restart information, by default 'storebe.pk'.
-        mo_energy : numpy.ndarray, optional
-            Molecular orbital energies, by default None.
         save_file : str, optional
             Path to the file storing save information, by default 'storebe.pk'.
         nproc : int, optional
@@ -261,7 +258,6 @@ class BE(MixinLocalize):
             self.localize(
                 lo_method,
                 pop_method=pop_method,
-                mol=self.mol,
                 valence_basis=fobj.valence_basis,
                 valence_only=fobj.valence_only,
             )
@@ -270,7 +266,6 @@ class BE(MixinLocalize):
                 self.Ciao_pao = self.localize(
                     lo_method,
                     pop_method=pop_method,
-                    mol=self.mol,
                     valence_basis=fobj.valence_basis,
                     hstack=True,
                     valence_only=False,
@@ -668,7 +663,6 @@ class BE(MixinLocalize):
         only_chem=False,
         conv_tol=1.0e-6,
         relax_density=False,
-        use_cumulant=True,
         J0=None,
         nproc=1,
         ompnum=4,
@@ -698,8 +692,6 @@ class BE(MixinLocalize):
             Lambda amplitudes, whereas unrelaxed density only uses T amplitudes.
             c.f. See http://classic.chem.msu.su/cgi-bin/ceilidh.exe/gran/gamess/forum/?C34df668afbHW-7216-1405+00.htm
             for the distinction between the two
-        use_cumulant : bool, optional
-            Use cumulant-based energy expression, by default True
         max_iter : int, optional
             Maximum number of optimization steps, by default 500
         nproc : int

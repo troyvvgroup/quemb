@@ -25,7 +25,7 @@ def be_func(
     Fobjs,
     Nocc,
     solver,
-    enuc,
+    enuc,  # noqa: ARG001
     hf_veff=None,
     only_chem=False,
     nproc=4,
@@ -38,8 +38,6 @@ def be_func(
     frag_energy=False,
     relax_density=False,
     return_vec=False,
-    ebe_hf=0.0,
-    be_iter=None,
     use_cumulant=True,
     scratch_dir=None,
     **solver_kwargs,
@@ -80,8 +78,6 @@ def be_func(
         Whether to return the error vector. Defaults to False.
     ebe_hf : float, optional
         Hartree-Fock energy. Defaults to 0.
-    be_iter : int or None, optional
-        Iteration number. Defaults to None.
     use_cumulant : bool, optional
         Whether to use the cumulant-based energy expression. Defaults to True.
 
@@ -324,17 +320,15 @@ def be_func(
 
 
 def be_func_u(
-    pot,
+    pot,  # noqa: ARG001
     Fobjs,
     solver,
-    enuc,
+    enuc,  # noqa: ARG001
     hf_veff=None,
     eeval=False,
     ereturn=False,
     frag_energy=True,
     relax_density=False,
-    ebe_hf=0.0,
-    scratch_dir=None,
     use_cumulant=True,
     frozen=False,
 ):
@@ -861,13 +855,10 @@ def solve_uccsd(
     mf,
     eris_inp,
     frozen=None,
-    mo_coeff=None,
     relax=False,
     use_cumulant=False,
     with_dm1=True,
     rdm2_return=False,
-    mo_occ=None,
-    mo_energy=None,
     rdm_return=False,
     verbose=0,
 ):
@@ -887,8 +878,6 @@ def solve_uccsd(
         Custom fragment ERIs object
     frozen : list or int, optional
         List of frozen orbitals or number of frozen core orbitals. Defaults to None.
-    mo_coeff : numpy.ndarray, optional
-        Molecular orbital coefficients. Defaults to None.
     relax : bool, optional
         Whether to use relaxed density matrices. Defaults to False.
     use_cumulant : bool, optional
@@ -898,10 +887,6 @@ def solve_uccsd(
         density matrix calculation. Defaults to True.
     rdm2_return : bool, optional
         Whether to return the two-particle density matrix. Defaults to False.
-    mo_occ : numpy.ndarray, optional
-        Molecular orbital occupations. Defaults to None.
-    mo_energy : numpy.ndarray, optional
-        Molecular orbital energies. Defaults to None.
     rdm_return : bool, optional
         Whether to return the one-particle density matrix. Defaults to False.
     verbose : int, optional
