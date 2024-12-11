@@ -32,17 +32,8 @@ class UBE(BE):  # 🍠
         mf,
         fobj,
         eri_file="eri_file.h5",
-        exxdiv="ewald",
         lo_method="lowdin",
         compute_hf=True,
-        restart=False,
-        save=False,
-        restart_file="storebe.pk",
-        mo_energy=None,
-        iao_wannier=True,
-        save_file="storebe.pk",
-        debug00=False,
-        debug001=False,
     ):
         """Initialize Unrestricted BE Object (ube🍠)
         ** NOTE **
