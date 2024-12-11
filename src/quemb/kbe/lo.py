@@ -47,14 +47,14 @@ class Mixin_k_Localize:
         Parameters
         ----------
         lo_method : str
-            Localization method in quantum chemistry. 'lowdin', 'boys','iao', and 'wannier'
-            are supported.
+            Localization method in quantum chemistry. 'lowdin', 'boys','iao',
+            and 'wannier' are supported.
         mol: pyscf.gto.mole.Mole
         valence_basis : str
             Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
         valence_only : bool
-            If this option is set to True, all calculation will be performed in the valence
-            basis in the IAO partitioning.
+            If this option is set to True, all calculation will be performed in the
+            valence basis in the IAO partitioning.
             This is an experimental feature.
         iao_wannier : bool
             Whether to perform Wannier localization in the IAO space
@@ -301,7 +301,7 @@ class Mixin_k_Localize:
                     if i_init:
                         A_matrix[k] = numpy.eye(num_wann, dtype=numpy.complex128)
                     else:
-                        ovlp_ciao = uciao[k].conj().T @ self.S[k] @ Ciao[k]
+                        ovlp_ciao = Ciao[k].conj().T @ self.S[k] @ Ciao[k]
                         A_matrix[k] = ovlp_ciao
                 A_matrix = A_matrix.transpose(1, 2, 0)
 
@@ -320,7 +320,7 @@ class Mixin_k_Localize:
                 for k in range(self.nkpt):
                     Ciao[k] = numpy.dot(Ciao_[k], u_mat[k])
 
-            # Stack Ciao|Cpao
+            # Stack Ciao
             Wstack = numpy.zeros(
                 (self.nkpt, Ciao.shape[1], Ciao.shape[2] + Cpao.shape[2]),
                 dtype=numpy.complex128,
