@@ -268,9 +268,7 @@ class Frags:
         mf_ = None
 
     def update_heff(self, u, cout=None, only_chem=False):
-        """
-        Update the effective Hamiltonian for the fragment.
-        """
+        """Update the effective Hamiltonian for the fragment."""
         heff_ = numpy.zeros_like(self.h1)
 
         if cout is None:
