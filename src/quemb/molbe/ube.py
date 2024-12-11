@@ -148,7 +148,6 @@ class UBE(BE):  # 🍠
 
         self.localize(
             lo_method,
-            mol=self.mol,
             valence_basis=fobj.valence_basis,
             valence_only=fobj.valence_only,
         )
