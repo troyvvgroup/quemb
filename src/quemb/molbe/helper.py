@@ -59,9 +59,6 @@ def get_scfObj(
     Eri,
     nocc,
     dm0=None,
-    pert_list=None,
-    save_chkfile=False,
-    fname="f0",
 ):
     """Initialize and run a restricted Hartree-Fock (RHF) calculation.
 
@@ -98,8 +95,8 @@ def get_scfObj(
 
     # Initialize an RHF object
     mf_ = scf.RHF(mol)
-    mf_.get_hcore = lambda *args: h1
-    mf_.get_ovlp = lambda *args: S
+    mf_.get_hcore = lambda *args: h1  # noqa: ARG005
+    mf_.get_ovlp = lambda *args: S  # noqa: ARG005
     mf_._eri = Eri
     mf_.incore_anyway = True
     mf_.max_cycle = 50
