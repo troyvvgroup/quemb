@@ -199,7 +199,7 @@ class BE(Mixin_k_Localize):
 
         if exxdiv == "ewald":
             if not restart:
-                self.ek = self.ewald_sum(kpts=self.kpts)
+                self.ek = self.ewald_sum()
             print(
                 "Energy contribution from Ewald summation : {:>12.8f} Ha".format(
                     self.ek
@@ -455,7 +455,7 @@ class BE(Mixin_k_Localize):
         )
         print(flush=True)
 
-    def ewald_sum(self, kpts=None):
+    def ewald_sum(self):
         dm_ = self.mf.make_rdm1()
         nk, nao = dm_.shape[:2]
 
@@ -465,21 +465,19 @@ class BE(Mixin_k_Localize):
             self.kpts,
             dm_.reshape(-1, nk, nao, nao),
             vk_kpts.reshape(-1, nk, nao, nao),
-            self.kpts,
+            kpts_band=self.kpts,
         )
         e_ = numpy.einsum("kij,kji->", vk_kpts, dm_) * 0.25
         e_ /= float(nk)
 
         return e_.real
 
-    def initialize(self, eri_, compute_hf, restart=False):
+    def initialize(self, compute_hf, restart=False):
         """
         Initialize the Bootstrap Embedding calculation.
 
         Parameters
         ----------
-        eri_ : numpy.ndarray
-            Electron repulsion integrals.
         compute_hf : bool
             Whether to compute Hartree-Fock energy.
         restart : bool, optional
