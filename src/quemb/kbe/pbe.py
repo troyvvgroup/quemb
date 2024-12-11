@@ -297,7 +297,6 @@ class BE(Mixin_k_Localize):
             # Localize orbitals
             self.localize(
                 lo_method,
-                mol=self.cell,
                 valence_basis=fobj.valence_basis,
                 iao_wannier=iao_wannier,
                 iao_val_core=iao_val_core,

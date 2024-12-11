@@ -2205,9 +2205,7 @@ def autogen(
                 frglist.extend(hsites[jdx])
             elif nkcon:
                 numk = krsites[idx][jdx_] - 1
-                frglist = kfrag_func(
-                    sites__[jdx] + hsites[jdx], numk, nk1, uNs, Ns, debug2=True
-                )
+                frglist = kfrag_func(sites__[jdx] + hsites[jdx], numk, nk1, uNs, Ns)
             else:
                 frglist = [pq + max_site + 1 for pq in sites__[jdx]]
                 frglist.extend([pq + max_site + 1 for pq in hsites[jdx]])
