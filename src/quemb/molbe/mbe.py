@@ -692,8 +692,6 @@ class BE(MixinLocalize):
             Lambda amplitudes, whereas unrelaxed density only uses T amplitudes.
             c.f. See http://classic.chem.msu.su/cgi-bin/ceilidh.exe/gran/gamess/forum/?C34df668afbHW-7216-1405+00.htm
             for the distinction between the two
-        use_cumulant : bool, optional
-            Use cumulant-based energy expression, by default True
         max_iter : int, optional
             Maximum number of optimization steps, by default 500
         nproc : int

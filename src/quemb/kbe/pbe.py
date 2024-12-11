@@ -15,6 +15,8 @@ from quemb.kbe.lo import Mixin_k_Localize
 from quemb.kbe.misc import print_energy, storePBE
 from quemb.kbe.pfrag import Frags
 from quemb.molbe._opt import BEOPT
+from quemb.molbe.be_parallel import be_func_parallel
+from quemb.molbe.solver import be_func
 from quemb.shared import be_var
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
@@ -52,7 +54,6 @@ class BE(Mixin_k_Localize):
         restart=False,
         save=False,
         restart_file="storebe.pk",
-        mo_energy=None,
         save_file="storebe.pk",
         hci_pt=False,
         nproc=1,
@@ -91,8 +92,6 @@ class BE(Mixin_k_Localize):
             Whether to save intermediate objects for restart, by default False.
         restart_file : str, optional
             Path to the file storing restart information, by default 'storebe.pk'.
-        mo_energy : numpy.ndarray, optional
-            Molecular orbital energies, by default None.
         save_file : str, optional
             Path to the file storing save information, by default 'storebe.pk'.
         nproc : int, optional
@@ -162,7 +161,6 @@ class BE(Mixin_k_Localize):
         self.hci_pt = hci_pt
 
         if not restart:
-            self.mo_energy = mf.mo_energy
             mf.exxdiv = None
             self.mf = mf
             self.Nocc = mf.cell.nelectron // 2
@@ -336,7 +334,6 @@ class BE(Mixin_k_Localize):
         only_chem=False,
         conv_tol=1.0e-6,
         relax_density=False,
-        use_cumulant=True,
         J0=None,
         nproc=1,
         ompnum=4,
@@ -363,8 +360,6 @@ class BE(Mixin_k_Localize):
             Lambda amplitudes, whereas unrelaxed density only uses T amplitudes.
             c.f. See http://classic.chem.msu.su/cgi-bin/ceilidh.exe/gran/gamess/forum/?C34df668afbHW-7216-1405+00.htm
             for the distinction between the two
-        use_cumulant : bool, optional
-            Use cumulant-based energy expression, by default True
         max_iter : int, optional
             Maximum number of optimization steps, by default 500
         nproc : int
@@ -711,10 +706,6 @@ class BE(Mixin_k_Localize):
         clean_eri : bool, optional
             Whether to clean up ERI files after calculation, by default False.
         """
-        # has to be here because of circular dependency
-        from .be_parallel import be_func_parallel  # noqa: PLC0415
-        from .solver import be_func  # noqa: PLC0415
-
         print("Calculating Energy by Fragment? ", calc_frag_energy)
         if nproc == 1:
             rets = be_func(

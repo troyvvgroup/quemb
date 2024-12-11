@@ -297,8 +297,6 @@ class Frags:
         heff=None,
         fs=False,
         eri=None,
-        pert_list=None,
-        save_chkfile=False,
         dm0=None,
     ):
         """
@@ -356,14 +354,10 @@ class Frags:
         u,
         cout=None,
         return_heff=False,
-        be_iter=None,
         no_chempot=False,
-        tmp_add=False,
         only_chem=False,
     ):
-        """
-        Update the effective Hamiltonian for the fragment.
-        """
+        """Update the effective Hamiltonian for the fragment."""
 
         heff_ = numpy.zeros_like(self.h1)
 
