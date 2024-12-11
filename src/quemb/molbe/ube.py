@@ -420,18 +420,16 @@ class UBE(BE):  # 🍠
             )
         else:
             E, E_comp = be_func_parallel_u(
-                None,
-                zip(self.Fobjs_a, self.Fobjs_b),
-                solver,
-                self.enuc,
+                pot=None,
+                Fobjs=zip(self.Fobjs_a, self.Fobjs_b),
+                solver=solver,
+                enuc=self.enuc,
                 hf_veff=self.hf_veff,
-                eeval=True,
-                ereturn=True,
+                nproc=nproc,
+                ompnum=ompnum,
                 relax_density=False,
                 frag_energy=calc_frag_energy,
                 frozen=self.frozen_core,
-                nproc=nproc,
-                ompnum=ompnum,
             )
         unused(E_comp)
 

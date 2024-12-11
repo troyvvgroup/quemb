@@ -266,12 +266,11 @@ def run_solver_u(
     fobj_a,
     fobj_b,
     solver,
-    enuc,
+    enuc,  # noqa: ARG001
     hf_veff,
     frag_energy=True,
     relax_density=False,
     frozen=False,
-    eri_file="eri_file.h5",
     use_cumulant=True,
     ereturn=True,
 ):
@@ -296,8 +295,6 @@ def run_solver_u(
         If True, uses  relaxed density matrix for UCCSD, defaults to False.
     frozen : bool, optional
         If True, uses frozen core, defaults to False
-    eri_file : str, optional
-       Filename for the electron repulsion integrals. Default is 'eri_file.h5'.
     use_cumulant : bool, optional
         If True, uses the cumulant approximation for RDM2. Default is True.
     ereturn : bool, optional
@@ -567,7 +564,7 @@ def be_func_parallel(
 
 
 def be_func_parallel_u(
-    pot,
+    pot,  # noqa: ARG001
     Fobjs,
     solver,
     enuc,
@@ -576,10 +573,7 @@ def be_func_parallel_u(
     ompnum=4,
     relax_density=False,
     use_cumulant=True,
-    eeval=False,
-    ereturn=False,
     frag_energy=False,
-    ebe_hf=0.0,
     frozen=False,
 ):
     """
@@ -609,14 +603,8 @@ def be_func_parallel_u(
     ompnum : int, optional
         If nproc > 1, sets the number of cores for OpenMP parallelization.
         Defaults to 4.
-    eeval : bool, optional
-        Whether to evaluate energies. Defaults to False.
-    ereturn : bool, optional
-        Whether to return the computed energy. Defaults to False.
     frag_energy : bool, optional
         Whether to compute fragment energy. Defaults to False.
-    ebe_hf : float, optional
-        Hartree-Fock energy. Defaults to 0.
     frozen : bool, optional
         Frozen core. Defaults to False
 
