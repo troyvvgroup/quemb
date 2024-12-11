@@ -297,7 +297,6 @@ class Frags:
         heff=None,
         fs=False,
         eri=None,
-        pert_h=False,
         pert_list=None,
         save_chkfile=False,
         dm0=None,
@@ -342,13 +341,9 @@ class Frags:
             self.nsocc,
             dm0=dm0,
             fname=self.dname,
-            pert_h=pert_h,
             pert_list=pert_list,
             save_chkfile=save_chkfile,
         )
-
-        if pert_h:
-            return mf_
 
         if not fs:
             self._mf = mf_
