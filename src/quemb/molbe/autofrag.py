@@ -1,6 +1,5 @@
 # Author: Oinam Romesh Meitei
 
-import sys
 
 from numpy.linalg import norm
 
@@ -424,8 +423,8 @@ def autogen(
             elif jx in open_frag_cen:
                 cen_.append(open_frag[open_frag_cen.index(jx)])
             else:
-                print(" This is more complicated than I can handle")
-                sys.exit()
+                raise ValueError("This is more complicated than I can handle.")
+
         center.append(cen_)
 
     Nfrag = len(fsites)

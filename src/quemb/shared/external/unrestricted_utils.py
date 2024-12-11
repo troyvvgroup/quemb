@@ -52,7 +52,7 @@ def make_uhf_obj(fobj_a, fobj_b, frozen=False):
     return full_uhf, Vs
 
 
-def uccsd_restore_eris(symm, fobj_a, fobj_b, pad0=True, skip_Vab=False):
+def uccsd_restore_eris(symm, fobj_a, fobj_b):
     """
     restore ERIs in the correct spin spaces
     """

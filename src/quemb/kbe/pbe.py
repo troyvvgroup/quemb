@@ -2,7 +2,6 @@
 
 import os
 import pickle
-import sys
 from multiprocessing import Pool
 
 import h5py
@@ -16,6 +15,8 @@ from quemb.kbe.lo import Mixin_k_Localize
 from quemb.kbe.misc import print_energy, storePBE
 from quemb.kbe.pfrag import Frags
 from quemb.molbe._opt import BEOPT
+from quemb.molbe.be_parallel import be_func_parallel
+from quemb.molbe.solver import be_func
 from quemb.shared import be_var
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
@@ -53,7 +54,6 @@ class BE(Mixin_k_Localize):
         restart=False,
         save=False,
         restart_file="storebe.pk",
-        mo_energy=None,
         save_file="storebe.pk",
         hci_pt=False,
         nproc=1,
@@ -92,8 +92,6 @@ class BE(Mixin_k_Localize):
             Whether to save intermediate objects for restart, by default False.
         restart_file : str, optional
             Path to the file storing restart information, by default 'storebe.pk'.
-        mo_energy : numpy.ndarray, optional
-            Molecular orbital energies, by default None.
         save_file : str, optional
             Path to the file storing save information, by default 'storebe.pk'.
         nproc : int, optional
@@ -202,7 +200,7 @@ class BE(Mixin_k_Localize):
 
         if exxdiv == "ewald":
             if not restart:
-                self.ek = self.ewald_sum(kpts=self.kpts)
+                self.ek = self.ewald_sum()
             print(
                 "Energy contribution from Ewald summation : {:>12.8f} Ha".format(
                     self.ek
@@ -283,8 +281,9 @@ class BE(Mixin_k_Localize):
                 if numpy.abs(E_core.imag).max() < 1.0e-10:
                     self.E_core = E_core.real
                 else:
-                    print("Imaginary density in E_core ", numpy.abs(E_core.imag).max())
-                    sys.exit()
+                    raise ValueError(
+                        f"Imaginary density in E_core {numpy.abs(E_core.imag).max()}"
+                    )
 
                 for k in range(nk):
                     self.hf_veff[k] -= self.core_veff[k]
@@ -298,7 +297,6 @@ class BE(Mixin_k_Localize):
             # Localize orbitals
             self.localize(
                 lo_method,
-                mol=self.cell,
                 valence_basis=fobj.valence_basis,
                 iao_wannier=iao_wannier,
                 iao_val_core=iao_val_core,
@@ -327,7 +325,7 @@ class BE(Mixin_k_Localize):
             rfile.close()
 
         if not restart:
-            self.initialize(mf._eri, compute_hf)
+            self.initialize(compute_hf)
 
     def optimize(
         self,
@@ -336,7 +334,6 @@ class BE(Mixin_k_Localize):
         only_chem=False,
         conv_tol=1.0e-6,
         relax_density=False,
-        use_cumulant=True,
         J0=None,
         nproc=1,
         ompnum=4,
@@ -363,8 +360,6 @@ class BE(Mixin_k_Localize):
             Lambda amplitudes, whereas unrelaxed density only uses T amplitudes.
             c.f. See http://classic.chem.msu.su/cgi-bin/ceilidh.exe/gran/gamess/forum/?C34df668afbHW-7216-1405+00.htm
             for the distinction between the two
-        use_cumulant : bool, optional
-            Use cumulant-based energy expression, by default True
         max_iter : int, optional
             Maximum number of optimization steps, by default 500
         nproc : int
@@ -380,7 +375,7 @@ class BE(Mixin_k_Localize):
         if not only_chem:
             pot = self.pot
             if self.be_type == "be1":
-                sys.exit(
+                raise ValueError(
                     "BE1 only works with chemical potential optimization. "
                     "Set only_chem=True"
                 )
@@ -428,8 +423,7 @@ class BE(Mixin_k_Localize):
                 self.unitcell_nkpt,
             )
         else:
-            print("This optimization method for BE is not supported")
-            sys.exit()
+            raise ValueError("This optimization method for BE is not supported")
 
     @copy_docstring(_ext_get_be_error_jacobian)
     def get_be_error_jacobian(self, jac_solver="HF"):
@@ -461,7 +455,7 @@ class BE(Mixin_k_Localize):
         )
         print(flush=True)
 
-    def ewald_sum(self, kpts=None):
+    def ewald_sum(self):
         dm_ = self.mf.make_rdm1()
         nk, nao = dm_.shape[:2]
 
@@ -471,21 +465,19 @@ class BE(Mixin_k_Localize):
             self.kpts,
             dm_.reshape(-1, nk, nao, nao),
             vk_kpts.reshape(-1, nk, nao, nao),
-            self.kpts,
+            kpts_band=self.kpts,
         )
         e_ = numpy.einsum("kij,kji->", vk_kpts, dm_) * 0.25
         e_ /= float(nk)
 
         return e_.real
 
-    def initialize(self, eri_, compute_hf, restart=False):
+    def initialize(self, compute_hf, restart=False):
         """
         Initialize the Bootstrap Embedding calculation.
 
         Parameters
         ----------
-        eri_ : numpy.ndarray
-            Electron repulsion integrals.
         compute_hf : bool
             Whether to compute Hartree-Fock energy.
         restart : bool, optional
@@ -569,8 +561,7 @@ class BE(Mixin_k_Localize):
         # ERI & Fock parallelization for periodic calculations
         if self.cderi:
             if self.nproc == 1:
-                print("If cderi is set, try again with nproc > 1")
-                sys.exit()
+                raise ValueError("If cderi is set, try again with nproc > 1")
 
             nprocs = int(self.nproc / self.ompnum)
             pool_ = Pool(nprocs)
@@ -625,8 +616,8 @@ class BE(Mixin_k_Localize):
                     self.Fobjs[frg].veff = veff_.real
                     self.Fobjs[frg].veff0 = veff0.real
                 else:
-                    print("Imaginary Veff ", numpy.abs(veff_.imag).max())
-                    sys.exit()
+                    raise ValueError(f"Imaginary Veff {numpy.abs(veff_.imag).max()}")
+
                 self.Fobjs[frg].fock = self.Fobjs[frg].h1 + veff_.real
             veffs = None
 
@@ -713,10 +704,6 @@ class BE(Mixin_k_Localize):
         clean_eri : bool, optional
             Whether to clean up ERI files after calculation, by default False.
         """
-        # has to be here because of circular dependency
-        from .be_parallel import be_func_parallel  # noqa: PLC0415
-        from .solver import be_func  # noqa: PLC0415
-
         print("Calculating Energy by Fragment? ", calc_frag_energy)
         if nproc == 1:
             rets = be_func(

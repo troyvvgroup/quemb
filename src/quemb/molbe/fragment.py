@@ -1,6 +1,5 @@
 # Author: Oinam Romesh Meitei
 
-import sys
 
 from quemb.molbe.autofrag import autogen
 from quemb.molbe.helper import get_core
@@ -91,19 +90,15 @@ class fragpart:
             self.hchain_simple()
         elif frag_type == "chain":
             if mol is None:
-                print(
-                    "Provide pyscf gto.M object in fragpart() and restart!", flush=True
+                raise ValueError(
+                    "Provide pyscf gto.M object in fragpart() and restart!"
                 )
-                print("exiting", flush=True)
-                sys.exit()
             self.chain(mol, frozen_core=frozen_core, closed=closed)
         elif frag_type == "autogen":
             if mol is None:
-                print(
-                    "Provide pyscf gto.M object in fragpart() and restart!", flush=True
+                raise ValueError(
+                    "Provide pyscf gto.M object in fragpart() and restart!"
                 )
-                print("exiting", flush=True)
-                sys.exit()
 
             fgs = autogen(
                 mol,
@@ -129,11 +124,8 @@ class fragpart:
                 self.add_center_atom,
             ) = fgs
             self.Nfrag = len(self.fsites)
-
         else:
-            print("Fragmentation type = ", frag_type, " not implemented!", flush=True)
-            print("exiting", flush=True)
-            sys.exit()
+            raise ValueError(f"Fragmentation type = {frag_type} not implemented!")
 
     @copy_docstring(_ext_chain)
     def chain(self, mol, frozen_core=False, closed=False):

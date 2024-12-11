@@ -1,6 +1,5 @@
 # Author(s): Henry Tran, Oinam Meitei, Shaun Weatherly
 #
-import sys
 
 import numpy
 from numpy.linalg import eigh, inv, multi_dot, norm, svd
@@ -122,14 +121,12 @@ def get_iao(Co, S12, S1, S2=None):
     return Ciao
 
 
-def get_pao(Ciao, S, S12, S2, mol):
+def get_pao(Ciao, S, S12):
     """
     Args:
         Ciao: output of :func:`get_iao`
         S: ao ovlp matrix
         S12: valence orbitals projected into ao basis
-        S2: valence ovlp matrix
-        mol: pyscf mol instance
     Return:
         Cpao (orthogonalized)
     """
@@ -143,9 +140,7 @@ def get_pao(Ciao, S, S12, S2, mol):
     Cpao = (numpy.eye(n) - Piao) @ nonval  # project out IAOs from non-valence basis
 
     # begin canonical orthogonalization to get rid of redundant orbitals
-    numpy.o0 = Cpao.shape[1]
     Cpao = cano_orth(Cpao, ovlp=S)
-    numpy.o1 = Cpao.shape[1]
 
     return Cpao
 
@@ -216,7 +211,6 @@ class MixinLocalize:
     def localize(
         self,
         lo_method,
-        mol=None,
         valence_basis="sto-3g",
         hstack=False,
         pop_method=None,
@@ -234,7 +228,6 @@ class MixinLocalize:
         lo_method : str
             Localization method in quantum chemistry. 'lowdin', 'boys', and 'iao'
             are supported.
-        mol : pyscf.gto.mole.Mole
         valence_basis : str
             Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
         valence_only : bool
@@ -333,22 +326,21 @@ class MixinLocalize:
 
         elif lo_method == "iao":
             loc_type = "SO"
-            val_basis = "sto-3g"
 
             # Occupied mo_coeff (with core)
             Co = self.C[:, : self.Nocc]
             # Get necessary overlaps, second arg is IAO basis
-            S12, S2 = get_xovlp(self.mol, basis=val_basis)
+            S12, S2 = get_xovlp(self.mol, basis=valence_basis)
             # Use these to get IAOs
             Ciao = get_iao(Co, S12, self.S, S2=S2)
 
             if not valence_only:
                 # Now get PAOs
                 if loc_type.upper() != "SO":
-                    Cpao = get_pao(Ciao, self.S, S12, S2, self.mol)
+                    Cpao = get_pao(Ciao, self.S, S12)
                 elif loc_type.upper() == "SO":
                     Cpao = get_pao_native(
-                        Ciao, self.S, self.mol, valence_basis=val_basis
+                        Ciao, self.S, self.mol, valence_basis=valence_basis
                     )
 
             # rearrange by atom
@@ -464,6 +456,4 @@ class MixinLocalize:
                 self.lmo_coeff = self.W.T @ self.S @ self.C[:, self.ncore :]
 
         else:
-            print("lo_method = ", lo_method, " not implemented!", flush=True)
-            print("exiting", flush=True)
-            sys.exit()
+            raise ValueError(f"lo_method = {lo_method} not implemented!")

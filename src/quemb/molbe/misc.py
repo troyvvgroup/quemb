@@ -1,7 +1,6 @@
 # Author(s): Minsik Cho, Leah Weisburn
 
 import os
-import sys
 import time
 
 import h5py
@@ -100,7 +99,8 @@ def libint2pyscf(
         mf.with_df = mydf
     else:
         mf = scf.UHF(mol) if unrestricted else scf.RHF(mol)
-    mf.get_hcore = lambda *args: hcore_pyscf
+
+    mf.get_hcore = lambda *args: hcore_pyscf  # noqa: ARG005
 
     return mol, mf
 
@@ -258,13 +258,13 @@ def be2puffin(
     df_aux_basis=None,
     frozen_core=True,
     localization_method="lowdin",
-    localization_basis=None,
     unrestricted=False,
     from_chk=False,
     checkfile=None,
     ecp=None,
 ):
     """Front-facing API bridge tailored for SCINE Puffin
+
     Returns the CCSD oneshot energies
     - QM/MM notes: Using QM/MM alongside big basis sets, especially with a frozen
     core, can cause localization and numerical stability problems. Use with
@@ -303,9 +303,6 @@ def be2puffin(
     localization_method : str, optional
         For now, lowdin is best supported for all cases. IAOs to be expanded
         By default 'lowdin'
-    localization_basis : str, optional
-        IAO minimal-like basis, only nead specification with IAO localization
-        By default None
     unrestricted : bool, optional
         Unrestricted vs restricted HF and CCSD, by default False
     from_chk : bool, optional
@@ -317,7 +314,7 @@ def be2puffin(
         By default None
     ecp : str, optional
         specify the ECP for any atoms, accompanying the basis set
-        syntax: {'Atom_X': 'ECP_for_X'; 'Atom_Y': 'ECP_for_Y'}
+        syntax; for example `{'Na': 'bfd-pp', 'Ru': 'bfd-pp'}`
         By default None
     """
     # The following imports have to happen here to avoid
@@ -328,7 +325,7 @@ def be2puffin(
     # Check input validity
     assert os.path.exists(xyzfile), "Input xyz file does not exist"
 
-    mol = gto.M(atom=xyzfile, basis=basis, charge=charge, spin=spin)
+    mol = gto.M(atom=xyzfile, basis=basis, charge=charge, spin=spin, ecp=ecp)
 
     if not from_chk:
         if hcore is None:  # from point charges OR with no external potential
@@ -411,9 +408,9 @@ def be2puffin(
                 mf = scf.RHF(mol)
 
         if hcore is not None:
-            mf.get_hcore = lambda *args: hcore_pyscf
+            mf.get_hcore = lambda *args: hcore_pyscf  # noqa: ARG005
         if jk is not None:
-            mf.get_jk = lambda *args: jk_pyscf
+            mf.get_jk = lambda *args: jk_pyscf  # noqa: ARG005
 
         if checkfile:
             print("Saving checkfile to:", checkfile)
@@ -424,8 +421,7 @@ def be2puffin(
         if mf.converged:
             print("Reference HF Converged", flush=True)
         else:
-            print("Reference HF Unconverged -- stopping the calculation", flush=True)
-            sys.exit()
+            raise ValueError("Reference HF Unconverged -- stopping the calculation")
         if use_df:
             print(
                 "Using auxillary basis in density fitting: ",
@@ -462,10 +458,10 @@ def be2puffin(
     # Run embedding setup
 
     if unrestricted:
-        mybe = UBE(mf, fobj, lo_method="lowdin")
+        mybe = UBE(mf, fobj, lo_method=localization_method)
         solver = "UCCSD"
     else:
-        mybe = BE(mf, fobj, lo_method="lowdin")
+        mybe = BE(mf, fobj, lo_method=localization_method)
         solver = "CCSD"
 
     # Run oneshot embedding and return system energy

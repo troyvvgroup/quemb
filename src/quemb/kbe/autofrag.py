@@ -1,6 +1,5 @@
 # Author(s): Oinam Romesh Meitei
 
-import sys
 
 import numpy
 from numpy.linalg import norm
@@ -11,9 +10,10 @@ from quemb.molbe.helper import get_core
 
 
 def warn_large_fragment():
-    print("Fragments that spans more than 2 unit-cells are not supported")
-    print("Try with larger unit-cell(or super-cell)")
-    sys.exit()
+    raise ValueError(
+        "Fragments that spans more than 2 unit-cells are not supported"
+        "Try with larger unit-cell(or super-cell)"
+    )
 
 
 def add_check_k(min1, flist, sts, ksts, nk_):
@@ -190,10 +190,6 @@ def kfrag_func(
     uNs,
     Ns,
     nk2=None,
-    debug=False,
-    debug1=False,
-    shift=False,
-    debug2=False,
 ):
     if nk2 is None:
         nk2 = nk1
@@ -207,13 +203,8 @@ def kfrag_func(
             else:
                 frglist.append(uNs * numk + pq)
         elif numk == nk1:
-            if not uNs == Ns:
-                frglist.append(uNs * numk + pq)
-            else:
-                if not debug2:
-                    frglist.append(uNs * numk + pq)
-                else:
-                    frglist.append(uNs * numk + pq)
+            frglist.append(uNs * numk + pq)
+
         elif numk > nk1:
             if uNs == Ns:
                 frglist.append(uNs * numk + pq)
@@ -221,15 +212,7 @@ def kfrag_func(
                 nk_ = numk - nk1
                 frglist.append(uNs * nk1 + (nk_ * uNs) + pq)
         else:
-            if not Ns == uNs:
-                frglist.append(uNs * numk + pq)
-
-            else:
-                frglist.append(uNs * numk + pq)
-                if debug:
-                    print(uNs * numk + pq, end=" ")
-    if debug:
-        print()
+            frglist.append(uNs * numk + pq)
     return frglist
 
 
@@ -327,8 +310,7 @@ def autogen(
         indices.
     """
     if not float(unitcell).is_integer():
-        print("Fractional unitcell is not supported!")
-        sys.exit()
+        raise ValueError("Fractional unitcell is not supported!")
     elif unitcell > 1:
         if not nx and not ny and not nz:
             nx_ = unitcell if kpt[0] > 1 else 1
@@ -353,13 +335,11 @@ def autogen(
             if not i == 1:
                 n_ = i / float(unitcell)
                 if n_ > kpt[idx]:
-                    print("Use a larger number of k-points; ", flush=True)
-                    print(
+                    raise ValueError(
+                        "Use a larger number of k-points; "
                         "Fragment cell larger than all k-points combined "
-                        "is not supported",
-                        flush=True,
+                        "is not supported"
                     )
-                    sys.exit()
     else:
         cell = mol.copy()
 
@@ -432,8 +412,7 @@ def autogen(
     lunit_, runit_ = nearestof2coord(coord, rcoord, bond=bond)
 
     if not set(lunit) == set(runit_) or not set(runit) == set(lunit_):
-        print("Fragmentation error : wrong connection of unit cells ")
-        sys.exit()
+        raise ValueError("Fragmentation error : wrong connection of unit cells ")
 
     if sum(i > 1 for i in kpt) > 1 or gamma_2d:
         # only 2D is supported
@@ -451,8 +430,7 @@ def autogen(
         dunit_, uunit_ = nearestof2coord(coord, rcoord2, bond=bond)
 
         if not set(uunit) == set(dunit_) or not set(dunit) == set(uunit_):
-            print("Fragmentation error : wrong connection of unit cells ")
-            sys.exit()
+            raise ValueError("Fragmentation error : wrong connection of unit cells ")
 
         # diagonal
         # 1-2    1-2*
@@ -467,8 +445,7 @@ def autogen(
         munit_, tunit_ = nearestof2coord(coord, rcoord3, bond=bond)
 
         if not set(munit) == set(tunit_) or not set(tunit) == set(munit_):
-            print("Fragmentation error : wrong connection of unit cells ")
-            sys.exit()
+            raise ValueError("Fragmentation error : wrong connection of unit cells ")
         # kmesh lkpt ends
 
     # starts here
@@ -2228,9 +2205,7 @@ def autogen(
                 frglist.extend(hsites[jdx])
             elif nkcon:
                 numk = krsites[idx][jdx_] - 1
-                frglist = kfrag_func(
-                    sites__[jdx] + hsites[jdx], numk, nk1, uNs, Ns, debug2=True
-                )
+                frglist = kfrag_func(sites__[jdx] + hsites[jdx], numk, nk1, uNs, Ns)
             else:
                 frglist = [pq + max_site + 1 for pq in sites__[jdx]]
                 frglist.extend([pq + max_site + 1 for pq in hsites[jdx]])
