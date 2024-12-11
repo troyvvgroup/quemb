@@ -9,7 +9,7 @@ import pytest
 from pyscf import cc, gto, scf
 
 from quemb.molbe import BE, fragpart
-from quemb.shared.helper import write_cube
+from quemb.shared.io import write_cube
 
 # TODO: actually add meaningful tests for energies etc.
 #   At the moment the test fails already for technical reasons.
