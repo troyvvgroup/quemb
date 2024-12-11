@@ -340,9 +340,6 @@ class Frags:
             eri,
             self.nsocc,
             dm0=dm0,
-            fname=self.dname,
-            pert_list=pert_list,
-            save_chkfile=save_chkfile,
         )
 
         if not fs:
