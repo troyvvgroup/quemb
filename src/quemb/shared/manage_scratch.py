@@ -4,16 +4,16 @@ import os
 from pathlib import Path
 from shutil import rmtree
 from types import TracebackType
+from typing import Annotated, Final, Literal, Optional, TypeAlias
 
 from attr import define, field
-from typing_extensions import Literal, Optional, TypeAlias, Union
 
 from quemb.shared.be_var import SCRATCH
 
-PathLike: TypeAlias = Union[str, os.PathLike]
+PathLike: TypeAlias = str | os.PathLike
 
 
-def _get_absolute_path(pathlike: PathLike) -> Path:
+def _to_abs_path(pathlike: PathLike) -> Path:
     return Path(pathlike).resolve()
 
 
@@ -21,9 +21,10 @@ def _get_absolute_path(pathlike: PathLike) -> Path:
 class WorkDir:
     """Manage a scratch area.
 
-    Upon initialisation of the object the `path` is created,
+    Upon initialisation of the object the workdir `path` is created,
     if it does not exist yet.
     If it already exists, it is ensured, that it is empty.
+    Internally the `path` will be stored as absolute.
 
     If `do_cleanup` is true, then the scratch area is deleted,
     when if `self.cleanup` is called.
@@ -45,8 +46,8 @@ class WorkDir:
     without errors.
     """
 
-    path: Path = field(converter=_get_absolute_path)
-    cleanup_at_end: bool = True
+    path: Final[Annotated[Path, "An absolute path"]] = field(converter=_to_abs_path)
+    cleanup_at_end: Final[bool] = True
 
     # The __init__ is automatically created
     # the values `self.path` and `self.cleanup_at_end` are already filled.
@@ -54,7 +55,6 @@ class WorkDir:
     def __attrs_post_init__(self) -> None:
         self.path.mkdir(parents=True, exist_ok=True)
         if any(self.path.iterdir()):
-            self.cleanup_at_end = False
             raise ValueError("scratch_area has to be empty.")
 
     def __enter__(self) -> WorkDir:
