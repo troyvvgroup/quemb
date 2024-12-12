@@ -1,10 +1,6 @@
-from typing import Any, Callable, Dict, Optional, TypeAlias, TypeVar
+from typing import Any, Callable, Optional, TypeVar
 
 Function = TypeVar("Function", bound=Callable)
-
-# A dictionary that is used to pass keyword arguments via unpacking
-# to the next function
-KwargDict: TypeAlias = Dict[str, Any]
 
 
 # Note that we have once Callable and once Function.

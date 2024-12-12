@@ -5,8 +5,7 @@ from typing import Optional
 from pyscf.tools.cubegen import orbital
 
 from quemb import molbe
-from quemb.shared.helper import KwargDict
-from quemb.shared.manage_scratch import PathLike
+from quemb.shared.typing import KwargDict, PathLike
 
 
 def write_cube(

@@ -4,13 +4,12 @@ import os
 from pathlib import Path
 from shutil import rmtree
 from types import TracebackType
-from typing import Annotated, Final, Literal, Optional, TypeAlias
+from typing import Annotated, Final, Literal, Optional
 
 from attr import define, field
 
-from quemb.shared.config import SCRATCH
-
-PathLike: TypeAlias = str | os.PathLike
+from quemb.shared.config import settings
+from quemb.shared.typing import PathLike
 
 
 def _to_abs_path(pathlike: PathLike) -> Path:
@@ -100,7 +99,9 @@ class WorkDir:
         WorkDir
             A ready to use `WorkDir`
         """
-        scratch_root = Path(user_defined_root) if user_defined_root else Path(SCRATCH)
+        scratch_root = (
+            Path(user_defined_root) if user_defined_root else Path(settings.SCRATCH)
+        )
 
         if "SLURM_JOB_ID" in os.environ:
             # we can safely assume that the SLURM_JOB_ID is unique
