@@ -205,10 +205,9 @@ class Frags:
         P_ = numpy.dot(C_, C_.T)
         nsocc_ = numpy.trace(P_)
         nsocc = int(numpy.round(nsocc_))
-
         try:
             mo_coeffs = scipy.linalg.svd(C_)[0]
-        except:
+        except scipy.linalg.LinAlgError:
             mo_coeffs = scipy.linalg.eigh(C_)[1][:, -nsocc:]
 
         self._mo_coeffs = mo_coeffs
