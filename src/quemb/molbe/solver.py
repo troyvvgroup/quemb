@@ -33,6 +33,7 @@ def be_func(
     hci_cutoff=0.001,
     ci_coeff_cutoff=None,
     select_cutoff=None,
+    ebe_hf=0.0,
     eeval=False,
     ereturn=False,
     frag_energy=True,
@@ -71,7 +72,7 @@ def be_func(
     ereturn : bool, optional
         Whether to return the energy. Defaults to False.
     frag_energy : bool, optional
-        Whether to calculate fragment energy. Defaults to False.
+        Whether to calculate fragment energy. Defaults to True.
     relax_density : bool, optional
         Whether to relax the density. Defaults to False.
     return_vec : bool, optional
@@ -286,16 +287,16 @@ def be_func(
                 # Find the energy of a given fragment, with the cumulant definition.
                 # Return [e1, e2, ec] as e_f and add to the running total_e.
                 e_f = get_frag_energy(
-                    fobj.mo_coeffs,
-                    fobj.nsocc,
-                    fobj.nfsites,
-                    fobj.efac,
-                    fobj.TA,
-                    fobj.h1,
-                    hf_veff,
-                    rdm1_tmp,
-                    rdm2s,
-                    fobj.dname,
+                    mo_coeffs=fobj.mo_coeffs,
+                    nsocc=fobj.nsocc,
+                    nfsites=fobj.nfsites,
+                    efac=fobj.efac,
+                    TA=fobj.TA,
+                    h1=fobj.h1,
+                    hf_veff=hf_veff,
+                    rdm1=rdm1_tmp,
+                    rdm2s=rdm2s,
+                    dname=fobj.dname,
                     eri_file=fobj.eri_file,
                     veff0=fobj.veff0,
                 )
@@ -311,7 +312,7 @@ def be_func(
     elif eeval:
         # Return energy, not evaluated fragment-by-fragment
         # Will require something like the "compute_energy_full" included in mbe BE class
-        raise NotImplementedError("""Evaluating the energy on supported 
+        raise NotImplementedError("""Evaluating the energy supported only on
                                     fragment-by-fragment basis. Use frag_energy=True""")
 
     ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem)
@@ -392,7 +393,6 @@ def be_func_u(
         fobj_b.scf(unrestricted=True, spin_ind=1)
 
         full_uhf, eris = make_uhf_obj(fobj_a, fobj_b, frozen=frozen)
-
         if solver == "UCCSD":
             if rdm_return:
                 ucc, rdm1_tmp, rdm2s = solve_uccsd(
