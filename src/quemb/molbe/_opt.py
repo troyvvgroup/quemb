@@ -134,7 +134,6 @@ class BEOPT:
                 select_cutoff=self.select_cutoff,
                 hci_pt=self.hci_pt,
                 ebe_hf=self.ebe_hf,
-                be_iter=self.iter,
                 scratch_dir=self.scratch_dir,
                 **self.solver_kwargs,
             )
@@ -156,7 +155,6 @@ class BEOPT:
                 ci_coeff_cutoff=self.ci_coeff_cutoff,
                 select_cutoff=self.select_cutoff,
                 ebe_hf=self.ebe_hf,
-                be_iter=self.iter,
                 scratch_dir=self.scratch_dir,
                 **self.solver_kwargs,
             )

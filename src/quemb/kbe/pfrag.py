@@ -297,9 +297,6 @@ class Frags:
         heff=None,
         fs=False,
         eri=None,
-        pert_h=False,
-        pert_list=None,
-        save_chkfile=False,
         dm0=None,
     ):
         """
@@ -341,14 +338,7 @@ class Frags:
             eri,
             self.nsocc,
             dm0=dm0,
-            fname=self.dname,
-            pert_h=pert_h,
-            pert_list=pert_list,
-            save_chkfile=save_chkfile,
         )
-
-        if pert_h:
-            return mf_
 
         if not fs:
             self._mf = mf_
@@ -364,14 +354,10 @@ class Frags:
         u,
         cout=None,
         return_heff=False,
-        be_iter=None,
         no_chempot=False,
-        tmp_add=False,
         only_chem=False,
     ):
-        """
-        Update the effective Hamiltonian for the fragment.
-        """
+        """Update the effective Hamiltonian for the fragment."""
 
         heff_ = numpy.zeros_like(self.h1)
 

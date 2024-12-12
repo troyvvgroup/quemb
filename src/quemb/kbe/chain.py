@@ -101,25 +101,25 @@ def polychain(self, mol, frozen_core=False, unitcell=1):
         sites = []
         if isinstance(unitcell, int):
             for i in range(unitcell):
-                if i:
+                if i == 0:
+                    nsites = sites__
+                else:
                     ns_ = nsites[-1][-1]
                     nsites = []
                     for p in sites:
                         nsites.append([q + ns_ + 1 for q in p])
-                else:
-                    nsites = sites__
                 sites = [*sites, *nsites]
         else:
             int_sites = int(unitcell)
             frac_sites = int(len(sites__) * (unitcell - int_sites))
             for i in range(int_sites):
-                if i:
+                if i == 0:
+                    sites = sites__
+                else:
                     ns_ = nsites[-1][-1]
                     nsites = []
                     for p in sites:
                         nsites.append([q + ns_ + 1 for q in p])
-                else:
-                    nsites = sites__
                 sites = [*sites, *nsites]
             ns_ = sites[-1][-1]
             nsites = []

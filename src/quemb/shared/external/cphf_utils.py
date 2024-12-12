@@ -103,7 +103,7 @@ def get_full_u(C, moe, eri, no, v, u, thresh=1e8):
     # ( Qjk + sum_ai (4*Vjkai-Vjiak-Vikaj)*uai ) / (ek - ej)
     denom_oo = moeo.reshape(no, 1) - moeo
     denom_oo[np.diag_indices(no)] = 1.0
-    if np.sum(np.abs(denom_oo**-1) > thresh) > 0:
+    if (np.abs(1.0 / denom_oo) > thresh).any():
         raise RuntimeError
     U[:no, :no] = (
         -(
@@ -141,7 +141,7 @@ def get_full_u(C, moe, eri, no, v, u, thresh=1e8):
     return U
 
 
-def get_full_u_batch(C, moe, eri, no, vs, us, thresh=1e10, timing=False):
+def get_full_u_batch(C, moe, eri, no, vs, us, thresh=1e10):
     nao = C.shape[0]
     nv = nao - no
     npot = len(vs)
@@ -170,7 +170,7 @@ def get_full_u_batch(C, moe, eri, no, vs, us, thresh=1e10, timing=False):
         # ( Qjk + sum_ai (4*Vjkai-Vjiak-Vikaj)*uai ) / (ek - ej)
         denom_oo = moeo.reshape(no, 1) - moeo
         denom_oo[np.diag_indices(no)] = 1.0
-        if np.sum(np.abs(denom_oo**-1) > thresh) > 0:
+        if (np.abs(1.0 / denom_oo) > thresh).any():
             raise RuntimeError
         U[:no, :no] = (
             -(

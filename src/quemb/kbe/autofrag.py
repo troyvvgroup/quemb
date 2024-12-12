@@ -190,10 +190,6 @@ def kfrag_func(
     uNs,
     Ns,
     nk2=None,
-    debug=False,
-    debug1=False,
-    shift=False,
-    debug2=False,
 ):
     if nk2 is None:
         nk2 = nk1
@@ -207,13 +203,8 @@ def kfrag_func(
             else:
                 frglist.append(uNs * numk + pq)
         elif numk == nk1:
-            if not uNs == Ns:
-                frglist.append(uNs * numk + pq)
-            else:
-                if not debug2:
-                    frglist.append(uNs * numk + pq)
-                else:
-                    frglist.append(uNs * numk + pq)
+            frglist.append(uNs * numk + pq)
+
         elif numk > nk1:
             if uNs == Ns:
                 frglist.append(uNs * numk + pq)
@@ -221,15 +212,7 @@ def kfrag_func(
                 nk_ = numk - nk1
                 frglist.append(uNs * nk1 + (nk_ * uNs) + pq)
         else:
-            if not Ns == uNs:
-                frglist.append(uNs * numk + pq)
-
-            else:
-                frglist.append(uNs * numk + pq)
-                if debug:
-                    print(uNs * numk + pq, end=" ")
-    if debug:
-        print()
+            frglist.append(uNs * numk + pq)
     return frglist
 
 
@@ -2222,9 +2205,7 @@ def autogen(
                 frglist.extend(hsites[jdx])
             elif nkcon:
                 numk = krsites[idx][jdx_] - 1
-                frglist = kfrag_func(
-                    sites__[jdx] + hsites[jdx], numk, nk1, uNs, Ns, debug2=True
-                )
+                frglist = kfrag_func(sites__[jdx] + hsites[jdx], numk, nk1, uNs, Ns)
             else:
                 frglist = [pq + max_site + 1 for pq in sites__[jdx]]
                 frglist.extend([pq + max_site + 1 for pq in hsites[jdx]])

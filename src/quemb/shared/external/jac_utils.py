@@ -7,7 +7,7 @@ import numpy as np
 from pyscf import ao2mo
 
 from quemb.shared.external.cphf_utils import cphf_kernel_batch
-from quemb.shared.external.cpmp2_utils import get_dF_r, get_Diajb_r, get_dmoe_F_r
+from quemb.shared.external.cpmp2_utils import get_dF_r, get_Diajb_r
 
 """ Derivative of approximate t1 amplitudes
 t_ia = ((2*t2-t2)_ibjc g_cjba - g_ikbj (2*t2-t2)_jbka) / (e_i - e_a)
@@ -132,10 +132,6 @@ def get_dt1ao_an(no, V, C, moe, Qs, us=None):
         dVovov = get_dVmogen_r(no, V, C, u, "ovov")
         dVvovv = get_dVmogen_r(no, V, C, u, "vovv")
         dVoovo = get_dVmogen_r(no, V, C, u, "oovo")
-
-        # get dmoe and deov
-        dmoe = get_dmoe_F_r(C, -A)
-        deov = get_Dia_r(dmoe, no)
 
         # get dCov
         uov = u.reshape(no, nv)
