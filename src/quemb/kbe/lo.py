@@ -55,7 +55,7 @@ class Mixin_k_Localize:
             Whether to perform Wannier localization in the IAO space
         """
         if lo_method == "iao" and iao_val_core:
-            raise NotImplementedError("This does not work. Contact Developers.")
+            raise NotImplementedError("iao_val_core and lo_method='iao' not supported.")
 
         if lo_method == "lowdin":
             # Lowdin orthogonalization with k-points

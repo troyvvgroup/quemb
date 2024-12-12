@@ -15,7 +15,7 @@ from quemb.molbe import BE, fragpart
 from quemb.molbe.misc import be2fcidump, libint2pyscf
 
 
-def prepare_system():
+def prepare_system() -> BE:
     # Read in molecular integrals expressed in libint basis ordering
     # numpy.loadtxt takes care of the input under the hood
     mol, mf = libint2pyscf(
@@ -36,7 +36,7 @@ def prepare_system():
     return oct_be
 
 
-def verify_fcidump_writing(kind_of_MO: str):
+def verify_fcidump_writing(kind_of_MO: str) -> None:
     oct_be = prepare_system()
     tmp_dir = Path(mkdtemp())
     data_dir = Path("data/octane_FCIDUMPs/")
@@ -60,7 +60,7 @@ def verify_fcidump_writing(kind_of_MO: str):
     not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
     reason="This test is known to fail.",
 )
-def test_embedding():
+def test_embedding() -> None:
     verify_fcidump_writing("embedding")
 
 
@@ -68,7 +68,7 @@ def test_embedding():
     not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
     reason="This test is known to fail.",
 )
-def test_fragment_mo():
+def test_fragment_mo() -> None:
     verify_fcidump_writing("fragment_mo")
 
 

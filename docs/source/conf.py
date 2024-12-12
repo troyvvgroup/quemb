@@ -21,6 +21,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx_autodoc_typehints",
     # https://github.com/tox-dev/sphinx-autodoc-typehints
+    "sphinx.ext.autosummary",
 ]
 
 napoleon_google_docstring = False

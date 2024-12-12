@@ -36,3 +36,4 @@ References
    optimize
    solvers
    misc
+   shared

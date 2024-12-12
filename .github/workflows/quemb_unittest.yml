@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.12"]
+        python-version: ["3.13"]
 
 
     steps:
@@ -48,7 +48,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install --upgrade --upgrade-strategy eager ruff pylint mypy scipy-stubs
+        pip install --upgrade --upgrade-strategy eager ruff pylint mypy scipy-stubs pytest
         pip install .
 
 
@@ -74,7 +74,7 @@ jobs:
 
     - name: Static analysis with mypy
       run: |
-        mypy tests/ example/ src/ || true    # for the moment we want to report always report success
+        mypy tests/ example/ src/
 
 
 
@@ -83,7 +83,7 @@ jobs:
     needs: analysis
     strategy:
       matrix:
-        python-version: ["3.9", "3.12"]
+        python-version: ["3.10", "3.13"]
 
     steps:
     - uses: actions/checkout@v4
@@ -106,8 +106,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install --upgrade --upgrade-strategy eager pytest
-        if [ -f requirements.txt ]; then pip install --upgrade --upgrade-strategy eager -r requirements.txt; fi
+        pip install pytest
         pip install git+https://github.com/pyscf/dmrgscf
         PYSCFHOME=$(pip show pyscf-dmrgscf | grep 'Location' | tr ' ' '\n' | tail -n 1)
         wget https://raw.githubusercontent.com/pyscf/dmrgscf/master/pyscf/dmrgscf/settings.py.example
