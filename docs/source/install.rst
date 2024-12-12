@@ -11,7 +11,7 @@ Prerequisites
  * `libDMET <https://github.com/gkclab/libdmet_preview>`__ (required for periodic BE)
  * `Wannier90 <https://github.com/wannier-developers/wannier90>`_ :sup:`##`
 
-| :sup:`##` Wannier90 code is optional and only necessary to use Wannier functions in periodic code.
+| :sup:`##` :code:`Wannier90` code is optional and only necessary to use Wannier functions in periodic code.
 
 The required dependencies, with the exception of the optional :code:`Wannier90`,
 are automatically installed by :bash:`pip`.
