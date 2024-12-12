@@ -1,4 +1,4 @@
-quemb.shared.manage\_scratch
+﻿quemb.shared.manage\_scratch
 ============================
 
 .. automodule:: quemb.shared.manage_scratch
