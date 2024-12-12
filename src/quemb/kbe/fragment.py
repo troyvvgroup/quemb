@@ -1,6 +1,5 @@
 # Author(s): Oinam Romesh Meitei
 
-import sys
 
 from quemb.kbe.autofrag import autogen
 from quemb.kbe.chain import polychain as _ext_polychain
@@ -8,17 +7,10 @@ from quemb.molbe.helper import get_core
 from quemb.shared.helper import copy_docstring
 
 
-def print_mol_missing():
-    print("Provide pyscf gto.Cell object in fragpart() and restart!", flush=True)
-    print("exiting", flush=True)
-    sys.exit()
-
-
 class fragpart:
     def __init__(
         self,
         natom=0,
-        dim=1,
         frag_type="autogen",
         unitcell=1,
         gamma_2d=False,
@@ -30,7 +22,6 @@ class fragpart:
         nx=False,
         ny=False,
         nz=False,
-        closed=False,
         kpt=None,
         valence_basis=None,
         be_type="be2",
@@ -62,15 +53,11 @@ class fragpart:
             be1 only has fragments [A], [B], [C], [D]
             be2 has [A, B, C], [B, C, D]
             ben ...
-        mol : pyscf.pbc.gto.Cell
-            pyscf.pbc.gto.Cell object. This is required for the options, 'autogen',
+        mol : pyscf.pbc.gto.cell.Cell
+            pyscf.pbc.gto.cell.Cell object. This is required for the options, 'autogen',
             and 'chain' as frag_type.
         valence_basis: str
             Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
-        valence_only: bool
-            If this option is set to True, all calculation will be performed in the
-            valence basis in the IAO partitioning.
-            This is an experimental feature.
         frozen_core: bool
             Whether to invoke frozen core approximation. This is set to False by default
         print_frags: bool
@@ -113,15 +100,17 @@ class fragpart:
 
         if frag_type == "polychain":
             if mol is None:
-                print_mol_missing()
+                raise ValueError(
+                    "Provide pyscf gto.Cell object in fragpart() and restart!"
+                )
             self.polychain(mol, frozen_core=frozen_core, unitcell=unitcell)
         elif frag_type == "autogen":
             if mol is None:
-                print_mol_missing()
+                raise ValueError(
+                    "Provide pyscf gto.Cell object in fragpart() and restart!"
+                )
             if kpt is None:
-                print("Provide kpt mesh in fragpart() and restart!", flush=True)
-                print("exiting", flush=True)
-                sys.exit()
+                raise ValueError("Provide kpt mesh in fragpart() and restart!")
 
             fgs = autogen(
                 mol,
@@ -153,9 +142,7 @@ class fragpart:
             self.Nfrag = len(self.fsites)
 
         else:
-            print("Fragmentation type = ", frag_type, " not implemented!", flush=True)
-            print("exiting", flush=True)
-            sys.exit()
+            raise ValueError(f"Fragmentation type = {frag_type} not implemented!")
 
     @copy_docstring(_ext_polychain)
     def polychain(self, mol, frozen_core=False, unitcell=1):

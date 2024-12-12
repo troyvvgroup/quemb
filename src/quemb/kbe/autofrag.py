@@ -1,8 +1,8 @@
 # Author(s): Oinam Romesh Meitei
 
-import sys
 
 import numpy
+from numpy.linalg import norm
 from pyscf import lib
 
 from quemb.kbe.misc import sgeom
@@ -10,9 +10,10 @@ from quemb.molbe.helper import get_core
 
 
 def warn_large_fragment():
-    print("Fragments that spans more than 2 unit-cells are not supported")
-    print("Try with larger unit-cell(or super-cell)")
-    sys.exit()
+    raise ValueError(
+        "Fragments that spans more than 2 unit-cells are not supported"
+        "Try with larger unit-cell(or super-cell)"
+    )
 
 
 def add_check_k(min1, flist, sts, ksts, nk_):
@@ -39,7 +40,7 @@ def nearestof2coord(coord1, coord2, bond=2.6 * 1.88973):
         for jdx, j in enumerate(coord2):
             if idx == jdx:
                 continue
-            dist = numpy.linalg.norm(i - j)
+            dist = norm(i - j)
 
             if dist < mind or dist - mind < 0.1:
                 if dist <= bond:
@@ -58,7 +59,7 @@ def nearestof2coord(coord1, coord2, bond=2.6 * 1.88973):
 
             if idx == lmin[0] and jdx == lmin[1]:
                 continue
-            dist = numpy.linalg.norm(i - j)
+            dist = norm(i - j)
             if dist - mind < 0.1 and dist <= bond:
                 lunit_.append(idx)
                 runit_.append(jdx)
@@ -110,7 +111,7 @@ def sidefunc(
                     and jdx not in unit2
                     and not cell.atom_pure_symbol(jdx) == "H"
                 ):
-                    dist = numpy.linalg.norm(coord[lmin1] - j)
+                    dist = norm(coord[lmin1] - j)
                     if dist <= bond:
                         if jdx not in sub_list:  # avoid repeated occurence
                             main_list.append(jdx)
@@ -126,7 +127,7 @@ def sidefunc(
                                         and kdx not in unit2
                                         and not cell.atom_pure_symbol(kdx) == "H"
                                     ):
-                                        dist = numpy.linalg.norm(coord[jdx] - k)
+                                        dist = norm(coord[jdx] - k)
                                         if dist <= bond:
                                             main_list.append(kdx)
                                             sub_list.append(kdx)
@@ -189,10 +190,6 @@ def kfrag_func(
     uNs,
     Ns,
     nk2=None,
-    debug=False,
-    debug1=False,
-    shift=False,
-    debug2=False,
 ):
     if nk2 is None:
         nk2 = nk1
@@ -206,13 +203,8 @@ def kfrag_func(
             else:
                 frglist.append(uNs * numk + pq)
         elif numk == nk1:
-            if not uNs == Ns:
-                frglist.append(uNs * numk + pq)
-            else:
-                if not debug2:
-                    frglist.append(uNs * numk + pq)
-                else:
-                    frglist.append(uNs * numk + pq)
+            frglist.append(uNs * numk + pq)
+
         elif numk > nk1:
             if uNs == Ns:
                 frglist.append(uNs * numk + pq)
@@ -220,15 +212,7 @@ def kfrag_func(
                 nk_ = numk - nk1
                 frglist.append(uNs * nk1 + (nk_ * uNs) + pq)
         else:
-            if not Ns == uNs:
-                frglist.append(uNs * numk + pq)
-
-            else:
-                frglist.append(uNs * numk + pq)
-                if debug:
-                    print(uNs * numk + pq, end=" ")
-    if debug:
-        print()
+            frglist.append(uNs * numk + pq)
     return frglist
 
 
@@ -276,8 +260,8 @@ def autogen(
 
     Parameters
     ----------
-    mol : pyscf.pbc.gto.Cell
-        pyscf.pbc.gto.Cell object. This is required for the options, 'autogen',
+    mol : pyscf.pbc.gto.cell.Cell
+        pyscf.pbc.gto.cell.Cell object. This is required for the options, 'autogen',
         and 'chain' as frag_type.
     kpt : list of int
         Number of k-points in each lattice vector dimension.
@@ -326,8 +310,7 @@ def autogen(
         indices.
     """
     if not float(unitcell).is_integer():
-        print("Fractional unitcell is not supported!")
-        sys.exit()
+        raise ValueError("Fractional unitcell is not supported!")
     elif unitcell > 1:
         if not nx and not ny and not nz:
             nx_ = unitcell if kpt[0] > 1 else 1
@@ -352,13 +335,11 @@ def autogen(
             if not i == 1:
                 n_ = i / float(unitcell)
                 if n_ > kpt[idx]:
-                    print("Use a larger number of k-points; ", flush=True)
-                    print(
+                    raise ValueError(
+                        "Use a larger number of k-points; "
                         "Fragment cell larger than all k-points combined "
-                        "is not supported",
-                        flush=True,
+                        "is not supported"
                     )
-                    sys.exit()
     else:
         cell = mol.copy()
 
@@ -431,8 +412,7 @@ def autogen(
     lunit_, runit_ = nearestof2coord(coord, rcoord, bond=bond)
 
     if not set(lunit) == set(runit_) or not set(runit) == set(lunit_):
-        print("Fragmentation error : wrong connection of unit cells ")
-        sys.exit()
+        raise ValueError("Fragmentation error : wrong connection of unit cells ")
 
     if sum(i > 1 for i in kpt) > 1 or gamma_2d:
         # only 2D is supported
@@ -450,8 +430,7 @@ def autogen(
         dunit_, uunit_ = nearestof2coord(coord, rcoord2, bond=bond)
 
         if not set(uunit) == set(dunit_) or not set(dunit) == set(uunit_):
-            print("Fragmentation error : wrong connection of unit cells ")
-            sys.exit()
+            raise ValueError("Fragmentation error : wrong connection of unit cells ")
 
         # diagonal
         # 1-2    1-2*
@@ -466,14 +445,13 @@ def autogen(
         munit_, tunit_ = nearestof2coord(coord, rcoord3, bond=bond)
 
         if not set(munit) == set(tunit_) or not set(tunit) == set(munit_):
-            print("Fragmentation error : wrong connection of unit cells ")
-            sys.exit()
+            raise ValueError("Fragmentation error : wrong connection of unit cells ")
         # kmesh lkpt ends
 
     # starts here
     normlist = []
     for i in coord:
-        normlist.append(numpy.linalg.norm(i))
+        normlist.append(norm(i))
     Frag = []
     pedge = []
     cen = []
@@ -509,7 +487,7 @@ def autogen(
                     continue
                 if ai[inter_layer_axis] == aj[inter_layer_axis]:
                     continue
-                dist = numpy.linalg.norm(ai - aj)
+                dist = norm(ai - aj)
                 if dist > bond:
                     if inter_dist > dist:
                         inter_dist = dist
@@ -520,7 +498,7 @@ def autogen(
                     continue
                 if ai[inter_layer_axis] == aj[inter_layer_axis]:
                     continue
-                dist = numpy.linalg.norm(ai - aj)
+                dist = norm(ai - aj)
                 if abs(dist - inter_dist) < perpend_dist_tol:
                     inter_dist_.append(dist)
                     inter_idx_.append(ajdx)
@@ -1313,7 +1291,7 @@ def autogen(
         cen.append(idx)
 
         for jdx in clist:
-            dist = numpy.linalg.norm(coord[idx] - coord[jdx])
+            dist = norm(coord[idx] - coord[jdx])
 
             if (dist <= bond) or (
                 interlayer
@@ -1348,7 +1326,7 @@ def autogen(
                                     or cell.atom_pure_symbol(kdx) == "H"
                                 ):
                                     continue
-                                dist = numpy.linalg.norm(coord[lmin1] - k)
+                                dist = norm(coord[lmin1] - k)
                                 if dist <= bond:
                                     if (
                                         kdx in lsts
@@ -1428,7 +1406,7 @@ def autogen(
                                     or cell.atom_pure_symbol(kdx) == "H"
                                 ):
                                     continue
-                                dist = numpy.linalg.norm(coord[rmin1] - k)
+                                dist = norm(coord[rmin1] - k)
                                 if dist <= bond:
                                     if (
                                         kdx in rsts
@@ -1499,7 +1477,7 @@ def autogen(
                                     or cell.atom_pure_symbol(kdx) == "H"
                                 ):
                                     continue
-                                dist = numpy.linalg.norm(coord[umin1] - k)
+                                dist = norm(coord[umin1] - k)
                                 if dist <= bond:
                                     if (
                                         kdx in usts
@@ -1567,7 +1545,7 @@ def autogen(
                                     or cell.atom_pure_symbol(kdx) == "H"
                                 ):
                                     continue
-                                dist = numpy.linalg.norm(coord[dmin1] - k)
+                                dist = norm(coord[dmin1] - k)
                                 if dist <= bond:
                                     if (
                                         kdx in dsts
@@ -1634,7 +1612,7 @@ def autogen(
                                     or cell.atom_pure_symbol(kdx) == "H"
                                 ):
                                     continue
-                                dist = numpy.linalg.norm(coord[mmin1] - k)
+                                dist = norm(coord[mmin1] - k)
                                 if dist <= bond:
                                     if (
                                         kdx in msts
@@ -1689,7 +1667,7 @@ def autogen(
                                     or cell.atom_pure_symbol(kdx) == "H"
                                 ):
                                     continue
-                                dist = numpy.linalg.norm(coord[tmin1] - k)
+                                dist = norm(coord[tmin1] - k)
                                 if dist <= bond:
                                     if (
                                         kdx in tsts
@@ -1734,7 +1712,7 @@ def autogen(
 
                     for kdx in clist:
                         if not kdx == jdx:
-                            dist = numpy.linalg.norm(coord[jdx] - coord[kdx])
+                            dist = norm(coord[jdx] - coord[kdx])
                             if (dist <= bond) or (
                                 interlayer
                                 and dist in inter_layer_dict[jdx][1]
@@ -1833,7 +1811,7 @@ def autogen(
                                             or ldx in pedg
                                         ):
                                             continue
-                                        dist = numpy.linalg.norm(coord[kdx] - l)
+                                        dist = norm(coord[kdx] - l)
                                         if dist <= bond:
                                             flist.append(ldx)
                                             pedg.append(ldx)
@@ -1867,7 +1845,7 @@ def autogen(
                         clist.append(jdx)
 
             for jdx in clist:
-                dist = numpy.linalg.norm(coord[idx] - coord[jdx])
+                dist = norm(coord[idx] - coord[jdx])
                 if dist <= hbond:
                     hlist[jdx].append(idx)
     if print_frags:
@@ -2227,9 +2205,7 @@ def autogen(
                 frglist.extend(hsites[jdx])
             elif nkcon:
                 numk = krsites[idx][jdx_] - 1
-                frglist = kfrag_func(
-                    sites__[jdx] + hsites[jdx], numk, nk1, uNs, Ns, debug2=True
-                )
+                frglist = kfrag_func(sites__[jdx] + hsites[jdx], numk, nk1, uNs, Ns)
             else:
                 frglist = [pq + max_site + 1 for pq in sites__[jdx]]
                 frglist.extend([pq + max_site + 1 for pq in hsites[jdx]])

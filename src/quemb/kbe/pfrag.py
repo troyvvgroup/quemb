@@ -1,10 +1,9 @@
 # Author(s): Oinam Romesh Meitei
 
-import functools
-import sys
 
 import h5py
 import numpy
+from numpy.linalg import multi_dot
 
 from quemb.kbe.helper import get_veff
 from quemb.kbe.misc import get_phase, get_phase1
@@ -134,8 +133,8 @@ class Frags:
             Local molecular orbital coefficients.
         nocc : int
             Number of occupied orbitals.
-        cell : pyscf.pbc.gto.Cell
-            PySCF pbc.gto.Cell object defining the unit cell and lattice vectors.
+        cell : pyscf.pbc.gto.cell.Cell
+            PySCF pbc.gto.cell.Cell object defining the unit cell and lattice vectors.
         kpts : list of list of float
             k-points in the reciprocal space for periodic computations
         kmesh : list of int
@@ -153,8 +152,9 @@ class Frags:
         if numpy.abs(supcell_rdm.imag).max() < 1.0e-6:
             supcell_rdm = supcell_rdm.real
         else:
-            print("Imaginary density in Full SD", numpy.abs(supcell_rdm.imag).max())
-            sys.exit()
+            raise ValueError(
+                f"Imaginary density in Full SD {numpy.abs(supcell_rdm.imag).max()}"
+            )
 
         Sites = [i + (nlo * 0) for i in self.fsites]
         if not frag_type == "autogen":
@@ -180,16 +180,12 @@ class Frags:
         # useful for debugging --
         rdm1_eo = numpy.zeros((teo, teo), dtype=numpy.complex128)
         for k in range(nk):
-            rdm1_eo += functools.reduce(
-                numpy.dot, (TA_k[k].conj().T, rdm1_lo_k[k], TA_k[k])
-            )
+            rdm1_eo += multi_dot((TA_k[k].conj().T, rdm1_lo_k[k], TA_k[k]))
         rdm1_eo /= float(nk)
 
         h1_eo = numpy.zeros((teo, teo), dtype=numpy.complex128)
         for k in range(nk):
-            h1_eo += functools.reduce(
-                numpy.dot, (self.TA[k].conj().T, h1[k], self.TA[k])
-            )
+            h1_eo += multi_dot((self.TA[k].conj().T, h1[k], self.TA[k]))
         h1_eo /= float(nk)
         e1 = 2.0 * numpy.einsum(
             "ij,ij->i", h1_eo[: self.nfsites], rdm1_eo[: self.nfsites]
@@ -212,16 +208,13 @@ class Frags:
         unused(nao)
         h1_eo = numpy.zeros((teo, teo), dtype=numpy.complex128)
         for k in range(nk):
-            h1_eo += functools.reduce(
-                numpy.dot, (self.TA[k].conj().T, h1[k], self.TA[k])
-            )
+            h1_eo += multi_dot((self.TA[k].conj().T, h1[k], self.TA[k]))
         h1_eo /= float(nk)
 
         if numpy.abs(h1_eo.imag).max() < 1.0e-7:
             self.h1 = h1_eo.real
         else:
-            print("Imaginary Hcore ", numpy.abs(h1_eo.imag).max())
-            sys.exit()
+            raise ValueError(f"Imaginary Hcore {numpy.abs(h1_eo.imag).max()}")
 
     def cons_fock(self, hf_veff, S, dm, eri_=None):
         """
@@ -249,8 +242,8 @@ class Frags:
             self.veff = veff_.real
             self.veff0 = veff0.real
         else:
-            print("Imaginary Veff ", numpy.abs(veff_.imag).max())
-            sys.exit()
+            raise ValueError(f"Imaginary Veff {numpy.abs(veff_.imag).max()}")
+
         self.fock = self.h1 + veff_.real
 
     def get_nsocc(self, S, C, nocc, ncore=0):
@@ -283,14 +276,16 @@ class Frags:
         P_ = numpy.zeros((neo, neo), dtype=numpy.complex128)
         for k in range(nk):
             Cinv = numpy.dot(self.TA[k].conj().T, S[k])
-            P_ += functools.reduce(numpy.dot, (Cinv, dm_[k], Cinv.conj().T))
+            P_ += multi_dot((Cinv, dm_[k], Cinv.conj().T))
 
         P_ /= float(nk)
         if numpy.abs(P_.imag).max() < 1.0e-6:
             P_ = P_.real
         else:
-            print("Imaginary density in get_nsocc ", numpy.abs(P_.imag).max())
-            sys.exit()
+            raise ValueError(
+                f"Imaginary density in get_nsocc {numpy.abs(P_.imag).max()}"
+            )
+
         nsocc_ = numpy.trace(P_)
         nsocc = int(numpy.round(nsocc_.real) / 2)
 
@@ -302,9 +297,6 @@ class Frags:
         heff=None,
         fs=False,
         eri=None,
-        pert_h=False,
-        pert_list=None,
-        save_chkfile=False,
         dm0=None,
     ):
         """
@@ -346,14 +338,7 @@ class Frags:
             eri,
             self.nsocc,
             dm0=dm0,
-            fname=self.dname,
-            pert_h=pert_h,
-            pert_list=pert_list,
-            save_chkfile=save_chkfile,
         )
-
-        if pert_h:
-            return mf_
 
         if not fs:
             self._mf = mf_
@@ -369,14 +354,10 @@ class Frags:
         u,
         cout=None,
         return_heff=False,
-        be_iter=None,
         no_chempot=False,
-        tmp_add=False,
         only_chem=False,
     ):
-        """
-        Update the effective Hamiltonian for the fragment.
-        """
+        """Update the effective Hamiltonian for the fragment."""
 
         heff_ = numpy.zeros_like(self.h1)
 

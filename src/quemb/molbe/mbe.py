@@ -2,7 +2,6 @@
 
 import os
 import pickle
-import sys
 
 import h5py
 import numpy
@@ -71,7 +70,7 @@ class BE(MixinLocalize):
     ----------
     mf : pyscf.scf.hf.SCF
         PySCF mean-field object.
-    fobj : molbe.fragpart
+    fobj : quemb.molbe.fragment.fragpart
         Fragment object containing sites, centers, edges, and indices.
     eri_file : str
         Path to the file storing two-electron integrals.
@@ -90,7 +89,6 @@ class BE(MixinLocalize):
         restart=False,
         save=False,
         restart_file="storebe.pk",
-        mo_energy=None,
         save_file="storebe.pk",
         hci_pt=False,
         frag_energy=True,
@@ -110,7 +108,7 @@ class BE(MixinLocalize):
         ----------
         mf : pyscf.scf.hf.SCF
             PySCF mean-field object.
-        fobj : molbe.fragpart
+        fobj : quemb.molbe.fragment.fragpart
             Fragment object containing sites, centers, edges, and indices.
         eri_file : str, optional
             Path to the file storing two-electron integrals, by default 'eri_file.h5'.
@@ -124,12 +122,10 @@ class BE(MixinLocalize):
             Whether to save intermediate objects for restart, by default False.
         restart_file : str, optional
             Path to the file storing restart information, by default 'storebe.pk'.
-        mo_energy : numpy.ndarray, optional
-            Molecular orbital energies, by default None.
         save_file : str, optional
             Path to the file storing save information, by default 'storebe.pk'.
         frag_energy : bool, optional
-            Calculate energies of all fragments, rather than constructing any 
+            Calculate energies of all fragments, rather than constructing any
             full system RDMs, by default True
         nproc : int, optional
             Number of processors for parallel calculations, by default 1. If set to >1,
@@ -268,7 +264,6 @@ class BE(MixinLocalize):
             self.localize(
                 lo_method,
                 pop_method=pop_method,
-                mol=self.mol,
                 valence_basis=fobj.valence_basis,
                 valence_only=fobj.valence_only,
             )
@@ -277,7 +272,6 @@ class BE(MixinLocalize):
                 self.Ciao_pao = self.localize(
                     lo_method,
                     pop_method=pop_method,
-                    mol=self.mol,
                     valence_basis=fobj.valence_basis,
                     hstack=True,
                     valence_only=False,
@@ -323,12 +317,10 @@ class BE(MixinLocalize):
         return_RDM2=True,
         print_energy=False,
     ):
-        """
-        Compute the one-particle and two-particle reduced density matrices
-        (RDM1 and RDM2).
+        """Compute the one- and two-particle reduced density matrices (RDM1 and RDM2).
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         return_ao : bool, optional
             Whether to return the RDMs in the AO basis. Default is True.
         only_rdm1 : bool, optional
@@ -343,8 +335,8 @@ class BE(MixinLocalize):
         print_energy : bool, optional
             Whether to print the energy contributions. Default is False.
 
-        Returns:
-        --------
+        Returns
+        -------
         rdm1AO : numpy.ndarray
             The one-particle RDM in the AO basis.
         rdm2AO : numpy.ndarray
@@ -530,8 +522,7 @@ class BE(MixinLocalize):
     def compute_energy_full(
         self, approx_cumulant=False, use_full_rdm=False, return_rdm=True
     ):
-        """
-        Compute the total energy using rdms in the full basis.
+        """Compute the total energy using rdms in the full basis.
 
         Parameters
         ----------
@@ -561,9 +552,9 @@ class BE(MixinLocalize):
         """
         # Compute the one-particle reduced density matrix (RDM1) and the cumulant
         # (Kumul) in the full basis
-        rdm1f, Kumul, rdm1_lo, rdm2_lo = self.rdm1_fullbasis(
+        rdm1f, Kumul, _, _ = self.rdm1_fullbasis(
             return_lo=True, return_RDM2=False
-        )
+        )  # rdm1f, Kumul, rdm1_lo, rdm2_lo !!
 
         if not approx_cumulant:
             # Compute the true two-particle reduced density matrix (RDM2) if not using
@@ -678,7 +669,6 @@ class BE(MixinLocalize):
         only_chem=False,
         conv_tol=1.0e-6,
         relax_density=False,
-        use_cumulant=True,
         J0=None,
         nproc=1,
         ompnum=4,
@@ -700,7 +690,7 @@ class BE(MixinLocalize):
         only_chem : bool, optional
             If true, density matching is not performed -- only global chemical potential
             is optimized, by default False
-        conv_tol : _type_, optional
+        conv_tol : float, optional
             Convergence tolerance, by default 1.e-6
         relax_density : bool, optional
             Whether to use relaxed or unrelaxed densities, by default False
@@ -708,21 +698,18 @@ class BE(MixinLocalize):
             Lambda amplitudes, whereas unrelaxed density only uses T amplitudes.
             c.f. See http://classic.chem.msu.su/cgi-bin/ceilidh.exe/gran/gamess/forum/?C34df668afbHW-7216-1405+00.htm
             for the distinction between the two
-        use_cumulant : bool, optional
-            Use cumulant-based energy expression, by default True
         max_iter : int, optional
             Maximum number of optimization steps, by default 500
         nproc : int
-        Total number of processors assigned for the optimization. Defaults to 1.
-        When nproc > 1, Python multithreading
-        is invoked.
+            Total number of processors assigned for the optimization. Defaults to 1.
+            When nproc > 1, Python multithreading is invoked.
         ompnum : int
-        If nproc > 1, ompnum sets the number of cores for OpenMP parallelization.
-        Defaults to 4
+            If nproc > 1, ompnum sets the number of cores for OpenMP parallelization.
+            Defaults to 4
         J0 : list of list of float
-        Initial Jacobian.
+            Initial Jacobian.
         trust_region : bool, optional
-        Use trust-region based QN optimization, by default False
+            Use trust-region based QN optimization, by default False
         """
         # Check if only chemical potential optimization is required
         if not only_chem:
@@ -754,7 +741,6 @@ class BE(MixinLocalize):
             select_cutoff=self.select_cutoff,
             hci_pt=self.hci_pt,
             solver=solver,
-            ecore=self.E_core,
             ebe_hf=self.ebe_hf,
             frag_energy=self.frag_energy,
             **solver_kwargs,
@@ -777,8 +763,7 @@ class BE(MixinLocalize):
                 be_.Ebe[0], be_.Ebe[1][1], be_.Ebe[1][0] + be_.Ebe[1][2], self.ebe_hf
             )
         else:
-            print("This optimization method for BE is not supported")
-            sys.exit()
+            raise ValueError("This optimization method for BE is not supported")
 
     @copy_docstring(_ext_get_be_error_jacobian)
     def get_be_error_jacobian(self, jac_solver="HF"):
@@ -898,7 +883,7 @@ class BE(MixinLocalize):
         for fobjs_ in self.Fobjs:
             # Process each fragment
             eri = numpy.array(file_eri.get(fobjs_.dname))
-            dm_init = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
+            _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
 
             fobjs_.cons_h1(self.hcore)
 
@@ -919,7 +904,7 @@ class BE(MixinLocalize):
             )
 
             if compute_hf:
-                eh1, ecoul, ef = fobjs_.energy_hf(return_e1=True)
+                _, _, _ = fobjs_.energy_hf(return_e1=True)  # eh1, ecoul, ef
                 E_hf += fobjs_.ebe_hf
 
         if not restart:

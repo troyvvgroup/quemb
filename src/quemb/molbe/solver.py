@@ -1,11 +1,9 @@
 # Author(s): Oinam Romesh Meitei, Leah Weisburn, Shaun Weatherly
 
-import functools
 import os
-import sys
-from typing import Optional
 
 import numpy
+from numpy.linalg import multi_dot
 from pyscf import ao2mo, cc, fci, mcscf, mp
 from pyscf.cc.ccsd_rdm import make_rdm2
 
@@ -27,7 +25,7 @@ def be_func(
     Fobjs,
     Nocc,
     solver,
-    enuc,
+    enuc,  # noqa: ARG001
     hf_veff=None,
     only_chem=False,
     nproc=4,
@@ -40,9 +38,6 @@ def be_func(
     frag_energy=True,
     relax_density=False,
     return_vec=False,
-    ecore=0.0,
-    ebe_hf=0.0,
-    be_iter=None,
     use_cumulant=True,
     scratch_dir=None,
     **solver_kwargs,
@@ -57,7 +52,7 @@ def be_func(
     ----------
     pot : list
         List of potentials.
-    Fobjs : list of MolBE.fragpart
+    Fobjs : list of quemb.molbe.fragment.fragpart
         List of fragment objects.
     Nocc : int
         Number of occupied orbitals.
@@ -81,12 +76,8 @@ def be_func(
         Whether to relax the density. Defaults to False.
     return_vec : bool, optional
         Whether to return the error vector. Defaults to False.
-    ecore : float, optional
-        Core energy. Defaults to 0.
     ebe_hf : float, optional
         Hartree-Fock energy. Defaults to 0.
-    be_iter : int or None, optional
-        Iteration number. Defaults to None.
     use_cumulant : bool, optional
         Whether to use the cumulant-based energy expression. Defaults to True.
 
@@ -99,7 +90,6 @@ def be_func(
     rdm_return = False
     if relax_density:
         rdm_return = True
-    E = 0.0
     if frag_energy or eeval:
         total_e = [0.0, 0.0, 0.0]
 
@@ -107,9 +97,7 @@ def be_func(
     for fobj in Fobjs:
         # Update the effective Hamiltonian
         if pot is not None:
-            heff_ = fobj.update_heff(pot, return_heff=True, only_chem=only_chem)
-        else:
-            heff_ = None
+            fobj.update_heff(pot, only_chem=only_chem)
 
         # Compute the one-electron Hamiltonian
         h1_ = fobj.fock + fobj.heff
@@ -144,7 +132,7 @@ def be_func(
             # pylint: disable-next=E0611
             from pyscf import hci  # noqa: PLC0415    # optional module
 
-            nao, nmo = fobj._mf.mo_coeff.shape
+            nmo = fobj._mf.mo_coeff.shape[1]
 
             eri = ao2mo.kernel(
                 fobj._mf._eri, fobj._mf.mo_coeff, aosym="s4", compact=False
@@ -155,16 +143,14 @@ def be_func(
                 select_cutoff = hci_cutoff
                 ci_coeff_cutoff = hci_cutoff
             elif select_cutoff is None or ci_coeff_cutoff is None:
-                sys.exit()
+                raise ValueError
 
             ci_.select_cutoff = select_cutoff
             ci_.ci_coeff_cutoff = ci_coeff_cutoff
 
             nelec = (fobj.nsocc, fobj.nsocc)
             h1_ = fobj.fock + fobj.heff
-            h1_ = functools.reduce(
-                numpy.dot, (fobj._mf.mo_coeff.T, h1_, fobj._mf.mo_coeff)
-            )
+            h1_ = multi_dot((fobj._mf.mo_coeff.T, h1_, fobj._mf.mo_coeff))
             eci, civec = ci_.kernel(h1_, eri, nmo, nelec)
             unused(eci)
             civec = numpy.asarray(civec)
@@ -187,7 +173,7 @@ def be_func(
                 tmp = os.path.join(scratch_dir, str(os.getpid()), str(fobj.dname))
             if not os.path.isdir(tmp):
                 os.system("mkdir -p " + tmp)
-            nao, nmo = fobj._mf.mo_coeff.shape
+            nmo = fobj._mf.mo_coeff.shape[1]
 
             nelec = (fobj.nsocc, fobj.nsocc)
             mch = shci.SHCISCF(fobj._mf, nmo, nelec, orbpath=fobj.dname)
@@ -215,6 +201,7 @@ def be_func(
             nelec = (fobj.nsocc, fobj.nsocc)
             cas = mcscf.CASCI(fobj._mf, nmo, nelec)
             h1, ecore = cas.get_h1eff(mo_coeff=fobj._mf.mo_coeff)
+            unused(ecore)
             eri = ao2mo.kernel(
                 fobj._mf._eri, fobj._mf.mo_coeff, aosym="s4", compact=False
             ).reshape(4 * ((nmo),))
@@ -251,16 +238,13 @@ def be_func(
                     os.system("rm -r " + os.path.join(tmp, "node*"))
 
         else:
-            print("Solver not implemented", flush=True)
-            print("exiting", flush=True)
-            sys.exit()
+            raise ValueError("Solver not implemented")
 
         if solver == "MP2":
             rdm1_tmp = fobj._mc.make_rdm1()
         fobj.rdm1__ = rdm1_tmp.copy()
         fobj._rdm1 = (
-            functools.reduce(
-                numpy.dot,
+            multi_dot(
                 (
                     fobj.mo_coeffs,
                     # fobj._mc.make_rdm1(),
@@ -323,7 +307,7 @@ def be_func(
         Ecorr = sum(total_e)
         if not return_vec:
             return (Ecorr, total_e)
-    
+
     elif eeval:
         # Return energy, not evaluated fragment-by-fragment
         # Will require something like the "compute_energy_full" included in mbe BE class
@@ -342,18 +326,15 @@ def be_func(
 
 
 def be_func_u(
-    pot,
+    pot,  # noqa: ARG001
     Fobjs,
     solver,
-    enuc,
+    enuc,  # noqa: ARG001
     hf_veff=None,
     eeval=False,
     ereturn=False,
     frag_energy=True,
     relax_density=False,
-    ecore=0.0,
-    ebe_hf=0.0,
-    scratch_dir=None,
     use_cumulant=True,
     frozen=False,
 ):
@@ -367,7 +348,7 @@ def be_func_u(
     ----------
     pot : list
         List of potentials.
-    Fobjs : zip list of MolBE.fragpart, alpha and beta
+    Fobjs : zip list of quemb.molbe.fragment.fragpart, alpha and beta
         List of fragment objects. Each element is a tuple with the alpha and
         beta components
     solver : str
@@ -386,8 +367,6 @@ def be_func_u(
         Whether to relax the density. Defaults to False.
     return_vec : bool, optional
         Whether to return the error vector. Defaults to False.
-    ecore : float, optional
-        Core energy. Defaults to 0.
     ebe_hf : float, optional
         Hartree-Fock energy. Defaults to 0.
     use_cumulant : bool, optional
@@ -409,8 +388,6 @@ def be_func_u(
 
     # Loop over each fragment and solve using the specified solver
     for fobj_a, fobj_b in Fobjs:
-        heff_ = None  # No outside chemical potential implemented for unrestricted yet
-
         fobj_a.scf(unrestricted=True, spin_ind=0)
         fobj_b.scf(unrestricted=True, spin_ind=1)
 
@@ -432,24 +409,16 @@ def be_func_u(
                 )
                 rdm1_tmp = make_rdm1_uccsd(ucc, relax=relax_density)
         else:
-            print("Solver not implemented", flush=True)
-            print("exiting", flush=True)
-            sys.exit()
+            raise ValueError("Solver not implemented")
 
         fobj_a.rdm1__ = rdm1_tmp[0].copy()
         fobj_b._rdm1 = (
-            functools.reduce(
-                numpy.dot, (fobj_a._mf.mo_coeff, rdm1_tmp[0], fobj_a._mf.mo_coeff.T)
-            )
-            * 0.5
+            multi_dot((fobj_a._mf.mo_coeff, rdm1_tmp[0], fobj_a._mf.mo_coeff.T)) * 0.5
         )
 
         fobj_b.rdm1__ = rdm1_tmp[1].copy()
         fobj_b._rdm1 = (
-            functools.reduce(
-                numpy.dot, (fobj_b._mf.mo_coeff, rdm1_tmp[1], fobj_b._mf.mo_coeff.T)
-            )
-            * 0.5
+            multi_dot((fobj_b._mf.mo_coeff, rdm1_tmp[1], fobj_b._mf.mo_coeff.T)) * 0.5
         )
 
         if eeval or ereturn:
@@ -505,7 +474,7 @@ def solve_error(Fobjs, Nocc, only_chem=False):
 
     Parameters
     ----------
-    Fobjs : list of MolBE.fragpart
+    Fobjs : list of quemb.molbe.fragment.fragpart
         List of fragment objects.
     Nocc : int
         Number of occupied orbitals.
@@ -671,7 +640,7 @@ def solve_ccsd(
             (if rdm_return is True).
         - rdm2s (numpy.ndarray, optional): Two-particle density matrix
             (if rdm2_return is True and rdm_return is True).
-        - cc__ (pyscf.cc.ccsd.CCSD, optional): CCSD object
+        - mycc (pyscf.cc.ccsd.CCSD, optional): CCSD object
             (if rdm_return is True and rdm2_return is False).
     """
     # Set default values for optional parameters
@@ -683,20 +652,20 @@ def solve_ccsd(
         mo_occ = mf.mo_occ
 
     # Initialize the CCSD object
-    cc__ = cc.CCSD(mf, frozen=frozen, mo_coeff=mo_coeff, mo_occ=mo_occ)
-    cc__.verbose = 0
+    mycc = cc.CCSD(mf, frozen=frozen, mo_coeff=mo_coeff, mo_occ=mo_occ)
+    mycc.verbose = 0
     mf = None
-    cc__.incore_complete = True
+    mycc.incore_complete = True
 
     # Prepare the integrals and Fock matrix
-    eris = cc__.ao2mo()
+    eris = mycc.ao2mo()
     eris.mo_energy = mo_energy
     eris.fock = numpy.diag(mo_energy)
 
     # Solve the CCSD equations
     try:
-        cc__.verbose = verbose
-        cc__.kernel(eris=eris)
+        mycc.verbose = verbose
+        mycc.kernel(eris=eris)
     except Exception as e:
         print(flush=True)
         print("Exception in CCSD, play with different CC options.", flush=True)
@@ -704,40 +673,38 @@ def solve_ccsd(
         raise e
 
     # Extract the CCSD amplitudes
-    t1 = cc__.t1
-    t2 = cc__.t2
+    t1 = mycc.t1
+    t2 = mycc.t2
 
     # Compute and return the density matrices if requested
     if rdm_return:
         if not relax:
             l1 = numpy.zeros_like(t1)
             l2 = numpy.zeros_like(t2)
-            rdm1a = cc.ccsd_rdm.make_rdm1(cc__, t1, t2, l1, l2)
+            rdm1a = cc.ccsd_rdm.make_rdm1(mycc, t1, t2, l1, l2)
         else:
-            rdm1a = cc__.make_rdm1(with_frozen=False)
+            rdm1a = mycc.make_rdm1(with_frozen=False)
 
         if rdm2_return:
             if use_cumulant:
                 with_dm1 = False
             rdm2s = make_rdm2(
-                cc__,
-                cc__.t1,
-                cc__.t2,
-                cc__.l1,
-                cc__.l2,
+                mycc,
+                mycc.t1,
+                mycc.t2,
+                mycc.l1,
+                mycc.l2,
                 with_frozen=False,
                 ao_repr=False,
                 with_dm1=with_dm1,
             )
             return (t1, t2, rdm1a, rdm2s)
-        return (t1, t2, rdm1a, cc__)
+        return (t1, t2, rdm1a, mycc)
 
     return (t1, t2)
 
 
-def solve_block2(
-    mf: object, nocc: int, frag_scratch: Optional[str] = None, **solver_kwargs
-):
+def solve_block2(mf, nocc, frag_scratch, **solver_kwargs):
     """DMRG fragment solver using the pyscf.dmrgscf wrapper.
 
     Parameters
@@ -894,13 +861,10 @@ def solve_uccsd(
     mf,
     eris_inp,
     frozen=None,
-    mo_coeff=None,
     relax=False,
     use_cumulant=False,
     with_dm1=True,
     rdm2_return=False,
-    mo_occ=None,
-    mo_energy=None,
     rdm_return=False,
     verbose=0,
 ):
@@ -920,8 +884,6 @@ def solve_uccsd(
         Custom fragment ERIs object
     frozen : list or int, optional
         List of frozen orbitals or number of frozen core orbitals. Defaults to None.
-    mo_coeff : numpy.ndarray, optional
-        Molecular orbital coefficients. Defaults to None.
     relax : bool, optional
         Whether to use relaxed density matrices. Defaults to False.
     use_cumulant : bool, optional
@@ -931,10 +893,6 @@ def solve_uccsd(
         density matrix calculation. Defaults to True.
     rdm2_return : bool, optional
         Whether to return the two-particle density matrix. Defaults to False.
-    mo_occ : numpy.ndarray, optional
-        Molecular orbital occupations. Defaults to None.
-    mo_energy : numpy.ndarray, optional
-        Molecular orbital energies. Defaults to None.
     rdm_return : bool, optional
         Whether to return the one-particle density matrix. Defaults to False.
     verbose : int, optional
@@ -950,7 +908,6 @@ def solve_uccsd(
             (if rdm2_return is True and rdm_return is True).
     """
     C = mf.mo_coeff
-    nao = [C[s].shape[0] for s in [0, 1]]
 
     Vss = eris_inp[:2]
     Vos = eris_inp[-1]
@@ -1078,7 +1035,7 @@ def schmidt_decomposition(
     if rdm is None:
         Dhf = numpy.dot(C, C.T)
         if cinv is not None:
-            Dhf = functools.reduce(numpy.dot, (cinv, Dhf, cinv.conj().T))
+            Dhf = multi_dot((cinv, Dhf, cinv.conj().T))
     else:
         Dhf = rdm
 

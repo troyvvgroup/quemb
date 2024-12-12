@@ -1,2 +1,3 @@
 # the additional (!) requirements for building the doc
 sphinx_rtd_theme
+sphinx_autodoc_typehints

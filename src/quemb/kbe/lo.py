@@ -1,14 +1,11 @@
 # Author(s): Oinam Meitei
 #            Henry Tran
 #
-import functools
 import os
-import sys
-from functools import reduce
 
 import numpy
 from libdmet.lo import pywannier90
-from numpy.linalg import eigh, svd
+from numpy.linalg import eigh, multi_dot, svd
 
 from quemb.kbe.lo_k import (
     get_iao_k,
@@ -35,10 +32,9 @@ class Mixin_k_Localize:
     def localize(
         self,
         lo_method,
-        mol=None,
         valence_basis="sto-3g",
+        core_basis="sto-3g",
         iao_wannier=True,
-        valence_only=False,
         iao_val_core=True,
     ):
         """Orbital localization
@@ -49,30 +45,17 @@ class Mixin_k_Localize:
         Parameters
         ----------
         lo_method : str
-        Localization method in quantum chemistry. 'lowdin', 'boys','iao', and 'wannier'
-        are supported.
-        mol : pyscf.gto.Molecule
-        pyscf.gto.Molecule object.
-        valence_basis: str
-        Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
-        valence_only: bool
-        If this option is set to True, all calculation will be performed in the valence
-        basis in the IAO partitioning.
-        This is an experimental feature.
+            Localization method in quantum chemistry. 'lowdin', 'boys','iao',
+            and 'wannier' are supported.
+        valence_basis : str
+            Name of valence basis set for IAO scheme. 'sto-3g' suffice for most cases.
+        core_basis : str
+            Name of core basis set for IAO scheme. 'sto-3g' suffice for most cases.
         iao_wannier : bool
-        Whether to perform Wannier localization in the IAO space
+            Whether to perform Wannier localization in the IAO space
         """
-        if lo_method == "iao":
-            if valence_basis == "sto-3g":
-                from .basis_sto3g_core_val import core_basis, val_basis  # noqa: PLC0415
-            elif valence_basis == "minao":
-                from .basis_minao_core_val import core_basis, val_basis  # noqa: PLC0415
-            elif iao_val_core:
-                sys.exit(
-                    "valence_basis="
-                    + valence_basis
-                    + " not supported for iao_val_core=True"
-                )
+        if lo_method == "iao" and iao_val_core:
+            raise NotImplementedError("This does not work. Contact Developers.")
 
         if lo_method == "lowdin":
             # Lowdin orthogonalization with k-points
@@ -101,29 +84,26 @@ class Mixin_k_Localize:
                     # PYSCF has basis in 1s2s3s2p2p2p3p3p3p format
                     # fix no_core_idx - use population for now
                     # C_ = C_[:,self.no_core_idx]
-                    Cpop = functools.reduce(numpy.dot, (C_.conj().T, self.S[k], C_))
+                    Cpop = multi_dot((C_.conj().T, self.S[k], C_))
                     Cpop = numpy.diag(Cpop.real)
 
                     no_core_idx = numpy.where(Cpop > 0.7)[0]
                     C_ = C_[:, no_core_idx]
 
-                    S_ = functools.reduce(numpy.dot, (C_.conj().T, self.S[k], C_))
+                    S_ = multi_dot((C_.conj().T, self.S[k], C_))
 
                     es_, vs_ = eigh(S_)
                     edx = es_ > 1.0e-14
                     W_ = (vs_[:, edx] / numpy.sqrt(es_[edx])) @ vs_[:, edx].conj().T
                     W_nocore[k] = numpy.dot(C_, W_)
 
-                    lmo_coeff[k] = functools.reduce(
-                        numpy.dot,
+                    lmo_coeff[k] = multi_dot(
                         (W_nocore[k].conj().T, self.S[k], self.C[k][:, self.ncore :]),
                     )
                     cinv_[k] = numpy.dot(W_nocore[k].conj().T, self.S[k])
 
                 else:
-                    lmo_coeff[k] = functools.reduce(
-                        numpy.dot, (W[k].conj().T, self.S[k], self.C[k])
-                    )
+                    lmo_coeff[k] = multi_dot((W[k].conj().T, self.S[k], self.C[k]))
                     cinv_[k] = numpy.dot(W[k].conj().T, self.S[k])
             if self.frozen_core:
                 self.W = W_nocore
@@ -207,7 +187,9 @@ class Mixin_k_Localize:
                     ciao_core[k] = symm_orth_k(ciao_core[k], ovlp=self.S[k])
 
                 # Begin valence
-                s12_val_, s2_val = get_xovlp_k(self.cell, self.kpts, basis=val_basis)
+                s12_val_, s2_val = get_xovlp_k(
+                    self.cell, self.kpts, basis=valence_basis
+                )
                 C_nocore = self.C[:, :, self.ncore :].copy()
                 C_nocore_occ_ = C_nocore[:, :, : self.Nocc].copy()
                 nk_, nao_, nmo_ = C_nocore.shape
@@ -273,10 +255,8 @@ class Mixin_k_Localize:
             if iao_wannier:
                 mo_energy_ = []
                 for k in range(nk):
-                    fock_iao = reduce(
-                        numpy.dot, (Ciao_[k].conj().T, self.FOCK[k], Ciao_[k])
-                    )
-                    S_iao = reduce(numpy.dot, (Ciao_[k].conj().T, self.S[k], Ciao_[k]))
+                    fock_iao = multi_dot((Ciao_[k].conj().T, self.FOCK[k], Ciao_[k]))
+                    S_iao = multi_dot((Ciao_[k].conj().T, self.S[k], Ciao_[k]))
                     e_iao, v_iao = eigh(fock_iao, S_iao)
                     unused(v_iao)
                     mo_energy_.append(e_iao)
@@ -309,7 +289,7 @@ class Mixin_k_Localize:
                     if i_init:
                         A_matrix[k] = numpy.eye(num_wann, dtype=numpy.complex128)
                     else:
-                        ovlp_ciao = uciao[k].conj().T @ self.S[k] @ Ciao[k]
+                        ovlp_ciao = Ciao[k].conj().T @ self.S[k] @ Ciao[k]
                         A_matrix[k] = ovlp_ciao
                 A_matrix = A_matrix.transpose(1, 2, 0)
 
@@ -399,8 +379,7 @@ class Mixin_k_Localize:
                     lmo_coeff.append(lmo_)
             else:
                 for k in range(self.nkpt):
-                    lmo_coeff[k] = reduce(
-                        numpy.dot,
+                    lmo_coeff[k] = multi_dot(
                         (self.W[k].conj().T, self.S[k], self.C[k][:, self.ncore :]),
                     )
                     cinv_[k] = numpy.dot(self.W[k].conj().T, self.S[k])
@@ -437,12 +416,11 @@ class Mixin_k_Localize:
             else:
                 mo_energy_nc = []
                 for k in range(nk):
-                    fock_lnc = reduce(
-                        numpy.dot,
+                    fock_lnc = multi_dot(
                         (lorb_nocore[k].conj().T, self.FOCK[k], lorb_nocore[k]),
                     )
-                    S_lnc = reduce(
-                        numpy.dot, (lorb_nocore[k].conj().T, self.S[k], lorb_nocore[k])
+                    S_lnc = multi_dot(
+                        (lorb_nocore[k].conj().T, self.S[k], lorb_nocore[k])
                     )
                     e__, v__ = eigh(fock_lnc, S_lnc)
                     unused(v__)
@@ -493,8 +471,7 @@ class Mixin_k_Localize:
             cinv_ = numpy.zeros((self.nkpt, nlo, nao), dtype=numpy.complex128)
 
             for k in range(nk):
-                lmo_coeff[k] = reduce(
-                    numpy.dot,
+                lmo_coeff[k] = multi_dot(
                     (self.W[k].conj().T, self.S[k], self.C[k][:, self.ncore :]),
                 )
                 cinv_[k] = numpy.dot(self.W[k].conj().T, self.S[k])
@@ -506,6 +483,4 @@ class Mixin_k_Localize:
             self.cinv = cinv_
 
         else:
-            print("lo_method = ", lo_method, " not implemented!", flush=True)
-            print("exiting", flush=True)
-            sys.exit()
+            raise ValueError(f"lo_method = {lo_method} not implemented!")

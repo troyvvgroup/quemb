@@ -7,6 +7,7 @@
 #
 
 import numpy
+from numpy.linalg import inv, norm, pinv
 
 from quemb.molbe.helper import get_eri, get_scfObj
 from quemb.shared import be_var
@@ -30,9 +31,9 @@ def line_search_LF(func, xold, fold, dx, iter_):
     fk = func(xk)
     lcout += 1
 
-    norm_dx = numpy.linalg.norm(dx)
-    norm_fk = numpy.linalg.norm(fk)
-    norm_fold = numpy.linalg.norm(fold)
+    norm_dx = norm(dx)
+    norm_fk = norm(fk)
+    norm_fold = norm(fold)
     alp = 1.0
 
     if norm_fk > rho * norm_fold - sigma2 * norm_dx**2.0:
@@ -43,7 +44,7 @@ def line_search_LF(func, xold, fold, dx, iter_):
             fk = func(xk)
 
             lcout += 1
-            norm_fk = numpy.linalg.norm(fk)
+            norm_fk = norm(fk)
             if lcout == 20:
                 break
 
@@ -81,17 +82,18 @@ def trustRegion(func, xold, fold, Binv, c=0.5):
     microiter = 0  # p
     rho = 0.001  # Threshold for trust region subproblem
     ratio = 0  # Initial r
-    B = numpy.linalg.inv(Binv)  # approx Jacobian
+    B = inv(Binv)  # approx Jacobian
     # dx_gn = - Binv@fold
     dx_gn = -(Binv @ Binv.T) @ B.T @ fold
     dx_sd = -B.T @ fold  # Steepest Descent step
-    t = numpy.linalg.norm(dx_sd) ** 2 / numpy.linalg.norm(B @ dx_sd) ** 2
+    t = norm(dx_sd) ** 2 / norm(B @ dx_sd) ** 2
     prevdx = None
+    ared = 0.0  # Reduction in the objective function; Initialize value to 0
     while ratio < rho or ared < 0.0:
         # Trust Region subproblem
         # minimize (1/2) ||F_k + B_k d||^2 w.r.t. d, s.t. d w/i trust radius
         # to pick the optimal direction using dog leg method
-        if numpy.linalg.norm(dx_gn) < max(1.0, numpy.linalg.norm(xold)) * (
+        if norm(dx_gn) < max(1.0, norm(xold)) * (
             c**microiter
         ):  # Gauss-Newton step within the trust radius
             print(
@@ -101,7 +103,7 @@ def trustRegion(func, xold, fold, Binv, c=0.5):
                 flush=True,
             )
             dx = dx_gn
-        elif t * numpy.linalg.norm(dx_sd) > max(1.0, numpy.linalg.norm(xold)) * (
+        elif t * norm(dx_sd) > max(1.0, norm(xold)) * (
             c**microiter
         ):  # GN step outside, SD step also outside
             print(
@@ -110,7 +112,7 @@ def trustRegion(func, xold, fold, Binv, c=0.5):
                 ": Steepest Descent",
                 flush=True,
             )
-            dx = (c**microiter) / numpy.linalg.norm(dx_sd) * dx_sd
+            dx = (c**microiter) / norm(dx_sd) * dx_sd
         else:  # GN step outside, SD step inside (dog leg step)
             # dx := t*dx_sd + s (dx_gn - t*dx_sd) s.t. ||dx|| = c^p
             print(
@@ -124,23 +126,21 @@ def trustRegion(func, xold, fold, Binv, c=0.5):
             # s is largest value in [0, 1] s.t. ||dx|| \le trust radius
             s = 1
             dx = tdx_sd + s * diff
-            while numpy.linalg.norm(dx) > c**microiter and s > 0:
+            while norm(dx) > c**microiter and s > 0:
                 s -= 0.001
                 dx = tdx_sd + s * diff
         if prevdx is None or not numpy.all(dx == prevdx):
             # Actual Reduction := f(x_k) - f(x_k + dx)
             fnew = func(xold + dx)
-            ared = 0.5 * (numpy.linalg.norm(fold) ** 2 - numpy.linalg.norm(fnew) ** 2)
+            ared = 0.5 * (norm(fold) ** 2 - norm(fnew) ** 2)
             # Predicted Reduction := q(0) - q(dx) where q = (1/2) ||F_k + B_k d||^2
-            pred = 0.5 * (
-                numpy.linalg.norm(fold) ** 2 - numpy.linalg.norm(fold + B @ dx) ** 2
-            )
+            pred = 0.5 * (norm(fold) ** 2 - norm(fold + B @ dx) ** 2)
         # Trust Region convergence criteria
         # r = ared/pred \le rho
         ratio = ared / pred
         microiter += 1
         if prevdx is None or not numpy.all(dx == prevdx) and be_var.PRINT_LEVEL > 2:
-            print("    ||δx||: ", numpy.linalg.norm(dx), flush=True)
+            print("    ||δx||: ", norm(dx), flush=True)
             print(
                 "    Reduction Ratio (Actual / Predicted): ",
                 ared,
@@ -169,7 +169,7 @@ class FrankQN:
         self.f0 = f0
         self.func = func
 
-        self.B0 = numpy.linalg.pinv(J0)
+        self.B0 = pinv(J0)
 
         self.iter_ = 0
 
@@ -207,7 +207,6 @@ class FrankQN:
                 dx_i @ self.Binv @ df_i
             )
             self.Binv += tmp__
-            us_tmp = self.Binv @ self.fnew
 
         if trust_region:
             self.xnew, self.fnew = trustRegion(
@@ -216,7 +215,7 @@ class FrankQN:
         else:
             self.us[self.iter_] = self.get_Bnfn(self.iter_)
 
-            alp, self.xnew, self.fnew = line_search_LF(
+            _, self.xnew, self.fnew = line_search_LF(
                 self.func, self.xold, self.fold, -self.us[self.iter_], self.iter_
             )
 
@@ -250,7 +249,7 @@ class FrankQN:
         return vs[0]
 
 
-def get_be_error_jacobian(Nfrag: int, Fobjs, jac_solver: str = "HF"):
+def get_be_error_jacobian(Nfrag, Fobjs, jac_solver="HF"):
     Jes = [None] * Nfrag
     Jcs = [None] * Nfrag
     xes = [None] * Nfrag
@@ -374,7 +373,7 @@ def get_atbe_Jblock_frag(fobj, res_func):
     Jc = numpy.array(Jc).T
 
     alpha = 0.0
-    for fidx, fval in enumerate(fobj.fsites):
+    for fidx, _ in enumerate(fobj.fsites):
         if not any(fidx in sublist for sublist in fobj.edge_idx):
             alpha += dP_mu[fidx, fidx]
 
@@ -388,7 +387,6 @@ def get_atbe_Jblock_frag(fobj, res_func):
 
 def get_be_error_jacobian_selffrag(self, jac_solver="HF"):
     Jes = [None] * self.Nfrag
-    Jcs = [None] * self.Nfrag
     xes = [None] * self.Nfrag
     xcs = [None] * self.Nfrag
     ys = [None] * self.Nfrag
@@ -401,9 +399,7 @@ def get_be_error_jacobian_selffrag(self, jac_solver="HF"):
     elif jac_solver == "HF":
         res_func = hfres_func
 
-    Jes, Jcs, xes, xcs, ys, alphas, Ncout = get_atbe_Jblock_frag(
-        self.Fobjs[0], res_func
-    )
+    Jes, _, xes, xcs, ys, alphas, Ncout = get_atbe_Jblock_frag(self.Fobjs[0], res_func)
 
     N_ = Ncout
     J = numpy.zeros((N_ + 1, N_ + 1))

@@ -1,6 +1,5 @@
 # Author(s): Oinam Romesh Meitei
 
-import sys
 
 import numpy
 
@@ -22,7 +21,7 @@ class BEOPT:
     pot : list
        List of initial BE potentials. The last element is for the global
        chemical potential.
-    Fobjs : MolBE.fragpart
+    Fobjs : quemb.molbe.fragment.fragpart
        Fragment object
     Nocc : int
        No. of occupied orbitals for the full system.
@@ -58,7 +57,6 @@ class BEOPT:
         Nocc,
         enuc,
         solver="MP2",
-        ecore=0.0,
         nproc=1,
         ompnum=4,
         only_chem=False,
@@ -75,7 +73,7 @@ class BEOPT:
         frag_energy=True,
         **solver_kwargs,
     ):
-        # Initialize class attributes
+        # Initialize instance attributes
         self.ebe_hf = ebe_hf
         self.hf_veff = hf_veff
         self.pot = pot
@@ -83,7 +81,6 @@ class BEOPT:
         self.Nocc = Nocc
         self.enuc = enuc
         self.solver = solver
-        self.ecore = ecore
         self.iter = 0
         self.err = 0.0
         self.Ebe = 0.0
@@ -139,9 +136,7 @@ class BEOPT:
                 select_cutoff=self.select_cutoff,
                 hci_pt=self.hci_pt,
                 frag_energy=self.frag_energy,
-                ecore=self.ecore,
                 ebe_hf=self.ebe_hf,
-                be_iter=self.iter,
                 scratch_dir=self.scratch_dir,
                 **self.solver_kwargs,
             )
@@ -163,9 +158,7 @@ class BEOPT:
                 ci_coeff_cutoff=self.ci_coeff_cutoff,
                 select_cutoff=self.select_cutoff,
                 frag_energy=self.frag_energy,
-                ecore=self.ecore,
                 ebe_hf=self.ebe_hf,
-                be_iter=self.iter,
                 scratch_dir=self.scratch_dir,
                 **self.solver_kwargs,
             )
@@ -233,5 +226,4 @@ class BEOPT:
                         print(flush=True)
                         break
         else:
-            print("This optimization method for BE is not supported")
-            sys.exit()
+            raise ValueError("This optimization method for BE is not supported")

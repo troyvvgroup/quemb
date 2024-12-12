@@ -32,17 +32,8 @@ class UBE(BE):  # 🍠
         mf,
         fobj,
         eri_file="eri_file.h5",
-        exxdiv="ewald",
         lo_method="lowdin",
         compute_hf=True,
-        restart=False,
-        save=False,
-        restart_file="storebe.pk",
-        mo_energy=None,
-        iao_wannier=True,
-        save_file="storebe.pk",
-        debug00=False,
-        debug001=False,
     ):
         """Initialize Unrestricted BE Object (ube🍠)
         ** NOTE **
@@ -55,7 +46,7 @@ class UBE(BE):  # 🍠
         ----------
         mf : pyscf.scf.UHF
             pyscf meanfield UHF object
-        fobj : molbe.fragpart
+        fobj : quemb.molbe.fragment.fragpart
             object that contains fragment information
         eri_file : str, optional
             h5py file with ERIs, by default "eri_file.h5"
@@ -157,7 +148,6 @@ class UBE(BE):  # 🍠
 
         self.localize(
             lo_method,
-            mol=self.mol,
             valence_basis=fobj.valence_basis,
             valence_only=fobj.valence_only,
         )
@@ -182,7 +172,6 @@ class UBE(BE):  # 🍠
             E_hf = 0.0
         EH1 = 0.0
         ECOUL = 0.0
-        EF = 0.0
 
         file_eri = h5py.File(self.eri_file, "w")
         lentmp = len(self.edge_idx)
@@ -308,8 +297,8 @@ class UBE(BE):  # 🍠
             file_eri.create_dataset(fobj_a.dname[1], data=eri_b)
             file_eri.create_dataset(fobj_a.dname[2], data=eri_ab)
 
-            sab = self.C_a @ self.S @ self.C_b
-            dm_init = fobj_a.get_nsocc(self.S, self.C_a, self.Nocc[0], ncore=self.ncore)
+            # sab = self.C_a @ self.S @ self.C_b
+            _ = fobj_a.get_nsocc(self.S, self.C_a, self.Nocc[0], ncore=self.ncore)
 
             fobj_a.cons_h1(self.hcore)
             eri_a = ao2mo.restore(8, eri_a, fobj_a.nao)
@@ -332,7 +321,7 @@ class UBE(BE):  # 🍠
                 ECOUL += ecoul_a
                 E_hf += fobj_a.ebe_hf
 
-            dm_init = fobj_b.get_nsocc(self.S, self.C_b, self.Nocc[1], ncore=self.ncore)
+            _ = fobj_b.get_nsocc(self.S, self.C_b, self.Nocc[1], ncore=self.ncore)
 
             fobj_b.cons_h1(self.hcore)
             eri_b = ao2mo.restore(8, eri_b, fobj_b.nao)
@@ -431,18 +420,16 @@ class UBE(BE):  # 🍠
             )
         else:
             E, E_comp = be_func_parallel_u(
-                None,
-                zip(self.Fobjs_a, self.Fobjs_b),
-                solver,
-                self.enuc,
+                pot=None,
+                Fobjs=zip(self.Fobjs_a, self.Fobjs_b),
+                solver=solver,
+                enuc=self.enuc,
                 hf_veff=self.hf_veff,
-                eeval=True,
-                ereturn=True,
+                nproc=nproc,
+                ompnum=ompnum,
                 relax_density=False,
                 frag_energy=calc_frag_energy,
                 frozen=self.frozen_core,
-                nproc=nproc,
-                ompnum=ompnum,
             )
         unused(E_comp)
 

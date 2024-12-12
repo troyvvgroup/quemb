@@ -5,15 +5,6 @@ Solver Routines
 Orbital Localization
 ====================
 
-Molecular orbital localization
-------------------------------
-
-.. autofunction:: quemb.molbe.lo.localize
-
-Crystalline orbital localization
---------------------------------
-
-.. autofunction:: quemb.kbe.lo.localize
 
 Density Matching Error
 ======================
@@ -65,10 +56,3 @@ Handling Energies
 =================
 
 .. autofunction:: quemb.molbe.helper.get_frag_energy
-
-.. autofunction:: quemb.molbe.rdm.compute_energy_full
-
-Handling Densities
-==================
-
-.. autofunction:: quemb.molbe.rdm.rdm1_fullbasis

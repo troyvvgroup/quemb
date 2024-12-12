@@ -1,10 +1,9 @@
 # Author(s): Oinam Romesh Meitei
 
-import functools
-
 import h5py
 import numpy
 import scipy.linalg
+from numpy.linalg import multi_dot
 
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
 from quemb.molbe.solver import schmidt_decomposition
@@ -154,7 +153,7 @@ class Frags:
             One-electron Hamiltonian matrix.
         """
 
-        h1_tmp = functools.reduce(numpy.dot, (self.TA.T, h1, self.TA))
+        h1_tmp = multi_dot((self.TA.T, h1, self.TA))
         self.h1 = h1_tmp
 
     def cons_fock(self, hf_veff, S, dm, eri_=None):
@@ -202,7 +201,7 @@ class Frags:
         numpy.ndarray
             Projected density matrix.
         """
-        C_ = functools.reduce(numpy.dot, (self.TA.T, S, C[:, ncore : ncore + nocc]))
+        C_ = multi_dot((self.TA.T, S, C[:, ncore : ncore + nocc]))
         P_ = numpy.dot(C_, C_.T)
         nsocc_ = numpy.trace(P_)
         nsocc = int(numpy.round(nsocc_))
@@ -269,11 +268,10 @@ class Frags:
             self._mo_coeffs = mf_.mo_coeff.copy()
         mf_ = None
 
-    def update_heff(self, u, cout=None, return_heff=False, only_chem=False):
+    def update_heff(self, u, cout=None, only_chem=False):
         """
         Update the effective Hamiltonian for the fragment.
         """
-
         heff_ = numpy.zeros_like(self.h1)
 
         if cout is None:
@@ -285,31 +283,20 @@ class Frags:
 
         if only_chem:
             self.heff = heff_
-            if return_heff:
-                if cout is None:
-                    return heff_
-                else:
-                    return (cout, heff_)
-            return cout
+            return
+        else:
+            for i in self.edge_idx:
+                for j in range(len(i)):
+                    for k in range(len(i)):
+                        if j > k:  # or j==k:
+                            continue
 
-        for i in self.edge_idx:
-            for j in range(len(i)):
-                for k in range(len(i)):
-                    if j > k:  # or j==k:
-                        continue
+                        heff_[i[j], i[k]] = u[cout]
+                        heff_[i[k], i[j]] = u[cout]
 
-                    heff_[i[j], i[k]] = u[cout]
-                    heff_[i[k], i[j]] = u[cout]
+                        cout += 1
 
-                    cout += 1
-
-        self.heff = heff_
-        if return_heff:
-            if cout is None:
-                return heff_
-            else:
-                return (cout, heff_)
-        return cout
+            self.heff = heff_
 
     def set_udim(self, cout):
         for i in self.edge_idx:
@@ -319,62 +306,6 @@ class Frags:
                         continue
                     cout += 1
         return cout
-
-    def energy(self, rdm2s, eri=None, print_fragE=False):
-        # This function uses old energy expression and will be removed
-        rdm2s = numpy.einsum(
-            "ijkl,pi,qj,rk,sl->pqrs",
-            0.5 * rdm2s,
-            *([self.mo_coeffs] * 4),
-            optimize=True,
-        )
-
-        e1 = 2.0 * numpy.einsum(
-            "ij,ij->i", self.h1[: self.nfsites], self._rdm1[: self.nfsites]
-        )
-        ec = numpy.einsum(
-            "ij,ij->i", self.veff[: self.nfsites], self._rdm1[: self.nfsites]
-        )
-
-        if self.TA.ndim == 3:
-            jmax = self.TA[0].shape[1]
-        else:
-            jmax = self.TA.shape[1]
-
-        if eri is None:
-            r = h5py.File(self.eri_file, "r")
-            eri = r[self.dname][()]
-            r.close()
-
-        e2 = numpy.zeros_like(e1)
-        for i in range(self.nfsites):
-            for j in range(jmax):
-                ij = i * (i + 1) // 2 + j if i > j else j * (j + 1) // 2 + i
-                Gij = rdm2s[i, j, :jmax, :jmax].copy()
-                Gij[numpy.diag_indices(jmax)] *= 0.5
-                Gij += Gij.T
-
-                e2[i] += Gij[numpy.tril_indices(jmax)] @ eri[ij]
-
-        e_ = e1 + e2 + ec
-        etmp = 0.0
-        e1_ = 0.0
-        ec_ = 0.0
-        e2_ = 0.0
-        for i in self.efac[1]:
-            etmp += self.efac[0] * e_[i]
-            e1_ += self.efac[0] * e1[i]
-            ec_ += self.efac[0] * ec[i]
-            e2_ += self.efac[0] * e2[i]
-
-        print(
-            "BE Energy Frag-{:>3}   {:>12.7f}  {:>12.7f}  {:>12.7f};   Total : {:>12.7f}".format(  # noqa: E501
-                self.dname, e1_, ec_, e2_, etmp
-            )
-        )
-
-        self.ebe = etmp
-        return e1 + e2 + ec
 
     def energy_hf(
         self,

@@ -1,4 +1,3 @@
-import sys
 from pathlib import Path
 from typing import Any, Callable, Optional, TypeVar
 
@@ -48,8 +47,7 @@ def copy_docstring(f: Callable) -> Callable[[Function], Function]:
 
 
 def unused(*args: Any) -> None:
-    for arg in args:
-        del arg
+    pass
 
 
 def ncore_(z: int) -> int:
@@ -68,9 +66,7 @@ def ncore_(z: int) -> int:
     elif 49 <= z <= 56:
         nc = 18
     else:
-        print("Ncore not computed in helper.ncore(), add it yourself!", flush=True)
-        print("exiting", flush=True)
-        sys.exit()
+        raise ValueError("Ncore not computed in helper.ncore(), add it yourself!")
     return nc
 
 

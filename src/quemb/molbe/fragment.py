@@ -1,6 +1,5 @@
 # Author: Oinam Romesh Meitei
 
-import sys
 
 from quemb.molbe.autofrag import autogen
 from quemb.molbe.helper import get_core
@@ -29,8 +28,8 @@ class fragpart:
         be1 only has fragments [A], [B], [C], [D]
         be2 has [A, B, C], [B, C, D]
         ben ...
-    mol : pyscf.gto.Molecule
-        pyscf.gto.Molecule object. This is required for the options, 'autogen'
+    mol : pyscf.gto.mole.Mole
+        This is required for the options, 'autogen'
         and 'chain' as frag_type.
     valence_basis: str
         Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
@@ -91,19 +90,15 @@ class fragpart:
             self.hchain_simple()
         elif frag_type == "chain":
             if mol is None:
-                print(
-                    "Provide pyscf gto.M object in fragpart() and restart!", flush=True
+                raise ValueError(
+                    "Provide pyscf gto.M object in fragpart() and restart!"
                 )
-                print("exiting", flush=True)
-                sys.exit()
             self.chain(mol, frozen_core=frozen_core, closed=closed)
         elif frag_type == "autogen":
             if mol is None:
-                print(
-                    "Provide pyscf gto.M object in fragpart() and restart!", flush=True
+                raise ValueError(
+                    "Provide pyscf gto.M object in fragpart() and restart!"
                 )
-                print("exiting", flush=True)
-                sys.exit()
 
             fgs = autogen(
                 mol,
@@ -129,11 +124,8 @@ class fragpart:
                 self.add_center_atom,
             ) = fgs
             self.Nfrag = len(self.fsites)
-
         else:
-            print("Fragmentation type = ", frag_type, " not implemented!", flush=True)
-            print("exiting", flush=True)
-            sys.exit()
+            raise ValueError(f"Fragmentation type = {frag_type} not implemented!")
 
     @copy_docstring(_ext_chain)
     def chain(self, mol, frozen_core=False, closed=False):

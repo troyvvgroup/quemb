@@ -1,10 +1,10 @@
 # Author(s): Oinam Romesh Meitei
 #            Leah Weisburn
 
-import functools
 
 import h5py
 import numpy
+from numpy.linalg import multi_dot
 from pyscf import ao2mo, gto, lib, scf
 
 from quemb.shared.helper import ncore_
@@ -39,7 +39,7 @@ def get_veff(eri_, dm, S, TA, hf_veff):
 
     # Transform the density matrix
     ST = numpy.dot(S, TA)
-    P_ = functools.reduce(numpy.dot, (ST.T, dm, ST))
+    P_ = multi_dot((ST.T, dm, ST))
 
     # Ensure the transformed density matrix and ERI are real and double-precision
     P_ = numpy.asarray(P_.real, dtype=numpy.double)
@@ -48,7 +48,7 @@ def get_veff(eri_, dm, S, TA, hf_veff):
     # Compute the Coulomb (J) and exchange (K) integrals
     vj, vk = scf.hf.dot_eri_dm(eri_, P_, hermi=1, with_j=True, with_k=True)
     Veff_ = vj - 0.5 * vk
-    Veff = functools.reduce(numpy.dot, (TA.T, hf_veff, TA)) - Veff_
+    Veff = multi_dot((TA.T, hf_veff, TA)) - Veff_
 
     return Veff
 
@@ -59,14 +59,8 @@ def get_scfObj(
     Eri,
     nocc,
     dm0=None,
-    enuc=0.0,
-    pert_h=False,
-    pert_list=None,
-    save_chkfile=False,
-    fname="f0",
 ):
-    """
-    Initialize and run a restricted Hartree-Fock (RHF) calculation.
+    """Initialize and run a restricted Hartree-Fock (RHF) calculation.
 
     This function sets up an SCF (Self-Consistent Field) object using the provided
     one-electron Hamiltonian, electron repulsion integrals, and number
@@ -84,8 +78,6 @@ def get_scfObj(
     dm0 : numpy.ndarray, optional
         Initial density matrix. If not provided, the SCF calculation will start
         from scratch. Defaults to None.
-    enuc : float, optional
-        Nuclear repulsion energy. Defaults to 0.0.
 
     Returns
     -------
@@ -103,8 +95,8 @@ def get_scfObj(
 
     # Initialize an RHF object
     mf_ = scf.RHF(mol)
-    mf_.get_hcore = lambda *args: h1
-    mf_.get_ovlp = lambda *args: S
+    mf_.get_hcore = lambda *args: h1  # noqa: ARG005
+    mf_.get_ovlp = lambda *args: S  # noqa: ARG005
     mf_._eri = Eri
     mf_.incore_anyway = True
     mf_.max_cycle = 50
@@ -191,7 +183,7 @@ def get_core(mol):
 
     Parameters
     ----------
-    mol : pyscf.gto.Mole
+    mol : pyscf.gto.mole.Mole
         Molecule object from PySCF.
 
     Returns
@@ -275,7 +267,7 @@ def get_frag_energy(
 
     if veff0 is None:
         # Compute the effective potential in the transformed basis
-        veff0 = functools.reduce(numpy.dot, (TA.T, hf_veff, TA))
+        veff0 = multi_dot((TA.T, hf_veff, TA))
 
     # Calculate the one-electron and effective potential energy contributions
     e1 = numpy.einsum("ij,ij->i", h1[:nfsites], delta_rdm1[:nfsites])
@@ -400,9 +392,7 @@ def get_frag_energy_u(
 
     if veff0 is None:
         # Compute thte effective potential in the transformed basis
-        veff0 = [
-            functools.reduce(numpy.dot, (TA[s].T, hf_veff[s], TA[s])) for s in [0, 1]
-        ]
+        veff0 = [multi_dot((TA[s].T, hf_veff[s], TA[s])) for s in [0, 1]]
 
     # For frozen care, remove core potential and Hamiltonian components
     if frozen:

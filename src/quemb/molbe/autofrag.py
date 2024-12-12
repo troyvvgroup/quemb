@@ -1,8 +1,7 @@
 # Author: Oinam Romesh Meitei
 
-import sys
 
-import numpy
+from numpy.linalg import norm
 
 from quemb.molbe.helper import get_core
 from quemb.shared.helper import unused
@@ -30,8 +29,8 @@ def autogen(
 
     Parameters
     ----------
-    mol : pyscf.gto.Molecule
-        pyscf.gto.Molecule object. This is required for the options, 'autogen',
+    mol : pyscf.gto.mole.Mole
+        This is required for the options, 'autogen',
         and 'chain' as frag_type.
     frozen_core : bool, optional
         Whether to invoke frozen core approximation. Defaults to True.
@@ -79,7 +78,6 @@ def autogen(
     add_centers: list of lists
         "additional centers" for all fragments, per fragment: contains heavy atoms
         which are not centers in any other fragments
-
     """
 
     if not valence_only:
@@ -100,7 +98,7 @@ def autogen(
     # Compute the norm (magnitude) of each atomic coordinate
     normlist = []
     for i in coord:
-        normlist.append(numpy.linalg.norm(i))
+        normlist.append(norm(i))
     Frag = []
     pedge = []
     cen = []
@@ -134,14 +132,14 @@ def autogen(
 
         if not be_type == "be1":
             for jdx in clist:
-                dist = numpy.linalg.norm(coord[idx] - coord[jdx])
+                dist = norm(coord[idx] - coord[jdx])
                 if dist <= bond:
                     flist.append(jdx)
                     pedg.append(jdx)
                     if be_type == "be3" or be_type == "be4":
                         for kdx in clist:
                             if not kdx == jdx:
-                                dist = numpy.linalg.norm(coord[jdx] - coord[kdx])
+                                dist = norm(coord[jdx] - coord[kdx])
                                 if dist <= bond:
                                     if kdx not in pedg:
                                         flist.append(kdx)
@@ -158,7 +156,7 @@ def autogen(
                                                 or ldx in pedg
                                             ):
                                                 continue
-                                            dist = numpy.linalg.norm(coord[kdx] - l)
+                                            dist = norm(coord[kdx] - l)
                                             if dist <= bond:
                                                 flist.append(ldx)
                                                 pedg.append(ldx)
@@ -198,7 +196,7 @@ def autogen(
                         if abs(j) < normdist:
                             clist.append(jdx)
                 for jdx in clist:
-                    dist = numpy.linalg.norm(coord[idx] - coord[jdx])
+                    dist = norm(coord[idx] - coord[jdx])
                     if dist <= hbond:
                         hlist[jdx].append(idx)
 
@@ -425,8 +423,8 @@ def autogen(
             elif jx in open_frag_cen:
                 cen_.append(open_frag[open_frag_cen.index(jx)])
             else:
-                print(" This is more complicated than I can handle")
-                sys.exit()
+                raise ValueError("This is more complicated than I can handle.")
+
         center.append(cen_)
 
     Nfrag = len(fsites)

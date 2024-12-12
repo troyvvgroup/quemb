@@ -2,10 +2,9 @@
 #            Oinam Meitei
 #
 
-from functools import reduce
-
 import numpy
 import scipy
+from numpy.linalg import eigh, inv, multi_dot, norm
 from pyscf.pbc import gto as pgto
 
 from quemb.shared.helper import unused
@@ -13,29 +12,24 @@ from quemb.shared.helper import unused
 
 def dot_gen(A, B, ovlp):
     if ovlp is None:
-        Ad = numpy.dot(A.conj().T, B)
+        return A.conj().T @ B
     else:
-        Ad = reduce(numpy.dot, (A.conj().T, ovlp, B))
-    return Ad
+        return A.conj().T @ ovlp @ B
 
 
 def get_cano_orth_mat(A, thr=1.0e-7, ovlp=None):
     S = dot_gen(A, A, ovlp)
-    e, u = numpy.linalg.eigh(S)
+    e, u = eigh(S)
     if thr > 0:
         idx_keep = e / e[-1] > thr
     else:
         idx_keep = list(range(e.shape[0]))
-    U = u[:, idx_keep] * e[idx_keep] ** -0.5
-
-    return U
+    return u[:, idx_keep] * e[idx_keep] ** -0.5
 
 
 def cano_orth(A, thr=1.0e-7, ovlp=None):
     """Canonically orthogonalize columns of A"""
-    U = get_cano_orth_mat(A, thr, ovlp)
-
-    return A @ U
+    return A @ get_cano_orth_mat(A, thr, ovlp)
 
 
 def get_symm_orth_mat_k(A, thr=1.0e-7, ovlp=None):
@@ -47,17 +41,12 @@ def get_symm_orth_mat_k(A, thr=1.0e-7, ovlp=None):
             "smallest eigenvalue (%.3E) is less than thr (%.3E). "
             "Please use 'cano_orth' instead." % (numpy.min(e), thr)
         )
-    U = reduce(numpy.dot, (u, numpy.diag(e**-0.5), u.conj().T))
-    # U = reduce(numpy.dot, (u/numpy.sqrt(e), u.conj().T))
-    return U
+    return u @ numpy.diag(e**-0.5) @ u.conj().T
 
 
 def symm_orth_k(A, thr=1.0e-7, ovlp=None):
     """Symmetrically orthogonalize columns of A"""
-    U = get_symm_orth_mat_k(A, thr, ovlp)
-    AU = numpy.dot(A, U)
-
-    return AU
+    return A @ get_symm_orth_mat_k(A, thr, ovlp)
 
 
 def get_xovlp_k(cell, kpts, basis="sto-3g"):
@@ -125,40 +114,36 @@ def get_iao_k(Co, S12, S1, S2=None, ortho=True):
     Ciao = numpy.zeros((nk, nao, S12.shape[-1]), dtype=numpy.complex128)
     for k in range(nk):
         # Cotil = P1[k] @ S12[k] @ P2[k] @ S12[k].conj().T @ Co[k]
-        Cotil = reduce(numpy.dot, (P1[k], S12[k], P2[k], S12[k].conj().T, Co[k]))
+        Cotil = multi_dot((P1[k], S12[k], P2[k], S12[k].conj().T, Co[k]))
         ptil = numpy.dot(P1[k], S12[k])
-        Stil = reduce(numpy.dot, (Cotil.conj().T, S1[k], Cotil))
+        Stil = multi_dot((Cotil.conj().T, S1[k], Cotil))
 
         Po = numpy.dot(Co[k], Co[k].conj().T)
 
-        Stil_inv = numpy.linalg.inv(Stil)
+        Stil_inv = inv(Stil)
 
-        Potil = reduce(numpy.dot, (Cotil, Stil_inv, Cotil.conj().T))
+        Potil = multi_dot((Cotil, Stil_inv, Cotil.conj().T))
 
         Ciao[k] = (
             numpy.eye(nao, dtype=numpy.complex128)
-            - numpy.dot(
-                (Po + Potil - 2.0 * reduce(numpy.dot, (Po, S1[k], Potil))), S1[k]
-            )
+            - numpy.dot((Po + Potil - 2.0 * multi_dot((Po, S1[k], Potil))), S1[k])
         ) @ ptil
         if ortho:
             Ciao[k] = symm_orth_k(Ciao[k], ovlp=S1[k])
 
-            rep_err = numpy.linalg.norm(Ciao[k] @ Ciao[k].conj().T @ S1[k] @ Po - Po)
+            rep_err = norm(multi_dot(Ciao[k], Ciao[k].conj().T, S1[k], Po) - Po)
             if rep_err > 1.0e-10:
                 raise RuntimeError
 
     return Ciao
 
 
-def get_pao_k(Ciao, S, S12, S2):
+def get_pao_k(Ciao, S, S12):
     """
     Args:
         Ciao: output of :func:`get_iao`
         S: ao ovlp matrix
         S12: valence orbitals projected into ao basis
-        S2: valence ovlp matrix
-        mol: pyscf mol instance
     Return:
         Cpao (orthogonalized)
     """
@@ -172,13 +157,11 @@ def get_pao_k(Ciao, S, S12, S2):
         Piao = Ciao[k] @ Ciao[k].conj().T @ S[k]
         cpao_ = (numpy.eye(nao) - Piao) @ nonval
 
-        numpy.o0 = cpao_.shape[-1]
         Cpao.append(cano_orth(cpao_, ovlp=S[k]))
-        numpy.o1 = Cpao[k].shape[-1]
     return numpy.asarray(Cpao)
 
 
-def get_pao_native_k(Ciao, S, mol, valence_basis, kpts, ortho=True):
+def get_pao_native_k(Ciao, S, mol, valence_basis, ortho=True):
     """
     Args:
         Ciao: output of :func:`get_iao_native`
@@ -188,7 +171,6 @@ def get_pao_native_k(Ciao, S, mol, valence_basis, kpts, ortho=True):
     Return:
         Cpao (symmetrically orthogonalized)
     """
-
     nk, nao, niao = Ciao.shape
 
     # Form a mol object with the valence basis for the ao_labels
@@ -208,7 +190,7 @@ def get_pao_native_k(Ciao, S, mol, valence_basis, kpts, ortho=True):
     niao = len(vir_idx)
     Cpao = numpy.zeros((nk, nao, niao), dtype=numpy.complex128)
     for k in range(nk):
-        Piao = reduce(numpy.dot, (Ciao[k], Ciao[k].conj().T, S[k]))
+        Piao = multi_dot((Ciao[k], Ciao[k].conj().T, S[k]))
         cpao_ = (numpy.eye(nao) - Piao)[:, vir_idx]
         if ortho:
             try:

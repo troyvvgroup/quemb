@@ -1,8 +1,7 @@
 # Author(s): Oinam Romesh Meitei
 
-import functools
-
 import numpy
+from numpy.linalg import multi_dot
 from pyscf import scf
 
 from quemb.shared.helper import unused
@@ -37,7 +36,7 @@ def get_veff(eri_, dm, S, TA, hf_veff, return_veff0=False):
     P_ = numpy.zeros((neo, neo), dtype=numpy.complex128)
     for k in range(nk):
         Cinv = numpy.dot(TA[k].conj().T, S[k])
-        P_ += functools.reduce(numpy.dot, (Cinv, dm[k], Cinv.conj().T))
+        P_ += multi_dot((Cinv, dm[k], Cinv.conj().T))
     P_ /= float(nk)
 
     P_ = numpy.asarray(P_.real, dtype=numpy.double)
@@ -50,7 +49,7 @@ def get_veff(eri_, dm, S, TA, hf_veff, return_veff0=False):
 
     Veff0 = numpy.zeros((neo, neo), dtype=numpy.complex128)
     for k in range(nk):
-        Veff0 += functools.reduce(numpy.dot, (TA[k].conj().T, hf_veff[k], TA[k]))
+        Veff0 += multi_dot((TA[k].conj().T, hf_veff[k], TA[k]))
     Veff0 /= float(nk)
 
     Veff = Veff0 - Veff_
