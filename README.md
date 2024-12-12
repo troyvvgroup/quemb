@@ -29,31 +29,28 @@ processors.
 - PySCF library
 - Numpy
 - Scipy
-- libDMET (required for periodic BE)
-- [Wannier90](https://github.com/wannier-developers/wannier90)<sup>&&</sup> (to use Wannier functions)
+- [libDMET](https://github.com/gkclab/libdmet_preview) (required for periodic BE)
+- [Wannier90](https://github.com/wannier-developers/wannier90)<sup>##</sup> (to use Wannier functions)
 
-<sup>&&</sup>Wannier90 code is interfaced via [libDMET](https://github.com/gkclab/libdmet_preview) in QuEmb</sub>
+<sup>##</sup> `Wannier90` code is optional and only necessary to use Wannier functions in periodic code. </sub>
 
-### Steps
+The required dependencies, with the exception of the optional `Wannier90`,
+are automatically installed by `pip`.
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/oimeitei/quemb.git
-   cd quemb
+### Installation
 
-2. Install QuEmb using one of the following approaches:
-    ```bash
-    pip install .
-    ```
-    or simply add `path/to/quemd` to `PYTHONPATH`
-    ```bash
-    export PYTHONPATH=/path/to/quemb:$PYTHONPATH
-    ```
+One can just `pip install` directly from the Github repository:
+```bash
+pip install git+https://https://github.com/troyvvgroup/quemb
+```
 
-    For conda (or virtual environment) installations, after creating your environment, specify the path to mol-be source as a path file, as in:
-    ```bash
-    echo path/to/quemb > $(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")/quemb.pth
-    ```
+Alternatively one can manually clone and install as in:
+```bash
+git clone https://https://github.com/troyvvgroup/quemb
+cd quemb
+pip install .
+```
+
 
 
 ## Basic Usage

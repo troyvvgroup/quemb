@@ -36,3 +36,8 @@ References
    optimize
    solvers
    misc
+
+
+
+.. role:: bash(code)
+   :language: bash

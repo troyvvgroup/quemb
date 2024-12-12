@@ -112,7 +112,6 @@ jobs:
         wget https://raw.githubusercontent.com/pyscf/dmrgscf/master/pyscf/dmrgscf/settings.py.example
         mv settings.py.example ${PYSCFHOME}/pyscf/dmrgscf/settings.py
         pip install .
-        echo ${{ github.workspace }} > $(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")/quemb.pth
 
 
     - name: Test with pytest
