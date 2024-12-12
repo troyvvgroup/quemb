@@ -18,7 +18,7 @@ from quemb.molbe._opt import BEOPT
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
 from quemb.molbe.solver import be_func
-from quemb.shared import config
+from quemb.shared.config import settings
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
@@ -186,18 +186,18 @@ class BE(Mixin_k_Localize):
 
         # Set scratch directory
         jobid = ""
-        if config.CREATE_SCRATCH_DIR:
+        if settings.CREATE_SCRATCH_DIR:
             jobid = os.environ.get("SLURM_JOB_ID", "")
-        if config.SCRATCH:
-            os.system("mkdir " + config.SCRATCH + str(jobid))
+        if settings.SCRATCH:
+            os.system("mkdir " + settings.SCRATCH + str(jobid))
         if not jobid:
-            self.eri_file = config.SCRATCH + eri_file
+            self.eri_file = settings.SCRATCH + eri_file
             if cderi:
-                self.cderi = config.SCRATCH + cderi
+                self.cderi = settings.SCRATCH + cderi
         else:
-            self.eri_file = config.SCRATCH + str(jobid) + "/" + eri_file
+            self.eri_file = settings.SCRATCH + str(jobid) + "/" + eri_file
             if cderi:
-                self.cderi = config.SCRATCH + str(jobid) + "/" + cderi
+                self.cderi = settings.SCRATCH + str(jobid) + "/" + cderi
 
         if exxdiv == "ewald":
             if not restart:

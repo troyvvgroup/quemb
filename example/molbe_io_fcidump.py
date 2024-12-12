@@ -3,9 +3,9 @@
 
 from quemb.molbe import BE, fragpart
 from quemb.molbe.misc import be2fcidump, libint2pyscf
-from quemb.shared import be_var
+from quemb.shared.config import settings
 
-be_var.PRINT_LEVEL = 3
+settings.PRINT_LEVEL = 3
 
 # Read in molecular integrals expressed in libint basis ordering
 # numpy.loadtxt takes care of the input under the hood

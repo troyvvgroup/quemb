@@ -6,10 +6,6 @@ from pyscf import gto, scf
 
 from quemb.molbe import UBE, fragpart
 
-# Set up scratch directory settings
-# be_var.SCRATCH='{scratch location}'
-# be_var.CREATE_SCRATCH_DIR=True
-
 # Give path to structure xyz file
 structure = "data/hexene.xyz"
 

@@ -83,7 +83,7 @@ def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
         return max(
             1,
             int(
-                config.INTEGRAL_TRANSFORM_MAX_MEMORY
+                settings.INTEGRAL_TRANSFORM_MAX_MEMORY
                 * 1e9
                 / 8
                 / nao
