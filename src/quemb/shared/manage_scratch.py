@@ -17,10 +17,6 @@ def _to_abs_path(pathlike: PathLike) -> Path:
     return Path(pathlike).resolve()
 
 
-def _get_absolute_path(pathlike: PathLike) -> Path:
-    return Path(pathlike).resolve()
-
-
 @define(order=False)
 class WorkDir:
     """Manage a scratch area.
