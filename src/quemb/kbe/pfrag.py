@@ -420,7 +420,7 @@ class Frags:
                     cout += 1
         return cout
 
-    def energy_hf(
+    def update_ebe_hf(
         self, rdm_hf=None, mo_coeffs=None, eri=None, return_e1=False, unrestricted=False
     ):
         if mo_coeffs is None:

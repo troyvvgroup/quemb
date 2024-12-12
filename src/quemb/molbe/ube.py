@@ -323,7 +323,7 @@ class UBE(BE):  # 🍠
             )
 
             if compute_hf:
-                eh1_a, ecoul_a, ef_a = fobj_a.energy_hf(
+                eh1_a, ecoul_a, ef_a = fobj_a.update_ebe_hf(
                     return_e=True, unrestricted=True, spin_ind=0
                 )
                 unused(ef_a)
@@ -346,7 +346,7 @@ class UBE(BE):  # 🍠
             )
 
             if compute_hf:
-                eh1_b, ecoul_b, ef_b = fobj_b.energy_hf(
+                eh1_b, ecoul_b, ef_b = fobj_b.update_ebe_hf(
                     return_e=True, unrestricted=True, spin_ind=1
                 )
                 unused(ef_b)
