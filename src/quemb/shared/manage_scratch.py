@@ -8,7 +8,7 @@ from typing import Annotated, Final, Literal, Optional, TypeAlias
 
 from attr import define, field
 
-from quemb.shared.be_var import SCRATCH
+from quemb.shared.config import SCRATCH
 
 PathLike: TypeAlias = str | os.PathLike
 

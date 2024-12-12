@@ -22,7 +22,7 @@ from quemb.molbe.be_parallel import be_func_parallel_u
 from quemb.molbe.mbe import BE
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import be_func_u
-from quemb.shared import be_var
+from quemb.shared import config
 from quemb.shared.helper import unused
 
 
@@ -153,15 +153,15 @@ class UBE(BE):  # 🍠
         )
 
         jobid = ""
-        if be_var.CREATE_SCRATCH_DIR:
+        if config.CREATE_SCRATCH_DIR:
             jobid = os.environ.get("SLURM_JOB_ID", "")
-        if be_var.SCRATCH:
-            self.scratch_dir = be_var.SCRATCH + str(jobid)
+        if config.SCRATCH:
+            self.scratch_dir = config.SCRATCH + str(jobid)
             os.system("mkdir -p " + self.scratch_dir)
         else:
             self.scratch_dir = None
         if not jobid:
-            self.eri_file = be_var.SCRATCH + eri_file
+            self.eri_file = config.SCRATCH + eri_file
         else:
             self.eri_file = self.scratch_dir + "/" + eri_file
 
