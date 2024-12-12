@@ -307,7 +307,7 @@ class Frags:
                     cout += 1
         return cout
 
-    def energy(self, rdm2s, eri=None, print_fragE=False):
+    def energy(self, rdm2s, eri=None, return_e=False, print_fragE=False):
         # This function uses old energy expression and will be removed
         rdm2s = numpy.einsum(
             "ijkl,pi,qj,rk,sl->pqrs",
@@ -361,14 +361,17 @@ class Frags:
         )
 
         self.ebe = etmp
-        return e1 + e2 + ec
+        if return_e:
+            return e1 + e2 + ec
+        else:
+            return None
 
     def energy_hf(
         self,
         rdm_hf=None,
         mo_coeffs=None,
         eri=None,
-        return_e1=False,
+        return_e=False,
         unrestricted=False,
         spin_ind=None,
     ):
@@ -437,12 +440,12 @@ class Frags:
 
         self.ebe_hf = etmp
 
-        if return_e1:
+        if return_e:
             e_h1 = 0.0
             e_coul = 0.0
             for i in self.efac[1]:
                 e_h1 += self.efac[0] * e1[i]
                 e_coul += self.efac[0] * (e2[i] + ec[i])
             return (e_h1, e_coul, e1 + e2 + ec)
-
-        return e1 + e2 + ec
+        else:
+            return None

@@ -661,9 +661,8 @@ class BE(Mixin_k_Localize):
                 * 2.0
             )
 
-            # energy
             if compute_hf:
-                self.Fobjs[frg].energy_hf(return_e1=True)
+                self.Fobjs[frg].energy_hf()  # Updates fragment HF energy.
                 E_hf += self.Fobjs[frg].ebe_hf
 
         print(flush=True)
