@@ -9,10 +9,6 @@ from pyscf import gto, qmmm, scf
 
 from quemb.molbe.misc import be2puffin
 
-# variables for scratch handling
-# pbe_var.SCRATCH = '{}'
-# pbe_var.CREATE_SCRATCH_DIR = True
-
 
 # Convert PySCF integrals to libint format
 def pyscf2lint(mol, hcore_pyscf):

@@ -4,10 +4,6 @@
 
 from quemb.molbe.misc import be2puffin
 
-# variables for scratch handling
-# pbe_var.SCRATCH = '{}'
-# pbe_var.CREATE_SCRATCH_DIR = True
-
 # Give structure XYZ, in Angstroms
 structure = "data/octane.xyz"
 
