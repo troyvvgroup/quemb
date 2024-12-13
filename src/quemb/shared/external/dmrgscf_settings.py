@@ -6,11 +6,11 @@
 import os
 
 # For Block and Block2 solvers
-BLOCKEXE = 'block2main'
-BLOCKEXE_COMPRESS_NEVPT = 'block2main'
+BLOCKEXE = "block2main"
+BLOCKEXE_COMPRESS_NEVPT = "block2main"
 BLOCKSCRATCHDIR = str(os.getpid())
 BLOCKRUNTIMEDIR = str(os.getpid())
-MPIPREFIX = ''
+MPIPREFIX = ""
 BLOCKVERSION = None
 
 # For chemps2 solvers
