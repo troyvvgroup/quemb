@@ -8,6 +8,7 @@ https://stackoverflow.com/questions/75495212/type-hinting-numpy-arrays-and-batch
 Note that most numpy functions return `ndarray[Any, Any]`
 i.e. the type is mostly useful to document intent to the developer.
 """
+
 import os
 from typing import Any, Dict, Tuple, TypeAlias, TypeVar
 

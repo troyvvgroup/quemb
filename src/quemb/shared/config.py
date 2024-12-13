@@ -7,7 +7,7 @@ from cattrs import structure, unstructure
 
 from quemb.shared.helper import add_docstring
 
-DEFAULT_RC_PATH: Final = Path("~/.quembrc")
+DEFAULT_RC_PATH: Final = Path("~/.quembrc").expanduser()
 
 
 @define
