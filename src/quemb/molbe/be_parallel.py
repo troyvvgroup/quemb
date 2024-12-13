@@ -45,11 +45,11 @@ def run_solver(
     select_cutoff=None,
     ompnum=4,
     writeh1=False,
-    eeval=True,
+    ereturn=True,
     return_rdm_ao=True,
     use_cumulant=True,
     relax_density=False,
-    frag_energy=False,
+    frag_energy=True,
 ):
     """
     Run a quantum chemistry solver to compute the reduced density matrices.
@@ -85,7 +85,7 @@ def run_solver(
         Number of OpenMP threads. Default is 4.
     writeh1 : bool, optional
         If True, write the one-electron integrals to a file. Default is False.
-    eeval : bool, optional
+    ereturn : bool, optional
         If True, evaluate the electronic energy. Default is True.
     return_rdm_ao : bool, optional
         If True, return the reduced density matrices in the atomic orbital basis.
@@ -93,7 +93,7 @@ def run_solver(
     use_cumulant : bool, optional
         If True, use the cumulant approximation for RDM2. Default is True.
     frag_energy : bool, optional
-        If True, compute the fragment energy. Default is False.
+        If True, compute the fragment energy. Default is True.
     relax_density : bool, optional
         If True, use CCSD relaxed density. Default is False
 
@@ -212,7 +212,7 @@ def run_solver(
 
     # Compute RDM1
     rdm1 = multi_dot((mf_.mo_coeff, rdm1_tmp, mf_.mo_coeff.T)) * 0.5
-    if eeval:
+    if ereturn:
         if solver == "CCSD" and not rdm_return:
             with_dm1 = True
             if use_cumulant:
@@ -400,8 +400,9 @@ def be_func_parallel(
     only_chem=False,
     relax_density=False,
     use_cumulant=True,
-    eeval=False,
-    frag_energy=False,
+    print_match_err=False,
+    ereturn=False,
+    frag_energy=True,
     hci_cutoff=0.001,
     ci_coeff_cutoff=None,
     select_cutoff=None,
@@ -441,10 +442,12 @@ def be_func_parallel(
     only_chem : bool, optional
         Whether to perform chemical potential optimization only.
         Refer to bootstrap embedding literature. Defaults to False.
-    eeval : bool, optional
-        Whether to evaluate energies. Defaults to False.
+    print_match_err : bool, optional
+        Whether to print error in density matching. Defaults to False.
+    ereturn : bool, optional
+        Whether to evaluate energies. Defaults to False
     frag_energy : bool, optional
-        Whether to compute fragment energy. Defaults to False.
+        Whether to compute fragment energy. Defaults to True.
     return_vec : bool, optional
         Whether to return the error vector. Defaults to False.
     ebe_hf : float, optional
@@ -512,8 +515,8 @@ def be_func_parallel(
                 select_cutoff,
                 ompnum,
                 writeh1,
-                True,
-                True,
+                ereturn,
+                True,  # return_rdm_ao: not an exposed variable, for now
                 use_cumulant,
                 relax_density,
                 frag_energy,
@@ -557,7 +560,7 @@ def be_func_parallel(
     if return_vec:
         return (ernorm, ervec, [e_1 + e_2 + e_c, [e_1, e_2, e_c]])
 
-    if eeval:
+    if print_match_err:
         print("Error in density matching      :   {:>2.4e}".format(ernorm), flush=True)
 
     return ernorm

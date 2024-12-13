@@ -33,10 +33,10 @@ def be_func(
     hci_cutoff=0.001,
     ci_coeff_cutoff=None,
     select_cutoff=None,
-    ebe_hf=0.0,
     eeval=False,
     ereturn=False,
     frag_energy=True,
+    print_match_err=True,
     relax_density=False,
     return_vec=False,
     use_cumulant=True,
@@ -71,14 +71,14 @@ def be_func(
         Whether to evaluate the energy. Defaults to False.
     ereturn : bool, optional
         Whether to return the energy. Defaults to False.
+    print_match_err : bool, optional
+        Whether to print the matching error. Defaults to True
     frag_energy : bool, optional
         Whether to calculate fragment energy. Defaults to True.
     relax_density : bool, optional
         Whether to relax the density. Defaults to False.
     return_vec : bool, optional
         Whether to return the error vector. Defaults to False.
-    ebe_hf : float, optional
-        Hartree-Fock energy. Defaults to 0.
     use_cumulant : bool, optional
         Whether to use the cumulant-based energy expression. Defaults to True.
 
@@ -320,7 +320,7 @@ def be_func(
     if return_vec:
         return (ernorm, ervec, [Ecorr, total_e])
 
-    if eeval:
+    if print_match_err:
         print("Error in density matching      :   {:>2.4e}".format(ernorm), flush=True)
 
     return ernorm

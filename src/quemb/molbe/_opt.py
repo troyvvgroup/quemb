@@ -136,18 +136,17 @@ class BEOPT:
                 select_cutoff=self.select_cutoff,
                 hci_pt=self.hci_pt,
                 frag_energy=self.frag_energy,
-                ebe_hf=self.ebe_hf,
                 scratch_dir=self.scratch_dir,
                 **self.solver_kwargs,
             )
         else:
             err_, errvec_, ebe_ = be_func_parallel(
-                xk,
-                self.Fobjs,
-                self.Nocc,
-                self.solver,
-                self.enuc,
-                eeval=True,
+                pot=xk,
+                Fobjs=self.Fobjs,
+                Nocc=self.Nocc,
+                solver=self.solver,
+                enuc=self.enuc,
+                print_match_err=True,
                 return_vec=True,
                 hf_veff=self.hf_veff,
                 nproc=self.nproc,
@@ -158,7 +157,6 @@ class BEOPT:
                 ci_coeff_cutoff=self.ci_coeff_cutoff,
                 select_cutoff=self.select_cutoff,
                 frag_energy=self.frag_energy,
-                ebe_hf=self.ebe_hf,
                 scratch_dir=self.scratch_dir,
                 **self.solver_kwargs,
             )
