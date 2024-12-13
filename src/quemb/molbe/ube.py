@@ -22,7 +22,7 @@ from quemb.molbe.be_parallel import be_func_parallel_u
 from quemb.molbe.mbe import BE
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import be_func_u
-from quemb.shared import be_var
+from quemb.shared.config import settings
 from quemb.shared.helper import unused
 
 
@@ -153,15 +153,15 @@ class UBE(BE):  # 🍠
         )
 
         jobid = ""
-        if be_var.CREATE_SCRATCH_DIR:
+        if settings.CREATE_SCRATCH_DIR:
             jobid = os.environ.get("SLURM_JOB_ID", "")
-        if be_var.SCRATCH:
-            self.scratch_dir = be_var.SCRATCH + str(jobid)
+        if settings.SCRATCH:
+            self.scratch_dir = settings.SCRATCH + str(jobid)
             os.system("mkdir -p " + self.scratch_dir)
         else:
             self.scratch_dir = None
         if not jobid:
-            self.eri_file = be_var.SCRATCH + eri_file
+            self.eri_file = settings.SCRATCH + eri_file
         else:
             self.eri_file = self.scratch_dir + "/" + eri_file
 
@@ -313,8 +313,8 @@ class UBE(BE):  # 🍠
             )
 
             if compute_hf:
-                eh1_a, ecoul_a, ef_a = fobj_a.energy_hf(
-                    return_e1=True, unrestricted=True, spin_ind=0
+                eh1_a, ecoul_a, ef_a = fobj_a.update_ebe_hf(
+                    return_e=True, unrestricted=True, spin_ind=0
                 )
                 unused(ef_a)
                 EH1 += eh1_a
@@ -336,8 +336,8 @@ class UBE(BE):  # 🍠
             )
 
             if compute_hf:
-                eh1_b, ecoul_b, ef_b = fobj_b.energy_hf(
-                    return_e1=True, unrestricted=True, spin_ind=1
+                eh1_b, ecoul_b, ef_b = fobj_b.update_ebe_hf(
+                    return_e=True, unrestricted=True, spin_ind=1
                 )
                 unused(ef_b)
                 EH1 += eh1_b

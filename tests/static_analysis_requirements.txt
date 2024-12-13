@@ -1,0 +1,8 @@
+# the additional (!) requirements for performing static analysis of the code
+# the dependencies of `quemb` itself are given in the setup.py
+ruff
+pylint
+mypy
+scipy-stubs
+types-PyYAML
+pytest

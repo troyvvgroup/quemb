@@ -353,49 +353,33 @@ class Frags:
         self,
         u,
         cout=None,
-        return_heff=False,
-        no_chempot=False,
+        do_chempot=True,
         only_chem=False,
     ):
         """Update the effective Hamiltonian for the fragment."""
-
         heff_ = numpy.zeros_like(self.h1)
 
         if cout is None:
             cout = self.udim
 
-        if not no_chempot:
+        if do_chempot:
             for i, fi in enumerate(self.fsites):
                 if not any(i in sublist for sublist in self.edge_idx):
                     heff_[i, i] -= u[-1]
 
         if only_chem:
             self.heff = heff_
-            if return_heff:
-                if cout is None:
-                    return heff_
-                else:
-                    return (cout, heff_)
-            return cout
+        else:
+            for idx, i in enumerate(self.edge_idx):
+                for j in range(len(i)):
+                    for k in range(len(i)):
+                        if j > k:
+                            continue
+                        heff_[i[j], i[k]] = u[cout]
+                        heff_[i[k], i[j]] = u[cout]
+                        cout += 1
 
-        for idx, i in enumerate(self.edge_idx):
-            for j in range(len(i)):
-                for k in range(len(i)):
-                    if j > k:
-                        continue
-
-                    heff_[i[j], i[k]] = u[cout]
-                    heff_[i[k], i[j]] = u[cout]
-
-                    cout += 1
-
-        self.heff = heff_
-        if return_heff:
-            if cout is None:
-                return heff_
-            else:
-                return (cout, heff_)
-        return cout
+            self.heff = heff_
 
     def set_udim(self, cout):
         for i in self.edge_idx:
@@ -406,7 +390,7 @@ class Frags:
                     cout += 1
         return cout
 
-    def energy_hf(
+    def update_ebe_hf(
         self, rdm_hf=None, mo_coeffs=None, eri=None, return_e1=False, unrestricted=False
     ):
         if mo_coeffs is None:

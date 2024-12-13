@@ -8,7 +8,7 @@ from pyscf import ao2mo, cc, fci, mcscf, mp
 from pyscf.cc.ccsd_rdm import make_rdm2
 
 from quemb.molbe.helper import get_frag_energy, get_frag_energy_u
-from quemb.shared import be_var
+from quemb.shared.config import settings
 from quemb.shared.external.ccsd_rdm import (
     make_rdm1_ccsd_t1,
     make_rdm1_uccsd,
@@ -166,10 +166,10 @@ def be_func(
             # pylint: disable-next=E0611,E0401
             from pyscf.shciscf import shci  # noqa: PLC0415    # shci is optional
 
-            if scratch_dir is None and be_var.CREATE_SCRATCH_DIR:
-                tmp = os.path.join(be_var.SCRATCH, str(os.getpid()), str(fobj.dname))
+            if scratch_dir is None and settings.CREATE_SCRATCH_DIR:
+                tmp = os.path.join(settings.SCRATCH, str(os.getpid()), str(fobj.dname))
             elif scratch_dir is None:
-                tmp = be_var.SCRATCH
+                tmp = settings.SCRATCH
             else:
                 tmp = os.path.join(scratch_dir, str(os.getpid()), str(fobj.dname))
             if not os.path.isdir(tmp):
@@ -219,8 +219,8 @@ def be_func(
 
         elif solver in ["block2", "DMRG", "DMRGCI", "DMRGSCF"]:
             solver_kwargs_ = solver_kwargs.copy()
-            if scratch_dir is None and be_var.CREATE_SCRATCH_DIR:
-                tmp = os.path.join(be_var.SCRATCH, str(os.getpid()), str(fobj.dname))
+            if scratch_dir is None and settings.CREATE_SCRATCH_DIR:
+                tmp = os.path.join(settings.SCRATCH, str(os.getpid()), str(fobj.dname))
             else:
                 tmp = os.path.join(scratch_dir, str(os.getpid()), str(fobj.dname))
             if not os.path.isdir(tmp):
@@ -301,7 +301,7 @@ def be_func(
                     veff0=fobj.veff0,
                 )
                 total_e = [sum(x) for x in zip(total_e, e_f)]
-                fobj.energy_hf()
+                fobj.update_ebe_hf()
 
     if frag_energy and eeval:
         # Return energy evaluated fragment-by-fragment
@@ -822,7 +822,7 @@ def solve_block2(mf, nocc, frag_scratch, **solver_kwargs):
         [max_noise, max_noise, max_noise / 10, max_noise / 100, max_noise / 100, 0.0],
     )
     # Other DMRG parameters
-    mc.fcisolver.threads = int(os.environ.get("OMP_NUM_THREADS", 8))
+    mc.fcisolver.threads = int(os.environ.get("OMP_NUM_THREADS", "8"))
     mc.fcisolver.twodot_to_onedot = int(twodot_to_onedot)
     mc.fcisolver.maxIter = int(max_iter)
     mc.fcisolver.block_extra_keyword = list(block_extra_keyword)

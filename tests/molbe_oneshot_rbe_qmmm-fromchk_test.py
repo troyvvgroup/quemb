@@ -8,10 +8,6 @@ import pytest
 
 from quemb.molbe.misc import be2puffin
 
-# variables for scratch handling
-# pbe_var.SCRATCH = '{}'
-# pbe_var.CREATE_SCRATCH_DIR = True
-
 # Set MM charges and their positions to use PySCF's QM/MM
 # functionality. Note that the units for the coordinates are
 # in Bohr and the units for the structure are in Angstrom

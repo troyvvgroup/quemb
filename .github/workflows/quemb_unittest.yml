@@ -1,7 +1,7 @@
 # Author(s): Minsik Cho, Shaun Weatherly
 # Based on: https://docs.github.com/en/actions/use-cases-and-examples/building-and-testing/building-and-testing-python
 
-name: Run Unit Tests for quemb
+name: Do static analysis and run tests for quemb
 
 on:
   push:
@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.12"]
+        python-version: ["3.10"]
 
 
     steps:
@@ -48,7 +48,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install --upgrade --upgrade-strategy eager ruff pylint mypy scipy-stubs
+        pip install -r tests/static_analysis_requirements.txt
         pip install .
 
 
@@ -58,9 +58,8 @@ jobs:
 
 
     - name: Static analysis with ruff
-      # for the moment we want to report always report success
       run: |
-        ruff check . || true
+        ruff check .
 
 
     - name: Static analysis with pylint
@@ -69,21 +68,21 @@ jobs:
       # TODO: if they add it to ruff as well https://github.com/astral-sh/ruff/issues/9103
       #   remove pylint.
       run: |
-        pylint --disable=all --enable=E0401,R0401,E0611 . || true    # for the moment we want to report always report success
+        pylint --disable=all --enable=E0401,R0401,E0611 .
 
 
     - name: Static analysis with mypy
       run: |
-        mypy tests/ example/ src/ || true    # for the moment we want to report always report success
+        mypy tests/ example/ src/
 
 
 
-  build:
+  testsuite:
     runs-on: ubuntu-latest
     needs: analysis
     strategy:
       matrix:
-        python-version: ["3.9", "3.12"]
+        python-version: ["3.10", "3.13"]
 
     steps:
     - uses: actions/checkout@v4
@@ -106,14 +105,12 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install --upgrade --upgrade-strategy eager pytest
-        if [ -f requirements.txt ]; then pip install --upgrade --upgrade-strategy eager -r requirements.txt; fi
+        pip install -r tests/test_requirements.txt
         pip install git+https://github.com/pyscf/dmrgscf
         PYSCFHOME=$(pip show pyscf-dmrgscf | grep 'Location' | tr ' ' '\n' | tail -n 1)
         wget https://raw.githubusercontent.com/pyscf/dmrgscf/master/pyscf/dmrgscf/settings.py.example
         mv settings.py.example ${PYSCFHOME}/pyscf/dmrgscf/settings.py
         pip install .
-        echo ${{ github.workspace }} > $(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")/quemb.pth
 
 
     - name: Test with pytest
