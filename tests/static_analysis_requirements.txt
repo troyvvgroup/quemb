@@ -4,4 +4,5 @@ ruff
 pylint
 mypy
 scipy-stubs
+types-PyYAML
 pytest
