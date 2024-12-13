@@ -107,9 +107,9 @@ jobs:
       run: |
         pip install -r tests/test_requirements.txt
         pip install git+https://github.com/pyscf/dmrgscf
+        pip install block2
         PYSCFHOME=$(pip show pyscf-dmrgscf | grep 'Location' | tr ' ' '\n' | tail -n 1)
-        wget https://raw.githubusercontent.com/pyscf/dmrgscf/master/pyscf/dmrgscf/settings.py.example
-        mv settings.py.example ${PYSCFHOME}/pyscf/dmrgscf/settings.py
+        cp  src/quemb/shared/external/dmrgscf_settings.py ${PYSCFHOME}/pyscf/dmrgscf/settings.py
         pip install .
 
 
