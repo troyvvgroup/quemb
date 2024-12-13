@@ -369,7 +369,6 @@ class Frags:
 
         if only_chem:
             self.heff = heff_
-            return
         else:
             for idx, i in enumerate(self.edge_idx):
                 for j in range(len(i)):
