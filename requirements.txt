@@ -1,6 +1,0 @@
-pyscf==2.6.2
-pytest==8.3.2
-libdmet @ git+https://github.com/gkclab/libdmet_preview.git
-matplotlib
-attrs
-typing_extensions

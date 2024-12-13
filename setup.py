@@ -25,6 +25,5 @@ setup(
         "matplotlib",
         "libdmet @ git+https://github.com/gkclab/libdmet_preview.git",
         "attrs",
-        "typing_extensions",
     ],
 )
