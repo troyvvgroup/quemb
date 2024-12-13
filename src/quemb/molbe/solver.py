@@ -816,7 +816,7 @@ def solve_block2(mf, nocc, frag_scratch, **solver_kwargs):
         [max_noise, max_noise, max_noise / 10, max_noise / 100, max_noise / 100, 0.0],
     )
     # Other DMRG parameters
-    mc.fcisolver.threads = int(os.environ.get("OMP_NUM_THREADS", 8))
+    mc.fcisolver.threads = int(os.environ.get("OMP_NUM_THREADS", "8"))
     mc.fcisolver.twodot_to_onedot = int(twodot_to_onedot)
     mc.fcisolver.maxIter = int(max_iter)
     mc.fcisolver.block_extra_keyword = list(block_extra_keyword)

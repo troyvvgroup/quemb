@@ -17,7 +17,7 @@ setup(
     license="Apache 2.0",
     packages=find_packages("src"),
     package_dir={"": "src"},
-    python_requires=">=3.7",
+    python_requires=">=3.10",
     install_requires=[
         "numpy>=1.22.0",
         "scipy>=1.7.0",
@@ -25,6 +25,5 @@ setup(
         "matplotlib",
         "libdmet @ git+https://github.com/gkclab/libdmet_preview.git",
         "attrs",
-        "typing_extensions",
     ],
 )
