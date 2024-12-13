@@ -7,7 +7,7 @@ from cattrs import structure, unstructure
 
 from quemb.shared.helper import add_docstring
 
-DEFAULT_RC_PATH: Final = Path("~/.quembrc").expanduser()
+DEFAULT_RC_PATH: Final = Path("~/.quembrc.yml").expanduser()
 
 
 @define
@@ -20,6 +20,8 @@ class Settings:
 
 def _write_settings(settings: Settings, path: Path) -> None:
     with open(path, "w+") as f:
+        f.write("# Settings files for `quemb`.\n")
+        f.write("# You can delete keys; in this case the default is taken.\n")
         yaml.dump(unstructure(settings), stream=f, default_flow_style=False)
 
 
