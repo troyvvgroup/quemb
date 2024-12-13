@@ -15,8 +15,10 @@ from quemb.kbe.lo import Mixin_k_Localize
 from quemb.kbe.misc import print_energy, storePBE
 from quemb.kbe.pfrag import Frags
 from quemb.molbe._opt import BEOPT
+from quemb.molbe.helper import get_eri, get_scfObj, get_veff
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.solver import be_func
+
 from quemb.shared import be_var
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
@@ -485,41 +487,38 @@ class BE(Mixin_k_Localize):
         """
         if compute_hf:
             E_hf = 0.0
-        EH1 = 0.0
-        ECOUL = 0.0
-        EF = 0.0
 
         # Create a file to store ERIs
         if not restart:
             file_eri = h5py.File(self.eri_file, "w")
         lentmp = len(self.edge_idx)
         transform_parallel = False  # hard set for now
-        for I in range(self.Nfrag):
+        for fidx in range(self.Nfrag):
             if lentmp:
                 fobjs_ = Frags(
-                    self.fsites[I],
-                    I,
-                    edge=self.edge[I],
+                    self.fsites[fidx],
+                    fidx,
+                    edge=self.edge[fidx],
                     eri_file=self.eri_file,
-                    center=self.center[I],
-                    edge_idx=self.edge_idx[I],
-                    center_idx=self.center_idx[I],
-                    efac=self.ebe_weight[I],
-                    centerf_idx=self.centerf_idx[I],
+                    center=self.center[fidx],
+                    edge_idx=self.edge_idx[fidx],
+                    center_idx=self.center_idx[fidx],
+                    efac=self.ebe_weight[fidx],
+                    centerf_idx=self.centerf_idx[fidx],
                     unitcell=self.unitcell,
                     unitcell_nkpt=self.unitcell_nkpt,
                 )
             else:
                 fobjs_ = Frags(
-                    self.fsites[I],
-                    I,
+                    self.fsites[fidx],
+                    fidx,
                     edge=[],
                     center=[],
                     eri_file=self.eri_file,
                     edge_idx=[],
                     center_idx=[],
                     centerf_idx=[],
-                    efac=self.ebe_weight[I],
+                    efac=self.ebe_weight[fidx],
                     unitcell=self.unitcell,
                     unitcell_nkpt=self.unitcell_nkpt,
                 )
@@ -656,9 +655,8 @@ class BE(Mixin_k_Localize):
                 * 2.0
             )
 
-            # energy
             if compute_hf:
-                eh1, ecoul, ef = self.Fobjs[frg].energy_hf(return_e1=True)
+                self.Fobjs[frg].update_ebe_hf()  # Updates fragment HF energy.
                 E_hf += self.Fobjs[frg].ebe_hf
 
         print(flush=True)
@@ -785,8 +783,8 @@ class BE(Mixin_k_Localize):
             for fobj in self.Fobjs:
                 fobj.fock += fobj.heff
         else:
-            for idx, fobj in self.Fobjs:
-                fobj.fock += heff[idx]
+            for fidx, fobj in self.Fobjs:
+                fobj.fock += heff[fidx]
 
     def write_heff(self, heff_file="bepotfile.h5"):
         """
@@ -844,8 +842,8 @@ def initialize_pot(Nfrag, edge_idx):
     pot_ = []
 
     if not len(edge_idx) == 0:
-        for I in range(Nfrag):
-            for i in edge_idx[I]:
+        for fidx in range(Nfrag):
+            for i in edge_idx[fidx]:
                 for j in range(len(i)):
                     for k in range(len(i)):
                         if j > k:
@@ -881,7 +879,6 @@ def parallel_fock_wrapper(dname, nao, dm, S, TA, hf_veff, eri_file):
     """
     Wrapper for parallel Fock transformation
     """
-    from .helper import get_eri, get_veff
 
     eri_ = get_eri(dname, nao, eri_file=eri_file, ignore_symm=True)
     veff0, veff_ = get_veff(eri_, dm, S, TA, hf_veff, return_veff0=True)
@@ -893,7 +890,6 @@ def parallel_scf_wrapper(dname, nao, nocc, h1, dm_init, eri_file):
     """
     Wrapper for performing fragment scf calculation
     """
-    from .helper import get_eri, get_scfObj
 
     eri = get_eri(dname, nao, eri_file=eri_file)
     mf_ = get_scfObj(h1, eri, nocc, dm_init)

@@ -306,12 +306,12 @@ class Frags:
                     cout += 1
         return cout
 
-    def energy_hf(
+    def update_ebe_hf(
         self,
         rdm_hf=None,
         mo_coeffs=None,
         eri=None,
-        return_e1=False,
+        return_e=False,
         unrestricted=False,
         spin_ind=None,
     ):
@@ -380,12 +380,12 @@ class Frags:
 
         self.ebe_hf = etmp
 
-        if return_e1:
+        if return_e:
             e_h1 = 0.0
             e_coul = 0.0
             for i in self.efac[1]:
                 e_h1 += self.efac[0] * e1[i]
                 e_coul += self.efac[0] * (e2[i] + ec[i])
             return (e_h1, e_coul, e1 + e2 + ec)
-
-        return e1 + e2 + ec
+        else:
+            return None

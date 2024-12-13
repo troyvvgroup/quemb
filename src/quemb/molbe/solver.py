@@ -300,7 +300,7 @@ def be_func(
                     veff0=fobj.veff0,
                 )
                 total_e = [sum(x) for x in zip(total_e, e_f)]
-                fobj.energy_hf()
+                fobj.update_ebe_hf()
 
     if frag_energy or eeval:
         Ecorr = sum(total_e)

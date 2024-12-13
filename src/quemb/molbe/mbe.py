@@ -897,7 +897,7 @@ class BE(MixinLocalize):
             )
 
             if compute_hf:
-                _, _, _ = fobjs_.energy_hf(return_e1=True)  # eh1, ecoul, ef
+                fobjs_.update_ebe_hf()  # Updates fragment HF energy.
                 E_hf += fobjs_.ebe_hf
 
         if not restart:
