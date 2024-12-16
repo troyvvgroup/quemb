@@ -85,13 +85,13 @@ class WorkDir:
 
         Parameters
         ----------
-        user_defined_root: PathLike, optional
+        user_defined_root:
             The root directory where to create temporary directories
             e.g. `/tmp` or `/scratch`.
             If `None`, then the value from `quemb.settings.SCRATCH` is taken.
-        prefix: str, default: "QuEmb_"
+        prefix:
             The prefix for the subdirectory.
-        do_cleanup: bool, default: True
+        do_cleanup:
             Perform cleanup when calling `self.cleanup`.
 
         Returns
