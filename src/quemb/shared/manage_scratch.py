@@ -93,11 +93,6 @@ class WorkDir:
             The prefix for the subdirectory.
         do_cleanup:
             Perform cleanup when calling `self.cleanup`.
-
-        Returns
-        -------
-        WorkDir
-            A ready to use `WorkDir`
         """
         scratch_root = (
             Path(user_defined_root) if user_defined_root else Path(settings.SCRATCH)
