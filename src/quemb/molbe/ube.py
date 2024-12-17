@@ -41,7 +41,7 @@ class UBE(BE):  # 🍠
             Currently only supports embedding Hamiltonian construction for molecular
             systems In conjunction with molbe.misc.ube2fcidump,
             embedding Hamiltonians can be written for external use.
-            See `unrestricted` branch for a work-in-progress full implmentation
+            See :python:`unrestricted` branch for a work-in-progress full implmentation
 
         Parameters
         ----------

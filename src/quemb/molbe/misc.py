@@ -314,7 +314,7 @@ def be2puffin(
         By default None
     ecp : str, optional
         specify the ECP for any atoms, accompanying the basis set
-        syntax; for example `{'Na': 'bfd-pp', 'Ru': 'bfd-pp'}`
+        syntax; for example :python:`{'Na': 'bfd-pp', 'Ru': 'bfd-pp'}`
         By default None
     """
     # The following imports have to happen here to avoid

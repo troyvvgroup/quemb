@@ -5,7 +5,7 @@ In particular it enables barebone typechecking for the shape of numpy arrays
 Inspired by
 https://stackoverflow.com/questions/75495212/type-hinting-numpy-arrays-and-batches
 
-Note that most numpy functions return `ndarray[Any, Any]`
+Note that most numpy functions return :python:`ndarray[Any, Any]`
 i.e. the type is mostly useful to document intent to the developer.
 """
 
