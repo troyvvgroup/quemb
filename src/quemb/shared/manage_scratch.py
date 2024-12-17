@@ -9,6 +9,7 @@ from typing import Annotated, Final, Literal, Optional
 from attr import define, field
 
 from quemb.shared.config import settings
+from quemb.shared.helper import add_init_docstring
 from quemb.shared.typing import PathLike
 
 
@@ -16,6 +17,7 @@ def _to_abs_path(pathlike: PathLike) -> Path:
     return Path(pathlike).resolve()
 
 
+@add_init_docstring
 @define(order=False)
 class WorkDir:
     """Manage a scratch area.
@@ -115,7 +117,7 @@ class WorkDir:
 
         Parameters
         ----------
-        force_cleanup : bool, optional
+        force_cleanup:
             If the instance was initialized with `cleanup_at_end=True`,
             or the argument `force_cleanup` is given, then
             the working directory is deleted.

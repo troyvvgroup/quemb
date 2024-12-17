@@ -1,3 +1,5 @@
+from inspect import signature
+from itertools import islice
 from typing import Any, Callable, Optional, TypeVar
 
 Function = TypeVar("Function", bound=Callable)
@@ -38,6 +40,30 @@ def add_docstring(doc: Optional[str]) -> Callable[[Function], Function]:
 def copy_docstring(f: Callable) -> Callable[[Function], Function]:
     """Copy docstring from another function as decorator."""
     return add_docstring(f.__doc__)
+
+
+def _get_init_docstring(obj: type) -> str:
+    sig = signature(obj.__init__)  # type: ignore[misc]
+    docstring = """Initialization
+
+Parameters
+----------
+"""
+    # we want to skip `self`
+    for var in islice(sig.parameters.values(), 1, None):
+        docstring += f"{var.name}: {var.annotation}\n"
+    return docstring
+
+
+def add_init_docstring(obj: type) -> type:
+    """Add a sensible docstring to the __init__ method of an attrs class
+
+    Makes only sense if the attributes are type-annotated.
+    Is a stopgap measure until https://github.com/sphinx-doc/sphinx/issues/10682
+    is solved.
+    """
+    obj.__init__.__doc__ = _get_init_docstring(obj)  # type: ignore[misc]
+    return obj
 
 
 def unused(*args: Any) -> None:
