@@ -45,11 +45,11 @@ class UBE(BE):  # 🍠
 
         Parameters
         ----------
-        mf : pyscf.scf.UHF
+        mf : pyscf.scf.uhf.UHF
             pyscf meanfield UHF object
         fobj : quemb.molbe.fragment.fragpart
             object that contains fragment information
-        eri_file : str, default="eri_file.h5"
+        eri_file : str, optional
             h5py file with ERIs
         lo_method : str, optional
             Method for orbital localization. Supports 'lowdin', 'boys', and 'wannier',

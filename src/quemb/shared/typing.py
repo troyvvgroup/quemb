@@ -19,6 +19,7 @@ import numpy as np
 #  Vector[float64] should also be allowed.
 # Also see here:
 # https://stackoverflow.com/questions/61568462/what-does-typevara-b-covariant-true-mean
+#: Type annotation of a generic covariant type.
 T_dtype_co = TypeVar("T_dtype_co", bound=np.generic, covariant=True)
 
 #: Type annotation of a vector.

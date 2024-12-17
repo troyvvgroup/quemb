@@ -17,11 +17,11 @@ author = "Oinam Romesh Meitei"
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
-    "sphinx_rtd_theme",
     "sphinx.ext.intersphinx",
     "sphinx_autodoc_typehints",
     # https://github.com/tox-dev/sphinx-autodoc-typehints
     "sphinx.ext.autosummary",
+    "sphinx_rtd_theme",
 ]
 
 autodoc_typehints_format = "short"
@@ -31,11 +31,14 @@ autodoc_default_flags = [
     "private-members",
     "undoc-members",
 ]
+always_use_bars_union = True
+python_use_unqualified_type_names = True
 
 
 napoleon_google_docstring = False
 napoleon_include_init_with_doc = True
 napoleon_numpy_docstring = True
+napoleon_use_param = True
 
 templates_path = ["_templates"]
 
@@ -44,9 +47,8 @@ intersphinx_mapping = {
     "pandas": ("http://pandas.pydata.org/pandas-docs/stable/", None),
     "python": ("https://docs.python.org/3", None),
     "pyscf": ("https://pyscf.org/", None),
+    "h5py": ("https://docs.h5py.org/en/stable/", None),
 }
-
-python_use_unqualified_type_names = True
 
 
 # -- Options for HTML output -------------------------------------------------
