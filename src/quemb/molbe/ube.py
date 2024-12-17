@@ -36,7 +36,8 @@ class UBE(BE):  # 🍠
         compute_hf=True,
     ):
         """Initialize Unrestricted BE Object (ube🍠)
-        ** NOTE **
+
+        .. note::
             Currently only supports embedding Hamiltonian construction for molecular
             systems In conjunction with molbe.misc.ube2fcidump,
             embedding Hamiltonians can be written for external use.

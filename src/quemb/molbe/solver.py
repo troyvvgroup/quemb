@@ -342,7 +342,8 @@ def be_func_u(
     ----------
     pot : list
         List of potentials.
-    Fobjs : zip list of quemb.molbe.fragment.fragpart, alpha and beta
+    Fobjs : list
+        zip list of class:`quemb.molbe.fragment.fragpart`, alpha and beta
         List of fragment objects. Each element is a tuple with the alpha and
         beta components
     solver : str
@@ -709,7 +710,7 @@ def solve_block2(mf, nocc, frag_scratch, **solver_kwargs):
         nocc: int
             Number of occupied MOs in the fragment, used for constructing the
             fragment 1- and 2-RDMs.
-        frag_scratch: str|pathlike, optional
+        frag_scratch: str | os.PathLike, optional
             Fragment-level DMRG scratch directory.
         max_mem: int, optional
             Maximum memory in GB.
@@ -725,7 +726,8 @@ def solve_block2(mf, nocc, frag_scratch, **solver_kwargs):
             Sweep index at which to transition to one-dot DMRG algorithm.
             All sweeps prior to this will use the two-dot algorithm.
         block_extra_keyword: list(str), optional
-            Other keywords to be passed to block2. See: https://block2.readthedocs.io/en/latest/user/keywords.html
+            Other keywords to be passed to block2.
+            See: https://block2.readthedocs.io/en/latest/user/keywords.html
 
     Returns
     -------
@@ -740,12 +742,15 @@ def solve_block2(mf, nocc, frag_scratch, **solver_kwargs):
             Dictionary containing DMRG scheduling parameters to be passed to block2.
 
             e.g. The default schedule used here would be equivalent to the following:
-            schedule_kwargs = {
-                'scheduleSweeps': [0, 10, 20, 30, 40, 50],
-                'scheduleMaxMs': [25, 50, 100, 200, 500, 500],
-                'scheduleTols': [1e-5,1e-5, 1e-6, 1e-6, 1e-8, 1e-8],
-                'scheduleNoises': [0.01, 0.01, 0.001, 0.001, 1e-4, 0.0],
-            }
+
+            .. code-block:: python
+
+                schedule_kwargs = {
+                    'scheduleSweeps': [0, 10, 20, 30, 40, 50],
+                    'scheduleMaxMs': [25, 50, 100, 200, 500, 500],
+                    'scheduleTols': [1e-5,1e-5, 1e-6, 1e-6, 1e-8, 1e-8],
+                    'scheduleNoises': [0.01, 0.01, 0.001, 0.001, 1e-4, 0.0],
+                }
 
     Raises
     ------
@@ -872,7 +877,7 @@ def solve_uccsd(
 
     Parameters
     ----------
-    mf : pyscf.scf.hf.UHF
+    mf : pyscf.scf.uhf.UHF
         Mean-field object from PySCF. Constructed with make_uhf_obj
     eris_inp :
         Custom fragment ERIs object
