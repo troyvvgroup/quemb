@@ -30,8 +30,3 @@ References
 
    install
    api_reference
-
-
-
-.. role:: bash(code)
-   :language: bash
