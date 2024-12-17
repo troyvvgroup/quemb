@@ -1,6 +1,5 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Optional
 
 from pyscf.tools.cubegen import orbital
 
@@ -11,8 +10,8 @@ from quemb.shared.typing import KwargDict, PathLike
 def write_cube(
     be_object: molbe.BE,
     cube_file_path: PathLike,
-    fragment_idx: Optional[Sequence[int]] = None,
-    cubegen_kwargs: Optional[KwargDict] = None,
+    fragment_idx: Sequence[int] | None = None,
+    cubegen_kwargs: KwargDict | None = None,
 ) -> None:
     """Write cube files of embedding orbitals from a BE object.
 

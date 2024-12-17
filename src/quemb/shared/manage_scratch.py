@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from shutil import rmtree
 from types import TracebackType
-from typing import Annotated, Final, Literal, Optional
+from typing import Annotated, Final, Literal
 
 from attr import define, field
 
@@ -61,9 +61,9 @@ class WorkDir:
 
     def __exit__(
         self,
-        type_: Optional[type[BaseException]],
-        value: Optional[BaseException],
-        traceback: Optional[TracebackType],
+        type_: type[BaseException] | None,
+        value: BaseException | None,
+        traceback: TracebackType | None,
     ) -> Literal[False]:
         if value is None:
             self.cleanup()
@@ -73,7 +73,7 @@ class WorkDir:
     def from_environment(
         cls,
         *,
-        user_defined_root: Optional[PathLike] = None,
+        user_defined_root: PathLike | None = None,
         prefix: str = "QuEmb_",
         do_cleanup: bool = True,
     ) -> WorkDir:

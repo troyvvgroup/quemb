@@ -1,6 +1,6 @@
 from inspect import signature
 from itertools import islice
-from typing import Any, Callable, Optional, TypeVar
+from typing import Any, Callable, TypeVar
 
 Function = TypeVar("Function", bound=Callable)
 
@@ -9,7 +9,7 @@ Function = TypeVar("Function", bound=Callable)
 # This is **intentional**.
 # The inner function `update_doc` takes a function
 # and returns a function **with** the exact same signature.
-def add_docstring(doc: Optional[str]) -> Callable[[Function], Function]:
+def add_docstring(doc: str | None) -> Callable[[Function], Function]:
     """Add a docstring to a function as decorator.
 
     Is useful for programmatically generating docstrings.
