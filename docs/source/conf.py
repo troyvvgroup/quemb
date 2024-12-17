@@ -24,10 +24,18 @@ extensions = [
     "sphinx.ext.autosummary",
 ]
 
+autodoc_typehints_format = "short"
+autodoc_default_flags = [
+    "members",
+    "special-members",
+    "private-members",
+    "undoc-members",
+]
+
+
 napoleon_google_docstring = False
 napoleon_include_init_with_doc = True
 napoleon_numpy_docstring = True
-exclude_patterns = []
 
 templates_path = ["_templates"]
 
@@ -38,7 +46,6 @@ intersphinx_mapping = {
     "pyscf": ("https://pyscf.org/", None),
 }
 
-autodoc_typehints_format = "short"
 python_use_unqualified_type_names = True
 
 

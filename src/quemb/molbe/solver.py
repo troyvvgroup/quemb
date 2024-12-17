@@ -710,7 +710,7 @@ def solve_block2(mf, nocc, frag_scratch, **solver_kwargs):
         nocc: int
             Number of occupied MOs in the fragment, used for constructing the
             fragment 1- and 2-RDMs.
-        frag_scratch: str | os.PathLike, optional
+        frag_scratch: PathLike, optional
             Fragment-level DMRG scratch directory.
         max_mem: int, optional
             Maximum memory in GB.

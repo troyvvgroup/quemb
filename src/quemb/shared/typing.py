@@ -21,15 +21,24 @@ import numpy as np
 # https://stackoverflow.com/questions/61568462/what-does-typevara-b-covariant-true-mean
 T_dtype_co = TypeVar("T_dtype_co", bound=np.generic, covariant=True)
 
+#: Type annotation of a vector.
 Vector = np.ndarray[Tuple[int], np.dtype[T_dtype_co]]
+#: Type annotation of a matrix.
 Matrix = np.ndarray[Tuple[int, int], np.dtype[T_dtype_co]]
+#: Type annotation of a tensor.
 Tensor3D = np.ndarray[Tuple[int, int, int], np.dtype[T_dtype_co]]
+#: Type annotation of a tensor.
 Tensor4D = np.ndarray[Tuple[int, int, int, int], np.dtype[T_dtype_co]]
+#: Type annotation of a tensor.
 Tensor5D = np.ndarray[Tuple[int, int, int, int, int], np.dtype[T_dtype_co]]
+#: Type annotation of a tensor.
 Tensor6D = np.ndarray[Tuple[int, int, int, int, int, int], np.dtype[T_dtype_co]]
+#: Type annotation of a tensor.
 Tensor7D = np.ndarray[Tuple[int, int, int, int, int, int, int], np.dtype[T_dtype_co]]
+#: Type annotation of a tensor.
 Tensor = np.ndarray[Tuple[int, ...], np.dtype[T_dtype_co]]
 
-
+#: Type annotation for pathlike objects.
 PathLike: TypeAlias = str | os.PathLike
+#: Type annotation for dictionaries holding keyword arguments.
 KwargDict: TypeAlias = Dict[str, Any]
