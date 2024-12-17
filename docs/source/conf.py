@@ -14,6 +14,16 @@ author = "Oinam Romesh Meitei"
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
+rst_prolog = """
+.. role:: python(code)
+    :language: python
+    :class: highlight
+
+.. role:: bash(code)
+   :language: bash
+   :class: highlight
+"""
+
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
