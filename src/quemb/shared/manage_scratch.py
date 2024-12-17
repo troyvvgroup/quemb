@@ -9,7 +9,6 @@ from typing import Annotated, Final, Literal, Optional
 from attr import define, field
 
 from quemb.shared.config import settings
-from quemb.shared.helper import add_init_docstring
 from quemb.shared.typing import PathLike
 
 
@@ -17,7 +16,6 @@ def _to_abs_path(pathlike: PathLike) -> Path:
     return Path(pathlike).resolve()
 
 
-@add_init_docstring
 @define(order=False)
 class WorkDir:
     """Manage a scratch area.
