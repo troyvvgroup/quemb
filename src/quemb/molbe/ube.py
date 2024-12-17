@@ -36,20 +36,21 @@ class UBE(BE):  # 🍠
         compute_hf=True,
     ):
         """Initialize Unrestricted BE Object (ube🍠)
-        ** NOTE **
+
+        .. note::
             Currently only supports embedding Hamiltonian construction for molecular
             systems In conjunction with molbe.misc.ube2fcidump,
             embedding Hamiltonians can be written for external use.
-            See `unrestricted` branch for a work-in-progress full implmentation
+            See :python:`unrestricted` branch for a work-in-progress full implmentation
 
         Parameters
         ----------
-        mf : pyscf.scf.UHF
+        mf : pyscf.scf.uhf.UHF
             pyscf meanfield UHF object
         fobj : quemb.molbe.fragment.fragpart
             object that contains fragment information
         eri_file : str, optional
-            h5py file with ERIs, by default "eri_file.h5"
+            h5py file with ERIs
         lo_method : str, optional
             Method for orbital localization. Supports 'lowdin', 'boys', and 'wannier',
             by default "lowdin"

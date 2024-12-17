@@ -533,7 +533,7 @@ class BE(MixinLocalize):
         Returns
         -------
         tuple of numpy.ndarray or None
-            If `return_rdm` is True, returns a tuple containing the one-particle
+            If :python:`return_rdm` is True, returns a tuple containing the one-particle
             and two-particle reduced density matrices (RDM1 and RDM2).
             Otherwise, returns None.
 
@@ -1074,7 +1074,7 @@ def initialize_pot(Nfrag, edge_idx):
     Initialize the potential array for bootstrap embedding.
 
     This function initializes a potential array for a given number of fragments
-    (`Nfrag`) and their corresponding edge indices (`edge_idx`).
+    (:python:`Nfrag`) and their corresponding edge indices (:python:`edge_idx`).
     The potential array is initialized with zeros for each pair of edge site indices
     within each fragment, followed by an
     additional zero for the global chemical potential.
