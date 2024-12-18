@@ -3,14 +3,16 @@
 import os
 import pickle
 from multiprocessing import Pool
+from typing import List
 
 import h5py
 import numpy
 from libdmet.basis_transform.eri_transform import get_emb_eri_fast_gdf
-from pyscf import ao2mo
+from pyscf import ao2mo, pbc
 from pyscf.pbc import df, gto
 from pyscf.pbc.df.df_jk import _ewald_exxdiv_for_G0
 
+from quemb.kbe.fragment import fragpart
 from quemb.kbe.lo import Mixin_k_Localize
 from quemb.kbe.misc import print_energy, storePBE
 from quemb.kbe.pfrag import Frags
@@ -18,11 +20,12 @@ from quemb.molbe._opt import BEOPT
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
 from quemb.molbe.solver import be_func
-from quemb.shared.config import settings
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
 from quemb.shared.helper import copy_docstring
+from quemb.shared.manage_scratch import WorkDir
+from quemb.shared.typing import KwargDict, PathLike
 
 
 class BE(Mixin_k_Localize):
@@ -47,65 +50,68 @@ class BE(Mixin_k_Localize):
 
     def __init__(
         self,
-        mf,
-        fobj,
-        eri_file="eri_file.h5",
-        lo_method="lowdin",
-        compute_hf=True,
-        restart=False,
-        save=False,
-        restart_file="storebe.pk",
-        save_file="storebe.pk",
-        hci_pt=False,
-        nproc=1,
-        ompnum=4,
-        hci_cutoff=0.001,
-        ci_coeff_cutoff=None,
-        select_cutoff=None,
-        iao_val_core=True,
-        exxdiv="ewald",
-        kpts=None,
-        cderi=None,
-        iao_wannier=False,
+        mf: pbc.scf.hf.SCF,
+        fobj: fragpart,
+        eri_file: PathLike = "eri_file.h5",
+        lo_method: str = "lowdin",
+        compute_hf: bool = True,
+        restart: bool = False,
+        save: bool = False,
+        restart_file: PathLike = "storebe.pk",
+        save_file: PathLike = "storebe.pk",
+        hci_pt: bool = False,
+        nproc: int = 1,
+        ompnum: int = 4,
+        hci_cutoff: float = 0.001,
+        ci_coeff_cutoff: float | None = None,
+        select_cutoff: float | None = None,
+        iao_val_core: bool = True,
+        exxdiv: str = "ewald",
+        kpts: list[list[float]] | None = None,
+        cderi: PathLike | None = None,
+        iao_wannier: bool = False,
+        scratch_dir: WorkDir | None = None,
+        solver_kwargs: KwargDict | None = None,
     ):
         """
         Constructor for BE object.
 
         Parameters
         ----------
-        mf : pyscf.pbc.scf.hf.SCF
+        mf :
             PySCF periodic mean-field object.
-        fobj : quemb.kbe.fragment.fragpart
+        fobj :
             Fragment object containing sites, centers, edges, and indices.
-        kpts : list of list of float
+        kpts :
             k-points in the reciprocal space for periodic computation
-        eri_file : str, optional
+        eri_file :
             Path to the file storing two-electron integrals, by default 'eri_file.h5'.
-        lo_method : str, optional
+        lo_method :
             Method for orbital localization, by default 'lowdin'.
-        iao_wannier : bool, optional
+        iao_wannier :
             Whether to perform Wannier localization on the IAO space, by default False.
-        compute_hf : bool, optional
+        compute_hf :
             Whether to compute Hartree-Fock energy, by default True.
-        restart : bool, optional
+        restart :
             Whether to restart from a previous calculation, by default False.
-        save : bool, optional
+        save :
             Whether to save intermediate objects for restart, by default False.
-        restart_file : str, optional
+        restart_file :
             Path to the file storing restart information, by default 'storebe.pk'.
-        save_file : str, optional
+        save_file :
             Path to the file storing save information, by default 'storebe.pk'.
-        nproc : int, optional
+        nproc :
             Number of processors for parallel calculations, by default 1. If set to >1,
             multi-threaded parallel computation is invoked.
-        ompnum : int, optional
+        ompnum :
             Number of OpenMP threads, by default 4.
+        solver_kwargs :
+            Keyword arguments to be passed on to the solver.
         """
         if restart:
             # Load previous calculation data from restart file
             with open(restart_file, "rb") as rfile:
                 store_ = pickle.load(rfile)
-                rfile.close()
             self.Nocc = store_.Nocc
             self.hf_veff = store_.hf_veff
             self.hcore = store_.hcore
@@ -124,6 +130,8 @@ class BE(Mixin_k_Localize):
 
         self.nproc = nproc
         self.ompnum = ompnum
+
+        self.solver_kwargs: KwargDict = {} if solver_kwargs is None else solver_kwargs
 
         # Fragment information from fobj
         self.frag_type = fobj.frag_type
@@ -179,25 +187,15 @@ class BE(Mixin_k_Localize):
             self.lmo_coeff = None
 
         self.print_ini()
-        self.Fobjs = []
+        self.Fobjs: List[Frags] = []
         self.pot = initialize_pot(self.Nfrag, self.edge_idx)
-        self.eri_file = eri_file
-        self.cderi = cderi
 
-        # Set scratch directory
-        jobid = ""
-        if settings.CREATE_SCRATCH_DIR:
-            jobid = os.environ.get("SLURM_JOB_ID", "")
-        if settings.SCRATCH:
-            os.system("mkdir " + settings.SCRATCH + str(jobid))
-        if not jobid:
-            self.eri_file = settings.SCRATCH + eri_file
-            if cderi:
-                self.cderi = settings.SCRATCH + cderi
+        if scratch_dir is None:
+            self.scratch_dir = WorkDir.from_environment()
         else:
-            self.eri_file = settings.SCRATCH + str(jobid) + "/" + eri_file
-            if cderi:
-                self.cderi = settings.SCRATCH + str(jobid) + "/" + cderi
+            self.scratch_dir = scratch_dir
+        self.eri_file = self.scratch_dir / eri_file
+        self.cderi = self.scratch_dir / cderi if cderi else None
 
         if exxdiv == "ewald":
             if not restart:
@@ -323,53 +321,52 @@ class BE(Mixin_k_Localize):
             )
             with open(save_file, "wb") as rfile:
                 pickle.dump(store_, rfile, pickle.HIGHEST_PROTOCOL)
-            rfile.close()
 
         if not restart:
             self.initialize(compute_hf)
 
     def optimize(
         self,
-        solver="MP2",
-        method="QN",
-        only_chem=False,
-        conv_tol=1.0e-6,
-        relax_density=False,
-        J0=None,
-        nproc=1,
-        ompnum=4,
-        max_iter=500,
-    ):
+        solver: str = "MP2",
+        method: str = "QN",
+        only_chem: bool = False,
+        conv_tol: float = 1.0e-6,
+        relax_density: bool = False,
+        J0: list[list[float]] | None = None,
+        nproc: int = 1,
+        ompnum: int = 4,
+        max_iter: int = 500,
+    ) -> None:
         """BE optimization function
 
         Interfaces BEOPT to perform bootstrap embedding optimization.
 
         Parameters
         ----------
-        solver : str, optional
+        solver :
             High-level solver for the fragment, by default 'MP2'
-        method : str, optional
+        method :
             Optimization method, by default 'QN'
-        only_chem : bool, optional
+        only_chem :
             If true, density matching is not performed --
             only global chemical potential is optimized, by default False
-        conv_tol : float, optional
+        conv_tol :
             Convergence tolerance, by default 1.e-6
-        relax_density : bool, optional
+        relax_density :
             Whether to use relaxed or unrelaxed densities, by default False
             This option is for using CCSD as solver. Relaxed density here uses
             Lambda amplitudes, whereas unrelaxed density only uses T amplitudes.
             c.f. See http://classic.chem.msu.su/cgi-bin/ceilidh.exe/gran/gamess/forum/?C34df668afbHW-7216-1405+00.htm
             for the distinction between the two
-        max_iter : int, optional
+        max_iter :
             Maximum number of optimization steps, by default 500
-        nproc : int
+        nproc :
             Total number of processors assigned for the optimization. Defaults to 1.
             When nproc > 1, Python multithreading is invoked.
-        ompnum : int
+        ompnum :
             If nproc > 1, ompnum sets the number of cores for OpenMP parallelization.
             Defaults to 4
-        J0 : list of list of float
+        J0 :
             Initial Jacobian.
         """
         # Check if only chemical potential optimization is required
@@ -400,7 +397,6 @@ class BE(Mixin_k_Localize):
             relax_density=relax_density,
             select_cutoff=self.select_cutoff,
             solver=solver,
-            ebe_hf=self.ebe_hf,
         )
 
         if method == "QN":
@@ -408,7 +404,7 @@ class BE(Mixin_k_Localize):
             if only_chem:
                 J0 = [[0.0]]
                 J0 = self.get_be_error_jacobian(jac_solver="HF")
-                J0 = [[J0[-1, -1]]]
+                J0 = [[J0[-1][-1]]]
             else:
                 J0 = self.get_be_error_jacobian(jac_solver="HF")
 
@@ -427,7 +423,7 @@ class BE(Mixin_k_Localize):
             raise ValueError("This optimization method for BE is not supported")
 
     @copy_docstring(_ext_get_be_error_jacobian)
-    def get_be_error_jacobian(self, jac_solver="HF"):
+    def get_be_error_jacobian(self, jac_solver: str = "HF") -> list[list[float]]:
         return _ext_get_be_error_jacobian(self.Nfrag, self.Fobjs, jac_solver)
 
     def print_ini(self):
@@ -681,24 +677,28 @@ class BE(Mixin_k_Localize):
             couti = fobj.set_udim(couti)
 
     def oneshot(
-        self, solver="MP2", nproc=1, ompnum=4, calc_frag_energy=False, clean_eri=False
+        self,
+        solver: str = "MP2",
+        nproc: int = 1,
+        ompnum: int = 4,
+        calc_frag_energy: bool = False,
     ):
         """
         Perform a one-shot bootstrap embedding calculation.
 
         Parameters
         ----------
-        solver : str, optional
+        solver :
             High-level quantum chemistry method, by default 'MP2'. 'CCSD', 'FCI',
             and variants of selected CI are supported.
-        nproc : int, optional
+        nproc :
             Number of processors for parallel calculations, by default 1.
             If set to >1, threaded parallel computation is invoked.
-        ompnum : int, optional
+        ompnum :
             Number of OpenMP threads, by default 4.
-        calc_frag_energy : bool, optional
+        calc_frag_energy :
             Whether to calculate fragment energies, by default False.
-        clean_eri : bool, optional
+        clean_eri :
             Whether to clean up ERI files after calculation, by default False.
         """
         print("Calculating Energy by Fragment? ", calc_frag_energy)
@@ -709,6 +709,7 @@ class BE(Mixin_k_Localize):
                 self.Nocc,
                 solver,
                 self.enuc,
+                self.scratch_dir,
                 hf_veff=self.hf_veff,
                 hci_cutoff=self.hci_cutoff,
                 ci_coeff_cutoff=self.ci_coeff_cutoff,
@@ -717,6 +718,7 @@ class BE(Mixin_k_Localize):
                 frag_energy=calc_frag_energy,
                 ereturn=True,
                 eeval=True,
+                solver_kwargs=self.solver_kwargs,
             )
         else:
             rets = be_func_parallel(
@@ -729,7 +731,6 @@ class BE(Mixin_k_Localize):
                 hci_cutoff=self.hci_cutoff,
                 ci_coeff_cutoff=self.ci_coeff_cutoff,
                 select_cutoff=self.select_cutoff,
-                ereturn=True,
                 eeval=True,
                 frag_energy=calc_frag_energy,
                 nproc=nproc,
@@ -762,12 +763,7 @@ class BE(Mixin_k_Localize):
         if not calc_frag_energy:
             self.compute_energy_full(approx_cumulant=True, return_rdm=False)
 
-        if clean_eri:
-            try:
-                os.remove(self.eri_file)
-                os.rmdir(self.scratch_dir)
-            except (FileNotFoundError, TypeError):
-                print("Scratch directory not removed")
+        self.scratch_dir.cleanup()
 
     def update_fock(self, heff=None):
         """

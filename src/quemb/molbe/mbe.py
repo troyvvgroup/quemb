@@ -204,7 +204,7 @@ class BE(MixinLocalize):
             self.scratch_dir = scratch_dir
         self.eri_file = self.scratch_dir / eri_file
 
-        self.frozen_core = False if not fobj.frozen_core else True
+        self.frozen_core = not fobj.frozen_core
         self.ncore = 0
         if not restart:
             self.E_core = 0
@@ -649,7 +649,7 @@ class BE(MixinLocalize):
         scratch_dir: WorkDir | None = None,
         trust_region: bool = False,
         solver_kwargs: KwargDict | None = None,
-    ):
+    ) -> None:
         """BE optimization function
 
         Interfaces BEOPT to perform bootstrap embedding optimization.
@@ -910,18 +910,16 @@ class BE(MixinLocalize):
 
         Parameters
         ----------
-        solver : str, optional
+        solver :
             High-level quantum chemistry method, by default 'MP2'. 'CCSD', 'FCI',
             and variants of selected CI are supported.
-        nproc : int, optional
+        nproc :
             Number of processors for parallel calculations, by default 1.
             If set to >1, multi-threaded parallel computation is invoked.
-        ompnum : int, optional
+        ompnum :
             Number of OpenMP threads, by default 4.
-        calc_frag_energy : bool, optional
+        calc_frag_energy :
             Whether to calculate fragment energies, by default False.
-        clean_eri : bool, optional
-            Whether to clean up ERI files after calculation, by default False.
         """
         print("Calculating Energy by Fragment? ", calc_frag_energy)
         if nproc == 1:
