@@ -52,17 +52,6 @@ class BE(MixinLocalize):
     bootstrap embedding calculations, including setting up the BE environment,
     initializing fragments, performing SCF calculations, and
     evaluating energies.
-
-    Attributes
-    ----------
-    mf : pyscf.scf.hf.SCF
-        PySCF mean-field object.
-    fobj : quemb.molbe.fragment.fragpart
-        Fragment object containing sites, centers, edges, and indices.
-    eri_file : :class:`quemb.shared.typing.PathLike`
-        Path to the file storing two-electron integrals.
-    lo_method : str
-        Method for orbital localization, default is 'lowdin'.
     """
 
     def __init__(
@@ -93,34 +82,34 @@ class BE(MixinLocalize):
 
         Parameters
         ----------
-        mf : pyscf.scf.hf.SCF
+        mf :
             PySCF mean-field object.
-        fobj : :class:`quemb.molbe.fragment.fragpart`
+        fobj :
             Fragment object containing sites, centers, edges, and indices.
-        eri_file : :class:`quemb.shared.typing.PathLike`, optional
+        eri_file :
             Path to the file storing two-electron integrals.
-        lo_method : str, optional
+        lo_method :
             Method for orbital localization, by default 'lowdin'.
-        compute_hf : bool, optional
+        compute_hf :
             Whether to compute Hartree-Fock energy, by default True.
-        restart : bool, optional
+        restart :
             Whether to restart from a previous calculation, by default False.
-        save : bool, optional
+        save :
             Whether to save intermediate objects for restart, by default False.
-        restart_file : str, optional
+        restart_file :
             Path to the file storing restart information, by default 'storebe.pk'.
-        save_file : str, optional
+        save_file :
             Path to the file storing save information, by default 'storebe.pk'.
-        nproc : int, optional
+        nproc :
             Number of processors for parallel calculations, by default 1. If set to >1,
             threaded parallel computation is invoked.
-        ompnum : int, optional
+        ompnum :
             Number of OpenMP threads, by default 4.
-        integral_direct_DF: bool, optional
+        integral_direct_DF:
             If mf._eri is None (i.e. ERIs are not saved in memory using incore_anyway),
             this flag is used to determine if the ERIs are computed integral-directly
             using density fitting; by default False.
-        auxbasis : str, optional
+        auxbasis :
             Auxiliary basis for density fitting, by default None
             (uses default auxiliary basis defined in PySCF).
         solver_kwargs :
