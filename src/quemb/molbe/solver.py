@@ -18,6 +18,7 @@ from quemb.shared.external.ccsd_rdm import (
 from quemb.shared.external.uccsd_eri import make_eris_incore
 from quemb.shared.external.unrestricted_utils import make_uhf_obj
 from quemb.shared.helper import unused
+from quemb.shared.typing import KwargDict
 
 
 def be_func(
@@ -40,7 +41,7 @@ def be_func(
     return_vec=False,
     use_cumulant=True,
     scratch_dir=None,
-    **solver_kwargs,
+    solver_kwargs: KwargDict | None = None,
 ):
     """
     Perform bootstrap embedding calculations for each fragment.
@@ -76,8 +77,6 @@ def be_func(
         Whether to relax the density. Defaults to False.
     return_vec : bool, optional
         Whether to return the error vector. Defaults to False.
-    ebe_hf : float, optional
-        Hartree-Fock energy. Defaults to 0.
     use_cumulant : bool, optional
         Whether to use the cumulant-based energy expression. Defaults to True.
 
@@ -217,7 +216,7 @@ def be_func(
             rdm1_tmp, rdm2s = ci.make_rdm12(0, nmo, nelec)
 
         elif solver in ["block2", "DMRG", "DMRGCI", "DMRGSCF"]:
-            solver_kwargs_ = solver_kwargs.copy()
+            solver_kwargs_ = solver_kwargs.copy() if solver_kwargs is not None else {}
             if scratch_dir is None and settings.CREATE_SCRATCH_DIR:
                 tmp = os.path.join(settings.SCRATCH, str(os.getpid()), str(fobj.dname))
             else:
@@ -362,8 +361,6 @@ def be_func_u(
         Whether to relax the density. Defaults to False.
     return_vec : bool, optional
         Whether to return the error vector. Defaults to False.
-    ebe_hf : float, optional
-        Hartree-Fock energy. Defaults to 0.
     use_cumulant : bool, optional
         Whether to use the cumulant-based energy expression. Defaults to True.
     frozen : bool, optional
@@ -699,7 +696,7 @@ def solve_ccsd(
     return (t1, t2)
 
 
-def solve_block2(mf, nocc, frag_scratch, **solver_kwargs):
+def solve_block2(mf, nocc, frag_scratch, solver_kwargs: KwargDict):
     """DMRG fragment solver using the pyscf.dmrgscf wrapper.
 
     Parameters

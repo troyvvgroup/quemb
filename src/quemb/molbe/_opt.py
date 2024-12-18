@@ -2,10 +2,12 @@
 
 
 import numpy
+from numpy import array, float64
 
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.solver import be_func
 from quemb.shared.external.optqn import FrankQN
+from quemb.shared.typing import KwargDict, Matrix
 
 
 class BEOPT:
@@ -46,8 +48,6 @@ class BEOPT:
        is called converged.
     conv_tol : float
        Convergence criteria for optimization. Defaults to 1e-6
-    ebe_hf : float
-       Hartree-Fock energy. Defaults to 0.0
     """
 
     def __init__(
@@ -68,12 +68,10 @@ class BEOPT:
         max_space=500,
         conv_tol=1.0e-6,
         relax_density=False,
-        ebe_hf=0.0,
         scratch_dir=None,
-        **solver_kwargs,
+        solver_kwargs: KwargDict | None = None,
     ):
         # Initialize instance attributes
-        self.ebe_hf = ebe_hf
         self.hf_veff = hf_veff
         self.pot = pot
         self.Fobjs = Fobjs
@@ -82,7 +80,7 @@ class BEOPT:
         self.solver = solver
         self.iter = 0
         self.err = 0.0
-        self.Ebe = 0.0
+        self.Ebe: Matrix[float64] = array([[0.0]])
         self.max_space = max_space
         self.nproc = nproc
         self.ompnum = ompnum
@@ -133,9 +131,8 @@ class BEOPT:
                 ci_coeff_cutoff=self.ci_coeff_cutoff,
                 select_cutoff=self.select_cutoff,
                 hci_pt=self.hci_pt,
-                ebe_hf=self.ebe_hf,
                 scratch_dir=self.scratch_dir,
-                **self.solver_kwargs,
+                solver_kwargs=self.solver_kwargs,
             )
         else:
             err_, errvec_, ebe_ = be_func_parallel(
@@ -154,9 +151,8 @@ class BEOPT:
                 relax_density=self.relax_density,
                 ci_coeff_cutoff=self.ci_coeff_cutoff,
                 select_cutoff=self.select_cutoff,
-                ebe_hf=self.ebe_hf,
                 scratch_dir=self.scratch_dir,
-                **self.solver_kwargs,
+                solver_kwargs=self.solver_kwargs,
             )
 
         # Update error and BE energy
