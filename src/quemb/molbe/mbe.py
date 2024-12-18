@@ -195,7 +195,7 @@ class BE(MixinLocalize):
             self.cinv = None
 
         self.print_ini()
-        self.Fobjs: List[fragpart] = []
+        self.Fobjs: List[Frags] = []
         self.pot = initialize_pot(self.Nfrag, self.edge_idx)
 
         if scratch_dir is None:
@@ -778,7 +778,7 @@ class BE(MixinLocalize):
 
         # Create a file to store ERIs
         if not restart:
-            file_eri = h5py.File(self.eri_file, "w")
+            file_eri = h5py.File(str(self.eri_file), "w")
         lentmp = len(self.edge_idx)
         for I in range(self.Nfrag):
             if lentmp:
@@ -904,7 +904,6 @@ class BE(MixinLocalize):
         nproc: int = 1,
         ompnum: int = 4,
         calc_frag_energy: bool = False,
-        clean_eri: bool = False,
     ):
         """
         Perform a one-shot bootstrap embedding calculation.
@@ -932,6 +931,7 @@ class BE(MixinLocalize):
                 self.Nocc,
                 solver,
                 self.enuc,
+                self.scratch_dir,
                 hf_veff=self.hf_veff,
                 hci_cutoff=self.hci_cutoff,
                 ci_coeff_cutoff=self.ci_coeff_cutoff,
@@ -940,7 +940,6 @@ class BE(MixinLocalize):
                 frag_energy=calc_frag_energy,
                 ereturn=True,
                 eeval=True,
-                scratch_dir=self.scratch_dir,
                 solver_kwargs=self.solver_kwargs,
             )
         else:
@@ -950,6 +949,7 @@ class BE(MixinLocalize):
                 self.Nocc,
                 solver,
                 self.enuc,
+                self.scratch_dir,
                 hf_veff=self.hf_veff,
                 hci_cutoff=self.hci_cutoff,
                 ci_coeff_cutoff=self.ci_coeff_cutoff,
@@ -958,7 +958,6 @@ class BE(MixinLocalize):
                 frag_energy=calc_frag_energy,
                 nproc=nproc,
                 ompnum=ompnum,
-                scratch_dir=self.scratch_dir,
                 solver_kwargs=self.solver_kwargs,
             )
 
@@ -988,8 +987,7 @@ class BE(MixinLocalize):
         if not calc_frag_energy:
             self.compute_energy_full(approx_cumulant=True, return_rdm=False)
 
-        if clean_eri:
-            self.eri_file.unlink()
+        self.scratch_dir.cleanup()
 
     def update_fock(self, heff=None):
         """
@@ -1016,11 +1014,10 @@ class BE(MixinLocalize):
         heff_file : str, optional
             Path to the file to store effective Hamiltonian, by default 'bepotfile.h5'.
         """
-        filepot = h5py.File(heff_file, "w")
-        for fobj in self.Fobjs:
-            print(fobj.heff.shape, fobj.dname, flush=True)
-            filepot.create_dataset(fobj.dname, data=fobj.heff)
-        filepot.close()
+        with h5py.File(heff_file, "w") as filepot:
+            for fobj in self.Fobjs:
+                print(fobj.heff.shape, fobj.dname, flush=True)
+                filepot.create_dataset(fobj.dname, data=fobj.heff)
 
     def read_heff(self, heff_file="bepotfile.h5"):
         """
@@ -1031,10 +1028,9 @@ class BE(MixinLocalize):
         heff_file : str, optional
             Path to the file storing effective Hamiltonian, by default 'bepotfile.h5'.
         """
-        filepot = h5py.File(heff_file, "r")
-        for fobj in self.Fobjs:
-            fobj.heff = filepot.get(fobj.dname)
-        filepot.close()
+        with h5py.File(heff_file, "r") as filepot:
+            for fobj in self.Fobjs:
+                fobj.heff = filepot.get(fobj.dname)
 
 
 def initialize_pot(Nfrag, edge_idx):

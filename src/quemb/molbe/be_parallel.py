@@ -430,6 +430,8 @@ def be_func_parallel(
         'FCI', 'HCI', 'SHCI', and 'SCI'.
     enuc : float
         Nuclear component of the energy.
+    scratch_dir:
+        The working directory.
     hf_veff : numpy.ndarray, optional
         Hartree-Fock effective potential.
     nproc : int, optional
@@ -523,7 +525,8 @@ def be_func_parallel(
         results.append(result)
 
     # Collect results
-    [rdms.append(result.get()) for result in results]
+    for result in results:
+        rdms.append(result.get())
     pool_.close()
 
     if frag_energy:

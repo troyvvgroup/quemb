@@ -163,17 +163,14 @@ def get_eri(i_frag, Nao, symm=8, ignore_symm=False, eri_file="eri_file.h5"):
         Electron repulsion integrals, possibly restored with symmetry.
     """
     # Open the HDF5 file and read the ERI for the specified fragment
-    r = h5py.File(eri_file, "r")
-    eri__ = numpy.array(r.get(i_frag))
+    with h5py.File(eri_file, "r") as r:
+        eri__ = numpy.array(r.get(i_frag))
 
-    # Optionally restore the symmetry of the ERI
-    if not ignore_symm:
-        # Set the number of threads for the library to 1
-        lib.num_threads(1)
-        eri__ = ao2mo.restore(symm, eri__, Nao)
-
-    r.close()
-
+        # Optionally restore the symmetry of the ERI
+        if not ignore_symm:
+            # Set the number of threads for the library to 1
+            lib.num_threads(1)
+            eri__ = ao2mo.restore(symm, eri__, Nao)
     return eri__
 
 
@@ -279,9 +276,8 @@ def get_frag_energy(
         jmax = TA.shape[1]
 
     # Load the electron repulsion integrals from the HDF5 file
-    r = h5py.File(eri_file, "r")
-    eri = r[dname][()]
-    r.close()
+    with h5py.File(eri_file, "r") as r:
+        eri = r[dname][()]
 
     # Rotate the RDM2 into the MO basis
     rdm2s = numpy.einsum(
@@ -413,9 +409,8 @@ def get_frag_energy_u(
     jmax = [TA[0].shape[1], TA[1].shape[1]]
 
     # Load ERIs from the HDF5 file
-    r = h5py.File(eri_file, "r")
-    Vs = [r[dname[0]][()], r[dname[1]][()], r[dname[2]][()]]
-    r.close()
+    with h5py.File(eri_file, "r") as r:
+        Vs = [r[dname[0]][()], r[dname[1]][()], r[dname[2]][()]]
 
     # Rotate the RDM2 into the MO basis
     rdm2s_k = [

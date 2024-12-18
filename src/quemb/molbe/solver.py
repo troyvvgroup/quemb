@@ -1,14 +1,15 @@
 # Author(s): Oinam Romesh Meitei, Leah Weisburn, Shaun Weatherly
 
 import os
+from collections.abc import Sequence
 
 import numpy
+from numpy import float64
 from numpy.linalg import multi_dot
-from pyscf import ao2mo, cc, fci, mcscf, mp
+from pyscf import ao2mo, cc, fci, mcscf, mp, scf
 from pyscf.cc.ccsd_rdm import make_rdm2
 
 from quemb.molbe.helper import get_frag_energy, get_frag_energy_u
-from quemb.shared.config import settings
 from quemb.shared.external.ccsd_rdm import (
     make_rdm1_ccsd_t1,
     make_rdm1_uccsd,
@@ -17,30 +18,31 @@ from quemb.shared.external.ccsd_rdm import (
 )
 from quemb.shared.external.uccsd_eri import make_eris_incore
 from quemb.shared.external.unrestricted_utils import make_uhf_obj
-from quemb.shared.helper import unused
-from quemb.shared.typing import KwargDict
+from quemb.shared.helper import delete_glob_files, unused
+from quemb.shared.manage_scratch import WorkDir
+from quemb.shared.typing import KwargDict, Matrix
 
 
 def be_func(
-    pot,
+    pot: Sequence[float] | None,
     Fobjs,
-    Nocc,
-    solver,
-    enuc,  # noqa: ARG001
-    hf_veff=None,
-    only_chem=False,
-    nproc=4,
-    hci_pt=False,
-    hci_cutoff=0.001,
-    ci_coeff_cutoff=None,
-    select_cutoff=None,
-    eeval=False,
-    ereturn=False,
-    frag_energy=False,
-    relax_density=False,
-    return_vec=False,
-    use_cumulant=True,
-    scratch_dir=None,
+    Nocc: int,
+    solver: str,
+    enuc: float,  # noqa: ARG001
+    scratch_dir: WorkDir,
+    hf_veff: Matrix[float64] | None = None,
+    only_chem: bool = False,
+    nproc: int = 4,
+    hci_pt: bool = False,
+    hci_cutoff: float = 0.001,
+    ci_coeff_cutoff: float | None = None,
+    select_cutoff: float | None = None,
+    eeval: bool = False,
+    ereturn: bool = False,
+    frag_energy: bool = False,
+    relax_density: bool = False,
+    return_vec: bool = False,
+    use_cumulant: bool = True,
     solver_kwargs: KwargDict | None = None,
 ):
     """
@@ -51,33 +53,33 @@ def be_func(
 
     Parameters
     ----------
-    pot : list
+    pot :
         List of potentials.
-    Fobjs : list of quemb.molbe.fragment.fragpart
+    Fobjs :
         List of fragment objects.
-    Nocc : int
+    Nocc :
         Number of occupied orbitals.
-    solver : str
+    solver :
         Quantum chemistry solver to use ('MP2', 'CCSD', 'FCI', 'HCI', 'SHCI', 'SCI').
-    enuc : float
+    enuc :
         Nuclear energy.
-    hf_veff : numpy.ndarray, optional
+    hf_veff :
         Hartree-Fock effective potential. Defaults to None.
-    only_chem : bool, optional
+    only_chem :
         Whether to only optimize the chemical potential. Defaults to False.
-    nproc : int, optional
+    nproc :
         Number of processors. Defaults to 4. This is only neccessary for 'SHCI' solver
-    eeval : bool, optional
+    eeval :
         Whether to evaluate the energy. Defaults to False.
-    ereturn : bool, optional
+    ereturn :
         Whether to return the energy. Defaults to False.
-    frag_energy : bool, optional
+    frag_energy :
         Whether to calculate fragment energy. Defaults to False.
-    relax_density : bool, optional
+    relax_density :
         Whether to relax the density. Defaults to False.
-    return_vec : bool, optional
+    return_vec :
         Whether to return the error vector. Defaults to False.
-    use_cumulant : bool, optional
+    use_cumulant :
         Whether to use the cumulant-based energy expression. Defaults to True.
 
     Returns
@@ -164,14 +166,8 @@ def be_func(
             # pylint: disable-next=E0611,E0401
             from pyscf.shciscf import shci  # noqa: PLC0415    # shci is optional
 
-            if scratch_dir is None and settings.CREATE_SCRATCH_DIR:
-                tmp = os.path.join(settings.SCRATCH, str(os.getpid()), str(fobj.dname))
-            elif scratch_dir is None:
-                tmp = settings.SCRATCH
-            else:
-                tmp = os.path.join(scratch_dir, str(os.getpid()), str(fobj.dname))
-            if not os.path.isdir(tmp):
-                os.system("mkdir -p " + tmp)
+            frag_scratch = WorkDir(scratch_dir / fobj.dname)
+
             nmo = fobj._mf.mo_coeff.shape[1]
 
             nelec = (fobj.nsocc, fobj.nsocc)
@@ -217,24 +213,21 @@ def be_func(
 
         elif solver in ["block2", "DMRG", "DMRGCI", "DMRGSCF"]:
             solver_kwargs_ = solver_kwargs.copy() if solver_kwargs is not None else {}
-            if scratch_dir is None and settings.CREATE_SCRATCH_DIR:
-                tmp = os.path.join(settings.SCRATCH, str(os.getpid()), str(fobj.dname))
-            else:
-                tmp = os.path.join(scratch_dir, str(os.getpid()), str(fobj.dname))
-            if not os.path.isdir(tmp):
-                os.system("mkdir -p " + tmp)
+            frag_scratch = WorkDir(scratch_dir / fobj.dname)
 
             try:
                 rdm1_tmp, rdm2s = solve_block2(
-                    fobj._mf, fobj.nsocc, frag_scratch=tmp, **solver_kwargs_
+                    fobj._mf, fobj.nsocc, frag_scratch=frag_scratch, **solver_kwargs_
                 )
             except Exception as inst:
                 raise inst
             finally:
                 if solver_kwargs_.pop("force_cleanup", False):
-                    os.system("rm -r " + os.path.join(tmp, "F.*"))
-                    os.system("rm -r " + os.path.join(tmp, "FCIDUMP*"))
-                    os.system("rm -r " + os.path.join(tmp, "node*"))
+                    delete_glob_files(
+                        frag_scratch.path.glob("F.*"),
+                        frag_scratch.path.glob("FCIDUMP*"),
+                        frag_scratch.path.glob("node*"),
+                    )
 
         else:
             raise ValueError("Solver not implemented")
@@ -696,18 +689,20 @@ def solve_ccsd(
     return (t1, t2)
 
 
-def solve_block2(mf, nocc, frag_scratch, solver_kwargs: KwargDict):
+def solve_block2(
+    mf: scf.hf.RHF, nocc: int, frag_scratch: WorkDir, solver_kwargs: KwargDict
+):
     """DMRG fragment solver using the pyscf.dmrgscf wrapper.
 
     Parameters
     ----------
-        mf: pyscf.scf.hf.RHF
+        mf:
             Mean field object or similar following the data signature of the
             pyscf.RHF class.
-        nocc: int
+        nocc:
             Number of occupied MOs in the fragment, used for constructing the
             fragment 1- and 2-RDMs.
-        frag_scratch: os.PathLike, optional
+        frag_scratch:
             Fragment-level DMRG scratch directory.
         max_mem: int, optional
             Maximum memory in GB.
@@ -825,7 +820,7 @@ def solve_block2(mf, nocc, frag_scratch, solver_kwargs: KwargDict):
     mc.fcisolver.scratchDirectory = str(frag_scratch)
     mc.fcisolver.runtimeDir = str(frag_scratch)
     mc.fcisolver.memory = int(max_mem)
-    os.system("cd " + frag_scratch)
+    os.chdir(frag_scratch)
 
     mc.kernel(orbs)
     rdm1, rdm2 = dmrgscf.DMRGCI.make_rdm12(mc.fcisolver, root, norb, nelec)
@@ -981,99 +976,3 @@ def solve_uccsd(
             return (ucc, rdm1, rdm2)
         return (ucc, rdm1, None)
     return ucc
-
-
-def schmidt_decomposition(
-    mo_coeff, nocc, Frag_sites, cinv=None, rdm=None, norb=None, return_orb_count=False
-):
-    """
-    Perform Schmidt decomposition on the molecular orbital coefficients.
-
-    This function decomposes the molecular orbitals into fragment and environment parts
-    using the Schmidt decomposition method. It computes the transformation matrix (TA)
-    which includes both the fragment orbitals and the entangled bath.
-
-    Parameters
-    ----------
-    mo_coeff : numpy.ndarray
-        Molecular orbital coefficients.
-    nocc : int
-        Number of occupied orbitals.
-    Frag_sites : list of int
-        List of fragment sites (indices).
-    cinv : numpy.ndarray, optional
-        Inverse of the transformation matrix. Defaults to None.
-    rdm : numpy.ndarray, optional
-        Reduced density matrix. If not provided, it will be computed from the molecular
-        orbitals. Defaults to None.
-    norb : int, optional
-        Specifies number of bath orbitals. Used for UBE to make alpha and beta
-        spaces the same size. Defaults to None
-    return_orb_count : bool, optional
-        Return more information about the number of orbitals. Used in UBE.
-        Defaults to False
-
-    Returns
-    -------
-    numpy.ndarray
-        Transformation matrix (TA) including both fragment and entangled bath orbitals.
-    if return_orb_count:
-        numpy.ndarray, int, int
-        returns TA (above), number of orbitals in the fragment space, and number of
-        orbitals in bath space
-    """
-    # Threshold for eigenvalue significance
-    thres = 1.0e-10
-
-    # Compute the reduced density matrix (RDM) if not provided
-    if mo_coeff is not None:
-        C = mo_coeff[:, :nocc]
-    if rdm is None:
-        Dhf = numpy.dot(C, C.T)
-        if cinv is not None:
-            Dhf = multi_dot((cinv, Dhf, cinv.conj().T))
-    else:
-        Dhf = rdm
-
-    # Total number of sites
-    Tot_sites = Dhf.shape[0]
-
-    # Identify environment sites (indices not in Frag_sites)
-    Env_sites1 = numpy.array([i for i in range(Tot_sites) if i not in Frag_sites])
-    Env_sites = numpy.array([[i] for i in range(Tot_sites) if i not in Frag_sites])
-    Frag_sites1 = numpy.array([[i] for i in Frag_sites])
-
-    # Compute the environment part of the density matrix
-    Denv = Dhf[Env_sites, Env_sites.T]
-
-    # Perform eigenvalue decomposition on the environment density matrix
-    Eval, Evec = numpy.linalg.eigh(Denv)
-
-    # Identify significant environment orbitals based on eigenvalue threshold
-    Bidx = []
-
-    # Set the number of orbitals to be taken from the environment orbitals
-    # Based on an eigenvalue threshold ordering
-    if norb is not None:
-        n_frag_ind = len(Frag_sites1)
-        n_bath_ind = norb - n_frag_ind
-        ind_sort = numpy.argsort(numpy.abs(Eval))
-        first_el = [x for x in ind_sort if x < 1.0 - thres][-1 * n_bath_ind]
-        for i in range(len(Eval)):
-            if numpy.abs(Eval[i]) >= first_el:
-                Bidx.append(i)
-    else:
-        for i in range(len(Eval)):
-            if thres < numpy.abs(Eval[i]) < 1.0 - thres:
-                Bidx.append(i)
-
-    # Initialize the transformation matrix (TA)
-    TA = numpy.zeros([Tot_sites, len(Frag_sites) + len(Bidx)])
-    TA[Frag_sites, : len(Frag_sites)] = numpy.eye(len(Frag_sites))  # Fragment part
-    TA[Env_sites1, len(Frag_sites) :] = Evec[:, Bidx]  # Environment part
-
-    if return_orb_count:
-        # return TA, norbs_frag, norbs_bath
-        return TA, Frag_sites1.shape[0], len(Bidx)
-    else:
-        return TA

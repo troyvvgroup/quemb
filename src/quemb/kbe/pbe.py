@@ -489,7 +489,7 @@ class BE(Mixin_k_Localize):
 
         # Create a file to store ERIs
         if not restart:
-            file_eri = h5py.File(self.eri_file, "w")
+            file_eri = h5py.File(str(self.eri_file), "w")
         lentmp = len(self.edge_idx)
         transform_parallel = False  # hard set for now
         for fidx in range(self.Nfrag):
@@ -785,22 +785,21 @@ class BE(Mixin_k_Localize):
             for fidx, fobj in self.Fobjs:
                 fobj.fock += heff[fidx]
 
-    def write_heff(self, heff_file="bepotfile.h5"):
+    def write_heff(self, heff_file: str = "bepotfile.h5"):
         """
         Write the effective Hamiltonian to a file.
 
         Parameters
         ----------
-        heff_file : str, optional
+        heff_file :
             Path to the file to store effective Hamiltonian, by default 'bepotfile.h5'.
         """
-        filepot = h5py.File(heff_file, "w")
-        for fobj in self.Fobjs:
-            print(fobj.heff.shape, fobj.dname, flush=True)
-            filepot.create_dataset(fobj.dname, data=fobj.heff)
-        filepot.close()
+        with h5py.File(heff_file, "w") as filepot:
+            for fobj in self.Fobjs:
+                print(fobj.heff.shape, fobj.dname, flush=True)
+                filepot.create_dataset(fobj.dname, data=fobj.heff)
 
-    def read_heff(self, heff_file="bepotfile.h5"):
+    def read_heff(self, heff_file: str = "bepotfile.h5"):
         """
         Read the effective Hamiltonian from a file.
 
@@ -809,10 +808,9 @@ class BE(Mixin_k_Localize):
         heff_file : str, optional
             Path to the file storing effective Hamiltonian, by default 'bepotfile.h5'.
         """
-        filepot = h5py.File(heff_file, "r")
-        for fobj in self.Fobjs:
-            fobj.heff = filepot.get(fobj.dname)
-        filepot.close()
+        with h5py.File(heff_file, "r") as filepot:
+            for fobj in self.Fobjs:
+                fobj.heff = filepot.get(fobj.dname)
 
 
 def initialize_pot(Nfrag, edge_idx):
