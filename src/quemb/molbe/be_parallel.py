@@ -24,6 +24,7 @@ from quemb.molbe.solver import (
 from quemb.shared.external.ccsd_rdm import make_rdm1_uccsd, make_rdm2_uccsd
 from quemb.shared.external.unrestricted_utils import make_uhf_obj
 from quemb.shared.helper import unused
+from quemb.shared.manage_scratch import WorkDir
 
 
 def run_solver(
@@ -394,6 +395,7 @@ def be_func_parallel(
     Nocc,
     solver,
     enuc,  # noqa: ARG001
+    scratch_dir: WorkDir,
     hf_veff=None,
     nproc=1,
     ompnum=4,
@@ -460,12 +462,11 @@ def be_func_parallel(
         Depending on the parameters, returns the error norm or a tuple containing
         the error norm, error vector, and the computed energy.
     """
-    nfrag = len(Fobjs)
     # Create directories for fragments if required
     if writeh1 and solver == "SCI":
-        for nf in range(nfrag):
-            dname = Fobjs[nf].dname
-            os.system("mkdir " + dname)
+        for fobj in Fobjs:
+            # TODO: continue here
+            _ = WorkDir(scratch_dir / fobj.dname)
 
     # Set the number of OpenMP threads
     os.system("export OMP_NUM_THREADS=" + str(ompnum))
@@ -481,34 +482,23 @@ def be_func_parallel(
     rdms = []
 
     # Run solver in parallel for each fragment
-    for nf in range(nfrag):
-        h1 = Fobjs[nf].fock + Fobjs[nf].heff
-        dm0 = Fobjs[nf].dm0.copy()
-        dname = Fobjs[nf].dname
-        nao = Fobjs[nf].nao
-        nocc = Fobjs[nf].nsocc
-        nfsites = Fobjs[nf].nfsites
-        efac = Fobjs[nf].efac
-        TA = Fobjs[nf].TA
-        h1_e = Fobjs[nf].h1
-        veff0 = Fobjs[nf].veff0
-
+    for fobj in Fobjs:
         result = pool_.apply_async(
             run_solver,
             [
-                h1,
-                dm0,
-                dname,
-                nao,
-                nocc,
-                nfsites,
-                efac,
-                TA,
+                fobj.fock + fobj.heff,
+                fobj.dm0.copy(),
+                fobj.dname,
+                fobj.nao,
+                fobj.nsocc,
+                fobj.nfsites,
+                fobj.efac,
+                fobj.TA,
                 hf_veff,
-                h1_e,
+                fobj.h1_e,
                 solver,
-                Fobjs[nf].eri_file,
-                veff0,
+                fobj.eri_file,
+                fobj.veff0,
                 hci_cutoff,
                 ci_coeff_cutoff,
                 select_cutoff,

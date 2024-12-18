@@ -944,7 +944,6 @@ class BE(MixinLocalize):
                 frag_energy=calc_frag_energy,
                 nproc=nproc,
                 ompnum=ompnum,
-                solver_kwargs=solver_kwargs,
             )
 
         print("-----------------------------------------------------", flush=True)
