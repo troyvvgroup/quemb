@@ -75,7 +75,6 @@ class BE(MixinLocalize):
         select_cutoff: float | None = None,
         integral_direct_DF: bool = False,
         auxbasis: str | None = None,
-        solver_kwargs: KwargDict | None = None,
     ):
         """
         Constructor for BE object.
@@ -141,7 +140,6 @@ class BE(MixinLocalize):
         self.ompnum = ompnum
         self.integral_direct_DF = integral_direct_DF
         self.auxbasis = auxbasis
-        self.solver_kwargs: KwargDict = {} if solver_kwargs is None else solver_kwargs
 
         # Fragment information from fobj
         self.frag_type = fobj.frag_type
@@ -635,7 +633,6 @@ class BE(MixinLocalize):
         nproc: int = 1,
         ompnum: int = 4,
         max_iter: int = 500,
-        scratch_dir: WorkDir | None = None,
         trust_region: bool = False,
         solver_kwargs: KwargDict | None = None,
     ) -> None:
@@ -693,7 +690,7 @@ class BE(MixinLocalize):
             hf_veff=self.hf_veff,
             nproc=nproc,
             ompnum=ompnum,
-            scratch_dir=scratch_dir,
+            scratch_dir=self.scratch_dir,
             max_space=max_iter,
             conv_tol=conv_tol,
             only_chem=only_chem,
@@ -893,9 +890,9 @@ class BE(MixinLocalize):
         nproc: int = 1,
         ompnum: int = 4,
         calc_frag_energy: bool = False,
+        solver_kwargs: KwargDict | None = None,
     ):
-        """
-        Perform a one-shot bootstrap embedding calculation.
+        """Perform a one-shot bootstrap embedding calculation.
 
         Parameters
         ----------
@@ -909,6 +906,8 @@ class BE(MixinLocalize):
             Number of OpenMP threads, by default 4.
         calc_frag_energy :
             Whether to calculate fragment energies, by default False.
+        solver_kwargs :
+            Keyword arguments to be passed on to the solver.
         """
         print("Calculating Energy by Fragment? ", calc_frag_energy)
         if nproc == 1:
@@ -927,7 +926,7 @@ class BE(MixinLocalize):
                 frag_energy=calc_frag_energy,
                 ereturn=True,
                 eeval=True,
-                solver_kwargs=self.solver_kwargs,
+                solver_kwargs=solver_kwargs,
             )
         else:
             rets = be_func_parallel(
@@ -945,7 +944,7 @@ class BE(MixinLocalize):
                 frag_energy=calc_frag_energy,
                 nproc=nproc,
                 ompnum=ompnum,
-                solver_kwargs=self.solver_kwargs,
+                solver_kwargs=solver_kwargs,
             )
 
         print("-----------------------------------------------------", flush=True)

@@ -1,10 +1,12 @@
 from collections.abc import Sequence
 from pathlib import Path
+from typing import cast
 
+import numpy
 from pyscf.tools.cubegen import orbital
 
 from quemb import molbe
-from quemb.shared.typing import KwargDict, PathLike
+from quemb.shared.typing import KwargDict, Matrix, PathLike
 
 
 def write_cube(
@@ -34,10 +36,14 @@ def write_cube(
     if fragment_idx is None:
         fragment_idx = range(be_object.Nfrag)
     for idx in fragment_idx:
-        for emb_orb_idx in range(be_object.Fobjs[idx].TA.shape[1]):
-            orbital(
-                be_object.mol,
-                cube_file_path / f"frag_{idx}_orb_{emb_orb_idx}.cube",
-                be_object.Fobjs[idx].TA[:, emb_orb_idx],
-                **cubegen_kwargs,
-            )
+        if be_object.Fobjs[idx].TA is None:
+            raise ValueError
+        else:
+            tmp = cast(Matrix[numpy.float64], be_object.Fobjs[idx].TA)
+            for emb_orb_idx in range(tmp.shape[1]):
+                orbital(
+                    be_object.mol,
+                    cube_file_path / f"frag_{idx}_orb_{emb_orb_idx}.cube",
+                    tmp[:, emb_orb_idx],
+                    **cubegen_kwargs,
+                )

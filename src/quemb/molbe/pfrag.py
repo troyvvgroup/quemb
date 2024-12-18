@@ -3,9 +3,11 @@
 import h5py
 import numpy
 import scipy.linalg
+from numpy import float64
 from numpy.linalg import multi_dot
 
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
+from quemb.shared.typing import Matrix
 
 
 class Frags:
@@ -60,7 +62,7 @@ class Frags:
 
         self.fsites = fsites
         self.nfsites = len(fsites)
-        self.TA = None
+        self.TA: Matrix[float64] | None = None
         self.TA_lo_eo = None
         self.h1 = None
         self.ifrag = ifrag
@@ -101,8 +103,7 @@ class Frags:
         self.unitcell_nkpt = 1.0
 
     def sd(self, lao, lmo, nocc, norb=None, return_orb_count=False):
-        """
-        Perform Schmidt decomposition for the fragment.
+        """Perform Schmidt decomposition for the fragment.
 
         Parameters
         ----------
