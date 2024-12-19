@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import cast
 
-import numpy
+from numpy import float64
 from pyscf.tools.cubegen import orbital
 
 from quemb import molbe
@@ -39,7 +39,7 @@ def write_cube(
         if be_object.Fobjs[idx].TA is None:
             raise ValueError
         else:
-            tmp = cast(Matrix[numpy.float64], be_object.Fobjs[idx].TA)
+            tmp = cast(Matrix[float64], be_object.Fobjs[idx].TA)
             for emb_orb_idx in range(tmp.shape[1]):
                 orbital(
                     be_object.mol,
