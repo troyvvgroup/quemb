@@ -12,6 +12,7 @@ from pyscf import ao2mo, scf
 from quemb.molbe._opt import BEOPT
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
+from quemb.molbe.fragment import fragpart
 from quemb.molbe.lo import MixinLocalize
 from quemb.molbe.misc import print_energy
 from quemb.molbe.pfrag import Frags
@@ -21,7 +22,8 @@ from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
 from quemb.shared.helper import copy_docstring
-from quemb.shared.typing import Matrix
+from quemb.shared.manage_scratch import WorkDir
+from quemb.shared.typing import Matrix, PathLike
 
 
 @define
@@ -68,25 +70,25 @@ class BE(MixinLocalize):
 
     def __init__(
         self,
-        mf,
-        fobj,
-        eri_file="eri_file.h5",
-        lo_method="lowdin",
-        pop_method=None,
-        compute_hf=True,
-        restart=False,
-        save=False,
-        restart_file="storebe.pk",
-        save_file="storebe.pk",
-        hci_pt=False,
-        nproc=1,
-        ompnum=4,
-        scratch_dir=None,
-        hci_cutoff=0.001,
-        ci_coeff_cutoff=None,
-        select_cutoff=None,
-        integral_direct_DF=False,
-        auxbasis=None,
+        mf: scf.hf.SCF,
+        fobj: fragpart,
+        eri_file: PathLike = "eri_file.h5",
+        lo_method: str = "lowdin",
+        pop_method: str | None = None,
+        compute_hf: bool = True,
+        restart: bool = False,
+        save: bool = False,
+        restart_file: PathLike = "storebe.pk",
+        save_file: PathLike = "storebe.pk",
+        hci_pt: bool = False,
+        nproc: int = 1,
+        ompnum: int = 4,
+        scratch_dir: WorkDir | None = None,
+        hci_cutoff: float = 0.001,
+        ci_coeff_cutoff: float | None = None,
+        select_cutoff: float | None = None,
+        integral_direct_DF: bool = False,
+        auxbasis: str | None = None,
     ):
         """
         Constructor for BE object.
@@ -193,7 +195,7 @@ class BE(MixinLocalize):
             self.cinv = None
 
         self.print_ini()
-        self.Fobjs = []
+        self.Fobjs: list[Frags] = []
         self.pot = initialize_pot(self.Nfrag, self.edge_idx)
         self.eri_file = eri_file
         self.scratch_dir = scratch_dir
