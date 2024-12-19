@@ -22,7 +22,6 @@ import numpy as np
 #: Type annotation of a generic covariant type.
 T_dtype_co = TypeVar("T_dtype_co", bound=np.generic, covariant=True)
 
-
 # Currently we can define :code:`Matrix` and higher order tensors
 # only with shape :code`Tuple[int, ...]` because of
 # https://github.com/numpy/numpy/issues/27957
