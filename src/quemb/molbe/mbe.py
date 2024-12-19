@@ -12,6 +12,7 @@ from pyscf import ao2mo, scf
 from quemb.molbe._opt import BEOPT
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
+from quemb.molbe.fragment import fragpart
 from quemb.molbe.lo import MixinLocalize
 from quemb.molbe.misc import print_energy
 from quemb.molbe.pfrag import Frags
@@ -21,7 +22,8 @@ from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
 from quemb.shared.helper import copy_docstring
-from quemb.shared.typing import Matrix
+from quemb.shared.manage_scratch import WorkDir
+from quemb.shared.typing import Matrix, PathLike
 
 
 @define
@@ -68,63 +70,64 @@ class BE(MixinLocalize):
 
     def __init__(
         self,
-        mf,
-        fobj,
-        eri_file="eri_file.h5",
-        lo_method="lowdin",
-        pop_method=None,
-        compute_hf=True,
-        restart=False,
-        save=False,
-        restart_file="storebe.pk",
-        save_file="storebe.pk",
-        hci_pt=False,
-        nproc=1,
-        ompnum=4,
-        scratch_dir=None,
-        hci_cutoff=0.001,
-        ci_coeff_cutoff=None,
-        select_cutoff=None,
-        integral_direct_DF=False,
-        auxbasis=None,
-    ):
+        mf: scf.hf.SCF,
+        fobj: fragpart,
+        eri_file: PathLike = "eri_file.h5",
+        lo_method: str = "lowdin",
+        pop_method: str | None = None,
+        compute_hf: bool = True,
+        restart: bool = False,
+        save: bool = False,
+        restart_file: PathLike = "storebe.pk",
+        save_file: PathLike = "storebe.pk",
+        hci_pt: bool = False,
+        nproc: int = 1,
+        ompnum: int = 4,
+        scratch_dir: WorkDir | None = None,
+        hci_cutoff: float = 0.001,
+        ci_coeff_cutoff: float | None = None,
+        select_cutoff: float | None = None,
+        integral_direct_DF: bool = False,
+        auxbasis: str | None = None,
+    ) -> None:
         """
         Constructor for BE object.
 
         Parameters
         ----------
-        mf : pyscf.scf.hf.SCF
+        mf :
             PySCF mean-field object.
-        fobj : quemb.molbe.fragment.fragpart
+        fobj :
             Fragment object containing sites, centers, edges, and indices.
-        eri_file : str, optional
-            Path to the file storing two-electron integrals, by default 'eri_file.h5'.
-        lo_method : str, optional
+        eri_file :
+            Path to the file storing two-electron integrals.
+        lo_method :
             Method for orbital localization, by default 'lowdin'.
-        compute_hf : bool, optional
+        compute_hf :
             Whether to compute Hartree-Fock energy, by default True.
-        restart : bool, optional
+        restart :
             Whether to restart from a previous calculation, by default False.
-        save : bool, optional
+        save :
             Whether to save intermediate objects for restart, by default False.
-        restart_file : str, optional
+        restart_file :
             Path to the file storing restart information, by default 'storebe.pk'.
-        save_file : str, optional
+        save_file :
             Path to the file storing save information, by default 'storebe.pk'.
-        nproc : int, optional
+        nproc :
             Number of processors for parallel calculations, by default 1. If set to >1,
             threaded parallel computation is invoked.
-        ompnum : int, optional
+        ompnum :
             Number of OpenMP threads, by default 4.
-        integral_direct_DF: bool, optional
+        integral_direct_DF:
             If mf._eri is None (i.e. ERIs are not saved in memory using incore_anyway),
             this flag is used to determine if the ERIs are computed integral-directly
             using density fitting; by default False.
-        auxbasis : str, optional
+        auxbasis :
             Auxiliary basis for density fitting, by default None
             (uses default auxiliary basis defined in PySCF).
+        solver_kwargs :
+            Keyword arguments to be passed on to the solver.
         """
-
         if restart:
             # Load previous calculation data from restart file
             with open(restart_file, "rb") as rfile:
@@ -193,7 +196,7 @@ class BE(MixinLocalize):
             self.cinv = None
 
         self.print_ini()
-        self.Fobjs = []
+        self.Fobjs: list[Frags] = []
         self.pot = initialize_pot(self.Nfrag, self.edge_idx)
         self.eri_file = eri_file
         self.scratch_dir = scratch_dir
