@@ -956,7 +956,7 @@ class BE(MixinLocalize):
                 nproc=nproc,
                 ompnum=ompnum,
                 scratch_dir=self.scratch_dir,
-                **self.solver_kwargs,
+                solver_kwargs=solver_kwargs,
             )
 
         print("-----------------------------------------------------", flush=True)
