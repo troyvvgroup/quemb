@@ -1,7 +1,7 @@
 # Author(s): Oinam Romesh Meitei
 
 from attrs import define
-from numpy import arange, exp, float64, sqrt
+from numpy import arange, array, exp, float64, sqrt
 from pyscf.lib import cartesian_prod
 from pyscf.pbc import tools
 
@@ -51,6 +51,9 @@ class storePBE:
     C_core: float
     P_core: float
     core_veff: float
+
+
+A: Matrix[float64] = array([1, 2])
 
 
 def print_energy(ecorr, e_V_Kapprox, e_F_dg, e_hf, unitcell_nkpt):
