@@ -35,7 +35,7 @@ class Frags:
         centerf_idx=None,
         unitcell=1,
     ):
-        """Constructor function for `Frags` class.
+        """Constructor function for :python:`Frags` class.
 
         Parameters
         ----------
@@ -53,8 +53,9 @@ class Frags:
             list of lists of indices for edge site AOs within the fragment,
             by default None
         center_idx : list, optional
-            list of lists of indices within the fragment specified in `center` that
-            points to the edge site AOs , by default None
+            list of lists of indices within the fragment specified
+            in :python:`center` that points to the edge site AOs,
+            by default :python:`None`
         efac : list, optional
             weight used for energy contributions, by default None
         eri_file : str, optional
@@ -420,10 +421,8 @@ class Frags:
         else:
             jmax = self.TA.shape[1]
         if eri is None:
-            r = h5py.File(self.eri_file, "r")
-            eri = r[self.dname][()]
-
-            r.close()
+            with h5py.File(self.eri_file, "r") as r:
+                eri = r[self.dname][()]
 
         e2 = numpy.zeros_like(e1)
         for i in range(self.nfsites):

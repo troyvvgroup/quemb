@@ -54,14 +54,15 @@ def line_search_LF(func, xold, fold, dx, iter_):
 
 
 def trustRegion(func, xold, fold, Binv, c=0.5):
-    """Perform Trust Region Optimization. See
-    "A Broyden Trust Region Quasi-Newton Method
-    for Nonlinear Equations" (https://www.iaeng.org/IJCS/issues_v46/issue_3/IJCS_46_3_09.pdf)
+    """Perform Trust Region Optimization.
+
+    See "A Broyden Trust Region Quasi-Newton Method
+    for Nonlinear Equations" (https://www.iaeng.org/IJCS/issues_v46/issue_3/IJCS_46_3_09.pdf)"
     Algorithm 1 for more information
 
     Parameters
     ----------
-    func : function
+    func : typing.Callable
         Cost function
     xold : list or numpy.ndarray
         Current x_p (potentials in BE optimization)
@@ -75,7 +76,7 @@ def trustRegion(func, xold, fold, Binv, c=0.5):
 
     Returns
     -------
-    xnew, fnew
+    xnew, fnew: tuple
         x_{p+1} and f_{p+1}. These values are used to proceed with Broyden's Method.
     """
     # c := initial trust radius (trust_radius = c^p)
