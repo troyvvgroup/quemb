@@ -5,6 +5,8 @@ import pickle
 
 import h5py
 import numpy
+from attrs import define
+from numpy import float64
 from pyscf import ao2mo, scf
 
 from quemb.molbe._opt import BEOPT
@@ -19,42 +21,28 @@ from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
 from quemb.shared.helper import copy_docstring
+from quemb.shared.typing import Matrix
 
 
+@define
 class storeBE:
-    def __init__(
-        self,
-        Nocc,
-        hf_veff,
-        hcore,
-        S,
-        C,
-        hf_dm,
-        hf_etot,
-        W,
-        lmo_coeff,
-        enuc,
-        E_core,
-        C_core,
-        P_core,
-        core_veff,
-        mo_energy,
-    ):
-        self.Nocc = Nocc
-        self.hf_veff = hf_veff
-        self.hcore = hcore
-        self.S = S
-        self.C = C
-        self.hf_dm = hf_dm
-        self.hf_etot = hf_etot
-        self.W = W
-        self.lmo_coeff = lmo_coeff
-        self.enuc = enuc
-        self.E_core = E_core
-        self.C_core = C_core
-        self.P_core = P_core
-        self.core_veff = core_veff
-        self.mo_energy = mo_energy
+    # TODO: some of the types are most likely wrong.
+    #  this has to be checked in a review
+    Nocc: int
+    hf_veff: Matrix[float64]
+    hcore: Matrix[float64]
+    S: Matrix[float64]
+    C: Matrix[float64]
+    hf_dm: Matrix[float64]
+    hf_etot: float
+    W: Matrix[float64]
+    lmo_coeff: Matrix[float64]
+    enuc: float
+    ek: float
+    E_core: float
+    C_core: float
+    P_core: float
+    core_veff: float
 
 
 class BE(MixinLocalize):
