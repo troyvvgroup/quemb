@@ -24,7 +24,7 @@ from quemb.shared.typing import KwargDict, Matrix
 
 
 def be_func(
-    pot: list[float],
+    pot: list[float] | None,
     Fobjs: list[Frags],
     Nocc: int,
     solver: str,

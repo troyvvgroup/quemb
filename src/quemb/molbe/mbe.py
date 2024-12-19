@@ -1,6 +1,5 @@
 # Author(s): Oinam Romesh Meitei
 
-import os
 import pickle
 
 import h5py
@@ -124,8 +123,6 @@ class BE(MixinLocalize):
         auxbasis :
             Auxiliary basis for density fitting, by default None
             (uses default auxiliary basis defined in PySCF).
-        solver_kwargs :
-            Keyword arguments to be passed on to the solver.
         """
         if restart:
             # Load previous calculation data from restart file
@@ -735,6 +732,8 @@ class BE(MixinLocalize):
         else:
             raise ValueError("This optimization method for BE is not supported")
 
+        self.scratch_dir.cleanup()
+
     @copy_docstring(_ext_get_be_error_jacobian)
     def get_be_error_jacobian(self, jac_solver: str = "HF") -> list[list[float]]:
         return _ext_get_be_error_jacobian(self.Nfrag, self.Fobjs, jac_solver)
@@ -899,35 +898,28 @@ class BE(MixinLocalize):
 
     def oneshot(
         self,
-        solver="MP2",
-        nproc=1,
-        ompnum=4,
-        calc_frag_energy=False,
-        clean_eri=False,
-        scratch_dir=None,
-        **solver_kwargs,
+        solver: str = "MP2",
+        nproc: int = 1,
+        ompnum: int = 4,
+        calc_frag_energy: bool = False,
+        solver_kwargs: KwargDict | None = None,
     ):
         """
         Perform a one-shot bootstrap embedding calculation.
 
         Parameters
         ----------
-        solver : str, optional
+        solver :
             High-level quantum chemistry method, by default 'MP2'. 'CCSD', 'FCI',
             and variants of selected CI are supported.
-        nproc : int, optional
+        nproc :
             Number of processors for parallel calculations, by default 1.
             If set to >1, multi-threaded parallel computation is invoked.
-        ompnum : int, optional
+        ompnum :
             Number of OpenMP threads, by default 4.
-        calc_frag_energy : bool, optional
+        calc_frag_energy :
             Whether to calculate fragment energies, by default False.
-        clean_eri : bool, optional
-            Whether to clean up ERI files after calculation, by default False.
         """
-        self.scratch_dir = scratch_dir
-        self.solver_kwargs = solver_kwargs
-
         print("Calculating Energy by Fragment? ", calc_frag_energy)
         if nproc == 1:
             rets = be_func(
@@ -945,7 +937,7 @@ class BE(MixinLocalize):
                 ereturn=True,
                 eeval=True,
                 scratch_dir=self.scratch_dir,
-                **self.solver_kwargs,
+                solver_kwargs=solver_kwargs,
             )
         else:
             rets = be_func_parallel(
@@ -993,12 +985,7 @@ class BE(MixinLocalize):
         if not calc_frag_energy:
             self.compute_energy_full(approx_cumulant=True, return_rdm=False)
 
-        if clean_eri:
-            try:
-                os.remove(self.eri_file)
-                os.rmdir(self.scratch_dir)
-            except (FileNotFoundError, TypeError):
-                print("Scratch directory not removed")
+        self.scratch_dir.cleanup()
 
     def update_fock(self, heff=None):
         """
