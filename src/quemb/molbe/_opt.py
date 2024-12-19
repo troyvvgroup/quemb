@@ -1,6 +1,8 @@
 # Author(s): Oinam Romesh Meitei
 
 
+from typing import cast
+
 import numpy
 from numpy import array, float64
 
@@ -80,7 +82,7 @@ class BEOPT:
         self.solver = solver
         self.iter = 0
         self.err = 0.0
-        self.Ebe: Matrix[float64] = array([[0.0]])
+        self.Ebe = cast(Matrix[float64], array([[0.0]]))
         self.max_space = max_space
         self.nproc = nproc
         self.ompnum = ompnum
