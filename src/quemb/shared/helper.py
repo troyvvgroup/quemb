@@ -1,5 +1,7 @@
+from collections.abc import Iterable
 from inspect import signature
 from itertools import islice
+from pathlib import Path
 from typing import Any, Callable, TypeVar
 
 Function = TypeVar("Function", bound=Callable)
@@ -88,3 +90,9 @@ def ncore_(z: int) -> int:
     else:
         raise ValueError("Ncore not computed in helper.ncore(), add it yourself!")
     return nc
+
+
+def delete_glob_files(*args: Iterable[Path]) -> None:
+    for files in args:
+        for file in files:
+            file.unlink()

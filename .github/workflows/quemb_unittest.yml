@@ -97,12 +97,6 @@ jobs:
         python -m pip install --upgrade pip
 
 
-    - uses: actions/cache@v4
-      with:
-        path: ${{ env.pythonLocation }}
-        key: ${{ env.pythonLocation }}-${{ hashFiles('setup.py') }}-${{ hashFiles('dev-requirements.txt') }}
-
-
     - name: Install dependencies
       run: |
         pip install -r tests/test_requirements.txt
@@ -116,11 +110,4 @@ jobs:
     - name: Test with pytest
       run: |
         cd tests
-        QUEMB_SKIP_EXPENSIVE_TESTS=true pytest --doctest-modules --junitxml=junit/quemb-test-results_${{ matrix.python-version }}.xml
-
-
-    - name: Upload pytest junit results
-      uses: actions/upload-artifact@v4
-      with:
-        name: quemb-test-results_${{ matrix.python-version }}
-        path: tests/junit/quemb-test-results_${{ matrix.python-version }}.xml
+        QUEMB_SKIP_EXPENSIVE_TESTS=true pytest -s

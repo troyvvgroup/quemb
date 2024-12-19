@@ -130,3 +130,6 @@ class WorkDir:
 
     def __truediv__(self, other_path: PathLike) -> Path:
         return self.path / other_path
+
+    def __str__(self) -> str:
+        return str(self.path)
