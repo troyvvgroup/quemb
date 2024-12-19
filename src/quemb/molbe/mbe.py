@@ -22,7 +22,7 @@ from quemb.shared.external.optqn import (
 )
 from quemb.shared.helper import copy_docstring
 from quemb.shared.manage_scratch import WorkDir
-from quemb.shared.typing import Matrix, PathLike
+from quemb.shared.typing import KwargDict, Matrix, PathLike
 
 
 @define
@@ -636,51 +636,50 @@ class BE(MixinLocalize):
 
     def optimize(
         self,
-        solver="MP2",
-        method="QN",
-        only_chem=False,
-        conv_tol=1.0e-6,
-        relax_density=False,
-        J0=None,
-        nproc=1,
-        ompnum=4,
-        max_iter=500,
-        scratch_dir=None,
-        trust_region=False,
-        **solver_kwargs,
-    ):
+        solver: str = "MP2",
+        method: str = "QN",
+        only_chem: bool = False,
+        conv_tol: float = 1.0e-6,
+        relax_density: bool = False,
+        J0: list[list[float]] | None = None,
+        nproc: int = 1,
+        ompnum: int = 4,
+        max_iter: int = 500,
+        trust_region: bool = False,
+        solver_kwargs: KwargDict | None = None,
+    ) -> None:
         """BE optimization function
 
         Interfaces BEOPT to perform bootstrap embedding optimization.
 
         Parameters
         ----------
-        solver : str, optional
+        solver :
             High-level solver for the fragment, by default 'MP2'
-        method : str, optional
+        method :
             Optimization method, by default 'QN'
-        only_chem : bool, optional
+        only_chem :
             If true, density matching is not performed -- only global chemical potential
             is optimized, by default False
-        conv_tol : float, optional
+        conv_tol :
             Convergence tolerance, by default 1.e-6
-        relax_density : bool, optional
+        relax_density :
             Whether to use relaxed or unrelaxed densities, by default False
             This option is for using CCSD as solver. Relaxed density here uses
             Lambda amplitudes, whereas unrelaxed density only uses T amplitudes.
             c.f. See http://classic.chem.msu.su/cgi-bin/ceilidh.exe/gran/gamess/forum/?C34df668afbHW-7216-1405+00.htm
             for the distinction between the two
-        max_iter : int, optional
+        max_iter :
             Maximum number of optimization steps, by default 500
-        nproc : int
+        nproc :
             Total number of processors assigned for the optimization. Defaults to 1.
             When nproc > 1, Python multithreading is invoked.
-        ompnum : int
+        ompnum :
             If nproc > 1, ompnum sets the number of cores for OpenMP parallelization.
             Defaults to 4
-        J0 : list of list of float
+        J0 :
             Initial Jacobian.
-        trust_region : bool, optional
+        trust_region :
             Use trust-region based QN optimization, by default False
         """
         # Check if only chemical potential optimization is required
@@ -703,7 +702,7 @@ class BE(MixinLocalize):
             hf_veff=self.hf_veff,
             nproc=nproc,
             ompnum=ompnum,
-            scratch_dir=scratch_dir,
+            scratch_dir=self.scratch_dir,
             max_space=max_iter,
             conv_tol=conv_tol,
             only_chem=only_chem,
@@ -714,7 +713,7 @@ class BE(MixinLocalize):
             hci_pt=self.hci_pt,
             solver=solver,
             ebe_hf=self.ebe_hf,
-            **solver_kwargs,
+            solver_kwargs=solver_kwargs,
         )
 
         if method == "QN":
@@ -722,7 +721,7 @@ class BE(MixinLocalize):
             if only_chem:
                 J0 = [[0.0]]
                 J0 = self.get_be_error_jacobian(jac_solver="HF")
-                J0 = [[J0[-1, -1]]]
+                J0 = [[J0[-1][-1]]]
             else:
                 J0 = self.get_be_error_jacobian(jac_solver="HF")
 
@@ -737,7 +736,7 @@ class BE(MixinLocalize):
             raise ValueError("This optimization method for BE is not supported")
 
     @copy_docstring(_ext_get_be_error_jacobian)
-    def get_be_error_jacobian(self, jac_solver="HF"):
+    def get_be_error_jacobian(self, jac_solver: str = "HF") -> list[list[float]]:
         return _ext_get_be_error_jacobian(self.Nfrag, self.Fobjs, jac_solver)
 
     def print_ini(self):
