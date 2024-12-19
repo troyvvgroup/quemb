@@ -67,4 +67,5 @@ def test_rdm():
     assert np.isclose(mybe.ebe_tot, -310.3311676424482)
 
 
-test_rdm()
+if __name__ == "__main__":
+    test_rdm()

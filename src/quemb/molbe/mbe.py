@@ -5,11 +5,14 @@ import pickle
 
 import h5py
 import numpy
+from attrs import define
+from numpy import float64
 from pyscf import ao2mo, scf
 
 from quemb.molbe._opt import BEOPT
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
+from quemb.molbe.fragment import fragpart
 from quemb.molbe.lo import MixinLocalize
 from quemb.molbe.misc import print_energy
 from quemb.molbe.pfrag import Frags
@@ -19,42 +22,29 @@ from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
 from quemb.shared.helper import copy_docstring
+from quemb.shared.manage_scratch import WorkDir
+from quemb.shared.typing import Matrix, PathLike
 
 
+@define
 class storeBE:
-    def __init__(
-        self,
-        Nocc,
-        hf_veff,
-        hcore,
-        S,
-        C,
-        hf_dm,
-        hf_etot,
-        W,
-        lmo_coeff,
-        enuc,
-        E_core,
-        C_core,
-        P_core,
-        core_veff,
-        mo_energy,
-    ):
-        self.Nocc = Nocc
-        self.hf_veff = hf_veff
-        self.hcore = hcore
-        self.S = S
-        self.C = C
-        self.hf_dm = hf_dm
-        self.hf_etot = hf_etot
-        self.W = W
-        self.lmo_coeff = lmo_coeff
-        self.enuc = enuc
-        self.E_core = E_core
-        self.C_core = C_core
-        self.P_core = P_core
-        self.core_veff = core_veff
-        self.mo_energy = mo_energy
+    # TODO: some of the types are most likely wrong.
+    #  this has to be checked in a review
+    Nocc: int
+    hf_veff: Matrix[float64]
+    hcore: Matrix[float64]
+    S: Matrix[float64]
+    C: Matrix[float64]
+    hf_dm: Matrix[float64]
+    hf_etot: float
+    W: Matrix[float64]
+    lmo_coeff: Matrix[float64]
+    enuc: float
+    ek: float
+    E_core: float
+    C_core: float
+    P_core: float
+    core_veff: float
 
 
 class BE(MixinLocalize):
@@ -80,25 +70,25 @@ class BE(MixinLocalize):
 
     def __init__(
         self,
-        mf,
-        fobj,
-        eri_file="eri_file.h5",
-        lo_method="lowdin",
-        pop_method=None,
-        compute_hf=True,
-        restart=False,
-        save=False,
-        restart_file="storebe.pk",
-        save_file="storebe.pk",
-        hci_pt=False,
-        nproc=1,
-        ompnum=4,
-        scratch_dir=None,
-        hci_cutoff=0.001,
-        ci_coeff_cutoff=None,
-        select_cutoff=None,
-        integral_direct_DF=False,
-        auxbasis=None,
+        mf: scf.hf.SCF,
+        fobj: fragpart,
+        eri_file: PathLike = "eri_file.h5",
+        lo_method: str = "lowdin",
+        pop_method: str | None = None,
+        compute_hf: bool = True,
+        restart: bool = False,
+        save: bool = False,
+        restart_file: PathLike = "storebe.pk",
+        save_file: PathLike = "storebe.pk",
+        hci_pt: bool = False,
+        nproc: int = 1,
+        ompnum: int = 4,
+        scratch_dir: WorkDir | None = None,
+        hci_cutoff: float = 0.001,
+        ci_coeff_cutoff: float | None = None,
+        select_cutoff: float | None = None,
+        integral_direct_DF: bool = False,
+        auxbasis: str | None = None,
     ):
         """
         Constructor for BE object.
@@ -205,7 +195,7 @@ class BE(MixinLocalize):
             self.cinv = None
 
         self.print_ini()
-        self.Fobjs = []
+        self.Fobjs: list[Frags] = []
         self.pot = initialize_pot(self.Nfrag, self.edge_idx)
         self.eri_file = eri_file
         self.scratch_dir = scratch_dir
@@ -294,7 +284,6 @@ class BE(MixinLocalize):
 
             with open(save_file, "wb") as rfile:
                 pickle.dump(store_, rfile, pickle.HIGHEST_PROTOCOL)
-            rfile.close()
 
         if not restart:
             # Initialize fragments and perform initial calculations
@@ -1048,11 +1037,10 @@ class BE(MixinLocalize):
         heff_file : str, optional
             Path to the file to store effective Hamiltonian, by default 'bepotfile.h5'.
         """
-        filepot = h5py.File(heff_file, "w")
-        for fobj in self.Fobjs:
-            print(fobj.heff.shape, fobj.dname, flush=True)
-            filepot.create_dataset(fobj.dname, data=fobj.heff)
-        filepot.close()
+        with h5py.File(heff_file, "w") as filepot:
+            for fobj in self.Fobjs:
+                print(fobj.heff.shape, fobj.dname, flush=True)
+                filepot.create_dataset(fobj.dname, data=fobj.heff)
 
     def read_heff(self, heff_file="bepotfile.h5"):
         """
@@ -1063,10 +1051,9 @@ class BE(MixinLocalize):
         heff_file : str, optional
             Path to the file storing effective Hamiltonian, by default 'bepotfile.h5'.
         """
-        filepot = h5py.File(heff_file, "r")
-        for fobj in self.Fobjs:
-            fobj.heff = filepot.get(fobj.dname)
-        filepot.close()
+        with h5py.File(heff_file, "r") as filepot:
+            for fobj in self.Fobjs:
+                fobj.heff = filepot.get(fobj.dname)
 
 
 def initialize_pot(Nfrag, edge_idx):

@@ -340,13 +340,11 @@ class Frags:
         else:
             jmax = self.TA.shape[1]
         if eri is None:
-            r = h5py.File(self.eri_file, "r")
-            if isinstance(self.dname, list):
-                eri = [r[self.dname[0]][()], r[self.dname[1]][()]]
-            else:
-                eri = r[self.dname][()]
-
-            r.close()
+            with h5py.File(self.eri_file, "r") as r:
+                if isinstance(self.dname, list):
+                    eri = [r[self.dname[0]][()], r[self.dname[1]][()]]
+                else:
+                    eri = r[self.dname][()]
 
         e2 = numpy.zeros_like(e1)
         for i in range(self.nfsites):
