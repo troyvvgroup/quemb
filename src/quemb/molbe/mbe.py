@@ -9,12 +9,12 @@ from attrs import define
 from numpy import float64
 from pyscf import ao2mo, scf
 
-from quemb.molbe._opt import BEOPT
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
 from quemb.molbe.fragment import fragpart
 from quemb.molbe.lo import MixinLocalize
 from quemb.molbe.misc import print_energy
+from quemb.molbe.opt import BEOPT
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import be_func
 from quemb.shared.external.optqn import (
