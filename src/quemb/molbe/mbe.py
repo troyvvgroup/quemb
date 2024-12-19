@@ -282,7 +282,6 @@ class BE(MixinLocalize):
 
             with open(save_file, "wb") as rfile:
                 pickle.dump(store_, rfile, pickle.HIGHEST_PROTOCOL)
-            rfile.close()
 
         if not restart:
             # Initialize fragments and perform initial calculations
