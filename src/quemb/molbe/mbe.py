@@ -1048,11 +1048,10 @@ class BE(MixinLocalize):
         heff_file : str, optional
             Path to the file to store effective Hamiltonian, by default 'bepotfile.h5'.
         """
-        filepot = h5py.File(heff_file, "w")
-        for fobj in self.Fobjs:
-            print(fobj.heff.shape, fobj.dname, flush=True)
-            filepot.create_dataset(fobj.dname, data=fobj.heff)
-        filepot.close()
+        with h5py.File(heff_file, "w") as filepot:
+            for fobj in self.Fobjs:
+                print(fobj.heff.shape, fobj.dname, flush=True)
+                filepot.create_dataset(fobj.dname, data=fobj.heff)
 
     def read_heff(self, heff_file="bepotfile.h5"):
         """
@@ -1063,10 +1062,9 @@ class BE(MixinLocalize):
         heff_file : str, optional
             Path to the file storing effective Hamiltonian, by default 'bepotfile.h5'.
         """
-        filepot = h5py.File(heff_file, "r")
-        for fobj in self.Fobjs:
-            fobj.heff = filepot.get(fobj.dname)
-        filepot.close()
+        with h5py.File(heff_file, "r") as filepot:
+            for fobj in self.Fobjs:
+                fobj.heff = filepot.get(fobj.dname)
 
 
 def initialize_pot(Nfrag, edge_idx):
