@@ -10,7 +10,6 @@ from pyscf.cc.ccsd_rdm import make_rdm2
 
 from quemb.molbe.helper import get_frag_energy, get_frag_energy_u
 from quemb.molbe.pfrag import Frags
-from quemb.shared.config import settings
 from quemb.shared.external.ccsd_rdm import (
     make_rdm1_ccsd_t1,
     make_rdm1_uccsd,
@@ -19,7 +18,7 @@ from quemb.shared.external.ccsd_rdm import (
 )
 from quemb.shared.external.uccsd_eri import make_eris_incore
 from quemb.shared.external.unrestricted_utils import make_uhf_obj
-from quemb.shared.helper import unused
+from quemb.shared.helper import delete_multiple_files, unused
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import KwargDict, Matrix
 
@@ -169,14 +168,8 @@ def be_func(
             # pylint: disable-next=E0611,E0401
             from pyscf.shciscf import shci  # noqa: PLC0415    # shci is optional
 
-            if scratch_dir is None and settings.CREATE_SCRATCH_DIR:
-                tmp = os.path.join(settings.SCRATCH, str(os.getpid()), str(fobj.dname))
-            elif scratch_dir is None:
-                tmp = settings.SCRATCH
-            else:
-                tmp = os.path.join(scratch_dir, str(os.getpid()), str(fobj.dname))
-            if not os.path.isdir(tmp):
-                os.system("mkdir -p " + tmp)
+            frag_scratch = WorkDir(scratch_dir / fobj.dname)
+
             nmo = fobj._mf.mo_coeff.shape[1]
 
             nelec = (fobj.nsocc, fobj.nsocc)
@@ -222,24 +215,21 @@ def be_func(
 
         elif solver in ["block2", "DMRG", "DMRGCI", "DMRGSCF"]:
             solver_kwargs_ = {} if solver_kwargs is None else solver_kwargs.copy()
-            if scratch_dir is None and settings.CREATE_SCRATCH_DIR:
-                tmp = os.path.join(settings.SCRATCH, str(os.getpid()), str(fobj.dname))
-            else:
-                tmp = os.path.join(scratch_dir, str(os.getpid()), str(fobj.dname))
-            if not os.path.isdir(tmp):
-                os.system("mkdir -p " + tmp)
+            frag_scratch = WorkDir(scratch_dir / fobj.dname)
 
             try:
                 rdm1_tmp, rdm2s = solve_block2(
-                    fobj._mf, fobj.nsocc, frag_scratch=tmp, **solver_kwargs_
+                    fobj._mf, fobj.nsocc, frag_scratch=frag_scratch, **solver_kwargs_
                 )
             except Exception as inst:
                 raise inst
             finally:
                 if solver_kwargs_.pop("force_cleanup", False):
-                    os.system("rm -r " + os.path.join(tmp, "F.*"))
-                    os.system("rm -r " + os.path.join(tmp, "FCIDUMP*"))
-                    os.system("rm -r " + os.path.join(tmp, "node*"))
+                    delete_multiple_files(
+                        frag_scratch.path.glob("F.*"),
+                        frag_scratch.path.glob("FCIDUMP*"),
+                        frag_scratch.path.glob("node*"),
+                    )
 
         else:
             raise ValueError("Solver not implemented")
