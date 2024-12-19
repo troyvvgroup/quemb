@@ -820,7 +820,8 @@ def initialize_pot(Nfrag, edge_idx):
     Initialize the potential array for bootstrap embedding.
 
     This function initializes a potential array for a given number of
-    fragments (`Nfrag`) and their corresponding edge indices (`edge_idx`).
+    fragments (:python:`Nfrag`) and their corresponding edge indices
+    (:python:`edge_idx`).
     The potential array is initialized with zeros for each pair of
     edge site indices within each fragment, followed by an
     additional zero for the global chemical potential.

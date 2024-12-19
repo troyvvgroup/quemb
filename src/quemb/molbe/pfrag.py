@@ -30,7 +30,7 @@ class Frags:
         centerf_idx=None,
         unrestricted=False,
     ):
-        """Constructor function for `Frags` class.
+        """Constructor function for :python:`Frags` class.
 
         Parameters
         ----------
@@ -48,7 +48,7 @@ class Frags:
             list of lists of indices for edge site AOs within the fragment,
             by default None
         center_idx : list, optional
-            list of lists of indices within the fragment specified in `center`
+            list of lists of indices within the fragment specified in :python:`center`
             that points to the edge site AOs , by default None
         efac : list, optional
             weight used for energy contributions, by default None

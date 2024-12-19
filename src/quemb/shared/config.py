@@ -7,7 +7,7 @@ from cattrs import structure, unstructure
 
 from quemb.shared.helper import add_docstring
 
-DEFAULT_RC_PATH: Final = Path("~/.quembrc.yml").expanduser()
+DEFAULT_RC_PATH: Final = Path("~/.quembrc.yml")
 
 
 @define
@@ -30,12 +30,12 @@ def _read_settings(path: Path) -> Settings:
         return structure(yaml.safe_load(stream=f), Settings)
 
 
-@add_docstring(f"Writes settings to {DEFAULT_RC_PATH}")
+@add_docstring(f"Writes settings to :code:`{DEFAULT_RC_PATH}`")
 def dump_settings() -> None:
-    _write_settings(settings, DEFAULT_RC_PATH)
+    _write_settings(settings, DEFAULT_RC_PATH.expanduser())
 
 
-if DEFAULT_RC_PATH.exists():
-    settings = _read_settings(DEFAULT_RC_PATH)
+if DEFAULT_RC_PATH.expanduser().exists():
+    settings = _read_settings(DEFAULT_RC_PATH.expanduser())
 else:
     settings = Settings()

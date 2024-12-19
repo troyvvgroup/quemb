@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from shutil import rmtree
 from types import TracebackType
-from typing import Annotated, Final, Literal, Optional
+from typing import Annotated, Final, Literal
 
 from attr import define, field
 
@@ -20,19 +20,19 @@ def _to_abs_path(pathlike: PathLike) -> Path:
 class WorkDir:
     """Manage a scratch area.
 
-    Upon initialisation of the object the workdir `path` is created,
+    Upon initialisation of the object the workdir :python:`path` is created,
     if it does not exist yet.
     If it already exists, it is ensured, that it is empty.
-    Internally the `path` will be stored as absolute.
+    Internally the :python:`path` will be stored as absolute.
 
-    If `do_cleanup` is true, then the scratch area is deleted,
-    when if `self.cleanup` is called.
+    If :python:`do_cleanup` is true, then the scratch area is deleted,
+    when :python:`self.cleanup` is called.
 
-    Not that the `/` is overloaded for this class and it can be used
-    as `pathlib.Path` in that regard, see example below.
+    Not that the :python:`/` is overloaded for this class and it can be used
+    as :python:`pathlib.Path` in that regard, see example below.
 
 
-    The `WorkDir` also exists as a ContextManager;
+    The :python:`WorkDir` also exists as a ContextManager;
     then the cleanup is performed when leaving the ContextManager.
     See an example below.
 
@@ -61,9 +61,9 @@ class WorkDir:
 
     def __exit__(
         self,
-        type_: Optional[type[BaseException]],
-        value: Optional[BaseException],
-        traceback: Optional[TracebackType],
+        type_: type[BaseException] | None,
+        value: BaseException | None,
+        traceback: TracebackType | None,
     ) -> Literal[False]:
         if value is None:
             self.cleanup()
@@ -73,31 +73,27 @@ class WorkDir:
     def from_environment(
         cls,
         *,
-        user_defined_root: Optional[PathLike] = None,
+        user_defined_root: PathLike | None = None,
         prefix: str = "QuEmb_",
         do_cleanup: bool = True,
     ) -> WorkDir:
         """Create a WorkDir based on the environment.
 
-        The naming scheme is `${user_defined_root}/${prefix}${SLURM_JOB_ID}`
-        on systems with `SLURM`.
-        If `SLURM` is not available, then the process ID is used instead.
+        The naming scheme is :python:`f"{user_defined_root}/{prefix}{SLURM_JOB_ID}"`
+        on systems with :python:`SLURM`.
+        If :python:`SLURM` is not available, then the process ID is used instead.
 
         Parameters
         ----------
-        user_defined_root: PathLike, optional
+        user_defined_root:
             The root directory where to create temporary directories
-            e.g. `/tmp` or `/scratch`.
-            If `None`, then the value from `quemb.settings.SCRATCH` is taken.
-        prefix: str, default: "QuEmb_"
+            e.g. :bash:`/tmp` or :bash:`/scratch`.
+            If :python:`None`, then the value from :python:`quemb.settings.SCRATCH`
+            is taken.
+        prefix:
             The prefix for the subdirectory.
-        do_cleanup: bool, default: True
-            Perform cleanup when calling `self.cleanup`.
-
-        Returns
-        -------
-        WorkDir
-            A ready to use `WorkDir`
+        do_cleanup:
+            Perform cleanup when calling :python:`self.cleanup`.
         """
         scratch_root = (
             Path(user_defined_root) if user_defined_root else Path(settings.SCRATCH)
@@ -120,9 +116,9 @@ class WorkDir:
 
         Parameters
         ----------
-        force_cleanup : bool, optional
-            If the instance was initialized with `cleanup_at_end=True`,
-            or the argument `force_cleanup` is given, then
+        force_cleanup:
+            If the instance was initialized with :python:`cleanup_at_end=True`,
+            or the argument :python:`force_cleanup` is given, then
             the working directory is deleted.
             Otherwise nothing happens.
         """
