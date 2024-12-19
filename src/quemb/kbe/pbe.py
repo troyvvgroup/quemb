@@ -105,7 +105,6 @@ class BE(Mixin_k_Localize):
             # Load previous calculation data from restart file
             with open(restart_file, "rb") as rfile:
                 store_ = pickle.load(rfile)
-                rfile.close()
             self.Nocc = store_.Nocc
             self.hf_veff = store_.hf_veff
             self.hcore = store_.hcore
@@ -323,7 +322,6 @@ class BE(Mixin_k_Localize):
             )
             with open(save_file, "wb") as rfile:
                 pickle.dump(store_, rfile, pickle.HIGHEST_PROTOCOL)
-            rfile.close()
 
         if not restart:
             self.initialize(compute_hf)

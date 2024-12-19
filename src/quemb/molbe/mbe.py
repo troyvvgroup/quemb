@@ -132,7 +132,6 @@ class BE(MixinLocalize):
             # Load previous calculation data from restart file
             with open(restart_file, "rb") as rfile:
                 store_ = pickle.load(rfile)
-                rfile.close()
             self.Nocc = store_.Nocc
             self.hf_veff = store_.hf_veff
             self.hcore = store_.hcore
