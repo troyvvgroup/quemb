@@ -26,6 +26,7 @@ def be_func(
     Nocc,
     solver,
     enuc,  # noqa: ARG001
+    solver_kwargs,
     hf_veff=None,
     only_chem=False,
     nproc=4,
@@ -40,7 +41,6 @@ def be_func(
     return_vec=False,
     use_cumulant=True,
     scratch_dir=None,
-    **solver_kwargs,
 ):
     """
     Perform bootstrap embedding calculations for each fragment.

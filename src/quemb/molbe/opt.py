@@ -3,14 +3,14 @@
 
 import numpy
 from attrs import define
-from numpy import float64
+from numpy import array, float64
 
 from quemb.molbe.be_parallel import be_func_parallel
-from quemb.molbe.fragment import fragpart
+from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import be_func
 from quemb.shared.external.optqn import FrankQN
 from quemb.shared.manage_scratch import WorkDir
-from quemb.shared.typing import KwargDict, Matrix
+from quemb.shared.typing import KwargDict, Matrix, Vector
 
 
 @define
@@ -27,7 +27,7 @@ class BEOPT:
     pot :
        List of initial BE potentials. The last element is for the global
        chemical potential.
-    Fobjs : quemb.molbe.fragment.fragpart
+    Fobjs :
        Fragment object
     Nocc :
        No. of occupied orbitals for the full system.
@@ -57,7 +57,7 @@ class BEOPT:
     """
 
     pot: list[float]
-    Fobjs: fragpart
+    Fobjs: list[Frags]
     Nocc: int
     enuc: float
     scratch_dir: WorkDir
@@ -74,7 +74,7 @@ class BEOPT:
 
     iter: int = 0
     err: float = 0.0
-    Ebe: float = 0.0
+    Ebe: Matrix[float64] = array([[0.0]])
 
     solver_kwargs: KwargDict | None = None
 
@@ -84,7 +84,7 @@ class BEOPT:
     select_cutoff: float | None = None
     hci_pt: bool = False
 
-    def objfunc(self, xk):
+    def objfunc(self, xk: list[float]) -> Vector[float64]:
         """
         Computes error vectors, RMS error, and BE energies.
 
@@ -93,7 +93,7 @@ class BEOPT:
 
         Parameters
         ----------
-        xk : list
+        xk :
             Current potentials in the BE optimization.
 
         Returns
@@ -120,9 +120,8 @@ class BEOPT:
                 ci_coeff_cutoff=self.ci_coeff_cutoff,
                 select_cutoff=self.select_cutoff,
                 hci_pt=self.hci_pt,
-                ebe_hf=self.ebe_hf,
                 scratch_dir=self.scratch_dir,
-                **self.solver_kwargs,
+                solver_kwargs=self.solver_kwargs,
             )
         else:
             err_, errvec_, ebe_ = be_func_parallel(
@@ -143,7 +142,7 @@ class BEOPT:
                 select_cutoff=self.select_cutoff,
                 ebe_hf=self.ebe_hf,
                 scratch_dir=self.scratch_dir,
-                **self.solver_kwargs,
+                solver_kwargs=self.solver_kwargs,
             )
 
         # Update error and BE energy
