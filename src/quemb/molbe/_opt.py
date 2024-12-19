@@ -154,8 +154,6 @@ class BEOPT:
                 relax_density=self.relax_density,
                 ci_coeff_cutoff=self.ci_coeff_cutoff,
                 select_cutoff=self.select_cutoff,
-                ebe_hf=self.ebe_hf,
-                scratch_dir=self.scratch_dir,
                 **self.solver_kwargs,
             )
 
@@ -183,7 +181,6 @@ class BEOPT:
             print("             Chemical Potential Optimization", flush=True)
         print("-----------------------------------------------------", flush=True)
         print(flush=True)
-
         if method == "QN":
             print("-- In iter ", self.iter, flush=True)
 
