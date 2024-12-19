@@ -3,11 +3,13 @@
 import os
 
 import numpy
+from numpy import float64
 from numpy.linalg import multi_dot
 from pyscf import ao2mo, cc, fci, mcscf, mp
 from pyscf.cc.ccsd_rdm import make_rdm2
 
 from quemb.molbe.helper import get_frag_energy, get_frag_energy_u
+from quemb.molbe.pfrag import Frags
 from quemb.shared.config import settings
 from quemb.shared.external.ccsd_rdm import (
     make_rdm1_ccsd_t1,
@@ -18,29 +20,31 @@ from quemb.shared.external.ccsd_rdm import (
 from quemb.shared.external.uccsd_eri import make_eris_incore
 from quemb.shared.external.unrestricted_utils import make_uhf_obj
 from quemb.shared.helper import unused
+from quemb.shared.manage_scratch import WorkDir
+from quemb.shared.typing import KwargDict, Matrix
 
 
 def be_func(
-    pot,
-    Fobjs,
-    Nocc,
-    solver,
-    enuc,  # noqa: ARG001
-    solver_kwargs,
-    hf_veff=None,
-    only_chem=False,
-    nproc=4,
-    hci_pt=False,
-    hci_cutoff=0.001,
-    ci_coeff_cutoff=None,
-    select_cutoff=None,
-    eeval=False,
-    ereturn=False,
-    frag_energy=False,
-    relax_density=False,
-    return_vec=False,
-    use_cumulant=True,
-    scratch_dir=None,
+    pot: list[float],
+    Fobjs: list[Frags],
+    Nocc: int,
+    solver: str,
+    enuc: float,  # noqa: ARG001
+    solver_kwargs: KwargDict | None,
+    scratch_dir: WorkDir,
+    hf_veff: Matrix[float64] | None = None,
+    only_chem: bool = False,
+    nproc: int = 4,
+    hci_pt: bool = False,
+    hci_cutoff: float = 0.001,
+    ci_coeff_cutoff: float | None = None,
+    select_cutoff: float | None = None,
+    eeval: bool = False,
+    ereturn: bool = False,
+    frag_energy: bool = False,
+    relax_density: bool = False,
+    return_vec: bool = False,
+    use_cumulant: bool = True,
 ):
     """
     Perform bootstrap embedding calculations for each fragment.
@@ -50,35 +54,35 @@ def be_func(
 
     Parameters
     ----------
-    pot : list
+    pot :
         List of potentials.
     Fobjs : list of quemb.molbe.fragment.fragpart
         List of fragment objects.
-    Nocc : int
+    Nocc :
         Number of occupied orbitals.
-    solver : str
+    solver :
         Quantum chemistry solver to use ('MP2', 'CCSD', 'FCI', 'HCI', 'SHCI', 'SCI').
-    enuc : float
+    enuc : f
         Nuclear energy.
-    hf_veff : numpy.ndarray, optional
+    hf_veff :
         Hartree-Fock effective potential. Defaults to None.
-    only_chem : bool, optional
+    only_chem :
         Whether to only optimize the chemical potential. Defaults to False.
-    nproc : int, optional
+    nproc :
         Number of processors. Defaults to 4. This is only neccessary for 'SHCI' solver
-    eeval : bool, optional
+    eeval :
         Whether to evaluate the energy. Defaults to False.
-    ereturn : bool, optional
+    ereturn :
         Whether to return the energy. Defaults to False.
-    frag_energy : bool, optional
+    frag_energy :
         Whether to calculate fragment energy. Defaults to False.
-    relax_density : bool, optional
+    relax_density :
         Whether to relax the density. Defaults to False.
-    return_vec : bool, optional
+    return_vec :
         Whether to return the error vector. Defaults to False.
-    ebe_hf : float, optional
+    ebe_hf :
         Hartree-Fock energy. Defaults to 0.
-    use_cumulant : bool, optional
+    use_cumulant :
         Whether to use the cumulant-based energy expression. Defaults to True.
 
     Returns
@@ -217,7 +221,7 @@ def be_func(
             rdm1_tmp, rdm2s = ci.make_rdm12(0, nmo, nelec)
 
         elif solver in ["block2", "DMRG", "DMRGCI", "DMRGSCF"]:
-            solver_kwargs_ = solver_kwargs.copy()
+            solver_kwargs_ = {} if solver_kwargs is None else solver_kwargs.copy()
             if scratch_dir is None and settings.CREATE_SCRATCH_DIR:
                 tmp = os.path.join(settings.SCRATCH, str(os.getpid()), str(fobj.dname))
             else:
