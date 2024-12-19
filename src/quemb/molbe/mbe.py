@@ -17,7 +17,6 @@ from quemb.molbe.lo import MixinLocalize
 from quemb.molbe.misc import print_energy
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import be_func
-from quemb.shared.config import settings
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
@@ -197,24 +196,14 @@ class BE(MixinLocalize):
         self.print_ini()
         self.Fobjs: list[Frags] = []
         self.pot = initialize_pot(self.Nfrag, self.edge_idx)
-        self.eri_file = eri_file
-        self.scratch_dir = scratch_dir
 
-        # Set scratch directory
-        jobid = ""
-        if settings.CREATE_SCRATCH_DIR:
-            jobid = os.environ.get("SLURM_JOB_ID", "")
-        if settings.SCRATCH:
-            self.scratch_dir = settings.SCRATCH + str(jobid)
-            os.system("mkdir -p " + self.scratch_dir)
+        if scratch_dir is None:
+            self.scratch_dir = WorkDir.from_environment()
         else:
-            self.scratch_dir = None
-        if not jobid:
-            self.eri_file = settings.SCRATCH + eri_file
-        else:
-            self.eri_file = self.scratch_dir + "/" + eri_file
+            self.scratch_dir = scratch_dir
+        self.eri_file = self.scratch_dir / eri_file
 
-        self.frozen_core = False if not fobj.frozen_core else True
+        self.frozen_core = fobj.frozen_core
         self.ncore = 0
         if not restart:
             self.E_core = 0
