@@ -645,7 +645,7 @@ class BE(MixinLocalize):
         ompnum: int = 4,
         max_iter: int = 500,
         trust_region: bool = False,
-        solver_kwargs: KwargDict | None = None,
+        DMRG_solver_kwargs: KwargDict | None = None,
     ) -> None:
         """BE optimization function
 
@@ -712,7 +712,7 @@ class BE(MixinLocalize):
             hci_pt=self.hci_pt,
             solver=solver,
             ebe_hf=self.ebe_hf,
-            solver_kwargs=solver_kwargs,
+            DMRG_solver_kwargs=DMRG_solver_kwargs,
         )
 
         if method == "QN":
@@ -902,7 +902,7 @@ class BE(MixinLocalize):
         nproc: int = 1,
         ompnum: int = 4,
         calc_frag_energy: bool = False,
-        solver_kwargs: KwargDict | None = None,
+        DMRG_solver_kwargs: KwargDict | None = None,
     ):
         """
         Perform a one-shot bootstrap embedding calculation.
@@ -937,7 +937,7 @@ class BE(MixinLocalize):
                 ereturn=True,
                 eeval=True,
                 scratch_dir=self.scratch_dir,
-                solver_kwargs=solver_kwargs,
+                DMRG_solver_kwargs=DMRG_solver_kwargs,
             )
         else:
             rets = be_func_parallel(

@@ -76,7 +76,7 @@ class BEOPT:
     err: float = 0.0
     Ebe: Matrix[float64] = array([[0.0]])
 
-    solver_kwargs: KwargDict | None = None
+    DMRG_solver_kwargs: KwargDict | None = None
 
     # HCI parameters
     hci_cutoff: float = 0.001
@@ -121,7 +121,7 @@ class BEOPT:
                 select_cutoff=self.select_cutoff,
                 hci_pt=self.hci_pt,
                 scratch_dir=self.scratch_dir,
-                solver_kwargs=self.solver_kwargs,
+                DMRG_solver_kwargs=self.DMRG_solver_kwargs,
             )
         else:
             err_, errvec_, ebe_ = be_func_parallel(

@@ -30,7 +30,7 @@ def be_func(
     Nocc: int,
     solver: str,
     enuc: float,  # noqa: ARG001
-    solver_kwargs: KwargDict | None,
+    DMRG_solver_kwargs: KwargDict | None,
     scratch_dir: WorkDir,
     hf_veff: Matrix[float64] | None = None,
     only_chem: bool = False,
@@ -215,17 +215,22 @@ def be_func(
             rdm1_tmp, rdm2s = ci.make_rdm12(0, nmo, nelec)
 
         elif solver in ["block2", "DMRG", "DMRGCI", "DMRGSCF"]:
-            solver_kwargs_ = {} if solver_kwargs is None else solver_kwargs.copy()
+            DMRG_solver_kwargs_ = (
+                {} if DMRG_solver_kwargs is None else DMRG_solver_kwargs.copy()
+            )
             frag_scratch = WorkDir(scratch_dir / fobj.dname)
 
             try:
                 rdm1_tmp, rdm2s = solve_block2(
-                    fobj._mf, fobj.nsocc, frag_scratch=frag_scratch, **solver_kwargs_
+                    fobj._mf,
+                    fobj.nsocc,
+                    frag_scratch=frag_scratch,
+                    **DMRG_solver_kwargs_,
                 )
             except Exception as inst:
                 raise inst
             finally:
-                if solver_kwargs_.pop("force_cleanup", False):
+                if DMRG_solver_kwargs_.pop("force_cleanup", False):
                     delete_multiple_files(
                         frag_scratch.path.glob("F.*"),
                         frag_scratch.path.glob("FCIDUMP*"),
@@ -689,7 +694,7 @@ def solve_ccsd(
     return (t1, t2)
 
 
-def solve_block2(mf, nocc, frag_scratch, **solver_kwargs):
+def solve_block2(mf, nocc, frag_scratch, **DMRG_solver_kwargs):
     """DMRG fragment solver using the pyscf.dmrgscf wrapper.
 
     Parameters
@@ -750,20 +755,22 @@ def solve_block2(mf, nocc, frag_scratch, **solver_kwargs):
     # pylint: disable-next=E0611
     from pyscf import dmrgscf  # noqa: PLC0415   # optional module
 
-    use_cumulant = solver_kwargs.pop("use_cumulant", True)
-    norb = solver_kwargs.pop("norb", mf.mo_coeff.shape[1])
-    nelec = solver_kwargs.pop("nelec", mf.mo_coeff.shape[1])
-    lo_method = solver_kwargs.pop("lo_method", None)
-    startM = solver_kwargs.pop("startM", 25)
-    maxM = solver_kwargs.pop("maxM", 500)
-    max_iter = solver_kwargs.pop("max_iter", 60)
-    max_mem = solver_kwargs.pop("max_mem", 100)
-    max_noise = solver_kwargs.pop("max_noise", 1e-3)
-    min_tol = solver_kwargs.pop("min_tol", 1e-8)
-    twodot_to_onedot = solver_kwargs.pop("twodot_to_onedot", int((5 * max_iter) // 6))
-    root = solver_kwargs.pop("root", 0)
-    block_extra_keyword = solver_kwargs.pop("block_extra_keyword", ["fiedler"])
-    schedule_kwargs = solver_kwargs.pop("schedule_kwargs", {})
+    use_cumulant = DMRG_solver_kwargs.pop("use_cumulant", True)
+    norb = DMRG_solver_kwargs.pop("norb", mf.mo_coeff.shape[1])
+    nelec = DMRG_solver_kwargs.pop("nelec", mf.mo_coeff.shape[1])
+    lo_method = DMRG_solver_kwargs.pop("lo_method", None)
+    startM = DMRG_solver_kwargs.pop("startM", 25)
+    maxM = DMRG_solver_kwargs.pop("maxM", 500)
+    max_iter = DMRG_solver_kwargs.pop("max_iter", 60)
+    max_mem = DMRG_solver_kwargs.pop("max_mem", 100)
+    max_noise = DMRG_solver_kwargs.pop("max_noise", 1e-3)
+    min_tol = DMRG_solver_kwargs.pop("min_tol", 1e-8)
+    twodot_to_onedot = DMRG_solver_kwargs.pop(
+        "twodot_to_onedot", int((5 * max_iter) // 6)
+    )
+    root = DMRG_solver_kwargs.pop("root", 0)
+    block_extra_keyword = DMRG_solver_kwargs.pop("block_extra_keyword", ["fiedler"])
+    schedule_kwargs = DMRG_solver_kwargs.pop("schedule_kwargs", {})
 
     if norb <= 2:
         block_extra_keyword = [

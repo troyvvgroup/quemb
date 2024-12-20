@@ -52,7 +52,7 @@ for a in seps:
     # Next, run BE-DMRG with default parameters and maxM=100.
     mybe.oneshot(
         solver="block2",  # or 'DMRG', 'DMRGSCF', 'DMRGCI'
-        solver_kwargs=dict(
+        DMRG_solver_kwargs=dict(
             maxM=100,  # Max fragment bond dimension
             force_cleanup=True,  # Remove all fragment DMRG tmpfiles
         ),
@@ -100,7 +100,7 @@ mybe.optimize(
     solver="block2",  # or 'DMRG', 'DMRGSCF', 'DMRGCI'
     max_iter=60,  # Max number of sweeps
     only_chem=True,
-    solver_kwargs=dict(
+    DMRG_solver_kwargs=dict(
         startM=20,  # Initial fragment bond dimension (1st sweep)
         maxM=200,  # Maximum fragment bond dimension
         twodot_to_onedot=50,  # Sweep num to switch from two- to one-dot algo.
@@ -124,7 +124,7 @@ schedule = {
 mybe.optimize(
     solver="block2",
     only_chem=True,
-    solver_kwargs=dict(
+    DMRG_solver_kwargs=dict(
         schedule_kwargs=schedule,
         block_extra_keyword=["fiedler"],
         force_cleanup=True,
