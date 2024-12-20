@@ -579,7 +579,7 @@ class BE(Mixin_k_Localize):
 
             for frg in range(self.Nfrag):
                 file_eri.create_dataset(self.Fobjs[frg].dname, data=eris[frg])
-            eris = None
+            del eris
             file_eri.close()
 
             nprocs = int(self.nproc / self.ompnum)
@@ -610,7 +610,7 @@ class BE(Mixin_k_Localize):
                     raise ValueError(f"Imaginary Veff {numpy.abs(veff_.imag).max()}")
 
                 self.Fobjs[frg].fock = self.Fobjs[frg].h1 + veff_.real
-            veffs = None
+            del veffs
 
         # SCF parallelized
         if self.nproc == 1 and not transform_parallel:
