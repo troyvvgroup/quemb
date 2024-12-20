@@ -214,7 +214,7 @@ class BE(Mixin_k_Localize):
             print("Energy may diverse.", flush=True)
             print(flush=True)
 
-        self.frozen_core = False if not fobj.frozen_core else True
+        self.frozen_core = fobj.frozen_core
         self.ncore = 0
         if not restart:
             self.E_core = 0

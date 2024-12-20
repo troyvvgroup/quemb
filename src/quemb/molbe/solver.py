@@ -367,9 +367,7 @@ def be_func_u(
         Depending on the options, it returns the norm of the error vector, the energy,
         or a combination of these values.
     """
-    rdm_return = False
-    if relax_density:
-        rdm_return = True
+    rdm_return = relax_density
     E = 0.0
     if frag_energy or eeval:
         total_e = [0.0, 0.0, 0.0]
@@ -674,8 +672,6 @@ def solve_ccsd(
             rdm1a = mycc.make_rdm1(with_frozen=False)
 
         if rdm2_return:
-            if use_cumulant:
-                with_dm1 = False
             rdm2s = make_rdm2(
                 mycc,
                 mycc.t1,
@@ -684,7 +680,7 @@ def solve_ccsd(
                 mycc.l2,
                 with_frozen=False,
                 ao_repr=False,
-                with_dm1=with_dm1,
+                with_dm1=with_dm1 and not use_cumulant,
             )
             return (t1, t2, rdm1a, rdm2s)
         return (t1, t2, rdm1a, mycc)

@@ -98,7 +98,7 @@ class UBE(BE):  # 🍠
 
         self.eri_file = eri_file
         self.ek = 0.0
-        self.frozen_core = False if not fobj.frozen_core else True
+        self.frozen_core = fobj.frozen_core
         self.ncore = 0
         self.E_core = 0
         self.C_core = None
