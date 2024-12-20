@@ -227,6 +227,7 @@ def be_func(
                     fobj.nsocc,
                     frag_scratch=frag_scratch,
                     DMRG_solver_kwargs=DMRG_solver_kwargs,
+                    use_cumulant=use_cumulant,
                 )
             except Exception as inst:
                 raise inst
@@ -696,7 +697,11 @@ def solve_ccsd(
 
 
 def solve_block2(
-    mf: RHF, nocc: int, frag_scratch: WorkDir, DMRG_solver_kwargs: KwargDict
+    mf: RHF,
+    nocc: int,
+    frag_scratch: WorkDir,
+    DMRG_solver_kwargs: KwargDict,
+    use_cumulant: bool,
 ):
     """DMRG fragment solver using the pyscf.dmrgscf wrapper.
 
@@ -758,9 +763,9 @@ def solve_block2(
     # pylint: disable-next=E0611
     from pyscf import dmrgscf  # noqa: PLC0415   # optional module
 
-    use_cumulant = DMRG_solver_kwargs.pop("use_cumulant", True)
     norb = DMRG_solver_kwargs.pop("norb", mf.mo_coeff.shape[1])
     nelec = DMRG_solver_kwargs.pop("nelec", mf.mo_coeff.shape[1])
+
     lo_method = DMRG_solver_kwargs.pop("lo_method", None)
     startM = DMRG_solver_kwargs.pop("startM", 25)
     maxM = DMRG_solver_kwargs.pop("maxM", 500)
@@ -782,7 +787,7 @@ def solve_block2(
 
     if lo_method is None:
         orbs = mf.mo_coeff
-    elif isinstance(lo_method, str):
+    else:
         raise NotImplementedError(
             "Localization within the fragment+bath subspace is currently not supported."
         )
