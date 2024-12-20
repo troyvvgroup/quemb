@@ -33,6 +33,7 @@ from quemb.shared.typing import Matrix
 def run_solver(
     h1: Matrix[float64],
     dm0: Matrix[float64],
+    frag_scratch: WorkDir,
     dname: str,
     nao: int,
     nocc: int,
@@ -64,8 +65,11 @@ def run_solver(
         One-electron Hamiltonian matrix.
     dm0 :
         Initial guess for the density matrix.
+    scratch_dir :
+        The scratch dir root.
     dname :
         Directory name for storing intermediate files.
+    frag_scratch:
     nao :
         Number of atomic orbitals.
     nocc :
@@ -175,14 +179,14 @@ def run_solver(
 
         nao, nmo = mf_.mo_coeff.shape
         nelec = (nocc, nocc)
-        mch = shci.SHCISCF(mf_, nmo, nelec, orbpath=dname)
+        mch = shci.SHCISCF(mf_, nmo, nelec, orbpath=frag_scratch)
         mch.fcisolver.mpiprefix = "mpirun -np " + str(ompnum)
         mch.fcisolver.stochastic = True  # this is for PT and doesnt add PT to rdm
         mch.fcisolver.nPTiter = 0
         mch.fcisolver.sweep_iter = [0]
         mch.fcisolver.DoRDM = True
         mch.fcisolver.sweep_epsilon = [hci_cutoff]
-        mch.fcisolver.scratchDirectory = "/scratch/oimeitei/" + dname
+        mch.fcisolver.scratchDirectory = frag_scratch
         if not writeh1:
             mch.fcisolver.restart = True
         mch.mc1step()
@@ -202,7 +206,7 @@ def run_solver(
         )
 
         ci = cornell_shci.SHCI()
-        ci.runtimedir = dname
+        ci.runtimedir = frag_scratch
         ci.restart = True
         ci.config["var_only"] = True
         ci.config["eps_vars"] = [hci_cutoff]
@@ -464,7 +468,7 @@ def be_func_parallel(
     # Create directories for fragments if required
     if writeh1 and solver == "SCI":
         for fobj in Fobjs:
-            _ = WorkDir(scratch_dir / fobj.dname)
+            frag_scratch = WorkDir(scratch_dir / fobj.dname)
 
     # Set the number of OpenMP threads
     os.system("export OMP_NUM_THREADS=" + str(ompnum))
@@ -486,6 +490,7 @@ def be_func_parallel(
                 [
                     fobj.fock + fobj.heff,
                     fobj.dm0.copy(),
+                    frag_scratch,
                     fobj.dname,
                     fobj.nao,
                     fobj.nsocc,
