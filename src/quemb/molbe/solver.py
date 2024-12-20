@@ -215,22 +215,22 @@ def be_func(
             rdm1_tmp, rdm2s = ci.make_rdm12(0, nmo, nelec)
 
         elif solver in ["block2", "DMRG", "DMRGCI", "DMRGSCF"]:
-            DMRG_solver_kwargs_ = (
-                {} if DMRG_solver_kwargs is None else DMRG_solver_kwargs.copy()
-            )
             frag_scratch = WorkDir(scratch_dir / fobj.dname)
 
+            DMRG_solver_kwargs = (
+                {} if DMRG_solver_kwargs is None else DMRG_solver_kwargs.copy()
+            )
             try:
                 rdm1_tmp, rdm2s = solve_block2(
                     fobj._mf,
                     fobj.nsocc,
                     frag_scratch=frag_scratch,
-                    **DMRG_solver_kwargs_,
+                    DMRG_solver_kwargs=DMRG_solver_kwargs,
                 )
             except Exception as inst:
                 raise inst
             finally:
-                if DMRG_solver_kwargs_.pop("force_cleanup", False):
+                if DMRG_solver_kwargs.pop("force_cleanup", False):
                     delete_multiple_files(
                         frag_scratch.path.glob("F.*"),
                         frag_scratch.path.glob("FCIDUMP*"),
@@ -694,7 +694,7 @@ def solve_ccsd(
     return (t1, t2)
 
 
-def solve_block2(mf, nocc, frag_scratch, **DMRG_solver_kwargs):
+def solve_block2(mf, nocc, frag_scratch, DMRG_solver_kwargs: KwargDict):
     """DMRG fragment solver using the pyscf.dmrgscf wrapper.
 
     Parameters
@@ -825,7 +825,7 @@ def solve_block2(mf, nocc, frag_scratch, **DMRG_solver_kwargs):
     mc.fcisolver.scratchDirectory = str(frag_scratch)
     mc.fcisolver.runtimeDir = str(frag_scratch)
     mc.fcisolver.memory = int(max_mem)
-    os.system("cd " + frag_scratch)
+    os.chdir(frag_scratch)
 
     mc.kernel(orbs)
     rdm1, rdm2 = dmrgscf.DMRGCI.make_rdm12(mc.fcisolver, root, norb, nelec)
