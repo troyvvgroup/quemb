@@ -535,14 +535,18 @@ def be_func_parallel(
     e_1 = 0.0
     e_2 = 0.0
     e_c = 0.0
-    for idx, fobj in enumerate(Fobjs):
-        e_1 += rdms[idx][0][0]
-        e_2 += rdms[idx][0][1]
-        e_c += rdms[idx][0][2]
-        fobj.mo_coeffs = rdms[idx][1]
-        fobj._rdm1 = rdms[idx][2]
-        fobj.rdm2__ = rdms[idx][3]
-        fobj.rdm1__ = rdms[idx][4]
+
+    # I have to type ignore here, because of stupid behaviour of
+    # :code:`zip` and :code:`enumerate`
+    # https://stackoverflow.com/questions/74374059/correctly-specify-the-types-of-unpacked-zip
+    for fobj, rdm in zip(Fobjs, rdms):  # type: ignore[assignment]
+        e_1 += rdm[0][0]
+        e_2 += rdm[0][1]
+        e_c += rdm[0][2]
+        fobj.mo_coeffs = rdm[1]
+        fobj._rdm1 = rdm[2]
+        fobj.rdm2__ = rdm[3]
+        fobj.rdm1__ = rdm[4]
 
     del rdms
     ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem)
