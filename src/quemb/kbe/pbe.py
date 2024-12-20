@@ -562,7 +562,6 @@ class BE(Mixin_k_Localize):
             os.system("export OMP_NUM_THREADS=" + str(self.ompnum))
             with Pool(nprocs) as pool_:
                 results = []
-                eris = []
                 for frg in range(self.Nfrag):
                     result = pool_.apply_async(
                         eritransform_parallel,
@@ -576,8 +575,7 @@ class BE(Mixin_k_Localize):
                         ],
                     )
                     results.append(result)
-                for result in results:
-                    eris.append(result.get())
+                eris = [result.get() for result in results]
 
             for frg in range(self.Nfrag):
                 file_eri.create_dataset(self.Fobjs[frg].dname, data=eris[frg])
@@ -585,25 +583,23 @@ class BE(Mixin_k_Localize):
             file_eri.close()
 
             nprocs = int(self.nproc / self.ompnum)
-            pool_ = Pool(nprocs)
-            results = []
-            veffs = []
-            for frg in range(self.Nfrag):
-                result = pool_.apply_async(
-                    parallel_fock_wrapper,
-                    [
-                        self.Fobjs[frg].dname,
-                        self.Fobjs[frg].nao,
-                        self.hf_dm,
-                        self.S,
-                        self.Fobjs[frg].TA,
-                        self.hf_veff,
-                        self.eri_file,
-                    ],
-                )
-                results.append(result)
-            [veffs.append(result.get()) for result in results]
-            pool_.close()
+            with Pool(nprocs) as pool_:
+                results = []
+                for frg in range(self.Nfrag):
+                    result = pool_.apply_async(
+                        parallel_fock_wrapper,
+                        [
+                            self.Fobjs[frg].dname,
+                            self.Fobjs[frg].nao,
+                            self.hf_dm,
+                            self.S,
+                            self.Fobjs[frg].TA,
+                            self.hf_veff,
+                            self.eri_file,
+                        ],
+                    )
+                    results.append(result)
+                veffs = [result.get() for result in results]
 
             for frg in range(self.Nfrag):
                 veff0, veff_ = veffs[frg]
@@ -623,22 +619,21 @@ class BE(Mixin_k_Localize):
                 self.Fobjs[frg].scf(fs=True, dm0=self.Fobjs[frg].dm_init)
         else:
             nprocs = int(self.nproc / self.ompnum)
-            pool_ = Pool(nprocs)
-            os.system("export OMP_NUM_THREADS=" + str(self.ompnum))
-            results = []
-            mo_coeffs = []
-            for frg in range(self.Nfrag):
-                nao = self.Fobjs[frg].nao
-                nocc = self.Fobjs[frg].nsocc
-                dname = self.Fobjs[frg].dname
-                h1 = self.Fobjs[frg].fock + self.Fobjs[frg].heff
-                result = pool_.apply_async(
-                    parallel_scf_wrapper,
-                    [dname, nao, nocc, h1, self.Fobjs[frg].dm_init, self.eri_file],
-                )
-                results.append(result)
-            [mo_coeffs.append(result.get()) for result in results]
-            pool_.close()
+            with Pool(nprocs) as pool_:
+                os.system("export OMP_NUM_THREADS=" + str(self.ompnum))
+                results = []
+                for frg in range(self.Nfrag):
+                    nao = self.Fobjs[frg].nao
+                    nocc = self.Fobjs[frg].nsocc
+                    dname = self.Fobjs[frg].dname
+                    h1 = self.Fobjs[frg].fock + self.Fobjs[frg].heff
+                    result = pool_.apply_async(
+                        parallel_scf_wrapper,
+                        [dname, nao, nocc, h1, self.Fobjs[frg].dm_init, self.eri_file],
+                    )
+                    results.append(result)
+                mo_coeffs = [result.get() for result in results]
+
             for frg in range(self.Nfrag):
                 self.Fobjs[frg]._mo_coeffs = mo_coeffs[frg]
 

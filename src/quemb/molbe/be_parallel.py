@@ -483,8 +483,6 @@ def be_func_parallel(
 
     with Pool(nprocs) as pool_:
         results = []
-        rdms = []
-
         # Run solver in parallel for each fragment
         for fobj in Fobjs:
             result = pool_.apply_async(
@@ -519,9 +517,7 @@ def be_func_parallel(
 
             results.append(result)
 
-        # Collect results
-        for result in results:
-            rdms.append(result.get())
+        rdms = [result.get() for result in results]
 
     if frag_energy:
         # Compute and return fragment energy
@@ -612,34 +608,30 @@ def be_func_parallel_u(
     """
     # Set the number of OpenMP threads
     os.system("export OMP_NUM_THREADS=" + str(ompnum))
-    nprocs = int(nproc / ompnum)
+    nprocs = nproc // ompnum
 
-    pool_ = Pool(nprocs)
-    results = []
-    energy_list = []
+    with Pool(nprocs) as pool_:
+        results = []
+        # Run solver in parallel for each fragment
+        for fobj_a, fobj_b in Fobjs:
+            result = pool_.apply_async(
+                run_solver_u,
+                [
+                    fobj_a,
+                    fobj_b,
+                    solver,
+                    enuc,
+                    hf_veff,
+                    frag_energy,
+                    relax_density,
+                    frozen,
+                    use_cumulant,
+                    True,
+                ],
+            )
+            results.append(result)
 
-    # Run solver in parallel for each fragment
-    for fobj_a, fobj_b in Fobjs:
-        result = pool_.apply_async(
-            run_solver_u,
-            [
-                fobj_a,
-                fobj_b,
-                solver,
-                enuc,
-                hf_veff,
-                frag_energy,
-                relax_density,
-                frozen,
-                use_cumulant,
-                True,
-            ],
-        )
-        results.append(result)
-
-    # Collect results
-    [energy_list.append(result.get()) for result in results]
-    pool_.close()
+        energy_list = [result.get() for result in results]
 
     if frag_energy:
         # Compute and return fragment energy
