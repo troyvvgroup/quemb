@@ -450,8 +450,6 @@ class UBE(BE):  # 🍠
             )
         )
 
-        self.scratch_dir.cleanup()
-
 
 def initialize_pot(Nfrag, edge_idx):
     pot_ = []

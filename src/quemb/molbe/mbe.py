@@ -734,8 +734,6 @@ class BE(MixinLocalize):
         else:
             raise ValueError("This optimization method for BE is not supported")
 
-        self.scratch_dir.cleanup()
-
     @copy_docstring(_ext_get_be_error_jacobian)
     def get_be_error_jacobian(self, jac_solver: str = "HF") -> list[list[float]]:
         return _ext_get_be_error_jacobian(self.Nfrag, self.Fobjs, jac_solver)
@@ -984,8 +982,6 @@ class BE(MixinLocalize):
 
         if not calc_frag_energy:
             self.compute_energy_full(approx_cumulant=True, return_rdm=False)
-
-        self.scratch_dir.cleanup()
 
     def update_fock(self, heff=None):
         """

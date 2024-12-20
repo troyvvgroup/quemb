@@ -421,8 +421,6 @@ class BE(Mixin_k_Localize):
         else:
             raise ValueError("This optimization method for BE is not supported")
 
-        self.scratch_dir.cleanup()
-
     @copy_docstring(_ext_get_be_error_jacobian)
     def get_be_error_jacobian(self, jac_solver="HF"):
         return _ext_get_be_error_jacobian(self.Nfrag, self.Fobjs, jac_solver)
@@ -757,8 +755,6 @@ class BE(Mixin_k_Localize):
             )
 
             self.ebe_tot = rets[0]
-
-        self.scratch_dir.cleanup()
 
     def update_fock(self, heff=None):
         """
