@@ -8,6 +8,7 @@ from numpy import float64
 from numpy.linalg import multi_dot
 from pyscf import ao2mo, fci, mcscf
 
+from quemb.kbe.pfrag import Frags as pFrags
 from quemb.molbe.helper import (
     get_eri,
     get_frag_energy,
@@ -404,7 +405,7 @@ def run_solver_u(
 
 def be_func_parallel(
     pot: list[float] | None,
-    Fobjs: list[Frags],
+    Fobjs: list[Frags] | list[pFrags],
     Nocc: int,
     solver: str,
     enuc: float,  # noqa: ARG001

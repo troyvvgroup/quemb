@@ -24,7 +24,7 @@ from quemb.shared.external.optqn import (
 )
 from quemb.shared.helper import copy_docstring
 from quemb.shared.manage_scratch import WorkDir
-from quemb.shared.typing import PathLike
+from quemb.shared.typing import KwargDict, PathLike
 
 
 class BE(Mixin_k_Localize):
@@ -378,7 +378,6 @@ class BE(Mixin_k_Localize):
         else:
             pot = [0.0]
 
-        # Initialize the BEOPT object
         be_ = BEOPT(
             pot,
             self.Fobjs,
@@ -387,6 +386,7 @@ class BE(Mixin_k_Localize):
             hf_veff=self.hf_veff,
             nproc=nproc,
             ompnum=ompnum,
+            scratch_dir=self.scratch_dir,
             max_space=max_iter,
             conv_tol=conv_tol,
             only_chem=only_chem,
@@ -468,7 +468,7 @@ class BE(Mixin_k_Localize):
 
         return e_.real
 
-    def initialize(self, compute_hf, restart=False):
+    def initialize(self, compute_hf: bool, restart: bool = False):
         """
         Initialize the Bootstrap Embedding calculation.
 
@@ -556,26 +556,26 @@ class BE(Mixin_k_Localize):
             if self.nproc == 1:
                 raise ValueError("If cderi is set, try again with nproc > 1")
 
-            nprocs = int(self.nproc / self.ompnum)
-            pool_ = Pool(nprocs)
+            nprocs = self.nproc // self.ompnum
             os.system("export OMP_NUM_THREADS=" + str(self.ompnum))
-            results = []
-            eris = []
-            for frg in range(self.Nfrag):
-                result = pool_.apply_async(
-                    eritransform_parallel,
-                    [
-                        self.mf.cell.a,
-                        self.mf.cell.atom,
-                        self.mf.cell.basis,
-                        self.kpts,
-                        self.Fobjs[frg].TA,
-                        self.cderi,
-                    ],
-                )
-                results.append(result)
-            [eris.append(result.get()) for result in results]
-            pool_.close()
+            with Pool(nprocs) as pool_:
+                results = []
+                eris = []
+                for frg in range(self.Nfrag):
+                    result = pool_.apply_async(
+                        eritransform_parallel,
+                        [
+                            self.mf.cell.a,
+                            self.mf.cell.atom,
+                            self.mf.cell.basis,
+                            self.kpts,
+                            self.Fobjs[frg].TA,
+                            self.cderi,
+                        ],
+                    )
+                    results.append(result)
+                for result in results:
+                    eris.append(result.get())
 
             for frg in range(self.Nfrag):
                 file_eri.create_dataset(self.Fobjs[frg].dname, data=eris[frg])
@@ -675,23 +675,30 @@ class BE(Mixin_k_Localize):
             fobj.udim = couti
             couti = fobj.set_udim(couti)
 
-    def oneshot(self, solver="MP2", nproc=1, ompnum=4, calc_frag_energy=False):
+    def oneshot(
+        self,
+        solver: str = "MP2",
+        nproc: int = 1,
+        ompnum: int = 4,
+        calc_frag_energy: bool = False,
+        solver_kwargs: KwargDict | None = None,
+    ) -> None:
         """
         Perform a one-shot bootstrap embedding calculation.
 
         Parameters
         ----------
-        solver : str, optional
+        solver :
             High-level quantum chemistry method, by default 'MP2'. 'CCSD', 'FCI',
             and variants of selected CI are supported.
-        nproc : int, optional
+        nproc :
             Number of processors for parallel calculations, by default 1.
             If set to >1, threaded parallel computation is invoked.
-        ompnum : int, optional
+        ompnum :
             Number of OpenMP threads, by default 4.
-        calc_frag_energy : bool, optional
+        calc_frag_energy :
             Whether to calculate fragment energies, by default False.
-        clean_eri : bool, optional
+        clean_eri :
             Whether to clean up ERI files after calculation, by default False.
         """
         print("Calculating Energy by Fragment? ", calc_frag_energy)
@@ -710,6 +717,8 @@ class BE(Mixin_k_Localize):
                 frag_energy=calc_frag_energy,
                 ereturn=True,
                 eeval=True,
+                scratch_dir=self.scratch_dir,
+                solver_kwargs=solver_kwargs,
             )
         else:
             rets = be_func_parallel(
@@ -722,11 +731,11 @@ class BE(Mixin_k_Localize):
                 hci_cutoff=self.hci_cutoff,
                 ci_coeff_cutoff=self.ci_coeff_cutoff,
                 select_cutoff=self.select_cutoff,
-                ereturn=True,
                 eeval=True,
                 frag_energy=calc_frag_energy,
                 nproc=nproc,
                 ompnum=ompnum,
+                scratch_dir=self.scratch_dir,
             )
 
         print("-----------------------------------------------------", flush=True)

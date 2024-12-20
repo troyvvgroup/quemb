@@ -8,6 +8,7 @@ from numpy.linalg import multi_dot
 from pyscf import ao2mo, cc, fci, mcscf, mp
 from pyscf.cc.ccsd_rdm import make_rdm2
 
+from quemb.kbe.pfrag import Frags as pFrags
 from quemb.molbe.helper import get_frag_energy, get_frag_energy_u
 from quemb.molbe.pfrag import Frags
 from quemb.shared.external.ccsd_rdm import (
@@ -25,7 +26,7 @@ from quemb.shared.typing import KwargDict, Matrix
 
 def be_func(
     pot: list[float] | None,
-    Fobjs: list[Frags],
+    Fobjs: list[Frags] | list[pFrags],
     Nocc: int,
     solver: str,
     enuc: float,  # noqa: ARG001
