@@ -6,11 +6,11 @@ import tempfile
 from typing import Tuple
 
 import numpy as np
-import pytest
 from pyscf import cc, gto, scf
 
 from quemb.molbe import BE, fragpart
 from quemb.shared.io import write_cube
+
 
 def test_octane_molbe() -> None:
     # Prepare octane molecule
