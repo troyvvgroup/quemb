@@ -582,7 +582,7 @@ class BE(Mixin_k_Localize):
             del eris
             file_eri.close()
 
-            nprocs = int(self.nproc / self.ompnum)
+            nprocs = self.nproc // self.ompnum
             with Pool(nprocs) as pool_:
                 results = []
                 for frg in range(self.Nfrag):
