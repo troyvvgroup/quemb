@@ -33,7 +33,7 @@ from quemb.shared.typing import Matrix
 def run_solver(
     h1: Matrix[float64],
     dm0: Matrix[float64],
-    frag_scratch: WorkDir,
+    scratch_dir: WorkDir,
     dname: str,
     nao: int,
     nocc: int,
@@ -69,7 +69,9 @@ def run_solver(
         The scratch dir root.
     dname :
         Directory name for storing intermediate files.
-    frag_scratch:
+    scratch_dir :
+        The scratch directory.
+        Fragment files will be stored in :code:`scratch_dir / dname`.
     nao :
         Number of atomic orbitals.
     nocc :
@@ -177,6 +179,8 @@ def run_solver(
         # pylint: disable-next=E0401,E0611
         from pyscf.shciscf import shci  # noqa: PLC0415    # shci is an optional module
 
+        frag_scratch = WorkDir(scratch_dir / dname)
+
         nao, nmo = mf_.mo_coeff.shape
         nelec = (nocc, nocc)
         mch = shci.SHCISCF(mf_, nmo, nelec, orbpath=frag_scratch)
@@ -195,6 +199,8 @@ def run_solver(
     elif solver == "SCI":
         # pylint: disable-next=E0611
         from pyscf import cornell_shci  # noqa: PLC0415  # optional module
+
+        frag_scratch = WorkDir(scratch_dir / dname)
 
         nao, nmo = mf_.mo_coeff.shape
         nelec = (nocc, nocc)
@@ -465,11 +471,6 @@ def be_func_parallel(
         Depending on the parameters, returns the error norm or a tuple containing
         the error norm, error vector, and the computed energy.
     """
-    # Create directories for fragments if required
-    if writeh1 and solver == "SCI":
-        for fobj in Fobjs:
-            frag_scratch = WorkDir(scratch_dir / fobj.dname)
-
     # Set the number of OpenMP threads
     os.system("export OMP_NUM_THREADS=" + str(ompnum))
     nprocs = nproc // ompnum
@@ -490,7 +491,7 @@ def be_func_parallel(
                 [
                     fobj.fock + fobj.heff,
                     fobj.dm0.copy(),
-                    frag_scratch,
+                    scratch_dir,
                     fobj.dname,
                     fobj.nao,
                     fobj.nsocc,
