@@ -475,59 +475,46 @@ def be_func_parallel(
         for fobj in Fobjs:
             fobj.update_heff(pot, only_chem=only_chem)
 
-    pool_ = Pool(nprocs)
-    results = []
-    rdms = []
+    with Pool(nprocs) as pool_:
+        results = []
+        rdms = []
 
-    # Run solver in parallel for each fragment
-    for fobj in Fobjs:
-        h1 = fobj.fock + fobj.heff
-        dm0 = fobj.dm0.copy()
-        dname = fobj.dname
-        nao = fobj.nao
-        nocc = fobj.nsocc
-        nfsites = fobj.nfsites
-        efac = fobj.efac
-        TA = fobj.TA
-        h1_e = fobj.h1
-        veff0 = fobj.veff0
+        # Run solver in parallel for each fragment
+        for fobj in Fobjs:
+            result = pool_.apply_async(
+                run_solver,
+                [
+                    fobj.fock + fobj.heff,
+                    fobj.dm0.copy(),
+                    fobj.dname,
+                    fobj.nao,
+                    fobj.nsocc,
+                    fobj.nfsites,
+                    fobj.efac,
+                    fobj.TA,
+                    hf_veff,
+                    fobj.h1,
+                    solver,
+                    fobj.eri_file,
+                    fobj.veff0,
+                    hci_cutoff,
+                    ci_coeff_cutoff,
+                    select_cutoff,
+                    ompnum,
+                    writeh1,
+                    True,
+                    True,
+                    use_cumulant,
+                    relax_density,
+                    frag_energy,
+                ],
+            )
 
-        result = pool_.apply_async(
-            run_solver,
-            [
-                h1,
-                dm0,
-                dname,
-                nao,
-                nocc,
-                nfsites,
-                efac,
-                TA,
-                hf_veff,
-                h1_e,
-                solver,
-                fobj.eri_file,
-                veff0,
-                hci_cutoff,
-                ci_coeff_cutoff,
-                select_cutoff,
-                ompnum,
-                writeh1,
-                True,
-                True,
-                use_cumulant,
-                relax_density,
-                frag_energy,
-            ],
-        )
+            results.append(result)
 
-        results.append(result)
-
-    # Collect results
-    for result in results:
-        rdms.append(result.get())
-
-    pool_.close()
+        # Collect results
+        for result in results:
+            rdms.append(result.get())
 
     if frag_energy:
         # Compute and return fragment energy
