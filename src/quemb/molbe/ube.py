@@ -403,9 +403,7 @@ class UBE(BE):  # 🍠
             fobj.udim = couti
             couti = fobj.set_udim(couti)
 
-    def oneshot(
-        self, solver="UCCSD", nproc=1, ompnum=4, calc_frag_energy=False, clean_eri=False
-    ):
+    def oneshot(self, solver="UCCSD", nproc=1, ompnum=4, calc_frag_energy=False):
         if nproc == 1:
             E, E_comp = be_func_u(
                 None,
@@ -452,12 +450,7 @@ class UBE(BE):  # 🍠
             )
         )
 
-        if clean_eri:
-            try:
-                os.remove(self.eri_file)
-                os.rmdir(self.scratch_dir)
-            except (FileNotFoundError, TypeError):
-                print("Scratch directory not removed")
+        self.scratch_dir.cleanup()
 
 
 def initialize_pot(Nfrag, edge_idx):

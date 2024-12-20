@@ -109,7 +109,7 @@ class TestOneShot_Unrestricted(unittest.TestCase):
         mf.kernel()
         fobj = fragpart(frag_type="autogen", be_type=be_type, mol=mol, frozen_core=frz)
         mybe = UBE(mf, fobj)
-        mybe.oneshot(solver="UCCSD", nproc=1, calc_frag_energy=True, clean_eri=True)
+        mybe.oneshot(solver="UCCSD", nproc=1, calc_frag_energy=True)
         self.assertAlmostEqual(
             mybe.ebe_tot - mybe.uhf_full_e,
             exp_result,

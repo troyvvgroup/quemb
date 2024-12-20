@@ -678,9 +678,7 @@ class BE(Mixin_k_Localize):
             fobj.udim = couti
             couti = fobj.set_udim(couti)
 
-    def oneshot(
-        self, solver="MP2", nproc=1, ompnum=4, calc_frag_energy=False, clean_eri=False
-    ):
+    def oneshot(self, solver="MP2", nproc=1, ompnum=4, calc_frag_energy=False):
         """
         Perform a one-shot bootstrap embedding calculation.
 
