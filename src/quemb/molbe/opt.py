@@ -167,7 +167,6 @@ class BEOPT:
             print("             Chemical Potential Optimization", flush=True)
         print("-----------------------------------------------------", flush=True)
         print(flush=True)
-
         if method == "QN":
             print("-- In iter ", self.iter, flush=True)
 
