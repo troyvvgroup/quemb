@@ -140,9 +140,7 @@ class BEOPT:
                 relax_density=self.relax_density,
                 ci_coeff_cutoff=self.ci_coeff_cutoff,
                 select_cutoff=self.select_cutoff,
-                ebe_hf=self.ebe_hf,
                 scratch_dir=self.scratch_dir,
-                solver_kwargs=self.solver_kwargs,
             )
 
         # Update error and BE energy

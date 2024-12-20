@@ -26,6 +26,7 @@ from quemb.molbe.solver import (
 from quemb.shared.external.ccsd_rdm import make_rdm1_uccsd, make_rdm2_uccsd
 from quemb.shared.external.unrestricted_utils import make_uhf_obj
 from quemb.shared.helper import unused
+from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix
 
 
@@ -397,6 +398,7 @@ def be_func_parallel(
     Nocc: int,
     solver: str,
     enuc: float,  # noqa: ARG001
+    scratch_dir: WorkDir,
     hf_veff: Matrix[float64] | None = None,
     nproc: int = 1,
     ompnum: int = 4,
@@ -459,16 +461,14 @@ def be_func_parallel(
         Depending on the parameters, returns the error norm or a tuple containing
         the error norm, error vector, and the computed energy.
     """
-    nfrag = len(Fobjs)
     # Create directories for fragments if required
     if writeh1 and solver == "SCI":
-        for nf in range(nfrag):
-            dname = Fobjs[nf].dname
-            os.system("mkdir " + dname)
+        for fobj in Fobjs:
+            _ = WorkDir(scratch_dir / fobj.dname)
 
     # Set the number of OpenMP threads
     os.system("export OMP_NUM_THREADS=" + str(ompnum))
-    nprocs = int(nproc / ompnum)
+    nprocs = nproc // ompnum
 
     # Update the effective Hamiltonian with potentials
     if pot is not None:
@@ -480,17 +480,17 @@ def be_func_parallel(
     rdms = []
 
     # Run solver in parallel for each fragment
-    for nf in range(nfrag):
-        h1 = Fobjs[nf].fock + Fobjs[nf].heff
-        dm0 = Fobjs[nf].dm0.copy()
-        dname = Fobjs[nf].dname
-        nao = Fobjs[nf].nao
-        nocc = Fobjs[nf].nsocc
-        nfsites = Fobjs[nf].nfsites
-        efac = Fobjs[nf].efac
-        TA = Fobjs[nf].TA
-        h1_e = Fobjs[nf].h1
-        veff0 = Fobjs[nf].veff0
+    for fobj in Fobjs:
+        h1 = fobj.fock + fobj.heff
+        dm0 = fobj.dm0.copy()
+        dname = fobj.dname
+        nao = fobj.nao
+        nocc = fobj.nsocc
+        nfsites = fobj.nfsites
+        efac = fobj.efac
+        TA = fobj.TA
+        h1_e = fobj.h1
+        veff0 = fobj.veff0
 
         result = pool_.apply_async(
             run_solver,
@@ -506,7 +506,7 @@ def be_func_parallel(
                 hf_veff,
                 h1_e,
                 solver,
-                Fobjs[nf].eri_file,
+                fobj.eri_file,
                 veff0,
                 hci_cutoff,
                 ci_coeff_cutoff,

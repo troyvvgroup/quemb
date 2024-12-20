@@ -950,13 +950,11 @@ class BE(MixinLocalize):
                 hci_cutoff=self.hci_cutoff,
                 ci_coeff_cutoff=self.ci_coeff_cutoff,
                 select_cutoff=self.select_cutoff,
-                ereturn=True,
                 eeval=True,
                 frag_energy=calc_frag_energy,
                 nproc=nproc,
                 ompnum=ompnum,
                 scratch_dir=self.scratch_dir,
-                solver_kwargs=solver_kwargs,
             )
 
         print("-----------------------------------------------------", flush=True)
