@@ -122,9 +122,8 @@ def be2fcidump(be_obj, fcidump_prefix, basis):
     """
     for fidx, frag in enumerate(be_obj.Fobjs):
         # Read in eri
-        read = h5py.File(frag.eri_file, "r")
-        eri = read[frag.dname][()]  # 2e in embedding basis
-        read.close()
+        with h5py.File(frag.eri_file, "r") as read:
+            eri = read[frag.dname][()]  # 2e in embedding basis
         eri = ao2mo.restore(1, eri, frag.nao)
         if basis == "embedding":
             h1e = frag.fock
@@ -173,9 +172,8 @@ def ube2fcidump(be_obj, fcidump_prefix, basis):
     """
     for fidx, frag in enumerate(be_obj.Fobjs_a):
         # Read in eri
-        read = h5py.File(frag.eri_file, "r")
-        eri = read[frag.dname][()]  # 2e in embedding basis
-        read.close()
+        with h5py.File(frag.eri_file, "r") as read:
+            eri = read[frag.dname][()]  # 2e in embedding basis
         eri = ao2mo.restore(1, eri, frag.nao)
         if basis == "embedding":
             h1e = frag.fock
@@ -208,9 +206,8 @@ def ube2fcidump(be_obj, fcidump_prefix, basis):
 
     for fidx, frag in enumerate(be_obj.Fobjs_b):
         # Read in eri
-        read = h5py.File(frag.eri_file, "r")
-        eri = read[frag.dname][()]  # 2e in embedding basis
-        read.close()
+        with h5py.File(frag.eri_file, "r") as read:
+            eri = read[frag.dname][()]  # 2e in embedding basis
         eri = ao2mo.restore(1, eri, frag.nao)
         if basis == "embedding":
             h1e = frag.fock
