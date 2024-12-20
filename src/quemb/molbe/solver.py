@@ -61,7 +61,7 @@ def be_func(
         Number of occupied orbitals.
     solver :
         Quantum chemistry solver to use ('MP2', 'CCSD', 'FCI', 'HCI', 'SHCI', 'SCI').
-    enuc : f
+    enuc :
         Nuclear energy.
     hf_veff :
         Hartree-Fock effective potential. Defaults to None.
@@ -326,8 +326,7 @@ def be_func_u(
     use_cumulant=True,
     frozen=False,
 ):
-    """
-    Perform bootstrap embedding calculations for each fragment with UCCSD.
+    """Perform bootstrap embedding calculations for each fragment with UCCSD.
 
     This function computes the energy and/or error for each fragment in a
     molecular system using various quantum chemistry solvers.
