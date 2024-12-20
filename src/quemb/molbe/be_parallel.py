@@ -31,74 +31,74 @@ from quemb.shared.typing import Matrix
 
 
 def run_solver(
-    h1,
-    dm0,
-    dname,
-    nao,
-    nocc,
-    nfsites,
-    efac,
-    TA,
-    hf_veff,
-    h1_e,
-    solver="MP2",
-    eri_file="eri_file.h5",
-    veff0=None,
-    hci_cutoff=0.001,
-    ci_coeff_cutoff=None,
-    select_cutoff=None,
-    ompnum=4,
-    writeh1=False,
-    eeval=True,
-    return_rdm_ao=True,
-    use_cumulant=True,
-    relax_density=False,
-    frag_energy=False,
+    h1: Matrix[float64],
+    dm0: Matrix[float64],
+    dname: str,
+    nao: int,
+    nocc: int,
+    nfsites: int,
+    efac: float,
+    TA: Matrix[float64],
+    hf_veff: Matrix[float64],
+    h1_e: Matrix[float64],
+    solver: str = "MP2",
+    eri_file: str = "eri_file.h5",
+    veff0: Matrix[float64] | None = None,
+    hci_cutoff: float = 0.001,
+    ci_coeff_cutoff: float | None = None,
+    select_cutoff: float | None = None,
+    ompnum: int = 4,
+    writeh1: bool = False,
+    eeval: bool = True,
+    return_rdm_ao: bool = True,
+    use_cumulant: bool = True,
+    relax_density: bool = False,
+    frag_energy: bool = False,
 ):
     """
     Run a quantum chemistry solver to compute the reduced density matrices.
 
     Parameters
     ----------
-    h1 : numpy.ndarray
+    h1 :
         One-electron Hamiltonian matrix.
-    dm0 : numpy.ndarray
+    dm0 :
         Initial guess for the density matrix.
-    dname : str
+    dname :
         Directory name for storing intermediate files.
-    nao : int
+    nao :
         Number of atomic orbitals.
-    nocc : int
+    nocc :
         Number of occupied orbitals.
-    nfsites : int
+    nfsites :
         Number of fragment sites.
-    efac : float
+    efac :
         Scaling factor for the electronic energy.
-    TA : numpy.ndarray
+    TA :
         Transformation matrix for embedding orbitals.
-    hf_veff : numpy.ndarray
+    hf_veff :
         Hartree-Fock effective potential matrix.
-    h1_e : numpy.ndarray
+    h1_e :
         One-electron integral matrix.
-    solver : str, optional
+    solver :
         Solver to use for the calculation ('MP2', 'CCSD', 'FCI', 'HCI', 'SHCI', 'SCI').
         Default is 'MP2'.
-    eri_file : str, optional
+    eri_file :
         Filename for the electron repulsion integrals. Default is 'eri_file.h5'.
-    ompnum : int, optional
+    ompnum :
         Number of OpenMP threads. Default is 4.
-    writeh1 : bool, optional
+    writeh1 :
         If True, write the one-electron integrals to a file. Default is False.
-    eeval : bool, optional
+    eeval :
         If True, evaluate the electronic energy. Default is True.
-    return_rdm_ao : bool, optional
+    return_rdm_ao :
         If True, return the reduced density matrices in the atomic orbital basis.
         Default is True.
-    use_cumulant : bool, optional
+    use_cumulant :
         If True, use the cumulant approximation for RDM2. Default is True.
-    frag_energy : bool, optional
+    frag_energy :
         If True, compute the fragment energy. Default is False.
-    relax_density : bool, optional
+    relax_density :
         If True, use CCSD relaxed density. Default is False
 
     Returns
