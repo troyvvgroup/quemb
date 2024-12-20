@@ -763,9 +763,6 @@ class BE(Mixin_k_Localize):
 
             self.ebe_tot = rets[0]
 
-        if not calc_frag_energy:
-            self.compute_energy_full(approx_cumulant=True, return_rdm=False)
-
         self.scratch_dir.cleanup()
 
     def update_fock(self, heff=None):
