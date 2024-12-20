@@ -12,14 +12,6 @@ from pyscf import cc, gto, scf
 from quemb.molbe import BE, fragpart
 from quemb.shared.io import write_cube
 
-# TODO: actually add meaningful tests for energies etc.
-#   At the moment the test fails already for technical reasons.
-
-
-@pytest.mark.skipif(
-    not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
-    reason="This test is known to fail.",
-)
 def test_octane_molbe() -> None:
     # Prepare octane molecule
     mol, mf = prepare_octane()
