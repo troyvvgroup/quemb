@@ -1,11 +1,9 @@
 # Author(s): Oinam Romesh Meitei
 
 from attrs import define
-from numpy import arange, exp, sqrt
+from numpy import arange, exp, float64, sqrt
 from pyscf.lib import cartesian_prod
 from pyscf.pbc import tools
-
-from numpy import float64
 
 from quemb.shared.typing import Matrix
 
@@ -34,6 +32,7 @@ def get_phase1(cell, kpts, kmesh):
     a_vec = cell.lattice_vectors()
     Ts = cartesian_prod((arange(kmesh[0]), arange(kmesh[1]), arange(kmesh[2])))
     return exp(-1.0j * (Ts @ a_vec @ kpts.T))
+
 
 @define
 class storePBE:
