@@ -7,6 +7,7 @@ from numpy import float64
 from numpy.linalg import multi_dot
 from pyscf import ao2mo, cc, fci, mcscf, mp
 from pyscf.cc.ccsd_rdm import make_rdm2
+from pyscf.scf.hf import RHF
 
 from quemb.kbe.pfrag import Frags as pFrags
 from quemb.molbe.helper import get_frag_energy, get_frag_energy_u
@@ -694,7 +695,9 @@ def solve_ccsd(
     return (t1, t2)
 
 
-def solve_block2(mf, nocc, frag_scratch, DMRG_solver_kwargs: KwargDict):
+def solve_block2(
+    mf: RHF, nocc: int, frag_scratch: WorkDir, DMRG_solver_kwargs: KwargDict
+):
     """DMRG fragment solver using the pyscf.dmrgscf wrapper.
 
     Parameters
