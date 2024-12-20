@@ -116,6 +116,8 @@ class BE(MixinLocalize):
             threaded parallel computation is invoked.
         ompnum :
             Number of OpenMP threads, by default 4.
+        scratch_dir :
+            Scratch directory.
         integral_direct_DF:
             If mf._eri is None (i.e. ERIs are not saved in memory using incore_anyway),
             this flag is used to determine if the ERIs are computed integral-directly

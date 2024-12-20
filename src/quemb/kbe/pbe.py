@@ -7,10 +7,11 @@ from multiprocessing import Pool
 import h5py
 import numpy
 from libdmet.basis_transform.eri_transform import get_emb_eri_fast_gdf
-from pyscf import ao2mo
+from pyscf import ao2mo, pbc
 from pyscf.pbc import df, gto
 from pyscf.pbc.df.df_jk import _ewald_exxdiv_for_G0
 
+from quemb.kbe.fragment import fragpart
 from quemb.kbe.lo import Mixin_k_Localize
 from quemb.kbe.misc import print_energy, storePBE
 from quemb.kbe.pfrag import Frags
@@ -18,11 +19,12 @@ from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
 from quemb.molbe.opt import BEOPT
 from quemb.molbe.solver import be_func
-from quemb.shared.config import settings
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
 from quemb.shared.helper import copy_docstring
+from quemb.shared.manage_scratch import WorkDir
+from quemb.shared.typing import PathLike
 
 
 class BE(Mixin_k_Localize):
@@ -47,59 +49,62 @@ class BE(Mixin_k_Localize):
 
     def __init__(
         self,
-        mf,
-        fobj,
-        eri_file="eri_file.h5",
-        lo_method="lowdin",
-        compute_hf=True,
-        restart=False,
-        save=False,
-        restart_file="storebe.pk",
-        save_file="storebe.pk",
-        hci_pt=False,
-        nproc=1,
-        ompnum=4,
-        hci_cutoff=0.001,
-        ci_coeff_cutoff=None,
-        select_cutoff=None,
-        iao_val_core=True,
-        exxdiv="ewald",
-        kpts=None,
-        cderi=None,
-        iao_wannier=False,
+        mf: pbc.scf.hf.SCF,
+        fobj: fragpart,
+        eri_file: PathLike = "eri_file.h5",
+        lo_method: str = "lowdin",
+        compute_hf: bool = True,
+        restart: bool = False,
+        save: bool = False,
+        restart_file: PathLike = "storebe.pk",
+        save_file: PathLike = "storebe.pk",
+        hci_pt: bool = False,
+        nproc: int = 1,
+        ompnum: int = 4,
+        hci_cutoff: float = 0.001,
+        ci_coeff_cutoff: float | None = None,
+        select_cutoff: float | None = None,
+        iao_val_core: bool = True,
+        exxdiv: str = "ewald",
+        kpts: list[list[float]] | None = None,
+        cderi: PathLike | None = None,
+        iao_wannier: bool = False,
+        scratch_dir: WorkDir | None = None,
     ):
         """
         Constructor for BE object.
 
         Parameters
         ----------
-        mf : pyscf.pbc.scf.hf.SCF
+        mf :
             PySCF periodic mean-field object.
-        fobj : quemb.kbe.fragment.fragpart
+        fobj :
             Fragment object containing sites, centers, edges, and indices.
-        kpts : list of list of float
+        kpts :
             k-points in the reciprocal space for periodic computation
-        eri_file : str, optional
+        eri_file :
             Path to the file storing two-electron integrals, by default 'eri_file.h5'.
-        lo_method : str, optional
+        lo_method :
             Method for orbital localization, by default 'lowdin'.
-        iao_wannier : bool, optional
+        iao_wannier :
             Whether to perform Wannier localization on the IAO space, by default False.
-        compute_hf : bool, optional
+        compute_hf :
             Whether to compute Hartree-Fock energy, by default True.
-        restart : bool, optional
+        restart :
             Whether to restart from a previous calculation, by default False.
-        save : bool, optional
+        save :
             Whether to save intermediate objects for restart, by default False.
-        restart_file : str, optional
+        restart_file :
             Path to the file storing restart information, by default 'storebe.pk'.
-        save_file : str, optional
+        save_file :
             Path to the file storing save information, by default 'storebe.pk'.
-        nproc : int, optional
+        nproc :
             Number of processors for parallel calculations, by default 1. If set to >1,
             multi-threaded parallel computation is invoked.
-        ompnum : int, optional
+        ompnum :
             Number of OpenMP threads, by default 4.
+        scratch_dir :
+            Scratch directory.
         """
         if restart:
             # Load previous calculation data from restart file
@@ -178,25 +183,17 @@ class BE(Mixin_k_Localize):
             self.lmo_coeff = None
 
         self.print_ini()
-        self.Fobjs = []
+        self.Fobjs: list[Frags] = []
         self.pot = initialize_pot(self.Nfrag, self.edge_idx)
         self.eri_file = eri_file
         self.cderi = cderi
 
-        # Set scratch directory
-        jobid = ""
-        if settings.CREATE_SCRATCH_DIR:
-            jobid = os.environ.get("SLURM_JOB_ID", "")
-        if settings.SCRATCH:
-            os.system("mkdir " + settings.SCRATCH + str(jobid))
-        if not jobid:
-            self.eri_file = settings.SCRATCH + eri_file
-            if cderi:
-                self.cderi = settings.SCRATCH + cderi
+        if scratch_dir is None:
+            self.scratch_dir = WorkDir.from_environment()
         else:
-            self.eri_file = settings.SCRATCH + str(jobid) + "/" + eri_file
-            if cderi:
-                self.cderi = settings.SCRATCH + str(jobid) + "/" + cderi
+            self.scratch_dir = scratch_dir
+        self.eri_file = self.scratch_dir / eri_file
+        self.cderi = self.scratch_dir / cderi if cderi else None
 
         if exxdiv == "ewald":
             if not restart:
