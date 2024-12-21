@@ -105,7 +105,7 @@ class WorkDir:
         value: BaseException | None,
         traceback: TracebackType | None,
     ) -> Literal[False]:
-        if value is None and self.cleanup_at_end:
+        if self.cleanup_at_end:
             self.cleanup()
         return False
 
