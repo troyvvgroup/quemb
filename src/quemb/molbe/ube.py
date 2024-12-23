@@ -12,29 +12,33 @@ TODO
   Add iterative UBE
 """
 
-import os
+from pathlib import Path
 
 import h5py
 import numpy
 from pyscf import ao2mo
+from pyscf.scf.uhf import UHF
 
 from quemb.molbe.be_parallel import be_func_parallel_u
+from quemb.molbe.fragment import fragpart
 from quemb.molbe.mbe import BE
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import be_func_u
-from quemb.shared.config import settings
 from quemb.shared.helper import unused
+from quemb.shared.manage_scratch import WorkDir
+from quemb.shared.typing import PathLike
 
 
 class UBE(BE):  # 🍠
     def __init__(
         self,
-        mf,
-        fobj,
-        eri_file="eri_file.h5",
-        lo_method="lowdin",
-        compute_hf=True,
-    ):
+        mf: UHF,
+        fobj: fragpart,
+        scratch_dir: WorkDir | None = None,
+        eri_file: PathLike = "eri_file.h5",
+        lo_method: PathLike = "lowdin",
+        compute_hf: bool = True,
+    ) -> None:
         """Initialize Unrestricted BE Object (ube🍠)
 
         .. note::
@@ -91,12 +95,12 @@ class UBE(BE):  # 🍠
 
         self.print_ini()
 
-        self.Fobjs_a = []
-        self.Fobjs_b = []
+        self.Fobjs_a: list[Frags] = []
+        self.Fobjs_b: list[Frags] = []
 
         self.pot = initialize_pot(self.Nfrag, self.edge_idx)
 
-        self.eri_file = eri_file
+        self.eri_file = Path(eri_file)
         self.ek = 0.0
         self.frozen_core = fobj.frozen_core
         self.ncore = 0
@@ -153,18 +157,11 @@ class UBE(BE):  # 🍠
             valence_only=fobj.valence_only,
         )
 
-        jobid = ""
-        if settings.CREATE_SCRATCH_DIR:
-            jobid = os.environ.get("SLURM_JOB_ID", "")
-        if settings.SCRATCH:
-            self.scratch_dir = settings.SCRATCH + str(jobid)
-            os.system("mkdir -p " + self.scratch_dir)
+        if scratch_dir is None:
+            self.scratch_dir = WorkDir.from_environment()
         else:
-            self.scratch_dir = None
-        if not jobid:
-            self.eri_file = settings.SCRATCH + eri_file
-        else:
-            self.eri_file = self.scratch_dir + "/" + eri_file
+            self.scratch_dir = scratch_dir
+        self.eri_file = self.scratch_dir / eri_file
 
         self.initialize(mf._eri, compute_hf)
 
