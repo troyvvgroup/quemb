@@ -35,7 +35,7 @@ def cano_orth(A, thr=1.0e-6, ovlp=None):
 def get_symm_orth_mat(A, thr=1.0e-6, ovlp=None):
     S = dot_gen(A, A, ovlp)
     e, u = eigh(S)
-    if int(numpy.sum(e < thr)) > 0:
+    if (e < thr).any():
         raise ValueError(
             "Linear dependence is detected in the column space of A: "
             "smallest eigenvalue (%.3E) is less than thr (%.3E). "
