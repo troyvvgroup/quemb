@@ -2,7 +2,7 @@
 #
 
 import numpy
-from numpy import float64
+from numpy import float64, floating
 from numpy.linalg import eigh, inv, multi_dot, norm, svd
 from pyscf.gto import intor_cross
 from pyscf.gto.mole import Mole
@@ -16,8 +16,8 @@ from quemb.shared.typing import Matrix, Tensor3D
 
 
 def dot_gen(
-    A: Matrix[float64], B: Matrix[float64], ovlp: Matrix[float64] | None = None
-) -> Matrix[float64]:
+    A: Matrix[floating], B: Matrix[floating], ovlp: Matrix[floating] | None = None
+) -> Matrix[floating]:
     return A.T @ B if ovlp is None else A.T @ ovlp @ B
 
 
