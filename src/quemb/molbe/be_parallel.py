@@ -51,8 +51,6 @@ def run_solver(
     select_cutoff: float | None = None,
     ompnum: int = 4,
     writeh1: bool = False,
-    eeval: bool = True,
-    return_rdm_ao: bool = True,
     use_cumulant: bool = True,
     relax_density: bool = False,
     frag_energy: bool = False,
@@ -96,11 +94,6 @@ def run_solver(
         Number of OpenMP threads. Default is 4.
     writeh1 :
         If True, write the one-electron integrals to a file. Default is False.
-    eeval :
-        If True, evaluate the electronic energy. Default is True.
-    return_rdm_ao :
-        If True, return the reduced density matrices in the atomic orbital basis.
-        Default is True.
     use_cumulant :
         If True, use the cumulant approximation for RDM2. Default is True.
     frag_energy :
@@ -120,10 +113,6 @@ def run_solver(
     eri = get_eri(dname, nao, eri_file=eri_file)
     # Initialize SCF object
     mf_ = get_scfObj(h1, eri, nocc, dm0=dm0)
-    rdm_return = False
-
-    if relax_density:
-        rdm_return = True
 
     # Select solver
     if solver == "MP2":
@@ -131,7 +120,7 @@ def run_solver(
         rdm1_tmp = mc_.make_rdm1()
 
     elif solver == "CCSD":
-        if not rdm_return:
+        if not relax_density:
             t1, t2 = solve_ccsd(mf_, mo_energy=mf_.mo_energy, rdm_return=False)
             rdm1_tmp = make_rdm1_ccsd_t1(t1)
         else:
@@ -227,54 +216,51 @@ def run_solver(
 
     # Compute RDM1
     rdm1 = multi_dot((mf_.mo_coeff, rdm1_tmp, mf_.mo_coeff.T)) * 0.5
-    if eeval:
-        if solver == "CCSD" and not rdm_return:
-            with_dm1 = True
-            if use_cumulant:
-                with_dm1 = False
-            rdm2s = make_rdm2_urlx(t1, t2, with_dm1=with_dm1)
 
-        elif solver == "MP2":
-            rdm2s = mc_.make_rdm2()
-        elif solver == "FCI":
-            rdm2s = mc_.make_rdm2(civec, mc_.norb, mc_.nelec)
-            if use_cumulant:
-                hf_dm = numpy.zeros_like(rdm1_tmp)
-                hf_dm[numpy.diag_indices(nocc)] += 2.0
-                del_rdm1 = rdm1_tmp.copy()
-                del_rdm1[numpy.diag_indices(nocc)] -= 2.0
-                nc = (
-                    numpy.einsum("ij,kl->ijkl", hf_dm, hf_dm)
-                    + numpy.einsum("ij,kl->ijkl", hf_dm, del_rdm1)
-                    + numpy.einsum("ij,kl->ijkl", del_rdm1, hf_dm)
-                )
-                nc -= (
-                    numpy.einsum("ij,kl->iklj", hf_dm, hf_dm)
-                    + numpy.einsum("ij,kl->iklj", hf_dm, del_rdm1)
-                    + numpy.einsum("ij,kl->iklj", del_rdm1, hf_dm)
-                ) * 0.5
-                rdm2s -= nc
-        e_f = get_frag_energy(
-            mf_.mo_coeff,
-            nocc,
-            nfsites,
-            efac,
-            TA,
-            h1_e,
-            hf_veff,
-            rdm1_tmp,
-            rdm2s,
-            dname,
-            eri_file,
-            veff0,
-        )
-        if frag_energy:
-            return e_f
+    if solver == "CCSD" and not relax_density:
+        with_dm1 = True
+        if use_cumulant:
+            with_dm1 = False
+        rdm2s = make_rdm2_urlx(t1, t2, with_dm1=with_dm1)
 
-    if return_rdm_ao:
-        return (e_f, mf_.mo_coeff, rdm1, rdm2s, rdm1_tmp)
+    elif solver == "MP2":
+        rdm2s = mc_.make_rdm2()
+    elif solver == "FCI":
+        rdm2s = mc_.make_rdm2(civec, mc_.norb, mc_.nelec)
+        if use_cumulant:
+            hf_dm = numpy.zeros_like(rdm1_tmp)
+            hf_dm[numpy.diag_indices(nocc)] += 2.0
+            del_rdm1 = rdm1_tmp.copy()
+            del_rdm1[numpy.diag_indices(nocc)] -= 2.0
+            nc = (
+                numpy.einsum("ij,kl->ijkl", hf_dm, hf_dm)
+                + numpy.einsum("ij,kl->ijkl", hf_dm, del_rdm1)
+                + numpy.einsum("ij,kl->ijkl", del_rdm1, hf_dm)
+            )
+            nc -= (
+                numpy.einsum("ij,kl->iklj", hf_dm, hf_dm)
+                + numpy.einsum("ij,kl->iklj", hf_dm, del_rdm1)
+                + numpy.einsum("ij,kl->iklj", del_rdm1, hf_dm)
+            ) * 0.5
+            rdm2s -= nc
+    e_f = get_frag_energy(
+        mf_.mo_coeff,
+        nocc,
+        nfsites,
+        efac,
+        TA,
+        h1_e,
+        hf_veff,
+        rdm1_tmp,
+        rdm2s,
+        dname,
+        eri_file,
+        veff0,
+    )
+    if frag_energy:
+        return e_f
 
-    return (e_f, mf_.mo_coeff, rdm1, rdm2s)
+    return (e_f, mf_.mo_coeff, rdm1, rdm2s, rdm1_tmp)
 
 
 def run_solver_u(
@@ -328,12 +314,8 @@ def run_solver_u(
     # Construct UHF object
     full_uhf, eris = make_uhf_obj(fobj_a, fobj_b, frozen=frozen)
 
-    rdm_return = False
-    if relax_density:
-        rdm_return = True
-
     if solver == "UCCSD":
-        if rdm_return:
+        if relax_density:
             ucc, rdm1_tmp, rdm2s = solve_uccsd(
                 full_uhf,
                 eris,
@@ -363,7 +345,7 @@ def run_solver_u(
 
     # Calculate Energies
     if ereturn:
-        if solver == "UCCSD" and not rdm_return:
+        if solver == "UCCSD" and not relax_density:
             with_dm1 = True
             if use_cumulant:
                 with_dm1 = False
@@ -400,7 +382,7 @@ def run_solver_u(
             )
             return e_f
         else:
-            return NotImplementedError("Energy only calculated on a per-fragment basis")
+            raise NotImplementedError("Energy only calculated on a per-fragment basis")
 
 
 def be_func_parallel(
@@ -507,8 +489,6 @@ def be_func_parallel(
                     select_cutoff,
                     ompnum,
                     writeh1,
-                    True,
-                    True,
                     use_cumulant,
                     relax_density,
                     frag_energy,
