@@ -1924,10 +1924,7 @@ def autogen(
                     )
         w.close()
 
-    if valence_basis is not None:
-        pao = True
-    else:
-        pao = False
+    pao = valence_basis is not None
 
     if pao:
         cell2 = cell.copy()
@@ -1994,10 +1991,8 @@ def autogen(
     centerf_idx = []
     edge = []
 
-    conmax = True
     nkcon = True
-    if gamma_2d or gamma_1d:
-        conmax = False
+    conmax = not (gamma_2d or gamma_1d)
     Ns = Nsite + 1
     uNs = Ns * unitcell
     Sites = sites__.copy()
