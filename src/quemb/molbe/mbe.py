@@ -1,60 +1,48 @@
 # Author(s): Oinam Romesh Meitei
 
-import os
 import pickle
 
 import h5py
 import numpy
+from attrs import define
+from numpy import float64
 from pyscf import ao2mo, scf
 
-from quemb.molbe._opt import BEOPT
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
+from quemb.molbe.fragment import fragpart
 from quemb.molbe.lo import MixinLocalize
 from quemb.molbe.misc import print_energy
+from quemb.molbe.opt import BEOPT
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import be_func
-from quemb.shared.config import settings
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
 from quemb.shared.helper import copy_docstring
+from quemb.shared.manage_scratch import WorkDir
+from quemb.shared.typing import KwargDict, Matrix, PathLike
 
 
+@define
 class storeBE:
-    def __init__(
-        self,
-        Nocc,
-        hf_veff,
-        hcore,
-        S,
-        C,
-        hf_dm,
-        hf_etot,
-        W,
-        lmo_coeff,
-        enuc,
-        E_core,
-        C_core,
-        P_core,
-        core_veff,
-        mo_energy,
-    ):
-        self.Nocc = Nocc
-        self.hf_veff = hf_veff
-        self.hcore = hcore
-        self.S = S
-        self.C = C
-        self.hf_dm = hf_dm
-        self.hf_etot = hf_etot
-        self.W = W
-        self.lmo_coeff = lmo_coeff
-        self.enuc = enuc
-        self.E_core = E_core
-        self.C_core = C_core
-        self.P_core = P_core
-        self.core_veff = core_veff
-        self.mo_energy = mo_energy
+    # TODO: some of the types are most likely wrong.
+    #  this has to be checked in a review
+    Nocc: int
+    hf_veff: Matrix[float64]
+    hcore: Matrix[float64]
+    S: Matrix[float64]
+    C: Matrix[float64]
+    hf_dm: Matrix[float64]
+    hf_etot: float
+    W: Matrix[float64]
+    lmo_coeff: Matrix[float64]
+    enuc: float
+    ek: float
+    E_core: float
+    C_core: float
+    P_core: float
+    core_veff: float
 
 
 class BE(MixinLocalize):
@@ -80,72 +68,71 @@ class BE(MixinLocalize):
 
     def __init__(
         self,
-        mf,
-        fobj,
-        eri_file="eri_file.h5",
-        lo_method="lowdin",
-        pop_method=None,
-        compute_hf=True,
-        restart=False,
-        save=False,
-        restart_file="storebe.pk",
-        save_file="storebe.pk",
-        hci_pt=False,
-        frag_energy=True,
-        nproc=1,
-        ompnum=4,
-        scratch_dir=None,
-        hci_cutoff=0.001,
-        ci_coeff_cutoff=None,
-        select_cutoff=None,
-        integral_direct_DF=False,
-        auxbasis=None,
-    ):
+        mf: scf.hf.SCF,
+        fobj: fragpart,
+        eri_file: PathLike = "eri_file.h5",
+        lo_method: str = "lowdin",
+        pop_method: str | None = None,
+        compute_hf: bool = True,
+        restart: bool = False,
+        save: bool = False,
+        restart_file: PathLike = "storebe.pk",
+        save_file: PathLike = "storebe.pk",
+        hci_pt: bool = False,
+        nproc: int = 1,
+        ompnum: int = 4,
+        scratch_dir: WorkDir | None = None,
+        hci_cutoff: float = 0.001,
+        ci_coeff_cutoff: float | None = None,
+        select_cutoff: float | None = None,
+        integral_direct_DF: bool = False,
+        auxbasis: str | None = None,
+    ) -> None:
         """
         Constructor for BE object.
 
         Parameters
         ----------
-        mf : pyscf.scf.hf.SCF
+        mf :
             PySCF mean-field object.
-        fobj : quemb.molbe.fragment.fragpart
+        fobj :
             Fragment object containing sites, centers, edges, and indices.
-        eri_file : str, optional
-            Path to the file storing two-electron integrals, by default 'eri_file.h5'.
-        lo_method : str, optional
+        eri_file :
+            Path to the file storing two-electron integrals.
+        lo_method :
             Method for orbital localization, by default 'lowdin'.
-        compute_hf : bool, optional
+        compute_hf :
             Whether to compute Hartree-Fock energy, by default True.
-        restart : bool, optional
+        restart :
             Whether to restart from a previous calculation, by default False.
-        save : bool, optional
+        save :
             Whether to save intermediate objects for restart, by default False.
-        restart_file : str, optional
+        restart_file :
             Path to the file storing restart information, by default 'storebe.pk'.
-        save_file : str, optional
+        save_file :
             Path to the file storing save information, by default 'storebe.pk'.
         frag_energy : bool, optional
             Calculate energies of all fragments, rather than constructing any
             full system RDMs, by default True
-        nproc : int, optional
+        nproc :
             Number of processors for parallel calculations, by default 1. If set to >1,
             threaded parallel computation is invoked.
-        ompnum : int, optional
+        ompnum :
             Number of OpenMP threads, by default 4.
-        integral_direct_DF: bool, optional
+        scratch_dir :
+            Scratch directory.
+        integral_direct_DF:
             If mf._eri is None (i.e. ERIs are not saved in memory using incore_anyway),
             this flag is used to determine if the ERIs are computed integral-directly
             using density fitting; by default False.
-        auxbasis : str, optional
+        auxbasis :
             Auxiliary basis for density fitting, by default None
             (uses default auxiliary basis defined in PySCF).
         """
-
         if restart:
             # Load previous calculation data from restart file
             with open(restart_file, "rb") as rfile:
                 store_ = pickle.load(rfile)
-                rfile.close()
             self.Nocc = store_.Nocc
             self.hf_veff = store_.hf_veff
             self.hcore = store_.hcore
@@ -211,26 +198,16 @@ class BE(MixinLocalize):
             self.cinv = None
 
         self.print_ini()
-        self.Fobjs = []
+        self.Fobjs: list[Frags] = []
         self.pot = initialize_pot(self.Nfrag, self.edge_idx)
-        self.eri_file = eri_file
-        self.scratch_dir = scratch_dir
 
-        # Set scratch directory
-        jobid = ""
-        if settings.CREATE_SCRATCH_DIR:
-            jobid = os.environ.get("SLURM_JOB_ID", "")
-        if settings.SCRATCH:
-            self.scratch_dir = settings.SCRATCH + str(jobid)
-            os.system("mkdir -p " + self.scratch_dir)
+        if scratch_dir is None:
+            self.scratch_dir = WorkDir.from_environment()
         else:
-            self.scratch_dir = None
-        if not jobid:
-            self.eri_file = settings.SCRATCH + eri_file
-        else:
-            self.eri_file = self.scratch_dir + "/" + eri_file
+            self.scratch_dir = scratch_dir
+        self.eri_file = self.scratch_dir / eri_file
 
-        self.frozen_core = False if not fobj.frozen_core else True
+        self.frozen_core = fobj.frozen_core
         self.ncore = 0
         if not restart:
             self.E_core = 0
@@ -300,7 +277,6 @@ class BE(MixinLocalize):
 
             with open(save_file, "wb") as rfile:
                 pickle.dump(store_, rfile, pickle.HIGHEST_PROTOCOL)
-            rfile.close()
 
         if not restart:
             # Initialize fragments and perform initial calculations
@@ -539,7 +515,7 @@ class BE(MixinLocalize):
         Returns
         -------
         tuple of numpy.ndarray or None
-            If `return_rdm` is True, returns a tuple containing the one-particle
+            If :python:`return_rdm` is True, returns a tuple containing the one-particle
             and two-particle reduced density matrices (RDM1 and RDM2).
             Otherwise, returns None.
 
@@ -664,52 +640,51 @@ class BE(MixinLocalize):
 
     def optimize(
         self,
-        solver="MP2",
-        method="QN",
-        only_chem=False,
-        conv_tol=1.0e-6,
-        relax_density=False,
-        max_iter=500,
-        J0=None,
-        trust_region=False,
-        nproc=1,
-        ompnum=4,
-        scratch_dir=None,
-        **solver_kwargs,
-    ):
+        solver: str = "MP2",
+        method: str = "QN",
+        only_chem: bool = False,
+        conv_tol: float = 1.0e-6,
+        relax_density: bool = False,
+        J0: list[list[float]] | None = None,
+        nproc: int = 1,
+        ompnum: int = 4,
+        max_iter: int = 500,
+        trust_region: bool = False,
+        DMRG_solver_kwargs: KwargDict | None = None,
+    ) -> None:
         """BE optimization function
 
         Interfaces BEOPT to perform bootstrap embedding optimization.
 
         Parameters
         ----------
-        solver : str, optional
+        solver :
             High-level solver for the fragment, by default 'MP2'
-        method : str, optional
+        method :
             Optimization method, by default 'QN'
-        only_chem : bool, optional
+        only_chem :
             If true, density matching is not performed -- only global chemical potential
             is optimized, by default False
-        conv_tol : float, optional
+        conv_tol :
             Convergence tolerance, by default 1.e-6
-        relax_density : bool, optional
+        relax_density :
             Whether to use relaxed or unrelaxed densities, by default False
             This option is for using CCSD as solver. Relaxed density here uses
             Lambda amplitudes, whereas unrelaxed density only uses T amplitudes.
             c.f. See http://classic.chem.msu.su/cgi-bin/ceilidh.exe/gran/gamess/forum/?C34df668afbHW-7216-1405+00.htm
             for the distinction between the two
-        max_iter : int, optional
+        max_iter :
             Maximum number of optimization steps, by default 500
-        J0 : list of list of float
-            Initial Jacobian.
-        trust_region : bool, optional
-            Use trust-region based QN optimization, by default False
-        nproc : int
+        nproc :
             Total number of processors assigned for the optimization. Defaults to 1.
             When nproc > 1, Python multithreading is invoked.
-        ompnum : int
+        ompnum :
             If nproc > 1, ompnum sets the number of cores for OpenMP parallelization.
             Defaults to 4
+        J0 :
+            Initial Jacobian.
+        trust_region :
+            Use trust-region based QN optimization, by default False
         """
         # Check if only chemical potential optimization is required
         if not only_chem:
@@ -731,7 +706,7 @@ class BE(MixinLocalize):
             hf_veff=self.hf_veff,
             nproc=nproc,
             ompnum=ompnum,
-            scratch_dir=scratch_dir,
+            scratch_dir=self.scratch_dir,
             max_space=max_iter,
             conv_tol=conv_tol,
             only_chem=only_chem,
@@ -742,8 +717,7 @@ class BE(MixinLocalize):
             hci_pt=self.hci_pt,
             solver=solver,
             ebe_hf=self.ebe_hf,
-            frag_energy=self.frag_energy,
-            **solver_kwargs,
+            DMRG_solver_kwargs=DMRG_solver_kwargs,
         )
 
         if method == "QN":
@@ -751,7 +725,7 @@ class BE(MixinLocalize):
             if only_chem:
                 J0 = [[0.0]]
                 J0 = self.get_be_error_jacobian(jac_solver="HF")
-                J0 = [[J0[-1, -1]]]
+                J0 = [[J0[-1][-1]]]
             else:
                 J0 = self.get_be_error_jacobian(jac_solver="HF")
 
@@ -766,7 +740,7 @@ class BE(MixinLocalize):
             raise ValueError("This optimization method for BE is not supported")
 
     @copy_docstring(_ext_get_be_error_jacobian)
-    def get_be_error_jacobian(self, jac_solver="HF"):
+    def get_be_error_jacobian(self, jac_solver: str = "HF") -> list[list[float]]:
         return _ext_get_be_error_jacobian(self.Nfrag, self.Fobjs, jac_solver)
 
     def print_ini(self):
@@ -789,7 +763,7 @@ class BE(MixinLocalize):
         print("-----------------------------------------------------------", flush=True)
         print(flush=True)
 
-    def initialize(self, eri_, compute_hf, restart=False):
+    def initialize(self, eri_, compute_hf, restart=False) -> None:
         """
         Initialize the Bootstrap Embedding calculation.
 
@@ -876,7 +850,7 @@ class BE(MixinLocalize):
                 else:  # Calculate ERIs on-the-fly to generate fragment ERIs
                     # TODO: Future feature to be implemented
                     # NOTE: Ideally, we want AO shell pair screening for this.
-                    return NotImplementedError
+                    raise NotImplementedError
         else:
             eri = None
 
@@ -929,35 +903,29 @@ class BE(MixinLocalize):
 
     def oneshot(
         self,
-        solver="MP2",
-        nproc=1,
-        ompnum=4,
-        clean_eri=False,
-        scratch_dir=None,
-        **solver_kwargs,
-    ):
+        solver: str = "MP2",
+        nproc: int = 1,
+        ompnum: int = 4,
+        calc_frag_energy: bool = False,
+        DMRG_solver_kwargs: KwargDict | None = None,
+    ) -> None:
         """
         Perform a one-shot bootstrap embedding calculation.
 
         Parameters
         ----------
-        solver : str, optional
+        solver :
             High-level quantum chemistry method, by default 'MP2'. 'CCSD', 'FCI',
             and variants of selected CI are supported.
-        nproc : int, optional
+        nproc :
             Number of processors for parallel calculations, by default 1.
             If set to >1, multi-threaded parallel computation is invoked.
-        ompnum : int, optional
+        ompnum :
             Number of OpenMP threads, by default 4.
-        frag_energy : bool, optional
-            Whether to calculate fragment energies, by default True.
-        clean_eri : bool, optional
-            Whether to clean up ERI files after calculation, by default False.
+        calc_frag_energy :
+            Whether to calculate fragment energies, by default False.
         """
-        self.scratch_dir = scratch_dir
-        self.solver_kwargs = solver_kwargs
-
-        print("Calculating Energy by Fragment? ", self.frag_energy)
+        print("Calculating Energy by Fragment? ", calc_frag_energy)
         if nproc == 1:
             rets = be_func(
                 None,
@@ -975,7 +943,7 @@ class BE(MixinLocalize):
                 eeval=True,
                 print_match_error=True,
                 scratch_dir=self.scratch_dir,
-                **self.solver_kwargs,
+                DMRG_solver_kwargs=DMRG_solver_kwargs,
             )
         else:
             rets = be_func_parallel(
@@ -988,13 +956,11 @@ class BE(MixinLocalize):
                 hci_cutoff=self.hci_cutoff,
                 ci_coeff_cutoff=self.ci_coeff_cutoff,
                 select_cutoff=self.select_cutoff,
-                ereturn=True,
-                print_match_err=True,
-                frag_energy=self.frag_energy,
+                eeval=True,
+                frag_energy=calc_frag_energy,
                 nproc=nproc,
                 ompnum=ompnum,
                 scratch_dir=self.scratch_dir,
-                **self.solver_kwargs,
             )
 
         print("-----------------------------------------------------", flush=True)
@@ -1023,14 +989,7 @@ class BE(MixinLocalize):
         if not self.frag_energy:
             self.compute_energy_full(approx_cumulant=True, return_rdm=False)
 
-        if clean_eri:
-            try:
-                os.remove(self.eri_file)
-                os.rmdir(self.scratch_dir)
-            except (FileNotFoundError, TypeError):
-                print("Scratch directory not removed")
-
-    def update_fock(self, heff=None):
+    def update_fock(self, heff: list[Matrix[float64]] | None = None) -> None:
         """
         Update the Fock matrix for each fragment with the effective Hamiltonian.
 
@@ -1043,10 +1002,10 @@ class BE(MixinLocalize):
             for fobj in self.Fobjs:
                 fobj.fock += fobj.heff
         else:
-            for idx, fobj in self.Fobjs:
+            for idx, fobj in enumerate(self.Fobjs):
                 fobj.fock += heff[idx]
 
-    def write_heff(self, heff_file="bepotfile.h5"):
+    def write_heff(self, heff_file: str = "bepotfile.h5") -> None:
         """
         Write the effective Hamiltonian to a file.
 
@@ -1055,11 +1014,10 @@ class BE(MixinLocalize):
         heff_file : str, optional
             Path to the file to store effective Hamiltonian, by default 'bepotfile.h5'.
         """
-        filepot = h5py.File(heff_file, "w")
-        for fobj in self.Fobjs:
-            print(fobj.heff.shape, fobj.dname, flush=True)
-            filepot.create_dataset(fobj.dname, data=fobj.heff)
-        filepot.close()
+        with h5py.File(heff_file, "w") as filepot:
+            for fobj in self.Fobjs:
+                print(fobj.heff.shape, fobj.dname, flush=True)
+                filepot.create_dataset(fobj.dname, data=fobj.heff)
 
     def read_heff(self, heff_file="bepotfile.h5"):
         """
@@ -1070,10 +1028,9 @@ class BE(MixinLocalize):
         heff_file : str, optional
             Path to the file storing effective Hamiltonian, by default 'bepotfile.h5'.
         """
-        filepot = h5py.File(heff_file, "r")
-        for fobj in self.Fobjs:
-            fobj.heff = filepot.get(fobj.dname)
-        filepot.close()
+        with h5py.File(heff_file, "r") as filepot:
+            for fobj in self.Fobjs:
+                fobj.heff = filepot.get(fobj.dname)
 
 
 def initialize_pot(Nfrag, edge_idx):
@@ -1081,7 +1038,7 @@ def initialize_pot(Nfrag, edge_idx):
     Initialize the potential array for bootstrap embedding.
 
     This function initializes a potential array for a given number of fragments
-    (`Nfrag`) and their corresponding edge indices (`edge_idx`).
+    (:python:`Nfrag`) and their corresponding edge indices (:python:`edge_idx`).
     The potential array is initialized with zeros for each pair of edge site indices
     within each fragment, followed by an
     additional zero for the global chemical potential.

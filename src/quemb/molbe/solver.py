@@ -3,12 +3,15 @@
 import os
 
 import numpy
+from numpy import float64
 from numpy.linalg import multi_dot
 from pyscf import ao2mo, cc, fci, mcscf, mp
 from pyscf.cc.ccsd_rdm import make_rdm2
+from pyscf.scf.hf import RHF
 
+from quemb.kbe.pfrag import Frags as pFrags
 from quemb.molbe.helper import get_frag_energy, get_frag_energy_u
-from quemb.shared.config import settings
+from quemb.molbe.pfrag import Frags
 from quemb.shared.external.ccsd_rdm import (
     make_rdm1_ccsd_t1,
     make_rdm1_uccsd,
@@ -17,31 +20,32 @@ from quemb.shared.external.ccsd_rdm import (
 )
 from quemb.shared.external.uccsd_eri import make_eris_incore
 from quemb.shared.external.unrestricted_utils import make_uhf_obj
-from quemb.shared.helper import unused
+from quemb.shared.helper import delete_multiple_files, unused
+from quemb.shared.manage_scratch import WorkDir
+from quemb.shared.typing import KwargDict, Matrix
 
 
 def be_func(
-    pot,
-    Fobjs,
-    Nocc,
-    solver,
-    enuc,  # noqa: ARG001
-    hf_veff=None,
-    only_chem=False,
-    nproc=4,
-    hci_pt=False,
-    hci_cutoff=0.001,
-    ci_coeff_cutoff=None,
-    select_cutoff=None,
-    eeval=False,
-    ereturn=False,
-    frag_energy=True,
-    print_match_err=True,
-    relax_density=False,
-    return_vec=False,
-    use_cumulant=True,
-    scratch_dir=None,
-    **solver_kwargs,
+    pot: list[float] | None,
+    Fobjs: list[Frags] | list[pFrags],
+    Nocc: int,
+    solver: str,
+    enuc: float,  # noqa: ARG001
+    DMRG_solver_kwargs: KwargDict | None,
+    scratch_dir: WorkDir,
+    hf_veff: Matrix[float64] | None = None,
+    only_chem: bool = False,
+    nproc: int = 4,
+    hci_pt: bool = False,
+    hci_cutoff: float = 0.001,
+    ci_coeff_cutoff: float | None = None,
+    select_cutoff: float | None = None,
+    eeval: bool = False,
+    ereturn: bool = False,
+    frag_energy: bool = False,
+    relax_density: bool = False,
+    return_vec: bool = False,
+    use_cumulant: bool = True,
 ):
     """
     Perform bootstrap embedding calculations for each fragment.
@@ -51,35 +55,35 @@ def be_func(
 
     Parameters
     ----------
-    pot : list
+    pot :
         List of potentials.
     Fobjs : list of quemb.molbe.fragment.fragpart
         List of fragment objects.
-    Nocc : int
+    Nocc :
         Number of occupied orbitals.
-    solver : str
+    solver :
         Quantum chemistry solver to use ('MP2', 'CCSD', 'FCI', 'HCI', 'SHCI', 'SCI').
-    enuc : float
+    enuc :
         Nuclear energy.
-    hf_veff : numpy.ndarray, optional
+    hf_veff :
         Hartree-Fock effective potential. Defaults to None.
-    only_chem : bool, optional
+    only_chem :
         Whether to only optimize the chemical potential. Defaults to False.
-    nproc : int, optional
+    nproc :
         Number of processors. Defaults to 4. This is only neccessary for 'SHCI' solver
-    eeval : bool, optional
+    eeval :
         Whether to evaluate the energy. Defaults to False.
-    ereturn : bool, optional
+    ereturn :
         Whether to return the energy. Defaults to False.
-    print_match_err : bool, optional
-        Whether to print the matching error. Defaults to True
-    frag_energy : bool, optional
-        Whether to calculate fragment energy. Defaults to True.
-    relax_density : bool, optional
+    frag_energy :
+        Whether to calculate fragment energy. Defaults to False.
+    relax_density :
         Whether to relax the density. Defaults to False.
-    return_vec : bool, optional
+    return_vec :
         Whether to return the error vector. Defaults to False.
-    use_cumulant : bool, optional
+    ebe_hf :
+        Hartree-Fock energy. Defaults to 0.
+    use_cumulant :
         Whether to use the cumulant-based energy expression. Defaults to True.
 
     Returns
@@ -166,14 +170,8 @@ def be_func(
             # pylint: disable-next=E0611,E0401
             from pyscf.shciscf import shci  # noqa: PLC0415    # shci is optional
 
-            if scratch_dir is None and settings.CREATE_SCRATCH_DIR:
-                tmp = os.path.join(settings.SCRATCH, str(os.getpid()), str(fobj.dname))
-            elif scratch_dir is None:
-                tmp = settings.SCRATCH
-            else:
-                tmp = os.path.join(scratch_dir, str(os.getpid()), str(fobj.dname))
-            if not os.path.isdir(tmp):
-                os.system("mkdir -p " + tmp)
+            frag_scratch = WorkDir(scratch_dir / fobj.dname)
+
             nmo = fobj._mf.mo_coeff.shape[1]
 
             nelec = (fobj.nsocc, fobj.nsocc)
@@ -218,25 +216,28 @@ def be_func(
             rdm1_tmp, rdm2s = ci.make_rdm12(0, nmo, nelec)
 
         elif solver in ["block2", "DMRG", "DMRGCI", "DMRGSCF"]:
-            solver_kwargs_ = solver_kwargs.copy()
-            if scratch_dir is None and settings.CREATE_SCRATCH_DIR:
-                tmp = os.path.join(settings.SCRATCH, str(os.getpid()), str(fobj.dname))
-            else:
-                tmp = os.path.join(scratch_dir, str(os.getpid()), str(fobj.dname))
-            if not os.path.isdir(tmp):
-                os.system("mkdir -p " + tmp)
+            frag_scratch = WorkDir(scratch_dir / fobj.dname)
 
+            DMRG_solver_kwargs = (
+                {} if DMRG_solver_kwargs is None else DMRG_solver_kwargs.copy()
+            )
             try:
                 rdm1_tmp, rdm2s = solve_block2(
-                    fobj._mf, fobj.nsocc, frag_scratch=tmp, **solver_kwargs_
+                    fobj._mf,
+                    fobj.nsocc,
+                    frag_scratch=frag_scratch,
+                    DMRG_solver_kwargs=DMRG_solver_kwargs,
+                    use_cumulant=use_cumulant,
                 )
             except Exception as inst:
                 raise inst
             finally:
-                if solver_kwargs_.pop("force_cleanup", False):
-                    os.system("rm -r " + os.path.join(tmp, "F.*"))
-                    os.system("rm -r " + os.path.join(tmp, "FCIDUMP*"))
-                    os.system("rm -r " + os.path.join(tmp, "node*"))
+                if DMRG_solver_kwargs.pop("force_cleanup", False):
+                    delete_multiple_files(
+                        frag_scratch.path.glob("F.*"),
+                        frag_scratch.path.glob("FCIDUMP*"),
+                        frag_scratch.path.glob("node*"),
+                    )
 
         else:
             raise ValueError("Solver not implemented")
@@ -339,8 +340,7 @@ def be_func_u(
     use_cumulant=True,
     frozen=False,
 ):
-    """
-    Perform bootstrap embedding calculations for each fragment with UCCSD.
+    """Perform bootstrap embedding calculations for each fragment with UCCSD.
 
     This function computes the energy and/or error for each fragment in a
     molecular system using various quantum chemistry solvers.
@@ -349,7 +349,8 @@ def be_func_u(
     ----------
     pot : list
         List of potentials.
-    Fobjs : zip list of quemb.molbe.fragment.fragpart, alpha and beta
+    Fobjs : list
+        zip list of class:`quemb.molbe.fragment.fragpart`, alpha and beta
         List of fragment objects. Each element is a tuple with the alpha and
         beta components
     solver : str
@@ -380,9 +381,7 @@ def be_func_u(
         Depending on the options, it returns the norm of the error vector, the energy,
         or a combination of these values.
     """
-    rdm_return = False
-    if relax_density:
-        rdm_return = True
+    rdm_return = relax_density
     E = 0.0
     if frag_energy or eeval:
         total_e = [0.0, 0.0, 0.0]
@@ -686,8 +685,6 @@ def solve_ccsd(
             rdm1a = mycc.make_rdm1(with_frozen=False)
 
         if rdm2_return:
-            if use_cumulant:
-                with_dm1 = False
             rdm2s = make_rdm2(
                 mycc,
                 mycc.t1,
@@ -696,7 +693,7 @@ def solve_ccsd(
                 mycc.l2,
                 with_frozen=False,
                 ao_repr=False,
-                with_dm1=with_dm1,
+                with_dm1=with_dm1 and not use_cumulant,
             )
             return (t1, t2, rdm1a, rdm2s)
         return (t1, t2, rdm1a, mycc)
@@ -704,7 +701,13 @@ def solve_ccsd(
     return (t1, t2)
 
 
-def solve_block2(mf, nocc, frag_scratch, **solver_kwargs):
+def solve_block2(
+    mf: RHF,
+    nocc: int,
+    frag_scratch: WorkDir,
+    DMRG_solver_kwargs: KwargDict,
+    use_cumulant: bool,
+):
     """DMRG fragment solver using the pyscf.dmrgscf wrapper.
 
     Parameters
@@ -715,7 +718,7 @@ def solve_block2(mf, nocc, frag_scratch, **solver_kwargs):
         nocc: int
             Number of occupied MOs in the fragment, used for constructing the
             fragment 1- and 2-RDMs.
-        frag_scratch: str|pathlike, optional
+        frag_scratch: os.PathLike, optional
             Fragment-level DMRG scratch directory.
         max_mem: int, optional
             Maximum memory in GB.
@@ -731,7 +734,8 @@ def solve_block2(mf, nocc, frag_scratch, **solver_kwargs):
             Sweep index at which to transition to one-dot DMRG algorithm.
             All sweeps prior to this will use the two-dot algorithm.
         block_extra_keyword: list(str), optional
-            Other keywords to be passed to block2. See: https://block2.readthedocs.io/en/latest/user/keywords.html
+            Other keywords to be passed to block2.
+            See: https://block2.readthedocs.io/en/latest/user/keywords.html
 
     Returns
     -------
@@ -746,12 +750,15 @@ def solve_block2(mf, nocc, frag_scratch, **solver_kwargs):
             Dictionary containing DMRG scheduling parameters to be passed to block2.
 
             e.g. The default schedule used here would be equivalent to the following:
-            schedule_kwargs = {
-                'scheduleSweeps': [0, 10, 20, 30, 40, 50],
-                'scheduleMaxMs': [25, 50, 100, 200, 500, 500],
-                'scheduleTols': [1e-5,1e-5, 1e-6, 1e-6, 1e-8, 1e-8],
-                'scheduleNoises': [0.01, 0.01, 0.001, 0.001, 1e-4, 0.0],
-            }
+
+            .. code-block:: python
+
+                schedule_kwargs = {
+                    'scheduleSweeps': [0, 10, 20, 30, 40, 50],
+                    'scheduleMaxMs': [25, 50, 100, 200, 500, 500],
+                    'scheduleTols': [1e-5,1e-5, 1e-6, 1e-6, 1e-8, 1e-8],
+                    'scheduleNoises': [0.01, 0.01, 0.001, 0.001, 1e-4, 0.0],
+                }
 
     Raises
     ------
@@ -761,20 +768,22 @@ def solve_block2(mf, nocc, frag_scratch, **solver_kwargs):
     # pylint: disable-next=E0611
     from pyscf import dmrgscf  # noqa: PLC0415   # optional module
 
-    use_cumulant = solver_kwargs.pop("use_cumulant", True)
-    norb = solver_kwargs.pop("norb", mf.mo_coeff.shape[1])
-    nelec = solver_kwargs.pop("nelec", mf.mo_coeff.shape[1])
-    lo_method = solver_kwargs.pop("lo_method", None)
-    startM = solver_kwargs.pop("startM", 25)
-    maxM = solver_kwargs.pop("maxM", 500)
-    max_iter = solver_kwargs.pop("max_iter", 60)
-    max_mem = solver_kwargs.pop("max_mem", 100)
-    max_noise = solver_kwargs.pop("max_noise", 1e-3)
-    min_tol = solver_kwargs.pop("min_tol", 1e-8)
-    twodot_to_onedot = solver_kwargs.pop("twodot_to_onedot", int((5 * max_iter) // 6))
-    root = solver_kwargs.pop("root", 0)
-    block_extra_keyword = solver_kwargs.pop("block_extra_keyword", ["fiedler"])
-    schedule_kwargs = solver_kwargs.pop("schedule_kwargs", {})
+    norb = DMRG_solver_kwargs.pop("norb", mf.mo_coeff.shape[1])
+    nelec = DMRG_solver_kwargs.pop("nelec", mf.mo_coeff.shape[1])
+
+    lo_method = DMRG_solver_kwargs.pop("lo_method", None)
+    startM = DMRG_solver_kwargs.pop("startM", 25)
+    maxM = DMRG_solver_kwargs.pop("maxM", 500)
+    max_iter = DMRG_solver_kwargs.pop("max_iter", 60)
+    max_mem = DMRG_solver_kwargs.pop("max_mem", 100)
+    max_noise = DMRG_solver_kwargs.pop("max_noise", 1e-3)
+    min_tol = DMRG_solver_kwargs.pop("min_tol", 1e-8)
+    twodot_to_onedot = DMRG_solver_kwargs.pop(
+        "twodot_to_onedot", int((5 * max_iter) // 6)
+    )
+    root = DMRG_solver_kwargs.pop("root", 0)
+    block_extra_keyword = DMRG_solver_kwargs.pop("block_extra_keyword", ["fiedler"])
+    schedule_kwargs = DMRG_solver_kwargs.pop("schedule_kwargs", {})
 
     if norb <= 2:
         block_extra_keyword = [
@@ -783,7 +792,7 @@ def solve_block2(mf, nocc, frag_scratch, **solver_kwargs):
 
     if lo_method is None:
         orbs = mf.mo_coeff
-    elif isinstance(lo_method, str):
+    else:
         raise NotImplementedError(
             "Localization within the fragment+bath subspace is currently not supported."
         )
@@ -829,7 +838,7 @@ def solve_block2(mf, nocc, frag_scratch, **solver_kwargs):
     mc.fcisolver.scratchDirectory = str(frag_scratch)
     mc.fcisolver.runtimeDir = str(frag_scratch)
     mc.fcisolver.memory = int(max_mem)
-    os.system("cd " + frag_scratch)
+    os.chdir(frag_scratch)
 
     mc.kernel(orbs)
     rdm1, rdm2 = dmrgscf.DMRGCI.make_rdm12(mc.fcisolver, root, norb, nelec)
@@ -878,7 +887,7 @@ def solve_uccsd(
 
     Parameters
     ----------
-    mf : pyscf.scf.hf.UHF
+    mf : pyscf.scf.uhf.UHF
         Mean-field object from PySCF. Constructed with make_uhf_obj
     eris_inp :
         Custom fragment ERIs object
@@ -985,99 +994,3 @@ def solve_uccsd(
             return (ucc, rdm1, rdm2)
         return (ucc, rdm1, None)
     return ucc
-
-
-def schmidt_decomposition(
-    mo_coeff, nocc, Frag_sites, cinv=None, rdm=None, norb=None, return_orb_count=False
-):
-    """
-    Perform Schmidt decomposition on the molecular orbital coefficients.
-
-    This function decomposes the molecular orbitals into fragment and environment parts
-    using the Schmidt decomposition method. It computes the transformation matrix (TA)
-    which includes both the fragment orbitals and the entangled bath.
-
-    Parameters
-    ----------
-    mo_coeff : numpy.ndarray
-        Molecular orbital coefficients.
-    nocc : int
-        Number of occupied orbitals.
-    Frag_sites : list of int
-        List of fragment sites (indices).
-    cinv : numpy.ndarray, optional
-        Inverse of the transformation matrix. Defaults to None.
-    rdm : numpy.ndarray, optional
-        Reduced density matrix. If not provided, it will be computed from the molecular
-        orbitals. Defaults to None.
-    norb : int, optional
-        Specifies number of bath orbitals. Used for UBE to make alpha and beta
-        spaces the same size. Defaults to None
-    return_orb_count : bool, optional
-        Return more information about the number of orbitals. Used in UBE.
-        Defaults to False
-
-    Returns
-    -------
-    numpy.ndarray
-        Transformation matrix (TA) including both fragment and entangled bath orbitals.
-    if return_orb_count:
-        numpy.ndarray, int, int
-        returns TA (above), number of orbitals in the fragment space, and number of
-        orbitals in bath space
-    """
-    # Threshold for eigenvalue significance
-    thres = 1.0e-10
-
-    # Compute the reduced density matrix (RDM) if not provided
-    if mo_coeff is not None:
-        C = mo_coeff[:, :nocc]
-    if rdm is None:
-        Dhf = numpy.dot(C, C.T)
-        if cinv is not None:
-            Dhf = multi_dot((cinv, Dhf, cinv.conj().T))
-    else:
-        Dhf = rdm
-
-    # Total number of sites
-    Tot_sites = Dhf.shape[0]
-
-    # Identify environment sites (indices not in Frag_sites)
-    Env_sites1 = numpy.array([i for i in range(Tot_sites) if i not in Frag_sites])
-    Env_sites = numpy.array([[i] for i in range(Tot_sites) if i not in Frag_sites])
-    Frag_sites1 = numpy.array([[i] for i in Frag_sites])
-
-    # Compute the environment part of the density matrix
-    Denv = Dhf[Env_sites, Env_sites.T]
-
-    # Perform eigenvalue decomposition on the environment density matrix
-    Eval, Evec = numpy.linalg.eigh(Denv)
-
-    # Identify significant environment orbitals based on eigenvalue threshold
-    Bidx = []
-
-    # Set the number of orbitals to be taken from the environment orbitals
-    # Based on an eigenvalue threshold ordering
-    if norb is not None:
-        n_frag_ind = len(Frag_sites1)
-        n_bath_ind = norb - n_frag_ind
-        ind_sort = numpy.argsort(numpy.abs(Eval))
-        first_el = [x for x in ind_sort if x < 1.0 - thres][-1 * n_bath_ind]
-        for i in range(len(Eval)):
-            if numpy.abs(Eval[i]) >= first_el:
-                Bidx.append(i)
-    else:
-        for i in range(len(Eval)):
-            if thres < numpy.abs(Eval[i]) < 1.0 - thres:
-                Bidx.append(i)
-
-    # Initialize the transformation matrix (TA)
-    TA = numpy.zeros([Tot_sites, len(Frag_sites) + len(Bidx)])
-    TA[Frag_sites, : len(Frag_sites)] = numpy.eye(len(Frag_sites))  # Fragment part
-    TA[Env_sites1, len(Frag_sites) :] = Evec[:, Bidx]  # Environment part
-
-    if return_orb_count:
-        # return TA, norbs_frag, norbs_bath
-        return TA, Frag_sites1.shape[0], len(Bidx)
-    else:
-        return TA

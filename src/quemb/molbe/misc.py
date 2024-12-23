@@ -122,9 +122,8 @@ def be2fcidump(be_obj, fcidump_prefix, basis):
     """
     for fidx, frag in enumerate(be_obj.Fobjs):
         # Read in eri
-        read = h5py.File(frag.eri_file, "r")
-        eri = read[frag.dname][()]  # 2e in embedding basis
-        read.close()
+        with h5py.File(frag.eri_file, "r") as read:
+            eri = read[frag.dname][()]  # 2e in embedding basis
         eri = ao2mo.restore(1, eri, frag.nao)
         if basis == "embedding":
             h1e = frag.fock
@@ -173,9 +172,8 @@ def ube2fcidump(be_obj, fcidump_prefix, basis):
     """
     for fidx, frag in enumerate(be_obj.Fobjs_a):
         # Read in eri
-        read = h5py.File(frag.eri_file, "r")
-        eri = read[frag.dname][()]  # 2e in embedding basis
-        read.close()
+        with h5py.File(frag.eri_file, "r") as read:
+            eri = read[frag.dname][()]  # 2e in embedding basis
         eri = ao2mo.restore(1, eri, frag.nao)
         if basis == "embedding":
             h1e = frag.fock
@@ -208,9 +206,8 @@ def ube2fcidump(be_obj, fcidump_prefix, basis):
 
     for fidx, frag in enumerate(be_obj.Fobjs_b):
         # Read in eri
-        read = h5py.File(frag.eri_file, "r")
-        eri = read[frag.dname][()]  # 2e in embedding basis
-        read.close()
+        with h5py.File(frag.eri_file, "r") as read:
+            eri = read[frag.dname][()]  # 2e in embedding basis
         eri = ao2mo.restore(1, eri, frag.nao)
         if basis == "embedding":
             h1e = frag.fock
@@ -314,7 +311,7 @@ def be2puffin(
         By default None
     ecp : str, optional
         specify the ECP for any atoms, accompanying the basis set
-        syntax; for example `{'Na': 'bfd-pp', 'Ru': 'bfd-pp'}`
+        syntax; for example :python:`{'Na': 'bfd-pp', 'Ru': 'bfd-pp'}`
         By default None
     """
     # The following imports have to happen here to avoid
@@ -466,7 +463,7 @@ def be2puffin(
 
     # Run oneshot embedding and return system energy
 
-    mybe.oneshot(solver=solver, nproc=nproc, ompnum=ompnum, clean_eri=True)
+    mybe.oneshot(solver=solver, nproc=nproc, ompnum=ompnum, calc_frag_energy=True)
     return mybe.ebe_tot
 
 

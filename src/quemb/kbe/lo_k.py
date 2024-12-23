@@ -50,13 +50,19 @@ def symm_orth_k(A, thr=1.0e-7, ovlp=None):
 
 
 def get_xovlp_k(cell, kpts, basis="sto-3g"):
-    """
-    Gets set of valence orbitals based on smaller (should be minimal) basis
-    inumpy.t:
-        cell - pyscf cell object, just need it for the working basis
-        basis - the IAO basis, Knizia recommended 'minao'
-    returns:
-        S12 - Overlap of two basis sets
+    """Gets set of valence orbitals based on smaller (should be minimal) basis
+
+    Parameters
+    ----------
+    cell:
+        pyscf cell object, just need it for the working basis
+    basis:
+        the IAO basis, Knizia recommended 'minao'
+
+    Returns
+    -------
+    tuple:
+        S12 - Overlap of two basis sets,
         S22 - Overlap in new basis set
     """
     cell_alt = cell.copy()
@@ -92,14 +98,22 @@ def remove_core_mo_k(Clo, Ccore, S, thr=0.5):
 
 def get_iao_k(Co, S12, S1, S2=None, ortho=True):
     """
-    Args:
-        Co: occupied coefficient matrix with core
-        p: valence AO matrix in AO
-        no: number of occ orbitals
-        S12: ovlp between working basis and valence basis
-             can be thought of as working basis in valence basis
-        S1: ao ovlp matrix
-        S2: valence AO ovlp
+
+    Parameters
+    ----------
+    Co:
+        occupied coefficient matrix with core
+    p:
+        valence AO matrix in AO
+    no:
+        number of occ orbitals
+    S12:
+        ovlp between working basis and valence basis
+        can be thought of as working basis in valence basis
+    S1:
+        ao ovlp matrix
+    S2:
+        valence AO ovlp
     """
 
     nk, nao, nmo = S12.shape
@@ -140,12 +154,20 @@ def get_iao_k(Co, S12, S1, S2=None, ortho=True):
 
 def get_pao_k(Ciao, S, S12):
     """
-    Args:
-        Ciao: output of :func:`get_iao`
-        S: ao ovlp matrix
-        S12: valence orbitals projected into ao basis
-    Return:
-        Cpao (orthogonalized)
+
+    Parameters
+    ----------
+    Ciao:
+        output of :func:`quemb.kbe.lo_k.get_iao_k`
+    S:
+        ao ovlp matrix
+    S12:
+        valence orbitals projected into ao basis
+
+    Returns
+    -------
+    Cpao: numpy.ndarray
+        (orthogonalized)
     """
     nk, nao, niao = Ciao.shape
     unused(niao)
@@ -163,13 +185,22 @@ def get_pao_k(Ciao, S, S12):
 
 def get_pao_native_k(Ciao, S, mol, valence_basis, ortho=True):
     """
-    Args:
-        Ciao: output of :func:`get_iao_native`
-        S: ao ovlp matrix
-        mol: mol object
-        valence basis: basis used for valence orbitals
-    Return:
-        Cpao (symmetrically orthogonalized)
+
+    Parameters
+    ----------
+    Ciao :
+        output of :code:`get_iao_native`
+    S :
+        ao ovlp matrix
+    mol :
+        mol object
+    valence_basis:
+        basis used for valence orbitals
+
+    Returns
+    --------
+    Cpao : numpy.ndarray
+        (symmetrically orthogonalized)
     """
     nk, nao, niao = Ciao.shape
 
