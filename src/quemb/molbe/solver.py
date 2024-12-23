@@ -3,6 +3,7 @@
 import os
 
 import numpy
+from attrs import define
 from numpy import float64
 from numpy.linalg import multi_dot
 from pyscf import ao2mo, cc, fci, mcscf, mp
@@ -22,7 +23,78 @@ from quemb.shared.external.uccsd_eri import make_eris_incore
 from quemb.shared.external.unrestricted_utils import make_uhf_obj
 from quemb.shared.helper import delete_multiple_files, unused
 from quemb.shared.manage_scratch import WorkDir
-from quemb.shared.typing import KwargDict, Matrix
+from quemb.shared.typing import Matrix
+
+
+@define
+class DMRG_ArgsUser:
+    #: Becomes mf.mo_coeff.shape[1] by default
+    norb: int | None = None
+    #: Becomes mf.mo_coeff.shape[1] by default
+    nelec: int | None = None
+
+    startM: int = 25
+    maxM: int = 500
+    max_iter: int = 60
+    max_mem: int = 100
+    max_noise: float = 1e-3
+    min_tol: float = 1e-8
+    twodot_to_onedot: int = (5 * max_iter) // 6
+    root: int = 0
+    block_extra_keyword: list[str] = ["fiedler"]
+    schedule_kwargs: dict[str, list[int] | list[float]] = {}
+    force_cleanup: bool = False
+
+
+@define
+class DMRG_Args:
+    """Properly initialized DMRG arguments
+
+    Some default values of :class:`DMRG_ArgsUser` can only be filled
+    later in the calculation.
+    Use :func:`from_user_input` to properly initialize.
+    """
+
+    norb: int
+    nelec: int
+
+    startM: int
+    maxM: int
+    max_iter: int
+    max_mem: int
+    max_noise: float
+    min_tol: float
+    twodot_to_onedot: int
+    root: int
+    block_extra_keyword: list[str]
+    schedule_kwargs: dict[str, list[int] | list[float]]
+    force_cleanup: bool
+
+    @classmethod
+    def from_user_input(cls, user_args: DMRG_ArgsUser, mf: RHF):
+        norb = mf.mo_coeff.shape[1] if user_args.norb is None else user_args.norb
+        nelec = mf.mo_coeff.shape[1] if user_args.nelec is None else user_args.nelec
+        if norb <= 2:
+            block_extra_keyword = [
+                "noreorder"
+            ]  # Other reordering algorithms explode if the network is too small.
+        else:
+            block_extra_keyword = user_args.block_extra_keyword
+        return cls(
+            norb=norb,
+            nelec=nelec,
+            startM=user_args.startM,
+            maxM=user_args.maxM,
+            max_iter=user_args.max_iter,
+            max_mem=user_args.max_mem,
+            max_noise=user_args.max_noise,
+            min_tol=user_args.min_tol,
+            twodot_to_onedot=user_args.twodot_to_onedot,
+            root=user_args.root,
+            block_extra_keyword=block_extra_keyword,
+            schedule_kwargs=user_args.schedule_kwargs,
+            force_cleanup=user_args.force_cleanup,
+        )
 
 
 def be_func(
@@ -31,7 +103,7 @@ def be_func(
     Nocc: int,
     solver: str,
     enuc: float,  # noqa: ARG001
-    DMRG_solver_kwargs: KwargDict | None,
+    user_DMRG_args: DMRG_ArgsUser,
     scratch_dir: WorkDir,
     hf_veff: Matrix[float64] | None = None,
     only_chem: bool = False,
@@ -215,21 +287,20 @@ def be_func(
         elif solver in ["block2", "DMRG", "DMRGCI", "DMRGSCF"]:
             frag_scratch = WorkDir(scratch_dir / fobj.dname)
 
-            DMRG_solver_kwargs = (
-                {} if DMRG_solver_kwargs is None else DMRG_solver_kwargs.copy()
-            )
+            DMRG_args = DMRG_Args.from_user_input(user_DMRG_args, fobj._mf)
+
             try:
                 rdm1_tmp, rdm2s = solve_block2(
                     fobj._mf,
                     fobj.nsocc,
                     frag_scratch=frag_scratch,
-                    DMRG_solver_kwargs=DMRG_solver_kwargs,
+                    DMRG_args=DMRG_args,
                     use_cumulant=use_cumulant,
                 )
             except Exception as inst:
                 raise inst
             finally:
-                if DMRG_solver_kwargs.pop("force_cleanup", False):
+                if DMRG_args.force_cleanup:
                     delete_multiple_files(
                         frag_scratch.path.glob("F.*"),
                         frag_scratch.path.glob("FCIDUMP*"),
@@ -690,7 +761,7 @@ def solve_block2(
     mf: RHF,
     nocc: int,
     frag_scratch: WorkDir,
-    DMRG_solver_kwargs: KwargDict,
+    DMRG_args: DMRG_ArgsUser,
     use_cumulant: bool,
 ):
     """DMRG fragment solver using the pyscf.dmrgscf wrapper.
@@ -753,34 +824,21 @@ def solve_block2(
     # pylint: disable-next=E0611
     from pyscf import dmrgscf  # noqa: PLC0415   # optional module
 
-    norb = DMRG_solver_kwargs.pop("norb", mf.mo_coeff.shape[1])
-    nelec = DMRG_solver_kwargs.pop("nelec", mf.mo_coeff.shape[1])
+    norb = DMRG_args.norb
+    nelec = DMRG_args.nelec
 
-    lo_method = DMRG_solver_kwargs.pop("lo_method", None)
-    startM = DMRG_solver_kwargs.pop("startM", 25)
-    maxM = DMRG_solver_kwargs.pop("maxM", 500)
-    max_iter = DMRG_solver_kwargs.pop("max_iter", 60)
-    max_mem = DMRG_solver_kwargs.pop("max_mem", 100)
-    max_noise = DMRG_solver_kwargs.pop("max_noise", 1e-3)
-    min_tol = DMRG_solver_kwargs.pop("min_tol", 1e-8)
-    twodot_to_onedot = DMRG_solver_kwargs.pop(
-        "twodot_to_onedot", int((5 * max_iter) // 6)
-    )
-    root = DMRG_solver_kwargs.pop("root", 0)
-    block_extra_keyword = DMRG_solver_kwargs.pop("block_extra_keyword", ["fiedler"])
-    schedule_kwargs = DMRG_solver_kwargs.pop("schedule_kwargs", {})
+    startM = DMRG_args.startM
+    maxM = DMRG_args.maxM
+    max_iter = DMRG_args.max_iter
+    max_mem = DMRG_args.max_mem
+    max_noise = DMRG_args.max_noise
+    min_tol = DMRG_args.min_tol
+    twodot_to_onedot = DMRG_args.twodot_to_onedot
+    root = DMRG_args.root
+    schedule_kwargs = DMRG_args.schedule_kwargs
+    block_extra_keyword = DMRG_args.block_extra_keyword
 
-    if norb <= 2:
-        block_extra_keyword = [
-            "noreorder"
-        ]  # Other reordering algorithms explode if the network is too small.
-
-    if lo_method is None:
-        orbs = mf.mo_coeff
-    else:
-        raise NotImplementedError(
-            "Localization within the fragment+bath subspace is currently not supported."
-        )
+    orbs = mf.mo_coeff
 
     mc = mcscf.CASCI(mf, norb, nelec)
     mc.fcisolver = dmrgscf.DMRGCI(mf.mol)
