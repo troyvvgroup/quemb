@@ -160,7 +160,7 @@ def get_pao(Ciao: Matrix, S: Matrix, S12: Matrix) -> Matrix:
         valence orbitals projected into ao basis
     Returns
     -------
-    Cpao:
+    Cpao: :class:`quemb.shared.typing.Matrix`
         (orthogonalized)
     """
     n = Ciao.shape[0]
@@ -191,7 +191,7 @@ def get_pao_native(Ciao: Matrix, S: Matrix, mol: Mole, valence_basis: str) -> Ma
         basis used for valence orbitals
     Returns
     -------
-    Cpao:
+    Cpao: :class:`quemb.shared.typing.Matrix`
         (symmetrically orthogonalized)
 
     """
