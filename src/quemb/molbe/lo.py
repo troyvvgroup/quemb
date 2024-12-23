@@ -2,7 +2,6 @@
 #
 
 import numpy
-from numpy import float64, floating
 from numpy.linalg import eigh, inv, multi_dot, norm, svd
 from pyscf.gto import intor_cross
 from pyscf.gto.mole import Mole
@@ -15,15 +14,13 @@ from quemb.shared.helper import ncore_, unused
 from quemb.shared.typing import Matrix, Tensor3D
 
 
-def dot_gen(
-    A: Matrix[floating], B: Matrix[floating], ovlp: Matrix[floating] | None = None
-) -> Matrix[floating]:
+def dot_gen(A: Matrix, B: Matrix, ovlp: Matrix | None = None) -> Matrix:
     return A.T @ B if ovlp is None else A.T @ ovlp @ B
 
 
 def get_cano_orth_mat(
-    A: Matrix[float64], thr: float = 1.0e-6, ovlp: Matrix[float64] | None = None
-) -> Matrix[float64]:
+    A: Matrix, thr: float = 1.0e-6, ovlp: Matrix | None = None
+) -> Matrix:
     S = dot_gen(A, A, ovlp)
     e, u = eigh(S)
     if thr > 0:
@@ -33,16 +30,14 @@ def get_cano_orth_mat(
     return u[:, idx_keep] * e[idx_keep] ** -0.5
 
 
-def cano_orth(
-    A: Matrix[float64], thr: float = 1.0e-6, ovlp: Matrix[float64] | None = None
-) -> Matrix[float64]:
+def cano_orth(A: Matrix, thr: float = 1.0e-6, ovlp: Matrix | None = None) -> Matrix:
     """Canonically orthogonalize columns of A"""
     return A @ get_cano_orth_mat(A, thr, ovlp)
 
 
 def get_symm_orth_mat(
-    A: Matrix[float64], thr: float = 1.0e-6, ovlp: Matrix[float64] | None = None
-) -> Matrix[float64]:
+    A: Matrix, thr: float = 1.0e-6, ovlp: Matrix | None = None
+) -> Matrix:
     S = dot_gen(A, A, ovlp)
     e, u = eigh(S)
     if (e < thr).any():
@@ -54,16 +49,12 @@ def get_symm_orth_mat(
     return u @ numpy.diag(e**-0.5) @ u.T
 
 
-def symm_orth(
-    A: Matrix[float64], thr: float = 1.0e-6, ovlp: Matrix[float64] | None = None
-) -> Matrix[float64]:
+def symm_orth(A: Matrix, thr: float = 1.0e-6, ovlp: Matrix | None = None) -> Matrix:
     """Symmetrically orthogonalize columns of A"""
     return A @ get_symm_orth_mat(A, thr, ovlp)
 
 
-def remove_core_mo(
-    Clo: Matrix[float64], Ccore: Matrix[float64], S: Matrix[float64], thr: float = 0.5
-) -> Matrix[float64]:
+def remove_core_mo(Clo: Matrix, Ccore: Matrix, S: Matrix, thr: float = 0.5) -> Matrix:
     assert numpy.allclose(Clo.T @ S @ Clo, numpy.eye(Clo.shape[1]))
     assert numpy.allclose(Ccore.T @ S @ Ccore, numpy.eye(Ccore.shape[1]))
 
@@ -79,7 +70,7 @@ def remove_core_mo(
 
 def get_xovlp(
     mol: Mole, basis: str = "sto-3g"
-) -> tuple[Matrix[float64] | Tensor3D[float64], Matrix[float64] | Tensor3D[float64]]:
+) -> tuple[Matrix | Tensor3D, Matrix | Tensor3D]:
     """Gets set of valence orbitals based on smaller (should be minimal) basis
 
     Parameters
@@ -107,11 +98,11 @@ def get_xovlp(
 
 
 def get_iao(
-    Co: Matrix[float64],
-    S12: Matrix[float64],
-    S1: Matrix[float64],
-    S2: Matrix[float64] | None = None,
-) -> Matrix[float64]:
+    Co: Matrix,
+    S12: Matrix,
+    S1: Matrix,
+    S2: Matrix | None = None,
+) -> Matrix:
     """
 
     Parameters
@@ -157,9 +148,7 @@ def get_iao(
     return Ciao
 
 
-def get_pao(
-    Ciao: Matrix[float64], S: Matrix[float64], S12: Matrix[float64]
-) -> Matrix[float64]:
+def get_pao(Ciao: Matrix, S: Matrix, S12: Matrix) -> Matrix:
     """
     Parameters
     ----------
@@ -187,9 +176,7 @@ def get_pao(
     return cano_orth(Cpao, ovlp=S)
 
 
-def get_pao_native(
-    Ciao: Matrix[float64], S: Matrix[float64], mol: Mole, valence_basis: str
-) -> Matrix[float64]:
+def get_pao_native(Ciao: Matrix, S: Matrix, mol: Mole, valence_basis: str) -> Matrix:
     """
 
     Parameters
@@ -242,10 +229,10 @@ def get_pao_native(
 
 def get_loc(
     mol: Mole,
-    C: Matrix[float64],
+    C: Matrix,
     method: str,
     pop_method: str | None = None,
-    init_guess: Matrix[float64] | None = None,
+    init_guess: Matrix | None = None,
 ) -> Mole:
     if method.upper() == "ER":
         from pyscf.lo import ER as Localizer  # noqa: PLC0415
