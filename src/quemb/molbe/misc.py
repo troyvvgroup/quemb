@@ -360,8 +360,7 @@ def be2puffin(
         mol.incore_anyway = True
         if unrestricted:
             if use_df and jk is None:
-                print("UHF and df are incompatible: use_df = False")
-                use_df = False
+                raise ValueError("UHF and df are incompatible: use_df = False")
             if hcore is None:
                 if pts_and_charges:
                     print(
@@ -393,12 +392,11 @@ def be2puffin(
                 mf = qmmm.mm_charge(
                     mf1, pts_and_charges[0], pts_and_charges[1], unit="bohr"
                 ).newton()
-                print(
+
+                raise ValueError(
                     "Setting use_df to false and jk to none: have not tested DF and "
                     "QM/MM from point charges at the same time"
                 )
-                use_df = False
-                jk = None
             elif use_df and jk is None:
                 mf = scf.RHF(mol).density_fit(auxbasis=df_aux_basis)
             else:

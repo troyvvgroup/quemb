@@ -218,10 +218,7 @@ def run_solver(
     rdm1 = multi_dot((mf_.mo_coeff, rdm1_tmp, mf_.mo_coeff.T)) * 0.5
 
     if solver == "CCSD" and not relax_density:
-        with_dm1 = True
-        if use_cumulant:
-            with_dm1 = False
-        rdm2s = make_rdm2_urlx(t1, t2, with_dm1=with_dm1)
+        rdm2s = make_rdm2_urlx(t1, t2, with_dm1=not use_cumulant)
 
     elif solver == "MP2":
         rdm2s = mc_.make_rdm2()
@@ -346,10 +343,7 @@ def run_solver_u(
     # Calculate Energies
     if ereturn:
         if solver == "UCCSD" and not relax_density:
-            with_dm1 = True
-            if use_cumulant:
-                with_dm1 = False
-            rdm2s = make_rdm2_uccsd(ucc, with_dm1=with_dm1)
+            rdm2s = make_rdm2_uccsd(ucc, with_dm1=not use_cumulant)
         else:
             raise NotImplementedError("RDM Return not Implemented")
 
