@@ -2,37 +2,47 @@
 #
 
 import numpy
+from numpy import float64
 from numpy.linalg import eigh, inv, multi_dot, norm, svd
 from pyscf.gto import intor_cross
+from pyscf.gto.mole import Mole
 
 from quemb.shared.external.lo_helper import (
     get_aoind_by_atom,
     reorder_by_atom_,
 )
 from quemb.shared.helper import ncore_, unused
+from quemb.shared.typing import Matrix, Tensor3D
 
 
-def dot_gen(A, B, ovlp):
+def dot_gen(
+    A: Matrix[float64], B: Matrix[float64], ovlp: Matrix[float64] | None = None
+) -> Matrix[float64]:
     return A.T @ B if ovlp is None else A.T @ ovlp @ B
 
 
-def get_cano_orth_mat(A, thr=1.0e-6, ovlp=None):
+def get_cano_orth_mat(
+    A: Matrix[float64], thr: float = 1.0e-6, ovlp: Matrix[float64] | None = None
+) -> Matrix[float64]:
     S = dot_gen(A, A, ovlp)
     e, u = eigh(S)
     if thr > 0:
         idx_keep = e / e[-1] > thr
     else:
-        idx_keep = list(range(e.shape[0]))
-    U = u[:, idx_keep] * e[idx_keep] ** -0.5
-    return U
+        idx_keep = slice(0, e.shape[0])
+    return u[:, idx_keep] * e[idx_keep] ** -0.5
 
 
-def cano_orth(A, thr=1.0e-6, ovlp=None):
+def cano_orth(
+    A: Matrix[float64], thr: float = 1.0e-6, ovlp: Matrix[float64] | None = None
+) -> Matrix[float64]:
     """Canonically orthogonalize columns of A"""
     return A @ get_cano_orth_mat(A, thr, ovlp)
 
 
-def get_symm_orth_mat(A, thr=1.0e-6, ovlp=None):
+def get_symm_orth_mat(
+    A: Matrix[float64], thr: float = 1.0e-6, ovlp: Matrix[float64] | None = None
+) -> Matrix[float64]:
     S = dot_gen(A, A, ovlp)
     e, u = eigh(S)
     if (e < thr).any():
@@ -44,12 +54,16 @@ def get_symm_orth_mat(A, thr=1.0e-6, ovlp=None):
     return u @ numpy.diag(e**-0.5) @ u.T
 
 
-def symm_orth(A, thr=1.0e-6, ovlp=None):
+def symm_orth(
+    A: Matrix[float64], thr: float = 1.0e-6, ovlp: Matrix[float64] | None = None
+) -> Matrix[float64]:
     """Symmetrically orthogonalize columns of A"""
     return A @ get_symm_orth_mat(A, thr, ovlp)
 
 
-def remove_core_mo(Clo, Ccore, S, thr=0.5):
+def remove_core_mo(
+    Clo: Matrix[float64], Ccore: Matrix[float64], S: Matrix[float64], thr: float = 0.5
+) -> Matrix[float64]:
     assert numpy.allclose(Clo.T @ S @ Clo, numpy.eye(Clo.shape[1]))
     assert numpy.allclose(Ccore.T @ S @ Ccore, numpy.eye(Ccore.shape[1]))
 
@@ -63,14 +77,16 @@ def remove_core_mo(Clo, Ccore, S, thr=0.5):
     return symm_orth(Clo1[:, idx_keep], ovlp=S)
 
 
-def get_xovlp(mol, basis="sto-3g"):
+def get_xovlp(
+    mol: Mole, basis: str = "sto-3g"
+) -> tuple[Matrix[float64] | Tensor3D[float64], Matrix[float64] | Tensor3D[float64]]:
     """Gets set of valence orbitals based on smaller (should be minimal) basis
 
     Parameters
     ----------
-    mol : pyscf.gto.mole.Mole
+    mol :
         just need it for the working basis
-    basis : str
+    basis :
         the IAO basis, Knizia recommended 'minao'
 
     Returns
@@ -90,7 +106,12 @@ def get_xovlp(mol, basis="sto-3g"):
     return S12, S22
 
 
-def get_iao(Co, S12, S1, S2=None):
+def get_iao(
+    Co: Matrix[float64],
+    S12: Matrix[float64],
+    S1: Matrix[float64],
+    S2: Matrix[float64] | None = None,
+) -> Matrix[float64]:
     """
 
     Parameters
@@ -136,19 +157,21 @@ def get_iao(Co, S12, S1, S2=None):
     return Ciao
 
 
-def get_pao(Ciao, S, S12):
+def get_pao(
+    Ciao: Matrix[float64], S: Matrix[float64], S12: Matrix[float64]
+) -> Matrix[float64]:
     """
     Parameters
     ----------
-    Ciao: numpy.ndarray
+    Ciao:
         output of :func:`get_iao`
-    S: numpy.ndarray
+    S:
         ao ovlp matrix
-    S12: numpy.ndarray
+    S12:
         valence orbitals projected into ao basis
     Returns
     -------
-    Cpao: numpy.ndarray
+    Cpao:
         (orthogonalized)
     """
     n = Ciao.shape[0]
@@ -161,12 +184,12 @@ def get_pao(Ciao, S, S12):
     Cpao = (numpy.eye(n) - Piao) @ nonval  # project out IAOs from non-valence basis
 
     # begin canonical orthogonalization to get rid of redundant orbitals
-    Cpao = cano_orth(Cpao, ovlp=S)
-
-    return Cpao
+    return cano_orth(Cpao, ovlp=S)
 
 
-def get_pao_native(Ciao, S, mol, valence_basis):
+def get_pao_native(
+    Ciao: Matrix[float64], S: Matrix[float64], mol: Mole, valence_basis: str
+) -> Matrix[float64]:
     """
 
     Parameters
@@ -181,7 +204,7 @@ def get_pao_native(Ciao, S, mol, valence_basis):
         basis used for valence orbitals
     Returns
     -------
-    Cpao: numpy.ndarray
+    Cpao:
         (symmetrically orthogonalized)
 
     """
@@ -217,7 +240,13 @@ def get_pao_native(Ciao, S, mol, valence_basis):
     return Cpao
 
 
-def get_loc(mol, C, method, pop_method=None, init_guess=None):
+def get_loc(
+    mol: Mole,
+    C: Matrix[float64],
+    method: str,
+    pop_method: str | None = None,
+    init_guess: Matrix[float64] | None = None,
+) -> Mole:
     if method.upper() == "ER":
         from pyscf.lo import ER as Localizer  # noqa: PLC0415
     elif method.upper() == "PM":
@@ -229,12 +258,10 @@ def get_loc(mol, C, method, pop_method=None, init_guess=None):
 
     mlo = Localizer(mol, C)
     if pop_method is not None:
-        mlo.pop_method = str(pop_method)
+        mlo.pop_method = pop_method
 
     mlo.init_guess = init_guess
-    C_ = mlo.kernel()
-
-    return C_
+    return mlo.kernel()
 
 
 class MixinLocalize:
