@@ -32,4 +32,4 @@ mybe = UBE(mf, fobj)
 # Perform one round of BE, without density or chemical potential matching,
 # and return the energy.
 # clean_eri will delete all of the ERI files from scratch
-mybe.oneshot(solver="UCCSD", nproc=nproc, calc_frag_energy=True, clean_eri=True)
+mybe.oneshot(solver="UCCSD", nproc=nproc, calc_frag_energy=True)

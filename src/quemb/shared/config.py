@@ -1,3 +1,22 @@
+"""Configure :python:`quemb`
+
+One can modify settings in one session or create an RC-file.
+See examples below.
+
+Examples
+--------
+>>> from quemb.shared.config import settings
+>>>
+>>> settings.SCRATCH = "/scratch"
+Changes the default root for the scratch directory
+for this python session.
+
+>>> from quemb.shared.config import dump_settings
+>>>
+>>> dump_settings()
+Creates ~/.quembrc.yml file that allows changes to persist.
+"""
+
 from pathlib import Path
 from typing import Final
 
@@ -13,8 +32,7 @@ DEFAULT_RC_PATH: Final = Path("~/.quembrc.yml")
 @define
 class Settings:
     PRINT_LEVEL: int = 5
-    SCRATCH: str = ""
-    CREATE_SCRATCH_DIR: bool = False
+    SCRATCH: Path = Path("/tmp")
     INTEGRAL_TRANSFORM_MAX_MEMORY: float = 50  # in GB
 
 
