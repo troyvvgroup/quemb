@@ -2,6 +2,7 @@
 
 import os
 from abc import ABC
+from typing import Final
 
 import numpy
 from attrs import define
@@ -31,27 +32,62 @@ class UserSolverArgs(ABC):
     pass
 
 
-@define
+@define(frozen=True)
 class DMRG_ArgsUser(UserSolverArgs):
+    """
+
+    Parameters
+    ----------
+    max_mem:
+        Maximum memory in GB.
+    root:
+        Number of roots to solve for.
+    startM:
+        Starting MPS bond dimension - where the sweep schedule begins.
+    maxM:
+        Maximum MPS bond dimension - where the sweep schedule terminates.
+    max_iter:
+        Maximum number of sweeps.
+    twodot_to_onedot:
+        Sweep index at which to transition to one-dot DMRG algorithm.
+        All sweeps prior to this will use the two-dot algorithm.
+    block_extra_keyword:
+        Other keywords to be passed to block2.
+        See: https://block2.readthedocs.io/en/latest/user/keywords.html
+    schedule_kwargs:
+        Dictionary containing DMRG scheduling parameters to be passed to block2.
+
+        e.g. The default schedule used here would be equivalent to the following:
+
+        .. code-block:: python
+
+            schedule_kwargs = {
+                'scheduleSweeps': [0, 10, 20, 30, 40, 50],
+                'scheduleMaxMs': [25, 50, 100, 200, 500, 500],
+                'scheduleTols': [1e-5,1e-5, 1e-6, 1e-6, 1e-8, 1e-8],
+                'scheduleNoises': [0.01, 0.01, 0.001, 0.001, 1e-4, 0.0],
+            }
+    """
+
     #: Becomes mf.mo_coeff.shape[1] by default
-    norb: int | None = None
+    norb: Final[int | None] = None
     #: Becomes mf.mo_coeff.shape[1] by default
-    nelec: int | None = None
+    nelec: Final[int | None] = None
 
-    startM: int = 25
-    maxM: int = 500
-    max_iter: int = 60
-    max_mem: int = 100
-    max_noise: float = 1e-3
-    min_tol: float = 1e-8
-    twodot_to_onedot: int = (5 * max_iter) // 6
-    root: int = 0
-    block_extra_keyword: list[str] = ["fiedler"]
-    schedule_kwargs: dict[str, list[int] | list[float]] = {}
-    force_cleanup: bool = False
+    startM: Final[int] = 25
+    maxM: Final[int] = 500
+    max_iter: Final[int] = 60
+    max_mem: Final[int] = 100
+    max_noise: Final[float] = 1e-3
+    min_tol: Final[float] = 1e-8
+    twodot_to_onedot: Final[int] = (5 * max_iter) // 6
+    root: Final[int] = 0
+    block_extra_keyword: Final[list[str]] = ["fiedler"]
+    schedule_kwargs: Final[dict[str, list[int] | list[float]]] = {}
+    force_cleanup: Final[bool] = False
 
 
-@define
+@define(frozen=True)
 class DMRG_Args:
     """Properly initialized DMRG arguments
 
@@ -60,20 +96,20 @@ class DMRG_Args:
     Use :func:`from_user_input` to properly initialize.
     """
 
-    norb: int
-    nelec: int
+    norb: Final[int]
+    nelec: Final[int]
 
-    startM: int
-    maxM: int
-    max_iter: int
-    max_mem: int
-    max_noise: float
-    min_tol: float
-    twodot_to_onedot: int
-    root: int
-    block_extra_keyword: list[str]
-    schedule_kwargs: dict[str, list[int] | list[float]]
-    force_cleanup: bool
+    startM: Final[int]
+    maxM: Final[int]
+    max_iter: Final[int]
+    max_mem: Final[int]
+    max_noise: Final[float]
+    min_tol: Final[float]
+    twodot_to_onedot: Final[int]
+    root: Final[int]
+    block_extra_keyword: Final[list[str]]
+    schedule_kwargs: Final[dict[str, list[int] | list[float]]]
+    force_cleanup: Final[bool]
 
     @classmethod
     def from_user_input(cls, user_args: DMRG_ArgsUser, mf: RHF):
@@ -102,15 +138,15 @@ class DMRG_Args:
         )
 
 
-@define
+@define(frozen=True)
 class SHCI_ArgsUser(UserSolverArgs):
-    hci_pt: bool = False
-    hci_cutoff: float = 0.001
-    ci_coeff_cutoff: float | None = None
-    select_cutoff: float | None = None
+    hci_pt: Final[bool] = False
+    hci_cutoff: Final[float] = 0.001
+    ci_coeff_cutoff: Final[float | None] = None
+    select_cutoff: Final[float | None] = None
 
 
-@define
+@define(frozen=True)
 class SHCI_Args:
     """Properly initialized SCHI arguments
 
@@ -119,10 +155,10 @@ class SHCI_Args:
     Use :func:`from_user_input` to properly initialize.
     """
 
-    hci_pt: bool
-    hci_cutoff: float
-    ci_coeff_cutoff: float
-    select_cutoff: float
+    hci_pt: Final[bool]
+    hci_cutoff: Final[float]
+    ci_coeff_cutoff: Final[float]
+    select_cutoff: Final[float]
 
     @classmethod
     def from_user_input(cls, args: SHCI_ArgsUser):
@@ -812,30 +848,16 @@ def solve_block2(
 
     Parameters
     ----------
-        mf: pyscf.scf.hf.RHF
+        mf:
             Mean field object or similar following the data signature of the
             pyscf.RHF class.
-        nocc: int
+        nocc:
             Number of occupied MOs in the fragment, used for constructing the
             fragment 1- and 2-RDMs.
-        frag_scratch: os.PathLike, optional
+        frag_scratch:
             Fragment-level DMRG scratch directory.
-        max_mem: int, optional
-            Maximum memory in GB.
-        root: int, optional
-            Number of roots to solve for.
-        startM: int, optional
-            Starting MPS bond dimension - where the sweep schedule begins.
-        maxM: int, optional
-            Maximum MPS bond dimension - where the sweep schedule terminates.
-        max_iter: int, optional
-            Maximum number of sweeps.
-        twodot_to_onedot: int, optional
-            Sweep index at which to transition to one-dot DMRG algorithm.
-            All sweeps prior to this will use the two-dot algorithm.
-        block_extra_keyword: list(str), optional
-            Other keywords to be passed to block2.
-            See: https://block2.readthedocs.io/en/latest/user/keywords.html
+        use_cumulant:
+            Use the cumulant energy expression.
 
     Returns
     -------
@@ -843,27 +865,6 @@ def solve_block2(
             1-Particle reduced density matrix for fragment.
         rdm2: numpy.ndarray
             2-Particle reduced density matrix for fragment.
-
-    Other Parameters
-    ----------------
-        schedule_kwargs: dict, optional
-            Dictionary containing DMRG scheduling parameters to be passed to block2.
-
-            e.g. The default schedule used here would be equivalent to the following:
-
-            .. code-block:: python
-
-                schedule_kwargs = {
-                    'scheduleSweeps': [0, 10, 20, 30, 40, 50],
-                    'scheduleMaxMs': [25, 50, 100, 200, 500, 500],
-                    'scheduleTols': [1e-5,1e-5, 1e-6, 1e-6, 1e-8, 1e-8],
-                    'scheduleNoises': [0.01, 0.01, 0.001, 0.001, 1e-4, 0.0],
-                }
-
-    Raises
-    ------
-
-
     """
     # pylint: disable-next=E0611
     from pyscf import dmrgscf  # noqa: PLC0415   # optional module
