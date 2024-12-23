@@ -315,16 +315,16 @@ class BE(Mixin_k_Localize):
 
     def optimize(
         self,
-        solver="MP2",
-        method="QN",
-        only_chem=False,
-        conv_tol=1.0e-6,
-        relax_density=False,
-        J0=None,
-        nproc=1,
-        ompnum=4,
-        max_iter=500,
-    ):
+        solver: str = "MP2",
+        method: str = "QN",
+        only_chem: bool = False,
+        conv_tol: float = 1.0e-6,
+        relax_density: bool = False,
+        J0: list[list[float]] | None = None,
+        nproc: int = 1,
+        ompnum: int = 4,
+        max_iter: int = 500,
+    ) -> None:
         """BE optimization function
 
         Interfaces BEOPT to perform bootstrap embedding optimization.
@@ -380,10 +380,7 @@ class BE(Mixin_k_Localize):
             max_space=max_iter,
             conv_tol=conv_tol,
             only_chem=only_chem,
-            hci_cutoff=self.hci_cutoff,
-            ci_coeff_cutoff=self.ci_coeff_cutoff,
             relax_density=relax_density,
-            select_cutoff=self.select_cutoff,
             solver=solver,
             ebe_hf=self.ebe_hf,
         )
@@ -393,7 +390,7 @@ class BE(Mixin_k_Localize):
             if only_chem:
                 J0 = [[0.0]]
                 J0 = self.get_be_error_jacobian(jac_solver="HF")
-                J0 = [[J0[-1, -1]]]
+                J0 = [[J0[-1][-1]]]
             else:
                 J0 = self.get_be_error_jacobian(jac_solver="HF")
 
@@ -412,10 +409,10 @@ class BE(Mixin_k_Localize):
             raise ValueError("This optimization method for BE is not supported")
 
     @copy_docstring(_ext_get_be_error_jacobian)
-    def get_be_error_jacobian(self, jac_solver="HF"):
+    def get_be_error_jacobian(self, jac_solver: str = "HF") -> list[list[float]]:
         return _ext_get_be_error_jacobian(self.Nfrag, self.Fobjs, jac_solver)
 
-    def print_ini(self):
+    def print_ini(self) -> None:
         """
         Print initialization banner for the kBE calculation.
         """
