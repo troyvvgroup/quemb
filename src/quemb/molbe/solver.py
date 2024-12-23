@@ -102,6 +102,47 @@ class DMRG_Args:
         )
 
 
+@define
+class SHCI_ArgsUser(UserSolverArgs):
+    hci_pt: bool = False
+    hci_cutoff: float = 0.001
+    ci_coeff_cutoff: float | None = None
+    select_cutoff: float | None = None
+
+
+@define
+class SHCI_Args:
+    """Properly initialized SCHI arguments
+
+    Some default values of :class:`SHCI_ArgsUser` can only be filled
+    later in the calculation.
+    Use :func:`from_user_input` to properly initialize.
+    """
+
+    hci_pt: bool
+    hci_cutoff: float
+    ci_coeff_cutoff: float
+    select_cutoff: float
+
+    @classmethod
+    def from_user_input(cls, args: SHCI_ArgsUser):
+        if (args.select_cutoff is None) and (args.ci_coeff_cutoff is None):
+            select_cutoff = args.hci_cutoff
+            ci_coeff_cutoff = args.hci_cutoff
+        elif (args.select_cutoff is not None) and (args.ci_coeff_cutoff is not None):
+            ci_coeff_cutoff = args.ci_coeff_cutoff
+            select_cutoff = args.select_cutoff
+        else:
+            raise ValueError
+
+        return cls(
+            hci_pt=args.hci_pt,
+            hci_cutoff=args.hci_cutoff,
+            ci_coeff_cutoff=ci_coeff_cutoff,
+            select_cutoff=select_cutoff,
+        )
+
+
 def be_func(
     pot: list[float] | None,
     Fobjs: list[Frags] | list[pFrags],
@@ -113,10 +154,6 @@ def be_func(
     hf_veff: Matrix[float64] | None = None,
     only_chem: bool = False,
     nproc: int = 4,
-    hci_pt: bool = False,
-    hci_cutoff: float = 0.001,
-    ci_coeff_cutoff: float | None = None,
-    select_cutoff: float | None = None,
     eeval: bool = False,
     ereturn: bool = False,
     frag_energy: bool = False,
@@ -211,6 +248,9 @@ def be_func(
             # pylint: disable-next=E0611
             from pyscf import hci  # noqa: PLC0415    # optional module
 
+            assert isinstance(solver_args, SHCI_ArgsUser)
+            SHCI_args = SHCI_Args.from_user_input(solver_args)
+
             nmo = fobj._mf.mo_coeff.shape[1]
 
             eri = ao2mo.kernel(
@@ -218,14 +258,9 @@ def be_func(
             ).reshape(4 * ((nmo),))
 
             ci_ = hci.SCI(fobj._mf.mol)
-            if select_cutoff is None and ci_coeff_cutoff is None:
-                select_cutoff = hci_cutoff
-                ci_coeff_cutoff = hci_cutoff
-            elif select_cutoff is None or ci_coeff_cutoff is None:
-                raise ValueError
 
-            ci_.select_cutoff = select_cutoff
-            ci_.ci_coeff_cutoff = ci_coeff_cutoff
+            ci_.select_cutoff = SHCI_args.select_cutoff
+            ci_.ci_coeff_cutoff = SHCI_args.ci_coeff_cutoff
 
             nelec = (fobj.nsocc, fobj.nsocc)
             h1_ = fobj.fock + fobj.heff
@@ -244,6 +279,9 @@ def be_func(
             # pylint: disable-next=E0611,E0401
             from pyscf.shciscf import shci  # noqa: PLC0415    # shci is optional
 
+            assert isinstance(solver_args, SHCI_ArgsUser)
+            SHCI_args = SHCI_Args.from_user_input(solver_args)
+
             frag_scratch = WorkDir(scratch_dir / fobj.dname)
 
             nmo = fobj._mf.mo_coeff.shape[1]
@@ -251,9 +289,9 @@ def be_func(
             nelec = (fobj.nsocc, fobj.nsocc)
             mch = shci.SHCISCF(fobj._mf, nmo, nelec, orbpath=fobj.dname)
             mch.fcisolver.mpiprefix = "mpirun -np " + str(nproc)
-            if hci_pt:
+            if SHCI_args.hci_pt:
                 mch.fcisolver.stochastic = False
-                mch.fcisolver.epsilon2 = hci_cutoff
+                mch.fcisolver.epsilon2 = SHCI_args.hci_cutoff
             else:
                 mch.fcisolver.stochastic = (
                     True  # this is for PT and doesnt add PT to rdm
@@ -261,7 +299,7 @@ def be_func(
                 mch.fcisolver.nPTiter = 0
             mch.fcisolver.sweep_iter = [0]
             mch.fcisolver.DoRDM = True
-            mch.fcisolver.sweep_epsilon = [hci_cutoff]
+            mch.fcisolver.sweep_epsilon = [SHCI_args.hci_cutoff]
             mch.fcisolver.scratchDirectory = scratch_dir
             mch.mc1step()
             rdm1_tmp, rdm2s = mch.fcisolver.make_rdm12(0, nmo, nelec)
@@ -283,7 +321,7 @@ def be_func(
             ci.runtimedir = fobj.dname
             ci.restart = True
             ci.config["var_only"] = True
-            ci.config["eps_vars"] = [hci_cutoff]
+            ci.config["eps_vars"] = [SHCI_args.hci_cutoff]
             ci.config["get_1rdm_csv"] = True
             ci.config["get_2rdm_csv"] = True
             ci.kernel(h1, eri, nmo, nelec)

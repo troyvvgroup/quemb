@@ -58,12 +58,8 @@ class BE(Mixin_k_Localize):
         save: bool = False,
         restart_file: PathLike = "storebe.pk",
         save_file: PathLike = "storebe.pk",
-        hci_pt: bool = False,
         nproc: int = 1,
         ompnum: int = 4,
-        hci_cutoff: float = 0.001,
-        ci_coeff_cutoff: float | None = None,
-        select_cutoff: float | None = None,
         iao_val_core: bool = True,
         exxdiv: str = "ewald",
         kpts: list[list[float]] | None = None,
@@ -158,12 +154,6 @@ class BE(Mixin_k_Localize):
                 nkpts_ *= i
         self.nkpt = nkpts_
         self.kpts = kpts
-
-        # HCI parameters
-        self.hci_cutoff = hci_cutoff
-        self.ci_coeff_cutoff = ci_coeff_cutoff
-        self.select_cutoff = select_cutoff
-        self.hci_pt = hci_pt
 
         if not restart:
             self.mo_energy = mf.mo_energy
@@ -705,9 +695,6 @@ class BE(Mixin_k_Localize):
                 solver,
                 self.enuc,
                 hf_veff=self.hf_veff,
-                hci_cutoff=self.hci_cutoff,
-                ci_coeff_cutoff=self.ci_coeff_cutoff,
-                select_cutoff=self.select_cutoff,
                 nproc=ompnum,
                 frag_energy=calc_frag_energy,
                 ereturn=True,
@@ -723,14 +710,12 @@ class BE(Mixin_k_Localize):
                 solver,
                 self.enuc,
                 hf_veff=self.hf_veff,
-                hci_cutoff=self.hci_cutoff,
-                ci_coeff_cutoff=self.ci_coeff_cutoff,
-                select_cutoff=self.select_cutoff,
                 eeval=True,
                 frag_energy=calc_frag_energy,
                 nproc=nproc,
                 ompnum=ompnum,
                 scratch_dir=self.scratch_dir,
+                solver_args=solver_args,
             )
 
         print("-----------------------------------------------------", flush=True)

@@ -17,6 +17,9 @@ from quemb.molbe.helper import (
 )
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import (
+    SHCI_Args,
+    SHCI_ArgsUser,
+    UserSolverArgs,
     make_rdm1_ccsd_t1,
     make_rdm2_urlx,
     solve_ccsd,
@@ -46,14 +49,12 @@ def run_solver(
     solver: str = "MP2",
     eri_file: str = "eri_file.h5",
     veff0: Matrix[float64] | None = None,
-    hci_cutoff: float = 0.001,
-    ci_coeff_cutoff: float | None = None,
-    select_cutoff: float | None = None,
     ompnum: int = 4,
     writeh1: bool = False,
     use_cumulant: bool = True,
     relax_density: bool = False,
     frag_energy: bool = False,
+    solver_args: UserSolverArgs | None = None,
 ):
     """
     Run a quantum chemistry solver to compute the reduced density matrices.
@@ -141,19 +142,17 @@ def run_solver(
         # pylint: disable-next=E0611
         from pyscf import hci  # noqa: PLC0415  # hci is an optional module
 
+        assert isinstance(solver_args, SHCI_ArgsUser)
+        SHCI_args = SHCI_Args.from_user_input(solver_args)
+
         nao, nmo = mf_.mo_coeff.shape
         eri = ao2mo.kernel(mf_._eri, mf_.mo_coeff, aosym="s4", compact=False).reshape(
             4 * ((nmo),)
         )
         ci_ = hci.SCI(mf_.mol)
-        if select_cutoff is None and ci_coeff_cutoff is None:
-            select_cutoff = hci_cutoff
-            ci_coeff_cutoff = hci_cutoff
-        elif select_cutoff is None or ci_coeff_cutoff is None:
-            raise ValueError
 
-        ci_.select_cutoff = select_cutoff
-        ci_.ci_coeff_cutoff = ci_coeff_cutoff
+        ci_.select_cutoff = SHCI_args.select_cutoff
+        ci_.ci_coeff_cutoff = SHCI_args.ci_coeff_cutoff
 
         nelec = (nocc, nocc)
         h1_ = multi_dot((mf_.mo_coeff.T, h1, mf_.mo_coeff))
@@ -171,6 +170,9 @@ def run_solver(
 
         frag_scratch = WorkDir(scratch_dir / dname)
 
+        assert isinstance(solver_args, SHCI_ArgsUser)
+        SHCI_args = SHCI_Args.from_user_input(solver_args)
+
         nao, nmo = mf_.mo_coeff.shape
         nelec = (nocc, nocc)
         mch = shci.SHCISCF(mf_, nmo, nelec, orbpath=frag_scratch)
@@ -179,7 +181,7 @@ def run_solver(
         mch.fcisolver.nPTiter = 0
         mch.fcisolver.sweep_iter = [0]
         mch.fcisolver.DoRDM = True
-        mch.fcisolver.sweep_epsilon = [hci_cutoff]
+        mch.fcisolver.sweep_epsilon = [solver_args.hci_cutoff]
         mch.fcisolver.scratchDirectory = frag_scratch
         if not writeh1:
             mch.fcisolver.restart = True
@@ -189,6 +191,9 @@ def run_solver(
     elif solver == "SCI":
         # pylint: disable-next=E0611
         from pyscf import cornell_shci  # noqa: PLC0415  # optional module
+
+        assert isinstance(solver_args, SHCI_ArgsUser)
+        SHCI_args = SHCI_Args.from_user_input(solver_args)
 
         frag_scratch = WorkDir(scratch_dir / dname)
 
@@ -205,7 +210,7 @@ def run_solver(
         ci.runtimedir = frag_scratch
         ci.restart = True
         ci.config["var_only"] = True
-        ci.config["eps_vars"] = [hci_cutoff]
+        ci.config["eps_vars"] = [solver_args.hci_cutoff]
         ci.config["get_1rdm_csv"] = True
         ci.config["get_2rdm_csv"] = True
         ci.kernel(h1, eri, nmo, nelec)
@@ -386,6 +391,7 @@ def be_func_parallel(
     solver: str,
     enuc: float,  # noqa: ARG001
     scratch_dir: WorkDir,
+    solver_args: UserSolverArgs | None,
     hf_veff: Matrix[float64] | None = None,
     nproc: int = 1,
     ompnum: int = 4,
@@ -394,9 +400,6 @@ def be_func_parallel(
     use_cumulant: bool = True,
     eeval: bool = False,
     frag_energy: bool = False,
-    hci_cutoff: float = 0.001,
-    ci_coeff_cutoff: float | None = None,
-    select_cutoff: float | None = None,
     return_vec: bool = False,
     writeh1: bool = False,
 ):
@@ -478,14 +481,12 @@ def be_func_parallel(
                     solver,
                     fobj.eri_file,
                     fobj.veff0,
-                    hci_cutoff,
-                    ci_coeff_cutoff,
-                    select_cutoff,
                     ompnum,
                     writeh1,
                     use_cumulant,
                     relax_density,
                     frag_energy,
+                    solver_args,
                 ],
             )
 

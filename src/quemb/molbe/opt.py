@@ -78,12 +78,6 @@ class BEOPT:
 
     solver_args: UserSolverArgs | None = None
 
-    # HCI parameters
-    hci_cutoff: float = 0.001
-    ci_coeff_cutoff: float | None = None
-    select_cutoff: float | None = None
-    hci_pt: bool = False
-
     def objfunc(self, xk: list[float]) -> Vector[float64]:
         """
         Computes error vectors, RMS error, and BE energies.
@@ -114,12 +108,8 @@ class BEOPT:
                 return_vec=True,
                 hf_veff=self.hf_veff,
                 only_chem=self.only_chem,
-                hci_cutoff=self.hci_cutoff,
                 nproc=self.ompnum,
                 relax_density=self.relax_density,
-                ci_coeff_cutoff=self.ci_coeff_cutoff,
-                select_cutoff=self.select_cutoff,
-                hci_pt=self.hci_pt,
                 scratch_dir=self.scratch_dir,
                 solver_args=self.solver_args,
             )
@@ -136,11 +126,9 @@ class BEOPT:
                 nproc=self.nproc,
                 ompnum=self.ompnum,
                 only_chem=self.only_chem,
-                hci_cutoff=self.hci_cutoff,
                 relax_density=self.relax_density,
-                ci_coeff_cutoff=self.ci_coeff_cutoff,
-                select_cutoff=self.select_cutoff,
                 scratch_dir=self.scratch_dir,
+                solver_args=self.solver_args,
             )
 
         # Update error and BE energy

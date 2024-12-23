@@ -78,13 +78,9 @@ class BE(MixinLocalize):
         save: bool = False,
         restart_file: PathLike = "storebe.pk",
         save_file: PathLike = "storebe.pk",
-        hci_pt: bool = False,
         nproc: int = 1,
         ompnum: int = 4,
         scratch_dir: WorkDir | None = None,
-        hci_cutoff: float = 0.001,
-        ci_coeff_cutoff: float | None = None,
-        select_cutoff: float | None = None,
         integral_direct_DF: bool = False,
         auxbasis: str | None = None,
     ) -> None:
@@ -167,12 +163,6 @@ class BE(MixinLocalize):
 
         self.ebe_hf = 0.0
         self.ebe_tot = 0.0
-
-        # HCI parameters
-        self.hci_cutoff = hci_cutoff
-        self.ci_coeff_cutoff = ci_coeff_cutoff
-        self.select_cutoff = select_cutoff
-        self.hci_pt = hci_pt
 
         self.mf = mf
         if not restart:
@@ -705,11 +695,7 @@ class BE(MixinLocalize):
             max_space=max_iter,
             conv_tol=conv_tol,
             only_chem=only_chem,
-            hci_cutoff=self.hci_cutoff,
-            ci_coeff_cutoff=self.ci_coeff_cutoff,
             relax_density=relax_density,
-            select_cutoff=self.select_cutoff,
-            hci_pt=self.hci_pt,
             solver=solver,
             ebe_hf=self.ebe_hf,
             solver_args=solver_args,
@@ -929,9 +915,6 @@ class BE(MixinLocalize):
                 solver,
                 self.enuc,
                 hf_veff=self.hf_veff,
-                hci_cutoff=self.hci_cutoff,
-                ci_coeff_cutoff=self.ci_coeff_cutoff,
-                select_cutoff=self.select_cutoff,
                 nproc=ompnum,
                 frag_energy=calc_frag_energy,
                 ereturn=True,
@@ -947,14 +930,12 @@ class BE(MixinLocalize):
                 solver,
                 self.enuc,
                 hf_veff=self.hf_veff,
-                hci_cutoff=self.hci_cutoff,
-                ci_coeff_cutoff=self.ci_coeff_cutoff,
-                select_cutoff=self.select_cutoff,
                 eeval=True,
                 frag_energy=calc_frag_energy,
                 nproc=nproc,
                 ompnum=ompnum,
                 scratch_dir=self.scratch_dir,
+                solver_args=solver_args,
             )
 
         print("-----------------------------------------------------", flush=True)
