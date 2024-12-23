@@ -15,13 +15,13 @@ from quemb.molbe.lo import MixinLocalize
 from quemb.molbe.misc import print_energy
 from quemb.molbe.opt import BEOPT
 from quemb.molbe.pfrag import Frags
-from quemb.molbe.solver import be_func
+from quemb.molbe.solver import UserSolverArgs, be_func
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
 from quemb.shared.helper import copy_docstring
 from quemb.shared.manage_scratch import WorkDir
-from quemb.shared.typing import KwargDict, Matrix, PathLike
+from quemb.shared.typing import Matrix, PathLike
 
 
 @define
@@ -645,7 +645,7 @@ class BE(MixinLocalize):
         ompnum: int = 4,
         max_iter: int = 500,
         trust_region: bool = False,
-        DMRG_solver_kwargs: KwargDict | None = None,
+        solver_args: UserSolverArgs | None = None,
     ) -> None:
         """BE optimization function
 
@@ -712,7 +712,7 @@ class BE(MixinLocalize):
             hci_pt=self.hci_pt,
             solver=solver,
             ebe_hf=self.ebe_hf,
-            DMRG_solver_kwargs=DMRG_solver_kwargs,
+            solver_args=solver_args,
         )
 
         if method == "QN":
@@ -902,7 +902,7 @@ class BE(MixinLocalize):
         nproc: int = 1,
         ompnum: int = 4,
         calc_frag_energy: bool = False,
-        DMRG_solver_kwargs: KwargDict | None = None,
+        solver_args: UserSolverArgs | None = None,
     ) -> None:
         """
         Perform a one-shot bootstrap embedding calculation.
@@ -937,7 +937,7 @@ class BE(MixinLocalize):
                 ereturn=True,
                 eeval=True,
                 scratch_dir=self.scratch_dir,
-                DMRG_solver_kwargs=DMRG_solver_kwargs,
+                solver_args=solver_args,
             )
         else:
             rets = be_func_parallel(

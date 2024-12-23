@@ -7,10 +7,10 @@ from numpy import array, float64
 
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.pfrag import Frags
-from quemb.molbe.solver import be_func
+from quemb.molbe.solver import UserSolverArgs, be_func
 from quemb.shared.external.optqn import FrankQN
 from quemb.shared.manage_scratch import WorkDir
-from quemb.shared.typing import KwargDict, Matrix, Vector
+from quemb.shared.typing import Matrix, Vector
 
 
 @define
@@ -76,7 +76,7 @@ class BEOPT:
     err: float = 0.0
     Ebe: Matrix[float64] = array([[0.0]])
 
-    DMRG_solver_kwargs: KwargDict | None = None
+    solver_args: UserSolverArgs | None = None
 
     # HCI parameters
     hci_cutoff: float = 0.001
@@ -121,7 +121,7 @@ class BEOPT:
                 select_cutoff=self.select_cutoff,
                 hci_pt=self.hci_pt,
                 scratch_dir=self.scratch_dir,
-                DMRG_solver_kwargs=self.DMRG_solver_kwargs,
+                solver_args=self.solver_args,
             )
         else:
             err_, errvec_, ebe_ = be_func_parallel(

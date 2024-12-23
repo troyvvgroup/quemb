@@ -1,6 +1,7 @@
 # Author(s): Oinam Romesh Meitei, Leah Weisburn, Shaun Weatherly
 
 import os
+from abc import ABC
 
 import numpy
 from attrs import define
@@ -26,8 +27,12 @@ from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix
 
 
+class UserSolverArgs(ABC):
+    pass
+
+
 @define
-class DMRG_ArgsUser:
+class DMRG_ArgsUser(UserSolverArgs):
     #: Becomes mf.mo_coeff.shape[1] by default
     norb: int | None = None
     #: Becomes mf.mo_coeff.shape[1] by default
@@ -103,7 +108,7 @@ def be_func(
     Nocc: int,
     solver: str,
     enuc: float,  # noqa: ARG001
-    user_DMRG_args: DMRG_ArgsUser,
+    solver_args: UserSolverArgs | None,
     scratch_dir: WorkDir,
     hf_veff: Matrix[float64] | None = None,
     only_chem: bool = False,
@@ -287,7 +292,8 @@ def be_func(
         elif solver in ["block2", "DMRG", "DMRGCI", "DMRGSCF"]:
             frag_scratch = WorkDir(scratch_dir / fobj.dname)
 
-            DMRG_args = DMRG_Args.from_user_input(user_DMRG_args, fobj._mf)
+            assert isinstance(solver_args, DMRG_ArgsUser)
+            DMRG_args = DMRG_Args.from_user_input(solver_args, fobj._mf)
 
             try:
                 rdm1_tmp, rdm2s = solve_block2(
