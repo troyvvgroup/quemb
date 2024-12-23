@@ -2,7 +2,7 @@
 
 
 import numpy
-from attrs import define
+from attrs import Factory, define
 from numpy import array, float64
 
 from quemb.molbe.be_parallel import be_func_parallel
@@ -74,7 +74,7 @@ class BEOPT:
 
     iter: int = 0
     err: float = 0.0
-    Ebe: Matrix[float64] = array([[0.0]])
+    Ebe: Matrix[float64] = Factory(lambda: array([[0.0]]))
 
     solver_args: UserSolverArgs | None = None
 
