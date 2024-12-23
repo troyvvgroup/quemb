@@ -70,7 +70,7 @@ class BE(Mixin_k_Localize):
         cderi: PathLike | None = None,
         iao_wannier: bool = False,
         scratch_dir: WorkDir | None = None,
-    ):
+    ) -> None:
         """
         Constructor for BE object.
 
@@ -468,7 +468,7 @@ class BE(Mixin_k_Localize):
 
         return e_.real
 
-    def initialize(self, compute_hf: bool, restart: bool = False):
+    def initialize(self, compute_hf: bool, restart: bool = False) -> None:
         """
         Initialize the Bootstrap Embedding calculation.
 

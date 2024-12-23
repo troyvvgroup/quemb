@@ -758,7 +758,7 @@ class BE(MixinLocalize):
         print("-----------------------------------------------------------", flush=True)
         print(flush=True)
 
-    def initialize(self, eri_, compute_hf, restart=False):
+    def initialize(self, eri_, compute_hf, restart=False) -> None:
         """
         Initialize the Bootstrap Embedding calculation.
 
@@ -845,7 +845,7 @@ class BE(MixinLocalize):
                 else:  # Calculate ERIs on-the-fly to generate fragment ERIs
                     # TODO: Future feature to be implemented
                     # NOTE: Ideally, we want AO shell pair screening for this.
-                    return NotImplementedError
+                    raise NotImplementedError
         else:
             eri = None
 
@@ -903,7 +903,7 @@ class BE(MixinLocalize):
         ompnum: int = 4,
         calc_frag_energy: bool = False,
         DMRG_solver_kwargs: KwargDict | None = None,
-    ):
+    ) -> None:
         """
         Perform a one-shot bootstrap embedding calculation.
 
@@ -983,7 +983,7 @@ class BE(MixinLocalize):
         if not calc_frag_energy:
             self.compute_energy_full(approx_cumulant=True, return_rdm=False)
 
-    def update_fock(self, heff=None):
+    def update_fock(self, heff: list[Matrix[float64]] | None = None) -> None:
         """
         Update the Fock matrix for each fragment with the effective Hamiltonian.
 
@@ -996,10 +996,10 @@ class BE(MixinLocalize):
             for fobj in self.Fobjs:
                 fobj.fock += fobj.heff
         else:
-            for idx, fobj in self.Fobjs:
+            for idx, fobj in enumerate(self.Fobjs):
                 fobj.fock += heff[idx]
 
-    def write_heff(self, heff_file="bepotfile.h5"):
+    def write_heff(self, heff_file: str = "bepotfile.h5") -> None:
         """
         Write the effective Hamiltonian to a file.
 
