@@ -5,7 +5,7 @@ from abc import ABC
 from typing import Final
 
 import numpy
-from attrs import define
+from attrs import Factory, define, field
 from numpy import float64
 from numpy.linalg import multi_dot
 from pyscf import ao2mo, cc, fci, mcscf, mp
@@ -82,9 +82,39 @@ class DMRG_ArgsUser(UserSolverArgs):
     min_tol: Final[float] = 1e-8
     twodot_to_onedot: Final[int] = (5 * max_iter) // 6
     root: Final[int] = 0
-    block_extra_keyword: Final[list[str]] = ["fiedler"]
-    schedule_kwargs: Final[dict[str, list[int] | list[float]]] = {}
+    block_extra_keyword: Final[list[str]] = Factory(lambda: ["fiedler"])
+    schedule_kwargs: dict[str, list[int] | list[float]] = field()
     force_cleanup: Final[bool] = False
+
+    @schedule_kwargs.default
+    def _get_schedule_kwargs_default(self):
+        return {
+            "scheduleSweeps": [(i * self.max_iter) // 6 for i in range(1, 7)],
+            "scheduleMaxMs": [
+                self.startM if (self.startM < self.maxM) else self.maxM,
+                self.startM * 2 if (self.startM * 2 < self.maxM) else self.maxM,
+                self.startM * 4 if (self.startM * 4 < self.maxM) else self.maxM,
+                self.startM * 8 if (self.startM * 8 < self.maxM) else self.maxM,
+                self.maxM,
+                self.maxM,
+            ],
+            "scheduleTols": [
+                self.min_tol * 1e3,
+                self.min_tol * 1e3,
+                self.min_tol * 1e2,
+                self.min_tol * 1e1,
+                self.min_tol,
+                self.min_tol,
+            ],
+            "scheduleNoises": [
+                self.max_noise,
+                self.max_noise,
+                self.max_noise / 10,
+                self.max_noise / 100,
+                self.max_noise / 100,
+                0.0,
+            ],
+        }
 
 
 @define(frozen=True)
@@ -869,67 +899,30 @@ def solve_block2(
     # pylint: disable-next=E0611
     from pyscf import dmrgscf  # noqa: PLC0415   # optional module
 
-    norb = DMRG_args.norb
-    nelec = DMRG_args.nelec
-
-    startM = DMRG_args.startM
-    maxM = DMRG_args.maxM
-    max_iter = DMRG_args.max_iter
-    max_mem = DMRG_args.max_mem
-    max_noise = DMRG_args.max_noise
-    min_tol = DMRG_args.min_tol
-    twodot_to_onedot = DMRG_args.twodot_to_onedot
-    root = DMRG_args.root
-    schedule_kwargs = DMRG_args.schedule_kwargs
-    block_extra_keyword = DMRG_args.block_extra_keyword
-
     orbs = mf.mo_coeff
 
-    mc = mcscf.CASCI(mf, norb, nelec)
+    mc = mcscf.CASCI(mf, DMRG_args.norb, DMRG_args.nelec)
     mc.fcisolver = dmrgscf.DMRGCI(mf.mol)
     # Sweep scheduling
-    mc.fcisolver.scheduleSweeps = schedule_kwargs.pop(
-        "scheduleSweeps",
-        [
-            (1 * max_iter) // 6,
-            (2 * max_iter) // 6,
-            (3 * max_iter) // 6,
-            (4 * max_iter) // 6,
-            (5 * max_iter) // 6,
-            max_iter,
-        ],
-    )
-    mc.fcisolver.scheduleMaxMs = schedule_kwargs.pop(
-        "scheduleMaxMs",
-        [
-            startM if (startM < maxM) else maxM,
-            startM * 2 if (startM * 2 < maxM) else maxM,
-            startM * 4 if (startM * 4 < maxM) else maxM,
-            startM * 8 if (startM * 8 < maxM) else maxM,
-            maxM,
-            maxM,
-        ],
-    )
-    mc.fcisolver.scheduleTols = schedule_kwargs.pop(
-        "scheduleTols",
-        [min_tol * 1e3, min_tol * 1e3, min_tol * 1e2, min_tol * 1e1, min_tol, min_tol],
-    )
-    mc.fcisolver.scheduleNoises = schedule_kwargs.pop(
-        "scheduleNoises",
-        [max_noise, max_noise, max_noise / 10, max_noise / 100, max_noise / 100, 0.0],
-    )
+    mc.fcisolver.scheduleSweeps = DMRG_args.schedule_kwargs["scheduleSweeps"]
+    mc.fcisolver.scheduleMaxMs = DMRG_args.schedule_kwargs["scheduleMaxMs"]
+    mc.fcisolver.scheduleTols = DMRG_args.schedule_kwargs["scheduleTols"]
+    mc.fcisolver.scheduleNoises = DMRG_args.schedule_kwargs["scheduleNoises"]
+
     # Other DMRG parameters
     mc.fcisolver.threads = int(os.environ.get("OMP_NUM_THREADS", "8"))
-    mc.fcisolver.twodot_to_onedot = int(twodot_to_onedot)
-    mc.fcisolver.maxIter = int(max_iter)
-    mc.fcisolver.block_extra_keyword = list(block_extra_keyword)
+    mc.fcisolver.twodot_to_onedot = DMRG_args.twodot_to_onedot
+    mc.fcisolver.maxIter = DMRG_args.max_iter
+    mc.fcisolver.block_extra_keyword = DMRG_args.block_extra_keyword
     mc.fcisolver.scratchDirectory = str(frag_scratch)
     mc.fcisolver.runtimeDir = str(frag_scratch)
-    mc.fcisolver.memory = int(max_mem)
+    mc.fcisolver.memory = DMRG_args.max_mem
     os.chdir(frag_scratch)
 
     mc.kernel(orbs)
-    rdm1, rdm2 = dmrgscf.DMRGCI.make_rdm12(mc.fcisolver, root, norb, nelec)
+    rdm1, rdm2 = dmrgscf.DMRGCI.make_rdm12(
+        mc.fcisolver, DMRG_args.root, DMRG_args.norb, DMRG_args.nelec
+    )
 
     # Subtract off non-cumulant contribution to correlated 2RDM.
     if use_cumulant:
