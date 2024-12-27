@@ -2,7 +2,7 @@
 
 import os
 import pickle
-from multiprocessing import Pool
+from multiprocessing.pool import ThreadPool as Pool
 
 import h5py
 import numpy
