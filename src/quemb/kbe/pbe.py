@@ -400,6 +400,8 @@ class BE(Mixin_k_Localize):
             max_space=max_iter,
             conv_tol=conv_tol,
             only_chem=only_chem,
+            use_cumulant=self.use_cumulant,
+            frag_energy=self.frag_energy,
             hci_cutoff=self.hci_cutoff,
             ci_coeff_cutoff=self.ci_coeff_cutoff,
             relax_density=relax_density,

@@ -294,6 +294,7 @@ def be_func(
                     rdm1=rdm1_tmp,
                     rdm2s=rdm2s,
                     dname=fobj.dname,
+                    veff0_per=fobj.veff0,
                     veff=None if use_cumulant else fobj.veff,
                     use_cumulant=use_cumulant,
                     eri_file=fobj.eri_file,

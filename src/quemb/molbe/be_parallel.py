@@ -46,6 +46,7 @@ def run_solver(
     solver: str = "MP2",
     eri_file: str = "eri_file.h5",
     veff: Matrix[float64] | None = None,
+    veff0_per: Matrix[float64] | None = None,
     hci_cutoff: float = 0.001,
     ci_coeff_cutoff: float | None = None,
     select_cutoff: float | None = None,
@@ -93,6 +94,8 @@ def run_solver(
         Filename for the electron repulsion integrals. Default is 'eri_file.h5'.
     veff :
         Veff matrix to be passed to energy, if non-cumulant energy.
+    veff0_per :
+        Veff0 matrix, passed to energy for periodic calculations
     ompnum :
         Number of OpenMP threads. Default is 4.
     writeh1 :
@@ -269,6 +272,7 @@ def run_solver(
                 rdm1_tmp,
                 rdm2s,
                 dname,
+                veff0_per,
                 veff,
                 use_cumulant,
                 eri_file,
@@ -519,6 +523,7 @@ def be_func_parallel(
                     fobj.h1,
                     solver,
                     fobj.eri_file,
+                    fobj.veff0,
                     fobj.veff if not use_cumulant else None,
                     hci_cutoff,
                     ci_coeff_cutoff,

@@ -476,7 +476,7 @@ def print_energy_cumulant(ecorr, e_V_Kapprox, e_F_dg, e_hf):
     print(" E_BE = E_HF + Tr(F del g) + Tr(V K_approx)", flush=True)
     print(" E_HF            : {:>14.8f} Ha".format(e_hf), flush=True)
     print(" Tr(F del g)     : {:>14.8f} Ha".format(e_F_dg), flush=True)
-    print(" Tr(V K_aprrox)  : {:>14.8f} Ha".format(e_V_Kapprox), flush=True)
+    print(" Tr(V K_approx)  : {:>14.8f} Ha".format(e_V_Kapprox), flush=True)
     print(" E_BE            : {:>14.8f} Ha".format(ecorr + e_hf), flush=True)
     print(" Ecorr BE        : {:>14.8f} Ha".format(ecorr), flush=True)
     print("-----------------------------------------------------", flush=True)
