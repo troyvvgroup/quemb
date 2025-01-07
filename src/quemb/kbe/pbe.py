@@ -13,7 +13,7 @@ from pyscf.pbc.df.df_jk import _ewald_exxdiv_for_G0
 
 from quemb.kbe.fragment import fragpart
 from quemb.kbe.lo import Mixin_k_Localize
-from quemb.kbe.misc import print_energy_cumulant, print_energy_noncumulant, storePBE
+from quemb.kbe.misc import print_energy, storePBE
 from quemb.kbe.pfrag import Frags
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
@@ -422,7 +422,7 @@ class BE(Mixin_k_Localize):
             self.ebe_tot = self.ebe_hf + be_.Ebe[0]
             # Print the energy components
             if self.use_cumulant:
-                print_energy_cumulant(
+                print_energy(
                     be_.Ebe[0],
                     be_.Ebe[1][1],
                     be_.Ebe[1][0] + be_.Ebe[1][2],
@@ -430,15 +430,8 @@ class BE(Mixin_k_Localize):
                     self.unitcell_nkpt,
                 )
             else:
-                self.ebe_tot = be_.Ebe[0] + self.enuc
-                print_energy_noncumulant(
-                    be_.Ebe[0],
-                    be_.Ebe[1][0],
-                    be_.Ebe[1][2],
-                    be_.Ebe[1][1],
-                    self.ebe_hf,
-                    self.enuc,
-                )
+                raise NotImplementedError("""Non-cumulant energy not yet supported
+                                               for periodic code""")
         else:
             raise ValueError("This optimization method for BE is not supported")
 
