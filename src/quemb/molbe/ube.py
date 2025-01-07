@@ -400,7 +400,7 @@ class UBE(BE):  # 🍠
             fobj.udim = couti
             couti = fobj.set_udim(couti)
 
-    def oneshot(self, solver="UCCSD", nproc=1, ompnum=4, calc_frag_energy=False):
+    def oneshot(self, solver="UCCSD", nproc=1, ompnum=4, calc_frag_energy=True):
         if nproc == 1:
             E, E_comp = be_func_u(
                 None,

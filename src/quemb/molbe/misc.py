@@ -463,7 +463,7 @@ def be2puffin(
 
     # Run oneshot embedding and return system energy
 
-    mybe.oneshot(solver=solver, nproc=nproc, ompnum=ompnum, calc_frag_energy=True)
+    mybe.oneshot(solver=solver, nproc=nproc, ompnum=ompnum)
     return mybe.ebe_tot
 
 
