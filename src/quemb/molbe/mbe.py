@@ -12,7 +12,7 @@ from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
 from quemb.molbe.fragment import fragpart
 from quemb.molbe.lo import MixinLocalize
-from quemb.molbe.misc import print_energy
+from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
 from quemb.molbe.opt import BEOPT
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import be_func
@@ -650,7 +650,7 @@ class BE(MixinLocalize):
         self,
         solver: str = "MP2",
         method: str = "QN",
-        only_chem: bool = False,
+        only_chem: bool = True,
         conv_tol: float = 1.0e-6,
         relax_density: bool = False,
         J0: Matrix[float64] | None = None,
@@ -743,9 +743,23 @@ class BE(MixinLocalize):
             be_.optimize(method, J0=J0, trust_region=trust_region)
             self.ebe_tot = self.ebe_hf + be_.Ebe[0]
             # Print the energy components
-            print_energy(
-                be_.Ebe[0], be_.Ebe[1][1], be_.Ebe[1][0] + be_.Ebe[1][2], self.ebe_hf
-            )
+            if self.use_cumulant:
+                print_energy_cumulant(
+                    be_.Ebe[0],
+                    be_.Ebe[1][1],
+                    be_.Ebe[1][0] + be_.Ebe[1][2],
+                    self.ebe_hf,
+                )
+            else:
+                self.ebe_tot = be_.Ebe[0] + self.enuc
+                print_energy_noncumulant(
+                    be_.Ebe[0],
+                    be_.Ebe[1][0],
+                    be_.Ebe[1][2],
+                    be_.Ebe[1][1],
+                    self.ebe_hf,
+                    self.enuc,
+                )
         else:
             raise ValueError("This optimization method for BE is not supported")
 
@@ -916,7 +930,6 @@ class BE(MixinLocalize):
         solver: str = "MP2",
         nproc: int = 1,
         ompnum: int = 4,
-        calc_frag_energy: bool = False,
         DMRG_solver_kwargs: KwargDict | None = None,
     ) -> None:
         """
@@ -932,10 +945,7 @@ class BE(MixinLocalize):
             If set to >1, multi-threaded parallel computation is invoked.
         ompnum :
             Number of OpenMP threads, by default 4.
-        calc_frag_energy :
-            Whether to calculate fragment energies, by default False.
         """
-        print("Calculating Energy by Fragment? ", calc_frag_energy)
         if nproc == 1:
             rets = be_func(
                 None,
@@ -946,7 +956,7 @@ class BE(MixinLocalize):
                 hf_veff=self.hf_veff,
                 nproc=ompnum,
                 use_cumulant=self.use_cumulant,
-                frag_energy=calc_frag_energy,
+                frag_energy=self.frag_energy,
                 eeval=True,
                 return_vec=False,
                 hci_cutoff=self.hci_cutoff,
@@ -966,7 +976,7 @@ class BE(MixinLocalize):
                 nproc=nproc,
                 ompnum=ompnum,
                 use_cumulant=self.use_cumulant,
-                frag_energy=calc_frag_energy,
+                frag_energy=self.frag_energy,
                 eeval=True,
                 return_vec=False,
                 hci_cutoff=self.hci_cutoff,
@@ -981,22 +991,16 @@ class BE(MixinLocalize):
         print("-----------------------------------------------------", flush=True)
         print(flush=True)
         if self.frag_energy:
-            print(
-                "Final Tr(F del g) is         : {:>12.8f} Ha".format(
-                    rets[1][0] + rets[1][2]
-                ),
-                flush=True,
-            )
-            print(
-                "Final Tr(V K_approx) is      : {:>12.8f} Ha".format(rets[1][1]),
-                flush=True,
-            )
-            print(
-                "Final e_corr is              : {:>12.8f} Ha".format(rets[0]),
-                flush=True,
-            )
-
-            self.ebe_tot = rets[0]
+            if self.use_cumulant:
+                print_energy_cumulant(
+                    rets[0], rets[1][1], rets[1][0] + rets[1][2], self.ebe_hf
+                )
+                self.ebe_tot = rets[0]
+            else:
+                print_energy_noncumulant(
+                    rets[0], rets[1][0], rets[1][2], rets[1][1], self.ebe_hf, self.enuc
+                )
+                self.ebe_tot = rets[0] + self.enuc
 
         if not self.frag_energy:
             self.compute_energy_full(approx_cumulant=True, return_rdm=False)

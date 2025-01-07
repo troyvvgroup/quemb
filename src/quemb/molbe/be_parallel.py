@@ -45,7 +45,7 @@ def run_solver(
     h1_e: Matrix[float64],
     solver: str = "MP2",
     eri_file: str = "eri_file.h5",
-    veff0: Matrix[float64] | None = None,
+    veff: Matrix[float64] | None = None,
     hci_cutoff: float = 0.001,
     ci_coeff_cutoff: float | None = None,
     select_cutoff: float | None = None,
@@ -91,8 +91,8 @@ def run_solver(
         Default is 'MP2'.
     eri_file :
         Filename for the electron repulsion integrals. Default is 'eri_file.h5'.
-    veff0 :
-        Veff0 matrix to be passed to energy.
+    veff :
+        Veff matrix to be passed to energy, if non-cumulant energy.
     ompnum :
         Number of OpenMP threads. Default is 4.
     writeh1 :
@@ -269,8 +269,9 @@ def run_solver(
                 rdm1_tmp,
                 rdm2s,
                 dname,
+                veff,
+                use_cumulant,
                 eri_file,
-                veff0,
             )
     if eeval:
         if frag_energy and not ret_vec:
@@ -493,8 +494,6 @@ def be_func_parallel(
     os.system("export OMP_NUM_THREADS=" + str(ompnum))
     nprocs = nproc // ompnum
 
-    if not use_cumulant:
-        raise NotImplementedError("Non-cumulant energy is TODO")
     # Update the effective Hamiltonian with potentials
     if pot is not None:
         for fobj in Fobjs:
@@ -520,7 +519,7 @@ def be_func_parallel(
                     fobj.h1,
                     solver,
                     fobj.eri_file,
-                    fobj.veff0,
+                    fobj.veff if not use_cumulant else None,
                     hci_cutoff,
                     ci_coeff_cutoff,
                     select_cutoff,

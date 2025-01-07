@@ -4,10 +4,12 @@
 
 import h5py
 import numpy
+from numpy import float64
 from numpy.linalg import multi_dot
 from pyscf import ao2mo, gto, lib, scf
 
 from quemb.shared.helper import ncore_
+from quemb.shared.typing import Matrix
 
 
 def get_veff(eri_, dm, S, TA, hf_veff):
@@ -202,18 +204,19 @@ def get_core(mol):
 
 
 def get_frag_energy(
-    mo_coeffs,
-    nsocc,
-    nfsites,
-    efac,
-    TA,
-    h1,
-    hf_veff,
-    rdm1,
-    rdm2s,
-    dname,
-    eri_file="eri_file.h5",
-    veff0=None,
+    mo_coeffs: numpy.ndarray,
+    nsocc: int,
+    nfsites: int,
+    efac: list,
+    TA: Matrix[float64],
+    h1: Matrix[float64],
+    hf_veff: Matrix[float64],
+    rdm1: Matrix[float64],
+    rdm2s: Matrix[float64],
+    dname: str,
+    veff: Matrix[float64] | None,
+    use_cumulant: bool = True,
+    eri_file: str = "eri_file.h5",
 ):
     """
     Compute the fragment energy.
@@ -224,27 +227,31 @@ def get_frag_energy(
 
     Parameters
     ----------
-    mo_coeffs : numpy.ndarray
+    mo_coeffs :
         Molecular orbital coefficients.
-    nsocc : int
+    nsocc :
         Number of occupied orbitals.
-    nfsites : int
+    nfsites :
         Number of fragment sites.
-    efac : list
+    efac :
         List containing energy scaling factors and indices.
-    TA : numpy.ndarray
+    TA :
         Transformation matrix.
-    h1 : numpy.ndarray
+    h1 :
         One-electron Hamiltonian.
-    hf_veff : numpy.ndarray
+    hf_veff :
         Hartree-Fock effective potential.
-    rdm1 : numpy.ndarray
+    rdm1 :
         One-particle density matrix.
-    rdm2s : numpy.ndarray
+    rdm2s :
         Two-particle density matrix.
-    dname : str
+    dname :
         Dataset name in the HDF5 file.
-    eri_file : str, optional
+    veff :
+        veff for non-cumulant energy expression
+    use_cumulant:
+        Whether to return cumulant energy, by default True
+    eri_file :
         Filename of the HDF5 file containing the electron repulsion integrals.
         Defaults to 'eri_file.h5'.
 
@@ -260,16 +267,20 @@ def get_frag_energy(
     # Construct the Hartree-Fock 1-RDM
     hf_1rdm = numpy.dot(mo_coeffs[:, :nsocc], mo_coeffs[:, :nsocc].conj().T)
 
-    # Compute the difference between the rotated RDM1 and the Hartree-Fock 1-RDM
-    delta_rdm1 = 2 * (rdm1s_rot - hf_1rdm)
-
-    if veff0 is None:
+    if use_cumulant:
         # Compute the effective potential in the transformed basis
         veff0 = multi_dot((TA.T, hf_veff, TA))
+        # Compute the difference between the rotated RDM1 and the Hartree-Fock 1-RDM
+        delta_rdm1 = 2 * (rdm1s_rot - hf_1rdm)
 
-    # Calculate the one-electron and effective potential energy contributions
-    e1 = numpy.einsum("ij,ij->i", h1[:nfsites], delta_rdm1[:nfsites])
-    ec = numpy.einsum("ij,ij->i", veff0[:nfsites], delta_rdm1[:nfsites])
+        # Calculate the one-electron and effective potential energy contributions
+        e1 = numpy.einsum("ij,ij->i", h1[:nfsites], delta_rdm1[:nfsites])
+        ec = numpy.einsum("ij,ij->i", veff0[:nfsites], delta_rdm1[:nfsites])
+
+    else:
+        # Calculate the one-electron and effective potential energy contributions
+        e1 = 2 * numpy.einsum("ij,ij->i", h1[:nfsites], rdm1s_rot[:nfsites])
+        ec = numpy.einsum("ij,ij->i", veff[:nfsites], rdm1s_rot[:nfsites])
 
     if TA.ndim == 3:
         jmax = TA[0].shape[1]

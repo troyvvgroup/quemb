@@ -87,8 +87,6 @@ def be_func(
         Depending on the options, it returns the norm of the error vector, the energy,
         or a combination of these values.
     """
-    if not use_cumulant:
-        raise NotImplementedError("Non-cumulant energy is TODO")
 
     rdm_return = False
     if relax_density:
@@ -296,8 +294,9 @@ def be_func(
                     rdm1=rdm1_tmp,
                     rdm2s=rdm2s,
                     dname=fobj.dname,
+                    veff=None if use_cumulant else fobj.veff,
+                    use_cumulant=use_cumulant,
                     eri_file=fobj.eri_file,
-                    veff0=fobj.veff0,
                 )
                 total_e = [sum(x) for x in zip(total_e, e_f)]
                 fobj.update_ebe_hf()

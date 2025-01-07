@@ -467,7 +467,7 @@ def be2puffin(
     return mybe.ebe_tot
 
 
-def print_energy(ecorr, e_V_Kapprox, e_F_dg, e_hf):
+def print_energy_cumulant(ecorr, e_V_Kapprox, e_F_dg, e_hf):
     # Print energy results
     print("-----------------------------------------------------", flush=True)
     print(" BE ENERGIES with cumulant-based expression", flush=True)
@@ -479,6 +479,24 @@ def print_energy(ecorr, e_V_Kapprox, e_F_dg, e_hf):
     print(" Tr(V K_aprrox)  : {:>14.8f} Ha".format(e_V_Kapprox), flush=True)
     print(" E_BE            : {:>14.8f} Ha".format(ecorr + e_hf), flush=True)
     print(" Ecorr BE        : {:>14.8f} Ha".format(ecorr), flush=True)
+    print("-----------------------------------------------------", flush=True)
+
+    print(flush=True)
+
+
+def print_energy_noncumulant(be_tot, e1, ec, e2, e_hf, e_nuc):
+    # Print energy results
+    print("-----------------------------------------------------", flush=True)
+    print(" BE ENERGIES with non-cumulant expression", flush=True)
+    print("-----------------------------------------------------", flush=True)
+    print(" E_BE = E_1 + E_C + E_2 + E_nuc", flush=True)
+    print(" E_HF            : {:>14.8f} Ha".format(e_hf), flush=True)
+    print(" E_Nuc           : {:>14.8f} Ha".format(e_nuc), flush=True)
+    print(" E_BE total      : {:>14.8f} Ha".format(be_tot + e_nuc), flush=True)
+    print(" E_1             : {:>14.8f} Ha".format(e1), flush=True)
+    print(" E_C             : {:>14.8f} Ha".format(ec), flush=True)
+    print(" E_2             : {:>14.8f} Ha".format(e2), flush=True)
+    print(" Ecorr BE        : {:>14.8f} Ha".format(be_tot + e_nuc - e_hf), flush=True)
     print("-----------------------------------------------------", flush=True)
 
     print(flush=True)
