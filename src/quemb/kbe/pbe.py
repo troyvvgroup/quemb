@@ -13,7 +13,7 @@ from pyscf.pbc.df.df_jk import _ewald_exxdiv_for_G0
 
 from quemb.kbe.fragment import fragpart
 from quemb.kbe.lo import Mixin_k_Localize
-from quemb.kbe.misc import print_energy, storePBE
+from quemb.kbe.misc import print_energy_cumulant, print_energy_noncumulant, storePBE
 from quemb.kbe.pfrag import Frags
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
@@ -53,6 +53,8 @@ class BE(Mixin_k_Localize):
         fobj: fragpart,
         eri_file: PathLike = "eri_file.h5",
         lo_method: str = "lowdin",
+        use_cumulant: bool = True,
+        frag_energy: bool = True,
         compute_hf: bool = True,
         restart: bool = False,
         save: bool = False,
@@ -88,6 +90,11 @@ class BE(Mixin_k_Localize):
             Method for orbital localization, by default 'lowdin'.
         iao_wannier :
             Whether to perform Wannier localization on the IAO space, by default False.
+        use_cumulant :
+            Whether to use the cumulant energy expression, by default True.
+        frag_energy : bool, optional
+            Calculate energies of all fragments, rather than constructing any
+            full system RDMs, by default True
         compute_hf :
             Whether to compute Hartree-Fock energy, by default True.
         restart :
@@ -128,6 +135,9 @@ class BE(Mixin_k_Localize):
 
         self.nproc = nproc
         self.ompnum = ompnum
+
+        self.use_cumulant = use_cumulant
+        self.frag_energy = frag_energy
 
         # Fragment information from fobj
         self.frag_type = fobj.frag_type
@@ -411,13 +421,24 @@ class BE(Mixin_k_Localize):
             be_.optimize(method, J0=J0)
             self.ebe_tot = self.ebe_hf + be_.Ebe[0]
             # Print the energy components
-            print_energy(
-                be_.Ebe[0],
-                be_.Ebe[1][1],
-                be_.Ebe[1][0] + be_.Ebe[1][2],
-                self.ebe_hf,
-                self.unitcell_nkpt,
-            )
+            if self.use_cumulant:
+                print_energy_cumulant(
+                    be_.Ebe[0],
+                    be_.Ebe[1][1],
+                    be_.Ebe[1][0] + be_.Ebe[1][2],
+                    self.ebe_hf,
+                    self.unitcell_nkpt,
+                )
+            else:
+                self.ebe_tot = be_.Ebe[0] + self.enuc
+                print_energy_noncumulant(
+                    be_.Ebe[0],
+                    be_.Ebe[1][0],
+                    be_.Ebe[1][2],
+                    be_.Ebe[1][1],
+                    self.ebe_hf,
+                    self.enuc,
+                )
         else:
             raise ValueError("This optimization method for BE is not supported")
 
@@ -675,7 +696,6 @@ class BE(Mixin_k_Localize):
         solver: str = "MP2",
         nproc: int = 1,
         ompnum: int = 4,
-        calc_frag_energy: bool = False,
         DMRG_solver_kwargs: KwargDict | None = None,
     ) -> None:
         """
@@ -691,12 +711,9 @@ class BE(Mixin_k_Localize):
             If set to >1, threaded parallel computation is invoked.
         ompnum :
             Number of OpenMP threads, by default 4.
-        calc_frag_energy :
-            Whether to calculate fragment energies, by default False.
         clean_eri :
             Whether to clean up ERI files after calculation, by default False.
         """
-        print("Calculating Energy by Fragment? ", calc_frag_energy)
         if nproc == 1:
             rets = be_func(
                 None,
@@ -705,13 +722,14 @@ class BE(Mixin_k_Localize):
                 solver,
                 self.enuc,
                 hf_veff=self.hf_veff,
+                nproc=ompnum,
+                use_cumulant=self.use_cumulant,
+                frag_energy=self.frag_energy,
+                eeval=True,
+                return_vec=False,
                 hci_cutoff=self.hci_cutoff,
                 ci_coeff_cutoff=self.ci_coeff_cutoff,
                 select_cutoff=self.select_cutoff,
-                nproc=ompnum,
-                frag_energy=calc_frag_energy,
-                ereturn=True,
-                eeval=True,
                 scratch_dir=self.scratch_dir,
                 DMRG_solver_kwargs=DMRG_solver_kwargs,
             )
@@ -723,13 +741,15 @@ class BE(Mixin_k_Localize):
                 solver,
                 self.enuc,
                 hf_veff=self.hf_veff,
+                nproc=nproc,
+                ompnum=ompnum,
+                use_cumulant=self.use_cumulant,
+                frag_energy=self.frag_energy,
+                eeval=True,
+                return_vec=False,
                 hci_cutoff=self.hci_cutoff,
                 ci_coeff_cutoff=self.ci_coeff_cutoff,
                 select_cutoff=self.select_cutoff,
-                eeval=True,
-                frag_energy=calc_frag_energy,
-                nproc=nproc,
-                ompnum=ompnum,
                 scratch_dir=self.scratch_dir,
             )
 
@@ -738,7 +758,7 @@ class BE(Mixin_k_Localize):
         print("             Solver : ", solver, flush=True)
         print("-----------------------------------------------------", flush=True)
         print(flush=True)
-        if calc_frag_energy:
+        if self.frag_energy:
             print(
                 "Final Tr(F del g) is         : {:>12.8f} Ha".format(
                     rets[1][0] + rets[1][2]
