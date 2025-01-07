@@ -645,7 +645,7 @@ class BE(MixinLocalize):
         only_chem: bool = False,
         conv_tol: float = 1.0e-6,
         relax_density: bool = False,
-        J0: list[list[float]] | None = None,
+        J0: Matrix[float64] | None = None,
         nproc: int = 1,
         ompnum: int = 4,
         max_iter: int = 500,
@@ -723,9 +723,9 @@ class BE(MixinLocalize):
         if method == "QN":
             # Prepare the initial Jacobian matrix
             if only_chem:
-                J0 = [[0.0]]
+                J0 = numpy.array([[0.0]])
                 J0 = self.get_be_error_jacobian(jac_solver="HF")
-                J0 = [[J0[-1][-1]]]
+                J0 = J0[-1:, -1:]
             else:
                 J0 = self.get_be_error_jacobian(jac_solver="HF")
 
@@ -740,7 +740,7 @@ class BE(MixinLocalize):
             raise ValueError("This optimization method for BE is not supported")
 
     @copy_docstring(_ext_get_be_error_jacobian)
-    def get_be_error_jacobian(self, jac_solver: str = "HF") -> list[list[float]]:
+    def get_be_error_jacobian(self, jac_solver: str = "HF") -> Matrix[float64]:
         return _ext_get_be_error_jacobian(self.Nfrag, self.Fobjs, jac_solver)
 
     def print_ini(self):
