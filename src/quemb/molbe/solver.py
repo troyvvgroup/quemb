@@ -31,21 +31,20 @@ def be_func(
     Nocc: int,
     solver: str,
     enuc: float,  # noqa: ARG001
-    DMRG_solver_kwargs: KwargDict | None,
     scratch_dir: WorkDir,
+    DMRG_solver_kwargs: KwargDict | None,
     hf_veff: Matrix[float64] | None = None,
     only_chem: bool = False,
     nproc: int = 4,
+    relax_density: bool = False,
+    use_cumulant: bool = True,
+    frag_energy: bool = False,
+    eeval: bool = False,
+    return_vec: bool = False,
     hci_pt: bool = False,
     hci_cutoff: float = 0.001,
     ci_coeff_cutoff: float | None = None,
     select_cutoff: float | None = None,
-    eeval: bool = False,
-    ereturn: bool = False,
-    frag_energy: bool = False,
-    relax_density: bool = False,
-    return_vec: bool = False,
-    use_cumulant: bool = True,
 ):
     """
     Perform bootstrap embedding calculations for each fragment.
@@ -71,20 +70,16 @@ def be_func(
         Whether to only optimize the chemical potential. Defaults to False.
     nproc :
         Number of processors. Defaults to 4. This is only neccessary for 'SHCI' solver
-    eeval :
-        Whether to evaluate the energy. Defaults to False.
-    ereturn :
-        Whether to return the energy. Defaults to False.
-    frag_energy :
-        Whether to calculate fragment energy. Defaults to False.
     relax_density :
         Whether to relax the density. Defaults to False.
-    return_vec :
-        Whether to return the error vector. Defaults to False.
-    ebe_hf :
-        Hartree-Fock energy. Defaults to 0.
     use_cumulant :
         Whether to use the cumulant-based energy expression. Defaults to True.
+    frag_energy :
+        Whether to calculate fragment energy. Defaults to False.
+    eeval :
+        Whether to evaluate the energy. Defaults to False.
+    return_vec :
+        Whether to return the error vector. Defaults to False.
 
     Returns
     -------
@@ -92,6 +87,9 @@ def be_func(
         Depending on the options, it returns the norm of the error vector, the energy,
         or a combination of these values.
     """
+    if not use_cumulant:
+        raise NotImplementedError("Non-cumulant energy is TODO")
+
     rdm_return = False
     if relax_density:
         rdm_return = True
@@ -257,7 +255,7 @@ def be_func(
             * 0.5
         )
 
-        if eeval or ereturn:
+        if eeval:
             if solver == "CCSD" and not rdm_return:
                 with_dm1 = True
                 if use_cumulant:
@@ -304,25 +302,23 @@ def be_func(
                 total_e = [sum(x) for x in zip(total_e, e_f)]
                 fobj.update_ebe_hf()
 
-    if frag_energy and eeval:
-        # Return energy evaluated fragment-by-fragment
-        Ecorr = sum(total_e)
-        if not return_vec:
-            return (Ecorr, total_e)
-
-    elif eeval:
-        # Return energy, not evaluated fragment-by-fragment
-        # Will require something like the "compute_energy_full" included in mbe BE class
-        raise NotImplementedError("""Evaluating the energy supported only on
-                                    fragment-by-fragment basis. Use frag_energy=True""")
+    if eeval:
+        if frag_energy:
+            # Return energy evaluated fragment-by-fragment
+            Ecorr = sum(total_e)
+            if not return_vec:
+                return (Ecorr, total_e)
+        else:
+            # Return energy, not evaluated fragment-by-fragment
+            # Will require something like "compute_energy_full" included in mbe BE
+            raise NotImplementedError("""Evaluating the energy supported only on
+                                        fragment-by-fragment basis.
+                                        Use frag_energy=True""")
 
     ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem)
 
     if return_vec:
         return (ernorm, ervec, [Ecorr, total_e])
-
-    if print_match_err:
-        print("Error in density matching      :   {:>2.4e}".format(ernorm), flush=True)
 
     return ernorm
 

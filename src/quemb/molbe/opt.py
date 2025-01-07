@@ -33,13 +33,12 @@ class BEOPT:
        No. of occupied orbitals for the full system.
     enuc :
        Nuclear component of the energy.
+    scratch_dir :
+        Scratch directory
     solver :
        High-level solver in bootstrap embedding. 'MP2', 'CCSD', 'FCI' are supported.
        Selected CI versions,
        'HCI', 'SHCI', & 'SCI' are also supported. Defaults to 'MP2'
-    only_chem :
-       Whether to perform chemical potential optimization only.
-       Refer to bootstrap embedding literatures.
     nproc :
        Total number of processors assigned for the optimization. Defaults to 1.
        When nproc > 1, Python multithreading
@@ -47,6 +46,9 @@ class BEOPT:
     ompnum :
        If nproc > 1, ompnum sets the number of cores for OpenMP parallelization.
        Defaults to 4
+    only_chem :
+       Whether to perform chemical potential optimization only.
+       Refer to bootstrap embedding literatures.
     max_space :
        Maximum number of bootstrap optimizaiton steps, after which the optimization
        is called converged.
@@ -61,11 +63,13 @@ class BEOPT:
     Nocc: int
     enuc: float
     scratch_dir: WorkDir
-    solver: str = "MP2"
+    hf_veff: Matrix[float64] | None = None
     nproc: int = 1
     ompnum: int = 4
     only_chem: bool = False
-    hf_veff: Matrix[float64] | None = None
+    solver: str = "MP2"
+    use_cumulant: bool = True
+    frag_energy: bool = True
 
     max_space: int = 500
     conv_tol: float = 1.0e-6
@@ -110,13 +114,15 @@ class BEOPT:
                 self.Nocc,
                 self.solver,
                 self.enuc,
-                eeval=True,
-                return_vec=True,
                 hf_veff=self.hf_veff,
                 only_chem=self.only_chem,
-                hci_cutoff=self.hci_cutoff,
                 nproc=self.ompnum,
                 relax_density=self.relax_density,
+                use_cumulant=self.use_cumulant,
+                frag_energy=self.frag_energy,
+                eeval=True,
+                return_vec=True,
+                hci_cutoff=self.hci_cutoff,
                 ci_coeff_cutoff=self.ci_coeff_cutoff,
                 select_cutoff=self.select_cutoff,
                 hci_pt=self.hci_pt,
@@ -130,14 +136,16 @@ class BEOPT:
                 self.Nocc,
                 self.solver,
                 self.enuc,
-                eeval=True,
-                return_vec=True,
                 hf_veff=self.hf_veff,
+                only_chem=self.only_chem,
                 nproc=self.nproc,
                 ompnum=self.ompnum,
-                only_chem=self.only_chem,
-                hci_cutoff=self.hci_cutoff,
                 relax_density=self.relax_density,
+                use_cumulant=self.use_cumulant,
+                frag_energy=self.frag_energy,
+                eeval=True,
+                return_vec=True,
+                hci_cutoff=self.hci_cutoff,
                 ci_coeff_cutoff=self.ci_coeff_cutoff,
                 select_cutoff=self.select_cutoff,
                 scratch_dir=self.scratch_dir,

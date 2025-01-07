@@ -73,15 +73,17 @@ class BE(MixinLocalize):
         eri_file: PathLike = "eri_file.h5",
         lo_method: str = "lowdin",
         pop_method: str | None = None,
+        use_cumulant: bool = True,
+        frag_energy: bool = True,
         compute_hf: bool = True,
         restart: bool = False,
         save: bool = False,
         restart_file: PathLike = "storebe.pk",
         save_file: PathLike = "storebe.pk",
-        hci_pt: bool = False,
         nproc: int = 1,
         ompnum: int = 4,
         scratch_dir: WorkDir | None = None,
+        hci_pt: bool = False,
         hci_cutoff: float = 0.001,
         ci_coeff_cutoff: float | None = None,
         select_cutoff: float | None = None,
@@ -101,6 +103,14 @@ class BE(MixinLocalize):
             Path to the file storing two-electron integrals.
         lo_method :
             Method for orbital localization, by default 'lowdin'.
+        pop_method :
+            Method for calculating orbital population, by default 'meta-lowdin'
+            See pyscf.lo for more details and options
+        use_cumulant :
+            Whether to use the cumulant energy expression, by default True.
+        frag_energy : bool, optional
+            Calculate energies of all fragments, rather than constructing any
+            full system RDMs, by default True
         compute_hf :
             Whether to compute Hartree-Fock energy, by default True.
         restart :
@@ -111,9 +121,6 @@ class BE(MixinLocalize):
             Path to the file storing restart information, by default 'storebe.pk'.
         save_file :
             Path to the file storing save information, by default 'storebe.pk'.
-        frag_energy : bool, optional
-            Calculate energies of all fragments, rather than constructing any
-            full system RDMs, by default True
         nproc :
             Number of processors for parallel calculations, by default 1. If set to >1,
             threaded parallel computation is invoked.
@@ -172,6 +179,7 @@ class BE(MixinLocalize):
         self.ebe_tot = 0.0
 
         self.frag_energy = frag_energy
+        self.use_cumulant = use_cumulant
 
         # HCI parameters
         self.hci_cutoff = hci_cutoff
@@ -710,6 +718,8 @@ class BE(MixinLocalize):
             max_space=max_iter,
             conv_tol=conv_tol,
             only_chem=only_chem,
+            use_cumulant=self.use_cumulant,
+            frag_energy=self.frag_energy,
             hci_cutoff=self.hci_cutoff,
             ci_coeff_cutoff=self.ci_coeff_cutoff,
             relax_density=relax_density,
@@ -934,14 +944,14 @@ class BE(MixinLocalize):
                 solver,
                 self.enuc,
                 hf_veff=self.hf_veff,
+                nproc=ompnum,
+                use_cumulant=self.use_cumulant,
+                frag_energy=calc_frag_energy,
+                eeval=True,
+                return_vec=False,
                 hci_cutoff=self.hci_cutoff,
                 ci_coeff_cutoff=self.ci_coeff_cutoff,
                 select_cutoff=self.select_cutoff,
-                nproc=ompnum,
-                frag_energy=self.frag_energy,
-                ereturn=True,
-                eeval=True,
-                print_match_error=True,
                 scratch_dir=self.scratch_dir,
                 DMRG_solver_kwargs=DMRG_solver_kwargs,
             )
@@ -953,13 +963,15 @@ class BE(MixinLocalize):
                 solver,
                 self.enuc,
                 hf_veff=self.hf_veff,
+                nproc=nproc,
+                ompnum=ompnum,
+                use_cumulant=self.use_cumulant,
+                frag_energy=calc_frag_energy,
+                eeval=True,
+                return_vec=False,
                 hci_cutoff=self.hci_cutoff,
                 ci_coeff_cutoff=self.ci_coeff_cutoff,
                 select_cutoff=self.select_cutoff,
-                eeval=True,
-                frag_energy=calc_frag_energy,
-                nproc=nproc,
-                ompnum=ompnum,
                 scratch_dir=self.scratch_dir,
             )
 
