@@ -4,12 +4,10 @@
 
 import h5py
 import numpy
-from numpy import float64
 from numpy.linalg import multi_dot
 from pyscf import ao2mo, gto, lib, scf
 
 from quemb.shared.helper import ncore_
-from quemb.shared.typing import Matrix
 
 
 def get_veff(eri_, dm, S, TA, hf_veff):
@@ -204,19 +202,19 @@ def get_core(mol):
 
 
 def get_frag_energy(
-    mo_coeffs: numpy.ndarray,
-    nsocc: int,
-    nfsites: int,
-    efac: list,
-    TA: Matrix[float64],
-    h1: Matrix[float64],
-    hf_veff: Matrix[float64],
-    rdm1: Matrix[float64],
-    rdm2s: Matrix[float64],
-    dname: str,
-    veff: Matrix[float64] | None,
-    use_cumulant: bool = True,
-    eri_file: str = "eri_file.h5",
+    mo_coeffs,
+    nsocc,
+    nfsites,
+    efac,
+    TA,
+    h1,
+    hf_veff,
+    rdm1,
+    rdm2s,
+    dname,
+    veff=None,
+    use_cumulant=True,
+    eri_file="eri_file.h5",
 ):
     """
     Compute the fragment energy.
@@ -227,31 +225,31 @@ def get_frag_energy(
 
     Parameters
     ----------
-    mo_coeffs :
+    mo_coeffs : numpy.ndarray
         Molecular orbital coefficients.
-    nsocc :
+    nsocc : int
         Number of occupied orbitals.
-    nfsites :
+    nfsites : int
         Number of fragment sites.
-    efac :
+    efac : list
         List containing energy scaling factors and indices.
-    TA :
+    TA : numpy.ndarray
         Transformation matrix.
-    h1 :
+    h1 : numpy.ndarray
         One-electron Hamiltonian.
-    hf_veff :
+    hf_veff : numpy.ndarray
         Hartree-Fock effective potential.
-    rdm1 :
+    rdm1 : numpy.ndarray
         One-particle density matrix.
-    rdm2s :
+    rdm2s : numpy.ndarray
         Two-particle density matrix.
-    dname :
+    dname : str
         Dataset name in the HDF5 file.
-    veff :
+    veff : numpy.ndarray
         veff for non-cumulant energy expression
-    use_cumulant:
+    use_cumulant: bool
         Whether to return cumulant energy, by default True
-    eri_file :
+    eri_file : str
         Filename of the HDF5 file containing the electron repulsion integrals.
         Defaults to 'eri_file.h5'.
 
