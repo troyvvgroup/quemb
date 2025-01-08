@@ -275,9 +275,8 @@ def run_solver(
             use_cumulant,
             eri_file,
         )
-    if eeval:
-        if not ret_vec:
-            return e_f
+    if eeval and not ret_vec:
+        return e_f
 
     if return_rdm_ao:
         return (e_f, mf_.mo_coeff, rdm1, rdm2s, rdm1_tmp)
@@ -507,8 +506,8 @@ def be_func_parallel(
                     fobj.h1,
                     solver,
                     fobj.eri_file,
-                    fobj.veff0,
                     fobj.veff if not use_cumulant else None,
+                    fobj.veff0,
                     hci_cutoff,
                     ci_coeff_cutoff,
                     select_cutoff,
@@ -604,6 +603,8 @@ def be_func_parallel_u(
     ompnum : int, optional
         If nproc > 1, sets the number of cores for OpenMP parallelization.
         Defaults to 4.
+    use_cumulant :
+        Whether to use the cumulant energy expression, by default True.
     frozen : bool, optional
         Frozen core. Defaults to False
 

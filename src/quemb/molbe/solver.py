@@ -566,7 +566,7 @@ def solve_ccsd(
     frozen=None,
     mo_coeff=None,
     relax=False,
-    use_cumulant=False,
+    use_cumulant=True,
     with_dm1=True,
     rdm2_return=False,
     mo_occ=None,
@@ -592,7 +592,7 @@ def solve_ccsd(
     relax : bool, optional
         Whether to use relaxed density matrices. Defaults to False.
     use_cumulant : bool, optional
-        Whether to use cumulant-based energy expression. Defaults to False.
+        Whether to use cumulant-based energy expression. Defaults to True.
     with_dm1 : bool, optional
         Whether to include one-particle density matrix in the two-particle
         density matrix calculation. Defaults to True.
@@ -848,7 +848,7 @@ def solve_uccsd(
     eris_inp,
     frozen=None,
     relax=False,
-    use_cumulant=False,
+    use_cumulant=True,
     with_dm1=True,
     rdm2_return=False,
     rdm_return=False,
@@ -873,7 +873,7 @@ def solve_uccsd(
     relax : bool, optional
         Whether to use relaxed density matrices. Defaults to False.
     use_cumulant : bool, optional
-        Whether to use cumulant-based energy expression. Defaults to False.
+        Whether to use cumulant-based energy expression. Defaults to True.
     with_dm1 : bool, optional
         Whether to include one-particle density matrix in the two-particle
         density matrix calculation. Defaults to True.

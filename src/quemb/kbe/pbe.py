@@ -53,7 +53,6 @@ class BE(Mixin_k_Localize):
         fobj: fragpart,
         eri_file: PathLike = "eri_file.h5",
         lo_method: str = "lowdin",
-        use_cumulant: bool = True,
         compute_hf: bool = True,
         restart: bool = False,
         save: bool = False,
@@ -89,8 +88,6 @@ class BE(Mixin_k_Localize):
             Method for orbital localization, by default 'lowdin'.
         iao_wannier :
             Whether to perform Wannier localization on the IAO space, by default False.
-        use_cumulant :
-            Whether to use the cumulant energy expression, by default True.
         compute_hf :
             Whether to compute Hartree-Fock energy, by default True.
         restart :
@@ -131,8 +128,6 @@ class BE(Mixin_k_Localize):
 
         self.nproc = nproc
         self.ompnum = ompnum
-
-        self.use_cumulant = use_cumulant
 
         # Fragment information from fobj
         self.frag_type = fobj.frag_type
@@ -333,6 +328,7 @@ class BE(Mixin_k_Localize):
         solver="MP2",
         method="QN",
         only_chem=False,
+        use_cumulant=True,
         conv_tol=1.0e-6,
         relax_density=False,
         J0=None,
@@ -353,6 +349,8 @@ class BE(Mixin_k_Localize):
         only_chem : bool, optional
             If true, density matching is not performed --
             only global chemical potential is optimized, by default False
+        use_cumulant :
+            Whether to use the cumulant energy expression, by default True.
         conv_tol : float, optional
             Convergence tolerance, by default 1.e-6
         relax_density : bool, optional
@@ -395,7 +393,7 @@ class BE(Mixin_k_Localize):
             max_space=max_iter,
             conv_tol=conv_tol,
             only_chem=only_chem,
-            use_cumulant=self.use_cumulant,
+            use_cumulant=use_cumulant,
             hci_cutoff=self.hci_cutoff,
             ci_coeff_cutoff=self.ci_coeff_cutoff,
             relax_density=relax_density,
@@ -417,7 +415,7 @@ class BE(Mixin_k_Localize):
             be_.optimize(method, J0=J0)
             self.ebe_tot = self.ebe_hf + be_.Ebe[0]
             # Print the energy components
-            if self.use_cumulant:
+            if use_cumulant:
                 print_energy(
                     be_.Ebe[0],
                     be_.Ebe[1][1],
@@ -683,6 +681,7 @@ class BE(Mixin_k_Localize):
     def oneshot(
         self,
         solver: str = "MP2",
+        use_cumulant: bool = True,
         nproc: int = 1,
         ompnum: int = 4,
         DMRG_solver_kwargs: KwargDict | None = None,
@@ -695,6 +694,8 @@ class BE(Mixin_k_Localize):
         solver :
             High-level quantum chemistry method, by default 'MP2'. 'CCSD', 'FCI',
             and variants of selected CI are supported.
+        use_cumulant :
+            Whether to use the cumulant energy expression, by default True.
         nproc :
             Number of processors for parallel calculations, by default 1.
             If set to >1, threaded parallel computation is invoked.
@@ -712,7 +713,7 @@ class BE(Mixin_k_Localize):
                 self.enuc,
                 hf_veff=self.hf_veff,
                 nproc=ompnum,
-                use_cumulant=self.use_cumulant,
+                use_cumulant=use_cumulant,
                 eeval=True,
                 return_vec=False,
                 hci_cutoff=self.hci_cutoff,
@@ -731,7 +732,7 @@ class BE(Mixin_k_Localize):
                 hf_veff=self.hf_veff,
                 nproc=nproc,
                 ompnum=ompnum,
-                use_cumulant=self.use_cumulant,
+                use_cumulant=use_cumulant,
                 eeval=True,
                 return_vec=False,
                 hci_cutoff=self.hci_cutoff,

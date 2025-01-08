@@ -71,7 +71,6 @@ class BE(MixinLocalize):
         eri_file: PathLike = "eri_file.h5",
         lo_method: str = "lowdin",
         pop_method: str | None = None,
-        use_cumulant: bool = True,
         compute_hf: bool = True,
         restart: bool = False,
         save: bool = False,
@@ -103,8 +102,6 @@ class BE(MixinLocalize):
         pop_method :
             Method for calculating orbital population, by default 'meta-lowdin'
             See pyscf.lo for more details and options
-        use_cumulant :
-            Whether to use the cumulant energy expression, by default True.
         compute_hf :
             Whether to compute Hartree-Fock energy, by default True.
         restart :
@@ -171,8 +168,6 @@ class BE(MixinLocalize):
 
         self.ebe_hf = 0.0
         self.ebe_tot = 0.0
-
-        self.use_cumulant = use_cumulant
 
         # HCI parameters
         self.hci_cutoff = hci_cutoff
@@ -644,6 +639,7 @@ class BE(MixinLocalize):
         solver: str = "MP2",
         method: str = "QN",
         only_chem: bool = False,
+        use_cumulant: bool = True,
         conv_tol: float = 1.0e-6,
         relax_density: bool = False,
         J0: Matrix[floating] | None = None,
@@ -666,6 +662,8 @@ class BE(MixinLocalize):
         only_chem :
             If true, density matching is not performed -- only global chemical potential
             is optimized, by default False
+        use_cumulant :
+            Whether to use the cumulant energy expression, by default True.
         conv_tol :
             Convergence tolerance, by default 1.e-6
         relax_density :
@@ -711,7 +709,7 @@ class BE(MixinLocalize):
             max_space=max_iter,
             conv_tol=conv_tol,
             only_chem=only_chem,
-            use_cumulant=self.use_cumulant,
+            use_cumulant=use_cumulant,
             hci_cutoff=self.hci_cutoff,
             ci_coeff_cutoff=self.ci_coeff_cutoff,
             relax_density=relax_density,
@@ -733,9 +731,10 @@ class BE(MixinLocalize):
 
             # Perform the optimization
             be_.optimize(method, J0=J0, trust_region=trust_region)
-            self.ebe_tot = self.ebe_hf + be_.Ebe[0]
+
             # Print the energy components
-            if self.use_cumulant:
+            if use_cumulant:
+                self.ebe_tot = self.ebe_hf + be_.Ebe[0]
                 print_energy_cumulant(
                     be_.Ebe[0],
                     be_.Ebe[1][1],
@@ -920,6 +919,7 @@ class BE(MixinLocalize):
     def oneshot(
         self,
         solver: str = "MP2",
+        use_cumulant: bool = True,
         nproc: int = 1,
         ompnum: int = 4,
         DMRG_solver_kwargs: KwargDict | None = None,
@@ -932,6 +932,8 @@ class BE(MixinLocalize):
         solver :
             High-level quantum chemistry method, by default 'MP2'. 'CCSD', 'FCI',
             and variants of selected CI are supported.
+        use_cumulant :
+            Whether to use the cumulant energy expression, by default True.
         nproc :
             Number of processors for parallel calculations, by default 1.
             If set to >1, multi-threaded parallel computation is invoked.
@@ -947,7 +949,7 @@ class BE(MixinLocalize):
                 self.enuc,
                 hf_veff=self.hf_veff,
                 nproc=ompnum,
-                use_cumulant=self.use_cumulant,
+                use_cumulant=use_cumulant,
                 eeval=True,
                 return_vec=False,
                 hci_cutoff=self.hci_cutoff,
@@ -966,7 +968,7 @@ class BE(MixinLocalize):
                 hf_veff=self.hf_veff,
                 nproc=nproc,
                 ompnum=ompnum,
-                use_cumulant=self.use_cumulant,
+                use_cumulant=use_cumulant,
                 eeval=True,
                 return_vec=False,
                 hci_cutoff=self.hci_cutoff,
@@ -980,7 +982,7 @@ class BE(MixinLocalize):
         print("             Solver : ", solver, flush=True)
         print("-----------------------------------------------------", flush=True)
         print(flush=True)
-        if self.use_cumulant:
+        if use_cumulant:
             print_energy_cumulant(
                 rets[0], rets[1][1], rets[1][0] + rets[1][2], self.ebe_hf
             )
