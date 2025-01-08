@@ -5,7 +5,7 @@ import pickle
 import h5py
 import numpy
 from attrs import define
-from numpy import float64
+from numpy import floating
 from pyscf import ao2mo, scf
 
 from quemb.molbe.be_parallel import be_func_parallel
@@ -29,20 +29,20 @@ class storeBE:
     # TODO: some of the types are most likely wrong.
     #  this has to be checked in a review
     Nocc: int
-    hf_veff: Matrix[float64]
-    hcore: Matrix[float64]
-    S: Matrix[float64]
-    C: Matrix[float64]
-    hf_dm: Matrix[float64]
+    hf_veff: Matrix[floating]
+    hcore: Matrix[floating]
+    S: Matrix[floating]
+    C: Matrix[floating]
+    hf_dm: Matrix[floating]
     hf_etot: float
-    W: Matrix[float64]
-    lmo_coeff: Matrix[float64]
+    W: Matrix[floating]
+    lmo_coeff: Matrix[floating]
     enuc: float
     ek: float
     E_core: float
-    C_core: float
-    P_core: float
-    core_veff: float
+    C_core: Matrix[floating]
+    P_core: Matrix[floating]
+    core_veff: Matrix[floating]
 
 
 class BE(MixinLocalize):
@@ -640,7 +640,7 @@ class BE(MixinLocalize):
         only_chem: bool = False,
         conv_tol: float = 1.0e-6,
         relax_density: bool = False,
-        J0: Matrix[float64] | None = None,
+        J0: Matrix[floating] | None = None,
         nproc: int = 1,
         ompnum: int = 4,
         max_iter: int = 500,
@@ -735,7 +735,7 @@ class BE(MixinLocalize):
             raise ValueError("This optimization method for BE is not supported")
 
     @copy_docstring(_ext_get_be_error_jacobian)
-    def get_be_error_jacobian(self, jac_solver: str = "HF") -> Matrix[float64]:
+    def get_be_error_jacobian(self, jac_solver: str = "HF") -> Matrix[floating]:
         return _ext_get_be_error_jacobian(self.Nfrag, self.Fobjs, jac_solver)
 
     def print_ini(self):
@@ -983,7 +983,7 @@ class BE(MixinLocalize):
         if not calc_frag_energy:
             self.compute_energy_full(approx_cumulant=True, return_rdm=False)
 
-    def update_fock(self, heff: list[Matrix[float64]] | None = None) -> None:
+    def update_fock(self, heff: list[Matrix[floating]] | None = None) -> None:
         """
         Update the Fock matrix for each fragment with the effective Hamiltonian.
 
