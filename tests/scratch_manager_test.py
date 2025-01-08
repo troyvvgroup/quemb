@@ -27,7 +27,7 @@ def test_keep_upon_error() -> None:
     with raises(ValueError):
         with WorkDir(my_tmp):
             raise ValueError
-    assert my_tmp.exists()
+    assert not my_tmp.exists()
 
     with WorkDir(my_tmp):
         pass

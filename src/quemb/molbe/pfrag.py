@@ -6,7 +6,6 @@ import scipy.linalg
 from numpy.linalg import multi_dot
 
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
-from quemb.molbe.solver import schmidt_decomposition
 
 
 class Frags:
@@ -385,3 +384,99 @@ class Frags:
             return (e_h1, e_coul, e1 + e2 + ec)
         else:
             return None
+
+
+def schmidt_decomposition(
+    mo_coeff, nocc, Frag_sites, cinv=None, rdm=None, norb=None, return_orb_count=False
+):
+    """
+    Perform Schmidt decomposition on the molecular orbital coefficients.
+
+    This function decomposes the molecular orbitals into fragment and environment parts
+    using the Schmidt decomposition method. It computes the transformation matrix (TA)
+    which includes both the fragment orbitals and the entangled bath.
+
+    Parameters
+    ----------
+    mo_coeff : numpy.ndarray
+        Molecular orbital coefficients.
+    nocc : int
+        Number of occupied orbitals.
+    Frag_sites : list of int
+        List of fragment sites (indices).
+    cinv : numpy.ndarray, optional
+        Inverse of the transformation matrix. Defaults to None.
+    rdm : numpy.ndarray, optional
+        Reduced density matrix. If not provided, it will be computed from the molecular
+        orbitals. Defaults to None.
+    norb : int, optional
+        Specifies number of bath orbitals. Used for UBE to make alpha and beta
+        spaces the same size. Defaults to None
+    return_orb_count : bool, optional
+        Return more information about the number of orbitals. Used in UBE.
+        Defaults to False
+
+    Returns
+    -------
+    numpy.ndarray
+        Transformation matrix (TA) including both fragment and entangled bath orbitals.
+    if return_orb_count:
+        numpy.ndarray, int, int
+        returns TA (above), number of orbitals in the fragment space, and number of
+        orbitals in bath space
+    """
+    # Threshold for eigenvalue significance
+    thres = 1.0e-10
+
+    # Compute the reduced density matrix (RDM) if not provided
+    if mo_coeff is not None:
+        C = mo_coeff[:, :nocc]
+    if rdm is None:
+        Dhf = numpy.dot(C, C.T)
+        if cinv is not None:
+            Dhf = multi_dot((cinv, Dhf, cinv.conj().T))
+    else:
+        Dhf = rdm
+
+    # Total number of sites
+    Tot_sites = Dhf.shape[0]
+
+    # Identify environment sites (indices not in Frag_sites)
+    Env_sites1 = numpy.array([i for i in range(Tot_sites) if i not in Frag_sites])
+    Env_sites = numpy.array([[i] for i in range(Tot_sites) if i not in Frag_sites])
+    Frag_sites1 = numpy.array([[i] for i in Frag_sites])
+
+    # Compute the environment part of the density matrix
+    Denv = Dhf[Env_sites, Env_sites.T]
+
+    # Perform eigenvalue decomposition on the environment density matrix
+    Eval, Evec = numpy.linalg.eigh(Denv)
+
+    # Identify significant environment orbitals based on eigenvalue threshold
+    Bidx = []
+
+    # Set the number of orbitals to be taken from the environment orbitals
+    # Based on an eigenvalue threshold ordering
+    if norb is not None:
+        n_frag_ind = len(Frag_sites1)
+        n_bath_ind = norb - n_frag_ind
+        ind_sort = numpy.argsort(numpy.abs(Eval))
+        first_el = [x for x in ind_sort if x < 1.0 - thres][-1 * n_bath_ind]
+        for i in range(len(Eval)):
+            if numpy.abs(Eval[i]) >= first_el:
+                Bidx.append(i)
+    else:
+        for i in range(len(Eval)):
+            if thres < numpy.abs(Eval[i]) < 1.0 - thres:
+                Bidx.append(i)
+
+    # Initialize the transformation matrix (TA)
+    TA = numpy.zeros([Tot_sites, len(Frag_sites) + len(Bidx)])
+    TA[Frag_sites, : len(Frag_sites)] = numpy.eye(len(Frag_sites))  # Fragment part
+    TA[Env_sites1, len(Frag_sites) :] = Evec[:, Bidx]  # Environment part
+
+    if return_orb_count:
+        # return TA, norbs_frag, norbs_bath
+        return TA, Frag_sites1.shape[0], len(Bidx)
+    else:
+        return TA

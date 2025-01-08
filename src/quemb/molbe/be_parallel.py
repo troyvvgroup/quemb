@@ -4,15 +4,18 @@ import os
 from multiprocessing import Pool
 
 import numpy
+from numpy import float64
 from numpy.linalg import multi_dot
 from pyscf import ao2mo, fci, mcscf
 
+from quemb.kbe.pfrag import Frags as pFrags
 from quemb.molbe.helper import (
     get_eri,
     get_frag_energy,
     get_frag_energy_u,
     get_scfObj,
 )
+from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import (
     make_rdm1_ccsd_t1,
     make_rdm2_urlx,
@@ -24,77 +27,85 @@ from quemb.molbe.solver import (
 from quemb.shared.external.ccsd_rdm import make_rdm1_uccsd, make_rdm2_uccsd
 from quemb.shared.external.unrestricted_utils import make_uhf_obj
 from quemb.shared.helper import unused
+from quemb.shared.manage_scratch import WorkDir
+from quemb.shared.typing import Matrix
 
 
 def run_solver(
-    h1,
-    dm0,
-    dname,
-    nao,
-    nocc,
-    nfsites,
-    efac,
-    TA,
-    hf_veff,
-    h1_e,
-    solver="MP2",
-    eri_file="eri_file.h5",
-    veff0=None,
-    hci_cutoff=0.001,
-    ci_coeff_cutoff=None,
-    select_cutoff=None,
-    ompnum=4,
-    writeh1=False,
-    eeval=True,
-    return_rdm_ao=True,
-    use_cumulant=True,
-    relax_density=False,
-    frag_energy=False,
+    h1: Matrix[float64],
+    dm0: Matrix[float64],
+    scratch_dir: WorkDir,
+    dname: str,
+    nao: int,
+    nocc: int,
+    nfsites: int,
+    efac: float,
+    TA: Matrix[float64],
+    hf_veff: Matrix[float64],
+    h1_e: Matrix[float64],
+    solver: str = "MP2",
+    eri_file: str = "eri_file.h5",
+    veff0: Matrix[float64] | None = None,
+    hci_cutoff: float = 0.001,
+    ci_coeff_cutoff: float | None = None,
+    select_cutoff: float | None = None,
+    ompnum: int = 4,
+    writeh1: bool = False,
+    eeval: bool = True,
+    return_rdm_ao: bool = True,
+    use_cumulant: bool = True,
+    relax_density: bool = False,
+    frag_energy: bool = False,
 ):
     """
     Run a quantum chemistry solver to compute the reduced density matrices.
 
     Parameters
     ----------
-    h1 : numpy.ndarray
+    h1 :
         One-electron Hamiltonian matrix.
-    dm0 : numpy.ndarray
+    dm0 :
         Initial guess for the density matrix.
-    dname : str
+    scratch_dir :
+        The scratch dir root.
+    dname :
         Directory name for storing intermediate files.
-    nao : int
+    scratch_dir :
+        The scratch directory.
+        Fragment files will be stored in :code:`scratch_dir / dname`.
+    nao :
         Number of atomic orbitals.
-    nocc : int
+    nocc :
         Number of occupied orbitals.
-    nfsites : int
+    nfsites :
         Number of fragment sites.
-    efac : float
+    efac :
         Scaling factor for the electronic energy.
-    TA : numpy.ndarray
+    TA :
         Transformation matrix for embedding orbitals.
-    hf_veff : numpy.ndarray
+    hf_veff :
         Hartree-Fock effective potential matrix.
-    h1_e : numpy.ndarray
+    h1_e :
         One-electron integral matrix.
-    solver : str, optional
+    solver :
         Solver to use for the calculation ('MP2', 'CCSD', 'FCI', 'HCI', 'SHCI', 'SCI').
         Default is 'MP2'.
-    eri_file : str, optional
+    eri_file :
         Filename for the electron repulsion integrals. Default is 'eri_file.h5'.
-    ompnum : int, optional
+    ompnum :
         Number of OpenMP threads. Default is 4.
-    writeh1 : bool, optional
+    writeh1 :
         If True, write the one-electron integrals to a file. Default is False.
-    eeval : bool, optional
+    eeval :
         If True, evaluate the electronic energy. Default is True.
-    return_rdm_ao : bool, optional
+    return_rdm_ao :
         If True, return the reduced density matrices in the atomic orbital basis.
         Default is True.
-    use_cumulant : bool, optional
+    use_cumulant :
         If True, use the cumulant approximation for RDM2. Default is True.
-    frag_energy : bool, optional
+    frag_energy :
         If True, compute the fragment energy. Default is False.
-    relax_density : bool, optional
+    relax_density :
         If True, use CCSD relaxed density. Default is False
 
     Returns
@@ -169,16 +180,18 @@ def run_solver(
         # pylint: disable-next=E0401,E0611
         from pyscf.shciscf import shci  # noqa: PLC0415    # shci is an optional module
 
+        frag_scratch = WorkDir(scratch_dir / dname)
+
         nao, nmo = mf_.mo_coeff.shape
         nelec = (nocc, nocc)
-        mch = shci.SHCISCF(mf_, nmo, nelec, orbpath=dname)
+        mch = shci.SHCISCF(mf_, nmo, nelec, orbpath=frag_scratch)
         mch.fcisolver.mpiprefix = "mpirun -np " + str(ompnum)
         mch.fcisolver.stochastic = True  # this is for PT and doesnt add PT to rdm
         mch.fcisolver.nPTiter = 0
         mch.fcisolver.sweep_iter = [0]
         mch.fcisolver.DoRDM = True
         mch.fcisolver.sweep_epsilon = [hci_cutoff]
-        mch.fcisolver.scratchDirectory = "/scratch/oimeitei/" + dname
+        mch.fcisolver.scratchDirectory = frag_scratch
         if not writeh1:
             mch.fcisolver.restart = True
         mch.mc1step()
@@ -187,6 +200,8 @@ def run_solver(
     elif solver == "SCI":
         # pylint: disable-next=E0611
         from pyscf import cornell_shci  # noqa: PLC0415  # optional module
+
+        frag_scratch = WorkDir(scratch_dir / dname)
 
         nao, nmo = mf_.mo_coeff.shape
         nelec = (nocc, nocc)
@@ -198,7 +213,7 @@ def run_solver(
         )
 
         ci = cornell_shci.SHCI()
-        ci.runtimedir = dname
+        ci.runtimedir = frag_scratch
         ci.restart = True
         ci.config["var_only"] = True
         ci.config["eps_vars"] = [hci_cutoff]
@@ -389,24 +404,25 @@ def run_solver_u(
 
 
 def be_func_parallel(
-    pot,
-    Fobjs,
-    Nocc,
-    solver,
-    enuc,  # noqa: ARG001
-    hf_veff=None,
-    nproc=1,
-    ompnum=4,
-    only_chem=False,
-    relax_density=False,
-    use_cumulant=True,
-    eeval=False,
-    frag_energy=False,
-    hci_cutoff=0.001,
-    ci_coeff_cutoff=None,
-    select_cutoff=None,
-    return_vec=False,
-    writeh1=False,
+    pot: list[float] | None,
+    Fobjs: list[Frags] | list[pFrags],
+    Nocc: int,
+    solver: str,
+    enuc: float,  # noqa: ARG001
+    scratch_dir: WorkDir,
+    hf_veff: Matrix[float64] | None = None,
+    nproc: int = 1,
+    ompnum: int = 4,
+    only_chem: bool = False,
+    relax_density: bool = False,
+    use_cumulant: bool = True,
+    eeval: bool = False,
+    frag_energy: bool = False,
+    hci_cutoff: float = 0.001,
+    ci_coeff_cutoff: float | None = None,
+    select_cutoff: float | None = None,
+    return_vec: bool = False,
+    writeh1: bool = False,
 ):
     """
     Embarrassingly Parallel High-Level Computation
@@ -418,38 +434,36 @@ def be_func_parallel(
 
     Parameters
     ----------
-    pot : list of float
+    pot :
         Potentials (local & global) that are added to the 1-electron Hamiltonian
         component.  The last element in the list is the chemical potential.
-    Fobjs : list of quemb.molbe.fragment.fragpart
+    Fobjs :
         Fragment definitions.
-    Nocc : int
+    Nocc :
         Number of occupied orbitals for the full system.
-    solver : str
+    solver :
         High-level solver in bootstrap embedding. Supported values are 'MP2', 'CCSD',
         'FCI', 'HCI', 'SHCI', and 'SCI'.
-    enuc : float
+    enuc :
         Nuclear component of the energy.
-    hf_veff : numpy.ndarray, optional
+    hf_veff :
         Hartree-Fock effective potential.
-    nproc : int, optional
+    nproc :
         Total number of processors assigned for the optimization. Defaults to 1.
         When nproc > 1, Python multithreading is invoked.
-    ompnum : int, optional
+    ompnum :
         If nproc > 1, sets the number of cores for OpenMP parallelization.
         Defaults to 4.
-    only_chem : bool, optional
+    only_chem :
         Whether to perform chemical potential optimization only.
         Refer to bootstrap embedding literature. Defaults to False.
-    eeval : bool, optional
+    eeval :
         Whether to evaluate energies. Defaults to False.
-    frag_energy : bool, optional
+    frag_energy :
         Whether to compute fragment energy. Defaults to False.
-    return_vec : bool, optional
+    return_vec :
         Whether to return the error vector. Defaults to False.
-    ebe_hf : float, optional
-        Hartree-Fock energy. Defaults to 0.
-    writeh1 : bool, optional
+    writeh1 :
         Whether to write the one-electron integrals. Defaults to False.
 
     Returns
@@ -458,73 +472,52 @@ def be_func_parallel(
         Depending on the parameters, returns the error norm or a tuple containing
         the error norm, error vector, and the computed energy.
     """
-    nfrag = len(Fobjs)
-    # Create directories for fragments if required
-    if writeh1 and solver == "SCI":
-        for nf in range(nfrag):
-            dname = Fobjs[nf].dname
-            os.system("mkdir " + dname)
-
     # Set the number of OpenMP threads
     os.system("export OMP_NUM_THREADS=" + str(ompnum))
-    nprocs = int(nproc / ompnum)
+    nprocs = nproc // ompnum
 
     # Update the effective Hamiltonian with potentials
     if pot is not None:
         for fobj in Fobjs:
             fobj.update_heff(pot, only_chem=only_chem)
 
-    pool_ = Pool(nprocs)
-    results = []
-    rdms = []
+    with Pool(nprocs) as pool_:
+        results = []
+        # Run solver in parallel for each fragment
+        for fobj in Fobjs:
+            result = pool_.apply_async(
+                run_solver,
+                [
+                    fobj.fock + fobj.heff,
+                    fobj.dm0.copy(),
+                    scratch_dir,
+                    fobj.dname,
+                    fobj.nao,
+                    fobj.nsocc,
+                    fobj.nfsites,
+                    fobj.efac,
+                    fobj.TA,
+                    hf_veff,
+                    fobj.h1,
+                    solver,
+                    fobj.eri_file,
+                    fobj.veff0,
+                    hci_cutoff,
+                    ci_coeff_cutoff,
+                    select_cutoff,
+                    ompnum,
+                    writeh1,
+                    True,
+                    True,
+                    use_cumulant,
+                    relax_density,
+                    frag_energy,
+                ],
+            )
 
-    # Run solver in parallel for each fragment
-    for nf in range(nfrag):
-        h1 = Fobjs[nf].fock + Fobjs[nf].heff
-        dm0 = Fobjs[nf].dm0.copy()
-        dname = Fobjs[nf].dname
-        nao = Fobjs[nf].nao
-        nocc = Fobjs[nf].nsocc
-        nfsites = Fobjs[nf].nfsites
-        efac = Fobjs[nf].efac
-        TA = Fobjs[nf].TA
-        h1_e = Fobjs[nf].h1
-        veff0 = Fobjs[nf].veff0
+            results.append(result)
 
-        result = pool_.apply_async(
-            run_solver,
-            [
-                h1,
-                dm0,
-                dname,
-                nao,
-                nocc,
-                nfsites,
-                efac,
-                TA,
-                hf_veff,
-                h1_e,
-                solver,
-                Fobjs[nf].eri_file,
-                veff0,
-                hci_cutoff,
-                ci_coeff_cutoff,
-                select_cutoff,
-                ompnum,
-                writeh1,
-                True,
-                True,
-                use_cumulant,
-                relax_density,
-                frag_energy,
-            ],
-        )
-
-        results.append(result)
-
-    # Collect results
-    [rdms.append(result.get()) for result in results]
-    pool_.close()
+        rdms = [result.get() for result in results]
 
     if frag_energy:
         # Compute and return fragment energy
@@ -542,14 +535,18 @@ def be_func_parallel(
     e_1 = 0.0
     e_2 = 0.0
     e_c = 0.0
-    for idx, fobj in enumerate(Fobjs):
-        e_1 += rdms[idx][0][0]
-        e_2 += rdms[idx][0][1]
-        e_c += rdms[idx][0][2]
-        fobj.mo_coeffs = rdms[idx][1]
-        fobj._rdm1 = rdms[idx][2]
-        fobj.rdm2__ = rdms[idx][3]
-        fobj.rdm1__ = rdms[idx][4]
+
+    # I have to type ignore here, because of stupid behaviour of
+    # :code:`zip` and :code:`enumerate`
+    # https://stackoverflow.com/questions/74374059/correctly-specify-the-types-of-unpacked-zip
+    for fobj, rdm in zip(Fobjs, rdms):  # type: ignore[assignment]
+        e_1 += rdm[0][0]
+        e_2 += rdm[0][1]
+        e_c += rdm[0][2]
+        fobj.mo_coeffs = rdm[1]
+        fobj._rdm1 = rdm[2]
+        fobj.rdm2__ = rdm[3]
+        fobj.rdm1__ = rdm[4]
 
     del rdms
     ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem)
@@ -615,34 +612,30 @@ def be_func_parallel_u(
     """
     # Set the number of OpenMP threads
     os.system("export OMP_NUM_THREADS=" + str(ompnum))
-    nprocs = int(nproc / ompnum)
+    nprocs = nproc // ompnum
 
-    pool_ = Pool(nprocs)
-    results = []
-    energy_list = []
+    with Pool(nprocs) as pool_:
+        results = []
+        # Run solver in parallel for each fragment
+        for fobj_a, fobj_b in Fobjs:
+            result = pool_.apply_async(
+                run_solver_u,
+                [
+                    fobj_a,
+                    fobj_b,
+                    solver,
+                    enuc,
+                    hf_veff,
+                    frag_energy,
+                    relax_density,
+                    frozen,
+                    use_cumulant,
+                    True,
+                ],
+            )
+            results.append(result)
 
-    # Run solver in parallel for each fragment
-    for fobj_a, fobj_b in Fobjs:
-        result = pool_.apply_async(
-            run_solver_u,
-            [
-                fobj_a,
-                fobj_b,
-                solver,
-                enuc,
-                hf_veff,
-                frag_energy,
-                relax_density,
-                frozen,
-                use_cumulant,
-                True,
-            ],
-        )
-        results.append(result)
-
-    # Collect results
-    [energy_list.append(result.get()) for result in results]
-    pool_.close()
+        energy_list = [result.get() for result in results]
 
     if frag_energy:
         # Compute and return fragment energy

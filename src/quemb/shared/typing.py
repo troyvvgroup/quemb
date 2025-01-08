@@ -22,20 +22,25 @@ import numpy as np
 #: Type annotation of a generic covariant type.
 T_dtype_co = TypeVar("T_dtype_co", bound=np.generic, covariant=True)
 
+# Currently we can define :code:`Matrix` and higher order tensors
+# only with shape :code`Tuple[int, ...]` because of
+# https://github.com/numpy/numpy/issues/27957
+# make the typechecks more strict over time, when shape checking finally comes to numpy.
+
 #: Type annotation of a vector.
 Vector = np.ndarray[Tuple[int], np.dtype[T_dtype_co]]
 #: Type annotation of a matrix.
-Matrix = np.ndarray[Tuple[int, int], np.dtype[T_dtype_co]]
+Matrix = np.ndarray[Tuple[int, ...], np.dtype[T_dtype_co]]
 #: Type annotation of a tensor.
-Tensor3D = np.ndarray[Tuple[int, int, int], np.dtype[T_dtype_co]]
+Tensor3D = np.ndarray[Tuple[int, ...], np.dtype[T_dtype_co]]
 #: Type annotation of a tensor.
-Tensor4D = np.ndarray[Tuple[int, int, int, int], np.dtype[T_dtype_co]]
+Tensor4D = np.ndarray[Tuple[int, ...], np.dtype[T_dtype_co]]
 #: Type annotation of a tensor.
-Tensor5D = np.ndarray[Tuple[int, int, int, int, int], np.dtype[T_dtype_co]]
+Tensor5D = np.ndarray[Tuple[int, ...], np.dtype[T_dtype_co]]
 #: Type annotation of a tensor.
-Tensor6D = np.ndarray[Tuple[int, int, int, int, int, int], np.dtype[T_dtype_co]]
+Tensor6D = np.ndarray[Tuple[int, ...], np.dtype[T_dtype_co]]
 #: Type annotation of a tensor.
-Tensor7D = np.ndarray[Tuple[int, int, int, int, int, int, int], np.dtype[T_dtype_co]]
+Tensor7D = np.ndarray[Tuple[int, ...], np.dtype[T_dtype_co]]
 #: Type annotation of a tensor.
 Tensor = np.ndarray[Tuple[int, ...], np.dtype[T_dtype_co]]
 
