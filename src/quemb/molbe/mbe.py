@@ -12,7 +12,7 @@ from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
 from quemb.molbe.fragment import fragpart
 from quemb.molbe.lo import MixinLocalize
-from quemb.molbe.misc import print_energy
+from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
 from quemb.molbe.opt import BEOPT
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import be_func
@@ -76,10 +76,10 @@ class BE(MixinLocalize):
         save: bool = False,
         restart_file: PathLike = "storebe.pk",
         save_file: PathLike = "storebe.pk",
-        hci_pt: bool = False,
         nproc: int = 1,
         ompnum: int = 4,
         scratch_dir: WorkDir | None = None,
+        hci_pt: bool = False,
         hci_cutoff: float = 0.001,
         ci_coeff_cutoff: float | None = None,
         select_cutoff: float | None = None,
@@ -99,6 +99,9 @@ class BE(MixinLocalize):
             Path to the file storing two-electron integrals.
         lo_method :
             Method for orbital localization, by default 'lowdin'.
+        pop_method :
+            Method for calculating orbital population, by default 'meta-lowdin'
+            See pyscf.lo for more details and options
         compute_hf :
             Whether to compute Hartree-Fock energy, by default True.
         restart :
@@ -636,6 +639,7 @@ class BE(MixinLocalize):
         solver: str = "MP2",
         method: str = "QN",
         only_chem: bool = False,
+        use_cumulant: bool = True,
         conv_tol: float = 1.0e-6,
         relax_density: bool = False,
         J0: Matrix[floating] | None = None,
@@ -658,6 +662,8 @@ class BE(MixinLocalize):
         only_chem :
             If true, density matching is not performed -- only global chemical potential
             is optimized, by default False
+        use_cumulant :
+            Whether to use the cumulant energy expression, by default True.
         conv_tol :
             Convergence tolerance, by default 1.e-6
         relax_density :
@@ -703,6 +709,7 @@ class BE(MixinLocalize):
             max_space=max_iter,
             conv_tol=conv_tol,
             only_chem=only_chem,
+            use_cumulant=use_cumulant,
             hci_cutoff=self.hci_cutoff,
             ci_coeff_cutoff=self.ci_coeff_cutoff,
             relax_density=relax_density,
@@ -724,11 +731,26 @@ class BE(MixinLocalize):
 
             # Perform the optimization
             be_.optimize(method, J0=J0, trust_region=trust_region)
-            self.ebe_tot = self.ebe_hf + be_.Ebe[0]
+
             # Print the energy components
-            print_energy(
-                be_.Ebe[0], be_.Ebe[1][1], be_.Ebe[1][0] + be_.Ebe[1][2], self.ebe_hf
-            )
+            if use_cumulant:
+                self.ebe_tot = be_.Ebe[0] + self.ebe_hf
+                print_energy_cumulant(
+                    be_.Ebe[0],
+                    be_.Ebe[1][1],
+                    be_.Ebe[1][0] + be_.Ebe[1][2],
+                    self.ebe_hf,
+                )
+            else:
+                self.ebe_tot = be_.Ebe[0] + self.enuc
+                print_energy_noncumulant(
+                    be_.Ebe[0],
+                    be_.Ebe[1][0],
+                    be_.Ebe[1][2],
+                    be_.Ebe[1][1],
+                    self.ebe_hf,
+                    self.enuc,
+                )
         else:
             raise ValueError("This optimization method for BE is not supported")
 
@@ -897,9 +919,9 @@ class BE(MixinLocalize):
     def oneshot(
         self,
         solver: str = "MP2",
+        use_cumulant: bool = True,
         nproc: int = 1,
         ompnum: int = 4,
-        calc_frag_energy: bool = False,
         DMRG_solver_kwargs: KwargDict | None = None,
     ) -> None:
         """
@@ -910,15 +932,14 @@ class BE(MixinLocalize):
         solver :
             High-level quantum chemistry method, by default 'MP2'. 'CCSD', 'FCI',
             and variants of selected CI are supported.
+        use_cumulant :
+            Whether to use the cumulant energy expression, by default True.
         nproc :
             Number of processors for parallel calculations, by default 1.
             If set to >1, multi-threaded parallel computation is invoked.
         ompnum :
             Number of OpenMP threads, by default 4.
-        calc_frag_energy :
-            Whether to calculate fragment energies, by default False.
         """
-        print("Calculating Energy by Fragment? ", calc_frag_energy)
         if nproc == 1:
             rets = be_func(
                 None,
@@ -927,13 +948,13 @@ class BE(MixinLocalize):
                 solver,
                 self.enuc,
                 hf_veff=self.hf_veff,
+                nproc=ompnum,
+                use_cumulant=use_cumulant,
+                eeval=True,
+                return_vec=False,
                 hci_cutoff=self.hci_cutoff,
                 ci_coeff_cutoff=self.ci_coeff_cutoff,
                 select_cutoff=self.select_cutoff,
-                nproc=ompnum,
-                frag_energy=calc_frag_energy,
-                ereturn=True,
-                eeval=True,
                 scratch_dir=self.scratch_dir,
                 DMRG_solver_kwargs=DMRG_solver_kwargs,
             )
@@ -945,13 +966,14 @@ class BE(MixinLocalize):
                 solver,
                 self.enuc,
                 hf_veff=self.hf_veff,
+                nproc=nproc,
+                ompnum=ompnum,
+                use_cumulant=use_cumulant,
+                eeval=True,
+                return_vec=False,
                 hci_cutoff=self.hci_cutoff,
                 ci_coeff_cutoff=self.ci_coeff_cutoff,
                 select_cutoff=self.select_cutoff,
-                eeval=True,
-                frag_energy=calc_frag_energy,
-                nproc=nproc,
-                ompnum=ompnum,
                 scratch_dir=self.scratch_dir,
             )
 
@@ -960,26 +982,16 @@ class BE(MixinLocalize):
         print("             Solver : ", solver, flush=True)
         print("-----------------------------------------------------", flush=True)
         print(flush=True)
-        if calc_frag_energy:
-            print(
-                "Final Tr(F del g) is         : {:>12.8f} Ha".format(
-                    rets[1][0] + rets[1][2]
-                ),
-                flush=True,
+        if use_cumulant:
+            print_energy_cumulant(
+                rets[0], rets[1][1], rets[1][0] + rets[1][2], self.ebe_hf
             )
-            print(
-                "Final Tr(V K_approx) is      : {:>12.8f} Ha".format(rets[1][1]),
-                flush=True,
-            )
-            print(
-                "Final e_corr is              : {:>12.8f} Ha".format(rets[0]),
-                flush=True,
-            )
-
             self.ebe_tot = rets[0]
-
-        if not calc_frag_energy:
-            self.compute_energy_full(approx_cumulant=True, return_rdm=False)
+        else:
+            print_energy_noncumulant(
+                rets[0], rets[1][0], rets[1][2], rets[1][1], self.ebe_hf, self.enuc
+            )
+            self.ebe_tot = rets[0] + self.enuc
 
     def update_fock(self, heff: list[Matrix[floating]] | None = None) -> None:
         """
