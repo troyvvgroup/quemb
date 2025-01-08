@@ -54,7 +54,6 @@ class BE(Mixin_k_Localize):
         eri_file: PathLike = "eri_file.h5",
         lo_method: str = "lowdin",
         use_cumulant: bool = True,
-        frag_energy: bool = True,
         compute_hf: bool = True,
         restart: bool = False,
         save: bool = False,
@@ -92,9 +91,6 @@ class BE(Mixin_k_Localize):
             Whether to perform Wannier localization on the IAO space, by default False.
         use_cumulant :
             Whether to use the cumulant energy expression, by default True.
-        frag_energy : bool, optional
-            Calculate energies of all fragments, rather than constructing any
-            full system RDMs, by default True
         compute_hf :
             Whether to compute Hartree-Fock energy, by default True.
         restart :
@@ -137,7 +133,6 @@ class BE(Mixin_k_Localize):
         self.ompnum = ompnum
 
         self.use_cumulant = use_cumulant
-        self.frag_energy = frag_energy
 
         # Fragment information from fobj
         self.frag_type = fobj.frag_type
@@ -401,7 +396,6 @@ class BE(Mixin_k_Localize):
             conv_tol=conv_tol,
             only_chem=only_chem,
             use_cumulant=self.use_cumulant,
-            frag_energy=self.frag_energy,
             hci_cutoff=self.hci_cutoff,
             ci_coeff_cutoff=self.ci_coeff_cutoff,
             relax_density=relax_density,
@@ -719,7 +713,6 @@ class BE(Mixin_k_Localize):
                 hf_veff=self.hf_veff,
                 nproc=ompnum,
                 use_cumulant=self.use_cumulant,
-                frag_energy=self.frag_energy,
                 eeval=True,
                 return_vec=False,
                 hci_cutoff=self.hci_cutoff,
@@ -739,7 +732,6 @@ class BE(Mixin_k_Localize):
                 nproc=nproc,
                 ompnum=ompnum,
                 use_cumulant=self.use_cumulant,
-                frag_energy=self.frag_energy,
                 eeval=True,
                 return_vec=False,
                 hci_cutoff=self.hci_cutoff,
@@ -753,23 +745,23 @@ class BE(Mixin_k_Localize):
         print("             Solver : ", solver, flush=True)
         print("-----------------------------------------------------", flush=True)
         print(flush=True)
-        if self.frag_energy:
-            print(
-                "Final Tr(F del g) is         : {:>12.8f} Ha".format(
-                    rets[1][0] + rets[1][2]
-                ),
-                flush=True,
-            )
-            print(
-                "Final Tr(V K_approx) is      : {:>12.8f} Ha".format(rets[1][1]),
-                flush=True,
-            )
-            print(
-                "Final e_corr is              : {:>12.8f} Ha".format(rets[0]),
-                flush=True,
-            )
 
-            self.ebe_tot = rets[0]
+        print(
+            "Final Tr(F del g) is         : {:>12.8f} Ha".format(
+                rets[1][0] + rets[1][2]
+            ),
+            flush=True,
+        )
+        print(
+            "Final Tr(V K_approx) is      : {:>12.8f} Ha".format(rets[1][1]),
+            flush=True,
+        )
+        print(
+            "Final e_corr is              : {:>12.8f} Ha".format(rets[0]),
+            flush=True,
+        )
+
+        self.ebe_tot = rets[0]
 
     def update_fock(self, heff=None):
         """

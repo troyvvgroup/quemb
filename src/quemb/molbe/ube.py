@@ -400,7 +400,7 @@ class UBE(BE):  # 🍠
             fobj.udim = couti
             couti = fobj.set_udim(couti)
 
-    def oneshot(self, solver="UCCSD", nproc=1, ompnum=4, calc_frag_energy=True):
+    def oneshot(self, solver="UCCSD", nproc=1, ompnum=4):
         if nproc == 1:
             E, E_comp = be_func_u(
                 None,
@@ -411,7 +411,6 @@ class UBE(BE):  # 🍠
                 eeval=True,
                 ereturn=True,
                 relax_density=False,
-                frag_energy=calc_frag_energy,
                 frozen=self.frozen_core,
             )
         else:
@@ -424,7 +423,6 @@ class UBE(BE):  # 🍠
                 nproc=nproc,
                 ompnum=ompnum,
                 relax_density=False,
-                frag_energy=calc_frag_energy,
                 frozen=self.frozen_core,
             )
         unused(E_comp)

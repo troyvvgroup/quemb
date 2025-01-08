@@ -72,7 +72,6 @@ class BE(MixinLocalize):
         lo_method: str = "lowdin",
         pop_method: str | None = None,
         use_cumulant: bool = True,
-        frag_energy: bool = True,
         compute_hf: bool = True,
         restart: bool = False,
         save: bool = False,
@@ -106,9 +105,6 @@ class BE(MixinLocalize):
             See pyscf.lo for more details and options
         use_cumulant :
             Whether to use the cumulant energy expression, by default True.
-        frag_energy : bool, optional
-            Calculate energies of all fragments, rather than constructing any
-            full system RDMs, by default True
         compute_hf :
             Whether to compute Hartree-Fock energy, by default True.
         restart :
@@ -176,7 +172,6 @@ class BE(MixinLocalize):
         self.ebe_hf = 0.0
         self.ebe_tot = 0.0
 
-        self.frag_energy = frag_energy
         self.use_cumulant = use_cumulant
 
         # HCI parameters
@@ -717,7 +712,6 @@ class BE(MixinLocalize):
             conv_tol=conv_tol,
             only_chem=only_chem,
             use_cumulant=self.use_cumulant,
-            frag_energy=self.frag_energy,
             hci_cutoff=self.hci_cutoff,
             ci_coeff_cutoff=self.ci_coeff_cutoff,
             relax_density=relax_density,
@@ -954,7 +948,6 @@ class BE(MixinLocalize):
                 hf_veff=self.hf_veff,
                 nproc=ompnum,
                 use_cumulant=self.use_cumulant,
-                frag_energy=self.frag_energy,
                 eeval=True,
                 return_vec=False,
                 hci_cutoff=self.hci_cutoff,
@@ -974,7 +967,6 @@ class BE(MixinLocalize):
                 nproc=nproc,
                 ompnum=ompnum,
                 use_cumulant=self.use_cumulant,
-                frag_energy=self.frag_energy,
                 eeval=True,
                 return_vec=False,
                 hci_cutoff=self.hci_cutoff,
@@ -988,20 +980,16 @@ class BE(MixinLocalize):
         print("             Solver : ", solver, flush=True)
         print("-----------------------------------------------------", flush=True)
         print(flush=True)
-        if self.frag_energy:
-            if self.use_cumulant:
-                print_energy_cumulant(
-                    rets[0], rets[1][1], rets[1][0] + rets[1][2], self.ebe_hf
-                )
-                self.ebe_tot = rets[0]
-            else:
-                print_energy_noncumulant(
-                    rets[0], rets[1][0], rets[1][2], rets[1][1], self.ebe_hf, self.enuc
-                )
-                self.ebe_tot = rets[0] + self.enuc
-
-        if not self.frag_energy:
-            self.compute_energy_full(approx_cumulant=True, return_rdm=False)
+        if self.use_cumulant:
+            print_energy_cumulant(
+                rets[0], rets[1][1], rets[1][0] + rets[1][2], self.ebe_hf
+            )
+            self.ebe_tot = rets[0]
+        else:
+            print_energy_noncumulant(
+                rets[0], rets[1][0], rets[1][2], rets[1][1], self.ebe_hf, self.enuc
+            )
+            self.ebe_tot = rets[0] + self.enuc
 
     def update_fock(self, heff: list[Matrix[floating]] | None = None) -> None:
         """

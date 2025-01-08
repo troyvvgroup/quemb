@@ -52,7 +52,6 @@ def run_solver(
     select_cutoff: float | None = None,
     ompnum: int = 4,
     writeh1: bool = False,
-    frag_energy: bool = False,
     eeval: bool = True,
     ret_vec: bool = False,
     return_rdm_ao: bool = True,
@@ -260,31 +259,25 @@ def run_solver(
                     + numpy.einsum("ij,kl->iklj", del_rdm1, hf_dm)
                 ) * 0.5
                 rdm2s -= nc
-        if frag_energy:
-            e_f = get_frag_energy(
-                mf_.mo_coeff,
-                nocc,
-                nfsites,
-                efac,
-                TA,
-                h1_e,
-                hf_veff,
-                rdm1_tmp,
-                rdm2s,
-                dname,
-                veff0_per,
-                veff,
-                use_cumulant,
-                eri_file,
-            )
+        e_f = get_frag_energy(
+            mf_.mo_coeff,
+            nocc,
+            nfsites,
+            efac,
+            TA,
+            h1_e,
+            hf_veff,
+            rdm1_tmp,
+            rdm2s,
+            dname,
+            veff0_per,
+            veff,
+            use_cumulant,
+            eri_file,
+        )
     if eeval:
-        if frag_energy and not ret_vec:
+        if not ret_vec:
             return e_f
-        elif not frag_energy:
-            raise NotImplementedError("""Evaluating the energy
-                                        supported only on
-                                        fragment-by-fragment basis.
-                                        Use frag_energy=True""")
 
     if return_rdm_ao:
         return (e_f, mf_.mo_coeff, rdm1, rdm2s, rdm1_tmp)
@@ -298,7 +291,6 @@ def run_solver_u(
     solver,
     enuc,  # noqa: ARG001
     hf_veff,
-    frag_energy=True,
     relax_density=False,
     frozen=False,
     use_cumulant=True,
@@ -319,8 +311,6 @@ def run_solver_u(
         Nuclear component of the energy
     hf_veff : tuple of numpy.ndarray, optional
         Alpha and beta spin Hartree-Fock effective potentials.
-    frag_energy : bool, optional
-        If True, calculates and returns fragment energies, defaults to True.
     relax_density : bool, optional
         If True, uses  relaxed density matrix for UCCSD, defaults to False.
     frozen : bool, optional
@@ -390,32 +380,29 @@ def run_solver_u(
         fobj_b.rdm2__ = rdm2s[1].copy()
 
         # Calculate energy on a per-fragment basis
-        if frag_energy:
-            if frozen:
-                h1_ab = [
-                    full_uhf.h1[0] + full_uhf.full_gcore[0] + full_uhf.core_veffs[0],
-                    full_uhf.h1[1] + full_uhf.full_gcore[1] + full_uhf.core_veffs[1],
-                ]
-            else:
-                h1_ab = [fobj_a.h1, fobj_b.h1]
-            e_f = get_frag_energy_u(
-                (fobj_a._mo_coeffs, fobj_b._mo_coeffs),
-                (fobj_a.nsocc, fobj_b.nsocc),
-                (fobj_a.nfsites, fobj_b.nfsites),
-                (fobj_a.efac, fobj_b.efac),
-                (fobj_a.TA, fobj_b.TA),
-                h1_ab,
-                hf_veff,
-                rdm1_tmp,
-                rdm2s,
-                fobj_a.dname,
-                eri_file=fobj_a.eri_file,
-                gcores=full_uhf.full_gcore,
-                frozen=frozen,
-            )
-            return e_f
+        if frozen:
+            h1_ab = [
+                full_uhf.h1[0] + full_uhf.full_gcore[0] + full_uhf.core_veffs[0],
+                full_uhf.h1[1] + full_uhf.full_gcore[1] + full_uhf.core_veffs[1],
+            ]
         else:
-            return NotImplementedError("Energy only calculated on a per-fragment basis")
+            h1_ab = [fobj_a.h1, fobj_b.h1]
+        e_f = get_frag_energy_u(
+            (fobj_a._mo_coeffs, fobj_b._mo_coeffs),
+            (fobj_a.nsocc, fobj_b.nsocc),
+            (fobj_a.nfsites, fobj_b.nfsites),
+            (fobj_a.efac, fobj_b.efac),
+            (fobj_a.TA, fobj_b.TA),
+            h1_ab,
+            hf_veff,
+            rdm1_tmp,
+            rdm2s,
+            fobj_a.dname,
+            eri_file=fobj_a.eri_file,
+            gcores=full_uhf.full_gcore,
+            frozen=frozen,
+        )
+        return e_f
 
 
 def be_func_parallel(
@@ -431,7 +418,6 @@ def be_func_parallel(
     ompnum: int = 4,
     relax_density: bool = False,
     use_cumulant: bool = True,
-    frag_energy: bool = True,
     eeval: bool = True,
     return_vec: bool = True,
     return_rdm_ao: bool = True,
@@ -477,8 +463,6 @@ def be_func_parallel(
         Defaults to 4.
     use_cumulant :
         Use cumulant energy expression. Defaults to True
-    frag_energy :
-        Whether to compute fragment energy. Defaults to False.
     eeval :
         Whether to evaluate energies. Defaults to False.
     return_vec :
@@ -530,7 +514,6 @@ def be_func_parallel(
                     select_cutoff,
                     ompnum,
                     writeh1,
-                    frag_energy,
                     eeval,
                     return_vec,
                     return_rdm_ao,
@@ -543,7 +526,7 @@ def be_func_parallel(
 
         rdms = [result.get() for result in results]
 
-    if frag_energy and not return_vec:
+    if not return_vec:
         # Compute and return fragment energy
         # rdms are the returned energies, not density matrices!
         e_1 = 0.0
@@ -592,7 +575,6 @@ def be_func_parallel_u(
     ompnum=4,
     relax_density=False,
     use_cumulant=True,
-    frag_energy=False,
     frozen=False,
 ):
     """
@@ -622,8 +604,6 @@ def be_func_parallel_u(
     ompnum : int, optional
         If nproc > 1, sets the number of cores for OpenMP parallelization.
         Defaults to 4.
-    frag_energy : bool, optional
-        Whether to compute fragment energy. Defaults to False.
     frozen : bool, optional
         Frozen core. Defaults to False
 
@@ -648,7 +628,6 @@ def be_func_parallel_u(
                     solver,
                     enuc,
                     hf_veff,
-                    frag_energy,
                     relax_density,
                     frozen,
                     use_cumulant,
@@ -659,17 +638,12 @@ def be_func_parallel_u(
 
         energy_list = [result.get() for result in results]
 
-    if frag_energy:
-        # Compute and return fragment energy
-        e_1 = 0.0
-        e_2 = 0.0
-        e_c = 0.0
-        for i in range(len(energy_list)):
-            e_1 += energy_list[i][0]
-            e_2 += energy_list[i][1]
-            e_c += energy_list[i][2]
-        return (e_1 + e_2 + e_c, (e_1, e_2, e_c))
-    else:
-        return NotImplementedError(
-            "Only fragment-wise energy return implemented, no RDM return"
-        )
+    # Compute and return fragment energy
+    e_1 = 0.0
+    e_2 = 0.0
+    e_c = 0.0
+    for i in range(len(energy_list)):
+        e_1 += energy_list[i][0]
+        e_2 += energy_list[i][1]
+        e_c += energy_list[i][2]
+    return (e_1 + e_2 + e_c, (e_1, e_2, e_c))

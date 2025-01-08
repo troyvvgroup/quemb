@@ -38,7 +38,6 @@ def be_func(
     nproc: int = 4,
     relax_density: bool = False,
     use_cumulant: bool = True,
-    frag_energy: bool = False,
     eeval: bool = False,
     return_vec: bool = False,
     hci_pt: bool = False,
@@ -74,8 +73,7 @@ def be_func(
         Whether to relax the density. Defaults to False.
     use_cumulant :
         Whether to use the cumulant-based energy expression. Defaults to True.
-    frag_energy :
-        Whether to calculate fragment energy. Defaults to False.
+
     eeval :
         Whether to evaluate the energy. Defaults to False.
     return_vec :
@@ -91,7 +89,7 @@ def be_func(
     rdm_return = False
     if relax_density:
         rdm_return = True
-    if frag_energy or eeval:
+    if eeval:
         total_e = [0.0, 0.0, 0.0]
 
     # Loop over each fragment and solve using the specified solver
@@ -280,40 +278,31 @@ def be_func(
                     ) * 0.5
                     rdm2s -= nc
             fobj.rdm2__ = rdm2s.copy()
-            if frag_energy:
-                # Find the energy of a given fragment, with the cumulant definition.
-                # Return [e1, e2, ec] as e_f and add to the running total_e.
-                e_f = get_frag_energy(
-                    mo_coeffs=fobj.mo_coeffs,
-                    nsocc=fobj.nsocc,
-                    nfsites=fobj.nfsites,
-                    efac=fobj.efac,
-                    TA=fobj.TA,
-                    h1=fobj.h1,
-                    hf_veff=hf_veff,
-                    rdm1=rdm1_tmp,
-                    rdm2s=rdm2s,
-                    dname=fobj.dname,
-                    veff0_per=fobj.veff0,
-                    veff=None if use_cumulant else fobj.veff,
-                    use_cumulant=use_cumulant,
-                    eri_file=fobj.eri_file,
-                )
-                total_e = [sum(x) for x in zip(total_e, e_f)]
-                fobj.update_ebe_hf()
+            # Find the energy of a given fragment.
+            # Return [e1, e2, ec] as e_f and add to the running total_e.
+            e_f = get_frag_energy(
+                mo_coeffs=fobj.mo_coeffs,
+                nsocc=fobj.nsocc,
+                nfsites=fobj.nfsites,
+                efac=fobj.efac,
+                TA=fobj.TA,
+                h1=fobj.h1,
+                hf_veff=hf_veff,
+                rdm1=rdm1_tmp,
+                rdm2s=rdm2s,
+                dname=fobj.dname,
+                veff0_per=fobj.veff0,
+                veff=None if use_cumulant else fobj.veff,
+                use_cumulant=use_cumulant,
+                eri_file=fobj.eri_file,
+            )
+            total_e = [sum(x) for x in zip(total_e, e_f)]
+            fobj.update_ebe_hf()
 
     if eeval:
-        if frag_energy:
-            # Return energy evaluated fragment-by-fragment
-            Ecorr = sum(total_e)
-            if not return_vec:
-                return (Ecorr, total_e)
-        else:
-            # Return energy, not evaluated fragment-by-fragment
-            # Will require something like "compute_energy_full" included in mbe BE
-            raise NotImplementedError("""Evaluating the energy supported only on
-                                        fragment-by-fragment basis.
-                                        Use frag_energy=True""")
+        Ecorr = sum(total_e)
+        if not return_vec:
+            return (Ecorr, total_e)
 
     ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem)
 
@@ -331,7 +320,6 @@ def be_func_u(
     hf_veff=None,
     eeval=False,
     ereturn=False,
-    frag_energy=True,
     relax_density=False,
     use_cumulant=True,
     frozen=False,
@@ -359,8 +347,6 @@ def be_func_u(
         Whether to evaluate the energy. Defaults to False.
     ereturn : bool, optional
         Whether to return the energy. Defaults to False.
-    frag_energy : bool, optional
-        Whether to calculate fragment energy. Defaults to True.
     relax_density : bool, optional
         Whether to relax the density. Defaults to False.
     return_vec : bool, optional
@@ -379,7 +365,7 @@ def be_func_u(
     """
     rdm_return = relax_density
     E = 0.0
-    if frag_energy or eeval:
+    if eeval:
         total_e = [0.0, 0.0, 0.0]
 
     # Loop over each fragment and solve using the specified solver
@@ -424,39 +410,34 @@ def be_func_u(
                 rdm2s = make_rdm2_uccsd(ucc, with_dm1=with_dm1)
             fobj_a.rdm2__ = rdm2s[0].copy()
             fobj_b.rdm2__ = rdm2s[1].copy()
-            if frag_energy:
-                if frozen:
-                    h1_ab = [
-                        full_uhf.h1[0]
-                        + full_uhf.full_gcore[0]
-                        + full_uhf.core_veffs[0],
-                        full_uhf.h1[1]
-                        + full_uhf.full_gcore[1]
-                        + full_uhf.core_veffs[1],
-                    ]
-                else:
-                    h1_ab = [fobj_a.h1, fobj_b.h1]
 
-                e_f = get_frag_energy_u(
-                    (fobj_a._mo_coeffs, fobj_b._mo_coeffs),
-                    (fobj_a.nsocc, fobj_b.nsocc),
-                    (fobj_a.nfsites, fobj_b.nfsites),
-                    (fobj_a.efac, fobj_b.efac),
-                    (fobj_a.TA, fobj_b.TA),
-                    h1_ab,
-                    hf_veff,
-                    rdm1_tmp,
-                    rdm2s,
-                    fobj_a.dname,
-                    eri_file=fobj_a.eri_file,
-                    gcores=full_uhf.full_gcore,
-                    frozen=frozen,
-                )
-                total_e = [sum(x) for x in zip(total_e, e_f)]
+            if frozen:
+                h1_ab = [
+                    full_uhf.h1[0] + full_uhf.full_gcore[0] + full_uhf.core_veffs[0],
+                    full_uhf.h1[1] + full_uhf.full_gcore[1] + full_uhf.core_veffs[1],
+                ]
+            else:
+                h1_ab = [fobj_a.h1, fobj_b.h1]
 
-    if frag_energy:
-        E = sum(total_e)
-        return (E, total_e)
+            e_f = get_frag_energy_u(
+                (fobj_a._mo_coeffs, fobj_b._mo_coeffs),
+                (fobj_a.nsocc, fobj_b.nsocc),
+                (fobj_a.nfsites, fobj_b.nfsites),
+                (fobj_a.efac, fobj_b.efac),
+                (fobj_a.TA, fobj_b.TA),
+                h1_ab,
+                hf_veff,
+                rdm1_tmp,
+                rdm2s,
+                fobj_a.dname,
+                eri_file=fobj_a.eri_file,
+                gcores=full_uhf.full_gcore,
+                frozen=frozen,
+            )
+            total_e = [sum(x) for x in zip(total_e, e_f)]
+
+    E = sum(total_e)
+    return (E, total_e)
 
 
 def solve_error(Fobjs, Nocc, only_chem=False):

@@ -69,7 +69,6 @@ class BEOPT:
     only_chem: bool = False
     solver: str = "MP2"
     use_cumulant: bool = True
-    frag_energy: bool = True
 
     max_space: int = 500
     conv_tol: float = 1.0e-6
@@ -119,7 +118,6 @@ class BEOPT:
                 nproc=self.ompnum,
                 relax_density=self.relax_density,
                 use_cumulant=self.use_cumulant,
-                frag_energy=self.frag_energy,
                 eeval=True,
                 return_vec=True,
                 hci_cutoff=self.hci_cutoff,
@@ -142,7 +140,6 @@ class BEOPT:
                 ompnum=self.ompnum,
                 relax_density=self.relax_density,
                 use_cumulant=self.use_cumulant,
-                frag_energy=self.frag_energy,
                 eeval=True,
                 return_vec=True,
                 hci_cutoff=self.hci_cutoff,
