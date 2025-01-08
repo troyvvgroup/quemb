@@ -26,8 +26,6 @@ from quemb.shared.typing import KwargDict, Matrix, PathLike
 
 @define
 class storeBE:
-    # TODO: some of the types are most likely wrong.
-    #  this has to be checked in a review
     Nocc: int
     hf_veff: Matrix[floating]
     hcore: Matrix[floating]
