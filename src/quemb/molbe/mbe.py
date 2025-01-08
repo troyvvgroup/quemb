@@ -736,6 +736,7 @@ class BE(MixinLocalize):
             self.ebe_tot = self.ebe_hf + be_.Ebe[0]
             # Print the energy components
             if self.use_cumulant:
+                self.ebe_tot = be_.Ebe[0] + self.ebe_hf
                 print_energy_cumulant(
                     be_.Ebe[0],
                     be_.Ebe[1][1],
