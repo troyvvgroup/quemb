@@ -625,7 +625,6 @@ class BE(Mixin_k_Localize):
 
                 self.Fobjs[frg].fock = self.Fobjs[frg].h1 + veff_.real
             del veffs
-            del veffs
 
         # SCF parallelized
         if self.nproc == 1 and not transform_parallel:
