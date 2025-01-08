@@ -252,7 +252,7 @@ def get_frag_energy(
         veff for non-cumulant energy expression
     use_cumulant: bool
         Whether to return cumulant energy, by default True
-    eri_file : str
+    eri_file : str, optional
         Filename of the HDF5 file containing the electron repulsion integrals.
         Defaults to 'eri_file.h5'.
 
