@@ -1,7 +1,7 @@
 # Author(s): Oinam Romesh Meitei, Leah Weisburn
 
 import os
-from multiprocessing.pool import ThreadPool as Pool
+from multiprocessing import Pool
 
 import numpy
 from numpy import float64
