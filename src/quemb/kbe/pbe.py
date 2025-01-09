@@ -318,6 +318,7 @@ class BE(Mixin_k_Localize):
         solver: str = "MP2",
         method: str = "QN",
         only_chem: bool = False,
+        use_cumulant: bool = True,
         conv_tol: float = 1.0e-6,
         relax_density: bool = False,
         J0: list[list[float]] | None = None,
@@ -338,6 +339,8 @@ class BE(Mixin_k_Localize):
         only_chem : bool, optional
             If true, density matching is not performed --
             only global chemical potential is optimized, by default False
+        use_cumulant :
+            Whether to use the cumulant energy expression, by default True.
         conv_tol : float, optional
             Convergence tolerance, by default 1.e-6
         relax_density : bool, optional
@@ -373,13 +376,13 @@ class BE(Mixin_k_Localize):
             self.Fobjs,
             self.Nocc,
             self.enuc,
-            hf_veff=self.hf_veff,
             nproc=nproc,
             ompnum=ompnum,
             scratch_dir=self.scratch_dir,
             max_space=max_iter,
             conv_tol=conv_tol,
             only_chem=only_chem,
+            use_cumulant=use_cumulant,
             relax_density=relax_density,
             solver=solver,
             ebe_hf=self.ebe_hf,
@@ -398,13 +401,17 @@ class BE(Mixin_k_Localize):
             be_.optimize(method, J0=J0)
             self.ebe_tot = self.ebe_hf + be_.Ebe[0]
             # Print the energy components
-            print_energy(
-                be_.Ebe[0],
-                be_.Ebe[1][1],
-                be_.Ebe[1][0] + be_.Ebe[1][2],
-                self.ebe_hf,
-                self.unitcell_nkpt,
-            )
+            if use_cumulant:
+                print_energy(
+                    be_.Ebe[0],
+                    be_.Ebe[1][1],
+                    be_.Ebe[1][0] + be_.Ebe[1][2],
+                    self.ebe_hf,
+                    self.unitcell_nkpt,
+                )
+            else:
+                raise NotImplementedError("""Non-cumulant energy not yet supported
+                                               for periodic code""")
         else:
             raise ValueError("This optimization method for BE is not supported")
 
@@ -660,9 +667,9 @@ class BE(Mixin_k_Localize):
     def oneshot(
         self,
         solver: str = "MP2",
+        use_cumulant: bool = True,
         nproc: int = 1,
         ompnum: int = 4,
-        calc_frag_energy: bool = False,
         solver_args: UserSolverArgs | None = None,
     ) -> None:
         """
@@ -673,17 +680,16 @@ class BE(Mixin_k_Localize):
         solver :
             High-level quantum chemistry method, by default 'MP2'. 'CCSD', 'FCI',
             and variants of selected CI are supported.
+        use_cumulant :
+            Whether to use the cumulant energy expression, by default True.
         nproc :
             Number of processors for parallel calculations, by default 1.
             If set to >1, threaded parallel computation is invoked.
         ompnum :
             Number of OpenMP threads, by default 4.
-        calc_frag_energy :
-            Whether to calculate fragment energies, by default False.
         clean_eri :
             Whether to clean up ERI files after calculation, by default False.
         """
-        print("Calculating Energy by Fragment? ", calc_frag_energy)
         if nproc == 1:
             rets = be_func(
                 None,
@@ -691,13 +697,13 @@ class BE(Mixin_k_Localize):
                 self.Nocc,
                 solver,
                 self.enuc,
-                hf_veff=self.hf_veff,
                 nproc=ompnum,
-                frag_energy=calc_frag_energy,
                 ereturn=True,
                 eeval=True,
                 scratch_dir=self.scratch_dir,
                 solver_args=solver_args,
+                use_cumulant=use_cumulant,
+                return_vec=False,
             )
         else:
             rets = be_func_parallel(
@@ -706,13 +712,13 @@ class BE(Mixin_k_Localize):
                 self.Nocc,
                 solver,
                 self.enuc,
-                hf_veff=self.hf_veff,
                 eeval=True,
-                frag_energy=calc_frag_energy,
                 nproc=nproc,
                 ompnum=ompnum,
                 scratch_dir=self.scratch_dir,
                 solver_args=solver_args,
+                use_cumulant=use_cumulant,
+                return_vec=False,
             )
 
         print("-----------------------------------------------------", flush=True)
@@ -720,23 +726,21 @@ class BE(Mixin_k_Localize):
         print("             Solver : ", solver, flush=True)
         print("-----------------------------------------------------", flush=True)
         print(flush=True)
-        if calc_frag_energy:
-            print(
-                "Final Tr(F del g) is         : {:>12.8f} Ha".format(
-                    rets[1][0] + rets[1][2]
-                ),
-                flush=True,
-            )
-            print(
-                "Final Tr(V K_approx) is      : {:>12.8f} Ha".format(rets[1][1]),
-                flush=True,
-            )
-            print(
-                "Final e_corr is              : {:>12.8f} Ha".format(rets[0]),
-                flush=True,
-            )
 
-            self.ebe_tot = rets[0]
+        print(
+            "Final Tr(F del g) is         : {:>12.8f} Ha".format(
+                rets[1][0] + rets[1][2]
+            ),
+            flush=True,
+        )
+        print(
+            "Final Tr(V K_approx) is      : {:>12.8f} Ha".format(rets[1][1]),
+            flush=True,
+        )
+        print(
+            "Final e_corr is              : {:>12.8f} Ha".format(rets[0]),
+            flush=True,
+        )
 
     def update_fock(self, heff=None):
         """

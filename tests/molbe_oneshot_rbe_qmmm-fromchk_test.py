@@ -17,7 +17,7 @@ from quemb.molbe.misc import be2puffin
 
 @pytest.mark.skipif(
     not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
-    reason="This test is known to fail because the check file " "does not exist.",
+    reason="This test is known to fail because the check file does not exist.",
 )
 def test_rbe_qmmm_fromchk():
     charges = [-0.2, -0.1, 0.15, 0.2]

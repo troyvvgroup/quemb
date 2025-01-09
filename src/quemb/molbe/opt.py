@@ -34,6 +34,8 @@ class BEOPT:
        No. of occupied orbitals for the full system.
     enuc :
        Nuclear component of the energy.
+    scratch_dir :
+        Scratch directory
     solver :
        High-level solver in bootstrap embedding. 'MP2', 'CCSD', 'FCI' are supported.
        Selected CI versions,
@@ -66,7 +68,7 @@ class BEOPT:
     nproc: int = 1
     ompnum: int = 4
     only_chem: bool = False
-    hf_veff: Matrix[float64] | None = None
+    use_cumulant: bool = True
 
     max_space: int = 500
     conv_tol: float = 1.0e-6
@@ -105,14 +107,14 @@ class BEOPT:
                 self.Nocc,
                 self.solver,
                 self.enuc,
-                eeval=True,
-                return_vec=True,
-                hf_veff=self.hf_veff,
                 only_chem=self.only_chem,
                 nproc=self.ompnum,
                 relax_density=self.relax_density,
                 scratch_dir=self.scratch_dir,
                 solver_args=self.solver_args,
+                use_cumulant=self.use_cumulant,
+                eeval=True,
+                return_vec=True,
             )
         else:
             err_, errvec_, ebe_ = be_func_parallel(
@@ -121,15 +123,15 @@ class BEOPT:
                 self.Nocc,
                 self.solver,
                 self.enuc,
-                eeval=True,
-                return_vec=True,
-                hf_veff=self.hf_veff,
+                only_chem=self.only_chem,
                 nproc=self.nproc,
                 ompnum=self.ompnum,
-                only_chem=self.only_chem,
                 relax_density=self.relax_density,
                 scratch_dir=self.scratch_dir,
                 solver_args=self.solver_args,
+                use_cumulant=self.use_cumulant,
+                eeval=True,
+                return_vec=True,
             )
 
         # Update error and BE energy
