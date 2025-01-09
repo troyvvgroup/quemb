@@ -73,9 +73,7 @@ class BE(MixinLocalize):
         pop_method: str | None = None,
         compute_hf: bool = True,
         restart: bool = False,
-        save: bool = False,
         restart_file: PathLike = "storebe.pk",
-        save_file: PathLike = "storebe.pk",
         nproc: int = 1,
         ompnum: int = 4,
         scratch_dir: WorkDir | None = None,
@@ -102,12 +100,8 @@ class BE(MixinLocalize):
             Whether to compute Hartree-Fock energy, by default True.
         restart :
             Whether to restart from a previous calculation, by default False.
-        save :
-            Whether to save intermediate objects for restart, by default False.
         restart_file :
             Path to the file storing restart information, by default 'storebe.pk'.
-        save_file :
-            Path to the file storing save information, by default 'storebe.pk'.
         nproc :
             Number of processors for parallel calculations, by default 1. If set to >1,
             threaded parallel computation is invoked.
@@ -150,6 +144,7 @@ class BE(MixinLocalize):
         self.auxbasis = auxbasis
 
         # Fragment information from fobj
+        self.fobj = fobj
         self.frag_type = fobj.frag_type
         self.Nfrag = fobj.Nfrag
         self.fsites = fobj.fsites
@@ -241,34 +236,41 @@ class BE(MixinLocalize):
                     nosave=True,
                 )
 
-        if save:
-            # Save intermediate results for restart
-            store_ = storeBE(
-                self.Nocc,
-                self.hf_veff,
-                self.hcore,
-                self.S,
-                self.C,
-                self.hf_dm,
-                self.hf_etot,
-                self.W,
-                self.lmo_coeff,
-                self.enuc,
-                self.E_core,
-                self.C_core,
-                self.P_core,
-                self.core_veff,
-                self.mo_energy,
-            )
-
-            with open(save_file, "wb") as rfile:
-                pickle.dump(store_, rfile, pickle.HIGHEST_PROTOCOL)
-
         if not restart:
             # Initialize fragments and perform initial calculations
             self.initialize(mf._eri, compute_hf)
         else:
             self.initialize(None, compute_hf, restart=True)
+
+    def save_restart(self, save_file: PathLike = "storebe.pk") -> None:
+        """
+        Save intermediate results for restart.
+
+        Parameters
+        ----------
+        save_file :
+            Path to the file storing restart information, by default 'storebe.pk'.
+        """
+        store_ = storeBE(
+            self.Nocc,
+            self.hf_veff,
+            self.hcore,
+            self.S,
+            self.C,
+            self.hf_dm,
+            self.hf_etot,
+            self.W,
+            self.lmo_coeff,
+            self.enuc,
+            self.E_core,
+            self.C_core,
+            self.P_core,
+            self.core_veff,
+            self.mo_energy,
+        )
+
+        with open(save_file, "wb") as rfile:
+            pickle.dump(store_, rfile, pickle.HIGHEST_PROTOCOL)
 
     def rdm1_fullbasis(
         self,
