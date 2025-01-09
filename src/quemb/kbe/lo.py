@@ -118,19 +118,15 @@ class Mixin_k_Localize:
                 S12, S2 = get_xovlp_k(self.cell, self.kpts, basis=valence_basis)
                 ciao_ = get_iao_k(Co, S12, self.S, S2=S2)
 
-                arrange_by_atom = True
                 # tmp - aos are not rearrange and so below is not necessary
-                if arrange_by_atom:
-                    nk, nao, nlo = ciao_.shape
-                    Ciao_ = numpy.zeros((nk, nao, nlo), dtype=numpy.complex128)
-                    for k in range(self.nkpt):
-                        aoind_by_atom = get_aoind_by_atom(self.cell)
-                        ctmp, iaoind_by_atom = reorder_by_atom_(
-                            ciao_[k], aoind_by_atom, self.S[k]
-                        )
-                        Ciao_[k] = ctmp
-                else:
-                    Ciao_ = ciao_.copy()
+                nk, nao, nlo = ciao_.shape
+                Ciao_ = numpy.zeros((nk, nao, nlo), dtype=numpy.complex128)
+                for k in range(self.nkpt):
+                    aoind_by_atom = get_aoind_by_atom(self.cell)
+                    ctmp, iaoind_by_atom = reorder_by_atom_(
+                        ciao_[k], aoind_by_atom, self.S[k]
+                    )
+                    Ciao_[k] = ctmp
 
                 # get_pao_k returns canonical orthogonalized orbitals
                 # Cpao = get_pao_k(Ciao, self.S, S12, S2, self.cell)
@@ -139,17 +135,14 @@ class Mixin_k_Localize:
                     Ciao_, self.S, self.cell, valence_basis, self.kpts
                 )
 
-                if arrange_by_atom:
-                    nk, nao, nlo = cpao_.shape
-                    Cpao_ = numpy.zeros((nk, nao, nlo), dtype=numpy.complex128)
-                    for k in range(self.nkpt):
-                        aoind_by_atom = get_aoind_by_atom(self.cell)
-                        ctmp, paoind_by_atom = reorder_by_atom_(
-                            cpao_[k], aoind_by_atom, self.S[k]
-                        )
-                        Cpao_[k] = ctmp
-                else:
-                    Cpao_ = cpao_.copy()
+                nk, nao, nlo = cpao_.shape
+                Cpao_ = numpy.zeros((nk, nao, nlo), dtype=numpy.complex128)
+                for k in range(self.nkpt):
+                    aoind_by_atom = get_aoind_by_atom(self.cell)
+                    ctmp, paoind_by_atom = reorder_by_atom_(
+                        cpao_[k], aoind_by_atom, self.S[k]
+                    )
+                    Cpao_[k] = ctmp
 
                 nk, nao, nlo = Ciao_.shape
                 if self.frozen_core:
@@ -225,29 +218,26 @@ class Mixin_k_Localize:
                 for k in range(nk_):
                     c_core_val[k] = numpy.hstack((ciao_core[k], Ciao_[k]))
 
-                arrange_by_atom = True
                 # tmp - aos are not rearrange and so below is not necessary
                 #   (iaoind_by_atom is used to stack iao|pao later)
-                if arrange_by_atom:
-                    nk, nao, nlo = c_core_val.shape
-                    for k in range(self.nkpt):
-                        aoind_by_atom = get_aoind_by_atom(self.cell)
-                        ctmp, iaoind_by_atom = reorder_by_atom_(
-                            c_core_val[k], aoind_by_atom, self.S[k]
-                        )
+                nk, nao, nlo = c_core_val.shape
+                for k in range(self.nkpt):
+                    aoind_by_atom = get_aoind_by_atom(self.cell)
+                    ctmp, iaoind_by_atom = reorder_by_atom_(
+                        c_core_val[k], aoind_by_atom, self.S[k]
+                    )
 
                 cpao_ = get_pao_native_k(
                     c_core_val, self.S, self.cell, valence_basis, self.kpts, ortho=True
                 )
-                if arrange_by_atom:
-                    nk, nao, nlo = cpao_.shape
-                    Cpao_ = numpy.zeros((nk, nao, nlo), dtype=numpy.complex128)
-                    for k in range(self.nkpt):
-                        aoind_by_atom = get_aoind_by_atom(self.cell)
-                        ctmp, paoind_by_atom = reorder_by_atom_(
-                            cpao_[k], aoind_by_atom, self.S[k]
-                        )
-                        Cpao_[k] = ctmp
+                nk, nao, nlo = cpao_.shape
+                Cpao_ = numpy.zeros((nk, nao, nlo), dtype=numpy.complex128)
+                for k in range(self.nkpt):
+                    aoind_by_atom = get_aoind_by_atom(self.cell)
+                    ctmp, paoind_by_atom = reorder_by_atom_(
+                        cpao_[k], aoind_by_atom, self.S[k]
+                    )
+                    Cpao_[k] = ctmp
 
             Cpao = Cpao_.copy()
             Ciao = Ciao_.copy()
@@ -284,13 +274,8 @@ class Mixin_k_Localize:
                     (self.nkpt, num_wann, num_wann), dtype=numpy.complex128
                 )
 
-                i_init = True
                 for k in range(self.nkpt):
-                    if i_init:
-                        A_matrix[k] = numpy.eye(num_wann, dtype=numpy.complex128)
-                    else:
-                        ovlp_ciao = Ciao[k].conj().T @ self.S[k] @ Ciao[k]
-                        A_matrix[k] = ovlp_ciao
+                    A_matrix[k] = numpy.eye(num_wann, dtype=numpy.complex128)
                 A_matrix = A_matrix.transpose(1, 2, 0)
 
                 w90.kernel(A_matrix=A_matrix)
@@ -447,10 +432,8 @@ class Mixin_k_Localize:
                 (self.nkpt, num_wann, num_wann), dtype=numpy.complex128
             )
             # Using A=I + lowdin orbital and A=<psi|lowdin> + |psi> is the same
-            i_init = True
             for k in range(self.nkpt):
-                if i_init:
-                    A_matrix[k] = numpy.eye(num_wann, dtype=numpy.complex128)
+                A_matrix[k] = numpy.eye(num_wann, dtype=numpy.complex128)
 
             A_matrix = A_matrix.transpose(1, 2, 0)
 

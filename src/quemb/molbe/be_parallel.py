@@ -53,7 +53,6 @@ def run_solver(
     writeh1: bool = False,
     eeval: bool = True,
     ret_vec: bool = False,
-    return_rdm_ao: bool = True,
     use_cumulant: bool = True,
     relax_density: bool = False,
 ):
@@ -96,15 +95,10 @@ def run_solver(
         Number of OpenMP threads. Default is 4.
     writeh1 :
         If True, write the one-electron integrals to a file. Default is False.
-    frag_energy :
-        If True, compute the fragment energy. Default is False.
     eeval :
         If True, evaluate the electronic energy. Default is True.
     ret_vec :
         If True, return vector with error and rdms. Default is True.
-    return_rdm_ao :
-        If True, return the reduced density matrices in the atomic orbital basis.
-        Default is True.
     use_cumulant :
         If True, use the cumulant approximation for RDM2. Default is True.
     relax_density :
@@ -122,10 +116,6 @@ def run_solver(
     eri = get_eri(dname, nao, eri_file=eri_file)
     # Initialize SCF object
     mf_ = get_scfObj(h1, eri, nocc, dm0=dm0)
-    rdm_return = False
-
-    if relax_density:
-        rdm_return = True
 
     # Select solver
     if solver == "MP2":
@@ -133,7 +123,7 @@ def run_solver(
         rdm1_tmp = mc_.make_rdm1()
 
     elif solver == "CCSD":
-        if not rdm_return:
+        if not relax_density:
             t1, t2 = solve_ccsd(mf_, mo_energy=mf_.mo_energy, rdm_return=False)
             rdm1_tmp = make_rdm1_ccsd_t1(t1)
         else:
@@ -229,13 +219,10 @@ def run_solver(
 
     # Compute RDM1
     rdm1 = multi_dot((mf_.mo_coeff, rdm1_tmp, mf_.mo_coeff.T)) * 0.5
-    if eeval:
-        if solver == "CCSD" and not rdm_return:
-            with_dm1 = True
-            if use_cumulant:
-                with_dm1 = False
-            rdm2s = make_rdm2_urlx(t1, t2, with_dm1=with_dm1)
 
+    if eeval:
+        if solver == "CCSD" and not relax_density:
+            rdm2s = make_rdm2_urlx(t1, t2, with_dm1=not use_cumulant)
         elif solver == "MP2":
             rdm2s = mc_.make_rdm2()
         elif solver == "FCI":
@@ -274,10 +261,7 @@ def run_solver(
     if eeval and not ret_vec:
         return e_f
 
-    if return_rdm_ao:
-        return (e_f, mf_.mo_coeff, rdm1, rdm2s, rdm1_tmp)
-
-    return (e_f, mf_.mo_coeff, rdm1, rdm2s)
+    return (e_f, mf_.mo_coeff, rdm1, rdm2s, rdm1_tmp)
 
 
 def run_solver_u(
@@ -328,12 +312,8 @@ def run_solver_u(
     # Construct UHF object
     full_uhf, eris = make_uhf_obj(fobj_a, fobj_b, frozen=frozen)
 
-    rdm_return = False
-    if relax_density:
-        rdm_return = True
-
     if solver == "UCCSD":
-        if rdm_return:
+        if relax_density:
             ucc, rdm1_tmp, rdm2s = solve_uccsd(
                 full_uhf,
                 eris,
@@ -363,13 +343,8 @@ def run_solver_u(
 
     # Calculate Energies
     if ereturn:
-        if solver == "UCCSD" and not rdm_return:
-            with_dm1 = True
-            if use_cumulant:
-                with_dm1 = False
-            rdm2s = make_rdm2_uccsd(ucc, with_dm1=with_dm1)
-        else:
-            raise NotImplementedError("RDM Return not Implemented")
+        if solver == "UCCSD" and not relax_density:
+            rdm2s = make_rdm2_uccsd(ucc, with_dm1=not use_cumulant)
 
         fobj_a.rdm2__ = rdm2s[0].copy()
         fobj_b.rdm2__ = rdm2s[1].copy()
@@ -414,7 +389,6 @@ def be_func_parallel(
     use_cumulant: bool = True,
     eeval: bool = True,
     return_vec: bool = True,
-    return_rdm_ao: bool = True,
     hci_cutoff: float = 0.001,
     ci_coeff_cutoff: float | None = None,
     select_cutoff: float | None = None,
@@ -459,8 +433,6 @@ def be_func_parallel(
         Whether to evaluate energies. Defaults to False.
     return_vec :
         Whether to return the error vector. Defaults to False.
-    return_rdm_ao :
-        Return 1RDM in the AO basis. Defaults to True
     writeh1 :
         Whether to write the one-electron integrals. Defaults to False.
 
@@ -507,7 +479,6 @@ def be_func_parallel(
                     writeh1,
                     eeval,
                     return_vec,
-                    return_rdm_ao,
                     use_cumulant,
                     relax_density,
                 ],
@@ -544,8 +515,6 @@ def be_func_parallel(
         fobj.mo_coeffs = rdm[1]
         fobj._rdm1 = rdm[2]
         fobj.rdm2__ = rdm[3]
-        if return_rdm_ao:
-            fobj.rdm1__ = rdm[4]
 
     del rdms
     ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem)

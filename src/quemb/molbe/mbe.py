@@ -883,14 +883,9 @@ class BE(MixinLocalize):
             fobjs_.heff = numpy.zeros_like(fobjs_.h1)
             fobjs_.scf(fs=True, eri=eri)
 
-            # fobjs_.veff0 = multi_dot((fobjs_.TA.T, self.hf_veff, fobjs_.TA))
-
-            fobjs_.dm0 = (
-                numpy.dot(
-                    fobjs_._mo_coeffs[:, : fobjs_.nsocc],
-                    fobjs_._mo_coeffs[:, : fobjs_.nsocc].conj().T,
-                )
-                * 2.0
+            fobjs_.dm0 = 2.0 * (
+                fobjs_._mo_coeffs[:, : fobjs_.nsocc]
+                @ fobjs_._mo_coeffs[:, : fobjs_.nsocc].conj().T
             )
 
             if compute_hf:

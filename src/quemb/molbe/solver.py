@@ -81,10 +81,6 @@ def be_func(
         Depending on the options, it returns the norm of the error vector, the energy,
         or a combination of these values.
     """
-
-    rdm_return = False
-    if relax_density:
-        rdm_return = True
     if eeval:
         total_e = [0.0, 0.0, 0.0]
 
@@ -103,7 +99,7 @@ def be_func(
         if solver == "MP2":
             fobj._mc = solve_mp2(fobj._mf, mo_energy=fobj._mf.mo_energy)
         elif solver == "CCSD":
-            if rdm_return:
+            if relax_density:
                 fobj.t1, fobj.t2, rdm1_tmp, rdm2s = solve_ccsd(
                     fobj._mf,
                     mo_energy=fobj._mf.mo_energy,
@@ -248,11 +244,8 @@ def be_func(
         )
 
         if eeval:
-            if solver == "CCSD" and not rdm_return:
-                with_dm1 = True
-                if use_cumulant:
-                    with_dm1 = False
-                rdm2s = make_rdm2_urlx(fobj.t1, fobj.t2, with_dm1=with_dm1)
+            if solver == "CCSD" and not relax_density:
+                rdm2s = make_rdm2_urlx(fobj.t1, fobj.t2, with_dm1=not use_cumulant)
             elif solver == "MP2":
                 rdm2s = fobj._mc.make_rdm2()
             elif solver == "FCI":
@@ -358,7 +351,6 @@ def be_func_u(
         Depending on the options, it returns the norm of the error vector, the energy,
         or a combination of these values.
     """
-    rdm_return = relax_density
     E = 0.0
     if eeval:
         total_e = [0.0, 0.0, 0.0]
@@ -370,7 +362,7 @@ def be_func_u(
 
         full_uhf, eris = make_uhf_obj(fobj_a, fobj_b, frozen=frozen)
         if solver == "UCCSD":
-            if rdm_return:
+            if relax_density:
                 ucc, rdm1_tmp, rdm2s = solve_uccsd(
                     full_uhf,
                     eris,
@@ -398,11 +390,8 @@ def be_func_u(
         )
 
         if eeval or ereturn:
-            if solver == "UCCSD" and not rdm_return:
-                with_dm1 = True
-                if use_cumulant:
-                    with_dm1 = False
-                rdm2s = make_rdm2_uccsd(ucc, with_dm1=with_dm1)
+            if solver == "UCCSD" and not relax_density:
+                rdm2s = make_rdm2_uccsd(ucc, with_dm1=not use_cumulant)
             fobj_a.rdm2__ = rdm2s[0].copy()
             fobj_b.rdm2__ = rdm2s[1].copy()
 
@@ -844,7 +833,6 @@ def solve_uccsd(
     frozen=None,
     relax=False,
     use_cumulant=True,
-    with_dm1=True,
     rdm2_return=False,
     rdm_return=False,
     verbose=0,
@@ -869,9 +857,6 @@ def solve_uccsd(
         Whether to use relaxed density matrices. Defaults to False.
     use_cumulant : bool, optional
         Whether to use cumulant-based energy expression. Defaults to True.
-    with_dm1 : bool, optional
-        Whether to include one-particle density matrix in the two-particle
-        density matrix calculation. Defaults to True.
     rdm2_return : bool, optional
         Whether to return the two-particle density matrix. Defaults to False.
     rdm_return : bool, optional
@@ -960,9 +945,7 @@ def solve_uccsd(
     if rdm_return:
         rdm1 = make_rdm1_uccsd(ucc, relax=relax)
         if rdm2_return:
-            if use_cumulant:
-                with_dm1 = False
-            rdm2 = make_rdm2_uccsd(ucc, relax=relax, with_dm1=with_dm1)
+            rdm2 = make_rdm2_uccsd(ucc, relax=relax, with_dm1=not use_cumulant)
             return (ucc, rdm1, rdm2)
         return (ucc, rdm1, None)
     return ucc
