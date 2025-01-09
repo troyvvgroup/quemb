@@ -3,7 +3,6 @@
 import os
 
 import numpy
-from numpy import float64
 from numpy.linalg import multi_dot
 from pyscf import ao2mo, cc, fci, mcscf, mp
 from pyscf.cc.ccsd_rdm import make_rdm2
@@ -22,7 +21,7 @@ from quemb.shared.external.uccsd_eri import make_eris_incore
 from quemb.shared.external.unrestricted_utils import make_uhf_obj
 from quemb.shared.helper import delete_multiple_files, unused
 from quemb.shared.manage_scratch import WorkDir
-from quemb.shared.typing import KwargDict, Matrix
+from quemb.shared.typing import KwargDict
 
 
 def be_func(
@@ -33,7 +32,6 @@ def be_func(
     enuc: float,  # noqa: ARG001
     scratch_dir: WorkDir,
     DMRG_solver_kwargs: KwargDict | None,
-    hf_veff: Matrix[float64] | None = None,
     only_chem: bool = False,
     nproc: int = 4,
     relax_density: bool = False,
@@ -63,8 +61,6 @@ def be_func(
         Quantum chemistry solver to use ('MP2', 'CCSD', 'FCI', 'HCI', 'SHCI', 'SCI').
     enuc :
         Nuclear energy.
-    hf_veff :
-        Hartree-Fock effective potential. Defaults to None.
     only_chem :
         Whether to only optimize the chemical potential. Defaults to False.
     nproc :
@@ -287,11 +283,10 @@ def be_func(
                 efac=fobj.efac,
                 TA=fobj.TA,
                 h1=fobj.h1,
-                hf_veff=hf_veff,
                 rdm1=rdm1_tmp,
                 rdm2s=rdm2s,
                 dname=fobj.dname,
-                veff0_per=fobj.veff0,
+                veff0=fobj.veff0,
                 veff=None if use_cumulant else fobj.veff,
                 use_cumulant=use_cumulant,
                 eri_file=fobj.eri_file,

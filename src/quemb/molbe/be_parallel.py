@@ -41,12 +41,11 @@ def run_solver(
     nfsites: int,
     efac: float,
     TA: Matrix[float64],
-    hf_veff: Matrix[float64],
     h1_e: Matrix[float64],
     solver: str = "MP2",
     eri_file: str = "eri_file.h5",
     veff: Matrix[float64] | None = None,
-    veff0_per: Matrix[float64] | None = None,
+    veff0: Matrix[float64] | None = None,
     hci_cutoff: float = 0.001,
     ci_coeff_cutoff: float | None = None,
     select_cutoff: float | None = None,
@@ -82,8 +81,6 @@ def run_solver(
         Scaling factor for the electronic energy.
     TA :
         Transformation matrix for embedding orbitals.
-    hf_veff :
-        Hartree-Fock effective potential matrix.
     h1_e :
         One-electron integral matrix.
     solver :
@@ -93,8 +90,8 @@ def run_solver(
         Filename for the electron repulsion integrals. Default is 'eri_file.h5'.
     veff :
         Veff matrix to be passed to energy, if non-cumulant energy.
-    veff0_per :
-        Veff0 matrix, passed to energy for periodic calculations
+    veff0 :
+        Veff0 matrix, passed to energy, the hf_veff in the fragment Schmidt space
     ompnum :
         Number of OpenMP threads. Default is 4.
     writeh1 :
@@ -266,11 +263,10 @@ def run_solver(
             efac,
             TA,
             h1_e,
-            hf_veff,
             rdm1_tmp,
             rdm2s,
             dname,
-            veff0_per,
+            veff0,
             veff,
             use_cumulant,
             eri_file,
@@ -411,7 +407,6 @@ def be_func_parallel(
     solver: str,
     enuc: float,  # noqa: ARG001
     scratch_dir: WorkDir,
-    hf_veff: Matrix[float64] | None = None,
     only_chem: bool = False,
     nproc: int = 1,
     ompnum: int = 4,
@@ -449,8 +444,6 @@ def be_func_parallel(
         Nuclear component of the energy.
     scratch_dir :
         Scratch directory root
-    hf_veff :
-        Hartree-Fock effective potential.
     only_chem :
         Whether to perform chemical potential optimization only.
         Refer to bootstrap embedding literature. Defaults to False.
@@ -502,7 +495,6 @@ def be_func_parallel(
                     fobj.nfsites,
                     fobj.efac,
                     fobj.TA,
-                    hf_veff,
                     fobj.h1,
                     solver,
                     fobj.eri_file,
