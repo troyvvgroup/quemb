@@ -698,7 +698,6 @@ class BE(Mixin_k_Localize):
                 solver,
                 self.enuc,
                 nproc=ompnum,
-                ereturn=True,
                 eeval=True,
                 scratch_dir=self.scratch_dir,
                 solver_args=solver_args,
