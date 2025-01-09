@@ -833,7 +833,6 @@ def solve_uccsd(
     frozen=None,
     relax=False,
     use_cumulant=True,
-    with_dm1=True,
     rdm2_return=False,
     rdm_return=False,
     verbose=0,
@@ -858,9 +857,6 @@ def solve_uccsd(
         Whether to use relaxed density matrices. Defaults to False.
     use_cumulant : bool, optional
         Whether to use cumulant-based energy expression. Defaults to True.
-    with_dm1 : bool, optional
-        Whether to include one-particle density matrix in the two-particle
-        density matrix calculation. Defaults to True.
     rdm2_return : bool, optional
         Whether to return the two-particle density matrix. Defaults to False.
     rdm_return : bool, optional
@@ -949,9 +945,7 @@ def solve_uccsd(
     if rdm_return:
         rdm1 = make_rdm1_uccsd(ucc, relax=relax)
         if rdm2_return:
-            rdm2 = make_rdm2_uccsd(
-                ucc, relax=relax, with_dm1=with_dm1 and not use_cumulant
-            )
+            rdm2 = make_rdm2_uccsd(ucc, relax=relax, with_dm1=not use_cumulant)
             return (ucc, rdm1, rdm2)
         return (ucc, rdm1, None)
     return ucc
