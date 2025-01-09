@@ -396,7 +396,6 @@ def be_func_parallel(
     use_cumulant: bool = True,
     eeval: bool = True,
     return_vec: bool = True,
-    return_rdm_ao: bool = True,
     hci_cutoff: float = 0.001,
     ci_coeff_cutoff: float | None = None,
     select_cutoff: float | None = None,
@@ -443,8 +442,6 @@ def be_func_parallel(
         Whether to evaluate energies. Defaults to False.
     return_vec :
         Whether to return the error vector. Defaults to False.
-    return_rdm_ao :
-        Return 1RDM in the AO basis. Defaults to True
     writeh1 :
         Whether to write the one-electron integrals. Defaults to False.
 
@@ -492,7 +489,6 @@ def be_func_parallel(
                     writeh1,
                     eeval,
                     return_vec,
-                    return_rdm_ao,
                     use_cumulant,
                     relax_density,
                 ],
@@ -529,8 +525,6 @@ def be_func_parallel(
         fobj.mo_coeffs = rdm[1]
         fobj._rdm1 = rdm[2]
         fobj.rdm2__ = rdm[3]
-        if return_rdm_ao:
-            fobj.rdm1__ = rdm[4]
 
     del rdms
     ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem)
