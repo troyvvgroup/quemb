@@ -2,6 +2,7 @@
 #
 
 import numpy
+from numpy import allclose, eye
 from numpy.linalg import eigh, inv, multi_dot, norm, svd
 from pyscf.gto import intor_cross
 from pyscf.gto.mole import Mole
@@ -55,13 +56,13 @@ def symm_orth(A: Matrix, thr: float = 1.0e-6, ovlp: Matrix | None = None) -> Mat
 
 
 def remove_core_mo(Clo: Matrix, Ccore: Matrix, S: Matrix, thr: float = 0.5) -> Matrix:
-    assert numpy.allclose(Clo.T @ S @ Clo, numpy.eye(Clo.shape[1]))
-    assert numpy.allclose(Ccore.T @ S @ Ccore, numpy.eye(Ccore.shape[1]))
+    assert allclose(Clo.T @ S @ Clo, eye(Clo.shape[1]))
+    assert allclose(Ccore.T @ S @ Ccore, eye(Ccore.shape[1]))
 
     n, nlo = Clo.shape
     ncore = Ccore.shape[1]
     Pcore = Ccore @ Ccore.T @ S
-    Clo1 = (numpy.eye(n) - Pcore) @ Clo
+    Clo1 = (eye(n) - Pcore) @ Clo
     pop = numpy.diag(Clo1.T @ S @ Clo1)
     idx_keep = numpy.where(pop > thr)[0]
     assert len(idx_keep) == nlo - ncore
@@ -138,7 +139,7 @@ def get_iao(
     Po = Co @ Co.T
     Potil = Cotil @ inv(Stil) @ Cotil.T
 
-    Ciao = (numpy.eye(n) - (Po + Potil - 2 * Po @ S1 @ Potil) @ S1) @ ptil
+    Ciao = (eye(n) - (Po + Potil - 2 * Po @ S1 @ Potil) @ S1) @ ptil
     Ciao = symm_orth(Ciao, ovlp=S1)
 
     # check span
@@ -166,14 +167,14 @@ def get_pao(Ciao: Matrix, S: Matrix, S12: Matrix) -> Matrix:
     n = Ciao.shape[0]
     s12 = inv(S) @ S12
     nonval = (
-        numpy.eye(n) - s12 @ s12.T
+        eye(n) - s12 @ s12.T
     )  # set of orbitals minus valence (orth in working basis)
 
     Piao = Ciao @ Ciao.T @ S  # projector into IAOs
-    Cpao = (numpy.eye(n) - Piao) @ nonval  # project out IAOs from non-valence basis
+    Cpao_redundant = (eye(n) - Piao) @ nonval  # project out IAOs from non-valence basis
 
     # begin canonical orthogonalization to get rid of redundant orbitals
-    return cano_orth(Cpao, ovlp=S)
+    return cano_orth(Cpao_redundant, ovlp=S)
 
 
 def get_pao_native(Ciao: Matrix, S: Matrix, mol: Mole, valence_basis: str) -> Matrix:
@@ -212,7 +213,7 @@ def get_pao_native(Ciao: Matrix, S: Matrix, mol: Mole, valence_basis: str) -> Ma
     ]
 
     Piao = Ciao @ Ciao.T @ S
-    Cpao = (numpy.eye(n) - Piao)[:, vir_idx]
+    Cpao = (eye(n) - Piao)[:, vir_idx]
 
     try:
         Cpao = symm_orth(Cpao, ovlp=S)
@@ -286,7 +287,7 @@ class MixinLocalize:
             if self.frozen_core:
                 if self.unrestricted:
                     P_core = [
-                        numpy.eye(self.W.shape[0]) - numpy.dot(self.P_core[s], self.S)
+                        eye(self.W.shape[0]) - numpy.dot(self.P_core[s], self.S)
                         for s in [0, 1]
                     ]
                     C_ = numpy.dot(P_core, self.W)
@@ -303,7 +304,7 @@ class MixinLocalize:
                         W_.append(multi_dot((vs_, s_, vs_.T)))
                     self.W = [numpy.dot(C_[s], W_[s]) for s in [0, 1]]
                 else:
-                    P_core = numpy.eye(self.W.shape[0]) - numpy.dot(self.P_core, self.S)
+                    P_core = eye(self.W.shape[0]) - numpy.dot(self.P_core, self.S)
                     C_ = numpy.dot(P_core, self.W)
                     # NOTE: PYSCF has basis in 1s2s3s2p2p2p3p3p3p format
                     # fix no_core_idx - use population for now
@@ -346,7 +347,7 @@ class MixinLocalize:
             edx = es_ > 1.0e-15
             W_ = numpy.dot(vs_[:, edx] / numpy.sqrt(es_[edx]), vs_[:, edx].T)
             if self.frozen_core:
-                P_core = numpy.eye(W_.shape[0]) - numpy.dot(self.P_core, self.S)
+                P_core = eye(W_.shape[0]) - numpy.dot(self.P_core, self.S)
                 C_ = numpy.dot(P_core, W_)
                 Cpop = multi_dot((C_.T, self.S, C_))
                 Cpop = numpy.diag(Cpop)
@@ -442,13 +443,9 @@ class MixinLocalize:
                     Wstack = numpy.hstack((Ciao, Cpao))
             if not nosave:
                 self.W = Wstack
-                assert numpy.allclose(
-                    self.W.T @ self.S @ self.W, numpy.eye(self.W.shape[1])
-                )
+                assert allclose(self.W.T @ self.S @ self.W, eye(self.W.shape[1]))
             else:
-                assert numpy.allclose(
-                    Wstack.T @ self.S @ Wstack, numpy.eye(Wstack.shape[1])
-                )
+                assert allclose(Wstack.T @ self.S @ Wstack, eye(Wstack.shape[1]))
                 return Wstack
             nmo = self.C.shape[1] - self.ncore
             nlo = self.W.shape[1]
@@ -458,7 +455,7 @@ class MixinLocalize:
                     Co_nocore = self.C[:, self.ncore : self.Nocc]
                     Cv = self.C[:, self.Nocc :]
                     # Ensure that the LOs span the occupied space
-                    assert numpy.allclose(
+                    assert allclose(
                         numpy.sum((self.W.T @ self.S @ Co_nocore) ** 2.0),
                         self.Nocc - self.ncore,
                     )
@@ -466,7 +463,7 @@ class MixinLocalize:
                     u, l, vt = svd(self.W.T @ self.S @ Cv, full_matrices=False)
                     unused(u)
                     nvlo = nlo - self.Nocc - self.ncore
-                    assert numpy.allclose(numpy.sum(l[:nvlo]), nvlo)
+                    assert allclose(numpy.sum(l[:nvlo]), nvlo)
                     C_ = numpy.hstack([Co_nocore, Cv @ vt[:nvlo].T])
                     self.lmo_coeff = self.W.T @ self.S @ C_
                 else:
@@ -479,7 +476,7 @@ class MixinLocalize:
             edx = es_ > 1.0e-15
             W_ = numpy.dot(vs_[:, edx] / numpy.sqrt(es_[edx]), vs_[:, edx].T)
             if self.frozen_core:
-                P_core = numpy.eye(W_.shape[0]) - numpy.dot(self.P_core, self.S)
+                P_core = eye(W_.shape[0]) - numpy.dot(self.P_core, self.S)
                 C_ = numpy.dot(P_core, W_)
                 Cpop = multi_dot((C_.T, self.S, C_))
                 Cpop = numpy.diag(Cpop)

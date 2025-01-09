@@ -1,7 +1,7 @@
 # Author(s): Oinam Romesh Meitei
 
 from attrs import define
-from numpy import arange, exp, float64, sqrt
+from numpy import arange, exp, floating, sqrt
 from pyscf.lib import cartesian_prod
 from pyscf.pbc import tools
 
@@ -37,20 +37,20 @@ def get_phase1(cell, kpts, kmesh):
 @define
 class storePBE:
     Nocc: int
-    hf_veff: Matrix[float64]
-    hcore: Matrix[float64]
-    S: Matrix[float64]
-    C: Matrix[float64]
-    hf_dm: Matrix[float64]
+    hf_veff: Matrix[floating]
+    hcore: Matrix[floating]
+    S: Matrix[floating]
+    C: Matrix[floating]
+    hf_dm: Matrix[floating]
     hf_etot: float
-    W: Matrix[float64]
-    lmo_coeff: Matrix[float64]
+    W: Matrix[floating]
+    lmo_coeff: Matrix[floating]
     enuc: float
     ek: float
     E_core: float
-    C_core: float
-    P_core: float
-    core_veff: float
+    C_core: Matrix[floating]
+    P_core: Matrix[floating]
+    core_veff: Matrix[floating]
 
 
 def print_energy(ecorr, e_V_Kapprox, e_F_dg, e_hf, unitcell_nkpt):

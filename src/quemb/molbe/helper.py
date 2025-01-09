@@ -48,9 +48,10 @@ def get_veff(eri_, dm, S, TA, hf_veff):
     # Compute the Coulomb (J) and exchange (K) integrals
     vj, vk = scf.hf.dot_eri_dm(eri_, P_, hermi=1, with_j=True, with_k=True)
     Veff_ = vj - 0.5 * vk
-    Veff = multi_dot((TA.T, hf_veff, TA)) - Veff_
+    Veff0 = multi_dot((TA.T, hf_veff, TA))
+    Veff = Veff0 - Veff_
 
-    return Veff
+    return Veff, Veff0
 
 
 # create pyscf pbc scf object
@@ -208,12 +209,13 @@ def get_frag_energy(
     efac,
     TA,
     h1,
-    hf_veff,
     rdm1,
     rdm2s,
     dname,
-    eri_file="eri_file.h5",
     veff0=None,
+    veff=None,
+    use_cumulant=True,
+    eri_file="eri_file.h5",
 ):
     """
     Compute the fragment energy.
@@ -236,14 +238,18 @@ def get_frag_energy(
         Transformation matrix.
     h1 : numpy.ndarray
         One-electron Hamiltonian.
-    hf_veff : numpy.ndarray
-        Hartree-Fock effective potential.
     rdm1 : numpy.ndarray
         One-particle density matrix.
     rdm2s : numpy.ndarray
         Two-particle density matrix.
     dname : str
         Dataset name in the HDF5 file.
+    veff0 : numpy.ndarray
+        veff0 matrix, the original hf_veff in the fragment Schmidt space
+    veff : numpy.ndarray
+        veff for non-cumulant energy expression
+    use_cumulant: bool
+        Whether to return cumulant energy, by default True
     eri_file : str, optional
         Filename of the HDF5 file containing the electron repulsion integrals.
         Defaults to 'eri_file.h5'.
@@ -260,16 +266,18 @@ def get_frag_energy(
     # Construct the Hartree-Fock 1-RDM
     hf_1rdm = numpy.dot(mo_coeffs[:, :nsocc], mo_coeffs[:, :nsocc].conj().T)
 
-    # Compute the difference between the rotated RDM1 and the Hartree-Fock 1-RDM
-    delta_rdm1 = 2 * (rdm1s_rot - hf_1rdm)
+    if use_cumulant:
+        # Compute the difference between the rotated RDM1 and the Hartree-Fock 1-RDM
+        delta_rdm1 = 2 * (rdm1s_rot - hf_1rdm)
 
-    if veff0 is None:
-        # Compute the effective potential in the transformed basis
-        veff0 = multi_dot((TA.T, hf_veff, TA))
+        # Calculate the one-electron contributions
+        e1 = numpy.einsum("ij,ij->i", h1[:nfsites], delta_rdm1[:nfsites])
+        ec = numpy.einsum("ij,ij->i", veff0[:nfsites], delta_rdm1[:nfsites])
 
-    # Calculate the one-electron and effective potential energy contributions
-    e1 = numpy.einsum("ij,ij->i", h1[:nfsites], delta_rdm1[:nfsites])
-    ec = numpy.einsum("ij,ij->i", veff0[:nfsites], delta_rdm1[:nfsites])
+    else:
+        # Calculate the one-electron and effective potential energy contributions
+        e1 = 2 * numpy.einsum("ij,ij->i", h1[:nfsites], rdm1s_rot[:nfsites])
+        ec = numpy.einsum("ij,ij->i", veff[:nfsites], rdm1s_rot[:nfsites])
 
     if TA.ndim == 3:
         jmax = TA[0].shape[1]

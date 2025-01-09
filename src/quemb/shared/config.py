@@ -18,6 +18,7 @@ Creates ~/.quembrc.yml file that allows changes to persist.
 """
 
 from pathlib import Path
+from tempfile import gettempdir
 from typing import Final
 
 import yaml
@@ -32,7 +33,7 @@ DEFAULT_RC_PATH: Final = Path("~/.quembrc.yml")
 @define
 class Settings:
     PRINT_LEVEL: int = 5
-    SCRATCH: Path = Path("/tmp")
+    SCRATCH: Path = Path(gettempdir())
     INTEGRAL_TRANSFORM_MAX_MEMORY: float = 50  # in GB
 
 

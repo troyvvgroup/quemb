@@ -6,7 +6,6 @@ from typing import Final
 
 import numpy
 from attrs import Factory, define, field
-from numpy import float64
 from numpy.linalg import multi_dot
 from pyscf import ao2mo, cc, fci, mcscf, mp
 from pyscf.cc.ccsd_rdm import make_rdm2
@@ -25,7 +24,6 @@ from quemb.shared.external.uccsd_eri import make_eris_incore
 from quemb.shared.external.unrestricted_utils import make_uhf_obj
 from quemb.shared.helper import delete_multiple_files, unused
 from quemb.shared.manage_scratch import WorkDir
-from quemb.shared.typing import Matrix
 
 
 class UserSolverArgs(ABC):
@@ -217,12 +215,9 @@ def be_func(
     enuc: float,  # noqa: ARG001
     solver_args: UserSolverArgs | None,
     scratch_dir: WorkDir,
-    hf_veff: Matrix[float64] | None = None,
     only_chem: bool = False,
     nproc: int = 4,
     eeval: bool = False,
-    ereturn: bool = False,
-    frag_energy: bool = False,
     relax_density: bool = False,
     return_vec: bool = False,
     use_cumulant: bool = True,
@@ -245,8 +240,6 @@ def be_func(
         Quantum chemistry solver to use ('MP2', 'CCSD', 'FCI', 'HCI', 'SHCI', 'SCI').
     enuc :
         Nuclear energy.
-    hf_veff :
-        Hartree-Fock effective potential. Defaults to None.
     only_chem :
         Whether to only optimize the chemical potential. Defaults to False.
     nproc :
@@ -255,16 +248,17 @@ def be_func(
         Whether to evaluate the energy. Defaults to False.
     ereturn :
         Whether to return the energy. Defaults to False.
-    frag_energy :
-        Whether to calculate fragment energy. Defaults to False.
     relax_density :
         Whether to relax the density. Defaults to False.
     return_vec :
         Whether to return the error vector. Defaults to False.
-    ebe_hf :
-        Hartree-Fock energy. Defaults to 0.
     use_cumulant :
         Whether to use the cumulant-based energy expression. Defaults to True.
+
+    eeval :
+        Whether to evaluate the energy. Defaults to False.
+    return_vec :
+        Whether to return the error vector. Defaults to False.
 
     Returns
     -------
@@ -272,7 +266,7 @@ def be_func(
         Depending on the options, it returns the norm of the error vector, the energy,
         or a combination of these values.
     """
-    if frag_energy or eeval:
+    if eeval:
         total_e = [0.0, 0.0, 0.0]
 
     # Loop over each fragment and solve using the specified solver
@@ -435,7 +429,7 @@ def be_func(
             * 0.5
         )
 
-        if eeval or ereturn:
+        if eeval:
             if solver == "CCSD" and not relax_density:
                 rdm2s = make_rdm2_urlx(fobj.t1, fobj.t2, with_dm1=not use_cumulant)
             elif solver == "MP2":
@@ -459,39 +453,35 @@ def be_func(
                     ) * 0.5
                     rdm2s -= nc
             fobj.rdm2__ = rdm2s.copy()
-            if frag_energy or eeval:
-                # Find the energy of a given fragment, with the cumulant definition.
-                # Return [e1, e2, ec] as e_f and add to the running total_e.
-                e_f = get_frag_energy(
-                    fobj.mo_coeffs,
-                    fobj.nsocc,
-                    fobj.nfsites,
-                    fobj.efac,
-                    fobj.TA,
-                    fobj.h1,
-                    hf_veff,
-                    rdm1_tmp,
-                    rdm2s,
-                    fobj.dname,
-                    eri_file=fobj.eri_file,
-                    veff0=fobj.veff0,
-                )
-                total_e = [sum(x) for x in zip(total_e, e_f)]
-                fobj.update_ebe_hf()
+            # Find the energy of a given fragment.
+            # Return [e1, e2, ec] as e_f and add to the running total_e.
+            e_f = get_frag_energy(
+                mo_coeffs=fobj.mo_coeffs,
+                nsocc=fobj.nsocc,
+                nfsites=fobj.nfsites,
+                efac=fobj.efac,
+                TA=fobj.TA,
+                h1=fobj.h1,
+                rdm1=rdm1_tmp,
+                rdm2s=rdm2s,
+                dname=fobj.dname,
+                veff0=fobj.veff0,
+                veff=None if use_cumulant else fobj.veff,
+                use_cumulant=use_cumulant,
+                eri_file=fobj.eri_file,
+            )
+            total_e = [sum(x) for x in zip(total_e, e_f)]
+            fobj.update_ebe_hf()
 
-    if frag_energy or eeval:
+    if eeval:
         Ecorr = sum(total_e)
-
-    if frag_energy:
-        return (Ecorr, total_e)
+        if not return_vec:
+            return (Ecorr, total_e)
 
     ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem)
 
     if return_vec:
         return (ernorm, ervec, [Ecorr, total_e])
-
-    if eeval:
-        print("Error in density matching      :   {:>2.4e}".format(ernorm), flush=True)
 
     return ernorm
 
@@ -504,7 +494,6 @@ def be_func_u(
     hf_veff=None,
     eeval=False,
     ereturn=False,
-    frag_energy=True,
     relax_density=False,
     use_cumulant=True,
     frozen=False,
@@ -532,8 +521,6 @@ def be_func_u(
         Whether to evaluate the energy. Defaults to False.
     ereturn : bool, optional
         Whether to return the energy. Defaults to False.
-    frag_energy : bool, optional
-        Whether to calculate fragment energy. Defaults to True.
     relax_density : bool, optional
         Whether to relax the density. Defaults to False.
     return_vec : bool, optional
@@ -551,7 +538,7 @@ def be_func_u(
         or a combination of these values.
     """
     E = 0.0
-    if frag_energy or eeval:
+    if eeval:
         total_e = [0.0, 0.0, 0.0]
 
     # Loop over each fragment and solve using the specified solver
@@ -560,7 +547,6 @@ def be_func_u(
         fobj_b.scf(unrestricted=True, spin_ind=1)
 
         full_uhf, eris = make_uhf_obj(fobj_a, fobj_b, frozen=frozen)
-
         if solver == "UCCSD":
             if relax_density:
                 ucc, rdm1_tmp, rdm2s = solve_uccsd(
@@ -594,39 +580,34 @@ def be_func_u(
                 rdm2s = make_rdm2_uccsd(ucc, with_dm1=not use_cumulant)
             fobj_a.rdm2__ = rdm2s[0].copy()
             fobj_b.rdm2__ = rdm2s[1].copy()
-            if frag_energy:
-                if frozen:
-                    h1_ab = [
-                        full_uhf.h1[0]
-                        + full_uhf.full_gcore[0]
-                        + full_uhf.core_veffs[0],
-                        full_uhf.h1[1]
-                        + full_uhf.full_gcore[1]
-                        + full_uhf.core_veffs[1],
-                    ]
-                else:
-                    h1_ab = [fobj_a.h1, fobj_b.h1]
 
-                e_f = get_frag_energy_u(
-                    (fobj_a._mo_coeffs, fobj_b._mo_coeffs),
-                    (fobj_a.nsocc, fobj_b.nsocc),
-                    (fobj_a.nfsites, fobj_b.nfsites),
-                    (fobj_a.efac, fobj_b.efac),
-                    (fobj_a.TA, fobj_b.TA),
-                    h1_ab,
-                    hf_veff,
-                    rdm1_tmp,
-                    rdm2s,
-                    fobj_a.dname,
-                    eri_file=fobj_a.eri_file,
-                    gcores=full_uhf.full_gcore,
-                    frozen=frozen,
-                )
-                total_e = [sum(x) for x in zip(total_e, e_f)]
+            if frozen:
+                h1_ab = [
+                    full_uhf.h1[0] + full_uhf.full_gcore[0] + full_uhf.core_veffs[0],
+                    full_uhf.h1[1] + full_uhf.full_gcore[1] + full_uhf.core_veffs[1],
+                ]
+            else:
+                h1_ab = [fobj_a.h1, fobj_b.h1]
 
-    if frag_energy:
-        E = sum(total_e)
-        return (E, total_e)
+            e_f = get_frag_energy_u(
+                (fobj_a._mo_coeffs, fobj_b._mo_coeffs),
+                (fobj_a.nsocc, fobj_b.nsocc),
+                (fobj_a.nfsites, fobj_b.nfsites),
+                (fobj_a.efac, fobj_b.efac),
+                (fobj_a.TA, fobj_b.TA),
+                h1_ab,
+                hf_veff,
+                rdm1_tmp,
+                rdm2s,
+                fobj_a.dname,
+                eri_file=fobj_a.eri_file,
+                gcores=full_uhf.full_gcore,
+                frozen=frozen,
+            )
+            total_e = [sum(x) for x in zip(total_e, e_f)]
+
+    E = sum(total_e)
+    return (E, total_e)
 
 
 def solve_error(Fobjs, Nocc, only_chem=False):
@@ -755,7 +736,7 @@ def solve_ccsd(
     frozen=None,
     mo_coeff=None,
     relax=False,
-    use_cumulant=False,
+    use_cumulant=True,
     with_dm1=True,
     rdm2_return=False,
     mo_occ=None,
@@ -781,7 +762,7 @@ def solve_ccsd(
     relax : bool, optional
         Whether to use relaxed density matrices. Defaults to False.
     use_cumulant : bool, optional
-        Whether to use cumulant-based energy expression. Defaults to False.
+        Whether to use cumulant-based energy expression. Defaults to True.
     with_dm1 : bool, optional
         Whether to include one-particle density matrix in the two-particle
         density matrix calculation. Defaults to True.
@@ -952,8 +933,7 @@ def solve_uccsd(
     eris_inp,
     frozen=None,
     relax=False,
-    use_cumulant=False,
-    with_dm1=True,
+    use_cumulant=True,
     rdm2_return=False,
     rdm_return=False,
     verbose=0,
@@ -977,10 +957,7 @@ def solve_uccsd(
     relax : bool, optional
         Whether to use relaxed density matrices. Defaults to False.
     use_cumulant : bool, optional
-        Whether to use cumulant-based energy expression. Defaults to False.
-    with_dm1 : bool, optional
-        Whether to include one-particle density matrix in the two-particle
-        density matrix calculation. Defaults to True.
+        Whether to use cumulant-based energy expression. Defaults to True.
     rdm2_return : bool, optional
         Whether to return the two-particle density matrix. Defaults to False.
     rdm_return : bool, optional
@@ -1069,9 +1046,7 @@ def solve_uccsd(
     if rdm_return:
         rdm1 = make_rdm1_uccsd(ucc, relax=relax)
         if rdm2_return:
-            rdm2 = make_rdm2_uccsd(
-                ucc, relax=relax, with_dm1=with_dm1 and not use_cumulant
-            )
+            rdm2 = make_rdm2_uccsd(ucc, relax=relax, with_dm1=not use_cumulant)
             return (ucc, rdm1, rdm2)
         return (ucc, rdm1, None)
     return ucc
