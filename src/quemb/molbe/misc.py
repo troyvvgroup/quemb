@@ -392,11 +392,11 @@ def be2puffin(
                 mf = qmmm.mm_charge(
                     mf1, pts_and_charges[0], pts_and_charges[1], unit="bohr"
                 ).newton()
-
-                raise ValueError(
-                    "Setting use_df to false and jk to none: have not tested DF and "
-                    "QM/MM from point charges at the same time"
-                )
+                if use_df or jk is not None:
+                    raise ValueError(
+                        "Setting use_df to false and jk to none: have not tested DF "
+                        "and QM/MM from point charges at the same time"
+                    )
             elif use_df and jk is None:
                 mf = scf.RHF(mol).density_fit(auxbasis=df_aux_basis)
             else:

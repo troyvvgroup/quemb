@@ -49,9 +49,9 @@ def test_cubegen() -> None:
             reference_content = np.fromstring(
                 "".join(f.read().split("\n")[2:]), sep=" ", dtype=float
             )
-        assert np.isclose(
-            cube_content, reference_content
-        ).all(), "Cube file content does not match reference content."
+        assert np.isclose(cube_content, reference_content).all(), (
+            "Cube file content does not match reference content."
+        )
 
 
 def prepare_octane() -> Tuple[gto.Mole, scf.hf.RHF]:
