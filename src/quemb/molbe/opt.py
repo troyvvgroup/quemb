@@ -63,7 +63,6 @@ class BEOPT:
     Nocc: int
     enuc: float
     scratch_dir: WorkDir
-    hf_veff: Matrix[float64] | None = None
     nproc: int = 1
     ompnum: int = 4
     only_chem: bool = False
@@ -113,7 +112,6 @@ class BEOPT:
                 self.Nocc,
                 self.solver,
                 self.enuc,
-                hf_veff=self.hf_veff,
                 only_chem=self.only_chem,
                 nproc=self.ompnum,
                 relax_density=self.relax_density,
@@ -134,7 +132,6 @@ class BEOPT:
                 self.Nocc,
                 self.solver,
                 self.enuc,
-                hf_veff=self.hf_veff,
                 only_chem=self.only_chem,
                 nproc=self.nproc,
                 ompnum=self.ompnum,

@@ -702,7 +702,6 @@ class BE(MixinLocalize):
             self.Fobjs,
             self.Nocc,
             self.enuc,
-            hf_veff=self.hf_veff,
             nproc=nproc,
             ompnum=ompnum,
             scratch_dir=self.scratch_dir,
@@ -884,6 +883,8 @@ class BE(MixinLocalize):
             fobjs_.heff = numpy.zeros_like(fobjs_.h1)
             fobjs_.scf(fs=True, eri=eri)
 
+            # fobjs_.veff0 = multi_dot((fobjs_.TA.T, self.hf_veff, fobjs_.TA))
+
             fobjs_.dm0 = (
                 numpy.dot(
                     fobjs_._mo_coeffs[:, : fobjs_.nsocc],
@@ -947,7 +948,6 @@ class BE(MixinLocalize):
                 self.Nocc,
                 solver,
                 self.enuc,
-                hf_veff=self.hf_veff,
                 nproc=ompnum,
                 use_cumulant=use_cumulant,
                 eeval=True,
@@ -965,7 +965,6 @@ class BE(MixinLocalize):
                 self.Nocc,
                 solver,
                 self.enuc,
-                hf_veff=self.hf_veff,
                 nproc=nproc,
                 ompnum=ompnum,
                 use_cumulant=use_cumulant,
