@@ -48,9 +48,10 @@ def get_veff(eri_, dm, S, TA, hf_veff):
     # Compute the Coulomb (J) and exchange (K) integrals
     vj, vk = scf.hf.dot_eri_dm(eri_, P_, hermi=1, with_j=True, with_k=True)
     Veff_ = vj - 0.5 * vk
-    Veff = multi_dot((TA.T, hf_veff, TA)) - Veff_
+    Veff0 = multi_dot((TA.T, hf_veff, TA))
+    Veff = Veff0 - Veff_
 
-    return Veff
+    return Veff, Veff0
 
 
 # create pyscf pbc scf object
@@ -208,11 +209,10 @@ def get_frag_energy(
     efac,
     TA,
     h1,
-    hf_veff,
     rdm1,
     rdm2s,
     dname,
-    veff0_per=None,
+    veff0=None,
     veff=None,
     use_cumulant=True,
     eri_file="eri_file.h5",
@@ -238,16 +238,14 @@ def get_frag_energy(
         Transformation matrix.
     h1 : numpy.ndarray
         One-electron Hamiltonian.
-    hf_veff : numpy.ndarray
-        Hartree-Fock effective potential.
     rdm1 : numpy.ndarray
         One-particle density matrix.
     rdm2s : numpy.ndarray
         Two-particle density matrix.
     dname : str
         Dataset name in the HDF5 file.
-    veff0_per : numpy.ndarray
-        veff0 matrix, for periodic calculations
+    veff0 : numpy.ndarray
+        veff0 matrix, the original hf_veff in the fragment Schmidt space
     veff : numpy.ndarray
         veff for non-cumulant energy expression
     use_cumulant: bool
@@ -274,15 +272,7 @@ def get_frag_energy(
 
         # Calculate the one-electron contributions
         e1 = numpy.einsum("ij,ij->i", h1[:nfsites], delta_rdm1[:nfsites])
-
-        if veff0_per is None:  # aka, not a periodic calculation
-            # Compute the effective potential in the transformed basis
-            veff0 = multi_dot((TA.T, hf_veff, TA))
-            # Calculate the effective potential energy contributions
-            ec = numpy.einsum("ij,ij->i", veff0[:nfsites], delta_rdm1[:nfsites])
-        else:
-            # Calculate the effective potential energy contributions
-            ec = numpy.einsum("ij,ij->i", veff0_per[:nfsites], delta_rdm1[:nfsites])
+        ec = numpy.einsum("ij,ij->i", veff0[:nfsites], delta_rdm1[:nfsites])
 
     else:
         # Calculate the one-electron and effective potential energy contributions
