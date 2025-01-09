@@ -345,8 +345,6 @@ def run_solver_u(
     if ereturn:
         if solver == "UCCSD" and not relax_density:
             rdm2s = make_rdm2_uccsd(ucc, with_dm1=not use_cumulant)
-        else:
-            raise NotImplementedError("RDM Return not Implemented")
 
         fobj_a.rdm2__ = rdm2s[0].copy()
         fobj_b.rdm2__ = rdm2s[1].copy()
