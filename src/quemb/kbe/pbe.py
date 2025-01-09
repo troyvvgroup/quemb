@@ -7,6 +7,7 @@ from multiprocessing import Pool
 import h5py
 import numpy
 from libdmet.basis_transform.eri_transform import get_emb_eri_fast_gdf
+from numpy import array, floating
 from pyscf import ao2mo, pbc
 from pyscf.pbc import df, gto
 from pyscf.pbc.df.df_jk import _ewald_exxdiv_for_G0
@@ -24,7 +25,7 @@ from quemb.shared.external.optqn import (
 )
 from quemb.shared.helper import copy_docstring
 from quemb.shared.manage_scratch import WorkDir
-from quemb.shared.typing import PathLike
+from quemb.shared.typing import Matrix, PathLike
 
 
 class BE(Mixin_k_Localize):
@@ -321,7 +322,7 @@ class BE(Mixin_k_Localize):
         use_cumulant: bool = True,
         conv_tol: float = 1.0e-6,
         relax_density: bool = False,
-        J0: list[list[float]] | None = None,
+        J0: Matrix[floating] | None = None,
         nproc: int = 1,
         ompnum: int = 4,
         max_iter: int = 500,
@@ -391,9 +392,9 @@ class BE(Mixin_k_Localize):
         if method == "QN":
             # Prepare the initial Jacobian matrix
             if only_chem:
-                J0 = [[0.0]]
+                J0 = array([[0.0]])
                 J0 = self.get_be_error_jacobian(jac_solver="HF")
-                J0 = [[J0[-1][-1]]]
+                J0 = J0[-1:, -1:]
             else:
                 J0 = self.get_be_error_jacobian(jac_solver="HF")
 
@@ -416,7 +417,7 @@ class BE(Mixin_k_Localize):
             raise ValueError("This optimization method for BE is not supported")
 
     @copy_docstring(_ext_get_be_error_jacobian)
-    def get_be_error_jacobian(self, jac_solver: str = "HF") -> list[list[float]]:
+    def get_be_error_jacobian(self, jac_solver: str = "HF") -> Matrix[floating]:
         return _ext_get_be_error_jacobian(self.Nfrag, self.Fobjs, jac_solver)
 
     def print_ini(self) -> None:
