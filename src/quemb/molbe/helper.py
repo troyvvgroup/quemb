@@ -212,8 +212,10 @@ def get_frag_energy(
     rdm1,
     rdm2s,
     dname,
+    veff0_per=None,
+    veff=None,
+    use_cumulant=True,
     eri_file="eri_file.h5",
-    veff0=None,
 ):
     """
     Compute the fragment energy.
@@ -244,6 +246,12 @@ def get_frag_energy(
         Two-particle density matrix.
     dname : str
         Dataset name in the HDF5 file.
+    veff0_per : numpy.ndarray
+        veff0 matrix, for periodic calculations
+    veff : numpy.ndarray
+        veff for non-cumulant energy expression
+    use_cumulant: bool
+        Whether to return cumulant energy, by default True
     eri_file : str, optional
         Filename of the HDF5 file containing the electron repulsion integrals.
         Defaults to 'eri_file.h5'.
@@ -260,16 +268,26 @@ def get_frag_energy(
     # Construct the Hartree-Fock 1-RDM
     hf_1rdm = numpy.dot(mo_coeffs[:, :nsocc], mo_coeffs[:, :nsocc].conj().T)
 
-    # Compute the difference between the rotated RDM1 and the Hartree-Fock 1-RDM
-    delta_rdm1 = 2 * (rdm1s_rot - hf_1rdm)
+    if use_cumulant:
+        # Compute the difference between the rotated RDM1 and the Hartree-Fock 1-RDM
+        delta_rdm1 = 2 * (rdm1s_rot - hf_1rdm)
 
-    if veff0 is None:
-        # Compute the effective potential in the transformed basis
-        veff0 = multi_dot((TA.T, hf_veff, TA))
+        # Calculate the one-electron contributions
+        e1 = numpy.einsum("ij,ij->i", h1[:nfsites], delta_rdm1[:nfsites])
 
-    # Calculate the one-electron and effective potential energy contributions
-    e1 = numpy.einsum("ij,ij->i", h1[:nfsites], delta_rdm1[:nfsites])
-    ec = numpy.einsum("ij,ij->i", veff0[:nfsites], delta_rdm1[:nfsites])
+        if veff0_per is None:  # aka, not a periodic calculation
+            # Compute the effective potential in the transformed basis
+            veff0 = multi_dot((TA.T, hf_veff, TA))
+            # Calculate the effective potential energy contributions
+            ec = numpy.einsum("ij,ij->i", veff0[:nfsites], delta_rdm1[:nfsites])
+        else:
+            # Calculate the effective potential energy contributions
+            ec = numpy.einsum("ij,ij->i", veff0_per[:nfsites], delta_rdm1[:nfsites])
+
+    else:
+        # Calculate the one-electron and effective potential energy contributions
+        e1 = 2 * numpy.einsum("ij,ij->i", h1[:nfsites], rdm1s_rot[:nfsites])
+        ec = numpy.einsum("ij,ij->i", veff[:nfsites], rdm1s_rot[:nfsites])
 
     if TA.ndim == 3:
         jmax = TA[0].shape[1]
