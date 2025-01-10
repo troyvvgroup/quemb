@@ -1,6 +1,6 @@
 # Author(s): Oinam Romesh Meitei
 
-import numpy
+from numpy import asarray, complex128, float64, zeros
 from numpy.linalg import multi_dot
 from pyscf import scf
 
@@ -33,21 +33,21 @@ def get_veff(eri_, dm, S, TA, hf_veff, return_veff0=False):
     # construct rdm
     nk, nao, neo = TA.shape
     unused(nao)
-    P_ = numpy.zeros((neo, neo), dtype=numpy.complex128)
+    P_ = zeros((neo, neo), dtype=complex128)
     for k in range(nk):
         Cinv = TA[k].conj().T @ S[k]
         P_ += multi_dot((Cinv, dm[k], Cinv.conj().T))
     P_ /= float(nk)
 
-    P_ = numpy.asarray(P_.real, dtype=numpy.double)
+    P_ = asarray(P_.real, dtype=float64)
 
-    eri_ = numpy.asarray(eri_, dtype=numpy.double)
+    eri_ = asarray(eri_, dtype=float64)
     vj, vk = scf.hf.dot_eri_dm(eri_, P_, hermi=1, with_j=True, with_k=True)
     Veff_ = vj - 0.5 * vk
 
     # remove core contribution from hf_veff
 
-    Veff0 = numpy.zeros((neo, neo), dtype=numpy.complex128)
+    Veff0 = zeros((neo, neo), dtype=complex128)
     for k in range(nk):
         Veff0 += multi_dot((TA[k].conj().T, hf_veff[k], TA[k]))
     Veff0 /= float(nk)

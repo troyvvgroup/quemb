@@ -2,7 +2,18 @@
 
 
 import h5py
-import numpy
+from numpy import (
+    abs,
+    complex128,
+    diag_indices,
+    einsum,
+    outer,
+    result_type,
+    trace,
+    tril_indices,
+    zeros,
+    zeros_like,
+)
 from numpy.linalg import multi_dot
 
 from quemb.kbe.helper import get_veff
@@ -142,19 +153,19 @@ class Frags:
             Number of k-points in each lattice vector direction
         """
         nk, nao, nlo = lao.shape
-        rdm1_lo_k = numpy.zeros((nk, nlo, nlo), dtype=numpy.result_type(lmo, lmo))
+        rdm1_lo_k = zeros((nk, nlo, nlo), dtype=result_type(lmo, lmo))
         for k in range(nk):
             rdm1_lo_k[k] += lmo[k][:, :nocc] @ lmo[k][:, :nocc].conj().T
         self.rdm1_lo_k = rdm1_lo_k
         phase = get_phase(cell, kpts, kmesh)
-        supcell_rdm = numpy.einsum("Rk,kuv,Sk->RuSv", phase, rdm1_lo_k, phase.conj())
+        supcell_rdm = einsum("Rk,kuv,Sk->RuSv", phase, rdm1_lo_k, phase.conj())
         supcell_rdm = supcell_rdm.reshape(nk * nlo, nk * nlo)
 
-        if numpy.abs(supcell_rdm.imag).max() < 1.0e-6:
+        if abs(supcell_rdm.imag).max() < 1.0e-6:
             supcell_rdm = supcell_rdm.real
         else:
             raise ValueError(
-                f"Imaginary density in Full SD {numpy.abs(supcell_rdm.imag).max()}"
+                f"Imaginary density in Full SD {abs(supcell_rdm.imag).max()}"
             )
 
         Sites = [i + (nlo * 0) for i in self.fsites]
@@ -166,12 +177,10 @@ class Frags:
         TA_R = TA_R.reshape(nk, nlo, teo)
 
         phase1 = get_phase1(cell, kpts, kmesh)
-        TA_k = numpy.einsum("Rim, Rk -> kim", TA_R, phase1)
+        TA_k = einsum("Rim, Rk -> kim", TA_R, phase1)
         self.TA_lo_eo = TA_k
 
-        TA_ao_eo_k = numpy.zeros(
-            (nk, nao, teo), dtype=numpy.result_type(lao.dtype, TA_k.dtype)
-        )
+        TA_ao_eo_k = zeros((nk, nao, teo), dtype=result_type(lao.dtype, TA_k.dtype))
         for k in range(nk):
             TA_ao_eo_k[k] = lao[k] @ TA_k[k]
 
@@ -179,18 +188,16 @@ class Frags:
         self.nao = TA_ao_eo_k.shape[-1]
 
         # useful for debugging --
-        rdm1_eo = numpy.zeros((teo, teo), dtype=numpy.complex128)
+        rdm1_eo = zeros((teo, teo), dtype=complex128)
         for k in range(nk):
             rdm1_eo += multi_dot((TA_k[k].conj().T, rdm1_lo_k[k], TA_k[k]))
         rdm1_eo /= float(nk)
 
-        h1_eo = numpy.zeros((teo, teo), dtype=numpy.complex128)
+        h1_eo = zeros((teo, teo), dtype=complex128)
         for k in range(nk):
             h1_eo += multi_dot((self.TA[k].conj().T, h1[k], self.TA[k]))
         h1_eo /= float(nk)
-        e1 = 2.0 * numpy.einsum(
-            "ij,ij->i", h1_eo[: self.nfsites], rdm1_eo[: self.nfsites]
-        )
+        e1 = 2.0 * einsum("ij,ij->i", h1_eo[: self.nfsites], rdm1_eo[: self.nfsites])
         e_h1 = 0.0
         for i in self.efac[1]:
             e_h1 += self.efac[0] * e1[i]
@@ -207,15 +214,15 @@ class Frags:
 
         nk, nao, teo = self.TA.shape
         unused(nao)
-        h1_eo = numpy.zeros((teo, teo), dtype=numpy.complex128)
+        h1_eo = zeros((teo, teo), dtype=complex128)
         for k in range(nk):
             h1_eo += multi_dot((self.TA[k].conj().T, h1[k], self.TA[k]))
         h1_eo /= float(nk)
 
-        if numpy.abs(h1_eo.imag).max() < 1.0e-7:
+        if abs(h1_eo.imag).max() < 1.0e-7:
             self.h1 = h1_eo.real
         else:
-            raise ValueError(f"Imaginary Hcore {numpy.abs(h1_eo.imag).max()}")
+            raise ValueError(f"Imaginary Hcore {abs(h1_eo.imag).max()}")
 
     def cons_fock(self, hf_veff, S, dm, eri_=None):
         """
@@ -239,11 +246,11 @@ class Frags:
             )
 
         veff0, veff_ = get_veff(eri_, dm, S, self.TA, hf_veff, return_veff0=True)
-        if numpy.abs(veff_.imag).max() < 1.0e-6:
+        if abs(veff_.imag).max() < 1.0e-6:
             self.veff = veff_.real
             self.veff0 = veff0.real
         else:
-            raise ValueError(f"Imaginary Veff {numpy.abs(veff_.imag).max()}")
+            raise ValueError(f"Imaginary Veff {abs(veff_.imag).max()}")
 
         self.fock = self.h1 + veff_.real
 
@@ -269,26 +276,24 @@ class Frags:
         """
 
         nk, nao, neo = self.TA.shape
-        dm_ = numpy.zeros((nk, nao, nao), dtype=numpy.result_type(C, C))
+        dm_ = zeros((nk, nao, nao), dtype=result_type(C, C))
         for k in range(nk):
             dm_[k] = 2.0 * (
                 C[k][:, ncore : ncore + nocc] @ C[k][:, ncore : ncore + nocc].conj().T
             )
-        P_ = numpy.zeros((neo, neo), dtype=numpy.complex128)
+        P_ = zeros((neo, neo), dtype=complex128)
         for k in range(nk):
             Cinv = self.TA[k].conj().T @ S[k]
             P_ += multi_dot((Cinv, dm_[k], Cinv.conj().T))
 
         P_ /= float(nk)
-        if numpy.abs(P_.imag).max() < 1.0e-6:
+        if abs(P_.imag).max() < 1.0e-6:
             P_ = P_.real
         else:
-            raise ValueError(
-                f"Imaginary density in get_nsocc {numpy.abs(P_.imag).max()}"
-            )
+            raise ValueError(f"Imaginary density in get_nsocc {abs(P_.imag).max()}")
 
-        nsocc_ = numpy.trace(P_)
-        nsocc = int(numpy.round(nsocc_.real) / 2)
+        nsocc_ = trace(P_)
+        nsocc = int(round(nsocc_.real) / 2)
 
         self.nsocc = nsocc
         return P_
@@ -355,7 +360,7 @@ class Frags:
         only_chem=False,
     ):
         """Update the effective Hamiltonian for the fragment."""
-        heff_ = numpy.zeros_like(self.h1)
+        heff_ = zeros_like(self.h1)
 
         if cout is None:
             cout = self.udim
@@ -399,16 +404,14 @@ class Frags:
 
         unrestricted = 1.0 if unrestricted else 2.0
 
-        e1 = unrestricted * numpy.einsum(
+        e1 = unrestricted * einsum(
             "ij,ij->i", self.h1[: self.nfsites], rdm_hf[: self.nfsites]
         )
 
         ec = (
             0.5
             * unrestricted
-            * numpy.einsum(
-                "ij,ij->i", self.veff[: self.nfsites], rdm_hf[: self.nfsites]
-            )
+            * einsum("ij,ij->i", self.veff[: self.nfsites], rdm_hf[: self.nfsites])
         )
 
         if self.TA.ndim == 3:
@@ -419,16 +422,16 @@ class Frags:
             with h5py.File(self.eri_file, "r") as r:
                 eri = r[self.dname][()]
 
-        e2 = numpy.zeros_like(e1)
+        e2 = zeros_like(e1)
         for i in range(self.nfsites):
             for j in range(jmax):
                 ij = i * (i + 1) // 2 + j if i > j else j * (j + 1) // 2 + i
-                Gij = (2.0 * rdm_hf[i, j] * rdm_hf - numpy.outer(rdm_hf[i], rdm_hf[j]))[
+                Gij = (2.0 * rdm_hf[i, j] * rdm_hf - outer(rdm_hf[i], rdm_hf[j]))[
                     :jmax, :jmax
                 ]
-                Gij[numpy.diag_indices(jmax)] *= 0.5
+                Gij[diag_indices(jmax)] *= 0.5
                 Gij += Gij.T
-                e2[i] += 0.5 * unrestricted * Gij[numpy.tril_indices(jmax)] @ eri[ij]
+                e2[i] += 0.5 * unrestricted * Gij[tril_indices(jmax)] @ eri[ij]
 
         e_ = e1 + e2 + ec
         etmp = 0.0
