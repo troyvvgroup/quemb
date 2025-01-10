@@ -2,15 +2,16 @@
 
 
 import numpy
-from attrs import define
+from attrs import Factory, define
 from numpy import array, float64
 
+from quemb.kbe.pfrag import Frags as pFrags
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.pfrag import Frags
-from quemb.molbe.solver import be_func
+from quemb.molbe.solver import UserSolverArgs, be_func
 from quemb.shared.external.optqn import FrankQN
 from quemb.shared.manage_scratch import WorkDir
-from quemb.shared.typing import KwargDict, Matrix, Vector
+from quemb.shared.typing import Matrix, Vector
 
 
 @define
@@ -39,6 +40,9 @@ class BEOPT:
        High-level solver in bootstrap embedding. 'MP2', 'CCSD', 'FCI' are supported.
        Selected CI versions,
        'HCI', 'SHCI', & 'SCI' are also supported. Defaults to 'MP2'
+    only_chem :
+       Whether to perform chemical potential optimization only.
+       Refer to bootstrap embedding literatures.
     nproc :
        Total number of processors assigned for the optimization. Defaults to 1.
        When nproc > 1, Python multithreading
@@ -46,9 +50,6 @@ class BEOPT:
     ompnum :
        If nproc > 1, ompnum sets the number of cores for OpenMP parallelization.
        Defaults to 4
-    only_chem :
-       Whether to perform chemical potential optimization only.
-       Refer to bootstrap embedding literatures.
     max_space :
        Maximum number of bootstrap optimizaiton steps, after which the optimization
        is called converged.
@@ -59,14 +60,14 @@ class BEOPT:
     """
 
     pot: list[float]
-    Fobjs: list[Frags]
+    Fobjs: list[Frags] | list[pFrags]
     Nocc: int
     enuc: float
     scratch_dir: WorkDir
+    solver: str = "MP2"
     nproc: int = 1
     ompnum: int = 4
     only_chem: bool = False
-    solver: str = "MP2"
     use_cumulant: bool = True
 
     max_space: int = 500
@@ -76,15 +77,9 @@ class BEOPT:
 
     iter: int = 0
     err: float = 0.0
-    Ebe: Matrix[float64] = array([[0.0]])
+    Ebe: Matrix[float64] = Factory(lambda: array([[0.0]]))
 
-    DMRG_solver_kwargs: KwargDict | None = None
-
-    # HCI parameters
-    hci_cutoff: float = 0.001
-    ci_coeff_cutoff: float | None = None
-    select_cutoff: float | None = None
-    hci_pt: bool = False
+    solver_args: UserSolverArgs | None = None
 
     def objfunc(self, xk: list[float]) -> Vector[float64]:
         """
@@ -115,15 +110,11 @@ class BEOPT:
                 only_chem=self.only_chem,
                 nproc=self.ompnum,
                 relax_density=self.relax_density,
+                scratch_dir=self.scratch_dir,
+                solver_args=self.solver_args,
                 use_cumulant=self.use_cumulant,
                 eeval=True,
                 return_vec=True,
-                hci_cutoff=self.hci_cutoff,
-                ci_coeff_cutoff=self.ci_coeff_cutoff,
-                select_cutoff=self.select_cutoff,
-                hci_pt=self.hci_pt,
-                scratch_dir=self.scratch_dir,
-                DMRG_solver_kwargs=self.DMRG_solver_kwargs,
             )
         else:
             err_, errvec_, ebe_ = be_func_parallel(
@@ -136,13 +127,11 @@ class BEOPT:
                 nproc=self.nproc,
                 ompnum=self.ompnum,
                 relax_density=self.relax_density,
+                scratch_dir=self.scratch_dir,
+                solver_args=self.solver_args,
                 use_cumulant=self.use_cumulant,
                 eeval=True,
                 return_vec=True,
-                hci_cutoff=self.hci_cutoff,
-                ci_coeff_cutoff=self.ci_coeff_cutoff,
-                select_cutoff=self.select_cutoff,
-                scratch_dir=self.scratch_dir,
             )
 
         # Update error and BE energy

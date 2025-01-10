@@ -7,6 +7,7 @@ from multiprocessing import Pool
 import h5py
 import numpy
 from libdmet.basis_transform.eri_transform import get_emb_eri_fast_gdf
+from numpy import array, floating
 from pyscf import ao2mo, pbc
 from pyscf.pbc import df, gto
 from pyscf.pbc.df.df_jk import _ewald_exxdiv_for_G0
@@ -18,13 +19,13 @@ from quemb.kbe.pfrag import Frags
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
 from quemb.molbe.opt import BEOPT
-from quemb.molbe.solver import be_func
+from quemb.molbe.solver import UserSolverArgs, be_func
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
 from quemb.shared.helper import copy_docstring
 from quemb.shared.manage_scratch import WorkDir
-from quemb.shared.typing import KwargDict, PathLike
+from quemb.shared.typing import Matrix, PathLike
 
 
 class BE(Mixin_k_Localize):
@@ -58,12 +59,8 @@ class BE(Mixin_k_Localize):
         save: bool = False,
         restart_file: PathLike = "storebe.pk",
         save_file: PathLike = "storebe.pk",
-        hci_pt: bool = False,
         nproc: int = 1,
         ompnum: int = 4,
-        hci_cutoff: float = 0.001,
-        ci_coeff_cutoff: float | None = None,
-        select_cutoff: float | None = None,
         iao_val_core: bool = True,
         exxdiv: str = "ewald",
         kpts: list[list[float]] | None = None,
@@ -158,12 +155,6 @@ class BE(Mixin_k_Localize):
                 nkpts_ *= i
         self.nkpt = nkpts_
         self.kpts = kpts
-
-        # HCI parameters
-        self.hci_cutoff = hci_cutoff
-        self.ci_coeff_cutoff = ci_coeff_cutoff
-        self.select_cutoff = select_cutoff
-        self.hci_pt = hci_pt
 
         if not restart:
             self.mo_energy = mf.mo_energy
@@ -325,17 +316,17 @@ class BE(Mixin_k_Localize):
 
     def optimize(
         self,
-        solver="MP2",
-        method="QN",
-        only_chem=False,
-        use_cumulant=True,
-        conv_tol=1.0e-6,
-        relax_density=False,
-        J0=None,
-        nproc=1,
-        ompnum=4,
-        max_iter=500,
-    ):
+        solver: str = "MP2",
+        method: str = "QN",
+        only_chem: bool = False,
+        use_cumulant: bool = True,
+        conv_tol: float = 1.0e-6,
+        relax_density: bool = False,
+        J0: Matrix[floating] | None = None,
+        nproc: int = 1,
+        ompnum: int = 4,
+        max_iter: int = 500,
+    ) -> None:
         """BE optimization function
 
         Interfaces BEOPT to perform bootstrap embedding optimization.
@@ -393,10 +384,7 @@ class BE(Mixin_k_Localize):
             conv_tol=conv_tol,
             only_chem=only_chem,
             use_cumulant=use_cumulant,
-            hci_cutoff=self.hci_cutoff,
-            ci_coeff_cutoff=self.ci_coeff_cutoff,
             relax_density=relax_density,
-            select_cutoff=self.select_cutoff,
             solver=solver,
             ebe_hf=self.ebe_hf,
         )
@@ -404,9 +392,9 @@ class BE(Mixin_k_Localize):
         if method == "QN":
             # Prepare the initial Jacobian matrix
             if only_chem:
-                J0 = [[0.0]]
+                J0 = array([[0.0]])
                 J0 = self.get_be_error_jacobian(jac_solver="HF")
-                J0 = [[J0[-1, -1]]]
+                J0 = J0[-1:, -1:]
             else:
                 J0 = self.get_be_error_jacobian(jac_solver="HF")
 
@@ -429,10 +417,10 @@ class BE(Mixin_k_Localize):
             raise ValueError("This optimization method for BE is not supported")
 
     @copy_docstring(_ext_get_be_error_jacobian)
-    def get_be_error_jacobian(self, jac_solver="HF"):
+    def get_be_error_jacobian(self, jac_solver: str = "HF") -> Matrix[floating]:
         return _ext_get_be_error_jacobian(self.Nfrag, self.Fobjs, jac_solver)
 
-    def print_ini(self):
+    def print_ini(self) -> None:
         """
         Print initialization banner for the kBE calculation.
         """
@@ -683,7 +671,7 @@ class BE(Mixin_k_Localize):
         use_cumulant: bool = True,
         nproc: int = 1,
         ompnum: int = 4,
-        DMRG_solver_kwargs: KwargDict | None = None,
+        solver_args: UserSolverArgs | None = None,
     ) -> None:
         """
         Perform a one-shot bootstrap embedding calculation.
@@ -711,14 +699,11 @@ class BE(Mixin_k_Localize):
                 solver,
                 self.enuc,
                 nproc=ompnum,
-                use_cumulant=use_cumulant,
                 eeval=True,
-                return_vec=False,
-                hci_cutoff=self.hci_cutoff,
-                ci_coeff_cutoff=self.ci_coeff_cutoff,
-                select_cutoff=self.select_cutoff,
                 scratch_dir=self.scratch_dir,
-                DMRG_solver_kwargs=DMRG_solver_kwargs,
+                solver_args=solver_args,
+                use_cumulant=use_cumulant,
+                return_vec=False,
             )
         else:
             rets = be_func_parallel(
@@ -727,15 +712,13 @@ class BE(Mixin_k_Localize):
                 self.Nocc,
                 solver,
                 self.enuc,
+                eeval=True,
                 nproc=nproc,
                 ompnum=ompnum,
-                use_cumulant=use_cumulant,
-                eeval=True,
-                return_vec=False,
-                hci_cutoff=self.hci_cutoff,
-                ci_coeff_cutoff=self.ci_coeff_cutoff,
-                select_cutoff=self.select_cutoff,
                 scratch_dir=self.scratch_dir,
+                solver_args=solver_args,
+                use_cumulant=use_cumulant,
+                return_vec=False,
             )
 
         print("-----------------------------------------------------", flush=True)
@@ -758,8 +741,6 @@ class BE(Mixin_k_Localize):
             "Final e_corr is              : {:>12.8f} Ha".format(rets[0]),
             flush=True,
         )
-
-        self.ebe_tot = rets[0]
 
     def update_fock(self, heff=None):
         """

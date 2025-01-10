@@ -15,13 +15,13 @@ from quemb.molbe.lo import MixinLocalize
 from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
 from quemb.molbe.opt import BEOPT
 from quemb.molbe.pfrag import Frags
-from quemb.molbe.solver import be_func
+from quemb.molbe.solver import UserSolverArgs, be_func
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
 from quemb.shared.helper import copy_docstring
 from quemb.shared.manage_scratch import WorkDir
-from quemb.shared.typing import KwargDict, Matrix, PathLike
+from quemb.shared.typing import Matrix, PathLike
 
 
 @define
@@ -79,10 +79,6 @@ class BE(MixinLocalize):
         nproc: int = 1,
         ompnum: int = 4,
         scratch_dir: WorkDir | None = None,
-        hci_pt: bool = False,
-        hci_cutoff: float = 0.001,
-        ci_coeff_cutoff: float | None = None,
-        select_cutoff: float | None = None,
         integral_direct_DF: bool = False,
         auxbasis: str | None = None,
     ) -> None:
@@ -168,12 +164,6 @@ class BE(MixinLocalize):
 
         self.ebe_hf = 0.0
         self.ebe_tot = 0.0
-
-        # HCI parameters
-        self.hci_cutoff = hci_cutoff
-        self.ci_coeff_cutoff = ci_coeff_cutoff
-        self.select_cutoff = select_cutoff
-        self.hci_pt = hci_pt
 
         self.mf = mf
         if not restart:
@@ -647,7 +637,7 @@ class BE(MixinLocalize):
         ompnum: int = 4,
         max_iter: int = 500,
         trust_region: bool = False,
-        DMRG_solver_kwargs: KwargDict | None = None,
+        solver_args: UserSolverArgs | None = None,
     ) -> None:
         """BE optimization function
 
@@ -709,14 +699,10 @@ class BE(MixinLocalize):
             conv_tol=conv_tol,
             only_chem=only_chem,
             use_cumulant=use_cumulant,
-            hci_cutoff=self.hci_cutoff,
-            ci_coeff_cutoff=self.ci_coeff_cutoff,
             relax_density=relax_density,
-            select_cutoff=self.select_cutoff,
-            hci_pt=self.hci_pt,
             solver=solver,
             ebe_hf=self.ebe_hf,
-            DMRG_solver_kwargs=DMRG_solver_kwargs,
+            solver_args=solver_args,
         )
 
         if method == "QN":
@@ -918,7 +904,7 @@ class BE(MixinLocalize):
         use_cumulant: bool = True,
         nproc: int = 1,
         ompnum: int = 4,
-        DMRG_solver_kwargs: KwargDict | None = None,
+        solver_args: UserSolverArgs | None = None,
     ) -> None:
         """
         Perform a one-shot bootstrap embedding calculation.
@@ -944,14 +930,11 @@ class BE(MixinLocalize):
                 solver,
                 self.enuc,
                 nproc=ompnum,
-                use_cumulant=use_cumulant,
                 eeval=True,
-                return_vec=False,
-                hci_cutoff=self.hci_cutoff,
-                ci_coeff_cutoff=self.ci_coeff_cutoff,
-                select_cutoff=self.select_cutoff,
                 scratch_dir=self.scratch_dir,
-                DMRG_solver_kwargs=DMRG_solver_kwargs,
+                solver_args=solver_args,
+                use_cumulant=use_cumulant,
+                return_vec=False,
             )
         else:
             rets = be_func_parallel(
@@ -960,15 +943,13 @@ class BE(MixinLocalize):
                 self.Nocc,
                 solver,
                 self.enuc,
+                eeval=True,
                 nproc=nproc,
                 ompnum=ompnum,
-                use_cumulant=use_cumulant,
-                eeval=True,
-                return_vec=False,
-                hci_cutoff=self.hci_cutoff,
-                ci_coeff_cutoff=self.ci_coeff_cutoff,
-                select_cutoff=self.select_cutoff,
                 scratch_dir=self.scratch_dir,
+                solver_args=solver_args,
+                use_cumulant=use_cumulant,
+                return_vec=False,
             )
 
         print("-----------------------------------------------------", flush=True)
