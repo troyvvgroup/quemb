@@ -1,4 +1,4 @@
-import numpy
+from numpy import einsum
 from pyscf.cc.uccsd import _make_eris_incore
 
 
@@ -12,13 +12,12 @@ def make_eris_incore(mycc, Vss, Vos, mo_coeff=None, ao2mofn=None, frozen=False):
 
 def frank_get_veff(dm, Vss, Vos):
     veffss = [
-        numpy.einsum("pqrs,sr->pq", Vss[s], dm[s])
-        - numpy.einsum("psrq,sr->pq", Vss[s], dm[s])
+        einsum("pqrs,sr->pq", Vss[s], dm[s]) - einsum("psrq,sr->pq", Vss[s], dm[s])
         for s in [0, 1]
     ]
     veffos = [
-        numpy.einsum("pqrs,sr->pq", Vos, dm[1]),
-        numpy.einsum("pqrs,qp->rs", Vos, dm[0]),
+        einsum("pqrs,sr->pq", Vos, dm[1]),
+        einsum("pqrs,qp->rs", Vos, dm[0]),
     ]
     veff = [veffss[s] + veffos[s] for s in [0, 1]]
 
