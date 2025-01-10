@@ -56,9 +56,7 @@ class BE(Mixin_k_Localize):
         lo_method: str = "lowdin",
         compute_hf: bool = True,
         restart: bool = False,
-        save: bool = False,
         restart_file: PathLike = "storebe.pk",
-        save_file: PathLike = "storebe.pk",
         nproc: int = 1,
         ompnum: int = 4,
         iao_val_core: bool = True,
@@ -89,12 +87,8 @@ class BE(Mixin_k_Localize):
             Whether to compute Hartree-Fock energy, by default True.
         restart :
             Whether to restart from a previous calculation, by default False.
-        save :
-            Whether to save intermediate objects for restart, by default False.
         restart_file :
             Path to the file storing restart information, by default 'storebe.pk'.
-        save_file :
-            Path to the file storing save information, by default 'storebe.pk'.
         nproc :
             Number of processors for parallel calculations, by default 1. If set to >1,
             multi-threaded parallel computation is invoked.
@@ -289,27 +283,6 @@ class BE(Mixin_k_Localize):
                 iao_wannier=iao_wannier,
                 iao_val_core=iao_val_core,
             )
-        if save:
-            # Save intermediate results for restart
-            store_ = storePBE(
-                self.Nocc,
-                self.hf_veff,
-                self.hcore,
-                self.S,
-                self.C,
-                self.hf_dm,
-                self.hf_etot,
-                self.W,
-                self.lmo_coeff,
-                self.enuc,
-                self.ek,
-                self.E_core,
-                self.C_core,
-                self.P_core,
-                self.core_veff,
-            )
-            with open(save_file, "wb") as rfile:
-                pickle.dump(store_, rfile, pickle.HIGHEST_PROTOCOL)
 
         if not restart:
             self.initialize(compute_hf)
@@ -415,6 +388,35 @@ class BE(Mixin_k_Localize):
                                                for periodic code""")
         else:
             raise ValueError("This optimization method for BE is not supported")
+
+    def save(self, restart_file: PathLike = "storebe.pk") -> None:
+        """
+        Save the current state of the BE calculation to a file.
+
+        Parameters
+        ----------
+        restart_file : str, optional
+            Path to the file storing restart information, by default 'storebe.pk'.
+        """
+        store_ = storePBE(
+            self.Nocc,
+            self.hf_veff,
+            self.hcore,
+            self.S,
+            self.C,
+            self.hf_dm,
+            self.hf_etot,
+            self.W,
+            self.lmo_coeff,
+            self.enuc,
+            self.ek,
+            self.E_core,
+            self.C_core,
+            self.P_core,
+            self.core_veff,
+        )
+        with open(restart_file, "wb") as rfile:
+            pickle.dump(store_, rfile, pickle.HIGHEST_PROTOCOL)
 
     @copy_docstring(_ext_get_be_error_jacobian)
     def get_be_error_jacobian(self, jac_solver: str = "HF") -> Matrix[floating]:

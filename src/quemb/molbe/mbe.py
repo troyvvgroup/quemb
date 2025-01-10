@@ -231,7 +231,7 @@ class BE(MixinLocalize):
         else:
             self.initialize(None, compute_hf, restart=True)
 
-    def save_restart(self, save_file: PathLike = "storebe.pk") -> None:
+    def save(self, save_file: PathLike = "storebe.pk") -> None:
         """
         Save intermediate results for restart.
 
