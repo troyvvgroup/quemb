@@ -17,9 +17,9 @@ from quemb.molbe.helper import (
 )
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import (
-    SHCI_Args,
     SHCI_ArgsUser,
     UserSolverArgs,
+    _SHCI_Args,
     make_rdm1_ccsd_t1,
     make_rdm2_urlx,
     solve_ccsd,
@@ -149,7 +149,7 @@ def run_solver(
         from pyscf import hci  # noqa: PLC0415  # hci is an optional module
 
         assert isinstance(solver_args, SHCI_ArgsUser)
-        SHCI_args = SHCI_Args.from_user_input(solver_args)
+        SHCI_args = _SHCI_Args.from_user_input(solver_args)
 
         nao, nmo = mf_.mo_coeff.shape
         eri = ao2mo.kernel(mf_._eri, mf_.mo_coeff, aosym="s4", compact=False).reshape(
@@ -177,7 +177,7 @@ def run_solver(
         frag_scratch = WorkDir(scratch_dir / dname)
 
         assert isinstance(solver_args, SHCI_ArgsUser)
-        SHCI_args = SHCI_Args.from_user_input(solver_args)
+        SHCI_args = _SHCI_Args.from_user_input(solver_args)
 
         nao, nmo = mf_.mo_coeff.shape
         nelec = (nocc, nocc)
@@ -199,7 +199,7 @@ def run_solver(
         from pyscf import cornell_shci  # noqa: PLC0415  # optional module
 
         assert isinstance(solver_args, SHCI_ArgsUser)
-        SHCI_args = SHCI_Args.from_user_input(solver_args)
+        SHCI_args = _SHCI_Args.from_user_input(solver_args)
 
         frag_scratch = WorkDir(scratch_dir / dname)
 

@@ -116,7 +116,7 @@ class DMRG_ArgsUser(UserSolverArgs):
 
 
 @define(frozen=True)
-class DMRG_Args:
+class _DMRG_Args:
     """Properly initialized DMRG arguments
 
     Some default values of :class:`DMRG_ArgsUser` can only be filled
@@ -175,7 +175,7 @@ class SHCI_ArgsUser(UserSolverArgs):
 
 
 @define(frozen=True)
-class SHCI_Args:
+class _SHCI_Args:
     """Properly initialized SCHI arguments
 
     Some default values of :class:`SHCI_ArgsUser` can only be filled
@@ -312,7 +312,7 @@ def be_func(
             from pyscf import hci  # noqa: PLC0415    # optional module
 
             assert isinstance(solver_args, SHCI_ArgsUser)
-            SHCI_args = SHCI_Args.from_user_input(solver_args)
+            SHCI_args = _SHCI_Args.from_user_input(solver_args)
 
             nmo = fobj._mf.mo_coeff.shape[1]
 
@@ -343,7 +343,7 @@ def be_func(
             from pyscf.shciscf import shci  # noqa: PLC0415    # shci is optional
 
             assert isinstance(solver_args, SHCI_ArgsUser)
-            SHCI_args = SHCI_Args.from_user_input(solver_args)
+            SHCI_args = _SHCI_Args.from_user_input(solver_args)
 
             frag_scratch = WorkDir(scratch_dir / fobj.dname)
 
@@ -394,7 +394,7 @@ def be_func(
             frag_scratch = WorkDir(scratch_dir / fobj.dname)
 
             assert isinstance(solver_args, DMRG_ArgsUser)
-            DMRG_args = DMRG_Args.from_user_input(solver_args, fobj._mf)
+            DMRG_args = _DMRG_Args.from_user_input(solver_args, fobj._mf)
 
             try:
                 rdm1_tmp, rdm2s = solve_block2(
