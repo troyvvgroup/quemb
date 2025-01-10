@@ -3,7 +3,7 @@
 # Garnet-Chan group at Caltech: https://block2.readthedocs.io/en/latest/index.html
 
 import matplotlib.pyplot as plt
-import numpy
+import numpy as np
 from pyscf import cc, fci, gto, scf
 
 from quemb.molbe import BE, fragpart
@@ -11,7 +11,7 @@ from quemb.molbe.solver import DMRG_ArgsUser
 
 # We'll consider the dissociation curve for a 1D chain of 8 H-atoms:
 num_points = 3
-seps = numpy.linspace(0.60, 1.6, num=num_points)
+seps = np.linspace(0.60, 1.6, num=num_points)
 fci_ecorr, ccsd_ecorr, ccsdt_ecorr, bedmrg_ecorr = [], [], [], []
 
 for a in seps:
