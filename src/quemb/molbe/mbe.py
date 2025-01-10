@@ -198,7 +198,7 @@ class BE(MixinLocalize):
                     self.C[:, self.ncore : self.ncore + self.Nocc].T,
                 )
                 self.C_core = self.C[:, : self.ncore]
-                self.P_core = numpy.dot(self.C_core, self.C_core.T)
+                self.P_core = self.C_core @ self.C_core.T
                 self.core_veff = mf.get_veff(dm=self.P_core * 2.0)
                 self.E_core = numpy.einsum(
                     "ji,ji->", 2.0 * self.hcore + self.core_veff, self.P_core

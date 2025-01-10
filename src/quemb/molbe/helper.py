@@ -38,7 +38,7 @@ def get_veff(eri_, dm, S, TA, hf_veff):
     """
 
     # Transform the density matrix
-    ST = numpy.dot(S, TA)
+    ST = S @ TA
     P_ = multi_dot((ST.T, dm, ST))
 
     # Ensure the transformed density matrix and ERI are real and double-precision

@@ -192,7 +192,7 @@ class FrankQN:
             self.xnew = self.x0
             self.fnew = self.func(self.xnew) if self.f0 is None else self.f0
             self.fs[0] = self.fnew.copy()
-            self.us[0] = numpy.dot(self.B0, self.fnew)
+            self.us[0] = self.B0 @ self.fnew
             self.Binv = self.B0.copy()
 
         # Book keeping
@@ -221,7 +221,7 @@ class FrankQN:
             )
 
             # udpate vs, dxs, and fs
-            self.vs[self.iter_] = numpy.dot(self.B0, self.fnew)
+            self.vs[self.iter_] = self.B0 @ self.fnew
         self.dxs[self.iter_] = self.xnew - self.xold
         self.fs[self.iter_ + 1] = self.fnew.copy()
 

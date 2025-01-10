@@ -129,7 +129,7 @@ class UBE(BE):  # 🍠
                 for s in [0, 1]
             ]
             self.C_core = [self.C[s][:, : self.ncore] for s in [0, 1]]
-            self.P_core = [numpy.dot(self.C_core[s], self.C_core[s].T) for s in [0, 1]]
+            self.P_core = [self.C_core[s] @ self.C_core[s].T for s in [0, 1]]
             self.core_veff = 1.0 * mf.get_veff(dm=self.P_core)
 
             self.E_core = (

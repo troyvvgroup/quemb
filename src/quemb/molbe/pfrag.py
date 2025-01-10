@@ -136,7 +136,7 @@ class Frags:
         else:
             TA = schmidt_decomposition(lmo, nocc, self.fsites)
         self.C_lo_eo = TA
-        TA = numpy.dot(lao, TA)
+        TA = lao @ TA
         self.nao = TA.shape[1]
         self.TA = TA
         if return_orb_count:
@@ -202,7 +202,7 @@ class Frags:
             Projected density matrix.
         """
         C_ = multi_dot((self.TA.T, S, C[:, ncore : ncore + nocc]))
-        P_ = numpy.dot(C_, C_.T)
+        P_ = C_ @ C_.T
         nsocc_ = numpy.trace(P_)
         nsocc = int(numpy.round(nsocc_))
         try:
@@ -433,7 +433,7 @@ def schmidt_decomposition(
     if mo_coeff is not None:
         C = mo_coeff[:, :nocc]
     if rdm is None:
-        Dhf = numpy.dot(C, C.T)
+        Dhf = C @ C.T
         if cinv is not None:
             Dhf = multi_dot((cinv, Dhf, cinv.conj().T))
     else:

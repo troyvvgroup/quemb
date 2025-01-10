@@ -173,7 +173,7 @@ class Frags:
             (nk, nao, teo), dtype=numpy.result_type(lao.dtype, TA_k.dtype)
         )
         for k in range(nk):
-            TA_ao_eo_k[k] = numpy.dot(lao[k], TA_k[k])
+            TA_ao_eo_k[k] = lao[k] @ TA_k[k]
 
         self.TA = TA_ao_eo_k
         self.nao = TA_ao_eo_k.shape[-1]
@@ -276,7 +276,7 @@ class Frags:
             )
         P_ = numpy.zeros((neo, neo), dtype=numpy.complex128)
         for k in range(nk):
-            Cinv = numpy.dot(self.TA[k].conj().T, S[k])
+            Cinv = self.TA[k].conj().T @ S[k]
             P_ += multi_dot((Cinv, dm_[k], Cinv.conj().T))
 
         P_ /= float(nk)

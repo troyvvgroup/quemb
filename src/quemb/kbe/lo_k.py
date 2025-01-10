@@ -129,10 +129,10 @@ def get_iao_k(Co, S12, S1, S2=None, ortho=True):
     for k in range(nk):
         # Cotil = P1[k] @ S12[k] @ P2[k] @ S12[k].conj().T @ Co[k]
         Cotil = multi_dot((P1[k], S12[k], P2[k], S12[k].conj().T, Co[k]))
-        ptil = numpy.dot(P1[k], S12[k])
+        ptil = P1[k] @ S12[k]
         Stil = multi_dot((Cotil.conj().T, S1[k], Cotil))
 
-        Po = numpy.dot(Co[k], Co[k].conj().T)
+        Po = Co[k] @ Co[k].conj().T
 
         Stil_inv = inv(Stil)
 

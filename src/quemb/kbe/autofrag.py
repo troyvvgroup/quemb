@@ -400,7 +400,7 @@ def autogen(
         (numpy.arange(lkpt[0]), numpy.arange(lkpt[1]), numpy.arange(lkpt[2]))
     )
 
-    Ls = numpy.dot(Ts, lattice_vector)
+    Ls = Ts @ lattice_vector
 
     # 1-2-(1-2)-1-2
     #   *       *

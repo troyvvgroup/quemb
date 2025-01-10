@@ -290,7 +290,7 @@ class MixinLocalize:
                         eye(self.W.shape[0]) - numpy.dot(self.P_core[s], self.S)
                         for s in [0, 1]
                     ]
-                    C_ = numpy.dot(P_core, self.W)
+                    C_ = P_core @ self.W
                     Cpop = [multi_dot((C_[s].T, self.S, C_[s])) for s in [0, 1]]
                     Cpop = [numpy.diag(Cpop[s]) for s in [0, 1]]
                     no_core_idx = [numpy.where(Cpop[s] > 0.7)[0] for s in [0, 1]]
@@ -302,10 +302,10 @@ class MixinLocalize:
                         s_ = numpy.sqrt(es_)
                         s_ = numpy.diag(1.0 / s_)
                         W_.append(multi_dot((vs_, s_, vs_.T)))
-                    self.W = [numpy.dot(C_[s], W_[s]) for s in [0, 1]]
+                    self.W = [C_[s] @ W_[s] for s in [0, 1]]
                 else:
-                    P_core = eye(self.W.shape[0]) - numpy.dot(self.P_core, self.S)
-                    C_ = numpy.dot(P_core, self.W)
+                    P_core = eye(self.W.shape[0]) - self.P_core @ self.S
+                    C_ = P_core @ self.W
                     # NOTE: PYSCF has basis in 1s2s3s2p2p2p3p3p3p format
                     # fix no_core_idx - use population for now
                     Cpop = multi_dot((C_.T, self.S, C_))
@@ -317,7 +317,7 @@ class MixinLocalize:
                     s_ = numpy.sqrt(es_)
                     s_ = numpy.diag(1.0 / s_)
                     W_ = multi_dot((vs_, s_, vs_.T))
-                    self.W = numpy.dot(C_, W_)
+                    self.W = C_ @ W_
 
             if self.unrestricted:
                 if self.frozen_core:
@@ -347,8 +347,8 @@ class MixinLocalize:
             edx = es_ > 1.0e-15
             W_ = numpy.dot(vs_[:, edx] / numpy.sqrt(es_[edx]), vs_[:, edx].T)
             if self.frozen_core:
-                P_core = eye(W_.shape[0]) - numpy.dot(self.P_core, self.S)
-                C_ = numpy.dot(P_core, W_)
+                P_core = eye(W_.shape[0]) - self.P_core @ self.S
+                C_ = P_core @ W_
                 Cpop = multi_dot((C_.T, self.S, C_))
                 Cpop = numpy.diag(Cpop)
                 no_core_idx = numpy.where(Cpop > 0.55)[0]
@@ -358,7 +358,7 @@ class MixinLocalize:
                 s_ = numpy.sqrt(es_)
                 s_ = numpy.diag(1.0 / s_)
                 W_ = multi_dot((vs_, s_, vs_.T))
-                W_ = numpy.dot(C_, W_)
+                W_ = C_ @ W_
 
             self.W = get_loc(
                 self.mol, W_, "PM", pop_method=pop_method, init_guess=init_guess
@@ -476,8 +476,8 @@ class MixinLocalize:
             edx = es_ > 1.0e-15
             W_ = numpy.dot(vs_[:, edx] / numpy.sqrt(es_[edx]), vs_[:, edx].T)
             if self.frozen_core:
-                P_core = eye(W_.shape[0]) - numpy.dot(self.P_core, self.S)
-                C_ = numpy.dot(P_core, W_)
+                P_core = eye(W_.shape[0]) - self.P_core @ self.S
+                C_ = P_core @ W_
                 Cpop = multi_dot((C_.T, self.S, C_))
                 Cpop = numpy.diag(Cpop)
                 no_core_idx = numpy.where(Cpop > 0.55)[0]
@@ -487,7 +487,7 @@ class MixinLocalize:
                 s_ = numpy.sqrt(es_)
                 s_ = numpy.diag(1.0 / s_)
                 W_ = multi_dot((vs_, s_, vs_.T))
-                W_ = numpy.dot(C_, W_)
+                W_ = C_ @ W_
 
             self.W = get_loc(self.mol, W_, "BOYS")
 

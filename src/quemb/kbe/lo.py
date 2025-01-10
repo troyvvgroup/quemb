@@ -79,7 +79,7 @@ class Mixin_k_Localize:
                         W[:, i] *= -1
                 if self.frozen_core:
                     pcore = numpy.eye(W[k].shape[0]) - (self.P_core[k] @ self.S[k])
-                    C_ = numpy.dot(pcore, W[k])
+                    C_ = pcore @ W[k]
 
                     # PYSCF has basis in 1s2s3s2p2p2p3p3p3p format
                     # fix no_core_idx - use population for now
@@ -95,16 +95,16 @@ class Mixin_k_Localize:
                     es_, vs_ = eigh(S_)
                     edx = es_ > 1.0e-14
                     W_ = (vs_[:, edx] / numpy.sqrt(es_[edx])) @ vs_[:, edx].conj().T
-                    W_nocore[k] = numpy.dot(C_, W_)
+                    W_nocore[k] = C_ @ W_
 
                     lmo_coeff[k] = multi_dot(
                         (W_nocore[k].conj().T, self.S[k], self.C[k][:, self.ncore :]),
                     )
-                    cinv_[k] = numpy.dot(W_nocore[k].conj().T, self.S[k])
+                    cinv_[k] = W_nocore[k].conj().T @ self.S[k]
 
                 else:
                     lmo_coeff[k] = multi_dot((W[k].conj().T, self.S[k], self.C[k]))
-                    cinv_[k] = numpy.dot(W[k].conj().T, self.S[k])
+                    cinv_[k] = W[k].conj().T @ self.S[k]
             if self.frozen_core:
                 self.W = W_nocore
             else:
@@ -291,7 +291,7 @@ class Mixin_k_Localize:
                 Ciao = numpy.zeros((nk, nao, nlo), dtype=numpy.complex128)
 
                 for k in range(self.nkpt):
-                    Ciao[k] = numpy.dot(Ciao_[k], u_mat[k])
+                    Ciao[k] = Ciao_[k] @ u_mat[k]
 
             # Stack Ciao
             Wstack = numpy.zeros(
@@ -367,7 +367,7 @@ class Mixin_k_Localize:
                     lmo_coeff[k] = multi_dot(
                         (self.W[k].conj().T, self.S[k], self.C[k][:, self.ncore :]),
                     )
-                    cinv_[k] = numpy.dot(self.W[k].conj().T, self.S[k])
+                    cinv_[k] = self.W[k].conj().T @ self.S[k]
 
                     assert numpy.allclose(
                         lmo_coeff[k].conj().T @ lmo_coeff[k],
@@ -445,7 +445,7 @@ class Mixin_k_Localize:
             nk, nao, nlo = lmf.mo_coeff.shape
             W = numpy.zeros((nk, nao, nlo), dtype=numpy.complex128)
             for k in range(nk):
-                W[k] = numpy.dot(lmf.mo_coeff[k], u_mat[k])
+                W[k] = lmf.mo_coeff[k] @ u_mat[k]
 
             self.W = W
             lmo_coeff = numpy.zeros(
@@ -457,7 +457,7 @@ class Mixin_k_Localize:
                 lmo_coeff[k] = multi_dot(
                     (self.W[k].conj().T, self.S[k], self.C[k][:, self.ncore :]),
                 )
-                cinv_[k] = numpy.dot(self.W[k].conj().T, self.S[k])
+                cinv_[k] = self.W[k].conj().T @ self.S[k]
                 assert numpy.allclose(
                     lmo_coeff[k].conj().T @ lmo_coeff[k],
                     numpy.eye(lmo_coeff[k].shape[1]),

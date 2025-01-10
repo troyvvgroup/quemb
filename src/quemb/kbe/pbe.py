@@ -232,7 +232,7 @@ class BE(Mixin_k_Localize):
                         self.C[k][:, self.ncore : self.ncore + self.Nocc].conj().T,
                     )
                     C_core[k] += self.C[k][:, : self.ncore]
-                    P_core[k] += numpy.dot(C_core[k], C_core[k].conj().T)
+                    P_core[k] += C_core[k] @ C_core[k].conj().T
 
                 self.C_core = C_core
                 self.P_core = P_core
