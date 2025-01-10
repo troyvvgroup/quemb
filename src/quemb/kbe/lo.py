@@ -386,9 +386,7 @@ class Mixin_k_Localize:
             for k in range(nk):
                 es_, vs_ = eigh(self.S[k])
                 edx = es_ > 1.0e-14
-                lorb[k] = numpy.dot(
-                    vs_[:, edx] / numpy.sqrt(es_[edx]), vs_[:, edx].conj().T
-                )
+                lorb[k] = vs_[:, edx] / numpy.sqrt(es_[edx]) @ vs_[:, edx].conj().T
 
                 if self.frozen_core:
                     Ccore = self.C[k][:, : self.ncore]

@@ -193,9 +193,9 @@ class BE(MixinLocalize):
 
             if not restart:
                 self.Nocc -= self.ncore
-                self.hf_dm = 2.0 * numpy.dot(
-                    self.C[:, self.ncore : self.ncore + self.Nocc],
-                    self.C[:, self.ncore : self.ncore + self.Nocc].T,
+                self.hf_dm = 2.0 * (
+                    self.C[:, self.ncore : self.ncore + self.Nocc]
+                    @ self.C[:, self.ncore : self.ncore + self.Nocc].T
                 )
                 self.C_core = self.C[:, : self.ncore]
                 self.P_core = self.C_core @ self.C_core.T

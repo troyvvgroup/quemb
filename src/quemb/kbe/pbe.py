@@ -227,9 +227,9 @@ class BE(Mixin_k_Localize):
                 )
 
                 for k in range(nk):
-                    dm_nocore[k] += 2.0 * numpy.dot(
-                        self.C[k][:, self.ncore : self.ncore + self.Nocc],
-                        self.C[k][:, self.ncore : self.ncore + self.Nocc].conj().T,
+                    dm_nocore[k] += 2.0 * (
+                        self.C[k][:, self.ncore : self.ncore + self.Nocc]
+                        @ self.C[k][:, self.ncore : self.ncore + self.Nocc].conj().T
                     )
                     C_core[k] += self.C[k][:, : self.ncore]
                     P_core[k] += C_core[k] @ C_core[k].conj().T
@@ -633,12 +633,9 @@ class BE(Mixin_k_Localize):
                 self.Fobjs[frg]._mo_coeffs = mo_coeffs[frg]
 
         for frg in range(self.Nfrag):
-            self.Fobjs[frg].dm0 = (
-                numpy.dot(
-                    self.Fobjs[frg]._mo_coeffs[:, : self.Fobjs[frg].nsocc],
-                    self.Fobjs[frg]._mo_coeffs[:, : self.Fobjs[frg].nsocc].conj().T,
-                )
-                * 2.0
+            self.Fobjs[frg].dm0 = 2.0 * (
+                self.Fobjs[frg]._mo_coeffs[:, : self.Fobjs[frg].nsocc]
+                @ self.Fobjs[frg]._mo_coeffs[:, : self.Fobjs[frg].nsocc].conj().T
             )
 
             if compute_hf:

@@ -122,10 +122,8 @@ class UBE(BE):  # 🍠
             self.Nocc[1] -= self.ncore
 
             self.hf_dm = [
-                numpy.dot(
-                    self.C[s][:, self.ncore : self.ncore + self.Nocc[s]],
-                    self.C[s][:, self.ncore : self.ncore + self.Nocc[s]].T,
-                )
+                self.C[s][:, self.ncore : self.ncore + self.Nocc[s]]
+                @ self.C[s][:, self.ncore : self.ncore + self.Nocc[s]].T
                 for s in [0, 1]
             ]
             self.C_core = [self.C[s][:, : self.ncore] for s in [0, 1]]
@@ -305,9 +303,9 @@ class UBE(BE):  # 🍠
             fobj_a.hf_veff = self.hf_veff[0]
             fobj_a.heff = numpy.zeros_like(fobj_a.h1)
             fobj_a.scf(fs=True, eri=eri_a)
-            fobj_a.dm0 = numpy.dot(
-                fobj_a._mo_coeffs[:, : fobj_a.nsocc],
-                fobj_a._mo_coeffs[:, : fobj_a.nsocc].conj().T,
+            fobj_a.dm0 = (
+                fobj_a._mo_coeffs[:, : fobj_a.nsocc]
+                @ fobj_a._mo_coeffs[:, : fobj_a.nsocc].conj().T
             )
 
             if compute_hf:
@@ -328,9 +326,9 @@ class UBE(BE):  # 🍠
             fobj_b.heff = numpy.zeros_like(fobj_b.h1)
             fobj_b.scf(fs=True, eri=eri_b)
 
-            fobj_b.dm0 = numpy.dot(
-                fobj_b._mo_coeffs[:, : fobj_b.nsocc],
-                fobj_b._mo_coeffs[:, : fobj_b.nsocc].conj().T,
+            fobj_b.dm0 = (
+                fobj_b._mo_coeffs[:, : fobj_b.nsocc]
+                @ fobj_b._mo_coeffs[:, : fobj_b.nsocc].conj().T
             )
 
             if compute_hf:

@@ -144,7 +144,7 @@ class Frags:
         nk, nao, nlo = lao.shape
         rdm1_lo_k = numpy.zeros((nk, nlo, nlo), dtype=numpy.result_type(lmo, lmo))
         for k in range(nk):
-            rdm1_lo_k[k] += numpy.dot(lmo[k][:, :nocc], lmo[k][:, :nocc].conj().T)
+            rdm1_lo_k[k] += lmo[k][:, :nocc] @ lmo[k][:, :nocc].conj().T
         self.rdm1_lo_k = rdm1_lo_k
         phase = get_phase(cell, kpts, kmesh)
         supcell_rdm = numpy.einsum("Rk,kuv,Sk->RuSv", phase, rdm1_lo_k, phase.conj())
@@ -271,8 +271,8 @@ class Frags:
         nk, nao, neo = self.TA.shape
         dm_ = numpy.zeros((nk, nao, nao), dtype=numpy.result_type(C, C))
         for k in range(nk):
-            dm_[k] = 2.0 * numpy.dot(
-                C[k][:, ncore : ncore + nocc], C[k][:, ncore : ncore + nocc].conj().T
+            dm_[k] = 2.0 * (
+                C[k][:, ncore : ncore + nocc] @ C[k][:, ncore : ncore + nocc].conj().T
             )
         P_ = numpy.zeros((neo, neo), dtype=numpy.complex128)
         for k in range(nk):
@@ -326,12 +326,9 @@ class Frags:
             eri = get_eri(self.dname, self.nao, eri_file=self.eri_file)
 
         if dm0 is None:
-            dm0 = (
-                numpy.dot(
-                    self._mo_coeffs[:, : self.nsocc],
-                    self._mo_coeffs[:, : self.nsocc].conj().T,
-                )
-                * 2.0
+            dm0 = 2.0 * (
+                self._mo_coeffs[:, : self.nsocc]
+                @ self._mo_coeffs[:, : self.nsocc].conj().T
             )
 
         mf_ = get_scfObj(
@@ -398,9 +395,7 @@ class Frags:
             mo_coeffs = self._mo_coeffs
 
         if rdm_hf is None:
-            rdm_hf = numpy.dot(
-                mo_coeffs[:, : self.nsocc], mo_coeffs[:, : self.nsocc].conj().T
-            )
+            rdm_hf = mo_coeffs[:, : self.nsocc] @ mo_coeffs[:, : self.nsocc].conj().T
 
         unrestricted = 1.0 if unrestricted else 2.0
 

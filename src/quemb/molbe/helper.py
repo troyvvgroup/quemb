@@ -264,7 +264,7 @@ def get_frag_energy(
     rdm1s_rot = mo_coeffs @ rdm1 @ mo_coeffs.T * 0.5
 
     # Construct the Hartree-Fock 1-RDM
-    hf_1rdm = numpy.dot(mo_coeffs[:, :nsocc], mo_coeffs[:, :nsocc].conj().T)
+    hf_1rdm = mo_coeffs[:, :nsocc] @ mo_coeffs[:, :nsocc].conj().T
 
     if use_cumulant:
         # Compute the difference between the rotated RDM1 and the Hartree-Fock 1-RDM
@@ -388,7 +388,7 @@ def get_frag_energy_u(
 
     # Construct the Hartree-Fock RDM1 for both spin the the Schmidt space
     hf_1rdm = [
-        numpy.dot(mo_coeffs[s][:, : nsocc[s]], mo_coeffs[s][:, : nsocc[s]].conj().T)
+        mo_coeffs[s][:, : nsocc[s]] @ mo_coeffs[s][:, : nsocc[s]].conj().T
         for s in [0, 1]
     ]
 

@@ -251,12 +251,9 @@ class Frags:
             eri = get_eri(dname, self.nao, eri_file=self.eri_file)
 
         if dm0 is None:
-            dm0 = (
-                numpy.dot(
-                    self._mo_coeffs[:, : self.nsocc],
-                    self._mo_coeffs[:, : self.nsocc].conj().T,
-                )
-                * 2.0
+            dm0 = 2.0 * (
+                self._mo_coeffs[:, : self.nsocc]
+                @ self._mo_coeffs[:, : self.nsocc].conj().T
             )
 
         mf_ = get_scfObj(self.fock + heff, eri, self.nsocc, dm0=dm0)
@@ -317,9 +314,7 @@ class Frags:
             mo_coeffs = self._mo_coeffs
 
         if rdm_hf is None:
-            rdm_hf = numpy.dot(
-                mo_coeffs[:, : self.nsocc], mo_coeffs[:, : self.nsocc].conj().T
-            )
+            rdm_hf = mo_coeffs[:, : self.nsocc] @ mo_coeffs[:, : self.nsocc].conj().T
 
         unrestricted_fac = 1.0 if unrestricted else 2.0
 

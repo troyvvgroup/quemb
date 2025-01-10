@@ -313,10 +313,7 @@ def get_be_error_jacobian(Nfrag, Fobjs, jac_solver="HF"):
 def get_atbe_Jblock_frag(fobj, res_func):
     vpots = get_vpots_frag(fobj.nao, fobj.edge_idx, fobj.fsites)
     eri_ = get_eri(fobj.dname, fobj.nao, eri_file=fobj.eri_file)
-    dm0 = (
-        numpy.dot(fobj._mo_coeffs[:, : fobj.nsocc], fobj._mo_coeffs[:, : fobj.nsocc].T)
-        * 2.0
-    )
+    dm0 = 2.0 * (fobj._mo_coeffs[:, : fobj.nsocc] @ fobj._mo_coeffs[:, : fobj.nsocc].T)
     mf_ = get_scfObj(fobj.fock + fobj.heff, eri_, fobj.nsocc, dm0=dm0)
 
     dPs, dP_mu = res_func(mf_, vpots, eri_, fobj.nsocc)

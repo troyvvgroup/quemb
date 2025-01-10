@@ -283,12 +283,11 @@ class MixinLocalize:
         if lo_method == "lowdin":
             es_, vs_ = eigh(self.S)
             edx = es_ > 1.0e-15
-            self.W = numpy.dot(vs_[:, edx] / numpy.sqrt(es_[edx]), vs_[:, edx].T)
+            self.W = vs_[:, edx] / numpy.sqrt(es_[edx]) @ vs_[:, edx].T
             if self.frozen_core:
                 if self.unrestricted:
                     P_core = [
-                        eye(self.W.shape[0]) - numpy.dot(self.P_core[s], self.S)
-                        for s in [0, 1]
+                        eye(self.W.shape[0]) - (self.P_core[s] @ self.S) for s in [0, 1]
                     ]
                     C_ = P_core @ self.W
                     Cpop = [multi_dot((C_[s].T, self.S, C_[s])) for s in [0, 1]]
@@ -341,11 +340,11 @@ class MixinLocalize:
         elif lo_method in ["pipek-mezey", "pipek", "PM"]:
             es_, vs_ = eigh(self.S)
             edx = es_ > 1.0e-15
-            self.W = numpy.dot(vs_[:, edx] / numpy.sqrt(es_[edx]), vs_[:, edx].T)
+            self.W = vs_[:, edx] / numpy.sqrt(es_[edx]) @ vs_[:, edx].T
 
             es_, vs_ = eigh(self.S)
             edx = es_ > 1.0e-15
-            W_ = numpy.dot(vs_[:, edx] / numpy.sqrt(es_[edx]), vs_[:, edx].T)
+            W_ = vs_[:, edx] / numpy.sqrt(es_[edx]) @ vs_[:, edx].T
             if self.frozen_core:
                 P_core = eye(W_.shape[0]) - self.P_core @ self.S
                 C_ = P_core @ W_
@@ -474,7 +473,7 @@ class MixinLocalize:
         elif lo_method == "boys":
             es_, vs_ = eigh(self.S)
             edx = es_ > 1.0e-15
-            W_ = numpy.dot(vs_[:, edx] / numpy.sqrt(es_[edx]), vs_[:, edx].T)
+            W_ = vs_[:, edx] / numpy.sqrt(es_[edx]) @ vs_[:, edx].T
             if self.frozen_core:
                 P_core = eye(W_.shape[0]) - self.P_core @ self.S
                 C_ = P_core @ W_

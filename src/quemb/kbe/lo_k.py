@@ -140,7 +140,7 @@ def get_iao_k(Co, S12, S1, S2=None, ortho=True):
 
         Ciao[k] = (
             numpy.eye(nao, dtype=numpy.complex128)
-            - numpy.dot((Po + Potil - 2.0 * multi_dot((Po, S1[k], Potil))), S1[k])
+            - (Po + Potil - 2.0 * multi_dot([Po, S1[k], Potil])) @ S1[k]
         ) @ ptil
         if ortho:
             Ciao[k] = symm_orth_k(Ciao[k], ovlp=S1[k])
