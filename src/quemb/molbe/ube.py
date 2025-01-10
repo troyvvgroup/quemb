@@ -15,7 +15,7 @@ TODO
 from pathlib import Path
 
 import h5py
-import numpy
+from numpy import array, einsum, zeros_like
 from pyscf import ao2mo
 from pyscf.scf.uhf import UHF
 
@@ -84,7 +84,7 @@ class UBE(BE):  # 🍠
 
         self.hcore = mf.get_hcore()
         self.S = mf.get_ovlp()
-        self.C = [numpy.array(mf.mo_coeff[0]), numpy.array(mf.mo_coeff[1])]
+        self.C = [array(mf.mo_coeff[0]), array(mf.mo_coeff[1])]
         self.hf_dm = [mf.make_rdm1()[0], mf.make_rdm1()[1]]
         self.hf_veff = [mf.get_veff()[0], mf.get_veff()[1]]
 
@@ -133,7 +133,7 @@ class UBE(BE):  # 🍠
             self.E_core = (
                 sum(
                     [
-                        numpy.einsum(
+                        einsum(
                             "ji,ji->",
                             2 * self.hcore + self.core_veff[s],
                             self.P_core[s],
@@ -145,8 +145,8 @@ class UBE(BE):  # 🍠
             )
 
         # iao ignored for now
-        self.C_a = numpy.array(mf.mo_coeff[0])
-        self.C_b = numpy.array(mf.mo_coeff[1])
+        self.C_a = array(mf.mo_coeff[0])
+        self.C_b = array(mf.mo_coeff[1])
         del self.C
 
         self.localize(
@@ -301,7 +301,7 @@ class UBE(BE):  # 🍠
             fobj_a.cons_fock(self.hf_veff[0], self.S, self.hf_dm[0] * 2.0, eri_=eri_a)
 
             fobj_a.hf_veff = self.hf_veff[0]
-            fobj_a.heff = numpy.zeros_like(fobj_a.h1)
+            fobj_a.heff = zeros_like(fobj_a.h1)
             fobj_a.scf(fs=True, eri=eri_a)
             fobj_a.dm0 = (
                 fobj_a._mo_coeffs[:, : fobj_a.nsocc]
@@ -323,7 +323,7 @@ class UBE(BE):  # 🍠
             eri_b = ao2mo.restore(8, eri_b, fobj_b.nao)
             fobj_b.cons_fock(self.hf_veff[1], self.S, self.hf_dm[1] * 2.0, eri_=eri_b)
             fobj_b.hf_veff = self.hf_veff[1]
-            fobj_b.heff = numpy.zeros_like(fobj_b.h1)
+            fobj_b.heff = zeros_like(fobj_b.h1)
             fobj_b.scf(fs=True, eri=eri_b)
 
             fobj_b.dm0 = (

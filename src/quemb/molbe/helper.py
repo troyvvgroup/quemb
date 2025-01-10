@@ -3,7 +3,17 @@
 
 
 import h5py
-import numpy
+from numpy import (
+    array,
+    asarray,
+    diag_indices,
+    einsum,
+    eye,
+    float64,
+    tril_indices,
+    zeros,
+    zeros_like,
+)
 from numpy.linalg import multi_dot
 from pyscf import ao2mo, gto, lib, scf
 
@@ -42,8 +52,8 @@ def get_veff(eri_, dm, S, TA, hf_veff):
     P_ = multi_dot((ST.T, dm, ST))
 
     # Ensure the transformed density matrix and ERI are real and double-precision
-    P_ = numpy.asarray(P_.real, dtype=numpy.double)
-    eri_ = numpy.asarray(eri_, dtype=numpy.double)
+    P_ = asarray(P_.real, dtype=float64)
+    eri_ = asarray(eri_, dtype=float64)
 
     # Compute the Coulomb (J) and exchange (K) integrals
     vj, vk = scf.hf.dot_eri_dm(eri_, P_, hermi=1, with_j=True, with_k=True)
@@ -89,7 +99,7 @@ def get_scfObj(
     nao = h1.shape[0]
 
     # Initialize a dummy molecule with the required number of electrons
-    S = numpy.eye(nao)
+    S = eye(nao)
     mol = gto.M()
     mol.nelectron = nocc * 2
     mol.incore_anyway = True
@@ -165,7 +175,7 @@ def get_eri(i_frag, Nao, symm=8, ignore_symm=False, eri_file="eri_file.h5"):
     """
     # Open the HDF5 file and read the ERI for the specified fragment
     with h5py.File(eri_file, "r") as r:
-        eri__ = numpy.array(r.get(i_frag))
+        eri__ = array(r.get(i_frag))
 
         # Optionally restore the symmetry of the ERI
         if not ignore_symm:
@@ -271,13 +281,13 @@ def get_frag_energy(
         delta_rdm1 = 2 * (rdm1s_rot - hf_1rdm)
 
         # Calculate the one-electron contributions
-        e1 = numpy.einsum("ij,ij->i", h1[:nfsites], delta_rdm1[:nfsites])
-        ec = numpy.einsum("ij,ij->i", veff0[:nfsites], delta_rdm1[:nfsites])
+        e1 = einsum("ij,ij->i", h1[:nfsites], delta_rdm1[:nfsites])
+        ec = einsum("ij,ij->i", veff0[:nfsites], delta_rdm1[:nfsites])
 
     else:
         # Calculate the one-electron and effective potential energy contributions
-        e1 = 2 * numpy.einsum("ij,ij->i", h1[:nfsites], rdm1s_rot[:nfsites])
-        ec = numpy.einsum("ij,ij->i", veff[:nfsites], rdm1s_rot[:nfsites])
+        e1 = 2 * einsum("ij,ij->i", h1[:nfsites], rdm1s_rot[:nfsites])
+        ec = einsum("ij,ij->i", veff[:nfsites], rdm1s_rot[:nfsites])
 
     if TA.ndim == 3:
         jmax = TA[0].shape[1]
@@ -289,21 +299,21 @@ def get_frag_energy(
         eri = r[dname][()]
 
     # Rotate the RDM2 into the MO basis
-    rdm2s = numpy.einsum(
+    rdm2s = einsum(
         "ijkl,pi,qj,rk,sl->pqrs", 0.5 * rdm2s, *([mo_coeffs] * 4), optimize=True
     )
 
     # Initialize the two-electron energy contribution
-    e2 = numpy.zeros_like(e1)
+    e2 = zeros_like(e1)
 
     # Calculate the two-electron energy contribution
     for i in range(nfsites):
         for j in range(jmax):
             ij = i * (i + 1) // 2 + j if i > j else j * (j + 1) // 2 + i
             Gij = rdm2s[i, j, :jmax, :jmax].copy()
-            Gij[numpy.diag_indices(jmax)] *= 0.5
+            Gij[diag_indices(jmax)] *= 0.5
             Gij += Gij.T
-            e2[i] += Gij[numpy.tril_indices(jmax)] @ eri[ij]
+            e2[i] += Gij[tril_indices(jmax)] @ eri[ij]
 
     # Sum the energy contributions
     e_ = e1 + e2 + ec
@@ -407,11 +417,11 @@ def get_frag_energy_u(
 
     # Calculate the one-electron and effective potential energy contributions
     e1 = [
-        numpy.einsum("ij,ij->i", h1[s][: nfsites[s]], delta_rdm1[s][: nfsites[s]])
+        einsum("ij,ij->i", h1[s][: nfsites[s]], delta_rdm1[s][: nfsites[s]])
         for s in [0, 1]
     ]
     ec = [
-        numpy.einsum("ij,ij->i", veff0[s][: nfsites[s]], delta_rdm1[s][: nfsites[s]])
+        einsum("ij,ij->i", veff0[s][: nfsites[s]], delta_rdm1[s][: nfsites[s]])
         for s in [0, 1]
     ]
 
@@ -423,7 +433,7 @@ def get_frag_energy_u(
 
     # Rotate the RDM2 into the MO basis
     rdm2s_k = [
-        numpy.einsum(
+        einsum(
             "ijkl,pi,qj,rk,sl->pqrs",
             rdm2s[s],
             *([mo_coeffs[s12[0]]] * 2 + [mo_coeffs[s12[1]]] * 2),
@@ -433,11 +443,11 @@ def get_frag_energy_u(
     ]
 
     # Initialize the two-electron energy contribution
-    e2 = [numpy.zeros(h1[0].shape[0]), numpy.zeros(h1[1].shape[0])]
+    e2 = [zeros(h1[0].shape[0]), zeros(h1[1].shape[0])]
 
     # Calculate the two-electron energy contribution for alpha and beta
     def contract_2e(jmaxs, rdm2_, V_, s, sym):
-        e2_ = numpy.zeros(nfsites[s])
+        e2_ = zeros(nfsites[s])
         jmax1, jmax2 = [jmaxs] * 2 if isinstance(jmaxs, int) else jmaxs
         for i in range(nfsites[s]):
             for j in range(jmax1):
@@ -448,9 +458,9 @@ def get_frag_energy_u(
                 else:
                     Gij = rdm2_[:jmax2, :jmax2, i, j].copy()
                     Vij = V_[:, ij]
-                Gij[numpy.diag_indices(jmax2)] *= 0.5
+                Gij[diag_indices(jmax2)] *= 0.5
                 Gij += Gij.T
-                e2_[i] += Gij[numpy.tril_indices(jmax2)] @ Vij
+                e2_[i] += Gij[tril_indices(jmax2)] @ Vij
         e2_ *= 0.5
 
         return e2_

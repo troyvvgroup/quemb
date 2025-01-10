@@ -5,7 +5,7 @@ import pickle
 import h5py
 import numpy
 from attrs import define
-from numpy import floating
+from numpy import array, diag_indices, einsum, float64, floating, zeros, zeros_like
 from pyscf import ao2mo, scf
 
 from quemb.molbe.be_parallel import be_func_parallel
@@ -159,7 +159,7 @@ class BE(MixinLocalize):
 
             self.hcore = mf.get_hcore()
             self.S = mf.get_ovlp()
-            self.C = numpy.array(mf.mo_coeff)
+            self.C = array(mf.mo_coeff)
             self.hf_dm = mf.make_rdm1()
             self.hf_veff = mf.get_veff()
             self.hf_etot = mf.e_tot
@@ -200,7 +200,7 @@ class BE(MixinLocalize):
                 self.C_core = self.C[:, : self.ncore]
                 self.P_core = self.C_core @ self.C_core.T
                 self.core_veff = mf.get_veff(dm=self.P_core * 2.0)
-                self.E_core = numpy.einsum(
+                self.E_core = einsum(
                     "ji,ji->", 2.0 * self.hcore + self.core_veff, self.P_core
                 )
                 self.hf_veff -= self.core_veff
@@ -311,20 +311,20 @@ class BE(MixinLocalize):
         nao = C_mo.shape[0]
 
         # Initialize density matrices for atomic orbitals (AO)
-        rdm1AO = numpy.zeros((nao, nao))
-        rdm2AO = numpy.zeros((nao, nao, nao, nao))
+        rdm1AO = zeros((nao, nao))
+        rdm2AO = zeros((nao, nao, nao, nao))
 
         for fobjs in self.Fobjs:
             if return_RDM2:
                 # Adjust the one-particle reduced density matrix (RDM1)
                 drdm1 = fobjs.rdm1__.copy()
-                drdm1[numpy.diag_indices(fobjs.nsocc)] -= 2.0
+                drdm1[diag_indices(fobjs.nsocc)] -= 2.0
 
                 # Compute the two-particle reduced density matrix (RDM2) and subtract
                 #   non-connected component
-                dm_nc = numpy.einsum(
+                dm_nc = einsum(
                     "ij,kl->ijkl", drdm1, drdm1, dtype=numpy.float64, optimize=True
-                ) - 0.5 * numpy.einsum(
+                ) - 0.5 * einsum(
                     "ij,kl->iklj", drdm1, drdm1, dtype=numpy.float64, optimize=True
                 )
                 fobjs.rdm2__ -= dm_nc
@@ -350,13 +350,13 @@ class BE(MixinLocalize):
 
             if not only_rdm1:
                 # Transform RDM2 to AO basis
-                rdm2s = numpy.einsum(
+                rdm2s = einsum(
                     "ijkl,pi,qj,rk,sl->pqrs",
                     fobjs.rdm2__,
                     *([fobjs.mo_coeffs] * 4),
                     optimize=True,
                 )
-                rdm2_ao = numpy.einsum(
+                rdm2_ao = einsum(
                     "xi,ijkl,px,qj,rk,sl->pqrs",
                     Pc_,
                     rdm2s,
@@ -373,14 +373,14 @@ class BE(MixinLocalize):
             rdm2AO = (rdm2AO + rdm2AO.T) / 2.0
             if return_RDM2:
                 nc_AO = (
-                    numpy.einsum(
+                    einsum(
                         "ij,kl->ijkl",
                         rdm1AO,
                         rdm1AO,
                         dtype=numpy.float64,
                         optimize=True,
                     )
-                    - numpy.einsum(
+                    - einsum(
                         "ij,kl->iklj",
                         rdm1AO,
                         rdm1AO,
@@ -394,7 +394,7 @@ class BE(MixinLocalize):
             # Transform RDM2 to the molecular orbital (MO) basis if needed
             if not return_ao:
                 CmoT_S = self.C.T @ self.S
-                rdm2MO = numpy.einsum(
+                rdm2MO = einsum(
                     "ijkl,pi,qj,rk,sl->pqrs",
                     rdm2AO,
                     CmoT_S,
@@ -407,7 +407,7 @@ class BE(MixinLocalize):
             # Transform RDM2 to the localized orbital (LO) basis if needed
             if return_lo:
                 CloT_S = self.W.T @ self.S
-                rdm2LO = numpy.einsum(
+                rdm2LO = einsum(
                     "ijkl,pi,qj,rk,sl->pqrs",
                     rdm2AO,
                     CloT_S,
@@ -431,9 +431,9 @@ class BE(MixinLocalize):
 
         if return_RDM2 and print_energy:
             # Compute and print energy contributions
-            Eh1 = numpy.einsum("ij,ij", self.hcore, rdm1AO, optimize=True)
+            Eh1 = einsum("ij,ij", self.hcore, rdm1AO, optimize=True)
             eri = ao2mo.restore(1, self.mf._eri, self.mf.mo_coeff.shape[1])
-            E2 = 0.5 * numpy.einsum("pqrs,pqrs", eri, rdm2AO, optimize=True)
+            E2 = 0.5 * einsum("pqrs,pqrs", eri, rdm2AO, optimize=True)
             print(flush=True)
             print("-----------------------------------------------------", flush=True)
             print(" BE ENERGIES with cumulant-based expression", flush=True)
@@ -517,12 +517,8 @@ class BE(MixinLocalize):
         if return_rdm:
             # Construct the full RDM2 from RDM1
             RDM2_full = (
-                numpy.einsum(
-                    "ij,kl->ijkl", rdm1f, rdm1f, dtype=numpy.float64, optimize=True
-                )
-                - numpy.einsum(
-                    "ij,kl->iklj", rdm1f, rdm1f, dtype=numpy.float64, optimize=True
-                )
+                einsum("ij,kl->ijkl", rdm1f, rdm1f, dtype=float64, optimize=True)
+                - einsum("ij,kl->iklj", rdm1f, rdm1f, dtype=float64, optimize=True)
                 * 0.5
             )
 
@@ -539,30 +535,30 @@ class BE(MixinLocalize):
         veff = scf.hf.get_veff(self.fobj.mol, rdm1f, hermi=0)
 
         # Compute the one-electron energy
-        Eh1 = numpy.einsum("ij,ij", self.hcore, rdm1f, optimize=True)
+        Eh1 = einsum("ij,ij", self.hcore, rdm1f, optimize=True)
 
         # Compute the energy due to the effective potential
-        EVeff = numpy.einsum("ij,ij", veff, rdm1f, optimize=True)
+        EVeff = einsum("ij,ij", veff, rdm1f, optimize=True)
 
         # Compute the change in the one-electron energy
-        Eh1_dg = numpy.einsum("ij,ij", self.hcore, del_gamma, optimize=True)
+        Eh1_dg = einsum("ij,ij", self.hcore, del_gamma, optimize=True)
 
         # Compute the change in the effective potential energy
-        Eveff_dg = numpy.einsum("ij,ij", self.hf_veff, del_gamma, optimize=True)
+        Eveff_dg = einsum("ij,ij", self.hf_veff, del_gamma, optimize=True)
 
         # Restore the electron repulsion integrals (ERI)
         eri = ao2mo.restore(1, self.mf._eri, self.mf.mo_coeff.shape[1])
 
         # Compute the cumulant part of the two-electron energy
-        EKumul = numpy.einsum("pqrs,pqrs", eri, Kumul, optimize=True)
+        EKumul = einsum("pqrs,pqrs", eri, Kumul, optimize=True)
 
         if not approx_cumulant:
             # Compute the true two-electron energy if not using approximate cumulant
-            EKumul_T = numpy.einsum("pqrs,pqrs", eri, Kumul_T, optimize=True)
+            EKumul_T = einsum("pqrs,pqrs", eri, Kumul_T, optimize=True)
 
         if use_full_rdm and return_rdm:
             # Compute the full two-electron energy using the full RDM2
-            E2 = numpy.einsum("pqrs,pqrs", eri, RDM2_full, optimize=True)
+            E2 = einsum("pqrs,pqrs", eri, RDM2_full, optimize=True)
 
         # Compute the approximate BE total energy
         EKapprox = self.ebe_hf + Eh1_dg + Eveff_dg + EKumul / 2.0
@@ -699,7 +695,7 @@ class BE(MixinLocalize):
         if method == "QN":
             # Prepare the initial Jacobian matrix
             if only_chem:
-                J0 = numpy.array([[0.0]])
+                J0 = array([[0.0]])
                 J0 = self.get_be_error_jacobian(jac_solver="HF")
                 J0 = J0[-1:, -1:]
             else:
@@ -847,7 +843,7 @@ class BE(MixinLocalize):
 
         for fobjs_ in self.Fobjs:
             # Process each fragment
-            eri = numpy.array(file_eri.get(fobjs_.dname))
+            eri = array(file_eri.get(fobjs_.dname))
             _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
 
             fobjs_.cons_h1(self.hcore)
@@ -857,7 +853,7 @@ class BE(MixinLocalize):
 
             fobjs_.cons_fock(self.hf_veff, self.S, self.hf_dm, eri_=eri)
 
-            fobjs_.heff = numpy.zeros_like(fobjs_.h1)
+            fobjs_.heff = zeros_like(fobjs_.h1)
             fobjs_.scf(fs=True, eri=eri)
 
             fobjs_.dm0 = 2.0 * (

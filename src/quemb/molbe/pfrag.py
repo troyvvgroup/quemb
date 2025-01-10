@@ -3,7 +3,19 @@
 import h5py
 import numpy
 import scipy.linalg
-from numpy.linalg import multi_dot
+from numpy import (
+    argsort,
+    array,
+    diag_indices,
+    einsum,
+    eye,
+    outer,
+    trace,
+    tril_indices,
+    zeros,
+    zeros_like,
+)
+from numpy.linalg import eigh, multi_dot
 
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
 
@@ -203,8 +215,8 @@ class Frags:
         """
         C_ = multi_dot((self.TA.T, S, C[:, ncore : ncore + nocc]))
         P_ = C_ @ C_.T
-        nsocc_ = numpy.trace(P_)
-        nsocc = int(numpy.round(nsocc_))
+        nsocc_ = trace(P_)
+        nsocc = int(round(nsocc_))
         try:
             mo_coeffs = scipy.linalg.svd(C_)[0]
         except scipy.linalg.LinAlgError:
@@ -266,7 +278,7 @@ class Frags:
 
     def update_heff(self, u, cout=None, only_chem=False):
         """Update the effective Hamiltonian for the fragment."""
-        heff_ = numpy.zeros_like(self.h1)
+        heff_ = zeros_like(self.h1)
 
         if cout is None:
             cout = self.udim
@@ -318,16 +330,14 @@ class Frags:
 
         unrestricted_fac = 1.0 if unrestricted else 2.0
 
-        e1 = unrestricted_fac * numpy.einsum(
+        e1 = unrestricted_fac * einsum(
             "ij,ij->i", self.h1[: self.nfsites], rdm_hf[: self.nfsites]
         )
 
         ec = (
             0.5
             * unrestricted_fac
-            * numpy.einsum(
-                "ij,ij->i", self.veff[: self.nfsites], rdm_hf[: self.nfsites]
-            )
+            * einsum("ij,ij->i", self.veff[: self.nfsites], rdm_hf[: self.nfsites])
         )
 
         if self.TA.ndim == 3:
@@ -341,14 +351,14 @@ class Frags:
                 else:
                     eri = r[self.dname][()]
 
-        e2 = numpy.zeros_like(e1)
+        e2 = zeros_like(e1)
         for i in range(self.nfsites):
             for j in range(jmax):
                 ij = i * (i + 1) // 2 + j if i > j else j * (j + 1) // 2 + i
-                Gij = (2.0 * rdm_hf[i, j] * rdm_hf - numpy.outer(rdm_hf[i], rdm_hf[j]))[
+                Gij = (2.0 * rdm_hf[i, j] * rdm_hf - outer(rdm_hf[i], rdm_hf[j]))[
                     :jmax, :jmax
                 ]
-                Gij[numpy.diag_indices(jmax)] *= 0.5
+                Gij[diag_indices(jmax)] *= 0.5
                 Gij += Gij.T
                 if (
                     unrestricted
@@ -356,13 +366,11 @@ class Frags:
                     e2[i] += (
                         0.5
                         * unrestricted_fac
-                        * Gij[numpy.tril_indices(jmax)]
+                        * Gij[tril_indices(jmax)]
                         @ eri[spin_ind][ij]
                     )
                 else:
-                    e2[i] += (
-                        0.5 * unrestricted_fac * Gij[numpy.tril_indices(jmax)] @ eri[ij]
-                    )
+                    e2[i] += 0.5 * unrestricted_fac * Gij[tril_indices(jmax)] @ eri[ij]
 
         e_ = e1 + e2 + ec
         etmp = 0.0
@@ -438,15 +446,15 @@ def schmidt_decomposition(
     Tot_sites = Dhf.shape[0]
 
     # Identify environment sites (indices not in Frag_sites)
-    Env_sites1 = numpy.array([i for i in range(Tot_sites) if i not in Frag_sites])
-    Env_sites = numpy.array([[i] for i in range(Tot_sites) if i not in Frag_sites])
-    Frag_sites1 = numpy.array([[i] for i in Frag_sites])
+    Env_sites1 = array([i for i in range(Tot_sites) if i not in Frag_sites])
+    Env_sites = array([[i] for i in range(Tot_sites) if i not in Frag_sites])
+    Frag_sites1 = array([[i] for i in Frag_sites])
 
     # Compute the environment part of the density matrix
     Denv = Dhf[Env_sites, Env_sites.T]
 
     # Perform eigenvalue decomposition on the environment density matrix
-    Eval, Evec = numpy.linalg.eigh(Denv)
+    Eval, Evec = eigh(Denv)
 
     # Identify significant environment orbitals based on eigenvalue threshold
     Bidx = []
@@ -456,19 +464,19 @@ def schmidt_decomposition(
     if norb is not None:
         n_frag_ind = len(Frag_sites1)
         n_bath_ind = norb - n_frag_ind
-        ind_sort = numpy.argsort(numpy.abs(Eval))
+        ind_sort = argsort(numpy.abs(Eval))
         first_el = [x for x in ind_sort if x < 1.0 - thres][-1 * n_bath_ind]
         for i in range(len(Eval)):
-            if numpy.abs(Eval[i]) >= first_el:
+            if abs(Eval[i]) >= first_el:
                 Bidx.append(i)
     else:
         for i in range(len(Eval)):
-            if thres < numpy.abs(Eval[i]) < 1.0 - thres:
+            if thres < abs(Eval[i]) < 1.0 - thres:
                 Bidx.append(i)
 
     # Initialize the transformation matrix (TA)
-    TA = numpy.zeros([Tot_sites, len(Frag_sites) + len(Bidx)])
-    TA[Frag_sites, : len(Frag_sites)] = numpy.eye(len(Frag_sites))  # Fragment part
+    TA = zeros([Tot_sites, len(Frag_sites) + len(Bidx)])
+    TA[Frag_sites, : len(Frag_sites)] = eye(len(Frag_sites))  # Fragment part
     TA[Env_sites1, len(Frag_sites) :] = Evec[:, Bidx]  # Environment part
 
     if return_orb_count:

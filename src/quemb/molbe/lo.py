@@ -1,8 +1,7 @@
 # Author(s): Henry Tran, Oinam Meitei, Shaun Weatherly
 #
 
-import numpy
-from numpy import allclose, eye
+from numpy import allclose, diag, eye, sqrt, where, zeros
 from numpy.linalg import eigh, inv, multi_dot, norm, svd
 from pyscf.gto import intor_cross
 from pyscf.gto.mole import Mole
@@ -45,9 +44,9 @@ def get_symm_orth_mat(
         raise ValueError(
             "Linear dependence is detected in the column space of A: "
             "smallest eigenvalue (%.3E) is less than thr (%.3E). "
-            "Please use 'cano_orth' instead." % (numpy.min(e), thr)
+            "Please use 'cano_orth' instead." % (min(e), thr)
         )
-    return u @ numpy.diag(e**-0.5) @ u.T
+    return u @ diag(e**-0.5) @ u.T
 
 
 def symm_orth(A: Matrix, thr: float = 1.0e-6, ovlp: Matrix | None = None) -> Matrix:
@@ -63,8 +62,8 @@ def remove_core_mo(Clo: Matrix, Ccore: Matrix, S: Matrix, thr: float = 0.5) -> M
     ncore = Ccore.shape[1]
     Pcore = Ccore @ Ccore.T @ S
     Clo1 = (eye(n) - Pcore) @ Clo
-    pop = numpy.diag(Clo1.T @ S @ Clo1)
-    idx_keep = numpy.where(pop > thr)[0]
+    pop = diag(Clo1.T @ S @ Clo1)
+    idx_keep = where(pop > thr)[0]
     assert len(idx_keep) == nlo - ncore
     return symm_orth(Clo1[:, idx_keep], ovlp=S)
 
@@ -283,7 +282,7 @@ class MixinLocalize:
         if lo_method == "lowdin":
             es_, vs_ = eigh(self.S)
             edx = es_ > 1.0e-15
-            self.W = vs_[:, edx] / numpy.sqrt(es_[edx]) @ vs_[:, edx].T
+            self.W = vs_[:, edx] / sqrt(es_[edx]) @ vs_[:, edx].T
             if self.frozen_core:
                 if self.unrestricted:
                     P_core = [
@@ -291,15 +290,15 @@ class MixinLocalize:
                     ]
                     C_ = P_core @ self.W
                     Cpop = [multi_dot((C_[s].T, self.S, C_[s])) for s in [0, 1]]
-                    Cpop = [numpy.diag(Cpop[s]) for s in [0, 1]]
-                    no_core_idx = [numpy.where(Cpop[s] > 0.7)[0] for s in [0, 1]]
+                    Cpop = [diag(Cpop[s]) for s in [0, 1]]
+                    no_core_idx = [where(Cpop[s] > 0.7)[0] for s in [0, 1]]
                     C_ = [C_[s][:, no_core_idx[s]] for s in [0, 1]]
                     S_ = [multi_dot((C_[s].T, self.S, C_[s])) for s in [0, 1]]
                     W_ = []
                     for s in [0, 1]:
                         es_, vs_ = eigh(S_[s])
-                        s_ = numpy.sqrt(es_)
-                        s_ = numpy.diag(1.0 / s_)
+                        s_ = sqrt(es_)
+                        s_ = diag(1.0 / s_)
                         W_.append(multi_dot((vs_, s_, vs_.T)))
                     self.W = [C_[s] @ W_[s] for s in [0, 1]]
                 else:
@@ -308,13 +307,13 @@ class MixinLocalize:
                     # NOTE: PYSCF has basis in 1s2s3s2p2p2p3p3p3p format
                     # fix no_core_idx - use population for now
                     Cpop = multi_dot((C_.T, self.S, C_))
-                    Cpop = numpy.diag(Cpop)
-                    no_core_idx = numpy.where(Cpop > 0.7)[0]
+                    Cpop = diag(Cpop)
+                    no_core_idx = where(Cpop > 0.7)[0]
                     C_ = C_[:, no_core_idx]
                     S_ = multi_dot((C_.T, self.S, C_))
                     es_, vs_ = eigh(S_)
-                    s_ = numpy.sqrt(es_)
-                    s_ = numpy.diag(1.0 / s_)
+                    s_ = sqrt(es_)
+                    s_ = diag(1.0 / s_)
                     W_ = multi_dot((vs_, s_, vs_.T))
                     self.W = C_ @ W_
 
@@ -340,22 +339,22 @@ class MixinLocalize:
         elif lo_method in ["pipek-mezey", "pipek", "PM"]:
             es_, vs_ = eigh(self.S)
             edx = es_ > 1.0e-15
-            self.W = vs_[:, edx] / numpy.sqrt(es_[edx]) @ vs_[:, edx].T
+            self.W = vs_[:, edx] / sqrt(es_[edx]) @ vs_[:, edx].T
 
             es_, vs_ = eigh(self.S)
             edx = es_ > 1.0e-15
-            W_ = vs_[:, edx] / numpy.sqrt(es_[edx]) @ vs_[:, edx].T
+            W_ = vs_[:, edx] / sqrt(es_[edx]) @ vs_[:, edx].T
             if self.frozen_core:
                 P_core = eye(W_.shape[0]) - self.P_core @ self.S
                 C_ = P_core @ W_
                 Cpop = multi_dot((C_.T, self.S, C_))
-                Cpop = numpy.diag(Cpop)
-                no_core_idx = numpy.where(Cpop > 0.55)[0]
+                Cpop = diag(Cpop)
+                no_core_idx = where(Cpop > 0.55)[0]
                 C_ = C_[:, no_core_idx]
                 S_ = multi_dot((C_.T, self.S, C_))
                 es_, vs_ = eigh(S_)
-                s_ = numpy.sqrt(es_)
-                s_ = numpy.diag(1.0 / s_)
+                s_ = sqrt(es_)
+                s_ = diag(1.0 / s_)
                 W_ = multi_dot((vs_, s_, vs_.T))
                 W_ = C_ @ W_
 
@@ -408,11 +407,11 @@ class MixinLocalize:
             shift = 0
             ncore = 0
             if not valence_only:
-                Wstack = numpy.zeros(
+                Wstack = zeros(
                     (Ciao.shape[0], Ciao.shape[1] + Cpao.shape[1])
                 )  # -self.ncore))
             else:
-                Wstack = numpy.zeros((Ciao.shape[0], Ciao.shape[1]))
+                Wstack = zeros((Ciao.shape[0], Ciao.shape[1]))
 
             if self.frozen_core:
                 for ix in range(self.mol.natm):
@@ -439,7 +438,7 @@ class MixinLocalize:
                             ]
                             shift += npao
                 else:
-                    Wstack = numpy.hstack((Ciao, Cpao))
+                    Wstack = hstack((Ciao, Cpao))
             if not nosave:
                 self.W = Wstack
                 assert allclose(self.W.T @ self.S @ self.W, eye(self.W.shape[1]))
@@ -455,15 +454,15 @@ class MixinLocalize:
                     Cv = self.C[:, self.Nocc :]
                     # Ensure that the LOs span the occupied space
                     assert allclose(
-                        numpy.sum((self.W.T @ self.S @ Co_nocore) ** 2.0),
+                        sum((self.W.T @ self.S @ Co_nocore) ** 2.0),
                         self.Nocc - self.ncore,
                     )
                     # Find virtual orbitals that lie in the span of LOs
                     u, l, vt = svd(self.W.T @ self.S @ Cv, full_matrices=False)
                     unused(u)
                     nvlo = nlo - self.Nocc - self.ncore
-                    assert allclose(numpy.sum(l[:nvlo]), nvlo)
-                    C_ = numpy.hstack([Co_nocore, Cv @ vt[:nvlo].T])
+                    assert allclose(sum(l[:nvlo]), nvlo)
+                    C_ = hstack([Co_nocore, Cv @ vt[:nvlo].T])
                     self.lmo_coeff = self.W.T @ self.S @ C_
                 else:
                     self.lmo_coeff = self.W.T @ self.S @ self.C[:, self.ncore :]
@@ -473,18 +472,18 @@ class MixinLocalize:
         elif lo_method == "boys":
             es_, vs_ = eigh(self.S)
             edx = es_ > 1.0e-15
-            W_ = vs_[:, edx] / numpy.sqrt(es_[edx]) @ vs_[:, edx].T
+            W_ = vs_[:, edx] / sqrt(es_[edx]) @ vs_[:, edx].T
             if self.frozen_core:
                 P_core = eye(W_.shape[0]) - self.P_core @ self.S
                 C_ = P_core @ W_
                 Cpop = multi_dot((C_.T, self.S, C_))
-                Cpop = numpy.diag(Cpop)
-                no_core_idx = numpy.where(Cpop > 0.55)[0]
+                Cpop = diag(Cpop)
+                no_core_idx = where(Cpop > 0.55)[0]
                 C_ = C_[:, no_core_idx]
                 S_ = multi_dot((C_.T, self.S, C_))
                 es_, vs_ = eigh(S_)
-                s_ = numpy.sqrt(es_)
-                s_ = numpy.diag(1.0 / s_)
+                s_ = sqrt(es_)
+                s_ = diag(1.0 / s_)
                 W_ = multi_dot((vs_, s_, vs_.T))
                 W_ = C_ @ W_
 

@@ -4,8 +4,18 @@ import os
 from abc import ABC
 from typing import Final
 
-import numpy
 from attrs import Factory, define, field
+from numpy import (
+    allclose,
+    array,
+    asarray,
+    diag,
+    diag_indices,
+    einsum,
+    mean,
+    ndarray,
+    zeros_like,
+)
 from numpy.linalg import multi_dot
 from pyscf import ao2mo, cc, fci, mcscf, mp
 from pyscf.cc.ccsd_rdm import make_rdm2
@@ -327,7 +337,7 @@ def be_func(
             h1_ = multi_dot((fobj._mf.mo_coeff.T, h1_, fobj._mf.mo_coeff))
             eci, civec = ci_.kernel(h1_, eri, nmo, nelec)
             unused(eci)
-            civec = numpy.asarray(civec)
+            civec = asarray(civec)
 
             (rdm1a_, rdm1b_), (rdm2aa, rdm2ab, rdm2bb) = ci_.make_rdm12s(
                 civec, nmo, nelec
@@ -437,19 +447,19 @@ def be_func(
             elif solver == "FCI":
                 rdm2s = mc.make_rdm2(civec, mc.norb, mc.nelec)
                 if use_cumulant:
-                    hf_dm = numpy.zeros_like(rdm1_tmp)
-                    hf_dm[numpy.diag_indices(fobj.nsocc)] += 2.0
+                    hf_dm = zeros_like(rdm1_tmp)
+                    hf_dm[diag_indices(fobj.nsocc)] += 2.0
                     del_rdm1 = rdm1_tmp.copy()
-                    del_rdm1[numpy.diag_indices(fobj.nsocc)] -= 2.0
+                    del_rdm1[diag_indices(fobj.nsocc)] -= 2.0
                     nc = (
-                        numpy.einsum("ij,kl->ijkl", hf_dm, hf_dm)
-                        + numpy.einsum("ij,kl->ijkl", hf_dm, del_rdm1)
-                        + numpy.einsum("ij,kl->ijkl", del_rdm1, hf_dm)
+                        einsum("ij,kl->ijkl", hf_dm, hf_dm)
+                        + einsum("ij,kl->ijkl", hf_dm, del_rdm1)
+                        + einsum("ij,kl->ijkl", del_rdm1, hf_dm)
                     )
                     nc -= (
-                        numpy.einsum("ij,kl->iklj", hf_dm, hf_dm)
-                        + numpy.einsum("ij,kl->iklj", hf_dm, del_rdm1)
-                        + numpy.einsum("ij,kl->iklj", del_rdm1, hf_dm)
+                        einsum("ij,kl->iklj", hf_dm, hf_dm)
+                        + einsum("ij,kl->iklj", hf_dm, del_rdm1)
+                        + einsum("ij,kl->iklj", del_rdm1, hf_dm)
                     ) * 0.5
                     rdm2s -= nc
             fobj.rdm2__ = rdm2s.copy()
@@ -644,7 +654,7 @@ def solve_error(Fobjs, Nocc, only_chem=False):
         err_chempot /= Fobjs[0].unitcell_nkpt
         err = err_chempot - Nocc
 
-        return abs(err), numpy.asarray([err])
+        return abs(err), asarray([err])
 
     # Compute edge and chemical potential errors
     for fobj in Fobjs:
@@ -675,14 +685,14 @@ def solve_error(Fobjs, Nocc, only_chem=False):
                     err_cen.append(Fobjs[fobj.center[cindx]]._rdm1[cens[j_], cens[k_]])
 
     err_cen.append(Nocc)
-    err_edge = numpy.array(err_edge)
-    err_cen = numpy.array(err_cen)
+    err_edge = array(err_edge)
+    err_cen = array(err_cen)
 
     # Compute the error vector
     err_vec = err_edge - err_cen
 
     # Compute the norm of the error vector
-    norm_ = numpy.mean(err_vec * err_vec) ** 0.5
+    norm_ = mean(err_vec * err_vec) ** 0.5
 
     return norm_, err_vec
 
@@ -806,7 +816,7 @@ def solve_ccsd(
     # Prepare the integrals and Fock matrix
     eris = mycc.ao2mo()
     eris.mo_energy = mo_energy
-    eris.fock = numpy.diag(mo_energy)
+    eris.fock = diag(mo_energy)
 
     # Solve the CCSD equations
     try:
@@ -825,8 +835,8 @@ def solve_ccsd(
     # Compute and return the density matrices if requested
     if rdm_return:
         if not relax:
-            l1 = numpy.zeros_like(t1)
-            l2 = numpy.zeros_like(t2)
+            l1 = zeros_like(t1)
+            l2 = zeros_like(t2)
             rdm1a = cc.ccsd_rdm.make_rdm1(mycc, t1, t2, l1, l2)
         else:
             rdm1a = mycc.make_rdm1(with_frozen=False)
@@ -907,20 +917,20 @@ def solve_block2(
 
     # Subtract off non-cumulant contribution to correlated 2RDM.
     if use_cumulant:
-        hf_dm = numpy.zeros_like(rdm1)
-        hf_dm[numpy.diag_indices(nocc)] += 2.0
+        hf_dm = zeros_like(rdm1)
+        hf_dm[diag_indices(nocc)] += 2.0
 
         del_rdm1 = rdm1.copy()
-        del_rdm1[numpy.diag_indices(nocc)] -= 2.0
+        del_rdm1[diag_indices(nocc)] -= 2.0
         nc = (
-            numpy.einsum("ij,kl->ijkl", hf_dm, hf_dm)
-            + numpy.einsum("ij,kl->ijkl", hf_dm, del_rdm1)
-            + numpy.einsum("ij,kl->ijkl", del_rdm1, hf_dm)
+            einsum("ij,kl->ijkl", hf_dm, hf_dm)
+            + einsum("ij,kl->ijkl", hf_dm, del_rdm1)
+            + einsum("ij,kl->ijkl", del_rdm1, hf_dm)
         )
         nc -= (
-            numpy.einsum("ij,kl->iklj", hf_dm, hf_dm)
-            + numpy.einsum("ij,kl->iklj", hf_dm, del_rdm1)
-            + numpy.einsum("ij,kl->iklj", del_rdm1, hf_dm)
+            einsum("ij,kl->iklj", hf_dm, hf_dm)
+            + einsum("ij,kl->iklj", hf_dm, del_rdm1)
+            + einsum("ij,kl->iklj", del_rdm1, hf_dm)
         ) * 0.5
 
         rdm2 -= nc
@@ -980,7 +990,7 @@ def solve_uccsd(
     Vos = eris_inp[-1]
 
     def ao2mofn(moish):
-        if isinstance(moish, numpy.ndarray):
+        if isinstance(moish, ndarray):
             # Since inside '_make_eris_incore' it does not differentiate spin
             # for the two same-spin components, we here brute-forcely determine
             # what spin component we are dealing with by comparing the first
@@ -989,7 +999,7 @@ def solve_uccsd(
             moish_feature = moish[:2, :2]
             s = -1
             for ss in [0, 1]:
-                if numpy.allclose(moish_feature, C[ss][:2, :2]):
+                if allclose(moish_feature, C[ss][:2, :2]):
                     s = ss
                     break
             if s < 0:
@@ -1005,8 +1015,8 @@ def solve_uccsd(
             for s in [0, 1]:
                 Cs_feature = C[s][:2, :2]
                 if not (
-                    numpy.allclose(moish_feature[2 * s], Cs_feature)
-                    and numpy.allclose(moish_feature[2 * s + 1], Cs_feature)
+                    allclose(moish_feature[2 * s], Cs_feature)
+                    and allclose(moish_feature[2 * s + 1], Cs_feature)
                 ):
                     raise ValueError(
                         "Expect a list/tuple of 4 numpy arrays in the order "
@@ -1016,7 +1026,7 @@ def solve_uccsd(
                 return ao2mo.incore.general(Vos, moish, compact=False)
             except NotImplementedError:
                 # ao2mo.incore.general is not implemented for complex numbers
-                return numpy.einsum(
+                return einsum(
                     "ijkl,ip,jq,kr,ls->pqrs",
                     Vos,
                     moish[0],
