@@ -1,7 +1,7 @@
 # Author(s): Oinam Romesh Meitei
 
 import h5py
-import numpy
+import numpy as np
 import scipy.linalg
 from numpy import (
     argsort,
@@ -464,7 +464,7 @@ def schmidt_decomposition(
     if norb is not None:
         n_frag_ind = len(Frag_sites1)
         n_bath_ind = norb - n_frag_ind
-        ind_sort = argsort(numpy.abs(Eval))
+        ind_sort = argsort(np.abs(Eval))
         first_el = [x for x in ind_sort if x < 1.0 - thres][-1 * n_bath_ind]
         for i in range(len(Eval)):
             if abs(Eval[i]) >= first_el:
