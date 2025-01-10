@@ -85,7 +85,7 @@ class DMRG_ArgsUser(UserSolverArgs):
     force_cleanup: Final[bool] = False
 
     @schedule_kwargs.default
-    def _get_schedule_kwargs_default(self):
+    def _get_schedule_kwargs_default(self) -> dict[str, list[int] | list[float]]:
         return {
             "scheduleSweeps": [(i * self.max_iter) // 6 for i in range(1, 7)],
             "scheduleMaxMs": [
@@ -197,7 +197,10 @@ class SHCI_Args:
             ci_coeff_cutoff = args.ci_coeff_cutoff
             select_cutoff = args.select_cutoff
         else:
-            raise ValueError
+            raise ValueError(
+                "Solver args `ci_coeff_cutoff` and `select_cutoff` must both "
+                "be specified or both be `None`!"
+            )
 
         return cls(
             hci_pt=args.hci_pt,
