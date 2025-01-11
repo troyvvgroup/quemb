@@ -61,17 +61,7 @@ class UBE(BE):  # 🍠
         """
         self.unrestricted = True
 
-        self.frag_type = fobj.frag_type
-        self.Nfrag = fobj.Nfrag
-        self.fsites = fobj.fsites
-        self.edge = fobj.edge
-        self.center = fobj.center
-        self.edge_idx = fobj.edge_idx
-        self.center_idx = fobj.center_idx
-        self.centerf_idx = fobj.centerf_idx
-        self.ebe_weight = fobj.ebe_weight
-        self.be_type = fobj.be_type
-        self.mol = fobj.mol
+        self.fobj = fobj
 
         self.ebe_hf = 0.0
         self.ebe_tot = 0.0
@@ -98,7 +88,7 @@ class UBE(BE):  # 🍠
         self.Fobjs_a: list[Frags] = []
         self.Fobjs_b: list[Frags] = []
 
-        self.pot = initialize_pot(self.Nfrag, self.edge_idx)
+        self.pot = initialize_pot(self.fobj.Nfrag, self.fobj.edge_idx)
 
         self.eri_file = Path(eri_file)
         self.ek = 0.0
@@ -170,26 +160,26 @@ class UBE(BE):  # 🍠
         ECOUL = 0.0
 
         file_eri = h5py.File(self.eri_file, "w")
-        lentmp = len(self.edge_idx)
+        lentmp = len(self.fobj.edge_idx)
 
         # alpha orbitals
-        for I in range(self.Nfrag):
+        for I in range(self.fobj.Nfrag):
             if lentmp:
                 fobjs_a = Frags(
-                    self.fsites[I],
+                    self.fobj.fsites[I],
                     I,
-                    edge=self.edge[I],
+                    edge=self.fobj.edge[I],
                     eri_file=self.eri_file,
-                    center=self.center[I],
-                    edge_idx=self.edge_idx[I],
-                    center_idx=self.center_idx[I],
-                    efac=self.ebe_weight[I],
-                    centerf_idx=self.centerf_idx[I],
+                    center=self.fobj.center[I],
+                    edge_idx=self.fobj.edge_idx[I],
+                    center_idx=self.fobj.center_idx[I],
+                    efac=self.fobj.ebe_weight[I],
+                    centerf_idx=self.fobj.centerf_idx[I],
                     unrestricted=True,
                 )
             else:
                 fobjs_a = Frags(
-                    self.fsites[I],
+                    self.fobj.fsites[I],
                     I,
                     edge=[],
                     center=[],
@@ -197,28 +187,28 @@ class UBE(BE):  # 🍠
                     edge_idx=[],
                     center_idx=[],
                     centerf_idx=[],
-                    efac=self.ebe_weight[I],
+                    efac=self.fobj.ebe_weight[I],
                     unrestricted=True,
                 )
             self.Fobjs_a.append(fobjs_a)
         # beta
-        for I in range(self.Nfrag):
+        for I in range(self.fobj.Nfrag):
             if lentmp:
                 fobjs_b = Frags(
-                    self.fsites[I],
+                    self.fobj.fsites[I],
                     I,
-                    edge=self.edge[I],
+                    edge=self.fobj.edge[I],
                     eri_file=self.eri_file,
-                    center=self.center[I],
-                    edge_idx=self.edge_idx[I],
-                    center_idx=self.center_idx[I],
-                    efac=self.ebe_weight[I],
-                    centerf_idx=self.centerf_idx[I],
+                    center=self.fobj.center[I],
+                    edge_idx=self.fobj.edge_idx[I],
+                    center_idx=self.fobj.center_idx[I],
+                    efac=self.fobj.ebe_weight[I],
+                    centerf_idx=self.fobj.centerf_idx[I],
                     unrestricted=True,
                 )
             else:
                 fobjs_b = Frags(
-                    self.fsites[I],
+                    self.fobj.fsites[I],
                     I,
                     edge=[],
                     center=[],
@@ -226,7 +216,7 @@ class UBE(BE):  # 🍠
                     edge_idx=[],
                     center_idx=[],
                     centerf_idx=[],
-                    efac=self.ebe_weight[I],
+                    efac=self.fobj.ebe_weight[I],
                     unrestricted=True,
                 )
             self.Fobjs_b.append(fobjs_b)
@@ -236,7 +226,7 @@ class UBE(BE):  # 🍠
 
         all_noccs = []
 
-        for I in range(self.Nfrag):
+        for I in range(self.fobj.Nfrag):
             fobj_a = self.Fobjs_a[I]
             fobj_b = self.Fobjs_b[I]
 
@@ -354,7 +344,7 @@ class UBE(BE):  # 🍠
             "____________________________________________________________________",
             flush=True,
         )
-        for I in range(self.Nfrag):
+        for I in range(self.fobj.Nfrag):
             print(
                 "|    {:>2}    | ({:>3},{:>3}) |   ({:>3},{:>3})   | ({:>3},{:>3}) |   ({:>3},{:>3})   |".format(  # noqa: E501
                     I,
