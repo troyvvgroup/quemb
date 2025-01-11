@@ -7,7 +7,7 @@ from quemb.molbe.lchain import chain as _ext_chain
 from quemb.shared.helper import copy_docstring
 
 
-class fragpart:
+class FragPart:
     """Fragment/partitioning definition
 
     Interfaces two main fragmentation functions (autogen & chain) in MolBE. It defines
@@ -91,13 +91,13 @@ class fragpart:
         elif frag_type == "chain":
             if mol is None:
                 raise ValueError(
-                    "Provide pyscf gto.M object in fragpart() and restart!"
+                    "Provide pyscf gto.M object in FragPart() and restart!"
                 )
             self.chain(mol, frozen_core=frozen_core, closed=closed)
         elif frag_type == "autogen":
             if mol is None:
                 raise ValueError(
-                    "Provide pyscf gto.M object in fragpart() and restart!"
+                    "Provide pyscf gto.M object in FragPart() and restart!"
                 )
 
             fgs = autogen(

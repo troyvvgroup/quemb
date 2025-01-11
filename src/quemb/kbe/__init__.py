@@ -1,4 +1,4 @@
-from quemb.kbe.fragment import fragpart
+from quemb.kbe.fragment import FragPart
 from quemb.kbe.pbe import BE
 
-__all__ = ["fragpart", "BE"]
+__all__ = ["FragPart", "BE"]

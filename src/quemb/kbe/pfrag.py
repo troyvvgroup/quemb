@@ -51,7 +51,7 @@ class Frags:
         Parameters
         ----------
         fsites : list
-            list of AOs in the fragment (i.e. pbe.fsites[i] or fragpart.fsites[i])
+            list of AOs in the fragment (i.e. pbe.fsites[i] or FragPart.fsites[i])
         ifrag : int
             fragment index (∈ [0, pbe.Nfrag])
         edge : list, optional

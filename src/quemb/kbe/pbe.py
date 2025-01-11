@@ -12,7 +12,7 @@ from pyscf import ao2mo, pbc
 from pyscf.pbc import df, gto
 from pyscf.pbc.df.df_jk import _ewald_exxdiv_for_G0
 
-from quemb.kbe.fragment import fragpart
+from quemb.kbe.fragment import FragPart
 from quemb.kbe.lo import Mixin_k_Localize
 from quemb.kbe.misc import print_energy, storePBE
 from quemb.kbe.pfrag import Frags
@@ -40,7 +40,7 @@ class BE(Mixin_k_Localize):
     ----------
     mf : pyscf.scf.hf.SCF
         PySCF mean-field object.
-    fobj : quemb.kbe.fragment.fragpart
+    fobj : quemb.kbe.fragment.FragPart
         Fragment object containing sites, centers, edges, and indices.
     eri_file : str
         Path to the file storing two-electron integrals.
@@ -51,7 +51,7 @@ class BE(Mixin_k_Localize):
     def __init__(
         self,
         mf: pbc.scf.hf.SCF,
-        fobj: fragpart,
+        fobj: FragPart,
         eri_file: PathLike = "eri_file.h5",
         lo_method: str = "lowdin",
         compute_hf: bool = True,

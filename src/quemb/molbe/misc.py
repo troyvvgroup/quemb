@@ -9,7 +9,7 @@ from pyscf import ao2mo, df, gto, qmmm, scf
 from pyscf.lib import chkfile
 from pyscf.tools import fcidump
 
-from quemb.molbe.fragment import fragpart
+from quemb.molbe.fragment import FragPart
 
 
 def libint2pyscf(
@@ -438,7 +438,7 @@ def be2puffin(
 
     # Finished initial reference HF: now, fragmentation step
 
-    fobj = fragpart(
+    fobj = FragPart(
         be_type=be_type, frag_type="autogen", mol=mol, frozen_core=frozen_core
     )
     time_post_fragpart = time.time()

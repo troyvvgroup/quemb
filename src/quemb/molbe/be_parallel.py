@@ -553,7 +553,7 @@ def be_func_parallel_u(
         Potentials (local & global) that are added to the 1-electron
         Hamiltonian component.  The last element in the list is the chemical potential.
         Should always be 0, as this is still a one-shot only implementation
-    Fobjs : list of tuple of quemb.molbe.fragment.fragpart
+    Fobjs : list of tuple of quemb.molbe.fragment.FragPart
         Fragment definitions, alpha and beta components.
     solver : str
         High-level solver in bootstrap embedding. Supported value is 'UCCSD'.

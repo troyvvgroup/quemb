@@ -8,7 +8,7 @@ from typing import Tuple
 import numpy as np
 from pyscf import gto, scf
 
-from quemb.molbe import BE, fragpart
+from quemb.molbe import BE, FragPart
 from quemb.shared.io import write_cube
 
 
@@ -17,7 +17,7 @@ def test_octane_molbe() -> None:
     mol, mf = prepare_octane()
 
     # initialize fragments (without using frozen core approximation)
-    fobj = fragpart(be_type="be2", mol=mol, frozen_core=False)
+    fobj = FragPart(be_type="be2", mol=mol, frozen_core=False)
     # Initialize BE
     mybe = BE(mf, fobj)
 
@@ -34,7 +34,7 @@ def test_cubegen() -> None:
     # Prepare octane molecule
     mol, mf = prepare_octane()
     # Build fragments
-    fobj = fragpart(be_type="be2", mol=mol, frozen_core=True)
+    fobj = FragPart(be_type="be2", mol=mol, frozen_core=True)
     # Run BE2
     mybe = BE(mf, fobj)
     mybe.optimize(solver="CCSD", nproc=1, ompnum=1)

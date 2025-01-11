@@ -245,7 +245,7 @@ def be_func(
     ----------
     pot :
         List of potentials.
-    Fobjs : list of quemb.molbe.fragment.fragpart
+    Fobjs : list of quemb.molbe.fragment.FragPart
         List of fragment objects.
     Nocc :
         Number of occupied orbitals.
@@ -521,7 +521,7 @@ def be_func_u(
     pot : list
         List of potentials.
     Fobjs : list
-        zip list of class:`quemb.molbe.fragment.fragpart`, alpha and beta
+        zip list of class:`quemb.molbe.fragment.FragPart`, alpha and beta
         List of fragment objects. Each element is a tuple with the alpha and
         beta components
     solver : str
@@ -633,7 +633,7 @@ def solve_error(Fobjs, Nocc, only_chem=False):
 
     Parameters
     ----------
-    Fobjs : list of quemb.molbe.fragment.fragpart
+    Fobjs : list of quemb.molbe.fragment.FragPart
         List of fragment objects.
     Nocc : int
         Number of occupied orbitals.

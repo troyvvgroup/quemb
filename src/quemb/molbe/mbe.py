@@ -10,7 +10,7 @@ from pyscf import ao2mo, scf
 
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
-from quemb.molbe.fragment import fragpart
+from quemb.molbe.fragment import FragPart
 from quemb.molbe.lo import MixinLocalize
 from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
 from quemb.molbe.opt import BEOPT
@@ -56,7 +56,7 @@ class BE(MixinLocalize):
     ----------
     mf : pyscf.scf.hf.SCF
         PySCF mean-field object.
-    fobj : quemb.molbe.fragment.fragpart
+    fobj : quemb.molbe.fragment.FragPart
         Fragment object containing sites, centers, edges, and indices.
     eri_file : str
         Path to the file storing two-electron integrals.
@@ -67,7 +67,7 @@ class BE(MixinLocalize):
     def __init__(
         self,
         mf: scf.hf.SCF,
-        fobj: fragpart,
+        fobj: FragPart,
         eri_file: PathLike = "eri_file.h5",
         lo_method: str = "lowdin",
         pop_method: str | None = None,
