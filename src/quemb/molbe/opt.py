@@ -1,7 +1,6 @@
 # Author(s): Oinam Romesh Meitei
 
 
-import numpy
 from attrs import Factory, define
 from numpy import array, float64
 
@@ -172,7 +171,7 @@ class BEOPT:
 
             # Initialize the Quasi-Newton optimizer
             optQN = FrankQN(
-                self.objfunc, numpy.array(self.pot), f0, J0, max_space=self.max_space
+                self.objfunc, array(self.pot), f0, J0, max_space=self.max_space
             )
 
             if self.err < self.conv_tol:

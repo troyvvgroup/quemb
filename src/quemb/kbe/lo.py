@@ -3,8 +3,21 @@
 #
 import os
 
-import numpy
+import numpy as np
 from libdmet.lo import pywannier90
+from numpy import (
+    allclose,
+    array,
+    asarray,
+    complex128,
+    diag,
+    eye,
+    hstack,
+    sqrt,
+    where,
+    zeros,
+    zeros_like,
+)
 from numpy.linalg import eigh, multi_dot, svd
 
 from quemb.kbe.lo_k import (
@@ -59,52 +72,52 @@ class Mixin_k_Localize:
 
         if lo_method == "lowdin":
             # Lowdin orthogonalization with k-points
-            W = numpy.zeros_like(self.S)
+            W = zeros_like(self.S)
             nk, nao, nmo = self.C.shape
             if self.frozen_core:
-                W_nocore = numpy.zeros_like(self.S[:, :, self.ncore :])
-                lmo_coeff = numpy.zeros_like(self.C[:, self.ncore :, self.ncore :])
-                cinv_ = numpy.zeros((nk, nmo - self.ncore, nao), dtype=numpy.complex128)
+                W_nocore = zeros_like(self.S[:, :, self.ncore :])
+                lmo_coeff = zeros_like(self.C[:, self.ncore :, self.ncore :])
+                cinv_ = zeros((nk, nmo - self.ncore, nao), dtype=complex128)
             else:
-                lmo_coeff = numpy.zeros_like(self.C)
-                cinv_ = numpy.zeros((nk, nmo, nao), dtype=numpy.complex128)
+                lmo_coeff = zeros_like(self.C)
+                cinv_ = zeros((nk, nmo, nao), dtype=complex128)
 
             for k in range(self.nkpt):
                 es_, vs_ = eigh(self.S[k])
                 edx = es_ > 1.0e-14
 
-                W[k] = (vs_[:, edx] / numpy.sqrt(es_[edx])) @ vs_[:, edx].conj().T
+                W[k] = (vs_[:, edx] / sqrt(es_[edx])) @ vs_[:, edx].conj().T
                 for i in range(W[k].shape[1]):
                     if W[k][i, i] < 0:
                         W[:, i] *= -1
                 if self.frozen_core:
-                    pcore = numpy.eye(W[k].shape[0]) - (self.P_core[k] @ self.S[k])
-                    C_ = numpy.dot(pcore, W[k])
+                    pcore = eye(W[k].shape[0]) - (self.P_core[k] @ self.S[k])
+                    C_ = pcore @ W[k]
 
                     # PYSCF has basis in 1s2s3s2p2p2p3p3p3p format
                     # fix no_core_idx - use population for now
                     # C_ = C_[:,self.no_core_idx]
                     Cpop = multi_dot((C_.conj().T, self.S[k], C_))
-                    Cpop = numpy.diag(Cpop.real)
+                    Cpop = diag(Cpop.real)
 
-                    no_core_idx = numpy.where(Cpop > 0.7)[0]
+                    no_core_idx = where(Cpop > 0.7)[0]
                     C_ = C_[:, no_core_idx]
 
                     S_ = multi_dot((C_.conj().T, self.S[k], C_))
 
                     es_, vs_ = eigh(S_)
                     edx = es_ > 1.0e-14
-                    W_ = (vs_[:, edx] / numpy.sqrt(es_[edx])) @ vs_[:, edx].conj().T
-                    W_nocore[k] = numpy.dot(C_, W_)
+                    W_ = (vs_[:, edx] / sqrt(es_[edx])) @ vs_[:, edx].conj().T
+                    W_nocore[k] = C_ @ W_
 
                     lmo_coeff[k] = multi_dot(
                         (W_nocore[k].conj().T, self.S[k], self.C[k][:, self.ncore :]),
                     )
-                    cinv_[k] = numpy.dot(W_nocore[k].conj().T, self.S[k])
+                    cinv_[k] = W_nocore[k].conj().T @ self.S[k]
 
                 else:
                     lmo_coeff[k] = multi_dot((W[k].conj().T, self.S[k], self.C[k]))
-                    cinv_[k] = numpy.dot(W[k].conj().T, self.S[k])
+                    cinv_[k] = W[k].conj().T @ self.S[k]
             if self.frozen_core:
                 self.W = W_nocore
             else:
@@ -120,7 +133,7 @@ class Mixin_k_Localize:
 
                 # tmp - aos are not rearrange and so below is not necessary
                 nk, nao, nlo = ciao_.shape
-                Ciao_ = numpy.zeros((nk, nao, nlo), dtype=numpy.complex128)
+                Ciao_ = zeros((nk, nao, nlo), dtype=complex128)
                 for k in range(self.nkpt):
                     aoind_by_atom = get_aoind_by_atom(self.cell)
                     ctmp, iaoind_by_atom = reorder_by_atom_(
@@ -136,7 +149,7 @@ class Mixin_k_Localize:
                 )
 
                 nk, nao, nlo = cpao_.shape
-                Cpao_ = numpy.zeros((nk, nao, nlo), dtype=numpy.complex128)
+                Cpao_ = zeros((nk, nao, nlo), dtype=complex128)
                 for k in range(self.nkpt):
                     aoind_by_atom = get_aoind_by_atom(self.cell)
                     ctmp, paoind_by_atom = reorder_by_atom_(
@@ -147,9 +160,7 @@ class Mixin_k_Localize:
                 nk, nao, nlo = Ciao_.shape
                 if self.frozen_core:
                     nk, nao, nlo = Ciao_.shape
-                    Ciao_nocore = numpy.zeros(
-                        (nk, nao, nlo - self.ncore), dtype=numpy.complex128
-                    )
+                    Ciao_nocore = zeros((nk, nao, nlo - self.ncore), dtype=complex128)
                     for k in range(nk):
                         Ccore = self.C[k][:, : self.ncore]
                         Ciao_nocore[k] = remove_core_mo_k(Ciao_[k], Ccore, self.S[k])
@@ -162,17 +173,17 @@ class Mixin_k_Localize:
                 s12_core_, s2_core = get_xovlp_k(self.cell, self.kpts, basis=core_basis)
                 C_core_ = self.C[:, :, : self.ncore].copy()
                 nk_, nao_, nmo_ = C_core_.shape
-                s1_core = numpy.zeros((nk_, nmo_, nmo_), dtype=self.S.dtype)
-                s12_core = numpy.zeros(
+                s1_core = zeros((nk_, nmo_, nmo_), dtype=self.S.dtype)
+                s12_core = zeros(
                     (nk_, nmo_, s12_core_.shape[-1]), dtype=s12_core_.dtype
                 )
-                C_core = numpy.zeros((nk_, self.ncore, self.ncore), dtype=C_core_.dtype)
+                C_core = zeros((nk_, self.ncore, self.ncore), dtype=C_core_.dtype)
                 for k in range(nk_):
                     C_core[k] = C_core_[k].conj().T @ self.S[k] @ C_core_[k]
                     s1_core[k] = C_core_[k].conj().T @ self.S[k] @ C_core_[k]
                     s12_core[k] = C_core_[k].conj().T @ s12_core_[k]
                 ciao_core_ = get_iao_k(C_core, s12_core, s1_core, s2_core, ortho=False)
-                ciao_core = numpy.zeros(
+                ciao_core = zeros(
                     (nk_, nao_, ciao_core_.shape[-1]), dtype=ciao_core_.dtype
                 )
                 for k in range(nk_):
@@ -186,11 +197,9 @@ class Mixin_k_Localize:
                 C_nocore = self.C[:, :, self.ncore :].copy()
                 C_nocore_occ_ = C_nocore[:, :, : self.Nocc].copy()
                 nk_, nao_, nmo_ = C_nocore.shape
-                s1_val = numpy.zeros((nk_, nmo_, nmo_), dtype=self.S.dtype)
-                s12_val = numpy.zeros(
-                    (nk_, nmo_, s12_val_.shape[-1]), dtype=s12_val_.dtype
-                )
-                C_nocore_occ = numpy.zeros(
+                s1_val = zeros((nk_, nmo_, nmo_), dtype=self.S.dtype)
+                s12_val = zeros((nk_, nmo_, s12_val_.shape[-1]), dtype=s12_val_.dtype)
+                C_nocore_occ = zeros(
                     (nk_, nao_ - self.ncore, C_nocore_occ_.shape[-1]),
                     dtype=C_nocore_occ_.dtype,
                 )
@@ -203,20 +212,18 @@ class Mixin_k_Localize:
                 ciao_val_ = get_iao_k(
                     C_nocore_occ, s12_val, s1_val, s2_val, ortho=False
                 )
-                Ciao_ = numpy.zeros(
-                    (nk_, nao_, ciao_val_.shape[-1]), dtype=ciao_val_.dtype
-                )
+                Ciao_ = zeros((nk_, nao_, ciao_val_.shape[-1]), dtype=ciao_val_.dtype)
                 for k in range(nk_):
                     Ciao_[k] = C_nocore[k] @ ciao_val_[k]
                     Ciao_[k] = symm_orth_k(Ciao_[k], ovlp=self.S[k])
 
                 # stack core|val
                 nao = self.S.shape[-1]
-                c_core_val = numpy.zeros(
+                c_core_val = zeros(
                     (nk_, nao, Ciao_.shape[-1] + self.ncore), dtype=Ciao_.dtype
                 )
                 for k in range(nk_):
-                    c_core_val[k] = numpy.hstack((ciao_core[k], Ciao_[k]))
+                    c_core_val[k] = hstack((ciao_core[k], Ciao_[k]))
 
                 # tmp - aos are not rearrange and so below is not necessary
                 #   (iaoind_by_atom is used to stack iao|pao later)
@@ -231,7 +238,7 @@ class Mixin_k_Localize:
                     c_core_val, self.S, self.cell, valence_basis, self.kpts, ortho=True
                 )
                 nk, nao, nlo = cpao_.shape
-                Cpao_ = numpy.zeros((nk, nao, nlo), dtype=numpy.complex128)
+                Cpao_ = zeros((nk, nao, nlo), dtype=complex128)
                 for k in range(self.nkpt):
                     aoind_by_atom = get_aoind_by_atom(self.cell)
                     ctmp, paoind_by_atom = reorder_by_atom_(
@@ -254,7 +261,7 @@ class Mixin_k_Localize:
                     self.mol, kpts=self.kpts, mo_coeff=Ciao_, mo_energy=mo_energy_
                 )
 
-                num_wann = numpy.asarray(iaomf.mo_coeff).shape[2]
+                num_wann = asarray(iaomf.mo_coeff).shape[2]
                 keywords = """
                 num_iter = 5000
                 dis_num_iter = 0
@@ -270,33 +277,31 @@ class Mixin_k_Localize:
                     iaomf, self.kmesh, num_wann, other_keywords=keywords
                 )
 
-                A_matrix = numpy.zeros(
-                    (self.nkpt, num_wann, num_wann), dtype=numpy.complex128
-                )
+                A_matrix = zeros((self.nkpt, num_wann, num_wann), dtype=complex128)
 
                 for k in range(self.nkpt):
-                    A_matrix[k] = numpy.eye(num_wann, dtype=numpy.complex128)
+                    A_matrix[k] = eye(num_wann, dtype=complex128)
                 A_matrix = A_matrix.transpose(1, 2, 0)
 
                 w90.kernel(A_matrix=A_matrix)
 
-                u_mat = numpy.array(
-                    w90.U_matrix.transpose(2, 0, 1), order="C", dtype=numpy.complex128
+                u_mat = array(
+                    w90.U_matrix.transpose(2, 0, 1), order="C", dtype=complex128
                 )
 
                 os.system("cp wannier90.wout wannier90_iao.wout")
                 os.system("rm wannier90.*")
 
                 nk, nao, nlo = Ciao_.shape
-                Ciao = numpy.zeros((nk, nao, nlo), dtype=numpy.complex128)
+                Ciao = zeros((nk, nao, nlo), dtype=complex128)
 
                 for k in range(self.nkpt):
-                    Ciao[k] = numpy.dot(Ciao_[k], u_mat[k])
+                    Ciao[k] = Ciao_[k] @ u_mat[k]
 
             # Stack Ciao
-            Wstack = numpy.zeros(
+            Wstack = zeros(
                 (self.nkpt, Ciao.shape[1], Ciao.shape[2] + Cpao.shape[2]),
-                dtype=numpy.complex128,
+                dtype=complex128,
             )
             if self.frozen_core:
                 for k in range(self.nkpt):
@@ -335,18 +340,16 @@ class Mixin_k_Localize:
             nlo = self.W.shape[2]
             nao = self.S.shape[2]
 
-            lmo_coeff = numpy.zeros((self.nkpt, nlo, nmo), dtype=numpy.complex128)
-            cinv_ = numpy.zeros((self.nkpt, nlo, nao), dtype=numpy.complex128)
+            lmo_coeff = zeros((self.nkpt, nlo, nmo), dtype=complex128)
+            cinv_ = zeros((self.nkpt, nlo, nao), dtype=complex128)
 
             if nmo > nlo:
                 Co_nocore = self.C[:, :, self.ncore : self.Nocc]
                 Cv = self.C[:, :, self.Nocc :]
                 # Ensure that the LOs span the occupied space
                 for k in range(self.nkpt):
-                    assert numpy.allclose(
-                        numpy.sum(
-                            (self.W[k].conj().T @ self.S[k] @ Co_nocore[k]) ** 2.0
-                        ),
+                    assert allclose(
+                        np.sum((self.W[k].conj().T @ self.S[k] @ Co_nocore[k]) ** 2.0),
                         self.Nocc - self.ncore,
                     )
                     # Find virtual orbitals that lie in the span of LOs
@@ -355,23 +358,21 @@ class Mixin_k_Localize:
                     )
                     unused(u)
                     nvlo = nlo - self.Nocc - self.ncore
-                    assert numpy.allclose(numpy.sum(l[:nvlo]), nvlo)
-                    C_ = numpy.hstack([Co_nocore[k], Cv[k] @ vt[:nvlo].conj().T])
+                    assert allclose(np.sum(l[:nvlo]), nvlo)
+                    C_ = hstack([Co_nocore[k], Cv[k] @ vt[:nvlo].conj().T])
                     lmo_ = self.W[k].conj().T @ self.S[k] @ C_
-                    assert numpy.allclose(
-                        lmo_.conj().T @ lmo_, numpy.eye(lmo_.shape[1])
-                    )
+                    assert allclose(lmo_.conj().T @ lmo_, eye(lmo_.shape[1]))
                     lmo_coeff.append(lmo_)
             else:
                 for k in range(self.nkpt):
                     lmo_coeff[k] = multi_dot(
                         (self.W[k].conj().T, self.S[k], self.C[k][:, self.ncore :]),
                     )
-                    cinv_[k] = numpy.dot(self.W[k].conj().T, self.S[k])
+                    cinv_[k] = self.W[k].conj().T @ self.S[k]
 
-                    assert numpy.allclose(
+                    assert allclose(
                         lmo_coeff[k].conj().T @ lmo_coeff[k],
-                        numpy.eye(lmo_coeff[k].shape[1]),
+                        eye(lmo_coeff[k].shape[1]),
                     )
 
             self.lmo_coeff = lmo_coeff
@@ -379,16 +380,12 @@ class Mixin_k_Localize:
 
         elif lo_method == "wannier":
             nk, nao, nmo = self.C.shape
-            lorb = numpy.zeros((nk, nao, nmo), dtype=numpy.complex128)
-            lorb_nocore = numpy.zeros(
-                (nk, nao, nmo - self.ncore), dtype=numpy.complex128
-            )
+            lorb = zeros((nk, nao, nmo), dtype=complex128)
+            lorb_nocore = zeros((nk, nao, nmo - self.ncore), dtype=complex128)
             for k in range(nk):
                 es_, vs_ = eigh(self.S[k])
                 edx = es_ > 1.0e-14
-                lorb[k] = numpy.dot(
-                    vs_[:, edx] / numpy.sqrt(es_[edx]), vs_[:, edx].conj().T
-                )
+                lorb[k] = vs_[:, edx] / sqrt(es_[edx]) @ vs_[:, edx].conj().T
 
                 if self.frozen_core:
                     Ccore = self.C[k][:, : self.ncore]
@@ -428,39 +425,33 @@ class Mixin_k_Localize:
             """
 
             w90 = pywannier90.W90(lmf, self.kmesh, num_wann, other_keywords=keywords)
-            A_matrix = numpy.zeros(
-                (self.nkpt, num_wann, num_wann), dtype=numpy.complex128
-            )
+            A_matrix = zeros((self.nkpt, num_wann, num_wann), dtype=complex128)
             # Using A=I + lowdin orbital and A=<psi|lowdin> + |psi> is the same
             for k in range(self.nkpt):
-                A_matrix[k] = numpy.eye(num_wann, dtype=numpy.complex128)
+                A_matrix[k] = eye(num_wann, dtype=complex128)
 
             A_matrix = A_matrix.transpose(1, 2, 0)
 
             w90.kernel(A_matrix=A_matrix)
-            u_mat = numpy.array(
-                w90.U_matrix.transpose(2, 0, 1), order="C", dtype=numpy.complex128
-            )
+            u_mat = array(w90.U_matrix.transpose(2, 0, 1), order="C", dtype=complex128)
 
             nk, nao, nlo = lmf.mo_coeff.shape
-            W = numpy.zeros((nk, nao, nlo), dtype=numpy.complex128)
+            W = zeros((nk, nao, nlo), dtype=complex128)
             for k in range(nk):
-                W[k] = numpy.dot(lmf.mo_coeff[k], u_mat[k])
+                W[k] = lmf.mo_coeff[k] @ u_mat[k]
 
             self.W = W
-            lmo_coeff = numpy.zeros(
-                (self.nkpt, nlo, nmo - self.ncore), dtype=numpy.complex128
-            )
-            cinv_ = numpy.zeros((self.nkpt, nlo, nao), dtype=numpy.complex128)
+            lmo_coeff = zeros((self.nkpt, nlo, nmo - self.ncore), dtype=complex128)
+            cinv_ = zeros((self.nkpt, nlo, nao), dtype=complex128)
 
             for k in range(nk):
                 lmo_coeff[k] = multi_dot(
                     (self.W[k].conj().T, self.S[k], self.C[k][:, self.ncore :]),
                 )
-                cinv_[k] = numpy.dot(self.W[k].conj().T, self.S[k])
-                assert numpy.allclose(
+                cinv_[k] = self.W[k].conj().T @ self.S[k]
+                assert allclose(
                     lmo_coeff[k].conj().T @ lmo_coeff[k],
-                    numpy.eye(lmo_coeff[k].shape[1]),
+                    eye(lmo_coeff[k].shape[1]),
                 )
             self.lmo_coeff = lmo_coeff
             self.cinv = cinv_

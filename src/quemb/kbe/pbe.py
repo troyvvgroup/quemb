@@ -5,9 +5,9 @@ import pickle
 from multiprocessing import Pool
 
 import h5py
-import numpy
+import numpy as np
 from libdmet.basis_transform.eri_transform import get_emb_eri_fast_gdf
-from numpy import array, floating
+from numpy import array, einsum, floating, result_type, zeros, zeros_like
 from pyscf import ao2mo, pbc
 from pyscf.pbc import df, gto
 from pyscf.pbc.df.df_jk import _ewald_exxdiv_for_G0
@@ -145,7 +145,7 @@ class BE(Mixin_k_Localize):
             self.enuc = mf.energy_nuc()
             self.hcore = mf.get_hcore()
             self.S = mf.get_ovlp()
-            self.C = numpy.array(mf.mo_coeff)
+            self.C = array(mf.mo_coeff)
             self.hf_dm = mf.make_rdm1()
             self.hf_veff = mf.get_veff(
                 self.fobj.mol,
@@ -209,21 +209,17 @@ class BE(Mixin_k_Localize):
 
                 nk, nao = self.hf_dm.shape[:2]
 
-                dm_nocore = numpy.zeros(
-                    (nk, nao, nao), dtype=numpy.result_type(self.C, self.C)
-                )
-                C_core = numpy.zeros((nk, nao, self.ncore), dtype=self.C.dtype)
-                P_core = numpy.zeros(
-                    (nk, nao, nao), dtype=numpy.result_type(self.C, self.C)
-                )
+                dm_nocore = zeros((nk, nao, nao), dtype=result_type(self.C, self.C))
+                C_core = zeros((nk, nao, self.ncore), dtype=self.C.dtype)
+                P_core = zeros((nk, nao, nao), dtype=result_type(self.C, self.C))
 
                 for k in range(nk):
-                    dm_nocore[k] += 2.0 * numpy.dot(
-                        self.C[k][:, self.ncore : self.ncore + self.Nocc],
-                        self.C[k][:, self.ncore : self.ncore + self.Nocc].conj().T,
+                    dm_nocore[k] += 2.0 * (
+                        self.C[k][:, self.ncore : self.ncore + self.Nocc]
+                        @ self.C[k][:, self.ncore : self.ncore + self.Nocc].conj().T
                     )
                     C_core[k] += self.C[k][:, : self.ncore]
-                    P_core[k] += numpy.dot(C_core[k], C_core[k].conj().T)
+                    P_core[k] += C_core[k] @ C_core[k].conj().T
 
                 self.C_core = C_core
                 self.P_core = P_core
@@ -239,23 +235,20 @@ class BE(Mixin_k_Localize):
                 ecore_h1 = 0.0
                 ecore_veff = 0.0
                 for k in range(nk):
-                    ecore_h1 += numpy.einsum(
-                        "ij,ji", self.hcore[k], 2.0 * self.P_core[k]
-                    )
+                    ecore_h1 += einsum("ij,ji", self.hcore[k], 2.0 * self.P_core[k])
                     ecore_veff += (
-                        numpy.einsum("ij,ji", 2.0 * self.P_core[k], self.core_veff[k])
-                        * 0.5
+                        einsum("ij,ji", 2.0 * self.P_core[k], self.core_veff[k]) * 0.5
                     )
 
                 ecore_h1 /= float(nk)
                 ecore_veff /= float(nk)
 
                 E_core = ecore_h1 + ecore_veff
-                if numpy.abs(E_core.imag).max() < 1.0e-10:
+                if np.abs(E_core.imag).max() < 1.0e-10:
                     self.E_core = E_core.real
                 else:
                     raise ValueError(
-                        f"Imaginary density in E_core {numpy.abs(E_core.imag).max()}"
+                        f"Imaginary density in E_core {np.abs(E_core.imag).max()}"
                     )
 
                 for k in range(nk):
@@ -443,7 +436,7 @@ class BE(Mixin_k_Localize):
         dm_ = self.mf.make_rdm1()
         nk, nao = dm_.shape[:2]
 
-        vk_kpts = numpy.zeros(dm_.shape) * 1j
+        vk_kpts = zeros(dm_.shape) * 1j
         _ewald_exxdiv_for_G0(
             self.mf.cell,
             self.kpts,
@@ -451,7 +444,7 @@ class BE(Mixin_k_Localize):
             vk_kpts.reshape(-1, nk, nao, nao),
             kpts_band=self.kpts,
         )
-        e_ = numpy.einsum("kij,kji->", vk_kpts, dm_) * 0.25
+        e_ = einsum("kij,kji->", vk_kpts, dm_) * 0.25
         e_ /= float(nk)
 
         return e_.real
@@ -517,7 +510,7 @@ class BE(Mixin_k_Localize):
             )
 
             fobjs_.cons_h1(self.hcore)
-            fobjs_.heff = numpy.zeros_like(fobjs_.h1)
+            fobjs_.heff = zeros_like(fobjs_.h1)
             fobjs_.dm_init = fobjs_.get_nsocc(
                 self.S, self.C, self.Nocc, ncore=self.ncore
             )
@@ -589,11 +582,11 @@ class BE(Mixin_k_Localize):
 
             for frg in range(self.fobj.Nfrag):
                 veff0, veff_ = veffs[frg]
-                if numpy.abs(veff_.imag).max() < 1.0e-6:
+                if np.abs(veff_.imag).max() < 1.0e-6:
                     self.Fobjs[frg].veff = veff_.real
                     self.Fobjs[frg].veff0 = veff0.real
                 else:
-                    raise ValueError(f"Imaginary Veff {numpy.abs(veff_.imag).max()}")
+                    raise ValueError(f"Imaginary Veff {np.abs(veff_.imag).max()}")
 
                 self.Fobjs[frg].fock = self.Fobjs[frg].h1 + veff_.real
             del veffs
@@ -624,12 +617,9 @@ class BE(Mixin_k_Localize):
                 self.Fobjs[frg]._mo_coeffs = mo_coeffs[frg]
 
         for frg in range(self.fobj.Nfrag):
-            self.Fobjs[frg].dm0 = (
-                numpy.dot(
-                    self.Fobjs[frg]._mo_coeffs[:, : self.Fobjs[frg].nsocc],
-                    self.Fobjs[frg]._mo_coeffs[:, : self.Fobjs[frg].nsocc].conj().T,
-                )
-                * 2.0
+            self.Fobjs[frg].dm0 = 2.0 * (
+                self.Fobjs[frg]._mo_coeffs[:, : self.Fobjs[frg].nsocc]
+                @ self.Fobjs[frg]._mo_coeffs[:, : self.Fobjs[frg].nsocc].conj().T
             )
 
             if compute_hf:

@@ -3,8 +3,7 @@
 import os
 from multiprocessing import Pool
 
-import numpy
-from numpy import float64
+from numpy import asarray, diag_indices, einsum, float64, zeros_like
 from numpy.linalg import multi_dot
 from pyscf import ao2mo, fci, mcscf
 
@@ -164,7 +163,7 @@ def run_solver(
         h1_ = multi_dot((mf_.mo_coeff.T, h1, mf_.mo_coeff))
         eci, civec = ci_.kernel(h1_, eri, nmo, nelec)
         unused(eci)
-        civec = numpy.asarray(civec)
+        civec = asarray(civec)
 
         (rdm1a_, rdm1b_), (rdm2aa, rdm2ab, rdm2bb) = ci_.make_rdm12s(civec, nmo, nelec)
         rdm1_tmp = rdm1a_ + rdm1b_
@@ -236,19 +235,19 @@ def run_solver(
         elif solver == "FCI":
             rdm2s = mc_.make_rdm2(civec, mc_.norb, mc_.nelec)
             if use_cumulant:
-                hf_dm = numpy.zeros_like(rdm1_tmp)
-                hf_dm[numpy.diag_indices(nocc)] += 2.0
+                hf_dm = zeros_like(rdm1_tmp)
+                hf_dm[diag_indices(nocc)] += 2.0
                 del_rdm1 = rdm1_tmp.copy()
-                del_rdm1[numpy.diag_indices(nocc)] -= 2.0
+                del_rdm1[diag_indices(nocc)] -= 2.0
                 nc = (
-                    numpy.einsum("ij,kl->ijkl", hf_dm, hf_dm)
-                    + numpy.einsum("ij,kl->ijkl", hf_dm, del_rdm1)
-                    + numpy.einsum("ij,kl->ijkl", del_rdm1, hf_dm)
+                    einsum("ij,kl->ijkl", hf_dm, hf_dm)
+                    + einsum("ij,kl->ijkl", hf_dm, del_rdm1)
+                    + einsum("ij,kl->ijkl", del_rdm1, hf_dm)
                 )
                 nc -= (
-                    numpy.einsum("ij,kl->iklj", hf_dm, hf_dm)
-                    + numpy.einsum("ij,kl->iklj", hf_dm, del_rdm1)
-                    + numpy.einsum("ij,kl->iklj", del_rdm1, hf_dm)
+                    einsum("ij,kl->iklj", hf_dm, hf_dm)
+                    + einsum("ij,kl->iklj", hf_dm, del_rdm1)
+                    + einsum("ij,kl->iklj", del_rdm1, hf_dm)
                 ) * 0.5
                 rdm2s -= nc
         e_f = get_frag_energy(
