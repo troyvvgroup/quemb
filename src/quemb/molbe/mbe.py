@@ -73,9 +73,7 @@ class BE(MixinLocalize):
         pop_method: str | None = None,
         compute_hf: bool = True,
         restart: bool = False,
-        save: bool = False,
         restart_file: PathLike = "storebe.pk",
-        save_file: PathLike = "storebe.pk",
         nproc: int = 1,
         ompnum: int = 4,
         scratch_dir: WorkDir | None = None,
@@ -102,12 +100,8 @@ class BE(MixinLocalize):
             Whether to compute Hartree-Fock energy, by default True.
         restart :
             Whether to restart from a previous calculation, by default False.
-        save :
-            Whether to save intermediate objects for restart, by default False.
         restart_file :
             Path to the file storing restart information, by default 'storebe.pk'.
-        save_file :
-            Path to the file storing save information, by default 'storebe.pk'.
         nproc :
             Number of processors for parallel calculations, by default 1. If set to >1,
             threaded parallel computation is invoked.
@@ -150,17 +144,7 @@ class BE(MixinLocalize):
         self.auxbasis = auxbasis
 
         # Fragment information from fobj
-        self.frag_type = fobj.frag_type
-        self.Nfrag = fobj.Nfrag
-        self.fsites = fobj.fsites
-        self.edge = fobj.edge
-        self.center = fobj.center
-        self.edge_idx = fobj.edge_idx
-        self.center_idx = fobj.center_idx
-        self.centerf_idx = fobj.centerf_idx
-        self.ebe_weight = fobj.ebe_weight
-        self.be_type = fobj.be_type
-        self.mol = fobj.mol
+        self.fobj = fobj
 
         self.ebe_hf = 0.0
         self.ebe_tot = 0.0
@@ -185,7 +169,7 @@ class BE(MixinLocalize):
 
         self.print_ini()
         self.Fobjs: list[Frags] = []
-        self.pot = initialize_pot(self.Nfrag, self.edge_idx)
+        self.pot = initialize_pot(self.fobj.Nfrag, self.fobj.edge_idx)
 
         if scratch_dir is None:
             self.scratch_dir = WorkDir.from_environment()
@@ -241,34 +225,41 @@ class BE(MixinLocalize):
                     nosave=True,
                 )
 
-        if save:
-            # Save intermediate results for restart
-            store_ = storeBE(
-                self.Nocc,
-                self.hf_veff,
-                self.hcore,
-                self.S,
-                self.C,
-                self.hf_dm,
-                self.hf_etot,
-                self.W,
-                self.lmo_coeff,
-                self.enuc,
-                self.E_core,
-                self.C_core,
-                self.P_core,
-                self.core_veff,
-                self.mo_energy,
-            )
-
-            with open(save_file, "wb") as rfile:
-                pickle.dump(store_, rfile, pickle.HIGHEST_PROTOCOL)
-
         if not restart:
             # Initialize fragments and perform initial calculations
             self.initialize(mf._eri, compute_hf)
         else:
             self.initialize(None, compute_hf, restart=True)
+
+    def save(self, save_file: PathLike = "storebe.pk") -> None:
+        """
+        Save intermediate results for restart.
+
+        Parameters
+        ----------
+        save_file :
+            Path to the file storing restart information, by default 'storebe.pk'.
+        """
+        store_ = storeBE(
+            self.Nocc,
+            self.hf_veff,
+            self.hcore,
+            self.S,
+            self.C,
+            self.hf_dm,
+            self.hf_etot,
+            self.W,
+            self.lmo_coeff,
+            self.enuc,
+            self.E_core,
+            self.C_core,
+            self.P_core,
+            self.core_veff,
+            self.mo_energy,
+        )
+
+        with open(save_file, "wb") as rfile:
+            pickle.dump(store_, rfile, pickle.HIGHEST_PROTOCOL)
 
     def rdm1_fullbasis(
         self,
@@ -545,7 +536,7 @@ class BE(MixinLocalize):
         del_gamma = rdm1f - self.hf_dm
 
         # Compute the effective potential
-        veff = scf.hf.get_veff(self.mol, rdm1f, hermi=0)
+        veff = scf.hf.get_veff(self.fobj.mol, rdm1f, hermi=0)
 
         # Compute the one-electron energy
         Eh1 = numpy.einsum("ij,ij", self.hcore, rdm1f, optimize=True)
@@ -678,7 +669,7 @@ class BE(MixinLocalize):
         # Check if only chemical potential optimization is required
         if not only_chem:
             pot = self.pot
-            if self.be_type == "be1":
+            if self.fobj.be_type == "be1":
                 raise ValueError(
                     "BE1 only works with chemical potential optimization. "
                     "Set only_chem=True"
@@ -741,7 +732,7 @@ class BE(MixinLocalize):
 
     @copy_docstring(_ext_get_be_error_jacobian)
     def get_be_error_jacobian(self, jac_solver: str = "HF") -> Matrix[floating]:
-        return _ext_get_be_error_jacobian(self.Nfrag, self.Fobjs, jac_solver)
+        return _ext_get_be_error_jacobian(self.fobj.Nfrag, self.Fobjs, jac_solver)
 
     def print_ini(self):
         """
@@ -759,7 +750,7 @@ class BE(MixinLocalize):
 
         print(flush=True)
         print("            MOLECULAR BOOTSTRAP EMBEDDING", flush=True)
-        print("            BEn = ", self.be_type, flush=True)
+        print("            BEn = ", self.fobj.be_type, flush=True)
         print("-----------------------------------------------------------", flush=True)
         print(flush=True)
 
@@ -782,23 +773,23 @@ class BE(MixinLocalize):
         # Create a file to store ERIs
         if not restart:
             file_eri = h5py.File(self.eri_file, "w")
-        lentmp = len(self.edge_idx)
-        for I in range(self.Nfrag):
+        lentmp = len(self.fobj.edge_idx)
+        for I in range(self.fobj.Nfrag):
             if lentmp:
                 fobjs_ = Frags(
-                    self.fsites[I],
+                    self.fobj.fsites[I],
                     I,
-                    edge=self.edge[I],
+                    edge=self.fobj.edge[I],
                     eri_file=self.eri_file,
-                    center=self.center[I],
-                    edge_idx=self.edge_idx[I],
-                    center_idx=self.center_idx[I],
-                    efac=self.ebe_weight[I],
-                    centerf_idx=self.centerf_idx[I],
+                    center=self.fobj.center[I],
+                    edge_idx=self.fobj.edge_idx[I],
+                    center_idx=self.fobj.center_idx[I],
+                    efac=self.fobj.ebe_weight[I],
+                    centerf_idx=self.fobj.centerf_idx[I],
                 )
             else:
                 fobjs_ = Frags(
-                    self.fsites[I],
+                    self.fobj.fsites[I],
                     I,
                     edge=[],
                     center=[],
@@ -806,7 +797,7 @@ class BE(MixinLocalize):
                     edge_idx=[],
                     center_idx=[],
                     centerf_idx=[],
-                    efac=self.ebe_weight[I],
+                    efac=self.fobj.ebe_weight[I],
                 )
             fobjs_.sd(self.W, self.lmo_coeff, self.Nocc)
 
@@ -830,13 +821,13 @@ class BE(MixinLocalize):
             if (
                 eri_ is not None
             ):  # incore ao2mo using saved eri from mean-field calculation
-                for I in range(self.Nfrag):
+                for I in range(self.fobj.Nfrag):
                     eri = ao2mo.incore.full(eri_, self.Fobjs[I].TA, compact=True)
                     file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
             elif hasattr(self.mf, "with_df") and self.mf.with_df is not None:
                 # pyscf.ao2mo uses DF object in an outcore fashion using (ij|P)
                 #   in pyscf temp directory
-                for I in range(self.Nfrag):
+                for I in range(self.fobj.Nfrag):
                     eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)
                     file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
             else:
