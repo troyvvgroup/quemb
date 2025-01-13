@@ -545,12 +545,12 @@ class BE(Mixin_k_Localize):
                     result = pool_.apply_async(
                         eritransform_parallel,
                         [
-                            self.mf.cell.a,
-                            self.mf.cell.atom,
-                            self.mf.cell.basis,
-                            self.kpts,
-                            self.Fobjs[frg].TA,
-                            self.cderi,
+                            self.mf.cell.a.copy(),
+                            self.mf.cell.atom.copy(),
+                            self.mf.cell.basis.copy(),
+                            self.kpts.copy(),
+                            self.Fobjs[frg].TA.copy(),
+                            self.cderi.copy(),
                         ],
                     )
                     results.append(result)
@@ -568,13 +568,13 @@ class BE(Mixin_k_Localize):
                     result = pool_.apply_async(
                         parallel_fock_wrapper,
                         [
-                            self.Fobjs[frg].dname,
-                            self.Fobjs[frg].nao,
-                            self.hf_dm,
-                            self.S,
-                            self.Fobjs[frg].TA,
-                            self.hf_veff,
-                            self.eri_file,
+                            self.Fobjs[frg].dname.copy(),
+                            self.Fobjs[frg].nao.copy(),
+                            self.hf_dm.copy(),
+                            self.S.copy(),
+                            self.Fobjs[frg].TA.copy(),
+                            self.hf_veff.copy(),
+                            self.eri_file.copy(),
                         ],
                     )
                     results.append(result)
@@ -608,7 +608,14 @@ class BE(Mixin_k_Localize):
                     h1 = self.Fobjs[frg].fock + self.Fobjs[frg].heff
                     result = pool_.apply_async(
                         parallel_scf_wrapper,
-                        [dname, nao, nocc, h1, self.Fobjs[frg].dm_init, self.eri_file],
+                        [
+                            dname.copy(),
+                            nao.copy(),
+                            nocc.copy(),
+                            h1.copy(),
+                            self.Fobjs[frg].dm_init.copy(),
+                            self.eri_file.copy(),
+                        ],
                     )
                     results.append(result)
                 mo_coeffs = [result.get() for result in results]
