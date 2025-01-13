@@ -1,7 +1,7 @@
 # Author(s): Oinam Romesh Meitei, Leah Weisburn
 
 import os
-from multiprocessing import Pool
+from multiprocessing.pool import ThreadPool as Pool
 
 from numpy import asarray, diag_indices, einsum, float64, zeros_like
 from numpy.linalg import multi_dot
