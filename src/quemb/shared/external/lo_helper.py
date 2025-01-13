@@ -4,6 +4,7 @@
 #         The code has been slightly modified.
 #
 
+import numpy as np
 from numpy import diag, where
 from numpy.linalg import eigh, matrix_power, norm
 
@@ -60,7 +61,7 @@ def reorder_by_atom_(Clo, aoind_by_atom, S, thr=0.5):
     loshift = 0
     for ia in range(natom):
         ra = aoind_by_atom[ia]
-        poplo_by_atom = sum(Clo_soao[ra] ** 2.0, axis=0)
+        poplo_by_atom = np.sum(Clo_soao[ra] ** 2.0, axis=0)
         loind_a = where(poplo_by_atom > thr)[0].tolist()
         loind_reorder += loind_a
         nlo_a = len(loind_a)

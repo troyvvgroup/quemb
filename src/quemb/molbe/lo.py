@@ -1,6 +1,7 @@
 # Author(s): Henry Tran, Oinam Meitei, Shaun Weatherly
 #
 
+import numpy as np
 from numpy import allclose, diag, eye, sqrt, where, zeros
 from numpy.linalg import eigh, inv, multi_dot, norm, svd
 from pyscf.gto import intor_cross
@@ -44,7 +45,7 @@ def get_symm_orth_mat(
         raise ValueError(
             "Linear dependence is detected in the column space of A: "
             "smallest eigenvalue (%.3E) is less than thr (%.3E). "
-            "Please use 'cano_orth' instead." % (min(e), thr)
+            "Please use 'cano_orth' instead." % (np.min(e), thr)
         )
     return u @ diag(e**-0.5) @ u.T
 
@@ -454,14 +455,14 @@ class MixinLocalize:
                     Cv = self.C[:, self.Nocc :]
                     # Ensure that the LOs span the occupied space
                     assert allclose(
-                        sum((self.W.T @ self.S @ Co_nocore) ** 2.0),
+                        np.sum((self.W.T @ self.S @ Co_nocore) ** 2.0),
                         self.Nocc - self.ncore,
                     )
                     # Find virtual orbitals that lie in the span of LOs
                     u, l, vt = svd(self.W.T @ self.S @ Cv, full_matrices=False)
                     unused(u)
                     nvlo = nlo - self.Nocc - self.ncore
-                    assert allclose(sum(l[:nvlo]), nvlo)
+                    assert allclose(np.sum(l[:nvlo]), nvlo)
                     C_ = hstack([Co_nocore, Cv @ vt[:nvlo].T])
                     self.lmo_coeff = self.W.T @ self.S @ C_
                 else:

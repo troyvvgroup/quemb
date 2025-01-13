@@ -3,6 +3,7 @@
 #
 import os
 
+import numpy as np
 from libdmet.lo import pywannier90
 from numpy import (
     allclose,
@@ -348,7 +349,7 @@ class Mixin_k_Localize:
                 # Ensure that the LOs span the occupied space
                 for k in range(self.nkpt):
                     assert allclose(
-                        sum((self.W[k].conj().T @ self.S[k] @ Co_nocore[k]) ** 2.0),
+                        np.sum((self.W[k].conj().T @ self.S[k] @ Co_nocore[k]) ** 2.0),
                         self.Nocc - self.ncore,
                     )
                     # Find virtual orbitals that lie in the span of LOs
@@ -357,7 +358,7 @@ class Mixin_k_Localize:
                     )
                     unused(u)
                     nvlo = nlo - self.Nocc - self.ncore
-                    assert allclose(sum(l[:nvlo]), nvlo)
+                    assert allclose(np.sum(l[:nvlo]), nvlo)
                     C_ = hstack([Co_nocore[k], Cv[k] @ vt[:nvlo].conj().T])
                     lmo_ = self.W[k].conj().T @ self.S[k] @ C_
                     assert allclose(lmo_.conj().T @ lmo_, eye(lmo_.shape[1]))

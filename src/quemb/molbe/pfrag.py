@@ -467,11 +467,11 @@ def schmidt_decomposition(
         ind_sort = argsort(np.abs(Eval))
         first_el = [x for x in ind_sort if x < 1.0 - thres][-1 * n_bath_ind]
         for i in range(len(Eval)):
-            if abs(Eval[i]) >= first_el:
+            if np.abs(Eval[i]) >= first_el:
                 Bidx.append(i)
     else:
         for i in range(len(Eval)):
-            if thres < abs(Eval[i]) < 1.0 - thres:
+            if thres < np.abs(Eval[i]) < 1.0 - thres:
                 Bidx.append(i)
 
     # Initialize the transformation matrix (TA)

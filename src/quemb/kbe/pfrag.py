@@ -2,6 +2,7 @@
 
 
 import h5py
+import numpy as np
 from numpy import (
     abs,
     complex128,
@@ -161,12 +162,10 @@ class Frags:
         supcell_rdm = einsum("Rk,kuv,Sk->RuSv", phase, rdm1_lo_k, phase.conj())
         supcell_rdm = supcell_rdm.reshape(nk * nlo, nk * nlo)
 
-        if abs(supcell_rdm.imag).max() < 1.0e-6:
+        if (max_val := np.abs(supcell_rdm.imag).max()) < 1.0e-6:
             supcell_rdm = supcell_rdm.real
         else:
-            raise ValueError(
-                f"Imaginary density in Full SD {abs(supcell_rdm.imag).max()}"
-            )
+            raise ValueError(f"Imaginary density in Full SD {max_val}")
 
         Sites = [i + (nlo * 0) for i in self.fsites]
         if not frag_type == "autogen":
@@ -219,10 +218,10 @@ class Frags:
             h1_eo += multi_dot((self.TA[k].conj().T, h1[k], self.TA[k]))
         h1_eo /= float(nk)
 
-        if abs(h1_eo.imag).max() < 1.0e-7:
+        if np.abs(h1_eo.imag).max() < 1.0e-7:
             self.h1 = h1_eo.real
         else:
-            raise ValueError(f"Imaginary Hcore {abs(h1_eo.imag).max()}")
+            raise ValueError(f"Imaginary Hcore {np.abs(h1_eo.imag).max()}")
 
     def cons_fock(self, hf_veff, S, dm, eri_=None):
         """
@@ -246,7 +245,7 @@ class Frags:
             )
 
         veff0, veff_ = get_veff(eri_, dm, S, self.TA, hf_veff, return_veff0=True)
-        if abs(veff_.imag).max() < 1.0e-6:
+        if np.abs(veff_.imag).max() < 1.0e-6:
             self.veff = veff_.real
             self.veff0 = veff0.real
         else:
@@ -287,7 +286,7 @@ class Frags:
             P_ += multi_dot((Cinv, dm_[k], Cinv.conj().T))
 
         P_ /= float(nk)
-        if abs(P_.imag).max() < 1.0e-6:
+        if np.abs(P_.imag).max() < 1.0e-6:
             P_ = P_.real
         else:
             raise ValueError(f"Imaginary density in get_nsocc {abs(P_.imag).max()}")
