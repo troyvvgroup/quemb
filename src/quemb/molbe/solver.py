@@ -2,6 +2,7 @@
 
 import os
 from abc import ABC
+from pathlib import PurePath
 from typing import Final
 
 from attrs import Factory, define, field
@@ -17,7 +18,6 @@ from numpy import (
     zeros_like,
 )
 from numpy.linalg import multi_dot
-from pathlib import PurePath
 from pyscf import ao2mo, cc, fci, mcscf, mp
 from pyscf.cc.ccsd_rdm import make_rdm2
 from pyscf.scf.hf import RHF
