@@ -867,7 +867,7 @@ def solve_block2(
     nocc: int,
     frag_scratch: WorkDir,
     DMRG_args: DMRG_ArgsUser,
-    use_cumulant: bool,
+    use_cumulant: bool = True,
 ):
     """DMRG fragment solver using the pyscf.dmrgscf wrapper.
 
