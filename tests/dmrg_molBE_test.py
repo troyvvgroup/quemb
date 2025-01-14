@@ -45,7 +45,9 @@ class TestBE_DMRG(unittest.TestCase):
             mybe.oneshot(
                 solver="block2",  # or 'DMRG', 'DMRGSCF', 'DMRGCI'
                 solver_args=DMRG_ArgsUser(
-                    maxM=100,  # Max fragment bond dimension
+                    maxM=maxM,  # Max fragment bond dimension
+                    max_iter=60,
+                    max_mem=1,
                     force_cleanup=True,  # Remove all fragment DMRG tmpfiles
                 ),
             )
