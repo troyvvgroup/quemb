@@ -1,6 +1,6 @@
 # Author: Oinam Romesh Meitei
 
-import networkx as nx
+import networkx as nx  # type: ignore
 import numpy as np
 from numpy.linalg import norm
 from pyscf import gto
