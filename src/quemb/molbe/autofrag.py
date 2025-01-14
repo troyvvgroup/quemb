@@ -1,7 +1,7 @@
 # Author: Oinam Romesh Meitei
 
-import numpy as np
 import networkx as nx
+import numpy as np
 from numpy.linalg import norm
 
 from quemb.molbe.helper import get_core
