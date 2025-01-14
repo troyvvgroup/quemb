@@ -410,7 +410,7 @@ def be_func(
                 rdm1_tmp, rdm2s = solve_block2(
                     fobj._mf,
                     fobj.nsocc,
-                    frag_scratch=frag_scratch,
+                    frag_scratch=frag_scratch.path,
                     DMRG_args=DMRG_args,
                     use_cumulant=use_cumulant,
                 )
