@@ -10,6 +10,7 @@ import unittest
 from pyscf import gto, scf
 
 from quemb.molbe import BE, fragpart
+from quemb.molbe.solver import DMRG_ArgsUser
 
 try:
     from pyscf import dmrgscf
@@ -42,12 +43,13 @@ class TestBE_DMRG(unittest.TestCase):
             fobj = fragpart(frag_type=frag_type, be_type=be_type, mol=mol)
             mybe = BE(mf, fobj, lo_method="pipek", pop_method="lowdin")
             mybe.oneshot(
-                solver="block2",
-                scratch_dir=str(tmp),
-                maxM=int(maxM),
-                maxIter=30,
-                force_cleanup=True,
+                solver="block2",  # or 'DMRG', 'DMRGSCF', 'DMRGCI'
+                solver_args=DMRG_ArgsUser(
+                    maxM=100,  # Max fragment bond dimension
+                    force_cleanup=True,  # Remove all fragment DMRG tmpfiles
+                ),
             )
+
             self.assertAlmostEqual(
                 mybe.ebe_tot,
                 target,
