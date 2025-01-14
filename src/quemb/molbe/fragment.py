@@ -117,13 +117,6 @@ class fragpart:
             self.centerf_idx = fragment_map["centerf_idx"]
             self.ebe_weight = fragment_map["ebe_weights"]
             self.Nfrag = len(self.fsites)
-            print("GRAPHGEN")
-            print(self.fsites)
-            print(self.edge)
-            print(self.center)
-            print(self.centerf_idx)
-            print(self.ebe_weight)
-            print(self.Nfrag)
 
         elif frag_type == "autogen":
             if mol is None:
@@ -154,13 +147,7 @@ class fragpart:
                 self.add_center_atom,
             ) = fgs
             self.Nfrag = len(self.fsites)
-            print("AUTOGEN")
-            print(self.fsites)
-            print(self.edge)
-            print(self.center)
-            print(self.centerf_idx)
-            print(self.ebe_weight)
-            print(self.Nfrag)
+
         else:
             raise ValueError(f"Fragmentation type = {frag_type} not implemented!")
 
