@@ -1,4 +1,4 @@
-# Author: Oinam Romesh Meitei
+# Author: Oinam Romesh Meitei, Shaun Weatherly
 
 import networkx as nx  # type: ignore
 import numpy as np
@@ -43,7 +43,42 @@ def graphgen(
     connectivity: str = "euclidean",
     # draw_graph: bool = True,
 ):
-    """Generate fragments via adjacency graph."""
+    """Generate fragments via adjacency graph.
+
+    Generalizes the BEn fragmentation scheme to arbitrary fragment sizes using a
+    graph theoretic heuristic. In brief: atoms are assigned to nodes in an
+    adjacency graph and edges are weighted by some distance metric. For a given
+    fragment center site, Dijkstra's algorithm is used to find the shortest path
+    from that center to its neighbors. The number of nodes visited on that shortest
+    path determines the degree of separation of the corresponding neighbor. I.e.,
+    all atoms whose shortest paths from the center site visit at most 1 node must
+    be direct neighbors to the center site, which gives BE2-type fragments; all
+    atoms whose shortest paths visit at most 2 nodes must then be second-order
+    neighbors, hence BE3; and so on.
+
+    Parameters
+    ----------
+    mol : pyscf.gto.mole.Mole
+        The molecule object.
+    be_type : str
+        The order of nearest neighbors (with respect to the center atom)
+        included in a fragment. Supports all 'BEn', with 'n' in -
+        [1, 2, 3, 4, 5, 6, 7, 8, 9] having been tested.
+    frozen_core: bool
+        Whether to exclude core AO indices from the fragmentation process.
+        True by default.
+    remove_nonunique_frags: bool
+        Whether to remove fragments which are strict subsets of another
+        fragment in the system. True by default.
+    frag_prefix: str
+        Prefix to be appended to the fragment datanames. Useful for managing
+        fragment scratch directories.
+    connectivity: str
+        Keyword string specifying the distance metric to be used for edge
+        weights in the fragment adjacency graph. Currently supports "euclidean"
+        (which uses the square of the distance between atoms in real
+        space to determine connectivity within a fragment.)
+    """
     assert mol is not None
 
     fragment_type_order = int(be_type[-1])
