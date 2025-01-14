@@ -29,15 +29,4 @@ References
    :maxdepth: 1
 
    install
-   usage
-   fragment
-   pfrag
-   kernel
-   optimize
-   solvers
-   misc
-
-
-
-.. role:: bash(code)
-   :language: bash
+   api_reference

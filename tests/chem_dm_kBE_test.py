@@ -8,7 +8,7 @@ Author(s): Shaun Weatherly
 
 import unittest
 
-import numpy
+from numpy import eye
 from pyscf.pbc import df, gto, scf
 
 from quemb.kbe import BE, fragpart
@@ -29,7 +29,7 @@ class Test_kBE_Full(unittest.TestCase):
         b = 1.0
         c = 12.0
 
-        lat = numpy.eye(3)
+        lat = eye(3)
         lat[0, 0] = a
         lat[1, 1] = b
         lat[2, 2] = c
@@ -54,7 +54,7 @@ class Test_kBE_Full(unittest.TestCase):
         b = 1.0
         c = 12.0
 
-        lat = numpy.eye(3)
+        lat = eye(3)
         lat[0, 0] = a
         lat[1, 1] = b
         lat[2, 2] = c

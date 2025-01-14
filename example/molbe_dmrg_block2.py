@@ -2,21 +2,17 @@
 # `block2` is a DMRG and sparse tensor network library developed by the
 # Garnet-Chan group at Caltech: https://block2.readthedocs.io/en/latest/index.html
 
-import os
-
 import matplotlib.pyplot as plt
-import numpy
+import numpy as np
 from pyscf import cc, fci, gto, scf
 
 from quemb.molbe import BE, fragpart
+from quemb.molbe.solver import DMRG_ArgsUser
 
 # We'll consider the dissociation curve for a 1D chain of 8 H-atoms:
 num_points = 3
-seps = numpy.linspace(0.60, 1.6, num=num_points)
+seps = np.linspace(0.60, 1.6, num=num_points)
 fci_ecorr, ccsd_ecorr, ccsdt_ecorr, bedmrg_ecorr = [], [], [], []
-
-# Specify a scratch directory for fragment DMRG files:
-scratch = os.getcwd()
 
 for a in seps:
     # Hartree-Fock serves as the starting point for all BE calculations:
@@ -57,9 +53,10 @@ for a in seps:
     # Next, run BE-DMRG with default parameters and maxM=100.
     mybe.oneshot(
         solver="block2",  # or 'DMRG', 'DMRGSCF', 'DMRGCI'
-        scratch_dir=scratch,  # Scratch dir for fragment DMRG
-        maxM=100,  # Max fragment bond dimension
-        force_cleanup=True,  # Remove all fragment DMRG tmpfiles
+        solver_args=DMRG_ArgsUser(
+            maxM=100,  # Max fragment bond dimension
+            force_cleanup=True,  # Remove all fragment DMRG tmpfiles
+        ),
     )
 
     bedmrg_ecorr.append(mybe.ebe_tot - mf.e_tot)
@@ -79,7 +76,7 @@ ax.plot(seps, ccsdt_ecorr, "o-", linewidth=1, label="CCSD(T)")
 ax.plot(seps, bedmrg_ecorr, "o-", linewidth=1, label="BE1-DMRG")
 ax.legend()
 
-plt.savefig(os.path.join(scratch, f"BEDMRG_H8_PES{num_points}.png"))
+plt.savefig(f"BEDMRG_H8_PES{num_points}.png")
 
 # (See ../quemb/example/figures/BEDMRG_H8_PES20.png for an example.)
 
@@ -102,21 +99,22 @@ mybe = BE(mf, fobj, lo_method="pipek-mezey", pop_method="lowdin")
 
 mybe.optimize(
     solver="block2",  # or 'DMRG', 'DMRGSCF', 'DMRGCI'
-    scratch=scratch,  # Scratch dir for fragment DMRG
-    startM=20,  # Initial fragment bond dimension (1st sweep)
-    maxM=200,  # Maximum fragment bond dimension
     max_iter=60,  # Max number of sweeps
-    twodot_to_onedot=50,  # Sweep num to switch from two- to one-dot algo.
-    max_mem=40,  # Max memory (in GB) allotted to fragment DMRG
-    max_noise=1e-3,  # Max MPS noise introduced per sweep
-    min_tol=1e-8,  # Tighest Davidson tolerance per sweep
-    block_extra_keyword=["fiedler"],  # Specify orbital reordering algorithm
-    force_cleanup=True,  # Remove all fragment DMRG tmpfiles
     only_chem=True,
+    solver_args=DMRG_ArgsUser(
+        startM=20,  # Initial fragment bond dimension (1st sweep)
+        maxM=200,  # Maximum fragment bond dimension
+        twodot_to_onedot=50,  # Sweep num to switch from two- to one-dot algo.
+        max_mem=40,  # Max memory (in GB) allotted to fragment DMRG
+        max_noise=1e-3,  # Max MPS noise introduced per sweep
+        min_tol=1e-8,  # Tighest Davidson tolerance per sweep
+        block_extra_keyword=["fiedler"],  # Specify orbital reordering algorithm
+        force_cleanup=True,  # Remove all fragment DMRG tmpfiles
+    ),
 )
 
 # Or, alternatively, we can construct a full schedule by hand:
-schedule = {
+schedule: dict[str, list[int] | list[float]] = {
     "scheduleSweeps": [0, 10, 20, 30, 40, 50],  # Sweep indices
     "scheduleMaxMs": [25, 50, 100, 200, 500, 500],  # Sweep maxMs
     "scheduleTols": [1e-5, 1e-5, 1e-6, 1e-6, 1e-8, 1e-8],  # Sweep Davidson tolerances
@@ -126,11 +124,12 @@ schedule = {
 # and pass it to the fragment solver through `schedule_kwargs`:
 mybe.optimize(
     solver="block2",
-    scratch=scratch,
-    schedule_kwargs=schedule,
-    block_extra_keyword=["fiedler"],
-    force_cleanup=True,
     only_chem=True,
+    solver_args=DMRG_ArgsUser(
+        schedule_kwargs=schedule,
+        block_extra_keyword=["fiedler"],
+        force_cleanup=True,
+    ),
 )
 
 # To make sure the calculation is proceeding as expected, make sure to check

@@ -2,8 +2,19 @@
 #            Oinam Meitei
 #
 
-import numpy
+import numpy as np
 import scipy
+from numpy import (
+    allclose,
+    array,
+    asarray,
+    complex128,
+    diag,
+    eye,
+    where,
+    zeros,
+    zeros_like,
+)
 from numpy.linalg import eigh, inv, multi_dot, norm
 from pyscf.pbc import gto as pgto
 
@@ -35,13 +46,13 @@ def cano_orth(A, thr=1.0e-7, ovlp=None):
 def get_symm_orth_mat_k(A, thr=1.0e-7, ovlp=None):
     S = dot_gen(A, A, ovlp)
     e, u = scipy.linalg.eigh(S)
-    if int(numpy.sum(e < thr)) > 0:
+    if (e < thr).any():
         raise ValueError(
             "Linear dependence is detected in the column space of A: "
             "smallest eigenvalue (%.3E) is less than thr (%.3E). "
-            "Please use 'cano_orth' instead." % (numpy.min(e), thr)
+            "Please use 'cano_orth' instead." % (np.min(e), thr)
         )
-    return u @ numpy.diag(e**-0.5) @ u.conj().T
+    return u @ diag(e**-0.5) @ u.conj().T
 
 
 def symm_orth_k(A, thr=1.0e-7, ovlp=None):
@@ -50,40 +61,44 @@ def symm_orth_k(A, thr=1.0e-7, ovlp=None):
 
 
 def get_xovlp_k(cell, kpts, basis="sto-3g"):
-    """
-    Gets set of valence orbitals based on smaller (should be minimal) basis
-    inumpy.t:
-        cell - pyscf cell object, just need it for the working basis
-        basis - the IAO basis, Knizia recommended 'minao'
-    returns:
-        S12 - Overlap of two basis sets
+    """Gets set of valence orbitals based on smaller (should be minimal) basis
+
+    Parameters
+    ----------
+    cell:
+        pyscf cell object, just need it for the working basis
+    basis:
+        the IAO basis, Knizia recommended 'minao'
+
+    Returns
+    -------
+    tuple:
+        S12 - Overlap of two basis sets,
         S22 - Overlap in new basis set
     """
     cell_alt = cell.copy()
     cell_alt.basis = basis
     cell_alt.build()
 
-    S22 = numpy.array(
-        cell_alt.pbc_intor("int1e_ovlp", hermi=1, kpts=kpts), dtype=numpy.complex128
-    )
-    S12 = numpy.array(
+    S22 = array(cell_alt.pbc_intor("int1e_ovlp", hermi=1, kpts=kpts), dtype=complex128)
+    S12 = array(
         pgto.cell.intor_cross("int1e_ovlp", cell, cell_alt, kpts=kpts),
-        dtype=numpy.complex128,
+        dtype=complex128,
     )
 
     return (S12, S22)
 
 
 def remove_core_mo_k(Clo, Ccore, S, thr=0.5):
-    assert numpy.allclose(Clo.conj().T @ S @ Clo, numpy.eye(Clo.shape[1]))
-    assert numpy.allclose(Ccore.conj().T @ S @ Ccore, numpy.eye(Ccore.shape[1]))
+    assert allclose(Clo.conj().T @ S @ Clo, eye(Clo.shape[1]))
+    assert allclose(Ccore.conj().T @ S @ Ccore, eye(Ccore.shape[1]))
 
     n, nlo = Clo.shape
     ncore = Ccore.shape[1]
     Pcore = Ccore @ Ccore.conj().T @ S
-    Clo1 = (numpy.eye(n) - Pcore) @ Clo
-    pop = numpy.diag(Clo1.conj().T @ S @ Clo1)
-    idx_keep = numpy.where(pop > thr)[0]
+    Clo1 = (eye(n) - Pcore) @ Clo
+    pop = diag(Clo1.conj().T @ S @ Clo1)
+    idx_keep = where(pop > thr)[0]
     assert len(idx_keep) == nlo - ncore
     Clo2 = symm_orth_k(Clo1[:, idx_keep], ovlp=S)
 
@@ -92,41 +107,49 @@ def remove_core_mo_k(Clo, Ccore, S, thr=0.5):
 
 def get_iao_k(Co, S12, S1, S2=None, ortho=True):
     """
-    Args:
-        Co: occupied coefficient matrix with core
-        p: valence AO matrix in AO
-        no: number of occ orbitals
-        S12: ovlp between working basis and valence basis
-             can be thought of as working basis in valence basis
-        S1: ao ovlp matrix
-        S2: valence AO ovlp
+
+    Parameters
+    ----------
+    Co:
+        occupied coefficient matrix with core
+    p:
+        valence AO matrix in AO
+    no:
+        number of occ orbitals
+    S12:
+        ovlp between working basis and valence basis
+        can be thought of as working basis in valence basis
+    S1:
+        ao ovlp matrix
+    S2:
+        valence AO ovlp
     """
 
     nk, nao, nmo = S12.shape
     unused(nmo)
-    P1 = numpy.zeros_like(S1, dtype=numpy.complex128)
-    P2 = numpy.zeros_like(S2, dtype=numpy.complex128)
+    P1 = zeros_like(S1, dtype=complex128)
+    P2 = zeros_like(S2, dtype=complex128)
 
     for k in range(nk):
         P1[k] = scipy.linalg.inv(S1[k])
         P2[k] = scipy.linalg.inv(S2[k])
 
-    Ciao = numpy.zeros((nk, nao, S12.shape[-1]), dtype=numpy.complex128)
+    Ciao = zeros((nk, nao, S12.shape[-1]), dtype=complex128)
     for k in range(nk):
         # Cotil = P1[k] @ S12[k] @ P2[k] @ S12[k].conj().T @ Co[k]
         Cotil = multi_dot((P1[k], S12[k], P2[k], S12[k].conj().T, Co[k]))
-        ptil = numpy.dot(P1[k], S12[k])
+        ptil = P1[k] @ S12[k]
         Stil = multi_dot((Cotil.conj().T, S1[k], Cotil))
 
-        Po = numpy.dot(Co[k], Co[k].conj().T)
+        Po = Co[k] @ Co[k].conj().T
 
         Stil_inv = inv(Stil)
 
         Potil = multi_dot((Cotil, Stil_inv, Cotil.conj().T))
 
         Ciao[k] = (
-            numpy.eye(nao, dtype=numpy.complex128)
-            - numpy.dot((Po + Potil - 2.0 * multi_dot((Po, S1[k], Potil))), S1[k])
+            eye(nao, dtype=complex128)
+            - (Po + Potil - 2.0 * multi_dot([Po, S1[k], Potil])) @ S1[k]
         ) @ ptil
         if ortho:
             Ciao[k] = symm_orth_k(Ciao[k], ovlp=S1[k])
@@ -140,36 +163,53 @@ def get_iao_k(Co, S12, S1, S2=None, ortho=True):
 
 def get_pao_k(Ciao, S, S12):
     """
-    Args:
-        Ciao: output of :func:`get_iao`
-        S: ao ovlp matrix
-        S12: valence orbitals projected into ao basis
-    Return:
-        Cpao (orthogonalized)
+
+    Parameters
+    ----------
+    Ciao:
+        output of :func:`quemb.kbe.lo_k.get_iao_k`
+    S:
+        ao ovlp matrix
+    S12:
+        valence orbitals projected into ao basis
+
+    Returns
+    -------
+    Cpao: numpy.ndarray
+        (orthogonalized)
     """
     nk, nao, niao = Ciao.shape
     unused(niao)
     Cpao = []
     for k in range(nk):
         s12 = scipy.linalg.inv(S[k]) @ S12[k]
-        nonval = numpy.eye(nao) - s12 @ s12.conj().T
+        nonval = eye(nao) - s12 @ s12.conj().T
 
         Piao = Ciao[k] @ Ciao[k].conj().T @ S[k]
-        cpao_ = (numpy.eye(nao) - Piao) @ nonval
+        cpao_ = (eye(nao) - Piao) @ nonval
 
         Cpao.append(cano_orth(cpao_, ovlp=S[k]))
-    return numpy.asarray(Cpao)
+    return asarray(Cpao)
 
 
 def get_pao_native_k(Ciao, S, mol, valence_basis, ortho=True):
     """
-    Args:
-        Ciao: output of :func:`get_iao_native`
-        S: ao ovlp matrix
-        mol: mol object
-        valence basis: basis used for valence orbitals
-    Return:
-        Cpao (symmetrically orthogonalized)
+
+    Parameters
+    ----------
+    Ciao :
+        output of :code:`get_iao_native`
+    S :
+        ao ovlp matrix
+    mol :
+        mol object
+    valence_basis:
+        basis used for valence orbitals
+
+    Returns
+    --------
+    Cpao : numpy.ndarray
+        (symmetrically orthogonalized)
     """
     nk, nao, niao = Ciao.shape
 
@@ -188,10 +228,10 @@ def get_pao_native_k(Ciao, S, mol, valence_basis, ortho=True):
     ]
 
     niao = len(vir_idx)
-    Cpao = numpy.zeros((nk, nao, niao), dtype=numpy.complex128)
+    Cpao = zeros((nk, nao, niao), dtype=complex128)
     for k in range(nk):
         Piao = multi_dot((Ciao[k], Ciao[k].conj().T, S[k]))
-        cpao_ = (numpy.eye(nao) - Piao)[:, vir_idx]
+        cpao_ = (eye(nao) - Piao)[:, vir_idx]
         if ortho:
             try:
                 Cpao[k] = symm_orth_k(cpao_, ovlp=S[k])

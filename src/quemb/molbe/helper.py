@@ -3,7 +3,17 @@
 
 
 import h5py
-import numpy
+from numpy import (
+    array,
+    asarray,
+    diag_indices,
+    einsum,
+    eye,
+    float64,
+    tril_indices,
+    zeros,
+    zeros_like,
+)
 from numpy.linalg import multi_dot
 from pyscf import ao2mo, gto, lib, scf
 
@@ -38,19 +48,20 @@ def get_veff(eri_, dm, S, TA, hf_veff):
     """
 
     # Transform the density matrix
-    ST = numpy.dot(S, TA)
+    ST = S @ TA
     P_ = multi_dot((ST.T, dm, ST))
 
     # Ensure the transformed density matrix and ERI are real and double-precision
-    P_ = numpy.asarray(P_.real, dtype=numpy.double)
-    eri_ = numpy.asarray(eri_, dtype=numpy.double)
+    P_ = asarray(P_.real, dtype=float64)
+    eri_ = asarray(eri_, dtype=float64)
 
     # Compute the Coulomb (J) and exchange (K) integrals
     vj, vk = scf.hf.dot_eri_dm(eri_, P_, hermi=1, with_j=True, with_k=True)
     Veff_ = vj - 0.5 * vk
-    Veff = multi_dot((TA.T, hf_veff, TA)) - Veff_
+    Veff0 = multi_dot((TA.T, hf_veff, TA))
+    Veff = Veff0 - Veff_
 
-    return Veff
+    return Veff, Veff0
 
 
 # create pyscf pbc scf object
@@ -88,7 +99,7 @@ def get_scfObj(
     nao = h1.shape[0]
 
     # Initialize a dummy molecule with the required number of electrons
-    S = numpy.eye(nao)
+    S = eye(nao)
     mol = gto.M()
     mol.nelectron = nocc * 2
     mol.incore_anyway = True
@@ -163,16 +174,14 @@ def get_eri(i_frag, Nao, symm=8, ignore_symm=False, eri_file="eri_file.h5"):
         Electron repulsion integrals, possibly restored with symmetry.
     """
     # Open the HDF5 file and read the ERI for the specified fragment
-    r = h5py.File(eri_file, "r")
-    eri__ = numpy.array(r.get(i_frag))
+    with h5py.File(eri_file, "r") as r:
+        eri__ = array(r.get(i_frag))
 
-    # Optionally restore the symmetry of the ERI
-    if not ignore_symm:
-        # Set the number of threads for the library to 1
-        lib.num_threads(1)
-        eri__ = ao2mo.restore(symm, eri__, Nao)
-
-    r.close()
+        # Optionally restore the symmetry of the ERI
+        if not ignore_symm:
+            # Set the number of threads for the library to 1
+            lib.num_threads(1)
+            eri__ = ao2mo.restore(symm, eri__, Nao)
 
     return eri__
 
@@ -210,12 +219,13 @@ def get_frag_energy(
     efac,
     TA,
     h1,
-    hf_veff,
     rdm1,
     rdm2s,
     dname,
-    eri_file="eri_file.h5",
     veff0=None,
+    veff=None,
+    use_cumulant=True,
+    eri_file="eri_file.h5",
 ):
     """
     Compute the fragment energy.
@@ -238,14 +248,18 @@ def get_frag_energy(
         Transformation matrix.
     h1 : numpy.ndarray
         One-electron Hamiltonian.
-    hf_veff : numpy.ndarray
-        Hartree-Fock effective potential.
     rdm1 : numpy.ndarray
         One-particle density matrix.
     rdm2s : numpy.ndarray
         Two-particle density matrix.
     dname : str
         Dataset name in the HDF5 file.
+    veff0 : numpy.ndarray
+        veff0 matrix, the original hf_veff in the fragment Schmidt space
+    veff : numpy.ndarray
+        veff for non-cumulant energy expression
+    use_cumulant: bool
+        Whether to return cumulant energy, by default True
     eri_file : str, optional
         Filename of the HDF5 file containing the electron repulsion integrals.
         Defaults to 'eri_file.h5'.
@@ -260,18 +274,20 @@ def get_frag_energy(
     rdm1s_rot = mo_coeffs @ rdm1 @ mo_coeffs.T * 0.5
 
     # Construct the Hartree-Fock 1-RDM
-    hf_1rdm = numpy.dot(mo_coeffs[:, :nsocc], mo_coeffs[:, :nsocc].conj().T)
+    hf_1rdm = mo_coeffs[:, :nsocc] @ mo_coeffs[:, :nsocc].conj().T
 
-    # Compute the difference between the rotated RDM1 and the Hartree-Fock 1-RDM
-    delta_rdm1 = 2 * (rdm1s_rot - hf_1rdm)
+    if use_cumulant:
+        # Compute the difference between the rotated RDM1 and the Hartree-Fock 1-RDM
+        delta_rdm1 = 2 * (rdm1s_rot - hf_1rdm)
 
-    if veff0 is None:
-        # Compute the effective potential in the transformed basis
-        veff0 = multi_dot((TA.T, hf_veff, TA))
+        # Calculate the one-electron contributions
+        e1 = einsum("ij,ij->i", h1[:nfsites], delta_rdm1[:nfsites])
+        ec = einsum("ij,ij->i", veff0[:nfsites], delta_rdm1[:nfsites])
 
-    # Calculate the one-electron and effective potential energy contributions
-    e1 = numpy.einsum("ij,ij->i", h1[:nfsites], delta_rdm1[:nfsites])
-    ec = numpy.einsum("ij,ij->i", veff0[:nfsites], delta_rdm1[:nfsites])
+    else:
+        # Calculate the one-electron and effective potential energy contributions
+        e1 = 2 * einsum("ij,ij->i", h1[:nfsites], rdm1s_rot[:nfsites])
+        ec = einsum("ij,ij->i", veff[:nfsites], rdm1s_rot[:nfsites])
 
     if TA.ndim == 3:
         jmax = TA[0].shape[1]
@@ -279,26 +295,25 @@ def get_frag_energy(
         jmax = TA.shape[1]
 
     # Load the electron repulsion integrals from the HDF5 file
-    r = h5py.File(eri_file, "r")
-    eri = r[dname][()]
-    r.close()
+    with h5py.File(eri_file, "r") as r:
+        eri = r[dname][()]
 
     # Rotate the RDM2 into the MO basis
-    rdm2s = numpy.einsum(
+    rdm2s = einsum(
         "ijkl,pi,qj,rk,sl->pqrs", 0.5 * rdm2s, *([mo_coeffs] * 4), optimize=True
     )
 
     # Initialize the two-electron energy contribution
-    e2 = numpy.zeros_like(e1)
+    e2 = zeros_like(e1)
 
     # Calculate the two-electron energy contribution
     for i in range(nfsites):
         for j in range(jmax):
             ij = i * (i + 1) // 2 + j if i > j else j * (j + 1) // 2 + i
             Gij = rdm2s[i, j, :jmax, :jmax].copy()
-            Gij[numpy.diag_indices(jmax)] *= 0.5
+            Gij[diag_indices(jmax)] *= 0.5
             Gij += Gij.T
-            e2[i] += Gij[numpy.tril_indices(jmax)] @ eri[ij]
+            e2[i] += Gij[tril_indices(jmax)] @ eri[ij]
 
     # Sum the energy contributions
     e_ = e1 + e2 + ec
@@ -383,7 +398,7 @@ def get_frag_energy_u(
 
     # Construct the Hartree-Fock RDM1 for both spin the the Schmidt space
     hf_1rdm = [
-        numpy.dot(mo_coeffs[s][:, : nsocc[s]], mo_coeffs[s][:, : nsocc[s]].conj().T)
+        mo_coeffs[s][:, : nsocc[s]] @ mo_coeffs[s][:, : nsocc[s]].conj().T
         for s in [0, 1]
     ]
 
@@ -402,24 +417,23 @@ def get_frag_energy_u(
 
     # Calculate the one-electron and effective potential energy contributions
     e1 = [
-        numpy.einsum("ij,ij->i", h1[s][: nfsites[s]], delta_rdm1[s][: nfsites[s]])
+        einsum("ij,ij->i", h1[s][: nfsites[s]], delta_rdm1[s][: nfsites[s]])
         for s in [0, 1]
     ]
     ec = [
-        numpy.einsum("ij,ij->i", veff0[s][: nfsites[s]], delta_rdm1[s][: nfsites[s]])
+        einsum("ij,ij->i", veff0[s][: nfsites[s]], delta_rdm1[s][: nfsites[s]])
         for s in [0, 1]
     ]
 
     jmax = [TA[0].shape[1], TA[1].shape[1]]
 
     # Load ERIs from the HDF5 file
-    r = h5py.File(eri_file, "r")
-    Vs = [r[dname[0]][()], r[dname[1]][()], r[dname[2]][()]]
-    r.close()
+    with h5py.File(eri_file, "r") as r:
+        Vs = [r[dname[0]][()], r[dname[1]][()], r[dname[2]][()]]
 
     # Rotate the RDM2 into the MO basis
     rdm2s_k = [
-        numpy.einsum(
+        einsum(
             "ijkl,pi,qj,rk,sl->pqrs",
             rdm2s[s],
             *([mo_coeffs[s12[0]]] * 2 + [mo_coeffs[s12[1]]] * 2),
@@ -429,11 +443,11 @@ def get_frag_energy_u(
     ]
 
     # Initialize the two-electron energy contribution
-    e2 = [numpy.zeros(h1[0].shape[0]), numpy.zeros(h1[1].shape[0])]
+    e2 = [zeros(h1[0].shape[0]), zeros(h1[1].shape[0])]
 
     # Calculate the two-electron energy contribution for alpha and beta
     def contract_2e(jmaxs, rdm2_, V_, s, sym):
-        e2_ = numpy.zeros(nfsites[s])
+        e2_ = zeros(nfsites[s])
         jmax1, jmax2 = [jmaxs] * 2 if isinstance(jmaxs, int) else jmaxs
         for i in range(nfsites[s]):
             for j in range(jmax1):
@@ -444,9 +458,9 @@ def get_frag_energy_u(
                 else:
                     Gij = rdm2_[:jmax2, :jmax2, i, j].copy()
                     Vij = V_[:, ij]
-                Gij[numpy.diag_indices(jmax2)] *= 0.5
+                Gij[diag_indices(jmax2)] *= 0.5
                 Gij += Gij.T
-                e2_[i] += Gij[numpy.tril_indices(jmax2)] @ Vij
+                e2_[i] += Gij[tril_indices(jmax2)] @ Vij
         e2_ *= 0.5
 
         return e2_

@@ -1,4 +1,8 @@
-from typing import Any, Callable, Optional, TypeVar
+from collections.abc import Iterable
+from inspect import signature
+from itertools import islice
+from pathlib import Path
+from typing import Any, Callable, TypeVar
 
 Function = TypeVar("Function", bound=Callable)
 
@@ -7,7 +11,7 @@ Function = TypeVar("Function", bound=Callable)
 # This is **intentional**.
 # The inner function `update_doc` takes a function
 # and returns a function **with** the exact same signature.
-def add_docstring(doc: Optional[str]) -> Callable[[Function], Function]:
+def add_docstring(doc: str | None) -> Callable[[Function], Function]:
     """Add a docstring to a function as decorator.
 
     Is useful for programmatically generating docstrings.
@@ -40,6 +44,30 @@ def copy_docstring(f: Callable) -> Callable[[Function], Function]:
     return add_docstring(f.__doc__)
 
 
+def _get_init_docstring(obj: type) -> str:
+    sig = signature(obj.__init__)  # type: ignore[misc]
+    docstring = """Initialization
+
+Parameters
+----------
+"""
+    # we want to skip `self`
+    for var in islice(sig.parameters.values(), 1, None):
+        docstring += f"{var.name}: {var.annotation}\n"
+    return docstring
+
+
+def add_init_docstring(obj: type) -> type:
+    """Add a sensible docstring to the __init__ method of an attrs class
+
+    Makes only sense if the attributes are type-annotated.
+    Is a stopgap measure until https://github.com/sphinx-doc/sphinx/issues/10682
+    is solved.
+    """
+    obj.__init__.__doc__ = _get_init_docstring(obj)  # type: ignore[misc]
+    return obj
+
+
 def unused(*args: Any) -> None:
     pass
 
@@ -62,3 +90,9 @@ def ncore_(z: int) -> int:
     else:
         raise ValueError("Ncore not computed in helper.ncore(), add it yourself!")
     return nc
+
+
+def delete_multiple_files(*args: Iterable[Path]) -> None:
+    for files in args:
+        for file in files:
+            file.unlink()

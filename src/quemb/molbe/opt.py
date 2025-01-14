@@ -1,13 +1,19 @@
 # Author(s): Oinam Romesh Meitei
 
 
-import numpy
+from attrs import Factory, define
+from numpy import array, float64
 
+from quemb.kbe.pfrag import Frags as pFrags
 from quemb.molbe.be_parallel import be_func_parallel
-from quemb.molbe.solver import be_func
+from quemb.molbe.pfrag import Frags
+from quemb.molbe.solver import UserSolverArgs, be_func
 from quemb.shared.external.optqn import FrankQN
+from quemb.shared.manage_scratch import WorkDir
+from quemb.shared.typing import Matrix, Vector
 
 
+@define
 class BEOPT:
     """Perform BE optimization.
 
@@ -18,86 +24,63 @@ class BEOPT:
 
     Parameters
     ----------
-    pot : list
+    pot :
        List of initial BE potentials. The last element is for the global
        chemical potential.
-    Fobjs : quemb.molbe.fragment.fragpart
+    Fobjs :
        Fragment object
-    Nocc : int
+    Nocc :
        No. of occupied orbitals for the full system.
-    enuc : float
+    enuc :
        Nuclear component of the energy.
-    solver : str
+    scratch_dir :
+        Scratch directory
+    solver :
        High-level solver in bootstrap embedding. 'MP2', 'CCSD', 'FCI' are supported.
        Selected CI versions,
        'HCI', 'SHCI', & 'SCI' are also supported. Defaults to 'MP2'
-    only_chem : bool
+    only_chem :
        Whether to perform chemical potential optimization only.
        Refer to bootstrap embedding literatures.
-    nproc : int
+    nproc :
        Total number of processors assigned for the optimization. Defaults to 1.
        When nproc > 1, Python multithreading
        is invoked.
-    ompnum : int
+    ompnum :
        If nproc > 1, ompnum sets the number of cores for OpenMP parallelization.
        Defaults to 4
-    max_space : int
+    max_space :
        Maximum number of bootstrap optimizaiton steps, after which the optimization
        is called converged.
-    conv_tol : float
+    conv_tol :
        Convergence criteria for optimization. Defaults to 1e-6
-    ebe_hf : float
+    ebe_hf :
        Hartree-Fock energy. Defaults to 0.0
     """
 
-    def __init__(
-        self,
-        pot,
-        Fobjs,
-        Nocc,
-        enuc,
-        solver="MP2",
-        nproc=1,
-        ompnum=4,
-        only_chem=False,
-        hf_veff=None,
-        hci_pt=False,
-        hci_cutoff=0.001,
-        ci_coeff_cutoff=None,
-        select_cutoff=None,
-        max_space=500,
-        conv_tol=1.0e-6,
-        relax_density=False,
-        ebe_hf=0.0,
-        scratch_dir=None,
-        **solver_kwargs,
-    ):
-        # Initialize instance attributes
-        self.ebe_hf = ebe_hf
-        self.hf_veff = hf_veff
-        self.pot = pot
-        self.Fobjs = Fobjs
-        self.Nocc = Nocc
-        self.enuc = enuc
-        self.solver = solver
-        self.iter = 0
-        self.err = 0.0
-        self.Ebe = 0.0
-        self.max_space = max_space
-        self.nproc = nproc
-        self.ompnum = ompnum
-        self.only_chem = only_chem
-        self.conv_tol = conv_tol
-        self.relax_density = relax_density
-        # HCI parameters
-        self.hci_cutoff = hci_cutoff
-        self.ci_coeff_cutoff = ci_coeff_cutoff
-        self.select_cutoff = select_cutoff
-        self.hci_pt = hci_pt
-        self.solver_kwargs = solver_kwargs
-        self.scratch_dir = scratch_dir
+    pot: list[float]
+    Fobjs: list[Frags] | list[pFrags]
+    Nocc: int
+    enuc: float
+    scratch_dir: WorkDir
+    solver: str = "MP2"
+    nproc: int = 1
+    ompnum: int = 4
+    only_chem: bool = False
+    use_cumulant: bool = True
 
-    def objfunc(self, xk):
+    max_space: int = 500
+    conv_tol: float = 1.0e-6
+    relax_density: bool = False
+    ebe_hf: float = 0.0
+
+    iter: int = 0
+    err: float = 0.0
+    Ebe: Matrix[float64] = Factory(lambda: array([[0.0]]))
+
+    solver_args: UserSolverArgs | None = None
+
+    def objfunc(self, xk: list[float]) -> Vector[float64]:
         """
         Computes error vectors, RMS error, and BE energies.
 
@@ -106,7 +89,7 @@ class BEOPT:
 
         Parameters
         ----------
-        xk : list
+        xk :
             Current potentials in the BE optimization.
 
         Returns
@@ -123,19 +106,14 @@ class BEOPT:
                 self.Nocc,
                 self.solver,
                 self.enuc,
-                eeval=True,
-                return_vec=True,
-                hf_veff=self.hf_veff,
                 only_chem=self.only_chem,
-                hci_cutoff=self.hci_cutoff,
                 nproc=self.ompnum,
                 relax_density=self.relax_density,
-                ci_coeff_cutoff=self.ci_coeff_cutoff,
-                select_cutoff=self.select_cutoff,
-                hci_pt=self.hci_pt,
-                ebe_hf=self.ebe_hf,
                 scratch_dir=self.scratch_dir,
-                **self.solver_kwargs,
+                solver_args=self.solver_args,
+                use_cumulant=self.use_cumulant,
+                eeval=True,
+                return_vec=True,
             )
         else:
             err_, errvec_, ebe_ = be_func_parallel(
@@ -144,19 +122,15 @@ class BEOPT:
                 self.Nocc,
                 self.solver,
                 self.enuc,
-                eeval=True,
-                return_vec=True,
-                hf_veff=self.hf_veff,
+                only_chem=self.only_chem,
                 nproc=self.nproc,
                 ompnum=self.ompnum,
-                only_chem=self.only_chem,
-                hci_cutoff=self.hci_cutoff,
                 relax_density=self.relax_density,
-                ci_coeff_cutoff=self.ci_coeff_cutoff,
-                select_cutoff=self.select_cutoff,
-                ebe_hf=self.ebe_hf,
                 scratch_dir=self.scratch_dir,
-                **self.solver_kwargs,
+                solver_args=self.solver_args,
+                use_cumulant=self.use_cumulant,
+                eeval=True,
+                return_vec=True,
             )
 
         # Update error and BE energy
@@ -183,7 +157,6 @@ class BEOPT:
             print("             Chemical Potential Optimization", flush=True)
         print("-----------------------------------------------------", flush=True)
         print(flush=True)
-
         if method == "QN":
             print("-- In iter ", self.iter, flush=True)
 
@@ -198,7 +171,7 @@ class BEOPT:
 
             # Initialize the Quasi-Newton optimizer
             optQN = FrankQN(
-                self.objfunc, numpy.array(self.pot), f0, J0, max_space=self.max_space
+                self.objfunc, array(self.pot), f0, J0, max_space=self.max_space
             )
 
             if self.err < self.conv_tol:

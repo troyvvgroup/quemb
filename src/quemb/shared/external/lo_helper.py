@@ -4,7 +4,8 @@
 #         The code has been slightly modified.
 #
 
-import numpy
+import numpy as np
+from numpy import diag, where
 from numpy.linalg import eigh, matrix_power, norm
 
 
@@ -21,7 +22,7 @@ def get_symm_mat_pow(A, p, check_symm=True, thresh=1.0e-8):
         assert norm(A - A.conj().T) < thresh
 
     e, u = eigh(A)
-    Ap = u @ numpy.diag(e**p) @ u.conj().T
+    Ap = u @ diag(e**p) @ u.conj().T
 
     return Ap
 
@@ -60,8 +61,8 @@ def reorder_by_atom_(Clo, aoind_by_atom, S, thr=0.5):
     loshift = 0
     for ia in range(natom):
         ra = aoind_by_atom[ia]
-        poplo_by_atom = numpy.sum(Clo_soao[ra] ** 2.0, axis=0)
-        loind_a = numpy.where(poplo_by_atom > thr)[0].tolist()
+        poplo_by_atom = np.sum(Clo_soao[ra] ** 2.0, axis=0)
+        loind_a = where(poplo_by_atom > thr)[0].tolist()
         loind_reorder += loind_a
         nlo_a = len(loind_a)
         loind_by_atom[ia] = list(range(loshift, loshift + nlo_a))
