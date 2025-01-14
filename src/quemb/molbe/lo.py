@@ -360,7 +360,7 @@ class MixinLocalize:
                 W_ = C_ @ W_
 
             self.W = get_loc(
-                self.mol, W_, "PM", pop_method=pop_method, init_guess=init_guess
+                self.mf.mol, W_, "PM", pop_method=pop_method, init_guess=init_guess
             )
 
             if not self.frozen_core:
