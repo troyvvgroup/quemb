@@ -27,7 +27,7 @@ def test_keep_upon_error() -> None:
     with raises(ValueError):
         with WorkDir(my_tmp):
             raise ValueError
-    assert my_tmp.exists()
+    assert not my_tmp.exists()
 
     with WorkDir(my_tmp):
         pass
@@ -77,7 +77,9 @@ def test_creation_PID() -> None:
 
 
 def test_dunder_methods() -> None:
-    "Test if we can use an instance of `WorkDir` as if it was a `Path`"
+    """Test if we can use an instance of :class:`quemb.shared.manage_scratch.WorkDir`
+    as if it was a :class:`pathlib.Path`
+    """
     with WorkDir(path=Path("./scratch")) as scratch:
         with open(scratch / "test.txt", "w") as f:
             f.write("hello world")

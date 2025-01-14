@@ -6,44 +6,28 @@ import tempfile
 from typing import Tuple
 
 import numpy as np
-import pytest
-from pyscf import cc, gto, scf
+from pyscf import gto, scf
 
 from quemb.molbe import BE, fragpart
 from quemb.shared.io import write_cube
 
-# TODO: actually add meaningful tests for energies etc.
-#   At the moment the test fails already for technical reasons.
 
-
-@pytest.mark.skipif(
-    not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
-    reason="This test is known to fail.",
-)
 def test_octane_molbe() -> None:
     # Prepare octane molecule
     mol, mf = prepare_octane()
 
-    # Perform CCSD calculation to get reference energy for comparison
-    mc = cc.CCSD(mf, frozen=8)
-    mc.verbose = 0
-    ccsd_ecorr = mc.kernel()[0]
-    print(f"*** CCSD Correlation Energy: {ccsd_ecorr:>14.8f} Ha", flush=True)
-
-    # initialize fragments (use frozen core approximation)
-    fobj = fragpart(be_type="be2", mol=mol, frozen_core=True)
+    # initialize fragments (without using frozen core approximation)
+    fobj = fragpart(be_type="be2", mol=mol, frozen_core=False)
     # Initialize BE
     mybe = BE(mf, fobj)
 
     # Perform BE density matching.
-    # Uses 20 procs, each fragment calculation assigned OMP_NUM_THREADS to 4
-    # effectively running 5 fragment calculations in parallel
-    mybe.optimize(solver="CCSD", nproc=20, ompnum=4)
+    # Uses 4 procs, each fragment calculation assigned OMP_NUM_THREADS to 2
+    # effectively running 2 fragment calculations in parallel
+    mybe.optimize(solver="CCSD", nproc=4, ompnum=2)
 
-    # Compute error
-    be_ecorr = mybe.ebe_tot - mybe.ebe_hf
-    err_ = (ccsd_ecorr - be_ecorr) * 100.0 / ccsd_ecorr
-    print(f"*** BE2 Correlation Energy Error (%) : {err_:>8.4f} %")
+    assert np.isclose(mybe.ebe_tot, -310.3347211309688)
+    assert np.isclose(mybe.ebe_hf, -309.7847696458918)
 
 
 def test_cubegen() -> None:
@@ -65,9 +49,7 @@ def test_cubegen() -> None:
             reference_content = np.fromstring(
                 "".join(f.read().split("\n")[2:]), sep=" ", dtype=float
             )
-        assert np.isclose(
-            cube_content, reference_content
-        ).all(), "Cube file content does not match reference content."
+        assert np.isclose(cube_content, reference_content).all()
 
 
 def prepare_octane() -> Tuple[gto.Mole, scf.hf.RHF]:

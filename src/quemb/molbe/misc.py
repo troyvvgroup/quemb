@@ -4,7 +4,7 @@ import os
 import time
 
 import h5py
-import numpy
+from numpy import einsum, ix_, loadtxt
 from pyscf import ao2mo, df, gto, qmmm, scf
 from pyscf.lib import chkfile
 from pyscf.tools import fcidump
@@ -74,7 +74,7 @@ def libint2pyscf(
         raise ValueError("Input core Hamiltonian file does not exist")
 
     mol = gto.M(atom=xyzfile, basis=basis, spin=spin, charge=charge)
-    hcore_libint = numpy.loadtxt(hcore, skiprows=hcore_skiprows)
+    hcore_libint = loadtxt(hcore, skiprows=hcore_skiprows)
 
     libint2pyscf = []
     for labelidx, label in enumerate(mol.ao_labels()):
@@ -90,7 +90,7 @@ def libint2pyscf(
             elif "z" in label.split()[2]:
                 libint2pyscf.append(labelidx - 1)
 
-    hcore_pyscf = hcore_libint[numpy.ix_(libint2pyscf, libint2pyscf)]
+    hcore_pyscf = hcore_libint[ix_(libint2pyscf, libint2pyscf)]
 
     mol.incore_anyway = True
     if use_df:
@@ -122,19 +122,18 @@ def be2fcidump(be_obj, fcidump_prefix, basis):
     """
     for fidx, frag in enumerate(be_obj.Fobjs):
         # Read in eri
-        read = h5py.File(frag.eri_file, "r")
-        eri = read[frag.dname][()]  # 2e in embedding basis
-        read.close()
+        with h5py.File(frag.eri_file, "r") as read:
+            eri = read[frag.dname][()]  # 2e in embedding basis
         eri = ao2mo.restore(1, eri, frag.nao)
         if basis == "embedding":
             h1e = frag.fock
             h2e = eri
         elif basis == "fragment_mo":
             frag.scf()  # make sure that we have mo coefficients
-            h1e = numpy.einsum(
+            h1e = einsum(
                 "ij,ia,jb->ab", frag.fock, frag.mo_coeffs, frag.mo_coeffs, optimize=True
             )
-            h2e = numpy.einsum(
+            h2e = einsum(
                 "ijkl,ia,jb,kc,ld->abcd",
                 eri,
                 frag.mo_coeffs,
@@ -173,19 +172,18 @@ def ube2fcidump(be_obj, fcidump_prefix, basis):
     """
     for fidx, frag in enumerate(be_obj.Fobjs_a):
         # Read in eri
-        read = h5py.File(frag.eri_file, "r")
-        eri = read[frag.dname][()]  # 2e in embedding basis
-        read.close()
+        with h5py.File(frag.eri_file, "r") as read:
+            eri = read[frag.dname][()]  # 2e in embedding basis
         eri = ao2mo.restore(1, eri, frag.nao)
         if basis == "embedding":
             h1e = frag.fock
             h2e = eri
         elif basis == "fragment_mo":
             frag.scf()  # make sure that we have mo coefficients
-            h1e = numpy.einsum(
+            h1e = einsum(
                 "ij,ia,jb->ab", frag.fock, frag.mo_coeffs, frag.mo_coeffs, optimize=True
             )
-            h2e = numpy.einsum(
+            h2e = einsum(
                 "ijkl,ia,jb,kc,ld->abcd",
                 eri,
                 frag.mo_coeffs,
@@ -208,19 +206,18 @@ def ube2fcidump(be_obj, fcidump_prefix, basis):
 
     for fidx, frag in enumerate(be_obj.Fobjs_b):
         # Read in eri
-        read = h5py.File(frag.eri_file, "r")
-        eri = read[frag.dname][()]  # 2e in embedding basis
-        read.close()
+        with h5py.File(frag.eri_file, "r") as read:
+            eri = read[frag.dname][()]  # 2e in embedding basis
         eri = ao2mo.restore(1, eri, frag.nao)
         if basis == "embedding":
             h1e = frag.fock
             h2e = eri
         elif basis == "fragment_mo":
             frag.scf()  # make sure that we have mo coefficients
-            h1e = numpy.einsum(
+            h1e = einsum(
                 "ij,ia,jb->ab", frag.fock, frag.mo_coeffs, frag.mo_coeffs, optimize=True
             )
-            h2e = numpy.einsum(
+            h2e = einsum(
                 "ijkl,ia,jb,kc,ld->abcd",
                 eri,
                 frag.mo_coeffs,
@@ -314,7 +311,7 @@ def be2puffin(
         By default None
     ecp : str, optional
         specify the ECP for any atoms, accompanying the basis set
-        syntax; for example `{'Na': 'bfd-pp', 'Ru': 'bfd-pp'}`
+        syntax; for example :python:`{'Na': 'bfd-pp', 'Ru': 'bfd-pp'}`
         By default None
     """
     # The following imports have to happen here to avoid
@@ -346,25 +343,20 @@ def be2puffin(
                         elif "z" in label.split()[2]:
                             libint2pyscf.append(labelidx - 1)
 
-                hcore_pyscf = hcore[numpy.ix_(libint2pyscf, libint2pyscf)]
+                hcore_pyscf = hcore[ix_(libint2pyscf, libint2pyscf)]
             else:
                 # Input hcore is in PySCF format
                 hcore_pyscf = hcore
         if jk is not None:
             jk_pyscf = (
-                jk[0][
-                    numpy.ix_(libint2pyscf, libint2pyscf, libint2pyscf, libint2pyscf)
-                ],
-                jk[1][
-                    numpy.ix_(libint2pyscf, libint2pyscf, libint2pyscf, libint2pyscf)
-                ],
+                jk[0][ix_(libint2pyscf, libint2pyscf, libint2pyscf, libint2pyscf)],
+                jk[1][ix_(libint2pyscf, libint2pyscf, libint2pyscf, libint2pyscf)],
             )
 
         mol.incore_anyway = True
         if unrestricted:
             if use_df and jk is None:
-                print("UHF and df are incompatible: use_df = False")
-                use_df = False
+                raise ValueError("UHF and df are incompatible: use_df = False")
             if hcore is None:
                 if pts_and_charges:
                     print(
@@ -396,12 +388,11 @@ def be2puffin(
                 mf = qmmm.mm_charge(
                     mf1, pts_and_charges[0], pts_and_charges[1], unit="bohr"
                 ).newton()
-                print(
-                    "Setting use_df to false and jk to none: have not tested DF and "
-                    "QM/MM from point charges at the same time"
-                )
-                use_df = False
-                jk = None
+                if use_df or jk is not None:
+                    raise ValueError(
+                        "Setting use_df to false and jk to none: have not tested DF "
+                        "and QM/MM from point charges at the same time"
+                    )
             elif use_df and jk is None:
                 mf = scf.RHF(mol).density_fit(auxbasis=df_aux_basis)
             else:
@@ -466,13 +457,11 @@ def be2puffin(
 
     # Run oneshot embedding and return system energy
 
-    mybe.oneshot(
-        solver=solver, nproc=nproc, ompnum=ompnum, calc_frag_energy=True, clean_eri=True
-    )
+    mybe.oneshot(solver=solver, nproc=nproc, ompnum=ompnum)
     return mybe.ebe_tot
 
 
-def print_energy(ecorr, e_V_Kapprox, e_F_dg, e_hf):
+def print_energy_cumulant(ecorr, e_V_Kapprox, e_F_dg, e_hf):
     # Print energy results
     print("-----------------------------------------------------", flush=True)
     print(" BE ENERGIES with cumulant-based expression", flush=True)
@@ -481,9 +470,27 @@ def print_energy(ecorr, e_V_Kapprox, e_F_dg, e_hf):
     print(" E_BE = E_HF + Tr(F del g) + Tr(V K_approx)", flush=True)
     print(" E_HF            : {:>14.8f} Ha".format(e_hf), flush=True)
     print(" Tr(F del g)     : {:>14.8f} Ha".format(e_F_dg), flush=True)
-    print(" Tr(V K_aprrox)  : {:>14.8f} Ha".format(e_V_Kapprox), flush=True)
+    print(" Tr(V K_approx)  : {:>14.8f} Ha".format(e_V_Kapprox), flush=True)
     print(" E_BE            : {:>14.8f} Ha".format(ecorr + e_hf), flush=True)
     print(" Ecorr BE        : {:>14.8f} Ha".format(ecorr), flush=True)
+    print("-----------------------------------------------------", flush=True)
+
+    print(flush=True)
+
+
+def print_energy_noncumulant(be_tot, e1, ec, e2, e_hf, e_nuc):
+    # Print energy results
+    print("-----------------------------------------------------", flush=True)
+    print(" BE ENERGIES with non-cumulant expression", flush=True)
+    print("-----------------------------------------------------", flush=True)
+    print(" E_BE = E_1 + E_C + E_2 + E_nuc", flush=True)
+    print(" E_HF            : {:>14.8f} Ha".format(e_hf), flush=True)
+    print(" E_Nuc           : {:>14.8f} Ha".format(e_nuc), flush=True)
+    print(" E_BE total      : {:>14.8f} Ha".format(be_tot + e_nuc), flush=True)
+    print(" E_1             : {:>14.8f} Ha".format(e1), flush=True)
+    print(" E_C             : {:>14.8f} Ha".format(ec), flush=True)
+    print(" E_2             : {:>14.8f} Ha".format(e2), flush=True)
+    print(" Ecorr BE        : {:>14.8f} Ha".format(be_tot + e_nuc - e_hf), flush=True)
     print("-----------------------------------------------------", flush=True)
 
     print(flush=True)

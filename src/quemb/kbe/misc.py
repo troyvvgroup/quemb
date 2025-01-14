@@ -1,8 +1,11 @@
 # Author(s): Oinam Romesh Meitei
 
-from numpy import arange, exp, sqrt
+from attrs import define
+from numpy import arange, exp, floating, sqrt
 from pyscf.lib import cartesian_prod
 from pyscf.pbc import tools
+
+from quemb.shared.typing import Matrix
 
 
 def sgeom(cell, kmesh=None):
@@ -31,40 +34,23 @@ def get_phase1(cell, kpts, kmesh):
     return exp(-1.0j * (Ts @ a_vec @ kpts.T))
 
 
+@define
 class storePBE:
-    def __init__(
-        self,
-        Nocc,
-        hf_veff,
-        hcore,
-        S,
-        C,
-        hf_dm,
-        hf_etot,
-        W,
-        lmo_coeff,
-        enuc,
-        ek,
-        E_core,
-        C_core,
-        P_core,
-        core_veff,
-    ):
-        self.Nocc = Nocc
-        self.hf_veff = hf_veff
-        self.hcore = hcore
-        self.S = S
-        self.C = C
-        self.hf_dm = hf_dm
-        self.hf_etot = hf_etot
-        self.W = W
-        self.lmo_coeff = lmo_coeff
-        self.enuc = enuc
-        self.ek = ek
-        self.E_core = E_core
-        self.C_core = C_core
-        self.P_core = P_core
-        self.core_veff = core_veff
+    Nocc: int
+    hf_veff: Matrix[floating]
+    hcore: Matrix[floating]
+    S: Matrix[floating]
+    C: Matrix[floating]
+    hf_dm: Matrix[floating]
+    hf_etot: float
+    W: Matrix[floating]
+    lmo_coeff: Matrix[floating]
+    enuc: float
+    ek: float
+    E_core: float
+    C_core: Matrix[floating]
+    P_core: Matrix[floating]
+    core_veff: Matrix[floating]
 
 
 def print_energy(ecorr, e_V_Kapprox, e_F_dg, e_hf, unitcell_nkpt):

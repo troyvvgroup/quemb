@@ -1,77 +1,92 @@
 # Author(s): Henry Tran, Oinam Meitei, Shaun Weatherly
 #
 
-import numpy
+import numpy as np
+from numpy import allclose, diag, eye, sqrt, where, zeros
 from numpy.linalg import eigh, inv, multi_dot, norm, svd
 from pyscf.gto import intor_cross
+from pyscf.gto.mole import Mole
 
 from quemb.shared.external.lo_helper import (
     get_aoind_by_atom,
     reorder_by_atom_,
 )
 from quemb.shared.helper import ncore_, unused
+from quemb.shared.typing import Matrix, Tensor3D
 
 
-def dot_gen(A, B, ovlp):
+def dot_gen(A: Matrix, B: Matrix, ovlp: Matrix | None = None) -> Matrix:
     return A.T @ B if ovlp is None else A.T @ ovlp @ B
 
 
-def get_cano_orth_mat(A, thr=1.0e-6, ovlp=None):
+def get_cano_orth_mat(
+    A: Matrix, thr: float = 1.0e-6, ovlp: Matrix | None = None
+) -> Matrix:
     S = dot_gen(A, A, ovlp)
     e, u = eigh(S)
     if thr > 0:
         idx_keep = e / e[-1] > thr
     else:
-        idx_keep = list(range(e.shape[0]))
-    U = u[:, idx_keep] * e[idx_keep] ** -0.5
-    return U
+        idx_keep = slice(0, e.shape[0])
+    return u[:, idx_keep] * e[idx_keep] ** -0.5
 
 
-def cano_orth(A, thr=1.0e-6, ovlp=None):
+def cano_orth(A: Matrix, thr: float = 1.0e-6, ovlp: Matrix | None = None) -> Matrix:
     """Canonically orthogonalize columns of A"""
     return A @ get_cano_orth_mat(A, thr, ovlp)
 
 
-def get_symm_orth_mat(A, thr=1.0e-6, ovlp=None):
+def get_symm_orth_mat(
+    A: Matrix, thr: float = 1.0e-6, ovlp: Matrix | None = None
+) -> Matrix:
     S = dot_gen(A, A, ovlp)
     e, u = eigh(S)
-    if int(numpy.sum(e < thr)) > 0:
+    if (e < thr).any():
         raise ValueError(
             "Linear dependence is detected in the column space of A: "
             "smallest eigenvalue (%.3E) is less than thr (%.3E). "
-            "Please use 'cano_orth' instead." % (numpy.min(e), thr)
+            "Please use 'cano_orth' instead." % (np.min(e), thr)
         )
-    return u @ numpy.diag(e**-0.5) @ u.T
+    return u @ diag(e**-0.5) @ u.T
 
 
-def symm_orth(A, thr=1.0e-6, ovlp=None):
+def symm_orth(A: Matrix, thr: float = 1.0e-6, ovlp: Matrix | None = None) -> Matrix:
     """Symmetrically orthogonalize columns of A"""
     return A @ get_symm_orth_mat(A, thr, ovlp)
 
 
-def remove_core_mo(Clo, Ccore, S, thr=0.5):
-    assert numpy.allclose(Clo.T @ S @ Clo, numpy.eye(Clo.shape[1]))
-    assert numpy.allclose(Ccore.T @ S @ Ccore, numpy.eye(Ccore.shape[1]))
+def remove_core_mo(Clo: Matrix, Ccore: Matrix, S: Matrix, thr: float = 0.5) -> Matrix:
+    assert allclose(Clo.T @ S @ Clo, eye(Clo.shape[1]))
+    assert allclose(Ccore.T @ S @ Ccore, eye(Ccore.shape[1]))
 
     n, nlo = Clo.shape
     ncore = Ccore.shape[1]
     Pcore = Ccore @ Ccore.T @ S
-    Clo1 = (numpy.eye(n) - Pcore) @ Clo
-    pop = numpy.diag(Clo1.T @ S @ Clo1)
-    idx_keep = numpy.where(pop > thr)[0]
+    Clo1 = (eye(n) - Pcore) @ Clo
+    pop = diag(Clo1.T @ S @ Clo1)
+    idx_keep = where(pop > thr)[0]
     assert len(idx_keep) == nlo - ncore
     return symm_orth(Clo1[:, idx_keep], ovlp=S)
 
 
-def get_xovlp(mol, basis="sto-3g"):
+def get_xovlp(
+    mol: Mole, basis: str = "sto-3g"
+) -> tuple[Matrix | Tensor3D, Matrix | Tensor3D]:
     """Gets set of valence orbitals based on smaller (should be minimal) basis
 
-    inumpy.t:
-        mol - pyscf mol object, just need it for the working basis
-        basis - the IAO basis, Knizia recommended 'minao'
-    returns:
-        S12 - Overlap of two basis sets
-        S22 - Overlap in new basis set
+    Parameters
+    ----------
+    mol :
+        just need it for the working basis
+    basis :
+        the IAO basis, Knizia recommended 'minao'
+
+    Returns
+    ------
+    S12 : numpy.ndarray
+        Overlap of two basis sets
+    S22 : numpy.ndarray
+        Overlap in new basis set
     """
     mol_alt = mol.copy()
     mol_alt.basis = basis
@@ -83,16 +98,29 @@ def get_xovlp(mol, basis="sto-3g"):
     return S12, S22
 
 
-def get_iao(Co, S12, S1, S2=None):
+def get_iao(
+    Co: Matrix,
+    S12: Matrix,
+    S1: Matrix,
+    S2: Matrix | None = None,
+) -> Matrix:
     """
-    Args:
-        Co: occupied coefficient matrix with core
-        p: valence AO matrix in AO
-        no: number of occ orbitals
-        S12: ovlp between working basis and valence basis
-             can be thought of as working basis in valence basis
-        S1: ao ovlp matrix
-        S2: valence AO ovlp
+
+    Parameters
+    ----------
+    Co:
+        occupied coefficient matrix with core
+    p:
+        valence AO matrix in AO
+    no:
+        number of occ orbitals
+    S12:
+        ovlp between working basis and valence basis
+        can be thought of as working basis in valence basis
+    S1:
+        ao ovlp matrix
+    S2:
+        valence AO ovlp
     """
     # define projection operators
     n = Co.shape[0]
@@ -111,7 +139,7 @@ def get_iao(Co, S12, S1, S2=None):
     Po = Co @ Co.T
     Potil = Cotil @ inv(Stil) @ Cotil.T
 
-    Ciao = (numpy.eye(n) - (Po + Potil - 2 * Po @ S1 @ Potil) @ S1) @ ptil
+    Ciao = (eye(n) - (Po + Potil - 2 * Po @ S1 @ Potil) @ S1) @ ptil
     Ciao = symm_orth(Ciao, ovlp=S1)
 
     # check span
@@ -121,39 +149,52 @@ def get_iao(Co, S12, S1, S2=None):
     return Ciao
 
 
-def get_pao(Ciao, S, S12):
+def get_pao(Ciao: Matrix, S: Matrix, S12: Matrix) -> Matrix:
     """
-    Args:
-        Ciao: output of :func:`get_iao`
-        S: ao ovlp matrix
-        S12: valence orbitals projected into ao basis
-    Return:
-        Cpao (orthogonalized)
+    Parameters
+    ----------
+    Ciao:
+        output of :func:`get_iao`
+    S:
+        ao ovlp matrix
+    S12:
+        valence orbitals projected into ao basis
+    Returns
+    -------
+    Cpao: :class:`quemb.shared.typing.Matrix`
+        (orthogonalized)
     """
     n = Ciao.shape[0]
     s12 = inv(S) @ S12
     nonval = (
-        numpy.eye(n) - s12 @ s12.T
+        eye(n) - s12 @ s12.T
     )  # set of orbitals minus valence (orth in working basis)
 
     Piao = Ciao @ Ciao.T @ S  # projector into IAOs
-    Cpao = (numpy.eye(n) - Piao) @ nonval  # project out IAOs from non-valence basis
+    Cpao_redundant = (eye(n) - Piao) @ nonval  # project out IAOs from non-valence basis
 
     # begin canonical orthogonalization to get rid of redundant orbitals
-    Cpao = cano_orth(Cpao, ovlp=S)
-
-    return Cpao
+    return cano_orth(Cpao_redundant, ovlp=S)
 
 
-def get_pao_native(Ciao, S, mol, valence_basis):
+def get_pao_native(Ciao: Matrix, S: Matrix, mol: Mole, valence_basis: str) -> Matrix:
     """
-    Args:
-        Ciao: output of :func:`get_iao_native`
-        S: ao ovlp matrix
-        mol: mol object
-        valence basis: basis used for valence orbitals
-    Return:
-        Cpao (symmetrically orthogonalized)
+
+    Parameters
+    ----------
+    Ciao:
+        output of :code:`get_iao_native`
+    S:
+        ao ovlp matrix
+    mol:
+        mol object
+    valence_basis:
+        basis used for valence orbitals
+    Returns
+    -------
+    Cpao: :class:`quemb.shared.typing.Matrix`
+        (symmetrically orthogonalized)
+
     """
     n = Ciao.shape[0]
 
@@ -172,7 +213,7 @@ def get_pao_native(Ciao, S, mol, valence_basis):
     ]
 
     Piao = Ciao @ Ciao.T @ S
-    Cpao = (numpy.eye(n) - Piao)[:, vir_idx]
+    Cpao = (eye(n) - Piao)[:, vir_idx]
 
     try:
         Cpao = symm_orth(Cpao, ovlp=S)
@@ -187,7 +228,13 @@ def get_pao_native(Ciao, S, mol, valence_basis):
     return Cpao
 
 
-def get_loc(mol, C, method, pop_method=None, init_guess=None):
+def get_loc(
+    mol: Mole,
+    C: Matrix,
+    method: str,
+    pop_method: str | None = None,
+    init_guess: Matrix | None = None,
+) -> Mole:
     if method.upper() == "ER":
         from pyscf.lo import ER as Localizer  # noqa: PLC0415
     elif method.upper() == "PM":
@@ -199,12 +246,10 @@ def get_loc(mol, C, method, pop_method=None, init_guess=None):
 
     mlo = Localizer(mol, C)
     if pop_method is not None:
-        mlo.pop_method = str(pop_method)
+        mlo.pop_method = pop_method
 
     mlo.init_guess = init_guess
-    C_ = mlo.kernel()
-
-    return C_
+    return mlo.kernel()
 
 
 class MixinLocalize:
@@ -238,41 +283,40 @@ class MixinLocalize:
         if lo_method == "lowdin":
             es_, vs_ = eigh(self.S)
             edx = es_ > 1.0e-15
-            self.W = numpy.dot(vs_[:, edx] / numpy.sqrt(es_[edx]), vs_[:, edx].T)
+            self.W = vs_[:, edx] / sqrt(es_[edx]) @ vs_[:, edx].T
             if self.frozen_core:
                 if self.unrestricted:
                     P_core = [
-                        numpy.eye(self.W.shape[0]) - numpy.dot(self.P_core[s], self.S)
-                        for s in [0, 1]
+                        eye(self.W.shape[0]) - (self.P_core[s] @ self.S) for s in [0, 1]
                     ]
-                    C_ = numpy.dot(P_core, self.W)
+                    C_ = P_core @ self.W
                     Cpop = [multi_dot((C_[s].T, self.S, C_[s])) for s in [0, 1]]
-                    Cpop = [numpy.diag(Cpop[s]) for s in [0, 1]]
-                    no_core_idx = [numpy.where(Cpop[s] > 0.7)[0] for s in [0, 1]]
+                    Cpop = [diag(Cpop[s]) for s in [0, 1]]
+                    no_core_idx = [where(Cpop[s] > 0.7)[0] for s in [0, 1]]
                     C_ = [C_[s][:, no_core_idx[s]] for s in [0, 1]]
                     S_ = [multi_dot((C_[s].T, self.S, C_[s])) for s in [0, 1]]
                     W_ = []
                     for s in [0, 1]:
                         es_, vs_ = eigh(S_[s])
-                        s_ = numpy.sqrt(es_)
-                        s_ = numpy.diag(1.0 / s_)
+                        s_ = sqrt(es_)
+                        s_ = diag(1.0 / s_)
                         W_.append(multi_dot((vs_, s_, vs_.T)))
-                    self.W = [numpy.dot(C_[s], W_[s]) for s in [0, 1]]
+                    self.W = [C_[s] @ W_[s] for s in [0, 1]]
                 else:
-                    P_core = numpy.eye(self.W.shape[0]) - numpy.dot(self.P_core, self.S)
-                    C_ = numpy.dot(P_core, self.W)
+                    P_core = eye(self.W.shape[0]) - self.P_core @ self.S
+                    C_ = P_core @ self.W
                     # NOTE: PYSCF has basis in 1s2s3s2p2p2p3p3p3p format
                     # fix no_core_idx - use population for now
                     Cpop = multi_dot((C_.T, self.S, C_))
-                    Cpop = numpy.diag(Cpop)
-                    no_core_idx = numpy.where(Cpop > 0.7)[0]
+                    Cpop = diag(Cpop)
+                    no_core_idx = where(Cpop > 0.7)[0]
                     C_ = C_[:, no_core_idx]
                     S_ = multi_dot((C_.T, self.S, C_))
                     es_, vs_ = eigh(S_)
-                    s_ = numpy.sqrt(es_)
-                    s_ = numpy.diag(1.0 / s_)
+                    s_ = sqrt(es_)
+                    s_ = diag(1.0 / s_)
                     W_ = multi_dot((vs_, s_, vs_.T))
-                    self.W = numpy.dot(C_, W_)
+                    self.W = C_ @ W_
 
             if self.unrestricted:
                 if self.frozen_core:
@@ -296,24 +340,24 @@ class MixinLocalize:
         elif lo_method in ["pipek-mezey", "pipek", "PM"]:
             es_, vs_ = eigh(self.S)
             edx = es_ > 1.0e-15
-            self.W = numpy.dot(vs_[:, edx] / numpy.sqrt(es_[edx]), vs_[:, edx].T)
+            self.W = vs_[:, edx] / sqrt(es_[edx]) @ vs_[:, edx].T
 
             es_, vs_ = eigh(self.S)
             edx = es_ > 1.0e-15
-            W_ = numpy.dot(vs_[:, edx] / numpy.sqrt(es_[edx]), vs_[:, edx].T)
+            W_ = vs_[:, edx] / sqrt(es_[edx]) @ vs_[:, edx].T
             if self.frozen_core:
-                P_core = numpy.eye(W_.shape[0]) - numpy.dot(self.P_core, self.S)
-                C_ = numpy.dot(P_core, W_)
+                P_core = eye(W_.shape[0]) - self.P_core @ self.S
+                C_ = P_core @ W_
                 Cpop = multi_dot((C_.T, self.S, C_))
-                Cpop = numpy.diag(Cpop)
-                no_core_idx = numpy.where(Cpop > 0.55)[0]
+                Cpop = diag(Cpop)
+                no_core_idx = where(Cpop > 0.55)[0]
                 C_ = C_[:, no_core_idx]
                 S_ = multi_dot((C_.T, self.S, C_))
                 es_, vs_ = eigh(S_)
-                s_ = numpy.sqrt(es_)
-                s_ = numpy.diag(1.0 / s_)
+                s_ = sqrt(es_)
+                s_ = diag(1.0 / s_)
                 W_ = multi_dot((vs_, s_, vs_.T))
-                W_ = numpy.dot(C_, W_)
+                W_ = C_ @ W_
 
             self.W = get_loc(
                 self.mol, W_, "PM", pop_method=pop_method, init_guess=init_guess
@@ -364,11 +408,11 @@ class MixinLocalize:
             shift = 0
             ncore = 0
             if not valence_only:
-                Wstack = numpy.zeros(
+                Wstack = zeros(
                     (Ciao.shape[0], Ciao.shape[1] + Cpao.shape[1])
                 )  # -self.ncore))
             else:
-                Wstack = numpy.zeros((Ciao.shape[0], Ciao.shape[1]))
+                Wstack = zeros((Ciao.shape[0], Ciao.shape[1]))
 
             if self.frozen_core:
                 for ix in range(self.mol.natm):
@@ -395,16 +439,12 @@ class MixinLocalize:
                             ]
                             shift += npao
                 else:
-                    Wstack = numpy.hstack((Ciao, Cpao))
+                    Wstack = hstack((Ciao, Cpao))
             if not nosave:
                 self.W = Wstack
-                assert numpy.allclose(
-                    self.W.T @ self.S @ self.W, numpy.eye(self.W.shape[1])
-                )
+                assert allclose(self.W.T @ self.S @ self.W, eye(self.W.shape[1]))
             else:
-                assert numpy.allclose(
-                    Wstack.T @ self.S @ Wstack, numpy.eye(Wstack.shape[1])
-                )
+                assert allclose(Wstack.T @ self.S @ Wstack, eye(Wstack.shape[1]))
                 return Wstack
             nmo = self.C.shape[1] - self.ncore
             nlo = self.W.shape[1]
@@ -414,16 +454,16 @@ class MixinLocalize:
                     Co_nocore = self.C[:, self.ncore : self.Nocc]
                     Cv = self.C[:, self.Nocc :]
                     # Ensure that the LOs span the occupied space
-                    assert numpy.allclose(
-                        numpy.sum((self.W.T @ self.S @ Co_nocore) ** 2.0),
+                    assert allclose(
+                        np.sum((self.W.T @ self.S @ Co_nocore) ** 2.0),
                         self.Nocc - self.ncore,
                     )
                     # Find virtual orbitals that lie in the span of LOs
                     u, l, vt = svd(self.W.T @ self.S @ Cv, full_matrices=False)
                     unused(u)
                     nvlo = nlo - self.Nocc - self.ncore
-                    assert numpy.allclose(numpy.sum(l[:nvlo]), nvlo)
-                    C_ = numpy.hstack([Co_nocore, Cv @ vt[:nvlo].T])
+                    assert allclose(np.sum(l[:nvlo]), nvlo)
+                    C_ = hstack([Co_nocore, Cv @ vt[:nvlo].T])
                     self.lmo_coeff = self.W.T @ self.S @ C_
                 else:
                     self.lmo_coeff = self.W.T @ self.S @ self.C[:, self.ncore :]
@@ -433,20 +473,20 @@ class MixinLocalize:
         elif lo_method == "boys":
             es_, vs_ = eigh(self.S)
             edx = es_ > 1.0e-15
-            W_ = numpy.dot(vs_[:, edx] / numpy.sqrt(es_[edx]), vs_[:, edx].T)
+            W_ = vs_[:, edx] / sqrt(es_[edx]) @ vs_[:, edx].T
             if self.frozen_core:
-                P_core = numpy.eye(W_.shape[0]) - numpy.dot(self.P_core, self.S)
-                C_ = numpy.dot(P_core, W_)
+                P_core = eye(W_.shape[0]) - self.P_core @ self.S
+                C_ = P_core @ W_
                 Cpop = multi_dot((C_.T, self.S, C_))
-                Cpop = numpy.diag(Cpop)
-                no_core_idx = numpy.where(Cpop > 0.55)[0]
+                Cpop = diag(Cpop)
+                no_core_idx = where(Cpop > 0.55)[0]
                 C_ = C_[:, no_core_idx]
                 S_ = multi_dot((C_.T, self.S, C_))
                 es_, vs_ = eigh(S_)
-                s_ = numpy.sqrt(es_)
-                s_ = numpy.diag(1.0 / s_)
+                s_ = sqrt(es_)
+                s_ = diag(1.0 / s_)
                 W_ = multi_dot((vs_, s_, vs_.T))
-                W_ = numpy.dot(C_, W_)
+                W_ = C_ @ W_
 
             self.W = get_loc(self.mol, W_, "BOYS")
 

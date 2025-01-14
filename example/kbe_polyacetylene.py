@@ -2,7 +2,7 @@
 # A supercell with 4 carbon & 4 hydrogen atoms is defined as unit cell in
 # pyscf's periodic HF calculation
 
-import numpy
+import numpy as np
 from pyscf.pbc import df, gto, scf
 
 from quemb.kbe import BE, fragpart
@@ -14,7 +14,7 @@ a = 8.0
 b = 8.0
 c = 2.455 * 2.0
 
-lat = numpy.eye(3)
+lat = np.eye(3)
 lat[0, 0] = a
 lat[1, 1] = b
 lat[2, 2] = c

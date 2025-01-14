@@ -6,7 +6,7 @@
 #         The code has been slightly modified.
 #
 
-import numpy
+from numpy import array, empty, outer, zeros
 from numpy.linalg import inv, norm, pinv
 
 from quemb.molbe.helper import get_eri, get_scfObj
@@ -54,14 +54,15 @@ def line_search_LF(func, xold, fold, dx, iter_):
 
 
 def trustRegion(func, xold, fold, Binv, c=0.5):
-    """Perform Trust Region Optimization. See
-    "A Broyden Trust Region Quasi-Newton Method
-    for Nonlinear Equations" (https://www.iaeng.org/IJCS/issues_v46/issue_3/IJCS_46_3_09.pdf)
+    """Perform Trust Region Optimization.
+
+    See "A Broyden Trust Region Quasi-Newton Method
+    for Nonlinear Equations" (https://www.iaeng.org/IJCS/issues_v46/issue_3/IJCS_46_3_09.pdf)"
     Algorithm 1 for more information
 
     Parameters
     ----------
-    func : function
+    func : typing.Callable
         Cost function
     xold : list or numpy.ndarray
         Current x_p (potentials in BE optimization)
@@ -75,7 +76,7 @@ def trustRegion(func, xold, fold, Binv, c=0.5):
 
     Returns
     -------
-    xnew, fnew
+    xnew, fnew: tuple
         x_{p+1} and f_{p+1}. These values are used to proceed with Broyden's Method.
     """
     # c := initial trust radius (trust_radius = c^p)
@@ -120,7 +121,7 @@ def trustRegion(func, xold, fold, Binv, c=0.5):
             )
             tdx_sd = t * dx_sd
             diff = dx_gn - tdx_sd
-            # s = (-dx_sd.T@diff + numpy.sqrt((dx_sd.T@diff)**2 -
+            # s = (-dx_sd.T@diff + sqrt((dx_sd.T@diff)**2 -
             #   norm(diff)**2*(norm(dx_sd)**2-(c ** microiter)**2)))
             #   / (norm(dx_sd))**2
             # s is largest value in [0, 1] s.t. ||dx|| \le trust radius
@@ -129,7 +130,7 @@ def trustRegion(func, xold, fold, Binv, c=0.5):
             while norm(dx) > c**microiter and s > 0:
                 s -= 0.001
                 dx = tdx_sd + s * diff
-        if prevdx is None or not numpy.all(dx == prevdx):
+        if prevdx is None or not all(dx == prevdx):
             # Actual Reduction := f(x_k) - f(x_k + dx)
             fnew = func(xold + dx)
             ared = 0.5 * (norm(fold) ** 2 - norm(fnew) ** 2)
@@ -139,7 +140,7 @@ def trustRegion(func, xold, fold, Binv, c=0.5):
         # r = ared/pred \le rho
         ratio = ared / pred
         microiter += 1
-        if prevdx is None or not numpy.all(dx == prevdx) and settings.PRINT_LEVEL > 2:
+        if prevdx is None or not all(dx == prevdx) and settings.PRINT_LEVEL > 2:
             print("    ||δx||: ", norm(dx), flush=True)
             print(
                 "    Reduction Ratio (Actual / Predicted): ",
@@ -179,10 +180,10 @@ class FrankQN:
         self.fnew = None  # new jacobian?
         self.fold = None  # old jacobian?
         self.max_subspace = max_space
-        self.dxs = numpy.empty([self.max_subspace, self.n])
-        self.fs = numpy.empty([self.max_subspace, self.n])
-        self.us = numpy.empty([self.max_subspace, self.n])  # u_m = B_m @ f_m
-        self.vs = numpy.empty([self.max_subspace, self.n])  # v_m = B_0 @ f_{m+1}
+        self.dxs = empty([self.max_subspace, self.n])
+        self.fs = empty([self.max_subspace, self.n])
+        self.us = empty([self.max_subspace, self.n])  # u_m = B_m @ f_m
+        self.vs = empty([self.max_subspace, self.n])  # v_m = B_0 @ f_{m+1}
         self.B = None
         self.trust = trust
 
@@ -191,7 +192,7 @@ class FrankQN:
             self.xnew = self.x0
             self.fnew = self.func(self.xnew) if self.f0 is None else self.f0
             self.fs[0] = self.fnew.copy()
-            self.us[0] = numpy.dot(self.B0, self.fnew)
+            self.us[0] = self.B0 @ self.fnew
             self.Binv = self.B0.copy()
 
         # Book keeping
@@ -203,7 +204,7 @@ class FrankQN:
         self.fold = self.fnew.copy()
 
         if not self.iter_ == 0:
-            tmp__ = numpy.outer(dx_i - self.Binv @ df_i, dx_i @ self.Binv) / (
+            tmp__ = outer(dx_i - self.Binv @ df_i, dx_i @ self.Binv) / (
                 dx_i @ self.Binv @ df_i
             )
             self.Binv += tmp__
@@ -220,7 +221,7 @@ class FrankQN:
             )
 
             # udpate vs, dxs, and fs
-            self.vs[self.iter_] = numpy.dot(self.B0, self.fnew)
+            self.vs[self.iter_] = self.B0 @ self.fnew
         self.dxs[self.iter_] = self.xnew - self.xold
         self.fs[self.iter_ + 1] = self.fnew.copy()
 
@@ -284,12 +285,12 @@ def get_be_error_jacobian(Nfrag, Fobjs, jac_solver="HF"):
     M4             C2-2   E3
     """
     N_ = sum(Ncout)
-    J = numpy.zeros((N_ + 1, N_ + 1))
+    J = zeros((N_ + 1, N_ + 1))
     cout = 0
 
     for findx, fobj in enumerate(Fobjs):
         J[cout : Ncout[findx] + cout, cout : Ncout[findx] + cout] = Jes[findx]
-        J[cout : Ncout[findx] + cout, N_:] = numpy.array(xes[findx]).reshape(-1, 1)
+        J[cout : Ncout[findx] + cout, N_:] = array(xes[findx]).reshape(-1, 1)
         J[N_:, cout : Ncout[findx] + cout] = ys[findx]
 
         coutc = 0
@@ -299,7 +300,7 @@ def get_be_error_jacobian(Nfrag, Fobjs, jac_solver="HF"):
             start_ = sum(Ncout[: fobj.center[cindx]])
             end_ = start_ + Ncout[fobj.center[cindx]]
             J[cout + coutc_ : cout + coutc, start_:end_] += Jcs[fobj.center[cindx]]
-            J[cout + coutc_ : cout + coutc, N_:] += numpy.array(
+            J[cout + coutc_ : cout + coutc, N_:] += array(
                 xcs[fobj.center[cindx]]
             ).reshape(-1, 1)
             coutc_ = coutc
@@ -312,10 +313,7 @@ def get_be_error_jacobian(Nfrag, Fobjs, jac_solver="HF"):
 def get_atbe_Jblock_frag(fobj, res_func):
     vpots = get_vpots_frag(fobj.nao, fobj.edge_idx, fobj.fsites)
     eri_ = get_eri(fobj.dname, fobj.nao, eri_file=fobj.eri_file)
-    dm0 = (
-        numpy.dot(fobj._mo_coeffs[:, : fobj.nsocc], fobj._mo_coeffs[:, : fobj.nsocc].T)
-        * 2.0
-    )
+    dm0 = 2.0 * (fobj._mo_coeffs[:, : fobj.nsocc] @ fobj._mo_coeffs[:, : fobj.nsocc].T)
     mf_ = get_scfObj(fobj.fock + fobj.heff, eri_, fobj.nsocc, dm0=dm0)
 
     dPs, dP_mu = res_func(mf_, vpots, eri_, fobj.nsocc)
@@ -369,8 +367,8 @@ def get_atbe_Jblock_frag(fobj, res_func):
                 # edge
                 xe.append(dP_mu[edge[j_], edge[k_]])
                 cout += 1
-    Je = numpy.array(Je).T
-    Jc = numpy.array(Jc).T
+    Je = array(Je).T
+    Jc = array(Jc).T
 
     alpha = 0.0
     for fidx, _ in enumerate(fobj.fsites):
@@ -402,12 +400,12 @@ def get_be_error_jacobian_selffrag(self, jac_solver="HF"):
     Jes, _, xes, xcs, ys, alphas, Ncout = get_atbe_Jblock_frag(self.Fobjs[0], res_func)
 
     N_ = Ncout
-    J = numpy.zeros((N_ + 1, N_ + 1))
+    J = zeros((N_ + 1, N_ + 1))
 
     J[:Ncout, :Ncout] = Jes
-    J[:Ncout, N_:] = numpy.array(xes).reshape(-1, 1)
+    J[:Ncout, N_:] = array(xes).reshape(-1, 1)
     J[N_:, :Ncout] = ys
-    J[:Ncout, N_:] += numpy.array([*xcs, *xcs]).reshape(-1, 1)
+    J[:Ncout, N_:] += array([*xcs, *xcs]).reshape(-1, 1)
     J[N_:, N_:] = alphas
 
     return J
@@ -433,7 +431,7 @@ def mp2res_func(mf, vpots, eri, nsocc):
     no = nsocc
 
     dPs_an = get_dPmp2_batch_r(C, moe, eri, no, vpots, aorep=True)
-    dPs_an = numpy.array([dp_ * 0.5 for dp_ in dPs_an])
+    dPs_an = array([dp_ * 0.5 for dp_ in dPs_an])
     dP_mu = dPs_an[-1]
 
     return dPs_an[:-1], dP_mu
@@ -462,13 +460,13 @@ def get_vpots_frag(nao, edge_idx, fsites):
                 if j__ > k__:
                     continue
 
-                tmppot = numpy.zeros((nao, nao))
+                tmppot = zeros((nao, nao))
                 tmppot[edge_[j__], edge_[k__]] = tmppot[edge_[k__], edge_[j__]] = 1
                 vpots.append(tmppot)
 
     # only the centers
     # outer edges not included
-    tmppot = numpy.zeros((nao, nao))
+    tmppot = zeros((nao, nao))
     for fidx, fval in enumerate(fsites):
         if not any(fidx in sublist for sublist in edge_idx):
             tmppot[fidx, fidx] = -1

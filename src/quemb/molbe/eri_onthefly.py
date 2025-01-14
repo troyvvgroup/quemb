@@ -1,6 +1,6 @@
 # Author(s): Minsik Cho, Hong-Zhou Ye
 
-import numpy
+from numpy import moveaxis, transpose, zeros
 from pyscf import lib
 from pyscf.ao2mo.addons import restore
 from pyscf.df.addons import make_auxmol
@@ -17,9 +17,9 @@ def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
 
     Parameters
     ----------
-    mf : pyscf.scf.RHF
+    mf : pyscf.scf.hf.RHF
         Mean-field object for the chemical system (typically BE.mf)
-    Fobjs : list of BE.Frags
+    Fobjs : list of quemb.molbe.fragment.fragpart
         List containing fragment objects (typically BE.Fobjs)
         The MO coefficients are taken from Frags.TA and the transformed ERIs are stored
         in Frags.dname as h5py datasets.
@@ -106,7 +106,7 @@ def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
     j2c = auxmol.intor(mf.mol._add_suffix("int2c2e"), hermi=1)  # (L|M)
     low = cholesky(j2c, lower=True)
     pqL_frag = [
-        numpy.zeros((auxmol.nao, fragobj.nao, fragobj.nao)) for fragobj in Fobjs
+        zeros((auxmol.nao, fragobj.nao, fragobj.nao)) for fragobj in Fobjs
     ]  # place to store fragment (pq|L)
     end = 0
     atm, bas, env = mole.conc_env(
@@ -132,9 +132,9 @@ def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
         for fragidx in range(len(Fobjs)):
             if settings.PRINT_LEVEL > 10:
                 print("(μν|P) -> (ij|P) for frag #", fragidx, flush=True)
-            Lqp = numpy.transpose(ints, axes=(2, 1, 0))
+            Lqp = transpose(ints, axes=(2, 1, 0))
             Lqi = Lqp @ Fobjs[fragidx].TA
-            Liq = numpy.moveaxis(Lqi, 2, 1)
+            Liq = moveaxis(Lqi, 2, 1)
             pqL_frag[fragidx][start:end, :, :] = Liq @ Fobjs[fragidx].TA
     # Fit to get B_{ij}^{L}
     for fragidx in range(len(Fobjs)):
