@@ -42,7 +42,7 @@ def graphgen(
     connectivity: str = "euclidean",
     # draw_graph: bool = True,
 ):
-    """ Generate fragments via adjacency graph."""
+    """Generate fragments via adjacency graph."""
     assert mol is not None
 
     fragment_type_order = int(be_type[-1])
@@ -141,9 +141,7 @@ def graphgen(
         raise NotImplementedError("Work in progress...")
 
     else:
-        raise AttributeError(
-            f"Connectivity metric not recognized: '{connectivity}'"
-        )
+        raise AttributeError(f"Connectivity metric not recognized: '{connectivity}'")
 
     # Remove all fragments whose AO indices can be identified as subsets of
     # another fragment's. The center site for the removed frag is then
