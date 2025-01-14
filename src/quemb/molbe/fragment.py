@@ -1,7 +1,7 @@
 # Author: Oinam Romesh Meitei
 
 
-from quemb.molbe.autofrag import autogen
+from quemb.molbe.autofrag import autogen, graphgen
 from quemb.molbe.helper import get_core
 from quemb.molbe.lchain import chain as _ext_chain
 from quemb.shared.helper import copy_docstring
@@ -82,24 +82,54 @@ class fragpart:
 
         # Check for frozen core approximation
         if frozen_core:
-            self.ncore, self.no_core_idx, self.core_list = get_core(mol)
+            self.ncore, self.no_core_idx, self.core_list = get_core(self.mol)
 
         # Check type of fragmentation function
         if frag_type == "hchain_simple":
             # This is an experimental feature.
             self.hchain_simple()
+
         elif frag_type == "chain":
             if mol is None:
                 raise ValueError(
                     "Provide pyscf gto.M object in fragpart() and restart!"
                 )
             self.chain(mol, frozen_core=frozen_core, closed=closed)
+
+        elif frag_type == "graphgen":
+            if self.mol is None:
+                raise ValueError(
+                    "Provide pyscf gto.M object in fragpart() and restart!"
+                )
+            fragment_map = graphgen(
+                mol=self.mol.copy(),
+                be_type=be_type,
+                frozen_core=frozen_core,
+                remove_nonunique_frags=True,
+                frag_prefix="f",
+                connectivity="euclidean",
+            )
+
+            self.fsites = fragment_map["fsites"]
+            self.edge = fragment_map["edge"]
+            self.center = fragment_map["center"]
+            # self.edge_idx = fragment_map["edge"]
+            self.centerf_idx = fragment_map["centerf_idx"]
+            self.ebe_weight = fragment_map["ebe_weights"]
+            self.Nfrag = len(self.fsites)
+            print("GRAPHGEN")
+            print(self.fsites)
+            print(self.edge)
+            print(self.center)
+            print(self.centerf_idx)
+            print(self.ebe_weight)
+            print(self.Nfrag)
+
         elif frag_type == "autogen":
             if mol is None:
                 raise ValueError(
                     "Provide pyscf gto.M object in fragpart() and restart!"
                 )
-
             fgs = autogen(
                 mol,
                 be_type=be_type,
@@ -124,6 +154,13 @@ class fragpart:
                 self.add_center_atom,
             ) = fgs
             self.Nfrag = len(self.fsites)
+            print("AUTOGEN")
+            print(self.fsites)
+            print(self.edge)
+            print(self.center)
+            print(self.centerf_idx)
+            print(self.ebe_weight)
+            print(self.Nfrag)
         else:
             raise ValueError(f"Fragmentation type = {frag_type} not implemented!")
 
