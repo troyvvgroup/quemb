@@ -953,6 +953,7 @@ class BE(MixinLocalize):
             print_energy_noncumulant(
                 rets[0], rets[1][0], rets[1][2], rets[1][1], self.ebe_hf, self.enuc
             )
+
             self.ebe_tot = rets[0] + self.enuc
 
     def update_fock(self, heff: list[Matrix[floating]] | None = None) -> None:

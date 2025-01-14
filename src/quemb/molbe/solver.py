@@ -896,6 +896,7 @@ def solve_block2(
 
     orbs = mf.mo_coeff
     scratch = str(PurePath(frag_scratch))
+
     mc = mcscf.CASCI(mf, DMRG_args.norb, DMRG_args.nelec)
     mc.fcisolver = dmrgscf.DMRGCI(mf.mol)
     # Sweep scheduling

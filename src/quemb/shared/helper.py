@@ -99,3 +99,4 @@ def delete_multiple_files(*args: Iterable[Path]) -> None:
                 file.unlink()
             else:
                 delete_multiple_files(file.iterdir())
+
