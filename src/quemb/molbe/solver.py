@@ -410,7 +410,7 @@ def be_func(
                 rdm1_tmp, rdm2s = solve_block2(
                     fobj._mf,
                     fobj.nsocc,
-                    frag_scratch=frag_scratch.path,
+                    frag_scratch=frag_scratch,
                     DMRG_args=DMRG_args,
                     use_cumulant=use_cumulant,
                 )
@@ -908,10 +908,10 @@ def solve_block2(
     mc.fcisolver.twodot_to_onedot = DMRG_args.twodot_to_onedot
     mc.fcisolver.maxIter = DMRG_args.max_iter
     mc.fcisolver.block_extra_keyword = DMRG_args.block_extra_keyword
-    mc.fcisolver.scratchDirectory = str(frag_scratch)
-    mc.fcisolver.runtimeDir = str(frag_scratch)
+    mc.fcisolver.scratchDirectory = frag_scratch.path
+    mc.fcisolver.runtimeDir = frag_scratch.path
     mc.fcisolver.memory = DMRG_args.max_mem
-    os.chdir(frag_scratch)
+    os.chdir(frag_scratch.path)
 
     mc.kernel(orbs)
     rdm1, rdm2 = dmrgscf.DMRGCI.make_rdm12(

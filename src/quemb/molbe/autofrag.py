@@ -3,6 +3,7 @@
 import networkx as nx
 import numpy as np
 from numpy.linalg import norm
+from pyscf import gto
 
 from quemb.molbe.helper import get_core
 from quemb.shared.helper import unused
@@ -34,7 +35,7 @@ def remove_nonnunique_frags(
 
 
 def graphgen(
-    mol: object,
+    mol: gto.Mole,
     be_type: str = "BE2",
     frozen_core: bool = True,
     remove_nonunique_frags: bool = True,
@@ -155,7 +156,7 @@ def graphgen(
     # Define the 'edges' for fragment A as the intersect of its sites
     # with the set of all center sites outside of A:
     for adx, fs in enumerate(fragment_map["fs"]):
-        edge = set()
+        edge: set[tuple] = set()
         for bdx, center in enumerate(fragment_map["center"]):
             if adx == bdx:
                 pass
