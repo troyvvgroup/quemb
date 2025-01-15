@@ -13,7 +13,7 @@ from quemb.molbe.helper import get_core
 from quemb.shared.helper import unused
 
 
-@define
+@define(init=True,)
 class FragmentMap:
     """Dataclass for fragment bookkeeping.
 
@@ -28,8 +28,8 @@ class FragmentMap:
         List whose entries are tuples of tuples, containing edge AO
         indices per atom (inner tuple) per fragment (outer tuple).
     center:
-        List whose entries are tuples of tuples, containing center AO
-        indices per atom (inner tuple) per fragment (outer tuple).
+        List whose entries are tuples of tuples, containing all fragment AO
+        indices per atom (inner tuple) and per fragment (outer tuple).
     centerf_idx:
         List whose entries are tuples containing the relative index of all
         center sites within a fragment (ie, with respect to fsites).
@@ -48,7 +48,7 @@ class FragmentMap:
         The adjacency graph corresponding to `adjacency_mat`.
     """
 
-    fsites: list[tuple[int, ...]] = list(tuple())
+    fsites: list[tuple[int, ...]] = (list(tuple()))
     fs: list[tuple[tuple[int, ...], ...]] = list(tuple(tuple()))
     edge: list[tuple[tuple[int, ...], ...]] = list(tuple(tuple()))
     center: list[tuple[int, ...]] = list(tuple())
@@ -56,8 +56,8 @@ class FragmentMap:
     ebe_weights: list[tuple] = list(tuple())
     sites: list[tuple] = list(tuple())
     dnames: list = list()
-    center_atoms: list = list()
-    edge_atoms: list = list()
+    center_atoms: list[tuple[str, ...]] = list()
+    edge_atoms: list[tuple[str, ...]] = list()
     adjacency_mat: np.ndarray | None = None
     adjacency_graph: nx.Graph = nx.Graph()
 
@@ -67,7 +67,8 @@ class FragmentMap:
                 if adx == bdx:
                     pass
                 elif set(basb).issubset(set(basa)):
-                    self.center[adx] = self.center[adx] + self.center[bdx]
+                    tmp = set(self.center[adx] + self.center[bdx])
+                    self.center[adx] = tuple(tmp)
                     del self.center[bdx]
                     del self.fsites[bdx]
                     del self.fs[bdx]
@@ -147,7 +148,16 @@ def graphgen(
         for adx, bas in enumerate(mol.aoslice_by_atom())
     }
 
-    fragment_map = FragmentMap()
+    fragment_map = FragmentMap(
+        fsites=(list(tuple())),
+        fs=list(tuple(tuple())),
+        edge=list(tuple(tuple())),
+        center=list(tuple()),
+        centerf_idx=list(tuple()),
+        ebe_weights=list(tuple()),
+        sites=list(tuple()),
+        dnames=list(),
+    )
     fragment_map.adjacency_mat = np.zeros((natm, natm), np.float64)
     fragment_map.adjacency_graph.add_nodes_from(adx_map)
 
@@ -187,6 +197,7 @@ def graphgen(
         # on that path gives the degree of separation of the
         # sites.
         for adx, map in adx_map.items():
+            fragment_map.center_atoms.append(tuple())
             fsites_temp = fragment_map.sites[adx]
             fs_temp = []
             fs_temp.append(fragment_map.sites[adx])
@@ -206,8 +217,8 @@ def graphgen(
             # the set of fragment sites for adx.
             for bdx, path in map["shortest_paths"].items():
                 if 0 < (len(path[0]) - 1) < fragment_type_order:
-                    fsites_temp = fsites_temp + fragment_map.sites[bdx]
-                    fs_temp.append(fragment_map.sites[bdx])
+                    fsites_temp = tuple(fsites_temp + fragment_map.sites[bdx])
+                    fs_temp.append(tuple(fragment_map.sites[bdx]))
 
             fragment_map.fsites.append(tuple(fsites_temp))
             fragment_map.fs.append(tuple(fs_temp))
@@ -247,10 +258,10 @@ def graphgen(
     # Update relative center site indices (centerf_idx) and weights
     # for center site contributions to the energy (ebe_weights):
     for adx, center in enumerate(fragment_map.center):
-        centerf_idx = [fragment_map.fsites[adx].index(cdx) for cdx in center]
-        ebe_weight = [1.0, tuple(centerf_idx)]
-        fragment_map.centerf_idx.append(tuple(centerf_idx))
-        fragment_map.ebe_weights.append(tuple(ebe_weight))
+        centerf_idx = tuple(set([fragment_map.fsites[adx].index(cdx) for cdx in center]))
+        ebe_weight = (1.0, tuple(centerf_idx))
+        fragment_map.centerf_idx.append(centerf_idx)
+        fragment_map.ebe_weights.append(ebe_weight)
 
     # Finally, set fragment data names for scratch and bookkeeping:
     for adx, _ in enumerate(fragment_map.fs):
