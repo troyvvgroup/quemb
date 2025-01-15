@@ -72,7 +72,6 @@ class FragmentMap:
 
         return None
 
-    def print_frag_info()
 
 def euclidean_norm(
     i_coord: float,
