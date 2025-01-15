@@ -1,6 +1,6 @@
 # Author: Oinam Romesh Meitei, Shaun Weatherly
 
-import networkx as nx  # type: ignore
+import networkx as nx
 import numpy as np
 from numpy.linalg import norm
 from pyscf import gto
