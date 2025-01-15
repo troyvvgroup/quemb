@@ -65,7 +65,7 @@ class FragmentMap:
                 if adx == bdx:
                     pass
                 elif set(basb).issubset(set(basa)):
-                    self.center[adx] = (self.center[adx] + self.center[bdx])
+                    self.center[adx] = self.center[adx] + self.center[bdx]
                     del self.center[bdx]
                     del self.fsites[bdx]
                     del self.fs[bdx]
