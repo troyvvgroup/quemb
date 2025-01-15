@@ -20,7 +20,7 @@ class FragmentMap:
     fsites:
         List whose entries are tuples containing all AO indices for a fragment.
     fs:
-        List whose entries are tuples of tuples, containing AO indices _per atom_
+        List whose entries are tuples of tuples, containing AO indices per atom
         per fragment.
     edge:
         List whose entries are tuples of tuples, containing edge AO
@@ -72,6 +72,7 @@ class FragmentMap:
 
         return None
 
+    def print_frag_info()
 
 def euclidean_norm(
     i_coord: float,
