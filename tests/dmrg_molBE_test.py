@@ -47,7 +47,7 @@ class TestBE_DMRG(unittest.TestCase):
                 solver_args=DMRG_ArgsUser(
                     maxM=maxM,  # Max fragment bond dimension
                     max_iter=60,
-                    max_mem=1,
+                    max_mem=3,
                     force_cleanup=True,  # Remove all fragment DMRG tmpfiles
                 ),
             )
