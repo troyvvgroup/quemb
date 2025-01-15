@@ -5,4 +5,5 @@ pylint
 mypy
 scipy-stubs
 types-PyYAML
+types-networkx
 pytest
