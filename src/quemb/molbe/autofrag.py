@@ -75,8 +75,6 @@ def graphgen(
     remove_nonunique_frags: bool = True,
     frag_prefix: str = "f",
     connectivity: str = "euclidean",
-    print_frags: bool = True,
-    # draw_graph: bool = True,
 ) -> FragmentMap:
     """Generate fragments via adjacency graph.
 
