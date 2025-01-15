@@ -258,7 +258,9 @@ def graphgen(
     # Update relative center site indices (centerf_idx) and weights
     # for center site contributions to the energy (ebe_weights):
     for adx, center in enumerate(fragment_map.center):
-        centerf_idx = tuple(set([fragment_map.fsites[adx].index(cdx) for cdx in center]))
+        centerf_idx = tuple(
+            set([fragment_map.fsites[adx].index(cdx) for cdx in center])
+        )
         ebe_weight = (1.0, tuple(centerf_idx))
         fragment_map.centerf_idx.append(centerf_idx)
         fragment_map.ebe_weights.append(ebe_weight)
