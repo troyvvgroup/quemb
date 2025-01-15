@@ -2,6 +2,7 @@
 
 import networkx as nx
 import numpy as np
+from attrs import define
 from numpy.linalg import norm
 from pyscf import gto
 
@@ -9,29 +10,60 @@ from quemb.molbe.helper import get_core
 from quemb.shared.helper import unused
 
 
+@define
+class FragmentMap:
+    """Dataclass for fragment bookkeeping.
+
+    Parameters
+    ----------
+    fsites:
+    fs:
+    edge:
+    center:
+    centerf_idx:
+    ebe_weights:
+    sites:
+    dnames:
+    core_offset:
+    adjacency_mat:
+    adjacency_graph:
+
+    """
+
+    fsites: list[tuple] = list(tuple())
+    fs: list[tuple[tuple]] = list(tuple(tuple()))
+    edge: list[tuple[tuple]] = list(tuple(tuple()))
+    center: list[tuple] = list(tuple())
+    centerf_idx: list[tuple] = list(tuple())
+    ebe_weights: list[tuple] = list(tuple())
+    sites: list = list()
+    dnames: list = list()
+    core_offset: int = 0
+    adjacency_mat: np.ndarray | None = None
+    adjacency_graph: nx.Graph = nx.Graph()
+
+    def remove_nonnunique_frags(self) -> None:
+        for adx, basa in enumerate(self.fsites):
+            for bdx, basb in enumerate(self.fsites):
+                if adx == bdx:
+                    pass
+                elif set(basb).issubset(set(basa)):
+                    self.center[adx] = (
+                        self.center[adx] + self.center[bdx]
+                    )
+                    del self.center[bdx]
+                    del self.fsites[bdx]
+                    del self.fs[bdx]
+
+        return None
+
+
+@staticmethod
 def euclidean_norm(
     i_coord: float,
     j_coord: float,
-):
+) -> float:
     return norm(np.asarray(i_coord - j_coord))
-
-
-def remove_nonnunique_frags(
-    fragment_map: dict,
-):
-    for adx, basa in enumerate(fragment_map["fsites"]):
-        for bdx, basb in enumerate(fragment_map["fsites"]):
-            if adx == bdx:
-                pass
-            elif set(basb).issubset(set(basa)):
-                fragment_map["center"][adx] = (
-                    fragment_map["center"][adx] + fragment_map["center"][bdx]
-                )
-                del fragment_map["center"][bdx]
-                del fragment_map["fsites"][bdx]
-                del fragment_map["fs"][bdx]
-
-    return fragment_map
 
 
 def graphgen(
@@ -42,7 +74,7 @@ def graphgen(
     frag_prefix: str = "f",
     connectivity: str = "euclidean",
     # draw_graph: bool = True,
-):
+) -> FragmentMap:
     """Generate fragments via adjacency graph.
 
     Generalizes the BEn fragmentation scheme to arbitrary fragment sizes using a
@@ -58,26 +90,32 @@ def graphgen(
 
     Parameters
     ----------
-    mol : pyscf.gto.mole.Mole
+    mol :
         The molecule object.
-    be_type : str
+    be_type :
         The order of nearest neighbors (with respect to the center atom)
         included in a fragment. Supports all 'BEn', with 'n' in -
         [1, 2, 3, 4, 5, 6, 7, 8, 9] having been tested.
-    frozen_core: bool
+    frozen_core:
         Whether to exclude core AO indices from the fragmentation process.
         True by default.
-    remove_nonunique_frags: bool
+    remove_nonunique_frags:
         Whether to remove fragments which are strict subsets of another
         fragment in the system. True by default.
-    frag_prefix: str
+    frag_prefix:
         Prefix to be appended to the fragment datanames. Useful for managing
         fragment scratch directories.
-    connectivity: str
+    connectivity:
         Keyword string specifying the distance metric to be used for edge
         weights in the fragment adjacency graph. Currently supports "euclidean"
         (which uses the square of the distance between atoms in real
         space to determine connectivity within a fragment.)
+
+    Returns
+    -------
+    fragment_map :
+        FragmentMap mapping various fragment components to AO indices, data names,
+        and other info.
     """
     assert mol is not None
 
@@ -94,33 +132,22 @@ def graphgen(
         for adx, bas in enumerate(mol.aoslice_by_atom())
     }
 
-    fragment_map = {
-        "fsites": list(tuple()),
-        "fs": list(tuple(tuple())),
-        "edge": list(tuple(tuple())),
-        "center": list(tuple()),
-        "centerf_idx": list(tuple()),
-        "ebe_weights": list(tuple()),
-        "sites": list(),
-        "dnames": list(),
-        "core_offset": int(0),
-        "adjacency_mat": np.zeros((natm, natm), np.float64),
-        "adjacency_graph": nx.Graph(),
-    }
-    fragment_map["adjacency_graph"].add_nodes_from(adx_map)
+    fragment_map = FragmentMap()
+    fragment_map.adjacency_mat = np.zeros((natm, natm), np.float64)
+    fragment_map.adjacency_graph.add_nodes_from(adx_map)
 
     for adx, map in adx_map.items():
         start_ = map["bas"][2]
         stop_ = map["bas"][3]
         if frozen_core:
             _, _, core_list = get_core(mol)
-            start_ -= fragment_map["core_offset"]
+            start_ -= fragment_map.core_offset
             ncore_ = int(core_list[adx])
-            stop_ -= fragment_map["core_offset"] + ncore_
-            fragment_map["core_offset"] += ncore_
-            fragment_map["sites"].append(tuple([i for i in range(start_, stop_)]))
+            stop_ -= fragment_map.core_offset + ncore_
+            fragment_map.core_offset += ncore_
+            fragment_map.sites.append(tuple([i for i in range(start_, stop_)]))
         else:
-            fragment_map["sites"].append(tuple([i for i in range(start_, stop_)]))
+            fragment_map.sites.append(tuple([i for i in range(start_, stop_)]))
 
     if connectivity.lower() in ["euclidean_distance", "euclidean"]:
         # Begin by constructing the adjacency matrix and adjacency graph
@@ -136,23 +163,23 @@ def graphgen(
                     )
                     ** 2
                 )
-                fragment_map["adjacency_mat"][adx, bdx] = dr
-                fragment_map["adjacency_graph"].add_edge(adx, bdx, weight=dr)
+                fragment_map.adjacency_mat[adx, bdx] = dr
+                fragment_map.adjacency_graph.add_edge(adx, bdx, weight=dr)
 
         # For a given center site (adx), find the set of shortest
         # paths to all other sites. The number of nodes visited
         # on that path gives the degree of separation of the
         # sites.
         for adx, map in adx_map.items():
-            fsites_temp = fragment_map["sites"][adx]
+            fsites_temp = fragment_map.sites[adx]
             fs_temp = []
-            fs_temp.append(fragment_map["sites"][adx])
+            fs_temp.append(fragment_map.sites[adx])
             map["shortest_paths"] = dict(
                 nx.single_source_all_shortest_paths(
-                    fragment_map["adjacency_graph"],
+                    fragment_map.adjacency_graph,
                     source=adx,
                     weight=lambda a, b, _: (
-                        fragment_map["adjacency_graph"][a][b]["weight"]
+                        fragment_map.adjacency_graph[a][b]["weight"]
                     ),
                     method="dijkstra",
                 )
@@ -163,12 +190,12 @@ def graphgen(
             # the set of fragment sites for adx.
             for bdx, path in map["shortest_paths"].items():
                 if 0 < (len(path[0]) - 1) < fragment_type_order:
-                    fsites_temp = fsites_temp + fragment_map["sites"][bdx]
-                    fs_temp.append(fragment_map["sites"][bdx])
+                    fsites_temp = fsites_temp + fragment_map.sites[bdx]
+                    fs_temp.append(fragment_map.sites[bdx])
 
-            fragment_map["fsites"].append(tuple(fsites_temp))
-            fragment_map["fs"].append(tuple(fs_temp))
-            fragment_map["center"].append(tuple(fragment_map["sites"][adx]))
+            fragment_map.fsites.append(tuple(fsites_temp))
+            fragment_map.fs.append(tuple(fs_temp))
+            fragment_map.center.append(tuple(fragment_map.sites[adx]))
 
     elif connectivity.lower() in ["resistance_distance", "resistance"]:
         raise NotImplementedError("Work in progress...")
@@ -186,32 +213,32 @@ def graphgen(
     # such that all fragments are guaranteed to be distinct sets.
     if remove_nonunique_frags:
         for _ in range(0, natm):
-            fragment_map = remove_nonnunique_frags(fragment_map)
+            fragment_map.remove_nonnunique_frags()
 
     # Define the 'edges' for fragment A as the intersect of its sites
     # with the set of all center sites outside of A:
-    for adx, fs in enumerate(fragment_map["fs"]):
+    for adx, fs in enumerate(fragment_map.fs):
         edge: set[tuple] = set()
-        for bdx, center in enumerate(fragment_map["center"]):
+        for bdx, center in enumerate(fragment_map.center):
             if adx == bdx:
                 pass
             else:
                 overlap = set(fs).intersection(set((center,)))
                 if overlap:
                     edge = edge.union(overlap)
-        fragment_map["edge"].append(tuple(edge))
+        fragment_map.edge.append(tuple(edge))
 
     # Update relative center site indices (centerf_idx) and weights
     # for center site contributions to the energy (ebe_weights):
-    for adx, center in enumerate(fragment_map["center"]):
-        centerf_idx = [fragment_map["fsites"][adx].index(cdx) for cdx in center]
+    for adx, center in enumerate(fragment_map.center):
+        centerf_idx = [fragment_map.fsites[adx].index(cdx) for cdx in center]
         ebe_weight = [1.0, tuple(centerf_idx)]
-        fragment_map["centerf_idx"].append(tuple(centerf_idx))
-        fragment_map["ebe_weights"].append(tuple(ebe_weight))
+        fragment_map.centerf_idx.append(tuple(centerf_idx))
+        fragment_map.ebe_weights.append(tuple(ebe_weight))
 
     # Finally, set fragment data names for scratch and bookkeeping:
-    for adx, _ in enumerate(fragment_map["fs"]):
-        fragment_map["dnames"].append(str(frag_prefix) + str(adx))
+    for adx, _ in enumerate(fragment_map.fs):
+        fragment_map.dnames.append(str(frag_prefix) + str(adx))
 
     return fragment_map
 

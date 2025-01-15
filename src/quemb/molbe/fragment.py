@@ -110,12 +110,12 @@ class fragpart:
                 connectivity="euclidean",
             )
 
-            self.fsites = fragment_map["fsites"]
-            self.edge = fragment_map["edge"]
-            self.center = fragment_map["center"]
+            self.fsites = fragment_map.fsites
+            self.edge = fragment_map.edge
+            self.center = fragment_map.center
             # self.edge_idx = fragment_map["edge"]
-            self.centerf_idx = fragment_map["centerf_idx"]
-            self.ebe_weight = fragment_map["ebe_weights"]
+            self.centerf_idx = fragment_map.centerf_idx
+            self.ebe_weight = fragment_map.ebe_weights
             self.Nfrag = len(self.fsites)
 
         elif frag_type == "autogen":
