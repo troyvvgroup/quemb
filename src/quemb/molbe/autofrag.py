@@ -13,7 +13,7 @@ def euclidean_norm(
     i_coord: float,
     j_coord: float,
 ):
-    return np.linalg.norm(np.asarray(i_coord - j_coord))
+    return norm(np.asarray(i_coord - j_coord))
 
 
 def remove_nonnunique_frags(
