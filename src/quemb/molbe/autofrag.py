@@ -3,6 +3,7 @@
 import networkx as nx
 import numpy as np
 from attrs import define
+from networkx import single_source_all_shortest_paths  # type: ignore[attr-defined]
 from numpy.linalg import norm
 from pyscf import gto
 
@@ -30,14 +31,16 @@ class FragmentMap:
 
     """
 
-    fsites: list[tuple] = list(tuple())
-    fs: list[tuple[tuple]] = list(tuple(tuple()))
-    edge: list[tuple[tuple]] = list(tuple(tuple()))
-    center: list[tuple] = list(tuple())
-    centerf_idx: list[tuple] = list(tuple())
+    fsites: list[tuple[int, ...]] = list(tuple())
+    fs: list[tuple[tuple[int, ...], ...]] = list(tuple(tuple()))
+    edge: list[tuple[tuple[int, ...], ...]] = list(tuple(tuple()))
+    center: list[tuple[int, ...]] = list(tuple())
+    centerf_idx: list[tuple[int, ...]] = list(tuple())
     ebe_weights: list[tuple] = list(tuple())
     sites: list = list()
     dnames: list = list()
+    center_atoms: list = list()
+    edge_atoms: list = list()
     core_offset: int = 0
     adjacency_mat: np.ndarray | None = None
     adjacency_graph: nx.Graph = nx.Graph()
@@ -58,11 +61,10 @@ class FragmentMap:
         return None
 
 
-@staticmethod
 def euclidean_norm(
     i_coord: float,
     j_coord: float,
-) -> float:
+) -> np.float64:
     return norm(np.asarray(i_coord - j_coord))
 
 
@@ -73,6 +75,7 @@ def graphgen(
     remove_nonunique_frags: bool = True,
     frag_prefix: str = "f",
     connectivity: str = "euclidean",
+    print_frags: bool = True,
     # draw_graph: bool = True,
 ) -> FragmentMap:
     """Generate fragments via adjacency graph.
@@ -175,7 +178,7 @@ def graphgen(
             fs_temp = []
             fs_temp.append(fragment_map.sites[adx])
             map["shortest_paths"] = dict(
-                nx.single_source_all_shortest_paths(
+                single_source_all_shortest_paths(
                     fragment_map.adjacency_graph,
                     source=adx,
                     weight=lambda a, b, _: (
