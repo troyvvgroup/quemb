@@ -42,7 +42,7 @@ for a in seps:
     # any clear advantage to using any one scheme over another,
     # the Pipek-Mezey scheme continues to be the most popular. With
     # BE-DMRG, localization takes place prior to fragmentation:
-    fobj = fragpart(be_type="be1", frag_type="graphgen", mol=mol)
+    fobj = fragpart(be_type="be1", frag_type="autogen", mol=mol)
     mybe = BE(
         mf,
         fobj,
@@ -88,7 +88,7 @@ mol.basis = "sto-3g"
 mol.charge = 0
 mol.spin = 0
 mol.build()
-fobj = fragpart(be_type="be2", frag_type="graphgen", mol=mol)
+fobj = fragpart(be_type="be2", frag_type="autogen", mol=mol)
 mybe = BE(mf, fobj, lo_method="pipek-mezey", pop_method="lowdin")
 
 # We automatically construct the fragment DMRG schedules based on user keywords.
