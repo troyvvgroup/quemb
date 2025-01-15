@@ -6,6 +6,7 @@ from attrs import define
 from networkx import single_source_all_shortest_paths  # type: ignore[attr-defined]
 from numpy.linalg import norm
 from pyscf import gto
+from typing import Any
 
 from quemb.molbe.helper import get_core
 from quemb.shared.helper import unused
@@ -76,7 +77,7 @@ class FragmentMap:
 def euclidean_norm(
     i_coord: float,
     j_coord: float,
-) -> np.float64:
+) -> np.floating[Any]:
     return norm(np.asarray(i_coord - j_coord))
 
 
