@@ -18,17 +18,32 @@ class FragmentMap:
     Parameters
     ----------
     fsites:
+        List whose entries are tuples containing all AO indices for a fragment.
     fs:
+        List whose entries are tuples of tuples, containing AO indices _per atom_
+        per fragment.
     edge:
+        List whose entries are tuples of tuples, containing edge AO
+        indices per atom (inner tuple) per fragment (outer tuple).
     center:
+        List whose entries are tuples of tuples, containing center AO
+        indices per atom (inner tuple) per fragment (outer tuple).
     centerf_idx:
+        List whose entries are tuples containing the relative index of all
+        center sites within a fragment (ie, with respect to fsites).
     ebe_weights:
+        Weights determining the energy contributions from each center site
+        (ie, with respect to centerf_idx).
     sites:
+        List whose entries are tuples containing all AO indices per atom
+        (excluding frozen core indices, if applicable).
     dnames:
-    core_offset:
+        List of strings giving fragment data names. Useful for bookkeeping and
+        for constructing fragment scratch directories.
     adjacency_mat:
+        The adjacency matrix for all sites (atoms) in the system.
     adjacency_graph:
-
+        The adjacency graph corresponding to `adjacency_mat`.
     """
 
     fsites: list[tuple[int, ...]] = list(tuple())
@@ -37,11 +52,10 @@ class FragmentMap:
     center: list[tuple[int, ...]] = list(tuple())
     centerf_idx: list[tuple[int, ...]] = list(tuple())
     ebe_weights: list[tuple] = list(tuple())
-    sites: list = list()
+    sites: list[tuple] = list(tuple())
     dnames: list = list()
     center_atoms: list = list()
     edge_atoms: list = list()
-    core_offset: int = 0
     adjacency_mat: np.ndarray | None = None
     adjacency_graph: nx.Graph = nx.Graph()
 
@@ -51,9 +65,7 @@ class FragmentMap:
                 if adx == bdx:
                     pass
                 elif set(basb).issubset(set(basa)):
-                    self.center[adx] = (
-                        self.center[adx] + self.center[bdx]
-                    )
+                    self.center[adx] = (self.center[adx] + self.center[bdx])
                     del self.center[bdx]
                     del self.fsites[bdx]
                     del self.fs[bdx]
@@ -137,15 +149,16 @@ def graphgen(
     fragment_map.adjacency_mat = np.zeros((natm, natm), np.float64)
     fragment_map.adjacency_graph.add_nodes_from(adx_map)
 
+    _core_offset = 0
     for adx, map in adx_map.items():
         start_ = map["bas"][2]
         stop_ = map["bas"][3]
         if frozen_core:
             _, _, core_list = get_core(mol)
-            start_ -= fragment_map.core_offset
+            start_ -= _core_offset
             ncore_ = int(core_list[adx])
-            stop_ -= fragment_map.core_offset + ncore_
-            fragment_map.core_offset += ncore_
+            stop_ -= _core_offset + ncore_
+            _core_offset += ncore_
             fragment_map.sites.append(tuple([i for i in range(start_, stop_)]))
         else:
             fragment_map.sites.append(tuple([i for i in range(start_, stop_)]))
