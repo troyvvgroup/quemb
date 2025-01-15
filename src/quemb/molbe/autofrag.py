@@ -1,12 +1,13 @@
 # Author: Oinam Romesh Meitei, Shaun Weatherly
 
+from typing import Any
+
 import networkx as nx
 import numpy as np
 from attrs import define
 from networkx import single_source_all_shortest_paths  # type: ignore[attr-defined]
 from numpy.linalg import norm
 from pyscf import gto
-from typing import Any
 
 from quemb.molbe.helper import get_core
 from quemb.shared.helper import unused
