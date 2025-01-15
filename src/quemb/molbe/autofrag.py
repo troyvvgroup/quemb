@@ -13,7 +13,7 @@ from quemb.molbe.helper import get_core
 from quemb.shared.helper import unused
 
 
-@define(init=True,)
+@define(init=True)
 class FragmentMap:
     """Dataclass for fragment bookkeeping.
 
@@ -48,7 +48,7 @@ class FragmentMap:
         The adjacency graph corresponding to `adjacency_mat`.
     """
 
-    fsites: list[tuple[int, ...]] = (list(tuple()))
+    fsites: list[tuple[int, ...]] = list(tuple())
     fs: list[tuple[tuple[int, ...], ...]] = list(tuple(tuple()))
     edge: list[tuple[tuple[int, ...], ...]] = list(tuple(tuple()))
     center: list[tuple[int, ...]] = list(tuple())
