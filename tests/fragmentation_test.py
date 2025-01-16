@@ -9,7 +9,7 @@ import unittest
 
 from pyscf import gto, scf
 
-from quemb.molbe import fragpart
+from quemb.molbe import BE, fragpart
 
 
 class TestBE_Fragmentation(unittest.TestCase):
@@ -40,7 +40,7 @@ class TestBE_Fragmentation(unittest.TestCase):
             ],
         }
 
-        self.run_test(
+        self.run_indices_test(
             mf,
             "be1",
             "autogen_h_linear_be1",
@@ -80,7 +80,7 @@ class TestBE_Fragmentation(unittest.TestCase):
             ],
         }
 
-        self.run_test(
+        self.run_indices_test(
             mf,
             "be2",
             "autogen_h_linear_be2",
@@ -116,7 +116,7 @@ class TestBE_Fragmentation(unittest.TestCase):
             "ebe_weight": [[1.0, [0, 1, 2]], [1.0, [0]], [1.0, [0]], [1.0, [0, 1, 2]]],
         }
 
-        self.run_test(
+        self.run_indices_test(
             mf,
             "be3",
             "autogen_h_linear_be3",
@@ -169,7 +169,7 @@ class TestBE_Fragmentation(unittest.TestCase):
             ],  # noqa E501
         }
 
-        self.run_test(
+        self.run_indices_test(
             mf,
             "be1",
             "autogen_octane_be1",
@@ -357,7 +357,7 @@ class TestBE_Fragmentation(unittest.TestCase):
             ],  # noqa E501
         }
 
-        self.run_test(
+        self.run_indices_test(
             mf,
             "be2",
             "autogen_octane_be2",
@@ -611,7 +611,7 @@ class TestBE_Fragmentation(unittest.TestCase):
             ],  # noqa E501
         }
 
-        self.run_test(
+        self.run_indices_test(
             mf,
             "be3",
             "autogen_octane_be3",
@@ -646,7 +646,7 @@ class TestBE_Fragmentation(unittest.TestCase):
             ],
         }
 
-        self.run_test(
+        self.run_indices_test(
             mf,
             "be1",
             "graphgen_h_linear_be1",
@@ -686,7 +686,7 @@ class TestBE_Fragmentation(unittest.TestCase):
             ],  # noqa E501
         }
 
-        self.run_test(
+        self.run_indices_test(
             mf,
             "be2",
             "graphgen_h_linear_be2",
@@ -722,7 +722,7 @@ class TestBE_Fragmentation(unittest.TestCase):
             ],  # noqa E501
         }
 
-        self.run_test(
+        self.run_indices_test(
             mf,
             "be3",
             "graphgen_h_linear_be3",
@@ -883,7 +883,7 @@ class TestBE_Fragmentation(unittest.TestCase):
             ],  # noqa E501
         }
 
-        self.run_test(
+        self.run_indices_test(
             mf,
             "be1",
             "graphgen_octane_be1",
@@ -1034,7 +1034,7 @@ class TestBE_Fragmentation(unittest.TestCase):
             ],  # noqa E501
         }
 
-        self.run_test(
+        self.run_indices_test(
             mf,
             "be2",
             "graphgen_octane_be2",
@@ -1319,15 +1319,84 @@ class TestBE_Fragmentation(unittest.TestCase):
             ],  # noqa E501
         }
 
-        self.run_test(
+        self.run_indices_test(
             mf,
             "be3",
             "graphgen_octane_be3",
             "graphgen",
             target,
         )
+        
+    def test_graphgen_autogen_h_linear_be2(self):
+        mol = gto.M()
+        mol.atom = [["H", (0.0, 0.0, i)] for i in range(8)]
+        mol.basis = "sto-3g"
+        mol.charge = 0.0
+        mol.spin = 0.0
+        mol.build()
 
-    def run_test(
+        mf = scf.RHF(mol)
+        mf.kernel()
+        target = -0.13198886164212092
+
+        self.run_energies_test(
+            mf,
+            "be2",
+            "energy_graphgen_autogen_h_linear_be2",
+            target,
+            delta=1e-2,
+        )
+
+    def test_graphgen_autogen_octane_be2(self):
+        mol = gto.M()
+        mol.atom = os.path.join(os.path.dirname(__file__), "xyz/octane.xyz")
+        mol.basis = "sto-3g"
+        mol.charge = 0.0
+        mol.spin = 0.0
+        mol.build()
+
+        mf = scf.RHF(mol)
+        mf.kernel()
+        target = -0.5499456086311243
+
+        self.run_energies_test(
+            mf,
+            "be2",
+            "energy_graphgen_autogen_octane_be2",
+            target,
+            delta=1e-2,
+        )
+
+    def run_energies_test(
+        self,
+        mf,
+        be_type,
+        test_name,
+        target,
+        delta,
+    ):
+
+        Es = {"target": target}
+        for frag_type in ["autogen", "graphgen"]:
+            fobj = fragpart(frag_type=frag_type, be_type=be_type, mol=mf.mol)
+            mbe = BE(mf, fobj)
+            mbe.oneshot(solver="CCSD")
+            Es.update({frag_type: mbe.ebe_tot})
+
+        for frag_type_A, E_A in Es.items():
+            for frag_type_B, E_B in Es.items():
+                self.assertAlmostEqual(
+                    float(E_A),
+                    float(E_B),
+                    msg=f"{test_name}: BE Correlation Energy (oneshot) for "
+                    + frag_type_A
+                    + " does not match"
+                    + frag_type_B
+                    + f" ({E_A} != {E_B}) ",
+                    delta=delta,
+                )
+
+    def run_indices_test(
         self,
         mf,
         be_type,
