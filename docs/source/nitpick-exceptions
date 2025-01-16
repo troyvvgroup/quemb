@@ -1,4 +1,3 @@
 py:class optional
-py:class networkx.classes.graph.Graph
 py:class fragment_map
 py:class numpy.float64
