@@ -58,7 +58,7 @@ class FragmentMap:
     dnames: list
     center_atoms: list[tuple[str, ...]]
     edge_atoms: list[tuple[str, ...]]
-    adjacency_mat: np.ndarray | None
+    adjacency_mat: np.ndarray
     adjacency_graph: nx.Graph
 
     def remove_nonnunique_frags(self) -> None:
