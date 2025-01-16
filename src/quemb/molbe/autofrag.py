@@ -132,7 +132,7 @@ def graphgen(
 
     Returns
     -------
-    fragment_map :
+    FragmentMap :
         FragmentMap mapping various fragment components to AO indices, data names,
         and other info.
     """
