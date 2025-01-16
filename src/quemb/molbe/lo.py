@@ -177,7 +177,12 @@ def get_pao(Ciao: Matrix, S: Matrix, S12: Matrix) -> Matrix:
     return cano_orth(Cpao_redundant, ovlp=S)
 
 
-def get_pao_native(Ciao: Matrix, S: Matrix, mol: Mole, iao_valence_basis: str) -> Matrix:
+def get_pao_native(
+    Ciao: Matrix,
+    S: Matrix,
+    mol: Mole,
+    iao_valence_basis: str
+) -> Matrix:
     """
 
     Parameters
@@ -384,7 +389,10 @@ class MixinLocalize:
                     Cpao = get_pao(Ciao, self.S, S12)
                 elif loc_type.upper() == "SO":
                     Cpao = get_pao_native(
-                        Ciao, self.S, self.mol, iao_valence_basis=iao_valence_basis
+                        Ciao,
+                        self.S,
+                        self.mol,
+                        iao_valence_basis=iao_valence_basis,
                     )
 
             # rearrange by atom

@@ -235,7 +235,12 @@ class Mixin_k_Localize:
                     )
 
                 cpao_ = get_pao_native_k(
-                    c_core_val, self.S, self.cell, iao_valence_basis, self.kpts, ortho=True
+                    c_core_val,
+                    self.S,
+                    self.cell,
+                    iao_valence_basis,
+                    self.kpts,
+                    ortho=True,
                 )
                 nk, nao, nlo = cpao_.shape
                 Cpao_ = zeros((nk, nao, nlo), dtype=complex128)
