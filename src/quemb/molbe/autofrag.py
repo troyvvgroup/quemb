@@ -105,6 +105,8 @@ def graphgen(
     atoms whose shortest paths visit at most 2 nodes must then be second-order
     neighbors, hence BE3; and so on.
 
+    Currently does not support periodic calculations.
+
     Parameters
     ----------
     mol :
