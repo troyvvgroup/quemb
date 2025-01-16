@@ -90,6 +90,7 @@ def graphgen(
     remove_nonunique_frags: bool = True,
     frag_prefix: str = "f",
     connectivity: str = "euclidean",
+    iao_valence_basis: str | None = None,
 ) -> FragmentMap:
     """Generate fragments via adjacency graph.
 
@@ -134,6 +135,8 @@ def graphgen(
         and other info.
     """
     assert mol is not None
+    if iao_valence_basis is not None:
+        raise NotImplementedError("IAOs not yet implemented for graphgen.")
 
     fragment_type_order = int(be_type[-1])
     natm = mol.natm
@@ -280,7 +283,7 @@ def autogen(
     frozen_core=True,
     be_type="be2",
     write_geom=False,
-    valence_basis=None,
+    iao_valence_basis=None,
     valence_only=False,
     print_frags=True,
 ):
@@ -309,7 +312,7 @@ def autogen(
     write_geom : bool, optional
         Whether to write a 'fragment.xyz' file which contains all the fragments in
         Cartesian coordinates. Defaults to False.
-    valence_basis : str, optional
+    iao_valence_basis : str, optional
         Name of minimal basis set for IAO scheme. 'sto-3g' is sufficient for most cases.
         Defaults to None.
     valence_only : bool, optional
@@ -352,7 +355,7 @@ def autogen(
         cell = mol.copy()
     else:
         cell = mol.copy()
-        cell.basis = valence_basis
+        cell.basis = iao_valence_basis
         cell.build()
 
     ncore, no_core_idx, core_list = get_core(cell)
@@ -546,11 +549,11 @@ def autogen(
         w.close()
 
     # Prepare for PAO basis if requested
-    pao = bool(valence_basis and not valence_only)
+    pao = bool(iao_valence_basis and not valence_only)
 
     if pao:
         cell2 = cell.copy()
-        cell2.basis = valence_basis
+        cell2.basis = iao_valence_basis
         cell2.build()
 
         bas2list = cell2.aoslice_by_atom()
