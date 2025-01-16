@@ -48,18 +48,18 @@ class FragmentMap:
         The adjacency graph corresponding to `adjacency_mat`.
     """
 
-    fsites: list[tuple[int, ...]] = list(tuple())
-    fs: list[tuple[tuple[int, ...], ...]] = list(tuple(tuple()))
-    edge: list[tuple[tuple[int, ...], ...]] = list(tuple(tuple()))
-    center: list[tuple[int, ...]] = list(tuple())
-    centerf_idx: list[tuple[int, ...]] = list(tuple())
-    ebe_weights: list[tuple] = list(tuple())
-    sites: list[tuple] = list(tuple())
-    dnames: list = list()
-    center_atoms: list[tuple[str, ...]] = list()
-    edge_atoms: list[tuple[str, ...]] = list()
-    adjacency_mat: np.ndarray | None = None
-    adjacency_graph: nx.Graph = nx.Graph()
+    fsites: list[tuple[int, ...]]
+    fs: list[tuple[tuple[int, ...], ...]]
+    edge: list[tuple[tuple[int, ...], ...]]
+    center: list[tuple[int, ...]]
+    centerf_idx: list[tuple[int, ...]]
+    ebe_weights: list[tuple]
+    sites: list[tuple]
+    dnames: list
+    center_atoms: list[tuple[str, ...]]
+    edge_atoms: list[tuple[str, ...]]
+    adjacency_mat: np.ndarray | None
+    adjacency_graph: nx.Graph
 
     def remove_nonnunique_frags(self) -> None:
         for adx, basa in enumerate(self.fsites):
@@ -157,8 +157,11 @@ def graphgen(
         ebe_weights=list(tuple()),
         sites=list(tuple()),
         dnames=list(),
+        center_atoms=list(),
+        edge_atoms=list(),
+        adjacency_mat=np.zeros((natm, natm), np.float64),
+        adjacency_graph=nx.Graph()
     )
-    fragment_map.adjacency_mat = np.zeros((natm, natm), np.float64)
     fragment_map.adjacency_graph.add_nodes_from(adx_map)
 
     _core_offset = 0
