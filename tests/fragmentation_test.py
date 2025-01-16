@@ -1326,7 +1326,7 @@ class TestBE_Fragmentation(unittest.TestCase):
             "graphgen",
             target,
         )
-        
+
     def test_graphgen_autogen_h_linear_be2(self):
         mol = gto.M()
         mol.atom = [["H", (0.0, 0.0, i)] for i in range(8)]
@@ -1375,7 +1375,6 @@ class TestBE_Fragmentation(unittest.TestCase):
         target,
         delta,
     ):
-
         Es = {"target": target}
         for frag_type in ["autogen", "graphgen"]:
             fobj = fragpart(frag_type=frag_type, be_type=be_type, mol=mf.mol)

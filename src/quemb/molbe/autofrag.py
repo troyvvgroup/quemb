@@ -165,7 +165,7 @@ def graphgen(
         center_atoms=list(),
         edge_atoms=list(),
         adjacency_mat=np.zeros((natm, natm), np.float64),
-        adjacency_graph=nx.Graph()
+        adjacency_graph=nx.Graph(),
     )
     fragment_map.adjacency_graph.add_nodes_from(adx_map)
 
