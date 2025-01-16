@@ -178,10 +178,7 @@ def get_pao(Ciao: Matrix, S: Matrix, S12: Matrix) -> Matrix:
 
 
 def get_pao_native(
-    Ciao: Matrix,
-    S: Matrix,
-    mol: Mole,
-    iao_valence_basis: str
+    Ciao: Matrix, S: Matrix, mol: Mole, iao_valence_basis: str
 ) -> Matrix:
     """
 
