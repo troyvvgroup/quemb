@@ -23,7 +23,7 @@ class fragpart:
         ny=False,
         nz=False,
         kpt=None,
-        valence_basis=None,
+        iao_valence_basis=None,
         be_type="be2",
         mol=None,
         frozen_core=False,
@@ -56,7 +56,7 @@ class fragpart:
         mol : pyscf.pbc.gto.cell.Cell
             pyscf.pbc.gto.cell.Cell object. This is required for the options, 'autogen',
             and 'chain' as frag_type.
-        valence_basis: str
+        iao_valence_basis: str
             Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
         frozen_core: bool
             Whether to invoke frozen core approximation. This is set to False by default
@@ -90,7 +90,7 @@ class fragpart:
         self.frozen_core = frozen_core
         self.self_match = self_match
         self.allcen = allcen
-        self.valence_basis = valence_basis
+        self.iao_valence_basis = iao_valence_basis
         self.kpt = kpt
         self.molecule = False  # remove this
 
@@ -117,7 +117,7 @@ class fragpart:
                 kpt,
                 be_type=be_type,
                 frozen_core=frozen_core,
-                valence_basis=valence_basis,
+                iao_valence_basis=iao_valence_basis,
                 unitcell=unitcell,
                 nx=nx,
                 ny=ny,

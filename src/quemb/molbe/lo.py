@@ -177,7 +177,7 @@ def get_pao(Ciao: Matrix, S: Matrix, S12: Matrix) -> Matrix:
     return cano_orth(Cpao_redundant, ovlp=S)
 
 
-def get_pao_native(Ciao: Matrix, S: Matrix, mol: Mole, valence_basis: str) -> Matrix:
+def get_pao_native(Ciao: Matrix, S: Matrix, mol: Mole, iao_valence_basis: str) -> Matrix:
     """
 
     Parameters
@@ -188,7 +188,7 @@ def get_pao_native(Ciao: Matrix, S: Matrix, mol: Mole, valence_basis: str) -> Ma
         ao ovlp matrix
     mol:
         mol object
-    valence_basis:
+    iao_valence_basis:
         basis used for valence orbitals
     Returns
     -------
@@ -200,7 +200,7 @@ def get_pao_native(Ciao: Matrix, S: Matrix, mol: Mole, valence_basis: str) -> Ma
 
     # Form a mol object with the valence basis for the ao_labels
     mol_alt = mol.copy()
-    mol_alt.basis = valence_basis
+    mol_alt.basis = iao_valence_basis
     mol_alt.build()
 
     full_ao_labels = mol.ao_labels()
@@ -256,7 +256,7 @@ class MixinLocalize:
     def localize(
         self,
         lo_method,
-        valence_basis="sto-3g",
+        iao_valence_basis="sto-3g",
         hstack=False,
         pop_method=None,
         init_guess=None,
@@ -273,7 +273,7 @@ class MixinLocalize:
         lo_method : str
             Localization method in quantum chemistry. 'lowdin', 'boys', and 'iao'
             are supported.
-        valence_basis : str
+        iao_valence_basis : str
             Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
         valence_only : bool
             If this option is set to True, all calculation will be performed in the
@@ -374,7 +374,7 @@ class MixinLocalize:
             # Occupied mo_coeff (with core)
             Co = self.C[:, : self.Nocc]
             # Get necessary overlaps, second arg is IAO basis
-            S12, S2 = get_xovlp(self.mol, basis=valence_basis)
+            S12, S2 = get_xovlp(self.mol, basis=iao_valence_basis)
             # Use these to get IAOs
             Ciao = get_iao(Co, S12, self.S, S2=S2)
 
@@ -384,7 +384,7 @@ class MixinLocalize:
                     Cpao = get_pao(Ciao, self.S, S12)
                 elif loc_type.upper() == "SO":
                     Cpao = get_pao_native(
-                        Ciao, self.S, self.mol, valence_basis=valence_basis
+                        Ciao, self.S, self.mol, iao_valence_basis=iao_valence_basis
                     )
 
             # rearrange by atom

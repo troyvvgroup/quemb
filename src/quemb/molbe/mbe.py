@@ -211,7 +211,7 @@ class BE(MixinLocalize):
             self.localize(
                 lo_method,
                 pop_method=pop_method,
-                valence_basis=fobj.valence_basis,
+                iao_valence_basis=fobj.iao_valence_basis,
                 valence_only=fobj.valence_only,
             )
 
@@ -219,7 +219,7 @@ class BE(MixinLocalize):
                 self.Ciao_pao = self.localize(
                     lo_method,
                     pop_method=pop_method,
-                    valence_basis=fobj.valence_basis,
+                    iao_valence_basis=fobj.iao_valence_basis,
                     hstack=True,
                     valence_only=False,
                     nosave=True,

@@ -192,7 +192,7 @@ def get_pao_k(Ciao, S, S12):
     return asarray(Cpao)
 
 
-def get_pao_native_k(Ciao, S, mol, valence_basis, ortho=True):
+def get_pao_native_k(Ciao, S, mol, iao_valence_basis, ortho=True):
     """
 
     Parameters
@@ -203,7 +203,7 @@ def get_pao_native_k(Ciao, S, mol, valence_basis, ortho=True):
         ao ovlp matrix
     mol :
         mol object
-    valence_basis:
+    iao_valence_basis:
         basis used for valence orbitals
 
     Returns
@@ -215,7 +215,7 @@ def get_pao_native_k(Ciao, S, mol, valence_basis, ortho=True):
 
     # Form a mol object with the valence basis for the ao_labels
     mol_alt = mol.copy()
-    mol_alt.basis = valence_basis
+    mol_alt.basis = iao_valence_basis
     mol_alt.build()
 
     full_ao_labels = mol.ao_labels()

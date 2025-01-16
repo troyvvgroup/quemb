@@ -45,7 +45,7 @@ class Mixin_k_Localize:
     def localize(
         self,
         lo_method,
-        valence_basis="sto-3g",
+        iao_valence_basis="sto-3g",
         core_basis="sto-3g",
         iao_wannier=True,
         iao_val_core=True,
@@ -60,7 +60,7 @@ class Mixin_k_Localize:
         lo_method : str
             Localization method in quantum chemistry. 'lowdin', 'boys','iao',
             and 'wannier' are supported.
-        valence_basis : str
+        iao_valence_basis : str
             Name of valence basis set for IAO scheme. 'sto-3g' suffice for most cases.
         core_basis : str
             Name of core basis set for IAO scheme. 'sto-3g' suffice for most cases.
@@ -128,7 +128,7 @@ class Mixin_k_Localize:
         elif lo_method == "iao":
             if not iao_val_core or not self.frozen_core:
                 Co = self.C[:, :, : self.Nocc].copy()
-                S12, S2 = get_xovlp_k(self.cell, self.kpts, basis=valence_basis)
+                S12, S2 = get_xovlp_k(self.cell, self.kpts, basis=iao_valence_basis)
                 ciao_ = get_iao_k(Co, S12, self.S, S2=S2)
 
                 # tmp - aos are not rearrange and so below is not necessary
@@ -145,7 +145,7 @@ class Mixin_k_Localize:
                 # Cpao = get_pao_k(Ciao, self.S, S12, S2, self.cell)
                 # get_pao_native_k returns symm orthogonalized orbitals
                 cpao_ = get_pao_native_k(
-                    Ciao_, self.S, self.cell, valence_basis, self.kpts
+                    Ciao_, self.S, self.cell, iao_valence_basis, self.kpts
                 )
 
                 nk, nao, nlo = cpao_.shape
@@ -192,7 +192,7 @@ class Mixin_k_Localize:
 
                 # Begin valence
                 s12_val_, s2_val = get_xovlp_k(
-                    self.cell, self.kpts, basis=valence_basis
+                    self.cell, self.kpts, basis=iao_valence_basis
                 )
                 C_nocore = self.C[:, :, self.ncore :].copy()
                 C_nocore_occ_ = C_nocore[:, :, : self.Nocc].copy()
@@ -235,7 +235,7 @@ class Mixin_k_Localize:
                     )
 
                 cpao_ = get_pao_native_k(
-                    c_core_val, self.S, self.cell, valence_basis, self.kpts, ortho=True
+                    c_core_val, self.S, self.cell, iao_valence_basis, self.kpts, ortho=True
                 )
                 nk, nao, nlo = cpao_.shape
                 Cpao_ = zeros((nk, nao, nlo), dtype=complex128)
