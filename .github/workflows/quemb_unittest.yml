@@ -43,7 +43,7 @@ jobs:
     - uses: actions/cache@v4
       with:
         path: ${{ env.pythonLocation }}
-        key: ${{ env.pythonLocation }}-${{ runner.OS  }}-quemb-cache-${{ hashFiles('setup.py') }}-${{ hashFiles('dev-requirements.txt') }}-${{ hashFiles('tests/test_requirements.txt') }}}}
+        key: ${{ env.pythonLocation }}-${{ runner.OS  }}-pip-cache-${{ hashFiles('setup.py') }}-${{ hashFiles('dev-requirements.txt') }}-${{ hashFiles('tests/test_requirements.txt') }}}}
 
 
     - name: Install dependencies
@@ -103,6 +103,7 @@ jobs:
       run: python -m pip install --upgrade pip
     
     - name: Save pip Cache
+      if: steps.restore-quemb-cache.outputs.cache-hit != 'true'
       id: save-pip-cache
       uses: actions/cache/save@v4
       with: 
@@ -123,6 +124,7 @@ jobs:
         pip install .
 
     - name: Save quemb Cache
+      if: steps.restore-quemb-cache.outputs.cache-hit != 'true'
       id: save-quemb-cache
       uses: actions/cache/save@v4
       with: 
@@ -148,6 +150,7 @@ jobs:
         pip install .
 
     - name: Save block2 Cache
+      if: steps.restore-quemb-cache.outputs.cache-hit != 'true'
       id: save-block2-cache
       uses: actions/cache/save@v4
       with: 
