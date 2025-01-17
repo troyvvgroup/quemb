@@ -1,10 +1,283 @@
-# Author: Oinam Romesh Meitei
+# Author: Oinam Romesh Meitei, Shaun Weatherly
 
+from typing import Any
 
+import networkx as nx
+import numpy as np
+from attrs import define
+from networkx import single_source_all_shortest_paths  # type: ignore[attr-defined]
 from numpy.linalg import norm
+from pyscf import gto
 
 from quemb.molbe.helper import get_core
 from quemb.shared.helper import unused
+
+
+@define(init=True)
+class FragmentMap:
+    """Dataclass for fragment bookkeeping.
+
+    Parameters
+    ----------
+    fsites:
+        List whose entries are tuples containing all AO indices for a fragment.
+    fs:
+        List whose entries are tuples of tuples, containing AO indices per atom
+        per fragment.
+    edge:
+        List whose entries are tuples of tuples, containing edge AO
+        indices per atom (inner tuple) per fragment (outer tuple).
+    center:
+        List whose entries are tuples of tuples, containing all fragment AO
+        indices per atom (inner tuple) and per fragment (outer tuple).
+    centerf_idx:
+        List whose entries are tuples containing the relative index of all
+        center sites within a fragment (ie, with respect to fsites).
+    ebe_weights:
+        Weights determining the energy contributions from each center site
+        (ie, with respect to centerf_idx).
+    sites:
+        List whose entries are tuples containing all AO indices per atom
+        (excluding frozen core indices, if applicable).
+    dnames:
+        List of strings giving fragment data names. Useful for bookkeeping and
+        for constructing fragment scratch directories.
+    adjacency_mat:
+        The adjacency matrix for all sites (atoms) in the system.
+    adjacency_graph:
+        The adjacency graph corresponding to `adjacency_mat`.
+    """
+
+    fsites: list[tuple[int, ...]]
+    fs: list[tuple[tuple[int, ...], ...]]
+    edge: list[tuple[tuple[int, ...], ...]]
+    center: list[tuple[int, ...]]
+    centerf_idx: list[tuple[int, ...]]
+    ebe_weights: list[tuple]
+    sites: list[tuple]
+    dnames: list
+    center_atoms: list[tuple[str, ...]]
+    edge_atoms: list[tuple[str, ...]]
+    adjacency_mat: np.ndarray
+    adjacency_graph: nx.Graph
+
+    def remove_nonnunique_frags(self) -> None:
+        for adx, basa in enumerate(self.fsites):
+            for bdx, basb in enumerate(self.fsites):
+                if adx == bdx:
+                    pass
+                elif set(basb).issubset(set(basa)):
+                    tmp = set(self.center[adx] + self.center[bdx])
+                    self.center[adx] = tuple(tmp)
+                    del self.center[bdx]
+                    del self.fsites[bdx]
+                    del self.fs[bdx]
+
+        return None
+
+
+def euclidean_norm(
+    i_coord: float,
+    j_coord: float,
+) -> np.floating[Any]:
+    return norm(np.asarray(i_coord - j_coord))
+
+
+def graphgen(
+    mol: gto.Mole,
+    be_type: str = "BE2",
+    frozen_core: bool = True,
+    remove_nonunique_frags: bool = True,
+    frag_prefix: str = "f",
+    connectivity: str = "euclidean",
+    iao_valence_basis: str | None = None,
+) -> FragmentMap:
+    """Generate fragments via adjacency graph.
+
+    Generalizes the BEn fragmentation scheme to arbitrary fragment sizes using a
+    graph theoretic heuristic. In brief: atoms are assigned to nodes in an
+    adjacency graph and edges are weighted by some distance metric. For a given
+    fragment center site, Dijkstra's algorithm is used to find the shortest path
+    from that center to its neighbors. The number of nodes visited on that shortest
+    path determines the degree of separation of the corresponding neighbor. I.e.,
+    all atoms whose shortest paths from the center site visit at most 1 node must
+    be direct neighbors to the center site, which gives BE2-type fragments; all
+    atoms whose shortest paths visit at most 2 nodes must then be second-order
+    neighbors, hence BE3; and so on.
+
+    Currently does not support periodic calculations.
+
+    Parameters
+    ----------
+    mol :
+        The molecule object.
+    be_type :
+        The order of nearest neighbors (with respect to the center atom)
+        included in a fragment. Supports all 'BEn', with 'n' in -
+        [1, 2, 3, 4, 5, 6, 7, 8, 9] having been tested.
+    frozen_core:
+        Whether to exclude core AO indices from the fragmentation process.
+        True by default.
+    remove_nonunique_frags:
+        Whether to remove fragments which are strict subsets of another
+        fragment in the system. True by default.
+    frag_prefix:
+        Prefix to be appended to the fragment datanames. Useful for managing
+        fragment scratch directories.
+    connectivity:
+        Keyword string specifying the distance metric to be used for edge
+        weights in the fragment adjacency graph. Currently supports "euclidean"
+        (which uses the square of the distance between atoms in real
+        space to determine connectivity within a fragment.)
+
+    Returns
+    -------
+    FragmentMap :
+        FragmentMap mapping various fragment components to AO indices, data names,
+        and other info.
+    """
+    assert mol is not None
+    if iao_valence_basis is not None:
+        raise NotImplementedError("IAOs not yet implemented for graphgen.")
+
+    fragment_type_order = int(be_type[-1])
+    natm = mol.natm
+
+    adx_map = {
+        adx: {
+            "bas": bas,
+            "label": mol.atom_symbol(adx),
+            "coord": mol.atom_coord(adx),
+            "shortest_paths": dict(),
+        }
+        for adx, bas in enumerate(mol.aoslice_by_atom())
+    }
+
+    fragment_map = FragmentMap(
+        fsites=(list(tuple())),
+        fs=list(tuple(tuple())),
+        edge=list(tuple(tuple())),
+        center=list(tuple()),
+        centerf_idx=list(tuple()),
+        ebe_weights=list(tuple()),
+        sites=list(tuple()),
+        dnames=list(),
+        center_atoms=list(),
+        edge_atoms=list(),
+        adjacency_mat=np.zeros((natm, natm), np.float64),
+        adjacency_graph=nx.Graph(),
+    )
+    fragment_map.adjacency_graph.add_nodes_from(adx_map)
+
+    _core_offset = 0
+    for adx, map in adx_map.items():
+        start_ = map["bas"][2]
+        stop_ = map["bas"][3]
+        if frozen_core:
+            _, _, core_list = get_core(mol)
+            start_ -= _core_offset
+            ncore_ = int(core_list[adx])
+            stop_ -= _core_offset + ncore_
+            _core_offset += ncore_
+            fragment_map.sites.append(tuple([i for i in range(start_, stop_)]))
+        else:
+            fragment_map.sites.append(tuple([i for i in range(start_, stop_)]))
+
+    if connectivity.lower() in ["euclidean_distance", "euclidean"]:
+        # Begin by constructing the adjacency matrix and adjacency graph
+        # for the system. Each node corresponds to an atom, such that each
+        # pair of nodes can be assigned an edge weighted by the square of
+        # their distance in real space.
+        for adx in range(natm):
+            for bdx in range(adx + 1, natm):
+                dr = (
+                    euclidean_norm(
+                        adx_map[adx]["coord"],
+                        adx_map[bdx]["coord"],
+                    )
+                    ** 2
+                )
+                fragment_map.adjacency_mat[adx, bdx] = dr
+                fragment_map.adjacency_graph.add_edge(adx, bdx, weight=dr)
+
+        # For a given center site (adx), find the set of shortest
+        # paths to all other sites. The number of nodes visited
+        # on that path gives the degree of separation of the
+        # sites.
+        for adx, map in adx_map.items():
+            fragment_map.center_atoms.append(tuple())
+            fsites_temp = fragment_map.sites[adx]
+            fs_temp = []
+            fs_temp.append(fragment_map.sites[adx])
+            map["shortest_paths"] = dict(
+                single_source_all_shortest_paths(
+                    fragment_map.adjacency_graph,
+                    source=adx,
+                    weight=lambda a, b, _: (
+                        fragment_map.adjacency_graph[a][b]["weight"]
+                    ),
+                    method="dijkstra",
+                )
+            )
+
+            # If the degree of separation is smaller than the *n*
+            # in your fragment type, BE*n*, then that site is appended to
+            # the set of fragment sites for adx.
+            for bdx, path in map["shortest_paths"].items():
+                if 0 < (len(path[0]) - 1) < fragment_type_order:
+                    fsites_temp = tuple(fsites_temp + fragment_map.sites[bdx])
+                    fs_temp.append(tuple(fragment_map.sites[bdx]))
+
+            fragment_map.fsites.append(tuple(fsites_temp))
+            fragment_map.fs.append(tuple(fs_temp))
+            fragment_map.center.append(tuple(fragment_map.sites[adx]))
+
+    elif connectivity.lower() in ["resistance_distance", "resistance"]:
+        raise NotImplementedError("Work in progress...")
+
+    elif connectivity.lower() in ["entanglement"]:
+        raise NotImplementedError("Work in progress...")
+
+    else:
+        raise AttributeError(f"Connectivity metric not recognized: '{connectivity}'")
+
+    # Remove all fragments whose AO indices can be identified as subsets of
+    # another fragment's. The center site for the removed frag is then
+    # added to that of the superset. Because doing so will necessarily
+    # change the definition of fragments, we repeat it up to `natm` times
+    # such that all fragments are guaranteed to be distinct sets.
+    if remove_nonunique_frags:
+        for _ in range(0, natm):
+            fragment_map.remove_nonnunique_frags()
+
+    # Define the 'edges' for fragment A as the intersect of its sites
+    # with the set of all center sites outside of A:
+    for adx, fs in enumerate(fragment_map.fs):
+        edge: set[tuple] = set()
+        for bdx, center in enumerate(fragment_map.center):
+            if adx == bdx:
+                pass
+            else:
+                overlap = set(fs).intersection(set((center,)))
+                if overlap:
+                    edge = edge.union(overlap)
+        fragment_map.edge.append(tuple(edge))
+
+    # Update relative center site indices (centerf_idx) and weights
+    # for center site contributions to the energy (ebe_weights):
+    for adx, center in enumerate(fragment_map.center):
+        centerf_idx = tuple(
+            set([fragment_map.fsites[adx].index(cdx) for cdx in center])
+        )
+        ebe_weight = (1.0, tuple(centerf_idx))
+        fragment_map.centerf_idx.append(centerf_idx)
+        fragment_map.ebe_weights.append(ebe_weight)
+
+    # Finally, set fragment data names for scratch and bookkeeping:
+    for adx, _ in enumerate(fragment_map.fs):
+        fragment_map.dnames.append(str(frag_prefix) + str(adx))
+
+    return fragment_map
 
 
 def autogen(
@@ -12,7 +285,7 @@ def autogen(
     frozen_core=True,
     be_type="be2",
     write_geom=False,
-    valence_basis=None,
+    iao_valence_basis=None,
     valence_only=False,
     print_frags=True,
 ):
@@ -41,7 +314,7 @@ def autogen(
     write_geom : bool, optional
         Whether to write a 'fragment.xyz' file which contains all the fragments in
         Cartesian coordinates. Defaults to False.
-    valence_basis : str, optional
+    iao_valence_basis : str, optional
         Name of minimal basis set for IAO scheme. 'sto-3g' is sufficient for most cases.
         Defaults to None.
     valence_only : bool, optional
@@ -84,7 +357,7 @@ def autogen(
         cell = mol.copy()
     else:
         cell = mol.copy()
-        cell.basis = valence_basis
+        cell.basis = iao_valence_basis
         cell.build()
 
     ncore, no_core_idx, core_list = get_core(cell)
@@ -278,11 +551,11 @@ def autogen(
         w.close()
 
     # Prepare for PAO basis if requested
-    pao = bool(valence_basis and not valence_only)
+    pao = bool(iao_valence_basis and not valence_only)
 
     if pao:
         cell2 = cell.copy()
-        cell2.basis = valence_basis
+        cell2.basis = iao_valence_basis
         cell2.build()
 
         bas2list = cell2.aoslice_by_atom()

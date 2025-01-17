@@ -1,7 +1,7 @@
 # Author: Oinam Romesh Meitei
 
 
-from quemb.molbe.autofrag import autogen
+from quemb.molbe.autofrag import autogen, graphgen
 from quemb.molbe.helper import get_core
 from quemb.molbe.lchain import chain as _ext_chain
 from quemb.shared.helper import copy_docstring
@@ -31,7 +31,7 @@ class fragpart:
     mol : pyscf.gto.mole.Mole
         This is required for the options, 'autogen'
         and 'chain' as frag_type.
-    valence_basis: str
+    iao_valence_basis: str
         Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
     valence_only: bool
         If this option is set to True, all calculation will be performed in
@@ -50,7 +50,7 @@ class fragpart:
         self,
         frag_type="autogen",
         closed=False,
-        valence_basis=None,
+        iao_valence_basis=None,
         valence_only=False,
         print_frags=True,
         write_geom=False,
@@ -71,7 +71,7 @@ class fragpart:
         self.centerf_idx = []
         self.be_type = be_type
         self.frozen_core = frozen_core
-        self.valence_basis = valence_basis
+        self.iao_valence_basis = iao_valence_basis
         self.valence_only = valence_only
 
         # Initialize class attributes necessary for mixed-basis BE
@@ -82,30 +82,54 @@ class fragpart:
 
         # Check for frozen core approximation
         if frozen_core:
-            self.ncore, self.no_core_idx, self.core_list = get_core(mol)
+            self.ncore, self.no_core_idx, self.core_list = get_core(self.mol)
 
         # Check type of fragmentation function
         if frag_type == "hchain_simple":
             # This is an experimental feature.
             self.hchain_simple()
+
         elif frag_type == "chain":
             if mol is None:
                 raise ValueError(
                     "Provide pyscf gto.M object in fragpart() and restart!"
                 )
             self.chain(mol, frozen_core=frozen_core, closed=closed)
+
+        elif frag_type == "graphgen":
+            if self.mol is None:
+                raise ValueError(
+                    "Provide pyscf gto.M object in fragpart() and restart!"
+                )
+            fragment_map = graphgen(
+                mol=self.mol.copy(),
+                be_type=be_type,
+                frozen_core=frozen_core,
+                remove_nonunique_frags=True,
+                frag_prefix="f",
+                connectivity="euclidean",
+                iao_valence_basis=iao_valence_basis,
+            )
+
+            self.fsites = fragment_map.fsites
+            self.edge = fragment_map.edge
+            self.center = fragment_map.center
+            # self.edge_idx = fragment_map["edge"]
+            self.centerf_idx = fragment_map.centerf_idx
+            self.ebe_weight = fragment_map.ebe_weights
+            self.Nfrag = len(self.fsites)
+
         elif frag_type == "autogen":
             if mol is None:
                 raise ValueError(
                     "Provide pyscf gto.M object in fragpart() and restart!"
                 )
-
             fgs = autogen(
                 mol,
                 be_type=be_type,
                 frozen_core=frozen_core,
                 write_geom=write_geom,
-                valence_basis=valence_basis,
+                iao_valence_basis=iao_valence_basis,
                 valence_only=valence_only,
                 print_frags=print_frags,
             )
@@ -124,6 +148,7 @@ class fragpart:
                 self.add_center_atom,
             ) = fgs
             self.Nfrag = len(self.fsites)
+
         else:
             raise ValueError(f"Fragmentation type = {frag_type} not implemented!")
 
