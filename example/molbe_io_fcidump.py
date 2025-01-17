@@ -1,7 +1,7 @@
 # Illustrates how fcidump file containing fragment hamiltonian
 # can be generated using be2fcidump
 
-from quemb.molbe import BE, FragPart
+from quemb.molbe import BE, fragpart
 from quemb.molbe.misc import be2fcidump, libint2pyscf
 from quemb.shared.config import settings
 
@@ -15,7 +15,7 @@ mol, mf = libint2pyscf(
 mf.kernel()
 
 # Construct fragments for BE
-fobj = FragPart(be_type="be2", mol=mol)
+fobj = fragpart(be_type="be2", mol=mol)
 oct_be = BE(mf, fobj)
 
 # Write out fcidump file for each fragment

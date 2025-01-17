@@ -11,7 +11,7 @@ import unittest
 
 from pyscf import gto, scf
 
-from quemb.molbe import UBE, FragPart
+from quemb.molbe import UBE, fragpart
 
 
 class TestOneShot_Unrestricted(unittest.TestCase):
@@ -107,7 +107,7 @@ class TestOneShot_Unrestricted(unittest.TestCase):
     ):
         mf = scf.UHF(mol)
         mf.kernel()
-        fobj = FragPart(frag_type="autogen", be_type=be_type, mol=mol, frozen_core=frz)
+        fobj = fragpart(frag_type="autogen", be_type=be_type, mol=mol, frozen_core=frz)
         mybe = UBE(mf, fobj)
         mybe.oneshot(solver="UCCSD", nproc=1)
         self.assertAlmostEqual(

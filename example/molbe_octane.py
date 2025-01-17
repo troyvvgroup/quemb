@@ -2,7 +2,7 @@
 
 from pyscf import cc, gto, scf
 
-from quemb.molbe import BE, FragPart
+from quemb.molbe import BE, fragpart
 
 # Perform pyscf HF calculation to get mol & mf objects
 mol = gto.M(
@@ -50,7 +50,7 @@ ccsd_ecorr = mc.kernel()[0]
 print(f"*** CCSD Correlation Energy: {ccsd_ecorr:>14.8f} Ha", flush=True)
 
 # initialize fragments (use frozen core approximation)
-fobj = FragPart(be_type="be2", mol=mol, frozen_core=True)
+fobj = fragpart(be_type="be2", mol=mol, frozen_core=True)
 # Initialize BE
 mybe = BE(mf, fobj)
 

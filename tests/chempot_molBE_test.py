@@ -10,7 +10,7 @@ import unittest
 
 from pyscf import gto, scf
 
-from quemb.molbe import BE, FragPart
+from quemb.molbe import BE, fragpart
 
 
 class TestBE_restricted(unittest.TestCase):
@@ -52,7 +52,7 @@ class TestBE_restricted(unittest.TestCase):
     ):
         mf = scf.RHF(mol)
         mf.kernel()
-        fobj = FragPart(frag_type=frag_type, be_type=be_type, mol=mol)
+        fobj = fragpart(frag_type=frag_type, be_type=be_type, mol=mol)
         mybe = BE(mf, fobj)
         mybe.optimize(solver="CCSD", method="QN", only_chem=only_chem)
         self.assertAlmostEqual(

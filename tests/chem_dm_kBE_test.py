@@ -11,7 +11,7 @@ import unittest
 from numpy import eye
 from pyscf.pbc import df, gto, scf
 
-from quemb.kbe import BE, FragPart
+from quemb.kbe import BE, fragpart
 
 try:
     import libdmet
@@ -98,7 +98,7 @@ class Test_kBE_Full(unittest.TestCase):
         kmf.conv_tol = 1e-12
         kmf.kernel()
 
-        kfrag = FragPart(
+        kfrag = fragpart(
             be_type=be_type, mol=cell, frag_type=frag_type, kpt=kpt, frozen_core=True
         )
         mykbe = BE(kmf, kfrag, kpts=kpts)

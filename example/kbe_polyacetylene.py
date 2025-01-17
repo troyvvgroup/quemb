@@ -5,7 +5,7 @@
 import numpy as np
 from pyscf.pbc import df, gto, scf
 
-from quemb.kbe import BE, FragPart
+from quemb.kbe import BE, fragpart
 
 kpt = [1, 1, 3]
 cell = gto.Cell()
@@ -48,7 +48,7 @@ kmf.conv_tol = 1e-12
 kpoint_energy = kmf.kernel()
 
 # Define fragment in the supercell
-kfrag = FragPart(be_type="be2", mol=cell, kpt=kpt, frozen_core=True)
+kfrag = fragpart(be_type="be2", mol=cell, kpt=kpt, frozen_core=True)
 # Initialize BE
 mykbe = BE(kmf, kfrag, kpts=kpts)
 

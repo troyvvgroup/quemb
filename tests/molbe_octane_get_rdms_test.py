@@ -4,7 +4,7 @@
 import numpy as np
 from pyscf import gto, scf
 
-from quemb.molbe import BE, FragPart
+from quemb.molbe import BE, fragpart
 
 # TODO: actually add meaningful tests for RDM elements,
 #   energies etc.
@@ -51,7 +51,7 @@ def test_rdm():
     mf.kernel()
 
     # initialize fragments (use frozen core approximation)
-    fobj = FragPart(be_type="be2", mol=mol, frozen_core=True)
+    fobj = fragpart(be_type="be2", mol=mol, frozen_core=True)
     # Initialize BE
     mybe = BE(mf, fobj)
 
