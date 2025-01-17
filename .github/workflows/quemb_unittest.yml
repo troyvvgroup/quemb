@@ -155,6 +155,7 @@ jobs:
 
     - name: Test with pytest
       run: |
+        cp src/quemb/shared/external/libmkl_def.so.1 ${{ env.pythonLocation }}/lib/python${{ matrix.python-version }}/site-packages/block2.libs/libmkl_def.so.1
         cd tests
         # QUEMB_SKIP_EXPENSIVE_TESTS=true pytest --doctest-modules --junitxml=junit/quemb-test-results_${{ matrix.python-version }}.xml
         QUEMB_SKIP_EXPENSIVE_TESTS=true pytest --doctest-modules --junitxml=junit/quemb-test-results_${{ matrix.python-version }}.xml dmrg_molBE_test.py
