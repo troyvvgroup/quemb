@@ -1,6 +1,3 @@
 # the additional (!) requirements for testing the code
 # the dependencies of `quemb` itself are given in the setup.py
-mkl==2025.0.1
-block2
-git+https://github.com/pyscf/dmrgscf
 pytest

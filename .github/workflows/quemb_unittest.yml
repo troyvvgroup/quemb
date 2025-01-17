@@ -120,8 +120,6 @@ jobs:
       if: steps.restore-quemb-cache.outputs.cache-hit != 'true'
       run: |
         pip install -r tests/test_requirements.txt
-        PYSCFHOME=$(pip show pyscf-dmrgscf | grep 'Location' | tr ' ' '\n' | tail -n 1)
-        cp  src/quemb/shared/external/dmrgscf_settings.py ${PYSCFHOME}/pyscf/dmrgscf/settings.py
         pip install .
 
     - name: Save quemb Cache
@@ -130,6 +128,31 @@ jobs:
       with: 
         path: ${{ env.pythonLocation }}
         key: ${{ steps.restore-quemb-cache.outputs.cache-primary-key }}
+    
+    - name: Restore block2 Cache
+      id: restore-block2-cache
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ env.pythonLocation }}
+        key: ${{ env.pythonLocation }}-${{ runner.OS  }}-block2-cache-${{ hashFiles('setup.py') }}-${{ hashFiles('dev-requirements.txt') }}-${{ hashFiles('tests/test_requirements.txt') }}}}
+
+    - name: Install block2
+      if: steps.restore-block2-cache.outputs.cache-hit != 'true'
+      run: |
+        pip install mkl==2025.0.1
+        pip install pybind11
+        pip install block2 --extra-index-url=https://block-hczhai.github.io/block2-preview/pypi/
+        pip install git+https://github.com/pyscf/dmrgscf
+        PYSCFHOME=$(pip show pyscf-dmrgscf | grep 'Location' | tr ' ' '\n' | tail -n 1)
+        cp  src/quemb/shared/external/dmrgscf_settings.py ${PYSCFHOME}/pyscf/dmrgscf/settings.py
+        pip install .
+
+    - name: Save block2 Cache
+      id: save-block2-cache
+      uses: actions/cache/save@v4
+      with: 
+        path: ${{ env.pythonLocation }}
+        key: ${{ steps.restore-block2-cache.outputs.cache-primary-key }}
       
 
     - name: Test with pytest
