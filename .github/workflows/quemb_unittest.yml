@@ -108,8 +108,6 @@ jobs:
         PYSCFHOME=$(pip show pyscf-dmrgscf | grep 'Location' | tr ' ' '\n' | tail -n 1)
         cp  src/quemb/shared/external/dmrgscf_settings.py ${PYSCFHOME}/pyscf/dmrgscf/settings.py
         pip install .
-        pip install nomkl
-        pip uninstall -y mkl
 
     - name: Test with pytest
       run: |
