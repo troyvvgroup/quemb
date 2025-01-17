@@ -17,7 +17,7 @@ setup(
     license="Apache 2.0",
     packages=find_packages("src"),
     package_dir={"": "src"},
-    python_requires=">=3.10",
+    python_requires=">=3.10,<3.13",
     install_requires=[
         "numpy>=1.22.0",
         "scipy>=1.7.0",
