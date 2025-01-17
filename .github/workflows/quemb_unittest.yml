@@ -91,25 +91,33 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Cache pip restore
-      id: cache-pip-restore
+    - name: Restore pip Cache
+      id: restore-pip-cache
       uses: actions/cache/restore@v4
       with:
         path: ${{ env.pythonLocation }}
         key: ${{ env.pythonLocation }}-${{ runner.OS  }}-pip-cache-${{ hashFiles('setup.py') }}-${{ hashFiles('dev-requirements.txt') }}-${{ hashFiles('tests/test_requirements.txt') }}}}
 
     - name: Install pip
-      if: steps.cache-pip-restore.outputs.cache-hit != 'true'
+      if: steps.restore-pip-cache.outputs.cache-hit != 'true'
       run: python -m pip install --upgrade pip
     
-    - name: Save pip
-      id: cache-pip-save
+    - name: Save pip Cache
+      id: save-pip-cache
       uses: actions/cache/save@v4
       with: 
         path: ${{ env.pythonLocation }}
-        key: ${{ steps.cache-pip-restore.outputs.cache-primary-key }}
+        key: ${{ steps.restore-pip-cache.outputs.cache-primary-key }}
 
-    - name: Install dependencies
+    - name: Restore quemb Cache
+      id: restore-quemb-cache
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ env.pythonLocation }}
+        key: ${{ env.pythonLocation }}-${{ runner.OS  }}-quemb-cache-${{ hashFiles('setup.py') }}-${{ hashFiles('dev-requirements.txt') }}-${{ hashFiles('tests/test_requirements.txt') }}}}
+
+    - name: Install quemb
+      if: steps.restore-quemb-cache.outputs.cache-hit != 'true'
       run: |
         pip install -r tests/test_requirements.txt
         pip install block2 --extra-index-url=https://block-hczhai.github.io/block2-preview/pypi/
@@ -117,6 +125,14 @@ jobs:
         PYSCFHOME=$(pip show pyscf-dmrgscf | grep 'Location' | tr ' ' '\n' | tail -n 1)
         cp  src/quemb/shared/external/dmrgscf_settings.py ${PYSCFHOME}/pyscf/dmrgscf/settings.py
         pip install .
+
+    - name: Save quemb Cache
+      id: save-quemb-cache
+      uses: actions/cache/save@v4
+      with: 
+        path: ${{ env.pythonLocation }}
+        key: ${{ steps.restore-pip-cache.outputs.cache-primary-key }}
+      
 
     - name: Test with pytest
       run: |
