@@ -120,6 +120,7 @@ jobs:
     - name: Install quemb
       if: steps.restore-quemb-cache.outputs.cache-hit != 'true'
       run: |
+        export -DUSE_MKL=OFF
         pip install -r tests/test_requirements.txt
         pip install .
 
