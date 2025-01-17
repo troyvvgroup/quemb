@@ -22,6 +22,7 @@ setup(
         "numpy>=1.22.0",
         "scipy>=1.7.0",
         "pyscf>=2.0.0",
+        "networkx",
         "matplotlib",
         "libdmet @ git+https://github.com/gkclab/libdmet_preview.git",
         "attrs",

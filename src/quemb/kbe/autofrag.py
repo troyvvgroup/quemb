@@ -241,7 +241,7 @@ def autogen(
     nx=False,
     ny=False,
     nz=False,
-    valence_basis=None,
+    iao_valence_basis=None,
     interlayer=False,
     print_frags=True,
 ):
@@ -274,7 +274,7 @@ def autogen(
     write_geom : bool, optional
         Whether to write a 'fragment.xyz' file which contains all the fragments in
         Cartesian coordinates. Defaults to False.
-    valence_basis : str, optional
+    iao_valence_basis : str, optional
         Name of minimal basis set for IAO scheme. 'sto-3g' is sufficient for most cases.
         Defaults to None.
     valence_only : bool, optional
@@ -1922,11 +1922,11 @@ def autogen(
                     )
         w.close()
 
-    pao = valence_basis is not None
+    pao = iao_valence_basis is not None
 
     if pao:
         cell2 = cell.copy()
-        cell2.basis = valence_basis
+        cell2.basis = iao_valence_basis
         cell2.build()
 
         bas2list = cell2.aoslice_by_atom()
