@@ -157,9 +157,8 @@ jobs:
     - name: Test with pytest
       run: |
         cd tests
-        export QUEMB_SKIP_EXPENSIVE_TESTS=true
         # QUEMB_SKIP_EXPENSIVE_TESTS=true pytest --doctest-modules --junitxml=junit/quemb-test-results_${{ matrix.python-version }}.xml
-        LD_PRELOAD=${{ env.pythonLocation }}/libmkl_core.so pytest -c '--doctest-modules --junitxml=junit/quemb-test-results_${{ matrix.python-version }}.xml dmrg_molBE_test.py'
+        QUEMB_SKIP_EXPENSIVE_TESTS=true pytest --doctest-modules --junitxml=junit/quemb-test-results_${{ matrix.python-version }}.xml dmrg_molBE_test.py
 
 
     - name: Upload pytest junit results
