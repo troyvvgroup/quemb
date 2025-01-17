@@ -1,0 +1,4 @@
+mkl>=2025.0.1
+mkl-include
+block2 --extra-index-url=https://block-hczhai.github.io/block2-preview/pypi/
+git+https://github.com/pyscf/dmrgscf
