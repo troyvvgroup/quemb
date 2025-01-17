@@ -911,7 +911,7 @@ def solve_block2(
     mc.fcisolver.scratchDirectory = frag_scratch.path
     mc.fcisolver.runtimeDir = frag_scratch.path
     mc.fcisolver.memory = DMRG_args.max_mem
-    os.chdir(frag_scratch.path)
+    os.chdir(frag_scratch)
 
     mc.kernel(orbs)
     rdm1, rdm2 = dmrgscf.DMRGCI.make_rdm12(
