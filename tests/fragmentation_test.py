@@ -144,7 +144,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 [33, 34, 35, 36, 37, 39, 41],
                 [42, 43, 44, 45, 46, 52, 54, 57],
                 [47, 48, 49, 50, 51, 53, 55, 56],
-            ],  # noqa E501
+            ],
             "edge": [],
             "center": [],
             "centerf_idx": [
@@ -156,7 +156,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6, 7],
                 [0, 1, 2, 3, 4, 5, 6, 7],
-            ],  # noqa E501
+            ],
             "ebe_weight": [
                 [1.0, [0, 1, 2, 3, 4, 5, 6]],
                 [1.0, [0, 1, 2, 3, 4, 5, 6]],
@@ -166,7 +166,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 [1.0, [0, 1, 2, 3, 4, 5, 6]],
                 [1.0, [0, 1, 2, 3, 4, 5, 6, 7]],
                 [1.0, [0, 1, 2, 3, 4, 5, 6, 7]],
-            ],  # noqa E501
+            ],
         }
 
         self.run_indices_test(
@@ -329,7 +329,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                     25,
                     27,
                 ],
-            ],  # noqa E501
+            ],
             "edge": [
                 [[5, 6, 7, 8, 9, 10, 12], [19, 20, 21, 22, 23, 25, 27]],
                 [[0, 1, 2, 3, 4, 11, 13], [14, 15, 16, 17, 18, 24, 26]],
@@ -337,8 +337,8 @@ class TestBE_Fragmentation(unittest.TestCase):
                 [[0, 1, 2, 3, 4, 11, 13], [33, 34, 35, 36, 37, 39, 41]],
                 [[14, 15, 16, 17, 18, 24, 26]],
                 [[19, 20, 21, 22, 23, 25, 27]],
-            ],  # noqa E501
-            "center": [[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],  # noqa E501
+            ],
+            "center": [[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
             "centerf_idx": [
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
@@ -346,7 +346,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
-            ],  # noqa E501
+            ],
             "ebe_weight": [
                 [1.0, [0, 1, 2, 3, 4, 5, 6]],
                 [1.0, [0, 1, 2, 3, 4, 5, 6]],
@@ -354,7 +354,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 [1.0, [0, 1, 2, 3, 4, 5, 6]],
                 [1.0, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]],
                 [1.0, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]],
-            ],  # noqa E501
+            ],
         }
 
         self.run_indices_test(
@@ -527,7 +527,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                     10,
                     12,
                 ],
-            ],  # noqa E501
+            ],
             "edge": [
                 [
                     [5, 6, 7, 8, 9, 10, 12],
@@ -543,14 +543,14 @@ class TestBE_Fragmentation(unittest.TestCase):
                 ],
                 [[5, 6, 7, 8, 9, 10, 12], [0, 1, 2, 3, 4, 11, 13]],
                 [[0, 1, 2, 3, 4, 11, 13], [5, 6, 7, 8, 9, 10, 12]],
-            ],  # noqa E501
-            "center": [[1, 2, 3, 3], [0, 3, 2, 2], [1, 0], [0, 1]],  # noqa E501
+            ],
+            "center": [[1, 2, 3, 3], [0, 3, 2, 2], [1, 0], [0, 1]],
             "centerf_idx": [
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
-            ],  # noqa E501
+            ],
             "ebe_weight": [
                 [1.0, [0, 1, 2, 3, 4, 5, 6]],
                 [1.0, [0, 1, 2, 3, 4, 5, 6]],
@@ -608,7 +608,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                         21,
                     ],
                 ],
-            ],  # noqa E501
+            ],
         }
 
         self.run_indices_test(
@@ -672,7 +672,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 (4, 3, 5),
                 (5, 4, 6),
                 (6, 5, 7),
-            ],  # noqa E501
+            ],
             "edge": [((2,),), ((3,),), ((2,), (4,)), ((3,), (5,)), ((4,),), ((5,),)],
             "center": [(0, 1), (2,), (3,), (4,), (5,), (6, 7)],
             "centerf_idx": [(0, 1), (0,), (0,), (0,), (0,), (0, 2)],
@@ -683,7 +683,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 (1.0, (0,)),
                 (1.0, (0,)),
                 (1.0, (0, 2)),
-            ],  # noqa E501
+            ],
         }
 
         self.run_indices_test(
@@ -710,7 +710,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 (3, 1, 2, 4, 5),
                 (4, 2, 3, 5, 6),
                 (5, 3, 4, 6, 7),
-            ],  # noqa E501
+            ],
             "edge": [((3,), (4,)), ((4,),), ((3,),), ((3,), (4,))],
             "center": [(0, 1, 2), (3,), (4,), (5, 6, 7)],
             "centerf_idx": [(0, 1, 2), (0,), (0,), (0, 3, 4)],
@@ -719,7 +719,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 (1.0, (0,)),
                 (1.0, (0,)),
                 (1.0, (0, 3, 4)),
-            ],  # noqa E501
+            ],
         }
 
         self.run_indices_test(
@@ -768,7 +768,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 (55,),
                 (56,),
                 (57,),
-            ],  # noqa E501
+            ],
             "edge": [
                 (),
                 (),
@@ -796,7 +796,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 (),
                 (),
                 (),
-            ],  # noqa E501
+            ],
             "center": [
                 (0, 1, 2, 3, 4),
                 (5, 6, 7, 8, 9),
@@ -824,7 +824,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 (55,),
                 (56,),
                 (57,),
-            ],  # noqa E501
+            ],
             "centerf_idx": [
                 (0, 1, 2, 3, 4),
                 (0, 1, 2, 3, 4),
@@ -852,7 +852,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 (0,),
                 (0,),
                 (0,),
-            ],  # noqa E501
+            ],
             "ebe_weight": [
                 (1.0, (0, 1, 2, 3, 4)),
                 (1.0, (0, 1, 2, 3, 4)),
@@ -880,7 +880,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 (1.0, (0,)),
                 (1.0, (0,)),
                 (1.0, (0,)),
-            ],  # noqa E501
+            ],
         }
 
         self.run_indices_test(
@@ -927,7 +927,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 (53, 25, 47, 48, 49, 50, 51),
                 (54, 26, 42, 43, 44, 45, 46),
                 (55, 27, 47, 48, 49, 50, 51),
-            ],  # noqa E501
+            ],
             "edge": [
                 ((5, 6, 7, 8, 9), (13,), (19, 20, 21, 22, 23), (11,)),
                 ((12,), (0, 1, 2, 3, 4), (10,), (14, 15, 16, 17, 18)),
@@ -953,7 +953,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 ((25,),),
                 ((26,),),
                 ((27,),),
-            ],  # noqa E501
+            ],
             "center": [
                 (0, 1, 2, 3, 4),
                 (5, 6, 7, 8, 9),
@@ -979,7 +979,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 (53,),
                 (54,),
                 (55,),
-            ],  # noqa E501
+            ],
             "centerf_idx": [
                 (0, 1, 2, 3, 4),
                 (0, 1, 2, 3, 4),
@@ -1005,7 +1005,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 (0,),
                 (0,),
                 (0,),
-            ],  # noqa E501
+            ],
             "ebe_weight": [
                 (1.0, (0, 1, 2, 3, 4)),
                 (1.0, (0, 1, 2, 3, 4)),
@@ -1031,7 +1031,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 (1.0, (0,)),
                 (1.0, (0,)),
                 (1.0, (0,)),
-            ],  # noqa E501
+            ],
         }
 
         self.run_indices_test(
@@ -1252,7 +1252,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                     55,
                     56,
                 ),
-            ],  # noqa E501
+            ],
             "edge": [
                 ((5, 6, 7, 8, 9), (12,), (10,), (11,), (13,), (25,), (27,)),
                 ((12,), (26,), (10,), (24,), (11,), (13,), (0, 1, 2, 3, 4)),
@@ -1268,7 +1268,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 ((0, 1, 2, 3, 4), (25,), (10,)),
                 ((5, 6, 7, 8, 9), (24,), (26,)),
                 ((0, 1, 2, 3, 4), (25,), (27,)),
-            ],  # noqa E501
+            ],
             "center": [
                 (0, 1, 2, 3, 4),
                 (5, 6, 7, 8, 9),
@@ -1284,7 +1284,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 (27,),
                 (32, 42, 43, 44, 45, 46, 52, 54, 57, 28, 29, 30, 31),
                 (33, 34, 35, 36, 37, 47, 48, 49, 50, 51, 53, 55, 56),
-            ],  # noqa E501
+            ],
             "centerf_idx": [
                 (0, 1, 2, 3, 4),
                 (0, 1, 2, 3, 4),
@@ -1300,7 +1300,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 (0,),
                 (0, 1, 2, 3, 4, 19, 20, 21, 22, 23, 24, 25, 26),
                 (0, 1, 2, 3, 4, 19, 20, 21, 22, 23, 24, 25, 26),
-            ],  # noqa E501
+            ],
             "ebe_weight": [
                 (1.0, (0, 1, 2, 3, 4)),
                 (1.0, (0, 1, 2, 3, 4)),
@@ -1316,7 +1316,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 (1.0, (0,)),
                 (1.0, (0, 1, 2, 3, 4, 19, 20, 21, 22, 23, 24, 25, 26)),
                 (1.0, (0, 1, 2, 3, 4, 19, 20, 21, 22, 23, 24, 25, 26)),
-            ],  # noqa E501
+            ],
         }
 
         self.run_indices_test(
