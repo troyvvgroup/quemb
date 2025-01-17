@@ -143,7 +143,8 @@ jobs:
       run: |
         pip install -r tests/test_opt_requirements.txt
         PYSCFHOME=$(pip show pyscf-dmrgscf | grep 'Location' | tr ' ' '\n' | tail -n 1)
-        cp  src/quemb/shared/external/dmrgscf_settings.py ${PYSCFHOME}/pyscf/dmrgscf/settings.py
+        cp ${{ env.pythonLocation }}/lib/libmkl.def.so.1  ${{ env.pythonLocation }}/lib/python3.*/site-packages/block2.libs/libmkl_def.so.1
+        cp src/quemb/shared/external/dmrgscf_settings.py ${PYSCFHOME}/pyscf/dmrgscf/settings.py
 
     - name: Save block2 Cache
       if: steps.restore-block2-cache.outputs.cache-hit != 'true'
