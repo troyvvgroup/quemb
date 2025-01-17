@@ -1,2 +1,2 @@
-block2 --extra-index-url=https://block-hczhai.github.io/block2-preview/pypi/ --no-deps block2
+block2 --extra-index-url=https://block-hczhai.github.io/block2-preview/pypi/
 git+https://github.com/pyscf/dmrgscf
