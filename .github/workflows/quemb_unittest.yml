@@ -152,14 +152,12 @@ jobs:
       with: 
         path: ${{ env.pythonLocation }}
         key: ${{ steps.restore-block2-cache.outputs.cache-primary-key }}
-      
 
     - name: Test with pytest
       run: |
         cd tests
-        LD_PRELOAD=${{ env.pythonLocation }}/lib/libmkl_core.so pytest --doctest-modules --junitxml=junit/quemb-test-results_${{ matrix.python-version }}.xml dmrg_molBE_test.py
         # QUEMB_SKIP_EXPENSIVE_TESTS=true pytest --doctest-modules --junitxml=junit/quemb-test-results_${{ matrix.python-version }}.xml
-        # QUEMB_SKIP_EXPENSIVE_TESTS=true pytest --doctest-modules --junitxml=junit/quemb-test-results_${{ matrix.python-version }}.xml dmrg_molBE_test.py
+        QUEMB_SKIP_EXPENSIVE_TESTS=true pytest --doctest-modules --junitxml=junit/quemb-test-results_${{ matrix.python-version }}.xml dmrg_molBE_test.py
 
 
     - name: Upload pytest junit results
