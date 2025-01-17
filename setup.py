@@ -28,7 +28,7 @@ setup(
         "attrs",
         "cattrs",
         "pyyaml",
-        # TODO: Remove this once chemcoord >= 2.2 is on PyPI
+        # TODO: Remove the git dependency once chemcoord >= 2.2 is on PyPI
         "chemcoord @ git+https://github.com/mcocdawc/chemcoord.git",
     ],
 )
