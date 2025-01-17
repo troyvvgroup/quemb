@@ -131,7 +131,7 @@ jobs:
       uses: actions/cache/save@v4
       with: 
         path: ${{ env.pythonLocation }}
-        key: ${{ steps.restore-pip-cache.outputs.cache-primary-key }}
+        key: ${{ steps.restore-quemb-cache.outputs.cache-primary-key }}
       
 
     - name: Test with pytest
