@@ -105,6 +105,8 @@ jobs:
     - name: Install dependencies
       run: |
         pip install -r tests/test_requirements.txt
+        pip install --upgrade --force-reinstall --no-deps --no-cache-dir block2==p0.5.4rc1 --extra-index-url=https://block-hczhai.github.io/block2-preview/pypi/
+        pip install git+https://github.com/pyscf/dmrgscf
         PYSCFHOME=$(pip show pyscf-dmrgscf | grep 'Location' | tr ' ' '\n' | tail -n 1)
         cp  src/quemb/shared/external/dmrgscf_settings.py ${PYSCFHOME}/pyscf/dmrgscf/settings.py
         pip install .
