@@ -43,7 +43,7 @@ jobs:
     - uses: actions/cache@v4
       with:
         path: ${{ env.pythonLocation }}
-        key: ${{ env.pythonLocation }}-${{ runner.OS  }}-quemb-cache-${{ hashFiles('setup.py') }}-${{ hashFiles('dev-requirements.txt')-${{ hashFiles('tests/test_requirements.txt') }}}}
+        key: ${{ env.pythonLocation }}-${{ runner.OS  }}-quemb-cache-${{ hashFiles('setup.py') }}-${{ hashFiles('dev-requirements.txt') }}-${{ hashFiles('tests/test_requirements.txt') }}}}
 
 
     - name: Install dependencies
@@ -100,7 +100,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ${{ env.pythonLocation }}
-        key: ${{ env.pythonLocation }}-${{ runner.OS  }}-quemb-cache-${{ hashFiles('setup.py') }}-${{ hashFiles('dev-requirements.txt')-${{ hashFiles('tests/test_requirements.txt') }}}}
+        key: ${{ env.pythonLocation }}-${{ runner.OS  }}-quemb-cache-${{ hashFiles('setup.py') }}-${{ hashFiles('dev-requirements.txt') }}-${{ hashFiles('tests/test_requirements.txt') }}}}
     
     - name: Install dependencies
       run: |
