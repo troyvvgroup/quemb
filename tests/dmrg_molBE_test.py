@@ -9,7 +9,7 @@ import unittest
 
 from pyscf import gto, scf
 
-from quemb.molbe import BE, fragpart
+from quemb.molbe import BE, FragPart
 
 try:
     from pyscf import dmrgscf
@@ -39,7 +39,7 @@ class TestBE_DMRG(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             mf = scf.RHF(mol)
             mf.kernel()
-            fobj = fragpart(frag_type=frag_type, be_type=be_type, mol=mol)
+            fobj = FragPart(frag_type=frag_type, be_type=be_type, mol=mol)
             mybe = BE(mf, fobj, lo_method="pipek", pop_method="lowdin")
             mybe.oneshot(
                 solver="block2",

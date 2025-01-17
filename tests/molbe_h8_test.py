@@ -5,7 +5,7 @@
 import numpy as np
 from pyscf import gto, scf
 
-from quemb.molbe import BE, fragpart
+from quemb.molbe import BE, FragPart
 
 
 def prepare_system():
@@ -32,7 +32,7 @@ def prepare_system():
 
 
 def do_BE(mol, mf, be_type: str, only_chem: bool):
-    fobj = fragpart(be_type=be_type, mol=mol)
+    fobj = FragPart(be_type=be_type, mol=mol)
     mybe = BE(mf, fobj)
     mybe.optimize(solver="FCI", only_chem=only_chem)
     return mybe

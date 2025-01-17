@@ -11,7 +11,7 @@ import pytest
 from pyscf.lib.misc import with_omp_threads
 from pyscf.tools import fcidump
 
-from quemb.molbe import BE, fragpart
+from quemb.molbe import BE, FragPart
 from quemb.molbe.misc import be2fcidump, libint2pyscf
 
 
@@ -31,7 +31,7 @@ def prepare_system() -> BE:
         mf.kernel()
 
     # Construct fragments for BE
-    fobj = fragpart(be_type="be2", mol=mol)
+    fobj = FragPart(be_type="be2", mol=mol)
     oct_be = BE(mf, fobj)
     return oct_be
 

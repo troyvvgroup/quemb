@@ -7,7 +7,7 @@ from quemb.molbe.lchain import chain as _ext_chain
 from quemb.shared.helper import copy_docstring
 
 
-class fragpart:
+class FragPart:
     """Fragment/partitioning definition
 
     Interfaces two main fragmentation functions (autogen & chain) in MolBE. It defines

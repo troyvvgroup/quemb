@@ -9,7 +9,7 @@ import unittest
 
 from pyscf import gto, scf
 
-from quemb.molbe import BE, fragpart
+from quemb.molbe import BE, FragPart
 
 
 class TestBE_Fragmentation(unittest.TestCase):
@@ -1377,7 +1377,7 @@ class TestBE_Fragmentation(unittest.TestCase):
     ):
         Es = {"target": target}
         for frag_type in ["autogen", "graphgen"]:
-            fobj = fragpart(frag_type=frag_type, be_type=be_type, mol=mf.mol)
+            fobj = FragPart(frag_type=frag_type, be_type=be_type, mol=mf.mol)
             mbe = BE(mf, fobj)
             mbe.oneshot(solver="CCSD")
             Es.update({frag_type: mbe.ebe_tot})
@@ -1403,7 +1403,7 @@ class TestBE_Fragmentation(unittest.TestCase):
         frag_type,
         target,
     ):
-        fobj = fragpart(frag_type=frag_type, be_type=be_type, mol=mf.mol)
+        fobj = FragPart(frag_type=frag_type, be_type=be_type, mol=mf.mol)
         try:
             assert fobj.fsites == target["fsites"]
             assert fobj.edge == target["edge"]

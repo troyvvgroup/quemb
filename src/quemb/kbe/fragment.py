@@ -7,7 +7,7 @@ from quemb.molbe.helper import get_core
 from quemb.shared.helper import copy_docstring
 
 
-class fragpart:
+class FragPart:
     def __init__(
         self,
         natom=0,

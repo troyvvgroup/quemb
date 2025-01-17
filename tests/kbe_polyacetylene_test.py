@@ -5,7 +5,7 @@
 import numpy as np
 from pyscf.pbc import df, gto, scf
 
-from quemb.kbe import BE, fragpart
+from quemb.kbe import BE, FragPart
 
 
 def test_polyacetylene():
@@ -50,7 +50,7 @@ def test_polyacetylene():
     kpoint_energy = kmf.kernel()
 
     # Define fragment in the supercell
-    kfrag = fragpart(be_type="be2", mol=cell, kpt=kpt, frozen_core=True)
+    kfrag = FragPart(be_type="be2", mol=cell, kpt=kpt, frozen_core=True)
     # Initialize BE
     mykbe = BE(kmf, kfrag, kpts=kpts)
 

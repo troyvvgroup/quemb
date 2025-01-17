@@ -13,8 +13,10 @@ def cleanup_if_subset(fragment_indices: dict[int, set[int]]) -> dict[int, set[in
     """Remove fragments that are subsets of other fragments."""
     result = {}
     for i_center, connected in fragment_indices.items():
-        for j in connected - {i_center}:
-            if connected.issubset(fragment_indices[j]):
+        for j in connected:
+            if j == i_center:
+                continue
+            if connected <= fragment_indices[j]:
                 break
         else:
             result[i_center] = connected
