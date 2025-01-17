@@ -2,7 +2,9 @@ from chemcoord import Cartesian
 
 
 def get_BE_fragment(m: Cartesian, i: int, n_BE: int) -> set[int]:
-    """Return the index of the atoms of the fragment that
+    """Return the BE fragment around atom :code:`i`.
+
+    Return the index of the atoms of the fragment that
     contains the i_center atom and its (n_BE - 1) coordination sphere."""
     return m.get_coordination_sphere(
         i, n_sphere=n_BE - 1, only_surface=False, give_only_index=True
@@ -23,17 +25,21 @@ def cleanup_if_subset(fragment_indices: dict[int, set[int]]) -> dict[int, set[in
     return result
 
 
-def add_back_H(
-    m: Cartesian, i_center: int, n_BE: int, fragment_index: set[int]
+def to_cartesian(
+    m: Cartesian, i_center: int, n_BE: int, fragment_index: set[int], pure_heavy: bool
 ) -> Cartesian:
-    """Convert to Cartesian and add back the hydrogens
-    that are connected to atoms in the fragment."""
-    H_index = set(
-        m.get_coordination_sphere(i_center, n_sphere=n_BE, only_surface=False)
-        .loc[m.atom == "H", :]
-        .index
-    )
-    return m.loc[fragment_index | H_index, :]
+    """Convert to Cartesian
+
+    If we considered only non-hydrogen atoms before, i.e. :code:`pure_heavy is True`,
+    then add back the hydrogens."""
+    if pure_heavy:
+        H_index = set(
+            m.get_coordination_sphere(i_center, n_sphere=n_BE, only_surface=False)
+            .loc[m.atom == "H", :]
+            .index
+        )
+        return m.loc[fragment_index | H_index, :]
+    return m.loc[fragment_index, :]
 
 
 def get_BE_fragments(
@@ -44,14 +50,11 @@ def get_BE_fragments(
     Adhere to BE literature nomenclature,
     i.e. BE(n) takes the n - 1 coordination sphere."""
     m_considered = m.loc[m.atom != "H", :] if pure_heavy else m
-
     fragments = {
-        i_center: fragment_indices
+        i_center: get_BE_fragment(m_considered, i_center, n_BE)
         for i_center in m_considered.index
-        if (fragment_indices := get_BE_fragment(m_considered, i_center, n_BE))
     }
-
     return {
-        i_center: add_back_H(m, i_center, n_BE, index)
+        i_center: to_cartesian(m, i_center, n_BE, index, pure_heavy)
         for i_center, index in cleanup_if_subset(fragments).items()
     }
