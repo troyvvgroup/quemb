@@ -99,8 +99,9 @@ jobs:
     - uses: actions/cache@v4
       with:
         path: ${{ env.pythonLocation }}
-        key: ${{ env.pythonLocation }}-${{ hashFiles('setup.py') }}-${{ hashFiles('dev-requirements.txt') }}
-
+        key: ${{ env.pythonLocation }}-${{ runner.OS  }}-quemb-cache-${{ hashFiles('setup.py') }}-${{ hashFiles('dev-requirements.txt')-${{ hashFiles('tests/test_requirements.txt') }}}}
+        restore-keys: |
+               ${{ env.pythonLocation }}-${{ runner.OS  }}-quemb-cache-
 
     - name: Install dependencies
       run: |
