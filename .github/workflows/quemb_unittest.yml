@@ -91,17 +91,24 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Prepare pip
-      run: |
-        python -m pip install --upgrade pip
-
-    - name: Cache Quemb
-      id: cache-quemb
-      uses: actions/cache@v4
+    - name: Cache pip restore
+      id: cache-pip-restore
+      uses: actions/cache/restore@v4
       with:
         path: ${{ env.pythonLocation }}
-        key: ${{ env.pythonLocation }}-${{ runner.OS  }}-quemb-cache-${{ hashFiles('setup.py') }}-${{ hashFiles('dev-requirements.txt') }}-${{ hashFiles('tests/test_requirements.txt') }}}}
+        key: ${{ env.pythonLocation }}-${{ runner.OS  }}-pip-cache-${{ hashFiles('setup.py') }}-${{ hashFiles('dev-requirements.txt') }}-${{ hashFiles('tests/test_requirements.txt') }}}}
+
+    - name: Install pip
+      if: steps.cache-pip-restore.outputs.cache-hit != 'true'
+      run: python -m pip install --upgrade pip
     
+    - name: Save pip
+      id: cache-pip-save
+      uses: actions/cache/save@v4
+      with: 
+        path: ${{ env.pythonLocation }}
+        key: ${{ steps.cache-pip-restore.outputs.cache-primary-key }}
+
     - name: Install dependencies
       run: |
         pip install -r tests/test_requirements.txt
