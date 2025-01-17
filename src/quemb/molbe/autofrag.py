@@ -13,7 +13,7 @@ from quemb.molbe.helper import get_core
 from quemb.shared.helper import unused
 
 
-@define(init=True)
+@define
 class FragmentMap:
     """Dataclass for fragment bookkeeping.
 
@@ -61,24 +61,37 @@ class FragmentMap:
     adjacency_mat: np.ndarray
     adjacency_graph: nx.Graph
 
-    def remove_nonnunique_frags(self) -> None:
-        for adx, basa in enumerate(self.fsites):
-            for bdx, basb in enumerate(self.fsites):
-                if adx == bdx:
-                    pass
-                elif set(basb).issubset(set(basa)):
-                    tmp = set(self.center[adx] + self.center[bdx])
-                    self.center[adx] = tuple(tmp)
-                    del self.center[bdx]
-                    del self.fsites[bdx]
-                    del self.fs[bdx]
+    def remove_nonnunique_frags(self, natm: int) -> None:
+        """Remove all fragments which are strict subsets of another.
+
+        Remove all fragments whose AO indices can be identified as subsets of
+        another fragment's. The center site for the removed frag is then
+        added to that of the superset. Because doing so will necessarily
+        change the definition of fragments, we repeat it up to `natm` times
+        such that all fragments are guaranteed to be distinct sets.
+        another fragment's. The center site for the removed frag is then
+        added to that of the superset. Because doing so will necessarily
+        change the definition of fragments, we repeat it up to `natm` times
+        such that all fragments are guaranteed to be distinct sets.
+        """
+        for _ in range(0, natm):
+            for adx, basa in enumerate(self.fsites):
+                for bdx, basb in enumerate(self.fsites):
+                    if adx == bdx:
+                        pass
+                    elif set(basb).issubset(set(basa)):
+                        tmp = set(self.center[adx] + self.center[bdx])
+                        self.center[adx] = tuple(tmp)
+                        del self.center[bdx]
+                        del self.fsites[bdx]
+                        del self.fs[bdx]
 
         return None
 
 
 def euclidean_norm(
-    i_coord: float,
-    j_coord: float,
+    i_coord: np.ndarray,
+    j_coord: np.ndarray,
 ) -> np.floating[Any]:
     return norm(np.asarray(i_coord - j_coord))
 
@@ -241,14 +254,8 @@ def graphgen(
     else:
         raise AttributeError(f"Connectivity metric not recognized: '{connectivity}'")
 
-    # Remove all fragments whose AO indices can be identified as subsets of
-    # another fragment's. The center site for the removed frag is then
-    # added to that of the superset. Because doing so will necessarily
-    # change the definition of fragments, we repeat it up to `natm` times
-    # such that all fragments are guaranteed to be distinct sets.
     if remove_nonunique_frags:
-        for _ in range(0, natm):
-            fragment_map.remove_nonnunique_frags()
+        fragment_map.remove_nonnunique_frags(natm)
 
     # Define the 'edges' for fragment A as the intersect of its sites
     # with the set of all center sites outside of A:

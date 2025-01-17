@@ -84,23 +84,18 @@ class FragPart:
         if frozen_core:
             self.ncore, self.no_core_idx, self.core_list = get_core(self.mol)
 
+        if frag_type != "hchain_simple" and self.mol is None:
+            raise ValueError("Provide pyscf gto.M object in fragpart() and restart!")
+
         # Check type of fragmentation function
         if frag_type == "hchain_simple":
             # This is an experimental feature.
             self.hchain_simple()
 
         elif frag_type == "chain":
-            if mol is None:
-                raise ValueError(
-                    "Provide pyscf gto.M object in fragpart() and restart!"
-                )
-            self.chain(mol, frozen_core=frozen_core, closed=closed)
+            self.chain(self.mol, frozen_core=frozen_core, closed=closed)
 
         elif frag_type == "graphgen":
-            if self.mol is None:
-                raise ValueError(
-                    "Provide pyscf gto.M object in fragpart() and restart!"
-                )
             fragment_map = graphgen(
                 mol=self.mol.copy(),
                 be_type=be_type,
@@ -120,10 +115,6 @@ class FragPart:
             self.Nfrag = len(self.fsites)
 
         elif frag_type == "autogen":
-            if mol is None:
-                raise ValueError(
-                    "Provide pyscf gto.M object in fragpart() and restart!"
-                )
             fgs = autogen(
                 mol,
                 be_type=be_type,
