@@ -1,5 +1,5 @@
 # the additional (!) requirements for testing the code
 # the dependencies of `quemb` itself are given in the setup.py
-block2==v0.5.2 --extra-index-url=https://block-hczhai.github.io/block2-preview/pypi/
+block2 --extra-index-url=https://block-hczhai.github.io/block2-preview/pypi/
 git+https://github.com/pyscf/dmrgscf
 pytest
