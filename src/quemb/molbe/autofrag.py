@@ -349,7 +349,7 @@ def autogen(
     ebe_weight : list of list
         Weights for each fragment. Each entry contains a weight and a list of
         LO indices.
-    Frag: list of lists
+    Frag_atom: list of lists
         Heavy atom indices for each fragment, per fragment
     cen: list
         Atom indices of all centers
