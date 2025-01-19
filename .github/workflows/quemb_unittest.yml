@@ -141,6 +141,7 @@ jobs:
     - name: Install block2
       if: steps.restore-block2-cache.outputs.cache-hit != 'true'
       run: |
+        conda deactivate
         pip install -r tests/test_opt_requirements.txt
         PYSCFHOME=$(pip show pyscf-dmrgscf | grep 'Location' | tr ' ' '\n' | tail -n 1)
         cp src/quemb/shared/external/dmrgscf_settings.py ${PYSCFHOME}/pyscf/dmrgscf/settings.py
@@ -156,7 +157,6 @@ jobs:
 
     - name: Test with pytest
       run: |
-        conda install -y mkl
         cd tests
         # QUEMB_SKIP_EXPENSIVE_TESTS=true pytest --doctest-modules --junitxml=junit/quemb-test-results_${{ matrix.python-version }}.xml
         QUEMB_SKIP_EXPENSIVE_TESTS=true pytest --doctest-modules --junitxml=junit/quemb-test-results_${{ matrix.python-version }}.xml dmrg_molBE_test.py
