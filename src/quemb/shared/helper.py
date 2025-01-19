@@ -95,4 +95,7 @@ def ncore_(z: int) -> int:
 def delete_multiple_files(*args: Iterable[Path]) -> None:
     for files in args:
         for file in files:
-            file.unlink()
+            if file.is_file():
+                file.unlink()
+            else:
+                delete_multiple_files(file.iterdir())

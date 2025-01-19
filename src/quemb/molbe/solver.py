@@ -2,6 +2,7 @@
 
 import os
 from abc import ABC
+from pathlib import PurePath
 from typing import Final
 
 from attrs import Factory, define, field
@@ -866,7 +867,7 @@ def solve_block2(
     nocc: int,
     frag_scratch: WorkDir,
     DMRG_args: DMRG_ArgsUser,
-    use_cumulant: bool,
+    use_cumulant: bool = True,
 ):
     """DMRG fragment solver using the pyscf.dmrgscf wrapper.
 
@@ -894,6 +895,7 @@ def solve_block2(
     from pyscf import dmrgscf  # noqa: PLC0415   # optional module
 
     orbs = mf.mo_coeff
+    scratch = str(PurePath(frag_scratch))
 
     mc = mcscf.CASCI(mf, DMRG_args.norb, DMRG_args.nelec)
     mc.fcisolver = dmrgscf.DMRGCI(mf.mol)
@@ -908,10 +910,10 @@ def solve_block2(
     mc.fcisolver.twodot_to_onedot = DMRG_args.twodot_to_onedot
     mc.fcisolver.maxIter = DMRG_args.max_iter
     mc.fcisolver.block_extra_keyword = DMRG_args.block_extra_keyword
-    mc.fcisolver.scratchDirectory = frag_scratch.path
-    mc.fcisolver.runtimeDir = frag_scratch.path
+    mc.fcisolver.scratchDirectory = scratch
+    mc.fcisolver.runtimeDir = scratch
     mc.fcisolver.memory = DMRG_args.max_mem
-    os.chdir(frag_scratch)
+    os.chdir(scratch)
 
     mc.kernel(orbs)
     rdm1, rdm2 = dmrgscf.DMRGCI.make_rdm12(
