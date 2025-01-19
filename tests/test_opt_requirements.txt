@@ -1,4 +1,4 @@
-# Optional dependencies for QuEmb's unit tests.
+# Optional dependencies for QuEmb's test suite.
 block2 --extra-index-url=https://block-hczhai.github.io/block2-preview/pypi/
 git+https://github.com/pyscf/dmrgscf
 mkl
