@@ -22,6 +22,8 @@ setup(
         "numpy>=1.22.0",
         "scipy>=1.7.0",
         "pyscf>=2.0.0",
+        "block2",
+        "pyscf-dmrgscf @ git+https://github.com/pyscf/dmrgscf.git",
         "networkx",
         "matplotlib",
         "libdmet @ git+https://github.com/gkclab/libdmet_preview.git",
