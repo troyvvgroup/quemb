@@ -156,7 +156,7 @@ jobs:
 
     - name: Test with pytest
       run: |
-        find /home/shaunrw/ -type d -name 'block2.libs'
+        find / -type d -name 'block2.libs'
         cd tests
         # QUEMB_SKIP_EXPENSIVE_TESTS=true pytest --doctest-modules --junitxml=junit/quemb-test-results_${{ matrix.python-version }}.xml
         QUEMB_SKIP_EXPENSIVE_TESTS=true pytest --doctest-modules --junitxml=junit/quemb-test-results_${{ matrix.python-version }}.xml dmrg_molBE_test.py
