@@ -109,7 +109,8 @@ class fragpart:
             self.fsites = fragment_map.fsites
             self.edge = fragment_map.edge
             self.center = fragment_map.center
-            # self.edge_idx = fragment_map["edge"]
+            self.Frag_atom = fragment_map.fragment_atoms
+            self.center_atom = fragment_map.center_atoms
             self.centerf_idx = fragment_map.centerf_idx
             self.ebe_weight = fragment_map.ebe_weights
             self.Nfrag = len(self.fsites)
