@@ -43,6 +43,12 @@ class FragmentMap:
     dnames:
         List of strings giving fragment data names. Useful for bookkeeping and
         for constructing fragment scratch directories.
+    fragment_atoms:
+        List whose entries are tuples containing all atom indices for a fragment.
+    center_atoms:
+        List whose entries are tuples giving the center atom indices per fragment.
+    edge_atoms:
+        List whose entries are tuples giving the edge atom indices per fragment.
     adjacency_mat:
         The adjacency matrix for all sites (atoms) in the system.
     adjacency_graph:
@@ -159,6 +165,11 @@ def graphgen(
         weights in the fragment adjacency graph. Currently supports "euclidean"
         (which uses the square of the distance between atoms in real
         space to determine connectivity within a fragment.)
+    cutoff:
+        Atoms with an edge weight beyond `cutoff` will be excluded from the
+        `shortest_path` calculation. This is crucial when handling very large
+        systems, where computing the shortest paths from all to all becomes
+        non-trivial. Defaults to 20.0.
 
     Returns
     -------
