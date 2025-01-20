@@ -44,6 +44,22 @@ class fragpart:
     write_geom: bool
         Whether to write 'fragment.xyz' file which contains all the fragments
         in cartesian coordinates.
+    remove_nonunique_frags:
+        Whether to remove fragments which are strict subsets of another
+        fragment in the system. True by default.
+    frag_prefix:
+        Prefix to be appended to the fragment datanames. Useful for managing
+        fragment scratch directories.
+    connectivity:
+        Keyword string specifying the distance metric to be used for edge
+        weights in the fragment adjacency graph. Currently supports "euclidean"
+        (which uses the square of the distance between atoms in real
+        space to determine connectivity within a fragment.)
+    cutoff:
+        Atoms with an edge weight beyond `cutoff` will be excluded from the
+        `shortest_path` calculation. This is crucial when handling very large
+        systems, where computing the shortest paths from all to all becomes
+        non-trivial. Defaults to 20.0.
     """
 
     def __init__(
@@ -55,8 +71,12 @@ class fragpart:
         print_frags=True,
         write_geom=False,
         be_type="be2",
+        frag_prefix="f",
+        connectivity="euclidean",
         mol=None,
         frozen_core=False,
+        cutoff=20,
+        remove_nonnunique_frags=True,
     ):
         # Initialize class attributes
         self.mol = mol
@@ -70,9 +90,13 @@ class fragpart:
         self.center_idx = []
         self.centerf_idx = []
         self.be_type = be_type
+        self.frag_prefix = frag_prefix
+        self.connectivity = connectivity
         self.frozen_core = frozen_core
         self.iao_valence_basis = iao_valence_basis
         self.valence_only = valence_only
+        self.cutoff = cutoff
+        self.remove_nonnunique_frags = remove_nonnunique_frags
 
         # Initialize class attributes necessary for mixed-basis BE
         self.Frag_atom = []
@@ -98,12 +122,13 @@ class fragpart:
         elif frag_type == "graphgen":
             fragment_map = graphgen(
                 mol=self.mol.copy(),
-                be_type=be_type,
-                frozen_core=frozen_core,
-                remove_nonunique_frags=True,
-                frag_prefix="f",
-                connectivity="euclidean",
-                iao_valence_basis=iao_valence_basis,
+                be_type=self.be_type,
+                frozen_core=self.frozen_core,
+                remove_nonunique_frags=self.remove_nonnunique_frags,
+                frag_prefix=self.frag_prefix,
+                connectivity=self.connectivity,
+                iao_valence_basis=self.iao_valence_basis,
+                cutoff=self.cutoff,
             )
 
             self.fsites = fragment_map.fsites
