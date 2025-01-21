@@ -1,6 +1,7 @@
 from itertools import chain
-from typing import NewType
+from typing import Final, NewType
 
+from attr import define
 from chemcoord import Cartesian
 from pyscf.gto import Mole
 
@@ -11,8 +12,38 @@ AOIdx = NewType("AOIdx", int)
 CenterIdx = NewType("CenterIdx", AtomIdx)
 
 #: A dictionary that maps an atom index, the center,
-#: to a set of atom indices, the fragment.
+#: to a set of atom indices, the corresponding fragment.
 AtomPerFrag = NewType("AtomPerFrag", dict[CenterIdx, set[AtomIdx]])
+
+
+#: A dictionary that maps an atom index, the center,
+#: to a set of center indices.
+#: At the minimum this is just a dictionary that maps a center index
+#: to a one-element set containing itself,
+#: but if other fragments are contained in the fragment of the key :code:`i_center`,
+#: then the set can also contain other center indices.
+#: I.e.
+#: .. code-block:: python
+#:
+#:      j_center in contained_center_indices[i_center]
+#:      # implies
+#:      fragments[j_center] <= fragments[i_center]
+#:
+#: Note the following property for the case of exactly equal fragments:
+#:
+#: .. code-block:: python
+#:
+#:      if (j_center in contained_center_indices[i_center])
+#            and fragments[j_center] == fragments[i_center]):
+#:          i_center <= j_center
+ContainedCenterIdx = NewType("ContainedCenterIdx", dict[CenterIdx, set[CenterIdx]])
+
+
+@define
+class FragmentedMolecule:
+    atom_per_frag: Final[AtomPerFrag]
+    contained_center_indices: Final[ContainedCenterIdx]
+
 
 #: A dictionary that maps an atom index, the center,
 #: to a set of AO indices in the corresponding BE fragment.
@@ -23,7 +54,8 @@ def get_BE_fragment(m: Cartesian, i: int, n_BE: int) -> set[AtomIdx]:
     """Return the BE fragment around atom :code:`i`.
 
     Return the index of the atoms of the fragment that
-    contains the i_center atom and its (n_BE - 1) coordination sphere."""
+    contains the i_center atom and its (n_BE - 1) coordination sphere.
+    """
     if m.index.min() != 0:
         raise ValueError("We assume 0-indexed data for the rest of the code.")
     m.get_bonds(set_lookup=True)
@@ -32,18 +64,29 @@ def get_BE_fragment(m: Cartesian, i: int, n_BE: int) -> set[AtomIdx]:
     )
 
 
-def cleanup_if_subset(fragment_indices: AtomPerFrag) -> AtomPerFrag:
+def cleanup_if_subset(fragment_indices: AtomPerFrag) -> FragmentedMolecule:
     """Remove fragments that are subsets of other fragments."""
-    result = {}
-    for i_center, connected in fragment_indices.items():
-        for j in connected:
-            if j == i_center:
+    result = AtomPerFrag({})
+    contained_center_indices = ContainedCenterIdx(
+        {i_center: {i_center} for i_center in fragment_indices}
+    )
+    for i_center, i_fragment in fragment_indices.items():
+        for j_center in i_fragment:
+            if j_center == i_center:
                 continue
-            if connected <= fragment_indices[CenterIdx(j)]:
-                break
+            if i_fragment <= fragment_indices[CenterIdx(j_center)]:
+                if i_center > j_center:
+                    contained_center_indices[CenterIdx(j_center)].add(i_center)
+                    break
         else:
-            result[i_center] = connected
-    return AtomPerFrag(result)
+            result[i_center] = i_fragment
+
+    return FragmentedMolecule(
+        AtomPerFrag(result),
+        ContainedCenterIdx(
+            {k: v for k, v in contained_center_indices.items() if k in result}
+        ),
+    )
 
 
 def add_back_H(m: Cartesian, n_BE: int, fragments: AtomPerFrag) -> AtomPerFrag:
@@ -69,22 +112,26 @@ def add_back_H(m: Cartesian, n_BE: int, fragments: AtomPerFrag) -> AtomPerFrag:
 
 def get_BE_fragments(
     m: Cartesian, n_BE: int = 3, pure_heavy: bool = True
-) -> AtomPerFrag:
+) -> FragmentedMolecule:
     """Create the BE fragments for the molecule m.
 
     Adhere to BE literature nomenclature,
     i.e. BE(n) takes the n - 1 coordination sphere."""
     m_considered = m.loc[m.atom != "H", :] if pure_heavy else m
-    fragments = AtomPerFrag(
-        {
-            i_center: get_BE_fragment(m_considered, i_center, n_BE)
-            for i_center in m_considered.index
-        }
+    fragments = cleanup_if_subset(
+        AtomPerFrag(
+            {
+                i_center: get_BE_fragment(m_considered, i_center, n_BE)
+                for i_center in m_considered.index
+            }
+        )
     )
-
     if pure_heavy:
-        return add_back_H(m, n_BE, cleanup_if_subset((fragments)))
-    return cleanup_if_subset((fragments))
+        return FragmentedMolecule(
+            add_back_H(m, n_BE, fragments.atom_per_frag),
+            fragments.contained_center_indices,
+        )
+    return fragments
 
 
 def get_fsites(mol: Mole, fragments: AtomPerFrag) -> AOPerFrag:
