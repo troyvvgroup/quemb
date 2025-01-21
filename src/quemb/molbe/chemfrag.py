@@ -153,6 +153,25 @@ def get_fsites(mol: Mole, fragments: AtomPerFrag) -> AOPerFrag:
     )
 
 
+def get_fs(
+    mol: Mole, fragments: AtomPerFrag
+) -> dict[CenterIdx, dict[AtomIdx, set[AOIdx]]]:
+    atom_to_AO = [
+        range(AO_offsets[2], AO_offsets[3]) for AO_offsets in mol.aoslice_by_atom()
+    ]
+
+    def AO_indices_of_fragment(fragment: set[AtomIdx]) -> dict[AtomIdx, set[AOIdx]]:
+        return {
+            i_atom: {AOIdx(AO_idx) for AO_idx in atom_to_AO[i_atom]}
+            for i_atom in fragment
+        }
+
+    return {
+        i_center: AO_indices_of_fragment(fragment)
+        for i_center, fragment in fragments.items()
+    }
+
+
 def get_edge_idx(fragments: AtomPerFrag) -> dict[CenterIdx, set[CenterIdx]]:
     return {
         i_center: {
