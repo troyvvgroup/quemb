@@ -48,3 +48,7 @@ Tensor = np.ndarray[Tuple[int, ...], np.dtype[T_dtype_co]]
 PathLike: TypeAlias = str | os.PathLike
 #: Type annotation for dictionaries holding keyword arguments.
 KwargDict: TypeAlias = Dict[str, Any]
+
+
+#: A generic type variable, without any constraints.
+T = TypeVar("T")

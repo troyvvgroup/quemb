@@ -4,6 +4,8 @@ from attr import define
 from chemcoord import Cartesian
 from pyscf.gto import Mole
 
+from quemb.shared.typing import T
+
 AtomIdx = NewType("AtomIdx", int)
 
 AOIdx = NewType("AOIdx", int)
@@ -36,6 +38,10 @@ AtomPerFrag = NewType("AtomPerFrag", dict[CenterIdx, set[AtomIdx]])
 #            and fragments[j_center] == fragments[i_center]):
 #:          i_center <= j_center
 ContainedCenterIdx = NewType("ContainedCenterIdx", dict[CenterIdx, set[CenterIdx]])
+
+
+def merge_sets(*sets: set[T]) -> set[T]:
+    return set().union(*sets)
 
 
 @define
@@ -155,7 +161,7 @@ def get_fs(
 def get_fsites(mol: Mole, fragments: AtomPerFrag) -> AOPerFrag:
     return AOPerFrag(
         {
-            i_center: set().union(*i_fragment.values())
+            i_center: merge_sets(*i_fragment.values())
             for i_center, i_fragment in get_fs(mol, fragments).items()
         }
     )
