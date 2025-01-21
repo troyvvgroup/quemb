@@ -147,10 +147,8 @@ def get_fs(
     ]
 
     def AO_indices_of_fragment(fragment: set[AtomIdx]) -> dict[AtomIdx, set[AOIdx]]:
-        return {
-            i_atom: {AOIdx(AO_idx) for AO_idx in atom_to_AO[i_atom]}
-            for i_atom in fragment
-        }
+        # mypy wrongly complains that set(range(n)) is not valid, which it is.
+        return {i_atom: set(atom_to_AO[i_atom]) for i_atom in fragment}  # type: ignore[arg-type]
 
     return {
         i_center: AO_indices_of_fragment(fragment)
