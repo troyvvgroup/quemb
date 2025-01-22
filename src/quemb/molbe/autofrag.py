@@ -1,16 +1,18 @@
 # Author: Oinam Romesh Meitei, Shaun Weatherly
 
-from typing import Any
+from copy import deepcopy
+from typing import Sequence
 
 import networkx as nx
 import numpy as np
 from attrs import define
-from networkx import single_source_all_shortest_paths  # type: ignore[attr-defined]
+from networkx import shortest_path
 from numpy.linalg import norm
 from pyscf import gto
 
 from quemb.molbe.helper import get_core
 from quemb.shared.helper import unused
+from quemb.shared.typing import Vector
 
 
 @define
@@ -20,44 +22,52 @@ class FragmentMap:
     Parameters
     ----------
     fsites:
-        List whose entries are tuples containing all AO indices for a fragment.
+        List whose entries are sequences (tuple or list) containing
+        all AO indices for a fragment.
     fs:
-        List whose entries are tuples of tuples, containing AO indices per atom
+        List whose entries are sequences of sequences, containing AO indices per atom
         per fragment.
     edge:
-        List whose entries are tuples of tuples, containing edge AO
+        List whose entries are sequences of sequences, containing edge AO
         indices per atom (inner tuple) per fragment (outer tuple).
     center:
-        List whose entries are tuples of tuples, containing all fragment AO
+        List whose entries are sequences of sequences, containing all fragment AO
         indices per atom (inner tuple) and per fragment (outer tuple).
     centerf_idx:
-        List whose entries are tuples containing the relative index of all
+        List whose entries are sequences containing the relative index of all
         center sites within a fragment (ie, with respect to fsites).
     ebe_weights:
         Weights determining the energy contributions from each center site
         (ie, with respect to centerf_idx).
     sites:
-        List whose entries are tuples containing all AO indices per atom
+        List whose entries are sequences containing all AO indices per atom
         (excluding frozen core indices, if applicable).
     dnames:
         List of strings giving fragment data names. Useful for bookkeeping and
         for constructing fragment scratch directories.
+    fragment_atoms:
+        List whose entries are sequences containing all atom indices for a fragment.
+    center_atoms:
+        List whose entries are sequences giving the center atom indices per fragment.
+    edge_atoms:
+        List whose entries are sequences giving the edge atom indices per fragment.
     adjacency_mat:
         The adjacency matrix for all sites (atoms) in the system.
     adjacency_graph:
         The adjacency graph corresponding to `adjacency_mat`.
     """
 
-    fsites: list[tuple[int, ...]]
-    fs: list[tuple[tuple[int, ...], ...]]
-    edge: list[tuple[tuple[int, ...], ...]]
-    center: list[tuple[int, ...]]
-    centerf_idx: list[tuple[int, ...]]
-    ebe_weights: list[tuple]
-    sites: list[tuple]
-    dnames: list
-    center_atoms: list[tuple[str, ...]]
-    edge_atoms: list[tuple[str, ...]]
+    fsites: list[Sequence[int]]
+    fs: list[Sequence[Sequence[int]]]
+    edge: list[Sequence[Sequence[int]]]
+    center: list[Sequence[int]]
+    centerf_idx: list[Sequence[int]]
+    ebe_weights: list[Sequence]
+    sites: list[Sequence]
+    dnames: list[str]
+    fragment_atoms: list[Sequence[int]]
+    center_atoms: list[Sequence[int]]
+    edge_atoms: list[Sequence[int]]
     adjacency_mat: np.ndarray
     adjacency_graph: nx.Graph
 
@@ -75,25 +85,42 @@ class FragmentMap:
         such that all fragments are guaranteed to be distinct sets.
         """
         for _ in range(0, natm):
+            subsets = set()
             for adx, basa in enumerate(self.fsites):
                 for bdx, basb in enumerate(self.fsites):
                     if adx == bdx:
                         pass
                     elif set(basb).issubset(set(basa)):
-                        tmp = set(self.center[adx] + self.center[bdx])
-                        self.center[adx] = tuple(tmp)
-                        del self.center[bdx]
-                        del self.fsites[bdx]
-                        del self.fs[bdx]
+                        subsets.add(bdx)
+                        self.center[adx] = tuple(
+                            set(
+                                list(self.center[adx])
+                                + list(deepcopy(self.center[bdx]))
+                            )
+                        )
+                        self.center_atoms[adx] = tuple(
+                            set(
+                                list(self.center_atoms[adx])
+                                + list(deepcopy(self.center_atoms[bdx]))
+                            )
+                        )
+            if subsets:
+                sorted_subsets = sorted(subsets, reverse=True)
+                for bdx in sorted_subsets:
+                    del self.center[bdx]
+                    del self.fsites[bdx]
+                    del self.fs[bdx]
+                    del self.center_atoms[bdx]
+                    del self.fragment_atoms[bdx]
 
         return None
 
 
-def euclidean_norm(
-    i_coord: np.ndarray,
-    j_coord: np.ndarray,
-) -> np.floating[Any]:
-    return norm(np.asarray(i_coord - j_coord))
+def euclidean_distance(
+    i_coord: Vector,
+    j_coord: Vector,
+) -> np.floating:
+    return norm(i_coord - j_coord)
 
 
 def graphgen(
@@ -104,6 +131,7 @@ def graphgen(
     frag_prefix: str = "f",
     connectivity: str = "euclidean",
     iao_valence_basis: str | None = None,
+    cutoff: float = 20.0,
 ) -> FragmentMap:
     """Generate fragments via adjacency graph.
 
@@ -142,6 +170,11 @@ def graphgen(
         weights in the fragment adjacency graph. Currently supports "euclidean"
         (which uses the square of the distance between atoms in real
         space to determine connectivity within a fragment.)
+    cutoff:
+        Atoms with an edge weight beyond `cutoff` will be excluded from the
+        `shortest_path` calculation. This is crucial when handling very large
+        systems, where computing the shortest paths from all to all becomes
+        non-trivial. Defaults to 20.0.
 
     Returns
     -------
@@ -175,6 +208,7 @@ def graphgen(
         ebe_weights=list(tuple()),
         sites=list(tuple()),
         dnames=list(),
+        fragment_atoms=list(),
         center_atoms=list(),
         edge_atoms=list(),
         adjacency_mat=np.zeros((natm, natm), np.float64),
@@ -204,46 +238,56 @@ def graphgen(
         for adx in range(natm):
             for bdx in range(adx + 1, natm):
                 dr = (
-                    euclidean_norm(
+                    euclidean_distance(
                         adx_map[adx]["coord"],
                         adx_map[bdx]["coord"],
                     )
                     ** 2
                 )
                 fragment_map.adjacency_mat[adx, bdx] = dr
-                fragment_map.adjacency_graph.add_edge(adx, bdx, weight=dr)
+                if dr <= cutoff:
+                    fragment_map.adjacency_graph.add_edge(adx, bdx, weight=dr)
 
         # For a given center site (adx), find the set of shortest
         # paths to all other sites. The number of nodes visited
         # on that path gives the degree of separation of the
         # sites.
         for adx, map in adx_map.items():
-            fragment_map.center_atoms.append(tuple())
-            fsites_temp = fragment_map.sites[adx]
+            fragment_map.center_atoms.append((adx,))
+            fragment_map.center.append(deepcopy(fragment_map.sites[adx]))
+            fsites_temp = deepcopy(list(fragment_map.sites[adx]))
+            fatoms_temp = [adx]
             fs_temp = []
-            fs_temp.append(fragment_map.sites[adx])
-            map["shortest_paths"] = dict(
-                single_source_all_shortest_paths(
-                    fragment_map.adjacency_graph,
-                    source=adx,
-                    weight=lambda a, b, _: (
-                        fragment_map.adjacency_graph[a][b]["weight"]
-                    ),
-                    method="dijkstra",
-                )
-            )
+            fs_temp.append(deepcopy(fragment_map.sites[adx]))
+
+            for bdx, _ in adx_map.items():
+                if fragment_map.adjacency_graph.has_edge(adx, bdx):
+                    map["shortest_paths"].update(
+                        {
+                            bdx: shortest_path(
+                                fragment_map.adjacency_graph,
+                                source=adx,
+                                target=bdx,
+                                weight=lambda a, b, _: (
+                                    fragment_map.adjacency_graph[a][b]["weight"]
+                                ),
+                                method="dijkstra",
+                            )
+                        }
+                    )
 
             # If the degree of separation is smaller than the *n*
             # in your fragment type, BE*n*, then that site is appended to
             # the set of fragment sites for adx.
             for bdx, path in map["shortest_paths"].items():
-                if 0 < (len(path[0]) - 1) < fragment_type_order:
-                    fsites_temp = tuple(fsites_temp + fragment_map.sites[bdx])
-                    fs_temp.append(tuple(fragment_map.sites[bdx]))
+                if 0 < (len(path) - 1) < fragment_type_order:
+                    fsites_temp = fsites_temp + deepcopy(list(fragment_map.sites[bdx]))
+                    fs_temp.append(deepcopy(fragment_map.sites[bdx]))
+                    fatoms_temp.append(bdx)
 
             fragment_map.fsites.append(tuple(fsites_temp))
             fragment_map.fs.append(tuple(fs_temp))
-            fragment_map.center.append(tuple(fragment_map.sites[adx]))
+            fragment_map.fragment_atoms.append(tuple(fatoms_temp))
 
     elif connectivity.lower() in ["resistance_distance", "resistance"]:
         raise NotImplementedError("Work in progress...")
@@ -260,22 +304,26 @@ def graphgen(
     # Define the 'edges' for fragment A as the intersect of its sites
     # with the set of all center sites outside of A:
     for adx, fs in enumerate(fragment_map.fs):
-        edge: set[tuple] = set()
+        edge_temp: set[tuple] = set()
+        eatoms_temp: set[tuple[int, ...]] = set()
         for bdx, center in enumerate(fragment_map.center):
             if adx == bdx:
                 pass
             else:
-                overlap = set(fs).intersection(set((center,)))
-                if overlap:
-                    edge = edge.union(overlap)
-        fragment_map.edge.append(tuple(edge))
+                for f in fs:
+                    overlap = set(f).intersection(set(center))
+                    if overlap:
+                        f_temp = set(fragment_map.fragment_atoms[adx])
+                        c_temp = set(fragment_map.center_atoms[bdx])
+                        edge_temp.add(tuple(overlap))
+                        eatoms_temp.add(tuple(i for i in f_temp.intersection(c_temp)))
+        fragment_map.edge.append(tuple(edge_temp))
+        fragment_map.edge_atoms.extend(tuple(eatoms_temp))
 
     # Update relative center site indices (centerf_idx) and weights
     # for center site contributions to the energy (ebe_weights):
     for adx, center in enumerate(fragment_map.center):
-        centerf_idx = tuple(
-            set([fragment_map.fsites[adx].index(cdx) for cdx in center])
-        )
+        centerf_idx = tuple(fragment_map.fsites[adx].index(cdx) for cdx in center)
         ebe_weight = (1.0, tuple(centerf_idx))
         fragment_map.centerf_idx.append(centerf_idx)
         fragment_map.ebe_weights.append(ebe_weight)
