@@ -211,17 +211,14 @@ def run_solver(
         assert isinstance(solver_args, DMRG_ArgsUser)
         DMRG_args = _DMRG_Args.from_user_input(solver_args, mf_)
 
-        try:
-            rdm1_tmp, rdm2s = solve_block2(
-                mf_,
-                nocc,
-                frag_scratch=frag_scratch,
-                DMRG_args=DMRG_args,
-                use_cumulant=use_cumulant,
-                ompnum=ompnum,
-            )
-        except Exception as inst:
-            raise inst
+        rdm1_tmp, rdm2s = solve_block2(
+            mf_,
+            nocc,
+            frag_scratch=frag_scratch,
+            DMRG_args=DMRG_args,
+            use_cumulant=use_cumulant,
+            ompnum=ompnum,
+        )
 
     elif solver == "SCI":
         # pylint: disable-next=E0611

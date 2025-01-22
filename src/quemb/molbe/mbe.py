@@ -183,6 +183,7 @@ class BE(MixinLocalize):
             )
         elif isinstance(scratch_dir, WorkDir):
             self.scratch_dir = scratch_dir
+            self.scratch_dir.cleanup_at_end = self.cleanup_at_end
 
         elif isinstance(scratch_dir, PathLike):
             self.scratch_dir = WorkDir(
