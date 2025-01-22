@@ -2,6 +2,7 @@
 
 import os
 from multiprocessing import Pool
+from pathlib import Path
 
 from numpy import asarray, diag_indices, einsum, float64, zeros_like
 from numpy.linalg import multi_dot
@@ -16,11 +17,14 @@ from quemb.molbe.helper import (
 )
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import (
+    DMRG_ArgsUser,
     SHCI_ArgsUser,
     UserSolverArgs,
+    _DMRG_Args,
     _SHCI_Args,
     make_rdm1_ccsd_t1,
     make_rdm2_urlx,
+    solve_block2,
     solve_ccsd,
     solve_error,
     solve_mp2,
@@ -46,6 +50,7 @@ def run_solver(
     h1_e: Matrix[float64],
     solver: str = "MP2",
     eri_file: str = "eri_file.h5",
+    cleanup_at_end: bool = True,
     veff: Matrix[float64] | None = None,
     veff0: Matrix[float64] | None = None,
     ompnum: int = 4,
@@ -192,6 +197,27 @@ def run_solver(
             mch.fcisolver.restart = True
         mch.mc1step()
         rdm1_tmp, rdm2s = mch.fcisolver.make_rdm12(0, nmo, nelec)
+
+    elif solver in ["block2", "DMRG", "DMRGCI", "DMRGSCF"]:
+        frag_scratch = WorkDir(
+            path=Path(scratch_dir / dname),
+            cleanup_at_end=cleanup_at_end,
+        )
+
+        assert isinstance(solver_args, DMRG_ArgsUser)
+        DMRG_args = _DMRG_Args.from_user_input(solver_args, mf_)
+
+        try:
+            rdm1_tmp, rdm2s = solve_block2(
+                mf_,
+                nocc,
+                frag_scratch=frag_scratch,
+                DMRG_args=DMRG_args,
+                use_cumulant=use_cumulant,
+                ompnum=ompnum,
+            )
+        except Exception as inst:
+            raise inst
 
     elif solver == "SCI":
         # pylint: disable-next=E0611
@@ -390,6 +416,7 @@ def be_func_parallel(
     enuc: float,  # noqa: ARG001
     scratch_dir: WorkDir,
     solver_args: UserSolverArgs | None,
+    cleanup_at_end: bool = True,
     nproc: int = 1,
     ompnum: int = 4,
     only_chem: bool = False,
@@ -434,6 +461,9 @@ def be_func_parallel(
         Whether to evaluate energies. Defaults to False.
     scratch_dir :
         Scratch directory root
+    cleanup_at_end :
+            Whether to remove dir/files created in  `scratch_dir` at the end of the
+            computation; defaults to True.
     use_cumulant :
         Use cumulant energy expression. Defaults to True
     return_vec :
@@ -466,6 +496,7 @@ def be_func_parallel(
                     fobj.fock + fobj.heff,
                     fobj.dm0.copy(),
                     scratch_dir,
+                    cleanup_at_end,
                     fobj.dname,
                     fobj.nao,
                     fobj.nsocc,
