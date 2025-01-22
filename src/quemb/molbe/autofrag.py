@@ -116,7 +116,10 @@ class FragmentMap:
         return None
 
 
-def euclidean_distance(i_coord: Vector, j_coord: Vector, ) -> np.floating:
+def euclidean_distance(
+    i_coord: Vector,
+    j_coord: Vector,
+) -> np.floating:
     return norm(i_coord - j_coord)
 
 
