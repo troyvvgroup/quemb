@@ -99,17 +99,19 @@ def add_back_H(m: Cartesian, n_BE: int, fragments: AtomPerFrag) -> AtomPerFrag:
 
     If we considered only non-hydrogen atoms before, i.e. :code:`pure_heavy is True`,
     then add back the hydrogens."""
+    only_H = set(m.loc[m.atom == "H", :].index)
     m.get_bonds(set_lookup=True)
+
+    def get_BE_coord_sphere(i_center: CenterIdx) -> set[AtomIdx]:
+        return set(
+            m.get_coordination_sphere(
+                i_center, n_sphere=n_BE, only_surface=False, use_lookup=True
+            ).index
+        )
+
     return AtomPerFrag(
         {
-            i_center: fragment_index
-            | set(
-                m.get_coordination_sphere(
-                    i_center, n_sphere=n_BE, only_surface=False, use_lookup=True
-                )
-                .loc[m.atom == "H", :]
-                .index
-            )
+            i_center: fragment_index | (get_BE_coord_sphere(i_center) & only_H)
             for i_center, fragment_index in fragments.items()
         }
     )
