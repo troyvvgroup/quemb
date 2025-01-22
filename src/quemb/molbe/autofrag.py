@@ -1,7 +1,7 @@
 # Author: Oinam Romesh Meitei, Shaun Weatherly
 
 from copy import deepcopy
-from typing import Any
+from typing import Sequence
 
 import networkx as nx
 import numpy as np
@@ -22,51 +22,51 @@ class FragmentMap:
     Parameters
     ----------
     fsites:
-        List whose entries are tuples containing all AO indices for a fragment.
+        List whose entries are sequences (tuple or list) containing all AO indices for a fragment.
     fs:
-        List whose entries are tuples of tuples, containing AO indices per atom
+        List whose entries are sequences of sequences, containing AO indices per atom
         per fragment.
     edge:
-        List whose entries are tuples of tuples, containing edge AO
+        List whose entries are sequences of sequences, containing edge AO
         indices per atom (inner tuple) per fragment (outer tuple).
     center:
-        List whose entries are tuples of tuples, containing all fragment AO
+        List whose entries are sequences of sequences, containing all fragment AO
         indices per atom (inner tuple) and per fragment (outer tuple).
     centerf_idx:
-        List whose entries are tuples containing the relative index of all
+        List whose entries are sequences containing the relative index of all
         center sites within a fragment (ie, with respect to fsites).
     ebe_weights:
         Weights determining the energy contributions from each center site
         (ie, with respect to centerf_idx).
     sites:
-        List whose entries are tuples containing all AO indices per atom
+        List whose entries are sequences containing all AO indices per atom
         (excluding frozen core indices, if applicable).
     dnames:
         List of strings giving fragment data names. Useful for bookkeeping and
         for constructing fragment scratch directories.
     fragment_atoms:
-        List whose entries are tuples containing all atom indices for a fragment.
+        List whose entries are sequences containing all atom indices for a fragment.
     center_atoms:
-        List whose entries are tuples giving the center atom indices per fragment.
+        List whose entries are sequences giving the center atom indices per fragment.
     edge_atoms:
-        List whose entries are tuples giving the edge atom indices per fragment.
+        List whose entries are sequences giving the edge atom indices per fragment.
     adjacency_mat:
         The adjacency matrix for all sites (atoms) in the system.
     adjacency_graph:
         The adjacency graph corresponding to `adjacency_mat`.
     """
 
-    fsites: list[tuple[int, ...]]
-    fs: list[tuple[tuple[int, ...], ...]]
-    edge: list[tuple[tuple[int, ...], ...]]
-    center: list[tuple[int, ...]]
-    centerf_idx: list[tuple[int, ...]]
-    ebe_weights: list[tuple]
-    sites: list[tuple]
+    fsites: list[Sequence[int]]
+    fs: list[Sequence[Sequence[int]]]
+    edge: list[Sequence[Sequence[int]]]
+    center: list[Sequence[int]]
+    centerf_idx: list[Sequence[int]]
+    ebe_weights: list[Sequence]
+    sites: list[Sequence]
     dnames: list
-    fragment_atoms: list[tuple[int, ...]]
-    center_atoms: list[tuple[int, ...]]
-    edge_atoms: list[tuple[int, ...]]
+    fragment_atoms: list[Sequence[int]]
+    center_atoms: list[Sequence[int]]
+    edge_atoms: list[Sequence[int]]
     adjacency_mat: np.ndarray
     adjacency_graph: nx.Graph
 
