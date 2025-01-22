@@ -93,12 +93,15 @@ class FragmentMap:
                     elif set(basb).issubset(set(basa)):
                         subsets.add(bdx)
                         self.center[adx] = tuple(
-                            set(self.center[adx] + deepcopy(self.center[bdx]))
+                            set(
+                                list(self.center[adx])
+                                + list(deepcopy(self.center[bdx]))
+                            )
                         )
                         self.center_atoms[adx] = tuple(
                             set(
-                                self.center_atoms[adx]
-                                + deepcopy(self.center_atoms[bdx])
+                                list(self.center_atoms[adx])
+                                + list(deepcopy(self.center_atoms[bdx]))
                             )
                         )
             if subsets:
@@ -252,7 +255,7 @@ def graphgen(
         for adx, map in adx_map.items():
             fragment_map.center_atoms.append((adx,))
             fragment_map.center.append(deepcopy(fragment_map.sites[adx]))
-            fsites_temp = deepcopy(fragment_map.sites[adx])
+            fsites_temp = deepcopy(list(fragment_map.sites[adx]))
             fatoms_temp = [adx]
             fs_temp = []
             fs_temp.append(deepcopy(fragment_map.sites[adx]))
@@ -278,7 +281,7 @@ def graphgen(
             # the set of fragment sites for adx.
             for bdx, path in map["shortest_paths"].items():
                 if 0 < (len(path) - 1) < fragment_type_order:
-                    fsites_temp = fsites_temp + deepcopy(fragment_map.sites[bdx])
+                    fsites_temp = fsites_temp + deepcopy(list(fragment_map.sites[bdx]))
                     fs_temp.append(deepcopy(fragment_map.sites[bdx]))
                     fatoms_temp.append(bdx)
 
