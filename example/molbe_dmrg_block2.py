@@ -42,7 +42,7 @@ for a in seps:
     # any clear advantage to using any one scheme over another,
     # the Pipek-Mezey scheme continues to be the most popular. With
     # BE-DMRG, localization takes place prior to fragmentation:
-    fobj = fragpart(be_type="be1", mol=mol)
+    fobj = fragpart(be_type="be1", frag_type="autogen", mol=mol)
     mybe = BE(
         mf,
         fobj,
@@ -55,7 +55,6 @@ for a in seps:
         solver="block2",  # or 'DMRG', 'DMRGSCF', 'DMRGCI'
         solver_args=DMRG_ArgsUser(
             maxM=100,  # Max fragment bond dimension
-            force_cleanup=True,  # Remove all fragment DMRG tmpfiles
         ),
     )
 
@@ -88,7 +87,7 @@ mol.basis = "sto-3g"
 mol.charge = 0
 mol.spin = 0
 mol.build()
-fobj = fragpart(be_type="be2", mol=mol)
+fobj = fragpart(be_type="be2", frag_type="autogen", mol=mol)
 mybe = BE(mf, fobj, lo_method="pipek-mezey", pop_method="lowdin")
 
 # We automatically construct the fragment DMRG schedules based on user keywords.
@@ -109,7 +108,6 @@ mybe.optimize(
         max_noise=1e-3,  # Max MPS noise introduced per sweep
         min_tol=1e-8,  # Tighest Davidson tolerance per sweep
         block_extra_keyword=["fiedler"],  # Specify orbital reordering algorithm
-        force_cleanup=True,  # Remove all fragment DMRG tmpfiles
     ),
 )
 
@@ -128,7 +126,6 @@ mybe.optimize(
     solver_args=DMRG_ArgsUser(
         schedule_kwargs=schedule,
         block_extra_keyword=["fiedler"],
-        force_cleanup=True,
     ),
 )
 

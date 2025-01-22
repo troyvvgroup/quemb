@@ -1,6 +1,7 @@
 # Author(s): Oinam Romesh Meitei
 
 import pickle
+from pathlib import Path
 
 import h5py
 import numpy
@@ -76,7 +77,8 @@ class BE(MixinLocalize):
         restart_file: PathLike = "storebe.pk",
         nproc: int = 1,
         ompnum: int = 4,
-        scratch_dir: WorkDir | None = None,
+        scratch_dir: WorkDir | PathLike | None = None,
+        cleanup_at_end: bool = True,
         integral_direct_DF: bool = False,
         auxbasis: str | None = None,
     ) -> None:
@@ -109,6 +111,9 @@ class BE(MixinLocalize):
             Number of OpenMP threads, by default 4.
         scratch_dir :
             Scratch directory.
+        cleanup_at_end :
+            Whether to remove dir/files created in  `scratch_dir` at the end of the
+            computation; defaults to True.
         integral_direct_DF:
             If mf._eri is None (i.e. ERIs are not saved in memory using incore_anyway),
             this flag is used to determine if the ERIs are computed integral-directly
@@ -142,6 +147,7 @@ class BE(MixinLocalize):
         self.ompnum = ompnum
         self.integral_direct_DF = integral_direct_DF
         self.auxbasis = auxbasis
+        self.cleanup_at_end = cleanup_at_end
 
         # Fragment information from fobj
         self.fobj = fobj
@@ -172,7 +178,14 @@ class BE(MixinLocalize):
         self.pot = initialize_pot(self.fobj.Nfrag, self.fobj.edge_idx)
 
         if scratch_dir is None:
-            self.scratch_dir = WorkDir.from_environment()
+            self.scratch_dir = WorkDir.from_environment(
+                cleanup_at_end=self.cleanup_at_end,
+            )
+        elif isinstance(scratch_dir, PathLike):
+            self.scratch_dir = WorkDir(
+                path=Path(scratch_dir),
+                cleanup_at_end=self.cleanup_at_end,
+            )
         else:
             self.scratch_dir = scratch_dir
         self.eri_file = self.scratch_dir / eri_file
@@ -922,6 +935,7 @@ class BE(MixinLocalize):
                 solver_args=solver_args,
                 use_cumulant=use_cumulant,
                 return_vec=False,
+                cleanup_at_end=self.cleanup_at_end,
             )
         else:
             rets = be_func_parallel(
@@ -937,6 +951,7 @@ class BE(MixinLocalize):
                 solver_args=solver_args,
                 use_cumulant=use_cumulant,
                 return_vec=False,
+                cleanup_at_end=self.cleanup_at_end,
             )
 
         print("-----------------------------------------------------", flush=True)
@@ -948,11 +963,12 @@ class BE(MixinLocalize):
             print_energy_cumulant(
                 rets[0], rets[1][1], rets[1][0] + rets[1][2], self.ebe_hf
             )
-            self.ebe_tot = rets[0]
+            self.ebe_tot = rets[0] + self.ebe_hf
         else:
             print_energy_noncumulant(
                 rets[0], rets[1][0], rets[1][2], rets[1][1], self.ebe_hf, self.enuc
             )
+
             self.ebe_tot = rets[0] + self.enuc
 
     def update_fock(self, heff: list[Matrix[floating]] | None = None) -> None:

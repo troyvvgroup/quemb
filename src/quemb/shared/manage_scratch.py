@@ -91,8 +91,6 @@ class WorkDir:
     # we define the __attrs_post_init__ to create the directory
     def __attrs_post_init__(self) -> None:
         self.path.mkdir(parents=True, exist_ok=True)
-        if any(self.path.iterdir()):
-            raise ValueError("scratch_area has to be empty.")
         if self.cleanup_at_end:
             atexit.register(partial(self.cleanup, ignore_error=True))
 
