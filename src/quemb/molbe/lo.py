@@ -282,6 +282,7 @@ class MixinLocalize:
             valence basis in the IAO partitioning.
             This is an experimental feature.
         """
+        print("in localize: self.__dict__", self.__dict__)
         if lo_method == "lowdin":
             es_, vs_ = eigh(self.S)
             edx = es_ > 1.0e-15
@@ -376,7 +377,7 @@ class MixinLocalize:
             # Occupied mo_coeff (with core)
             Co = self.C[:, : self.Nocc]
             # Get necessary overlaps, second arg is IAO basis
-            S12, S2 = get_xovlp(self.mol, basis=iao_valence_basis)
+            S12, S2 = get_xovlp(self.fobj.mol, basis=iao_valence_basis)
             # Use these to get IAOs
             Ciao = get_iao(Co, S12, self.S, S2=S2)
 
@@ -388,12 +389,12 @@ class MixinLocalize:
                     Cpao = get_pao_native(
                         Ciao,
                         self.S,
-                        self.mol,
+                        self.fobj.mol,
                         iao_valence_basis=iao_valence_basis,
                     )
 
             # rearrange by atom
-            aoind_by_atom = get_aoind_by_atom(self.mol)
+            aoind_by_atom = get_aoind_by_atom(self.fobj.mol)
             Ciao, iaoind_by_atom = reorder_by_atom_(Ciao, aoind_by_atom, self.S)
 
             if not valence_only:
@@ -406,9 +407,9 @@ class MixinLocalize:
 
             # Localize orbitals beyond symm orth
             if loc_type.upper() != "SO":
-                Ciao = get_loc(self.mol, Ciao, loc_type)
+                Ciao = get_loc(self.fobj.mol, Ciao, loc_type)
                 if not valence_only:
-                    Cpao = get_loc(self.mol, Cpao, loc_type)
+                    Cpao = get_loc(self.fobj.mol, Cpao, loc_type)
 
             shift = 0
             ncore = 0
@@ -420,8 +421,8 @@ class MixinLocalize:
                 Wstack = zeros((Ciao.shape[0], Ciao.shape[1]))
 
             if self.frozen_core:
-                for ix in range(self.mol.natm):
-                    nc = ncore_(self.mol.atom_charge(ix))
+                for ix in range(self.fobj.mol.natm):
+                    nc = ncore_(self.fobj.mol.atom_charge(ix))
                     ncore += nc
                     niao = len(iaoind_by_atom[ix])
                     iaoind_ix = [i_ - ncore for i_ in iaoind_by_atom[ix][nc:]]
@@ -433,7 +434,7 @@ class MixinLocalize:
                         shift += npao
             else:
                 if not hstack:
-                    for ix in range(self.mol.natm):
+                    for ix in range(self.fobj.mol.natm):
                         niao = len(iaoind_by_atom[ix])
                         Wstack[:, shift : shift + niao] = Ciao[:, iaoind_by_atom[ix]]
                         shift += niao
@@ -493,7 +494,7 @@ class MixinLocalize:
                 W_ = multi_dot((vs_, s_, vs_.T))
                 W_ = C_ @ W_
 
-            self.W = get_loc(self.mol, W_, "BOYS")
+            self.W = get_loc(self.fobj.mol, W_, "BOYS")
 
             if not self.frozen_core:
                 self.lmo_coeff = self.W.T @ self.S @ self.C
