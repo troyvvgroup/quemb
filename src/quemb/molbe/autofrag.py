@@ -316,7 +316,7 @@ def graphgen(
                         f_temp = set(fragment_map.fragment_atoms[adx])
                         c_temp = set(fragment_map.center_atoms[bdx])
                         edge_temp.add(tuple(overlap))
-                        eatoms_temp.add(tuple(i for i in eatoms_temp))
+                        eatoms_temp.add(tuple(i for i in f_temp.intersection(c_temp)))
         fragment_map.edge.append(tuple(edge_temp))
         fragment_map.edge_atoms.append(tuple(eatoms_temp))
 
