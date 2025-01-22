@@ -210,18 +210,18 @@ class BE(MixinLocalize):
             # Localize orbitals
             self.localize(
                 lo_method,
-                pop_method=pop_method,
                 iao_valence_basis=fobj.iao_valence_basis,
                 valence_only=fobj.valence_only,
+                pop_method=pop_method,
             )
 
-            if fobj.valence_only and lo_method == "iao":
+            if fobj.valence_only and lo_method.upper() == "IAO":
                 self.Ciao_pao = self.localize(
                     lo_method,
-                    pop_method=pop_method,
                     iao_valence_basis=fobj.iao_valence_basis,
-                    hstack=True,
                     valence_only=False,
+                    pop_method=pop_method,
+                    hstack=True,
                     nosave=True,
                 )
 

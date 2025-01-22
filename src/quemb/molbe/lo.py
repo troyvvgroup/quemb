@@ -237,11 +237,11 @@ def get_loc(
     pop_method: str | None = None,
     init_guess: Matrix | None = None,
 ) -> Mole:
-    if method.upper() == "ER":
+    if method.upper() in ["EDMINSTON-RUEDENBERG", "ER"]:
         from pyscf.lo import ER as Localizer  # noqa: PLC0415
-    elif method.upper() == "PM":
+    elif method.upper() in ["PIPEK-MIZEY", "PIPEK", "PM"]:
         from pyscf.lo import PM as Localizer  # noqa: PLC0415
-    elif method.upper() == "FB" or method.upper() == "BOYS":
+    elif method.upper() in ["FOSTER-BOYS", "BOYS", "FB"]:
         from pyscf.lo import Boys as Localizer  # noqa: PLC0415
     else:
         raise NotImplementedError("Localization scheme not understood")
@@ -259,10 +259,10 @@ class MixinLocalize:
         self,
         lo_method,
         iao_valence_basis="sto-3g",
-        hstack=False,
+        valence_only=False,
         pop_method=None,
         init_guess=None,
-        valence_only=False,
+        hstack=False,
         nosave=False,
     ):
         """Molecular orbital localization
@@ -277,13 +277,16 @@ class MixinLocalize:
             are supported.
         iao_valence_basis : str
             Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
+            Name of localization method in quantum chemistry for the IAOs and PAOs.
+            Options include 'Boys', 'PM', 'ER' (as documented in PySCF). Default is
+            'SO', or symmetric orthogonalization.
         valence_only : bool
             If this option is set to True, all calculation will be performed in the
             valence basis in the IAO partitioning.
             This is an experimental feature.
         """
         print("in localize: self.__dict__", self.__dict__)
-        if lo_method == "lowdin":
+        if lo_method.upper() == "LOWDIN":
             es_, vs_ = eigh(self.S)
             edx = es_ > 1.0e-15
             self.W = vs_[:, edx] / sqrt(es_[edx]) @ vs_[:, edx].T
@@ -340,11 +343,16 @@ class MixinLocalize:
                 else:
                     self.lmo_coeff = multi_dot((self.W.T, self.S, self.C))
 
-        elif lo_method in ["pipek-mezey", "pipek", "PM"]:
-            es_, vs_ = eigh(self.S)
-            edx = es_ > 1.0e-15
-            self.W = vs_[:, edx] / sqrt(es_[edx]) @ vs_[:, edx].T
-
+        elif lo_method.upper() in [
+            "PIPEK-MIZEY",
+            "PIPEK",
+            "PM",
+            "FOSTER-BOYS",
+            "BOYS",
+            "FB",
+            "EDMINSTON-RUEDENBERG",
+            "ER",
+        ]:
             es_, vs_ = eigh(self.S)
             edx = es_ > 1.0e-15
             W_ = vs_[:, edx] / sqrt(es_[edx]) @ vs_[:, edx].T
@@ -363,7 +371,7 @@ class MixinLocalize:
                 W_ = C_ @ W_
 
             self.W = get_loc(
-                self.mf.mol, W_, "PM", pop_method=pop_method, init_guess=init_guess
+                self.mf.mol, W_, lo_method, pop_method=pop_method, init_guess=init_guess
             )
 
             if not self.frozen_core:
@@ -371,9 +379,8 @@ class MixinLocalize:
             else:
                 self.lmo_coeff = self.W.T @ self.S @ self.C[:, self.ncore :]
 
-        elif lo_method == "iao":
+        elif lo_method.upper() == "IAO":
             loc_type = "SO"
-
             # Occupied mo_coeff (with core)
             Co = self.C[:, : self.Nocc]
             # Get necessary overlaps, second arg is IAO basis
@@ -473,31 +480,6 @@ class MixinLocalize:
                     self.lmo_coeff = self.W.T @ self.S @ C_
                 else:
                     self.lmo_coeff = self.W.T @ self.S @ self.C[:, self.ncore :]
-            else:
-                self.lmo_coeff = self.W.T @ self.S @ self.C[:, self.ncore :]
-
-        elif lo_method == "boys":
-            es_, vs_ = eigh(self.S)
-            edx = es_ > 1.0e-15
-            W_ = vs_[:, edx] / sqrt(es_[edx]) @ vs_[:, edx].T
-            if self.frozen_core:
-                P_core = eye(W_.shape[0]) - self.P_core @ self.S
-                C_ = P_core @ W_
-                Cpop = multi_dot((C_.T, self.S, C_))
-                Cpop = diag(Cpop)
-                no_core_idx = where(Cpop > 0.55)[0]
-                C_ = C_[:, no_core_idx]
-                S_ = multi_dot((C_.T, self.S, C_))
-                es_, vs_ = eigh(S_)
-                s_ = sqrt(es_)
-                s_ = diag(1.0 / s_)
-                W_ = multi_dot((vs_, s_, vs_.T))
-                W_ = C_ @ W_
-
-            self.W = get_loc(self.fobj.mol, W_, "BOYS")
-
-            if not self.frozen_core:
-                self.lmo_coeff = self.W.T @ self.S @ self.C
             else:
                 self.lmo_coeff = self.W.T @ self.S @ self.C[:, self.ncore :]
 
