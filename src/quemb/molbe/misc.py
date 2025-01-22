@@ -448,7 +448,7 @@ def be2puffin(
                         elif "z" in label.split()[2]:
                             libint2pyscf.append(labelidx - 1)
 
-                hcore_pyscf = hcore[numpy.ix_(libint2pyscf, libint2pyscf)]
+                hcore_pyscf = hcore[ix_(libint2pyscf, libint2pyscf)]
             else:
                 # Input hcore is in PySCF format
                 hcore_pyscf = hcore
