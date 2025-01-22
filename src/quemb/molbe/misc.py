@@ -429,9 +429,41 @@ def be2puffin(
             mf = scf.UHF(mol)
         else:
             mf = scf.RHF(mol)
-        print("Running from chkfile not tested with density fitting: DF set to None")
-        mf.with_df = None
+        if hasattr(mf, "with_df"):
+            raise ValueError("Running from chkfile not tested with density fitting")
         mf.__dict__.update(scf_result_dic)
+        if hcore:
+            if libint_inp:
+                libint2pyscf = []
+                for labelidx, label in enumerate(mol.ao_labels()):
+                    # pyscf: px py pz // 1 -1 0
+                    # libint: py pz px // -1 0 1
+                    if "p" not in label.split()[2]:
+                        libint2pyscf.append(labelidx)
+                    else:
+                        if "x" in label.split()[2]:
+                            libint2pyscf.append(labelidx + 2)
+                        elif "y" in label.split()[2]:
+                            libint2pyscf.append(labelidx - 1)
+                        elif "z" in label.split()[2]:
+                            libint2pyscf.append(labelidx - 1)
+
+                hcore_pyscf = hcore[ix_(libint2pyscf, libint2pyscf)]
+            else:
+                # Input hcore is in PySCF format
+                hcore_pyscf = hcore
+            mf.get_hcore = lambda *args: hcore_pyscf  # noqa: ARG005
+        elif pts_and_charges:
+            print(
+                "Using QM/MM Point Charges: Assuming QM structure in Angstrom and "
+                "MM Coordinates in Bohr !!!"
+            )
+            mf = qmmm.mm_charge(
+                mf,
+                pts_and_charges[0],
+                pts_and_charges[1],
+                unit="bohr",
+            ).newton()
         time_post_mf = time.time()
         print("Chkfile electronic energy:", mf.energy_elec(), flush=True)
         print("Chkfile e_tot:", mf.e_tot, flush=True)
