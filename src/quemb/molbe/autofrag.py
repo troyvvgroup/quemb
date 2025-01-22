@@ -234,7 +234,7 @@ def graphgen(
         for adx in range(natm):
             for bdx in range(adx + 1, natm):
                 dr = (
-                    euclidean_norm(
+                    euclidean_distance(
                         adx_map[adx]["coord"],
                         adx_map[bdx]["coord"],
                     )
