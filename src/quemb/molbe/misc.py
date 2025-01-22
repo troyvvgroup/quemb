@@ -4,6 +4,7 @@ import os
 import time
 
 import h5py
+import numpy
 from numpy import einsum, ix_, loadtxt
 from pyscf import ao2mo, df, gto, qmmm, scf
 from pyscf.lib import chkfile
@@ -454,6 +455,10 @@ def be2puffin(
                 hcore_pyscf = hcore
             mf.get_hcore = lambda *args: hcore_pyscf  # noqa: ARG005
         elif pts_and_charges:
+            print(
+                "Using QM/MM Point Charges: Assuming QM structure in Angstrom and "
+                "MM Coordinates in Bohr !!!"
+            )
             mf = qmmm.mm_charge(
                 mf,
                 pts_and_charges[0],
