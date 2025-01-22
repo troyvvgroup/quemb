@@ -463,7 +463,7 @@ def be2puffin(
                 pts_and_charges[0],
                 pts_and_charges[1],
                 unit="bohr",
-                ).newton()
+            ).newton()
         time_post_mf = time.time()
         print("Chkfile electronic energy:", mf.energy_elec(), flush=True)
         print("Chkfile e_tot:", mf.e_tot, flush=True)

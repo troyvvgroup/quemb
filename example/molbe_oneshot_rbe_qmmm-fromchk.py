@@ -36,7 +36,7 @@ be_energy = be2puffin(
     checkfile="data/oneshot_rbe_qmmm.chk",
     # if not None, will save RHF calculation to a checkfile.
     # if rerunning from chk (from_chk=True), name the checkfile here
-    )
+)
 
 """
 To not use or generate checkfile:
