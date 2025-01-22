@@ -6,7 +6,7 @@ from typing import Sequence
 import networkx as nx
 import numpy as np
 from attrs import define
-from networkx import shortest_path  # type: ignore[attr-defined]
+from networkx import shortest_path
 from numpy.linalg import norm
 from pyscf import gto
 
