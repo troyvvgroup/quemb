@@ -429,8 +429,7 @@ def be2puffin(
             mf = scf.UHF(mol)
         else:
             mf = scf.RHF(mol)
-        print("Running from chkfile not tested with density fitting: DF set to None")
-        mf.with_df = None
+        if hasattr(mf, "with_df"): raise ValueError("Running from chkfile not tested with density fitting")
         mf.__dict__.update(scf_result_dic)
         if hcore:
             if libint_inp:
