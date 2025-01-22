@@ -12,7 +12,6 @@ from numpy import (
     complex128,
     diag,
     eye,
-    hstack,
     sqrt,
     where,
     zeros,
@@ -364,7 +363,7 @@ class Mixin_k_Localize:
                     unused(u)
                     nvlo = nlo - self.Nocc - self.ncore
                     assert allclose(np.sum(l[:nvlo]), nvlo)
-                    C_ = hstack([Co_nocore[k], Cv[k] @ vt[:nvlo].conj().T])
+                    C_ = np.hstack([Co_nocore[k], Cv[k] @ vt[:nvlo].conj().T])
                     lmo_ = self.W[k].conj().T @ self.S[k] @ C_
                     assert allclose(lmo_.conj().T @ lmo_, eye(lmo_.shape[1]))
                     lmo_coeff.append(lmo_)
