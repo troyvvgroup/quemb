@@ -305,7 +305,7 @@ def graphgen(
     # with the set of all center sites outside of A:
     for adx, fs in enumerate(fragment_map.fs):
         edge_temp: set[tuple] = set()
-        eatoms_temp: set = set()
+        eatoms_temp: set[tuple[int, ...]] = set()
         for bdx, center in enumerate(fragment_map.center):
             if adx == bdx:
                 pass
@@ -318,7 +318,7 @@ def graphgen(
                         edge_temp.add(tuple(overlap))
                         eatoms_temp.add(tuple(i for i in f_temp.intersection(c_temp)))
         fragment_map.edge.append(tuple(edge_temp))
-        fragment_map.edge_atoms.append(tuple(eatoms_temp))
+        fragment_map.edge_atoms.extend(tuple(eatoms_temp))
 
     # Update relative center site indices (centerf_idx) and weights
     # for center site contributions to the energy (ebe_weights):
