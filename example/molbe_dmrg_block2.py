@@ -55,7 +55,6 @@ for a in seps:
         solver="block2",  # or 'DMRG', 'DMRGSCF', 'DMRGCI'
         solver_args=DMRG_ArgsUser(
             maxM=100,  # Max fragment bond dimension
-            force_cleanup=True,  # Remove all fragment DMRG tmpfiles
         ),
     )
 
@@ -109,7 +108,6 @@ mybe.optimize(
         max_noise=1e-3,  # Max MPS noise introduced per sweep
         min_tol=1e-8,  # Tighest Davidson tolerance per sweep
         block_extra_keyword=["fiedler"],  # Specify orbital reordering algorithm
-        force_cleanup=True,  # Remove all fragment DMRG tmpfiles
     ),
 )
 
@@ -128,7 +126,6 @@ mybe.optimize(
     solver_args=DMRG_ArgsUser(
         schedule_kwargs=schedule,
         block_extra_keyword=["fiedler"],
-        force_cleanup=True,
     ),
 )
 
