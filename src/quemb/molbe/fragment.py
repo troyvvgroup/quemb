@@ -58,7 +58,6 @@ class fragpart:
         mol=None,
         frozen_core=False,
     ):
-        # Initialize class attributes
         self.mol = mol
         self.frag_type = frag_type
         self.fsites = []
@@ -73,12 +72,8 @@ class fragpart:
         self.frozen_core = frozen_core
         self.iao_valence_basis = iao_valence_basis
         self.valence_only = valence_only
-
-        # Initialize class attributes necessary for mixed-basis BE
         self.Frag_atom = []
         self.center_atom = []
-        self.hlist_atom = []
-        self.add_center_atom = []
 
         # Check for frozen core approximation
         if frozen_core:
@@ -135,8 +130,6 @@ class fragpart:
                 self.ebe_weight,
                 self.Frag_atom,
                 self.center_atom,
-                self.hlist_atom,
-                self.add_center_atom,
             ) = fgs
             self.Nfrag = len(self.fsites)
 

@@ -337,7 +337,7 @@ def autogen(
     edgsites : list of list of list of int
         List of edge sites for each fragment where each edge is a list of LO indices.
     center : list of list of int
-        List of center indices for each edge.
+        List of the fragment index of each edge site for all fragments.
     edge_idx : list of list of list of int
         List of edge indices for each fragment where each edge index is a list of
         LO indices.
@@ -353,11 +353,6 @@ def autogen(
         Heavy atom indices for each fragment, per fragment
     cen: list
         Atom indices of all centers
-    hlist: list of lists
-        All hydrogen atom indices for each fragment, per fragment
-    add_centers: list of lists
-        "additional centers" for all fragments, per fragment: contains heavy atoms
-        which are not centers in any other fragments
     """
 
     if not valence_only:
@@ -772,6 +767,4 @@ def autogen(
         ebe_weight,
         Frag,
         cen,
-        hlist,
-        add_centers,
     )
