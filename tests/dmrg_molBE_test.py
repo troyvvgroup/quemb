@@ -71,7 +71,7 @@ class TestBE_DMRG(unittest.TestCase):
         target,
         delta=1e-4,
     ):
-        scratch = Path("data/molecular_DMRG_test").resolve()
+        scratch = Path(__file__).absolute().parents[0] / "data/molecular_DMRG_test"
         mf = scf.RHF(mol)
         mf.kernel()
         fobj = fragpart(frag_type=frag_type, be_type=be_type, mol=mol)
@@ -97,6 +97,7 @@ class TestBE_DMRG(unittest.TestCase):
         for fdx, _ in enumerate(fobj.fsites):
             dname = "f" + str(fdx)
             frag_scratch = Path(scratch / dname)
+            print(frag_scratch)
             with open(frag_scratch / "dmrg.conf.target", "r") as file:
                 target_dmrg_conf = [f for f in file if not f.startswith("prefix")]
             with open(frag_scratch / "dmrg.conf", "r") as file:
