@@ -70,6 +70,7 @@ class BE(MixinLocalize):
         fobj: fragpart,
         eri_file: PathLike = "eri_file.h5",
         lo_method: str = "lowdin",
+        iao_loc_method: str = "SO",
         pop_method: str | None = None,
         compute_hf: bool = True,
         restart: bool = False,
@@ -93,6 +94,8 @@ class BE(MixinLocalize):
             Path to the file storing two-electron integrals.
         lo_method :
             Method for orbital localization, by default 'lowdin'.
+        iao_loc_method :
+            Method for IAO localization, by default "SO"
         pop_method :
             Method for calculating orbital population, by default 'meta-lowdin'
             See pyscf.lo for more details and options
@@ -211,6 +214,7 @@ class BE(MixinLocalize):
             self.localize(
                 lo_method,
                 iao_valence_basis=fobj.iao_valence_basis,
+                iao_loc_method=iao_loc_method,
                 valence_only=fobj.valence_only,
                 pop_method=pop_method,
             )
@@ -219,6 +223,7 @@ class BE(MixinLocalize):
                 self.Ciao_pao = self.localize(
                     lo_method,
                     iao_valence_basis=fobj.iao_valence_basis,
+                    iao_loc_method=iao_loc_method,
                     valence_only=False,
                     pop_method=pop_method,
                     hstack=True,

@@ -259,6 +259,7 @@ class MixinLocalize:
         self,
         lo_method,
         iao_valence_basis="sto-3g",
+        iao_loc_method="SO",
         valence_only=False,
         pop_method=None,
         init_guess=None,
@@ -380,7 +381,6 @@ class MixinLocalize:
                 self.lmo_coeff = self.W.T @ self.S @ self.C[:, self.ncore :]
 
         elif lo_method.upper() == "IAO":
-            loc_type = "SO"
             # Occupied mo_coeff (with core)
             Co = self.C[:, : self.Nocc]
             # Get necessary overlaps, second arg is IAO basis
@@ -390,9 +390,9 @@ class MixinLocalize:
 
             if not valence_only:
                 # Now get PAOs
-                if loc_type.upper() != "SO":
+                if iao_loc_method.upper() != "SO":
                     Cpao = get_pao(Ciao, self.S, S12)
-                elif loc_type.upper() == "SO":
+                elif iao_loc_method.upper() == "SO":
                     Cpao = get_pao_native(
                         Ciao,
                         self.S,
@@ -413,10 +413,10 @@ class MixinLocalize:
                 Ciao = remove_core_mo(Ciao, Cc, self.S)
 
             # Localize orbitals beyond symm orth
-            if loc_type.upper() != "SO":
-                Ciao = get_loc(self.fobj.mol, Ciao, loc_type)
+            if iao_loc_method.upper() != "SO":
+                Ciao = get_loc(self.fobj.mol, Ciao, iao_loc_method)
                 if not valence_only:
-                    Cpao = get_loc(self.fobj.mol, Cpao, loc_type)
+                    Cpao = get_loc(self.fobj.mol, Cpao, iao_loc_method)
 
             shift = 0
             ncore = 0
@@ -452,7 +452,7 @@ class MixinLocalize:
                             ]
                             shift += npao
                 else:
-                    Wstack = hstack((Ciao, Cpao))
+                    Wstack = np.hstack((Ciao, Cpao))
             if not nosave:
                 self.W = Wstack
                 assert allclose(self.W.T @ self.S @ self.W, eye(self.W.shape[1]))
@@ -476,7 +476,7 @@ class MixinLocalize:
                     unused(u)
                     nvlo = nlo - self.Nocc - self.ncore
                     assert allclose(np.sum(l[:nvlo]), nvlo)
-                    C_ = hstack([Co_nocore, Cv @ vt[:nvlo].T])
+                    C_ = np.hstack([Co_nocore, Cv @ vt[:nvlo].T])
                     self.lmo_coeff = self.W.T @ self.S @ C_
                 else:
                     self.lmo_coeff = self.W.T @ self.S @ self.C[:, self.ncore :]

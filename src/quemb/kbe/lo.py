@@ -223,7 +223,7 @@ class Mixin_k_Localize:
                     (nk_, nao, Ciao_.shape[-1] + self.ncore), dtype=Ciao_.dtype
                 )
                 for k in range(nk_):
-                    c_core_val[k] = hstack((ciao_core[k], Ciao_[k]))
+                    c_core_val[k] = np.hstack((ciao_core[k], Ciao_[k]))
 
                 # tmp - aos are not rearrange and so below is not necessary
                 #   (iaoind_by_atom is used to stack iao|pao later)
