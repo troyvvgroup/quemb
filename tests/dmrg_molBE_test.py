@@ -71,7 +71,7 @@ class TestBE_DMRG(unittest.TestCase):
         target,
         delta=1e-4,
     ):
-        scratch = Path.cwd() / "tests/data/molecular_DMRG_test/"
+        scratch = Path("data/molecular_DMRG_test").resolve()
         mf = scf.RHF(mol)
         mf.kernel()
         fobj = fragpart(frag_type=frag_type, be_type=be_type, mol=mol)
@@ -80,7 +80,7 @@ class TestBE_DMRG(unittest.TestCase):
             fobj,
             lo_method="pipek",
             pop_method="lowdin",
-            scratch_dir=Path(scratch),
+            scratch_dir=scratch,
             cleanup_at_end=False,
         )
         mybe.oneshot(
