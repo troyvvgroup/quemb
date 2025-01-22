@@ -4,7 +4,7 @@ import os
 import time
 
 import h5py
-import numpy
+from numpy import einsum, ix_, loadtxt
 from pyscf import ao2mo, df, gto, qmmm, scf
 from pyscf.lib import chkfile
 from pyscf.tools import fcidump
@@ -74,7 +74,7 @@ def libint2pyscf(
         raise ValueError("Input core Hamiltonian file does not exist")
 
     mol = gto.M(atom=xyzfile, basis=basis, spin=spin, charge=charge)
-    hcore_libint = numpy.loadtxt(hcore, skiprows=hcore_skiprows)
+    hcore_libint = loadtxt(hcore, skiprows=hcore_skiprows)
 
     libint2pyscf = []
     for labelidx, label in enumerate(mol.ao_labels()):
@@ -90,7 +90,7 @@ def libint2pyscf(
             elif "z" in label.split()[2]:
                 libint2pyscf.append(labelidx - 1)
 
-    hcore_pyscf = hcore_libint[numpy.ix_(libint2pyscf, libint2pyscf)]
+    hcore_pyscf = hcore_libint[ix_(libint2pyscf, libint2pyscf)]
 
     mol.incore_anyway = True
     if use_df:
@@ -130,10 +130,10 @@ def be2fcidump(be_obj, fcidump_prefix, basis):
             h2e = eri
         elif basis == "fragment_mo":
             frag.scf()  # make sure that we have mo coefficients
-            h1e = numpy.einsum(
+            h1e = einsum(
                 "ij,ia,jb->ab", frag.fock, frag.mo_coeffs, frag.mo_coeffs, optimize=True
             )
-            h2e = numpy.einsum(
+            h2e = einsum(
                 "ijkl,ia,jb,kc,ld->abcd",
                 eri,
                 frag.mo_coeffs,
@@ -180,10 +180,10 @@ def ube2fcidump(be_obj, fcidump_prefix, basis):
             h2e = eri
         elif basis == "fragment_mo":
             frag.scf()  # make sure that we have mo coefficients
-            h1e = numpy.einsum(
+            h1e = einsum(
                 "ij,ia,jb->ab", frag.fock, frag.mo_coeffs, frag.mo_coeffs, optimize=True
             )
-            h2e = numpy.einsum(
+            h2e = einsum(
                 "ijkl,ia,jb,kc,ld->abcd",
                 eri,
                 frag.mo_coeffs,
@@ -214,10 +214,10 @@ def ube2fcidump(be_obj, fcidump_prefix, basis):
             h2e = eri
         elif basis == "fragment_mo":
             frag.scf()  # make sure that we have mo coefficients
-            h1e = numpy.einsum(
+            h1e = einsum(
                 "ij,ia,jb->ab", frag.fock, frag.mo_coeffs, frag.mo_coeffs, optimize=True
             )
-            h2e = numpy.einsum(
+            h2e = einsum(
                 "ijkl,ia,jb,kc,ld->abcd",
                 eri,
                 frag.mo_coeffs,
@@ -343,18 +343,14 @@ def be2puffin(
                         elif "z" in label.split()[2]:
                             libint2pyscf.append(labelidx - 1)
 
-                hcore_pyscf = hcore[numpy.ix_(libint2pyscf, libint2pyscf)]
+                hcore_pyscf = hcore[ix_(libint2pyscf, libint2pyscf)]
             else:
                 # Input hcore is in PySCF format
                 hcore_pyscf = hcore
         if jk is not None:
             jk_pyscf = (
-                jk[0][
-                    numpy.ix_(libint2pyscf, libint2pyscf, libint2pyscf, libint2pyscf)
-                ],
-                jk[1][
-                    numpy.ix_(libint2pyscf, libint2pyscf, libint2pyscf, libint2pyscf)
-                ],
+                jk[0][ix_(libint2pyscf, libint2pyscf, libint2pyscf, libint2pyscf)],
+                jk[1][ix_(libint2pyscf, libint2pyscf, libint2pyscf, libint2pyscf)],
             )
 
         mol.incore_anyway = True

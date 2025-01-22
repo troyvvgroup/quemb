@@ -3,8 +3,7 @@
 import os
 from multiprocessing import Pool
 
-import numpy
-from numpy import float64
+from numpy import asarray, diag_indices, einsum, float64, zeros_like
 from numpy.linalg import multi_dot
 from pyscf import ao2mo, fci, mcscf
 
@@ -17,6 +16,9 @@ from quemb.molbe.helper import (
 )
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import (
+    SHCI_ArgsUser,
+    UserSolverArgs,
+    _SHCI_Args,
     make_rdm1_ccsd_t1,
     make_rdm2_urlx,
     solve_ccsd,
@@ -46,15 +48,13 @@ def run_solver(
     eri_file: str = "eri_file.h5",
     veff: Matrix[float64] | None = None,
     veff0: Matrix[float64] | None = None,
-    hci_cutoff: float = 0.001,
-    ci_coeff_cutoff: float | None = None,
-    select_cutoff: float | None = None,
     ompnum: int = 4,
     writeh1: bool = False,
     eeval: bool = True,
     ret_vec: bool = False,
     use_cumulant: bool = True,
     relax_density: bool = False,
+    solver_args: UserSolverArgs | None = None,
 ):
     """
     Run a quantum chemistry solver to compute the reduced density matrices.
@@ -67,9 +67,12 @@ def run_solver(
         Initial guess for the density matrix.
     scratch_dir :
         The scratch dir root.
-        Fragment files will be stored in :code:`scratch_dir / dname`.
     dname :
         Directory name for storing intermediate files.
+        Fragment files will be stored in :code:`scratch_dir / dname`.
+    scratch_dir :
+        The scratch directory.
+        Fragment files will be stored in :code:`scratch_dir / dname`.
     nao :
         Number of atomic orbitals.
     nocc :
@@ -95,12 +98,12 @@ def run_solver(
         Number of OpenMP threads. Default is 4.
     writeh1 :
         If True, write the one-electron integrals to a file. Default is False.
+    use_cumulant :
+        If True, use the cumulant approximation for RDM2. Default is True.
     eeval :
         If True, evaluate the electronic energy. Default is True.
     ret_vec :
         If True, return vector with error and rdms. Default is True.
-    use_cumulant :
-        If True, use the cumulant approximation for RDM2. Default is True.
     relax_density :
         If True, use CCSD relaxed density. Default is False
 
@@ -144,25 +147,23 @@ def run_solver(
         # pylint: disable-next=E0611
         from pyscf import hci  # noqa: PLC0415  # hci is an optional module
 
+        assert isinstance(solver_args, SHCI_ArgsUser)
+        SHCI_args = _SHCI_Args.from_user_input(solver_args)
+
         nao, nmo = mf_.mo_coeff.shape
         eri = ao2mo.kernel(mf_._eri, mf_.mo_coeff, aosym="s4", compact=False).reshape(
             4 * ((nmo),)
         )
         ci_ = hci.SCI(mf_.mol)
-        if select_cutoff is None and ci_coeff_cutoff is None:
-            select_cutoff = hci_cutoff
-            ci_coeff_cutoff = hci_cutoff
-        elif select_cutoff is None or ci_coeff_cutoff is None:
-            raise ValueError
 
-        ci_.select_cutoff = select_cutoff
-        ci_.ci_coeff_cutoff = ci_coeff_cutoff
+        ci_.select_cutoff = SHCI_args.select_cutoff
+        ci_.ci_coeff_cutoff = SHCI_args.ci_coeff_cutoff
 
         nelec = (nocc, nocc)
         h1_ = multi_dot((mf_.mo_coeff.T, h1, mf_.mo_coeff))
         eci, civec = ci_.kernel(h1_, eri, nmo, nelec)
         unused(eci)
-        civec = numpy.asarray(civec)
+        civec = asarray(civec)
 
         (rdm1a_, rdm1b_), (rdm2aa, rdm2ab, rdm2bb) = ci_.make_rdm12s(civec, nmo, nelec)
         rdm1_tmp = rdm1a_ + rdm1b_
@@ -174,6 +175,9 @@ def run_solver(
 
         frag_scratch = WorkDir(scratch_dir / dname)
 
+        assert isinstance(solver_args, SHCI_ArgsUser)
+        SHCI_args = _SHCI_Args.from_user_input(solver_args)
+
         nao, nmo = mf_.mo_coeff.shape
         nelec = (nocc, nocc)
         mch = shci.SHCISCF(mf_, nmo, nelec, orbpath=frag_scratch)
@@ -182,7 +186,7 @@ def run_solver(
         mch.fcisolver.nPTiter = 0
         mch.fcisolver.sweep_iter = [0]
         mch.fcisolver.DoRDM = True
-        mch.fcisolver.sweep_epsilon = [hci_cutoff]
+        mch.fcisolver.sweep_epsilon = [solver_args.hci_cutoff]
         mch.fcisolver.scratchDirectory = frag_scratch
         if not writeh1:
             mch.fcisolver.restart = True
@@ -192,6 +196,9 @@ def run_solver(
     elif solver == "SCI":
         # pylint: disable-next=E0611
         from pyscf import cornell_shci  # noqa: PLC0415  # optional module
+
+        assert isinstance(solver_args, SHCI_ArgsUser)
+        SHCI_args = _SHCI_Args.from_user_input(solver_args)
 
         frag_scratch = WorkDir(scratch_dir / dname)
 
@@ -208,7 +215,7 @@ def run_solver(
         ci.runtimedir = frag_scratch
         ci.restart = True
         ci.config["var_only"] = True
-        ci.config["eps_vars"] = [hci_cutoff]
+        ci.config["eps_vars"] = [solver_args.hci_cutoff]
         ci.config["get_1rdm_csv"] = True
         ci.config["get_2rdm_csv"] = True
         ci.kernel(h1, eri, nmo, nelec)
@@ -228,19 +235,19 @@ def run_solver(
         elif solver == "FCI":
             rdm2s = mc_.make_rdm2(civec, mc_.norb, mc_.nelec)
             if use_cumulant:
-                hf_dm = numpy.zeros_like(rdm1_tmp)
-                hf_dm[numpy.diag_indices(nocc)] += 2.0
+                hf_dm = zeros_like(rdm1_tmp)
+                hf_dm[diag_indices(nocc)] += 2.0
                 del_rdm1 = rdm1_tmp.copy()
-                del_rdm1[numpy.diag_indices(nocc)] -= 2.0
+                del_rdm1[diag_indices(nocc)] -= 2.0
                 nc = (
-                    numpy.einsum("ij,kl->ijkl", hf_dm, hf_dm)
-                    + numpy.einsum("ij,kl->ijkl", hf_dm, del_rdm1)
-                    + numpy.einsum("ij,kl->ijkl", del_rdm1, hf_dm)
+                    einsum("ij,kl->ijkl", hf_dm, hf_dm)
+                    + einsum("ij,kl->ijkl", hf_dm, del_rdm1)
+                    + einsum("ij,kl->ijkl", del_rdm1, hf_dm)
                 )
                 nc -= (
-                    numpy.einsum("ij,kl->iklj", hf_dm, hf_dm)
-                    + numpy.einsum("ij,kl->iklj", hf_dm, del_rdm1)
-                    + numpy.einsum("ij,kl->iklj", del_rdm1, hf_dm)
+                    einsum("ij,kl->iklj", hf_dm, hf_dm)
+                    + einsum("ij,kl->iklj", hf_dm, del_rdm1)
+                    + einsum("ij,kl->iklj", del_rdm1, hf_dm)
                 ) * 0.5
                 rdm2s -= nc
         e_f = get_frag_energy(
@@ -382,16 +389,14 @@ def be_func_parallel(
     solver: str,
     enuc: float,  # noqa: ARG001
     scratch_dir: WorkDir,
-    only_chem: bool = False,
+    solver_args: UserSolverArgs | None,
     nproc: int = 1,
     ompnum: int = 4,
+    only_chem: bool = False,
     relax_density: bool = False,
     use_cumulant: bool = True,
-    eeval: bool = True,
-    return_vec: bool = True,
-    hci_cutoff: float = 0.001,
-    ci_coeff_cutoff: float | None = None,
-    select_cutoff: float | None = None,
+    eeval: bool = False,
+    return_vec: bool = False,
     writeh1: bool = False,
 ):
     """
@@ -416,21 +421,21 @@ def be_func_parallel(
         'FCI', 'HCI', 'SHCI', and 'SCI'.
     enuc :
         Nuclear component of the energy.
-    scratch_dir :
-        Scratch directory root
-    only_chem :
-        Whether to perform chemical potential optimization only.
-        Refer to bootstrap embedding literature. Defaults to False.
     nproc :
         Total number of processors assigned for the optimization. Defaults to 1.
         When nproc > 1, Python multithreading is invoked.
     ompnum :
         If nproc > 1, sets the number of cores for OpenMP parallelization.
         Defaults to 4.
-    use_cumulant :
-        Use cumulant energy expression. Defaults to True
+    only_chem :
+        Whether to perform chemical potential optimization only.
+        Refer to bootstrap embedding literature. Defaults to False.
     eeval :
         Whether to evaluate energies. Defaults to False.
+    scratch_dir :
+        Scratch directory root
+    use_cumulant :
+        Use cumulant energy expression. Defaults to True
     return_vec :
         Whether to return the error vector. Defaults to False.
     writeh1 :
@@ -472,15 +477,13 @@ def be_func_parallel(
                     fobj.eri_file,
                     fobj.veff if not use_cumulant else None,
                     fobj.veff0,
-                    hci_cutoff,
-                    ci_coeff_cutoff,
-                    select_cutoff,
                     ompnum,
                     writeh1,
                     eeval,
                     return_vec,
                     use_cumulant,
                     relax_density,
+                    solver_args,
                 ],
             )
 

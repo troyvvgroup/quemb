@@ -1,7 +1,7 @@
 # Author(s): Oinam Romesh Meitei
 
 
-import numpy
+from numpy import arange, asarray, where
 from numpy.linalg import norm
 from pyscf import lib
 
@@ -83,10 +83,10 @@ def sidefunc(
     rlist=[],
 ):
     if ext_list == []:
-        main_list.extend(unit2[numpy.where(unit1 == Idx)[0]])
-        sub_list.extend(unit2[numpy.where(unit1 == Idx)[0]])
+        main_list.extend(unit2[where(unit1 == Idx)[0]])
+        sub_list.extend(unit2[where(unit1 == Idx)[0]])
     else:
-        for sub_i in unit2[numpy.where(unit1 == Idx)[0]]:
+        for sub_i in unit2[where(unit1 == Idx)[0]]:
             if sub_i in rlist:
                 continue
             if sub_i in ext_list:
@@ -104,7 +104,7 @@ def sidefunc(
     close_be3 = []
 
     if be_type == "be3" or be_type == "be4":
-        for lmin1 in unit2[numpy.where(unit1 == Idx)[0]]:
+        for lmin1 in unit2[where(unit1 == Idx)[0]]:
             for jdx, j in enumerate(coord):
                 if (
                     jdx not in unit1
@@ -241,7 +241,7 @@ def autogen(
     nx=False,
     ny=False,
     nz=False,
-    valence_basis=None,
+    iao_valence_basis=None,
     interlayer=False,
     print_frags=True,
 ):
@@ -274,7 +274,7 @@ def autogen(
     write_geom : bool, optional
         Whether to write a 'fragment.xyz' file which contains all the fragments in
         Cartesian coordinates. Defaults to False.
-    valence_basis : str, optional
+    iao_valence_basis : str, optional
         Name of minimal basis set for IAO scheme. 'sto-3g' is sufficient for most cases.
         Defaults to None.
     valence_only : bool, optional
@@ -396,11 +396,9 @@ def autogen(
         lnk2 = 1
 
     lattice_vector = cell.lattice_vectors()
-    Ts = lib.cartesian_prod(
-        (numpy.arange(lkpt[0]), numpy.arange(lkpt[1]), numpy.arange(lkpt[2]))
-    )
+    Ts = lib.cartesian_prod((arange(lkpt[0]), arange(lkpt[1]), arange(lkpt[2])))
 
-    Ls = numpy.dot(Ts, lattice_vector)
+    Ls = Ts @ lattice_vector
 
     # 1-2-(1-2)-1-2
     #   *       *
@@ -469,12 +467,12 @@ def autogen(
     kmsites = []
     ktsites = []
 
-    lunit = numpy.asarray(lunit)
-    runit = numpy.asarray(runit)
-    uunit = numpy.asarray(uunit)
-    dunit = numpy.asarray(dunit)
-    munit = numpy.asarray(munit)
-    tunit = numpy.asarray(tunit)
+    lunit = asarray(lunit)
+    runit = asarray(runit)
+    uunit = asarray(uunit)
+    dunit = asarray(dunit)
+    munit = asarray(munit)
+    tunit = asarray(tunit)
 
     inter_dist = 1000.0
     if twoD and interlayer:
@@ -1307,7 +1305,7 @@ def autogen(
                     continue
                 if be_type == "be3" or be_type == "be4":
                     if jdx in lunit:
-                        lmin1 = runit[numpy.where(lunit == jdx)[0]]
+                        lmin1 = runit[where(lunit == jdx)[0]]
                         if not twoD:
                             flist.extend(lmin1)
                             lsts.extend(lmin1)
@@ -1387,7 +1385,7 @@ def autogen(
                                         bond=bond,
                                     )
                     if jdx in runit:
-                        rmin1 = lunit[numpy.where(runit == jdx)[0]]
+                        rmin1 = lunit[where(runit == jdx)[0]]
                         if not twoD:
                             flist.extend(rmin1)
                             rsts.extend(rmin1)
@@ -1467,7 +1465,7 @@ def autogen(
                                     )
 
                     if jdx in uunit:
-                        umin1 = dunit[numpy.where(uunit == jdx)[0]]
+                        umin1 = dunit[where(uunit == jdx)[0]]
                         add_check_k(umin1, flist, usts, kusts, 2)
                         if be_type == "be4":
                             for kdx, k in enumerate(coord):
@@ -1534,7 +1532,7 @@ def autogen(
                                         bond=bond,
                                     )
                     if jdx in dunit:
-                        dmin1 = uunit[numpy.where(dunit == jdx)[0]]
+                        dmin1 = uunit[where(dunit == jdx)[0]]
                         add_check_k(dmin1, flist, dsts, kdsts, nk1)
 
                         if be_type == "be4":
@@ -1602,7 +1600,7 @@ def autogen(
                                         bond=bond,
                                     )
                     if jdx in munit:  #
-                        mmin1 = tunit[numpy.where(munit == jdx)[0]]
+                        mmin1 = tunit[where(munit == jdx)[0]]
                         add_check_k(mmin1, flist, msts, kmsts, nk1 * nk2)
                         if be_type == "be4":
                             for kdx, k in enumerate(coord):
@@ -1656,7 +1654,7 @@ def autogen(
                                     )
 
                     if jdx in tunit:
-                        tmin1 = munit[numpy.where(tunit == jdx)[0]]
+                        tmin1 = munit[where(tunit == jdx)[0]]
                         add_check_k(tmin1, flist, tsts, ktsts, nk1 + 2)
 
                         if be_type == "be4":
@@ -1724,7 +1722,7 @@ def autogen(
                                     pedg.append(kdx)
                                 if be_type == "be4":
                                     if kdx in lunit:
-                                        lmin1 = runit[numpy.where(lunit == kdx)[0]]
+                                        lmin1 = runit[where(lunit == kdx)[0]]
                                         for zdx in lmin1:
                                             if (
                                                 zdx in lsts
@@ -1740,7 +1738,7 @@ def autogen(
                                             else:
                                                 klsts.append(nk1)
                                     if kdx in runit:
-                                        rmin1 = lunit[numpy.where(runit == kdx)[0]]
+                                        rmin1 = lunit[where(runit == kdx)[0]]
                                         for zdx in rmin1:
                                             if (
                                                 zdx in rsts
@@ -1755,7 +1753,7 @@ def autogen(
                                             else:
                                                 krsts.append(2)
                                     if kdx in uunit:
-                                        umin1 = dunit[numpy.where(uunit == kdx)[0]]
+                                        umin1 = dunit[where(uunit == kdx)[0]]
                                         for zdx in umin1:
                                             if (
                                                 zdx in usts
@@ -1767,7 +1765,7 @@ def autogen(
                                             usts.append(zdx)
                                             kusts.append(2)
                                     if kdx in dunit:
-                                        dmin1 = uunit[numpy.where(dunit == kdx)[0]]
+                                        dmin1 = uunit[where(dunit == kdx)[0]]
                                         for zdx in dmin1:
                                             if (
                                                 zdx in dsts
@@ -1779,7 +1777,7 @@ def autogen(
                                             dsts.append(zdx)
                                             kdsts.append(nk1)
                                     if kdx in munit:
-                                        mmin1 = tunit[numpy.where(munit == kdx)[0]]
+                                        mmin1 = tunit[where(munit == kdx)[0]]
                                         for zdx in mmin1:
                                             if (
                                                 zdx in msts
@@ -1791,7 +1789,7 @@ def autogen(
                                             msts.append(zdx)
                                             kmsts.append(nk1 * nk2)
                                     if kdx in tunit:
-                                        tmin1 = munit[numpy.where(tunit == kdx)[0]]
+                                        tmin1 = munit[where(tunit == kdx)[0]]
                                         for zdx in tmin1:
                                             if (
                                                 zdx in tsts
@@ -1924,11 +1922,11 @@ def autogen(
                     )
         w.close()
 
-    pao = valence_basis is not None
+    pao = iao_valence_basis is not None
 
     if pao:
         cell2 = cell.copy()
-        cell2.basis = valence_basis
+        cell2.basis = iao_valence_basis
         cell2.build()
 
         bas2list = cell2.aoslice_by_atom()

@@ -1,8 +1,21 @@
 # Author(s): Oinam Romesh Meitei, Leah Weisburn, Shaun Weatherly
 
 import os
+from abc import ABC
+from typing import Final
 
-import numpy
+from attrs import Factory, define, field
+from numpy import (
+    allclose,
+    array,
+    asarray,
+    diag,
+    diag_indices,
+    einsum,
+    mean,
+    ndarray,
+    zeros_like,
+)
 from numpy.linalg import multi_dot
 from pyscf import ao2mo, cc, fci, mcscf, mp
 from pyscf.cc.ccsd_rdm import make_rdm2
@@ -21,7 +34,190 @@ from quemb.shared.external.uccsd_eri import make_eris_incore
 from quemb.shared.external.unrestricted_utils import make_uhf_obj
 from quemb.shared.helper import delete_multiple_files, unused
 from quemb.shared.manage_scratch import WorkDir
-from quemb.shared.typing import KwargDict
+
+
+class UserSolverArgs(ABC):
+    pass
+
+
+@define(frozen=True)
+class DMRG_ArgsUser(UserSolverArgs):
+    """
+
+    Parameters
+    ----------
+    max_mem:
+        Maximum memory in GB.
+    root:
+        Number of roots to solve for.
+    startM:
+        Starting MPS bond dimension - where the sweep schedule begins.
+    maxM:
+        Maximum MPS bond dimension - where the sweep schedule terminates.
+    max_iter:
+        Maximum number of sweeps.
+    twodot_to_onedot:
+        Sweep index at which to transition to one-dot DMRG algorithm.
+        All sweeps prior to this will use the two-dot algorithm.
+    block_extra_keyword:
+        Other keywords to be passed to block2.
+        See: https://block2.readthedocs.io/en/latest/user/keywords.html
+    schedule_kwargs:
+        Dictionary containing DMRG scheduling parameters to be passed to block2.
+
+        e.g. The default schedule used here would be equivalent to the following:
+
+        .. code-block:: python
+
+            schedule_kwargs = {
+                'scheduleSweeps': [0, 10, 20, 30, 40, 50],
+                'scheduleMaxMs': [25, 50, 100, 200, 500, 500],
+                'scheduleTols': [1e-5,1e-5, 1e-6, 1e-6, 1e-8, 1e-8],
+                'scheduleNoises': [0.01, 0.01, 0.001, 0.001, 1e-4, 0.0],
+            }
+    """
+
+    #: Becomes mf.mo_coeff.shape[1] by default
+    norb: Final[int | None] = None
+    #: Becomes mf.mo_coeff.shape[1] by default
+    nelec: Final[int | None] = None
+
+    startM: Final[int] = 25
+    maxM: Final[int] = 500
+    max_iter: Final[int] = 60
+    max_mem: Final[int] = 100
+    max_noise: Final[float] = 1e-3
+    min_tol: Final[float] = 1e-8
+    twodot_to_onedot: Final[int] = (5 * max_iter) // 6
+    root: Final[int] = 0
+    block_extra_keyword: Final[list[str]] = Factory(lambda: ["fiedler"])
+    schedule_kwargs: dict[str, list[int] | list[float]] = field()
+    force_cleanup: Final[bool] = False
+
+    @schedule_kwargs.default
+    def _get_schedule_kwargs_default(self) -> dict[str, list[int] | list[float]]:
+        return {
+            "scheduleSweeps": [(i * self.max_iter) // 6 for i in range(1, 7)],
+            "scheduleMaxMs": [
+                self.startM if (self.startM < self.maxM) else self.maxM,
+                self.startM * 2 if (self.startM * 2 < self.maxM) else self.maxM,
+                self.startM * 4 if (self.startM * 4 < self.maxM) else self.maxM,
+                self.startM * 8 if (self.startM * 8 < self.maxM) else self.maxM,
+                self.maxM,
+                self.maxM,
+            ],
+            "scheduleTols": [
+                self.min_tol * 1e3,
+                self.min_tol * 1e3,
+                self.min_tol * 1e2,
+                self.min_tol * 1e1,
+                self.min_tol,
+                self.min_tol,
+            ],
+            "scheduleNoises": [
+                self.max_noise,
+                self.max_noise,
+                self.max_noise / 10,
+                self.max_noise / 100,
+                self.max_noise / 100,
+                0.0,
+            ],
+        }
+
+
+@define(frozen=True)
+class _DMRG_Args:
+    """Properly initialized DMRG arguments
+
+    Some default values of :class:`DMRG_ArgsUser` can only be filled
+    later in the calculation.
+    Use :func:`from_user_input` to properly initialize.
+    """
+
+    norb: Final[int]
+    nelec: Final[int]
+
+    startM: Final[int]
+    maxM: Final[int]
+    max_iter: Final[int]
+    max_mem: Final[int]
+    max_noise: Final[float]
+    min_tol: Final[float]
+    twodot_to_onedot: Final[int]
+    root: Final[int]
+    block_extra_keyword: Final[list[str]]
+    schedule_kwargs: Final[dict[str, list[int] | list[float]]]
+    force_cleanup: Final[bool]
+
+    @classmethod
+    def from_user_input(cls, user_args: DMRG_ArgsUser, mf: RHF):
+        norb = mf.mo_coeff.shape[1] if user_args.norb is None else user_args.norb
+        nelec = mf.mo_coeff.shape[1] if user_args.nelec is None else user_args.nelec
+        if norb <= 2:
+            block_extra_keyword = [
+                "noreorder"
+            ]  # Other reordering algorithms explode if the network is too small.
+        else:
+            block_extra_keyword = user_args.block_extra_keyword
+        return cls(
+            norb=norb,
+            nelec=nelec,
+            startM=user_args.startM,
+            maxM=user_args.maxM,
+            max_iter=user_args.max_iter,
+            max_mem=user_args.max_mem,
+            max_noise=user_args.max_noise,
+            min_tol=user_args.min_tol,
+            twodot_to_onedot=user_args.twodot_to_onedot,
+            root=user_args.root,
+            block_extra_keyword=block_extra_keyword,
+            schedule_kwargs=user_args.schedule_kwargs,
+            force_cleanup=user_args.force_cleanup,
+        )
+
+
+@define(frozen=True)
+class SHCI_ArgsUser(UserSolverArgs):
+    hci_pt: Final[bool] = False
+    hci_cutoff: Final[float] = 0.001
+    ci_coeff_cutoff: Final[float | None] = None
+    select_cutoff: Final[float | None] = None
+
+
+@define(frozen=True)
+class _SHCI_Args:
+    """Properly initialized SCHI arguments
+
+    Some default values of :class:`SHCI_ArgsUser` can only be filled
+    later in the calculation.
+    Use :func:`from_user_input` to properly initialize.
+    """
+
+    hci_pt: Final[bool]
+    hci_cutoff: Final[float]
+    ci_coeff_cutoff: Final[float]
+    select_cutoff: Final[float]
+
+    @classmethod
+    def from_user_input(cls, args: SHCI_ArgsUser):
+        if (args.select_cutoff is None) and (args.ci_coeff_cutoff is None):
+            select_cutoff = args.hci_cutoff
+            ci_coeff_cutoff = args.hci_cutoff
+        elif (args.select_cutoff is not None) and (args.ci_coeff_cutoff is not None):
+            ci_coeff_cutoff = args.ci_coeff_cutoff
+            select_cutoff = args.select_cutoff
+        else:
+            raise ValueError(
+                "Solver args `ci_coeff_cutoff` and `select_cutoff` must both "
+                "be specified or both be `None`!"
+            )
+
+        return cls(
+            hci_pt=args.hci_pt,
+            hci_cutoff=args.hci_cutoff,
+            ci_coeff_cutoff=ci_coeff_cutoff,
+            select_cutoff=select_cutoff,
+        )
 
 
 def be_func(
@@ -30,18 +226,14 @@ def be_func(
     Nocc: int,
     solver: str,
     enuc: float,  # noqa: ARG001
+    solver_args: UserSolverArgs | None,
     scratch_dir: WorkDir,
-    DMRG_solver_kwargs: KwargDict | None,
     only_chem: bool = False,
     nproc: int = 4,
-    relax_density: bool = False,
-    use_cumulant: bool = True,
     eeval: bool = False,
+    relax_density: bool = False,
     return_vec: bool = False,
-    hci_pt: bool = False,
-    hci_cutoff: float = 0.001,
-    ci_coeff_cutoff: float | None = None,
-    select_cutoff: float | None = None,
+    use_cumulant: bool = True,
 ):
     """
     Perform bootstrap embedding calculations for each fragment.
@@ -65,8 +257,14 @@ def be_func(
         Whether to only optimize the chemical potential. Defaults to False.
     nproc :
         Number of processors. Defaults to 4. This is only neccessary for 'SHCI' solver
+    eeval :
+        Whether to evaluate the energy. Defaults to False.
+    ereturn :
+        Whether to return the energy. Defaults to False.
     relax_density :
         Whether to relax the density. Defaults to False.
+    return_vec :
+        Whether to return the error vector. Defaults to False.
     use_cumulant :
         Whether to use the cumulant-based energy expression. Defaults to True.
 
@@ -123,6 +321,9 @@ def be_func(
             # pylint: disable-next=E0611
             from pyscf import hci  # noqa: PLC0415    # optional module
 
+            assert isinstance(solver_args, SHCI_ArgsUser)
+            SHCI_args = _SHCI_Args.from_user_input(solver_args)
+
             nmo = fobj._mf.mo_coeff.shape[1]
 
             eri = ao2mo.kernel(
@@ -130,21 +331,16 @@ def be_func(
             ).reshape(4 * ((nmo),))
 
             ci_ = hci.SCI(fobj._mf.mol)
-            if select_cutoff is None and ci_coeff_cutoff is None:
-                select_cutoff = hci_cutoff
-                ci_coeff_cutoff = hci_cutoff
-            elif select_cutoff is None or ci_coeff_cutoff is None:
-                raise ValueError
 
-            ci_.select_cutoff = select_cutoff
-            ci_.ci_coeff_cutoff = ci_coeff_cutoff
+            ci_.select_cutoff = SHCI_args.select_cutoff
+            ci_.ci_coeff_cutoff = SHCI_args.ci_coeff_cutoff
 
             nelec = (fobj.nsocc, fobj.nsocc)
             h1_ = fobj.fock + fobj.heff
             h1_ = multi_dot((fobj._mf.mo_coeff.T, h1_, fobj._mf.mo_coeff))
             eci, civec = ci_.kernel(h1_, eri, nmo, nelec)
             unused(eci)
-            civec = numpy.asarray(civec)
+            civec = asarray(civec)
 
             (rdm1a_, rdm1b_), (rdm2aa, rdm2ab, rdm2bb) = ci_.make_rdm12s(
                 civec, nmo, nelec
@@ -156,6 +352,9 @@ def be_func(
             # pylint: disable-next=E0611,E0401
             from pyscf.shciscf import shci  # noqa: PLC0415    # shci is optional
 
+            assert isinstance(solver_args, SHCI_ArgsUser)
+            SHCI_args = _SHCI_Args.from_user_input(solver_args)
+
             frag_scratch = WorkDir(scratch_dir / fobj.dname)
 
             nmo = fobj._mf.mo_coeff.shape[1]
@@ -163,9 +362,9 @@ def be_func(
             nelec = (fobj.nsocc, fobj.nsocc)
             mch = shci.SHCISCF(fobj._mf, nmo, nelec, orbpath=fobj.dname)
             mch.fcisolver.mpiprefix = "mpirun -np " + str(nproc)
-            if hci_pt:
+            if SHCI_args.hci_pt:
                 mch.fcisolver.stochastic = False
-                mch.fcisolver.epsilon2 = hci_cutoff
+                mch.fcisolver.epsilon2 = SHCI_args.hci_cutoff
             else:
                 mch.fcisolver.stochastic = (
                     True  # this is for PT and doesnt add PT to rdm
@@ -173,7 +372,7 @@ def be_func(
                 mch.fcisolver.nPTiter = 0
             mch.fcisolver.sweep_iter = [0]
             mch.fcisolver.DoRDM = True
-            mch.fcisolver.sweep_epsilon = [hci_cutoff]
+            mch.fcisolver.sweep_epsilon = [SHCI_args.hci_cutoff]
             mch.fcisolver.scratchDirectory = scratch_dir
             mch.mc1step()
             rdm1_tmp, rdm2s = mch.fcisolver.make_rdm12(0, nmo, nelec)
@@ -195,7 +394,7 @@ def be_func(
             ci.runtimedir = fobj.dname
             ci.restart = True
             ci.config["var_only"] = True
-            ci.config["eps_vars"] = [hci_cutoff]
+            ci.config["eps_vars"] = [SHCI_args.hci_cutoff]
             ci.config["get_1rdm_csv"] = True
             ci.config["get_2rdm_csv"] = True
             ci.kernel(h1, eri, nmo, nelec)
@@ -204,21 +403,21 @@ def be_func(
         elif solver in ["block2", "DMRG", "DMRGCI", "DMRGSCF"]:
             frag_scratch = WorkDir(scratch_dir / fobj.dname)
 
-            DMRG_solver_kwargs = (
-                {} if DMRG_solver_kwargs is None else DMRG_solver_kwargs.copy()
-            )
+            assert isinstance(solver_args, DMRG_ArgsUser)
+            DMRG_args = _DMRG_Args.from_user_input(solver_args, fobj._mf)
+
             try:
                 rdm1_tmp, rdm2s = solve_block2(
                     fobj._mf,
                     fobj.nsocc,
                     frag_scratch=frag_scratch,
-                    DMRG_solver_kwargs=DMRG_solver_kwargs,
+                    DMRG_args=DMRG_args,
                     use_cumulant=use_cumulant,
                 )
             except Exception as inst:
                 raise inst
             finally:
-                if DMRG_solver_kwargs.pop("force_cleanup", False):
+                if DMRG_args.force_cleanup:
                     delete_multiple_files(
                         frag_scratch.path.glob("F.*"),
                         frag_scratch.path.glob("FCIDUMP*"),
@@ -251,19 +450,19 @@ def be_func(
             elif solver == "FCI":
                 rdm2s = mc.make_rdm2(civec, mc.norb, mc.nelec)
                 if use_cumulant:
-                    hf_dm = numpy.zeros_like(rdm1_tmp)
-                    hf_dm[numpy.diag_indices(fobj.nsocc)] += 2.0
+                    hf_dm = zeros_like(rdm1_tmp)
+                    hf_dm[diag_indices(fobj.nsocc)] += 2.0
                     del_rdm1 = rdm1_tmp.copy()
-                    del_rdm1[numpy.diag_indices(fobj.nsocc)] -= 2.0
+                    del_rdm1[diag_indices(fobj.nsocc)] -= 2.0
                     nc = (
-                        numpy.einsum("ij,kl->ijkl", hf_dm, hf_dm)
-                        + numpy.einsum("ij,kl->ijkl", hf_dm, del_rdm1)
-                        + numpy.einsum("ij,kl->ijkl", del_rdm1, hf_dm)
+                        einsum("ij,kl->ijkl", hf_dm, hf_dm)
+                        + einsum("ij,kl->ijkl", hf_dm, del_rdm1)
+                        + einsum("ij,kl->ijkl", del_rdm1, hf_dm)
                     )
                     nc -= (
-                        numpy.einsum("ij,kl->iklj", hf_dm, hf_dm)
-                        + numpy.einsum("ij,kl->iklj", hf_dm, del_rdm1)
-                        + numpy.einsum("ij,kl->iklj", del_rdm1, hf_dm)
+                        einsum("ij,kl->iklj", hf_dm, hf_dm)
+                        + einsum("ij,kl->iklj", hf_dm, del_rdm1)
+                        + einsum("ij,kl->iklj", del_rdm1, hf_dm)
                     ) * 0.5
                     rdm2s -= nc
             fobj.rdm2__ = rdm2s.copy()
@@ -458,7 +657,7 @@ def solve_error(Fobjs, Nocc, only_chem=False):
         err_chempot /= Fobjs[0].unitcell_nkpt
         err = err_chempot - Nocc
 
-        return abs(err), numpy.asarray([err])
+        return abs(err), asarray([err])
 
     # Compute edge and chemical potential errors
     for fobj in Fobjs:
@@ -489,14 +688,14 @@ def solve_error(Fobjs, Nocc, only_chem=False):
                     err_cen.append(Fobjs[fobj.center[cindx]]._rdm1[cens[j_], cens[k_]])
 
     err_cen.append(Nocc)
-    err_edge = numpy.array(err_edge)
-    err_cen = numpy.array(err_cen)
+    err_edge = array(err_edge)
+    err_cen = array(err_cen)
 
     # Compute the error vector
     err_vec = err_edge - err_cen
 
     # Compute the norm of the error vector
-    norm_ = numpy.mean(err_vec * err_vec) ** 0.5
+    norm_ = mean(err_vec * err_vec) ** 0.5
 
     return norm_, err_vec
 
@@ -620,7 +819,7 @@ def solve_ccsd(
     # Prepare the integrals and Fock matrix
     eris = mycc.ao2mo()
     eris.mo_energy = mo_energy
-    eris.fock = numpy.diag(mo_energy)
+    eris.fock = diag(mo_energy)
 
     # Solve the CCSD equations
     try:
@@ -639,8 +838,8 @@ def solve_ccsd(
     # Compute and return the density matrices if requested
     if rdm_return:
         if not relax:
-            l1 = numpy.zeros_like(t1)
-            l2 = numpy.zeros_like(t2)
+            l1 = zeros_like(t1)
+            l2 = zeros_like(t2)
             rdm1a = cc.ccsd_rdm.make_rdm1(mycc, t1, t2, l1, l2)
         else:
             rdm1a = mycc.make_rdm1(with_frozen=False)
@@ -666,37 +865,23 @@ def solve_block2(
     mf: RHF,
     nocc: int,
     frag_scratch: WorkDir,
-    DMRG_solver_kwargs: KwargDict,
+    DMRG_args: DMRG_ArgsUser,
     use_cumulant: bool,
 ):
     """DMRG fragment solver using the pyscf.dmrgscf wrapper.
 
     Parameters
     ----------
-        mf: pyscf.scf.hf.RHF
+        mf:
             Mean field object or similar following the data signature of the
             pyscf.RHF class.
-        nocc: int
+        nocc:
             Number of occupied MOs in the fragment, used for constructing the
             fragment 1- and 2-RDMs.
-        frag_scratch: os.PathLike, optional
+        frag_scratch:
             Fragment-level DMRG scratch directory.
-        max_mem: int, optional
-            Maximum memory in GB.
-        root: int, optional
-            Number of roots to solve for.
-        startM: int, optional
-            Starting MPS bond dimension - where the sweep schedule begins.
-        maxM: int, optional
-            Maximum MPS bond dimension - where the sweep schedule terminates.
-        max_iter: int, optional
-            Maximum number of sweeps.
-        twodot_to_onedot: int, optional
-            Sweep index at which to transition to one-dot DMRG algorithm.
-            All sweeps prior to this will use the two-dot algorithm.
-        block_extra_keyword: list(str), optional
-            Other keywords to be passed to block2.
-            See: https://block2.readthedocs.io/en/latest/user/keywords.html
+        use_cumulant:
+            Use the cumulant energy expression.
 
     Returns
     -------
@@ -704,122 +889,51 @@ def solve_block2(
             1-Particle reduced density matrix for fragment.
         rdm2: numpy.ndarray
             2-Particle reduced density matrix for fragment.
-
-    Other Parameters
-    ----------------
-        schedule_kwargs: dict, optional
-            Dictionary containing DMRG scheduling parameters to be passed to block2.
-
-            e.g. The default schedule used here would be equivalent to the following:
-
-            .. code-block:: python
-
-                schedule_kwargs = {
-                    'scheduleSweeps': [0, 10, 20, 30, 40, 50],
-                    'scheduleMaxMs': [25, 50, 100, 200, 500, 500],
-                    'scheduleTols': [1e-5,1e-5, 1e-6, 1e-6, 1e-8, 1e-8],
-                    'scheduleNoises': [0.01, 0.01, 0.001, 0.001, 1e-4, 0.0],
-                }
-
-    Raises
-    ------
-
-
     """
     # pylint: disable-next=E0611
     from pyscf import dmrgscf  # noqa: PLC0415   # optional module
 
-    norb = DMRG_solver_kwargs.pop("norb", mf.mo_coeff.shape[1])
-    nelec = DMRG_solver_kwargs.pop("nelec", mf.mo_coeff.shape[1])
+    orbs = mf.mo_coeff
 
-    lo_method = DMRG_solver_kwargs.pop("lo_method", None)
-    startM = DMRG_solver_kwargs.pop("startM", 25)
-    maxM = DMRG_solver_kwargs.pop("maxM", 500)
-    max_iter = DMRG_solver_kwargs.pop("max_iter", 60)
-    max_mem = DMRG_solver_kwargs.pop("max_mem", 100)
-    max_noise = DMRG_solver_kwargs.pop("max_noise", 1e-3)
-    min_tol = DMRG_solver_kwargs.pop("min_tol", 1e-8)
-    twodot_to_onedot = DMRG_solver_kwargs.pop(
-        "twodot_to_onedot", int((5 * max_iter) // 6)
-    )
-    root = DMRG_solver_kwargs.pop("root", 0)
-    block_extra_keyword = DMRG_solver_kwargs.pop("block_extra_keyword", ["fiedler"])
-    schedule_kwargs = DMRG_solver_kwargs.pop("schedule_kwargs", {})
-
-    if norb <= 2:
-        block_extra_keyword = [
-            "noreorder"
-        ]  # Other reordering algorithms explode if the network is too small.
-
-    if lo_method is None:
-        orbs = mf.mo_coeff
-    else:
-        raise NotImplementedError(
-            "Localization within the fragment+bath subspace is currently not supported."
-        )
-
-    mc = mcscf.CASCI(mf, norb, nelec)
+    mc = mcscf.CASCI(mf, DMRG_args.norb, DMRG_args.nelec)
     mc.fcisolver = dmrgscf.DMRGCI(mf.mol)
     # Sweep scheduling
-    mc.fcisolver.scheduleSweeps = schedule_kwargs.pop(
-        "scheduleSweeps",
-        [
-            (1 * max_iter) // 6,
-            (2 * max_iter) // 6,
-            (3 * max_iter) // 6,
-            (4 * max_iter) // 6,
-            (5 * max_iter) // 6,
-            max_iter,
-        ],
-    )
-    mc.fcisolver.scheduleMaxMs = schedule_kwargs.pop(
-        "scheduleMaxMs",
-        [
-            startM if (startM < maxM) else maxM,
-            startM * 2 if (startM * 2 < maxM) else maxM,
-            startM * 4 if (startM * 4 < maxM) else maxM,
-            startM * 8 if (startM * 8 < maxM) else maxM,
-            maxM,
-            maxM,
-        ],
-    )
-    mc.fcisolver.scheduleTols = schedule_kwargs.pop(
-        "scheduleTols",
-        [min_tol * 1e3, min_tol * 1e3, min_tol * 1e2, min_tol * 1e1, min_tol, min_tol],
-    )
-    mc.fcisolver.scheduleNoises = schedule_kwargs.pop(
-        "scheduleNoises",
-        [max_noise, max_noise, max_noise / 10, max_noise / 100, max_noise / 100, 0.0],
-    )
+    mc.fcisolver.scheduleSweeps = DMRG_args.schedule_kwargs["scheduleSweeps"]
+    mc.fcisolver.scheduleMaxMs = DMRG_args.schedule_kwargs["scheduleMaxMs"]
+    mc.fcisolver.scheduleTols = DMRG_args.schedule_kwargs["scheduleTols"]
+    mc.fcisolver.scheduleNoises = DMRG_args.schedule_kwargs["scheduleNoises"]
+
     # Other DMRG parameters
     mc.fcisolver.threads = int(os.environ.get("OMP_NUM_THREADS", "8"))
-    mc.fcisolver.twodot_to_onedot = int(twodot_to_onedot)
-    mc.fcisolver.maxIter = int(max_iter)
-    mc.fcisolver.block_extra_keyword = list(block_extra_keyword)
-    mc.fcisolver.scratchDirectory = str(frag_scratch)
-    mc.fcisolver.runtimeDir = str(frag_scratch)
-    mc.fcisolver.memory = int(max_mem)
+    mc.fcisolver.twodot_to_onedot = DMRG_args.twodot_to_onedot
+    mc.fcisolver.maxIter = DMRG_args.max_iter
+    mc.fcisolver.block_extra_keyword = DMRG_args.block_extra_keyword
+    mc.fcisolver.scratchDirectory = frag_scratch.path
+    mc.fcisolver.runtimeDir = frag_scratch.path
+    mc.fcisolver.memory = DMRG_args.max_mem
     os.chdir(frag_scratch)
 
     mc.kernel(orbs)
-    rdm1, rdm2 = dmrgscf.DMRGCI.make_rdm12(mc.fcisolver, root, norb, nelec)
+    rdm1, rdm2 = dmrgscf.DMRGCI.make_rdm12(
+        mc.fcisolver, DMRG_args.root, DMRG_args.norb, DMRG_args.nelec
+    )
 
     # Subtract off non-cumulant contribution to correlated 2RDM.
     if use_cumulant:
-        hf_dm = numpy.zeros_like(rdm1)
-        hf_dm[numpy.diag_indices(nocc)] += 2.0
+        hf_dm = zeros_like(rdm1)
+        hf_dm[diag_indices(nocc)] += 2.0
 
         del_rdm1 = rdm1.copy()
-        del_rdm1[numpy.diag_indices(nocc)] -= 2.0
+        del_rdm1[diag_indices(nocc)] -= 2.0
         nc = (
-            numpy.einsum("ij,kl->ijkl", hf_dm, hf_dm)
-            + numpy.einsum("ij,kl->ijkl", hf_dm, del_rdm1)
-            + numpy.einsum("ij,kl->ijkl", del_rdm1, hf_dm)
+            einsum("ij,kl->ijkl", hf_dm, hf_dm)
+            + einsum("ij,kl->ijkl", hf_dm, del_rdm1)
+            + einsum("ij,kl->ijkl", del_rdm1, hf_dm)
         )
         nc -= (
-            numpy.einsum("ij,kl->iklj", hf_dm, hf_dm)
-            + numpy.einsum("ij,kl->iklj", hf_dm, del_rdm1)
-            + numpy.einsum("ij,kl->iklj", del_rdm1, hf_dm)
+            einsum("ij,kl->iklj", hf_dm, hf_dm)
+            + einsum("ij,kl->iklj", hf_dm, del_rdm1)
+            + einsum("ij,kl->iklj", del_rdm1, hf_dm)
         ) * 0.5
 
         rdm2 -= nc
@@ -879,7 +993,7 @@ def solve_uccsd(
     Vos = eris_inp[-1]
 
     def ao2mofn(moish):
-        if isinstance(moish, numpy.ndarray):
+        if isinstance(moish, ndarray):
             # Since inside '_make_eris_incore' it does not differentiate spin
             # for the two same-spin components, we here brute-forcely determine
             # what spin component we are dealing with by comparing the first
@@ -888,7 +1002,7 @@ def solve_uccsd(
             moish_feature = moish[:2, :2]
             s = -1
             for ss in [0, 1]:
-                if numpy.allclose(moish_feature, C[ss][:2, :2]):
+                if allclose(moish_feature, C[ss][:2, :2]):
                     s = ss
                     break
             if s < 0:
@@ -904,8 +1018,8 @@ def solve_uccsd(
             for s in [0, 1]:
                 Cs_feature = C[s][:2, :2]
                 if not (
-                    numpy.allclose(moish_feature[2 * s], Cs_feature)
-                    and numpy.allclose(moish_feature[2 * s + 1], Cs_feature)
+                    allclose(moish_feature[2 * s], Cs_feature)
+                    and allclose(moish_feature[2 * s + 1], Cs_feature)
                 ):
                     raise ValueError(
                         "Expect a list/tuple of 4 numpy arrays in the order "
@@ -915,7 +1029,7 @@ def solve_uccsd(
                 return ao2mo.incore.general(Vos, moish, compact=False)
             except NotImplementedError:
                 # ao2mo.incore.general is not implemented for complex numbers
-                return numpy.einsum(
+                return einsum(
                     "ijkl,ip,jq,kr,ls->pqrs",
                     Vos,
                     moish[0],

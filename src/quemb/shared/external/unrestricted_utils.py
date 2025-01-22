@@ -3,7 +3,7 @@
 import ctypes
 
 import h5py
-import numpy
+from numpy import empty
 from numpy.linalg import multi_dot
 from pyscf import ao2mo, lib, scf
 
@@ -139,11 +139,11 @@ def _convert_eri_gen(origsym, targetsym, eri, norb1, norb2):
     fn = getattr(libao2mo, "AO2MOrestore_nr%sto%s_gen" % (origsym, targetsym))
 
     if targetsym == 1:
-        eri_out = numpy.empty([norb1, norb1, norb2, norb2])
+        eri_out = empty([norb1, norb1, norb2, norb2])
     elif targetsym == 4:
         npair1 = norb1 * (norb1 + 1) // 2
         npair2 = norb2 * (norb2 + 1) // 2
-        eri_out = numpy.empty([npair1, npair2])
+        eri_out = empty([npair1, npair2])
 
     fn(
         eri.ctypes.data_as(ctypes.c_void_p),

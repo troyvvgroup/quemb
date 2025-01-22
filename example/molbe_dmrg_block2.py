@@ -3,14 +3,15 @@
 # Garnet-Chan group at Caltech: https://block2.readthedocs.io/en/latest/index.html
 
 import matplotlib.pyplot as plt
-import numpy
+import numpy as np
 from pyscf import cc, fci, gto, scf
 
 from quemb.molbe import BE, fragpart
+from quemb.molbe.solver import DMRG_ArgsUser
 
 # We'll consider the dissociation curve for a 1D chain of 8 H-atoms:
 num_points = 3
-seps = numpy.linspace(0.60, 1.6, num=num_points)
+seps = np.linspace(0.60, 1.6, num=num_points)
 fci_ecorr, ccsd_ecorr, ccsdt_ecorr, bedmrg_ecorr = [], [], [], []
 
 for a in seps:
@@ -52,7 +53,7 @@ for a in seps:
     # Next, run BE-DMRG with default parameters and maxM=100.
     mybe.oneshot(
         solver="block2",  # or 'DMRG', 'DMRGSCF', 'DMRGCI'
-        DMRG_solver_kwargs=dict(
+        solver_args=DMRG_ArgsUser(
             maxM=100,  # Max fragment bond dimension
             force_cleanup=True,  # Remove all fragment DMRG tmpfiles
         ),
@@ -100,7 +101,7 @@ mybe.optimize(
     solver="block2",  # or 'DMRG', 'DMRGSCF', 'DMRGCI'
     max_iter=60,  # Max number of sweeps
     only_chem=True,
-    DMRG_solver_kwargs=dict(
+    solver_args=DMRG_ArgsUser(
         startM=20,  # Initial fragment bond dimension (1st sweep)
         maxM=200,  # Maximum fragment bond dimension
         twodot_to_onedot=50,  # Sweep num to switch from two- to one-dot algo.
@@ -113,7 +114,7 @@ mybe.optimize(
 )
 
 # Or, alternatively, we can construct a full schedule by hand:
-schedule = {
+schedule: dict[str, list[int] | list[float]] = {
     "scheduleSweeps": [0, 10, 20, 30, 40, 50],  # Sweep indices
     "scheduleMaxMs": [25, 50, 100, 200, 500, 500],  # Sweep maxMs
     "scheduleTols": [1e-5, 1e-5, 1e-6, 1e-6, 1e-8, 1e-8],  # Sweep Davidson tolerances
@@ -124,7 +125,7 @@ schedule = {
 mybe.optimize(
     solver="block2",
     only_chem=True,
-    DMRG_solver_kwargs=dict(
+    solver_args=DMRG_ArgsUser(
         schedule_kwargs=schedule,
         block_extra_keyword=["fiedler"],
         force_cleanup=True,

@@ -15,7 +15,7 @@ TODO
 from pathlib import Path
 
 import h5py
-import numpy
+from numpy import array, einsum, zeros_like
 from pyscf import ao2mo
 from pyscf.scf.uhf import UHF
 
@@ -61,17 +61,7 @@ class UBE(BE):  # 🍠
         """
         self.unrestricted = True
 
-        self.frag_type = fobj.frag_type
-        self.Nfrag = fobj.Nfrag
-        self.fsites = fobj.fsites
-        self.edge = fobj.edge
-        self.center = fobj.center
-        self.edge_idx = fobj.edge_idx
-        self.center_idx = fobj.center_idx
-        self.centerf_idx = fobj.centerf_idx
-        self.ebe_weight = fobj.ebe_weight
-        self.be_type = fobj.be_type
-        self.mol = fobj.mol
+        self.fobj = fobj
 
         self.ebe_hf = 0.0
         self.ebe_tot = 0.0
@@ -84,7 +74,7 @@ class UBE(BE):  # 🍠
 
         self.hcore = mf.get_hcore()
         self.S = mf.get_ovlp()
-        self.C = [numpy.array(mf.mo_coeff[0]), numpy.array(mf.mo_coeff[1])]
+        self.C = [array(mf.mo_coeff[0]), array(mf.mo_coeff[1])]
         self.hf_dm = [mf.make_rdm1()[0], mf.make_rdm1()[1]]
         self.hf_veff = [mf.get_veff()[0], mf.get_veff()[1]]
 
@@ -98,7 +88,7 @@ class UBE(BE):  # 🍠
         self.Fobjs_a: list[Frags] = []
         self.Fobjs_b: list[Frags] = []
 
-        self.pot = initialize_pot(self.Nfrag, self.edge_idx)
+        self.pot = initialize_pot(self.fobj.Nfrag, self.fobj.edge_idx)
 
         self.eri_file = Path(eri_file)
         self.ek = 0.0
@@ -122,20 +112,18 @@ class UBE(BE):  # 🍠
             self.Nocc[1] -= self.ncore
 
             self.hf_dm = [
-                numpy.dot(
-                    self.C[s][:, self.ncore : self.ncore + self.Nocc[s]],
-                    self.C[s][:, self.ncore : self.ncore + self.Nocc[s]].T,
-                )
+                self.C[s][:, self.ncore : self.ncore + self.Nocc[s]]
+                @ self.C[s][:, self.ncore : self.ncore + self.Nocc[s]].T
                 for s in [0, 1]
             ]
             self.C_core = [self.C[s][:, : self.ncore] for s in [0, 1]]
-            self.P_core = [numpy.dot(self.C_core[s], self.C_core[s].T) for s in [0, 1]]
+            self.P_core = [self.C_core[s] @ self.C_core[s].T for s in [0, 1]]
             self.core_veff = 1.0 * mf.get_veff(dm=self.P_core)
 
             self.E_core = (
                 sum(
                     [
-                        numpy.einsum(
+                        einsum(
                             "ji,ji->",
                             2 * self.hcore + self.core_veff[s],
                             self.P_core[s],
@@ -147,13 +135,13 @@ class UBE(BE):  # 🍠
             )
 
         # iao ignored for now
-        self.C_a = numpy.array(mf.mo_coeff[0])
-        self.C_b = numpy.array(mf.mo_coeff[1])
+        self.C_a = array(mf.mo_coeff[0])
+        self.C_b = array(mf.mo_coeff[1])
         del self.C
 
         self.localize(
             lo_method,
-            valence_basis=fobj.valence_basis,
+            iao_valence_basis=fobj.iao_valence_basis,
             valence_only=fobj.valence_only,
         )
 
@@ -172,26 +160,26 @@ class UBE(BE):  # 🍠
         ECOUL = 0.0
 
         file_eri = h5py.File(self.eri_file, "w")
-        lentmp = len(self.edge_idx)
+        lentmp = len(self.fobj.edge_idx)
 
         # alpha orbitals
-        for I in range(self.Nfrag):
+        for I in range(self.fobj.Nfrag):
             if lentmp:
                 fobjs_a = Frags(
-                    self.fsites[I],
+                    self.fobj.fsites[I],
                     I,
-                    edge=self.edge[I],
+                    edge=self.fobj.edge[I],
                     eri_file=self.eri_file,
-                    center=self.center[I],
-                    edge_idx=self.edge_idx[I],
-                    center_idx=self.center_idx[I],
-                    efac=self.ebe_weight[I],
-                    centerf_idx=self.centerf_idx[I],
+                    center=self.fobj.center[I],
+                    edge_idx=self.fobj.edge_idx[I],
+                    center_idx=self.fobj.center_idx[I],
+                    efac=self.fobj.ebe_weight[I],
+                    centerf_idx=self.fobj.centerf_idx[I],
                     unrestricted=True,
                 )
             else:
                 fobjs_a = Frags(
-                    self.fsites[I],
+                    self.fobj.fsites[I],
                     I,
                     edge=[],
                     center=[],
@@ -199,28 +187,28 @@ class UBE(BE):  # 🍠
                     edge_idx=[],
                     center_idx=[],
                     centerf_idx=[],
-                    efac=self.ebe_weight[I],
+                    efac=self.fobj.ebe_weight[I],
                     unrestricted=True,
                 )
             self.Fobjs_a.append(fobjs_a)
         # beta
-        for I in range(self.Nfrag):
+        for I in range(self.fobj.Nfrag):
             if lentmp:
                 fobjs_b = Frags(
-                    self.fsites[I],
+                    self.fobj.fsites[I],
                     I,
-                    edge=self.edge[I],
+                    edge=self.fobj.edge[I],
                     eri_file=self.eri_file,
-                    center=self.center[I],
-                    edge_idx=self.edge_idx[I],
-                    center_idx=self.center_idx[I],
-                    efac=self.ebe_weight[I],
-                    centerf_idx=self.centerf_idx[I],
+                    center=self.fobj.center[I],
+                    edge_idx=self.fobj.edge_idx[I],
+                    center_idx=self.fobj.center_idx[I],
+                    efac=self.fobj.ebe_weight[I],
+                    centerf_idx=self.fobj.centerf_idx[I],
                     unrestricted=True,
                 )
             else:
                 fobjs_b = Frags(
-                    self.fsites[I],
+                    self.fobj.fsites[I],
                     I,
                     edge=[],
                     center=[],
@@ -228,7 +216,7 @@ class UBE(BE):  # 🍠
                     edge_idx=[],
                     center_idx=[],
                     centerf_idx=[],
-                    efac=self.ebe_weight[I],
+                    efac=self.fobj.ebe_weight[I],
                     unrestricted=True,
                 )
             self.Fobjs_b.append(fobjs_b)
@@ -238,7 +226,7 @@ class UBE(BE):  # 🍠
 
         all_noccs = []
 
-        for I in range(self.Nfrag):
+        for I in range(self.fobj.Nfrag):
             fobj_a = self.Fobjs_a[I]
             fobj_b = self.Fobjs_b[I]
 
@@ -303,11 +291,11 @@ class UBE(BE):  # 🍠
             fobj_a.cons_fock(self.hf_veff[0], self.S, self.hf_dm[0] * 2.0, eri_=eri_a)
 
             fobj_a.hf_veff = self.hf_veff[0]
-            fobj_a.heff = numpy.zeros_like(fobj_a.h1)
+            fobj_a.heff = zeros_like(fobj_a.h1)
             fobj_a.scf(fs=True, eri=eri_a)
-            fobj_a.dm0 = numpy.dot(
-                fobj_a._mo_coeffs[:, : fobj_a.nsocc],
-                fobj_a._mo_coeffs[:, : fobj_a.nsocc].conj().T,
+            fobj_a.dm0 = (
+                fobj_a._mo_coeffs[:, : fobj_a.nsocc]
+                @ fobj_a._mo_coeffs[:, : fobj_a.nsocc].conj().T
             )
 
             if compute_hf:
@@ -325,12 +313,12 @@ class UBE(BE):  # 🍠
             eri_b = ao2mo.restore(8, eri_b, fobj_b.nao)
             fobj_b.cons_fock(self.hf_veff[1], self.S, self.hf_dm[1] * 2.0, eri_=eri_b)
             fobj_b.hf_veff = self.hf_veff[1]
-            fobj_b.heff = numpy.zeros_like(fobj_b.h1)
+            fobj_b.heff = zeros_like(fobj_b.h1)
             fobj_b.scf(fs=True, eri=eri_b)
 
-            fobj_b.dm0 = numpy.dot(
-                fobj_b._mo_coeffs[:, : fobj_b.nsocc],
-                fobj_b._mo_coeffs[:, : fobj_b.nsocc].conj().T,
+            fobj_b.dm0 = (
+                fobj_b._mo_coeffs[:, : fobj_b.nsocc]
+                @ fobj_b._mo_coeffs[:, : fobj_b.nsocc].conj().T
             )
 
             if compute_hf:
@@ -356,7 +344,7 @@ class UBE(BE):  # 🍠
             "____________________________________________________________________",
             flush=True,
         )
-        for I in range(self.Nfrag):
+        for I in range(self.fobj.Nfrag):
             print(
                 "|    {:>2}    | ({:>3},{:>3}) |   ({:>3},{:>3})   | ({:>3},{:>3}) |   ({:>3},{:>3})   |".format(  # noqa: E501
                     I,

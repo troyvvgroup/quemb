@@ -1,7 +1,7 @@
 # Author(s): Oinam Romesh Meitei
 
-import numpy
 import scipy.linalg
+from numpy import array, complex128, eye, zeros
 
 from quemb.shared.helper import unused
 
@@ -31,15 +31,15 @@ def schmidt_decomp_svd(rdm, Frag_sites):
 
     Fragsites = [i if i >= 0 else Tot_sites + i for i in Frag_sites]
 
-    Env_sites1 = numpy.array([i for i in range(Tot_sites) if i not in Fragsites])
+    Env_sites1 = array([i for i in range(Tot_sites) if i not in Fragsites])
     nfs = len(Frag_sites)
 
     Denv = rdm[Env_sites1][:, Fragsites]
     U, sigma, V = scipy.linalg.svd(Denv, full_matrices=False, lapack_driver="gesvd")
     unused(V)
     nbath = (sigma >= thres).sum()
-    TA = numpy.zeros((Tot_sites, nfs + nbath), dtype=numpy.complex128)
-    TA[Fragsites, :nfs] = numpy.eye(nfs)
+    TA = zeros((Tot_sites, nfs + nbath), dtype=complex128)
+    TA[Fragsites, :nfs] = eye(nfs)
     TA[Env_sites1, nfs:] = U[:, :nbath]
 
     return TA

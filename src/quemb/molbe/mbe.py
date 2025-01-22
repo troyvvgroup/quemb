@@ -5,7 +5,7 @@ import pickle
 import h5py
 import numpy
 from attrs import define
-from numpy import floating
+from numpy import array, diag_indices, einsum, float64, floating, zeros, zeros_like
 from pyscf import ao2mo, scf
 
 from quemb.molbe.be_parallel import be_func_parallel
@@ -15,13 +15,13 @@ from quemb.molbe.lo import MixinLocalize
 from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
 from quemb.molbe.opt import BEOPT
 from quemb.molbe.pfrag import Frags
-from quemb.molbe.solver import be_func
+from quemb.molbe.solver import UserSolverArgs, be_func
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
 from quemb.shared.helper import copy_docstring
 from quemb.shared.manage_scratch import WorkDir
-from quemb.shared.typing import KwargDict, Matrix, PathLike
+from quemb.shared.typing import Matrix, PathLike
 
 
 @define
@@ -73,16 +73,10 @@ class BE(MixinLocalize):
         pop_method: str | None = None,
         compute_hf: bool = True,
         restart: bool = False,
-        save: bool = False,
         restart_file: PathLike = "storebe.pk",
-        save_file: PathLike = "storebe.pk",
         nproc: int = 1,
         ompnum: int = 4,
         scratch_dir: WorkDir | None = None,
-        hci_pt: bool = False,
-        hci_cutoff: float = 0.001,
-        ci_coeff_cutoff: float | None = None,
-        select_cutoff: float | None = None,
         integral_direct_DF: bool = False,
         auxbasis: str | None = None,
     ) -> None:
@@ -106,12 +100,8 @@ class BE(MixinLocalize):
             Whether to compute Hartree-Fock energy, by default True.
         restart :
             Whether to restart from a previous calculation, by default False.
-        save :
-            Whether to save intermediate objects for restart, by default False.
         restart_file :
             Path to the file storing restart information, by default 'storebe.pk'.
-        save_file :
-            Path to the file storing save information, by default 'storebe.pk'.
         nproc :
             Number of processors for parallel calculations, by default 1. If set to >1,
             threaded parallel computation is invoked.
@@ -154,26 +144,10 @@ class BE(MixinLocalize):
         self.auxbasis = auxbasis
 
         # Fragment information from fobj
-        self.frag_type = fobj.frag_type
-        self.Nfrag = fobj.Nfrag
-        self.fsites = fobj.fsites
-        self.edge = fobj.edge
-        self.center = fobj.center
-        self.edge_idx = fobj.edge_idx
-        self.center_idx = fobj.center_idx
-        self.centerf_idx = fobj.centerf_idx
-        self.ebe_weight = fobj.ebe_weight
-        self.be_type = fobj.be_type
-        self.mol = fobj.mol
+        self.fobj = fobj
 
         self.ebe_hf = 0.0
         self.ebe_tot = 0.0
-
-        # HCI parameters
-        self.hci_cutoff = hci_cutoff
-        self.ci_coeff_cutoff = ci_coeff_cutoff
-        self.select_cutoff = select_cutoff
-        self.hci_pt = hci_pt
 
         self.mf = mf
         if not restart:
@@ -185,7 +159,7 @@ class BE(MixinLocalize):
 
             self.hcore = mf.get_hcore()
             self.S = mf.get_ovlp()
-            self.C = numpy.array(mf.mo_coeff)
+            self.C = array(mf.mo_coeff)
             self.hf_dm = mf.make_rdm1()
             self.hf_veff = mf.get_veff()
             self.hf_etot = mf.e_tot
@@ -195,7 +169,7 @@ class BE(MixinLocalize):
 
         self.print_ini()
         self.Fobjs: list[Frags] = []
-        self.pot = initialize_pot(self.Nfrag, self.edge_idx)
+        self.pot = initialize_pot(self.fobj.Nfrag, self.fobj.edge_idx)
 
         if scratch_dir is None:
             self.scratch_dir = WorkDir.from_environment()
@@ -219,14 +193,14 @@ class BE(MixinLocalize):
 
             if not restart:
                 self.Nocc -= self.ncore
-                self.hf_dm = 2.0 * numpy.dot(
-                    self.C[:, self.ncore : self.ncore + self.Nocc],
-                    self.C[:, self.ncore : self.ncore + self.Nocc].T,
+                self.hf_dm = 2.0 * (
+                    self.C[:, self.ncore : self.ncore + self.Nocc]
+                    @ self.C[:, self.ncore : self.ncore + self.Nocc].T
                 )
                 self.C_core = self.C[:, : self.ncore]
-                self.P_core = numpy.dot(self.C_core, self.C_core.T)
+                self.P_core = self.C_core @ self.C_core.T
                 self.core_veff = mf.get_veff(dm=self.P_core * 2.0)
-                self.E_core = numpy.einsum(
+                self.E_core = einsum(
                     "ji,ji->", 2.0 * self.hcore + self.core_veff, self.P_core
                 )
                 self.hf_veff -= self.core_veff
@@ -237,7 +211,7 @@ class BE(MixinLocalize):
             self.localize(
                 lo_method,
                 pop_method=pop_method,
-                valence_basis=fobj.valence_basis,
+                iao_valence_basis=fobj.iao_valence_basis,
                 valence_only=fobj.valence_only,
             )
 
@@ -245,40 +219,47 @@ class BE(MixinLocalize):
                 self.Ciao_pao = self.localize(
                     lo_method,
                     pop_method=pop_method,
-                    valence_basis=fobj.valence_basis,
+                    iao_valence_basis=fobj.iao_valence_basis,
                     hstack=True,
                     valence_only=False,
                     nosave=True,
                 )
-
-        if save:
-            # Save intermediate results for restart
-            store_ = storeBE(
-                self.Nocc,
-                self.hf_veff,
-                self.hcore,
-                self.S,
-                self.C,
-                self.hf_dm,
-                self.hf_etot,
-                self.W,
-                self.lmo_coeff,
-                self.enuc,
-                self.E_core,
-                self.C_core,
-                self.P_core,
-                self.core_veff,
-                self.mo_energy,
-            )
-
-            with open(save_file, "wb") as rfile:
-                pickle.dump(store_, rfile, pickle.HIGHEST_PROTOCOL)
 
         if not restart:
             # Initialize fragments and perform initial calculations
             self.initialize(mf._eri, compute_hf)
         else:
             self.initialize(None, compute_hf, restart=True)
+
+    def save(self, save_file: PathLike = "storebe.pk") -> None:
+        """
+        Save intermediate results for restart.
+
+        Parameters
+        ----------
+        save_file :
+            Path to the file storing restart information, by default 'storebe.pk'.
+        """
+        store_ = storeBE(
+            self.Nocc,
+            self.hf_veff,
+            self.hcore,
+            self.S,
+            self.C,
+            self.hf_dm,
+            self.hf_etot,
+            self.W,
+            self.lmo_coeff,
+            self.enuc,
+            self.E_core,
+            self.C_core,
+            self.P_core,
+            self.core_veff,
+            self.mo_energy,
+        )
+
+        with open(save_file, "wb") as rfile:
+            pickle.dump(store_, rfile, pickle.HIGHEST_PROTOCOL)
 
     def rdm1_fullbasis(
         self,
@@ -330,20 +311,20 @@ class BE(MixinLocalize):
         nao = C_mo.shape[0]
 
         # Initialize density matrices for atomic orbitals (AO)
-        rdm1AO = numpy.zeros((nao, nao))
-        rdm2AO = numpy.zeros((nao, nao, nao, nao))
+        rdm1AO = zeros((nao, nao))
+        rdm2AO = zeros((nao, nao, nao, nao))
 
         for fobjs in self.Fobjs:
             if return_RDM2:
                 # Adjust the one-particle reduced density matrix (RDM1)
                 drdm1 = fobjs.rdm1__.copy()
-                drdm1[numpy.diag_indices(fobjs.nsocc)] -= 2.0
+                drdm1[diag_indices(fobjs.nsocc)] -= 2.0
 
                 # Compute the two-particle reduced density matrix (RDM2) and subtract
                 #   non-connected component
-                dm_nc = numpy.einsum(
+                dm_nc = einsum(
                     "ij,kl->ijkl", drdm1, drdm1, dtype=numpy.float64, optimize=True
-                ) - 0.5 * numpy.einsum(
+                ) - 0.5 * einsum(
                     "ij,kl->iklj", drdm1, drdm1, dtype=numpy.float64, optimize=True
                 )
                 fobjs.rdm2__ -= dm_nc
@@ -369,13 +350,13 @@ class BE(MixinLocalize):
 
             if not only_rdm1:
                 # Transform RDM2 to AO basis
-                rdm2s = numpy.einsum(
+                rdm2s = einsum(
                     "ijkl,pi,qj,rk,sl->pqrs",
                     fobjs.rdm2__,
                     *([fobjs.mo_coeffs] * 4),
                     optimize=True,
                 )
-                rdm2_ao = numpy.einsum(
+                rdm2_ao = einsum(
                     "xi,ijkl,px,qj,rk,sl->pqrs",
                     Pc_,
                     rdm2s,
@@ -392,14 +373,14 @@ class BE(MixinLocalize):
             rdm2AO = (rdm2AO + rdm2AO.T) / 2.0
             if return_RDM2:
                 nc_AO = (
-                    numpy.einsum(
+                    einsum(
                         "ij,kl->ijkl",
                         rdm1AO,
                         rdm1AO,
                         dtype=numpy.float64,
                         optimize=True,
                     )
-                    - numpy.einsum(
+                    - einsum(
                         "ij,kl->iklj",
                         rdm1AO,
                         rdm1AO,
@@ -413,7 +394,7 @@ class BE(MixinLocalize):
             # Transform RDM2 to the molecular orbital (MO) basis if needed
             if not return_ao:
                 CmoT_S = self.C.T @ self.S
-                rdm2MO = numpy.einsum(
+                rdm2MO = einsum(
                     "ijkl,pi,qj,rk,sl->pqrs",
                     rdm2AO,
                     CmoT_S,
@@ -426,7 +407,7 @@ class BE(MixinLocalize):
             # Transform RDM2 to the localized orbital (LO) basis if needed
             if return_lo:
                 CloT_S = self.W.T @ self.S
-                rdm2LO = numpy.einsum(
+                rdm2LO = einsum(
                     "ijkl,pi,qj,rk,sl->pqrs",
                     rdm2AO,
                     CloT_S,
@@ -450,9 +431,9 @@ class BE(MixinLocalize):
 
         if return_RDM2 and print_energy:
             # Compute and print energy contributions
-            Eh1 = numpy.einsum("ij,ij", self.hcore, rdm1AO, optimize=True)
+            Eh1 = einsum("ij,ij", self.hcore, rdm1AO, optimize=True)
             eri = ao2mo.restore(1, self.mf._eri, self.mf.mo_coeff.shape[1])
-            E2 = 0.5 * numpy.einsum("pqrs,pqrs", eri, rdm2AO, optimize=True)
+            E2 = 0.5 * einsum("pqrs,pqrs", eri, rdm2AO, optimize=True)
             print(flush=True)
             print("-----------------------------------------------------", flush=True)
             print(" BE ENERGIES with cumulant-based expression", flush=True)
@@ -536,12 +517,8 @@ class BE(MixinLocalize):
         if return_rdm:
             # Construct the full RDM2 from RDM1
             RDM2_full = (
-                numpy.einsum(
-                    "ij,kl->ijkl", rdm1f, rdm1f, dtype=numpy.float64, optimize=True
-                )
-                - numpy.einsum(
-                    "ij,kl->iklj", rdm1f, rdm1f, dtype=numpy.float64, optimize=True
-                )
+                einsum("ij,kl->ijkl", rdm1f, rdm1f, dtype=float64, optimize=True)
+                - einsum("ij,kl->iklj", rdm1f, rdm1f, dtype=float64, optimize=True)
                 * 0.5
             )
 
@@ -555,33 +532,33 @@ class BE(MixinLocalize):
         del_gamma = rdm1f - self.hf_dm
 
         # Compute the effective potential
-        veff = scf.hf.get_veff(self.mol, rdm1f, hermi=0)
+        veff = scf.hf.get_veff(self.fobj.mol, rdm1f, hermi=0)
 
         # Compute the one-electron energy
-        Eh1 = numpy.einsum("ij,ij", self.hcore, rdm1f, optimize=True)
+        Eh1 = einsum("ij,ij", self.hcore, rdm1f, optimize=True)
 
         # Compute the energy due to the effective potential
-        EVeff = numpy.einsum("ij,ij", veff, rdm1f, optimize=True)
+        EVeff = einsum("ij,ij", veff, rdm1f, optimize=True)
 
         # Compute the change in the one-electron energy
-        Eh1_dg = numpy.einsum("ij,ij", self.hcore, del_gamma, optimize=True)
+        Eh1_dg = einsum("ij,ij", self.hcore, del_gamma, optimize=True)
 
         # Compute the change in the effective potential energy
-        Eveff_dg = numpy.einsum("ij,ij", self.hf_veff, del_gamma, optimize=True)
+        Eveff_dg = einsum("ij,ij", self.hf_veff, del_gamma, optimize=True)
 
         # Restore the electron repulsion integrals (ERI)
         eri = ao2mo.restore(1, self.mf._eri, self.mf.mo_coeff.shape[1])
 
         # Compute the cumulant part of the two-electron energy
-        EKumul = numpy.einsum("pqrs,pqrs", eri, Kumul, optimize=True)
+        EKumul = einsum("pqrs,pqrs", eri, Kumul, optimize=True)
 
         if not approx_cumulant:
             # Compute the true two-electron energy if not using approximate cumulant
-            EKumul_T = numpy.einsum("pqrs,pqrs", eri, Kumul_T, optimize=True)
+            EKumul_T = einsum("pqrs,pqrs", eri, Kumul_T, optimize=True)
 
         if use_full_rdm and return_rdm:
             # Compute the full two-electron energy using the full RDM2
-            E2 = numpy.einsum("pqrs,pqrs", eri, RDM2_full, optimize=True)
+            E2 = einsum("pqrs,pqrs", eri, RDM2_full, optimize=True)
 
         # Compute the approximate BE total energy
         EKapprox = self.ebe_hf + Eh1_dg + Eveff_dg + EKumul / 2.0
@@ -647,7 +624,7 @@ class BE(MixinLocalize):
         ompnum: int = 4,
         max_iter: int = 500,
         trust_region: bool = False,
-        DMRG_solver_kwargs: KwargDict | None = None,
+        solver_args: UserSolverArgs | None = None,
     ) -> None:
         """BE optimization function
 
@@ -688,7 +665,7 @@ class BE(MixinLocalize):
         # Check if only chemical potential optimization is required
         if not only_chem:
             pot = self.pot
-            if self.be_type == "be1":
+            if self.fobj.be_type == "be1":
                 raise ValueError(
                     "BE1 only works with chemical potential optimization. "
                     "Set only_chem=True"
@@ -709,20 +686,16 @@ class BE(MixinLocalize):
             conv_tol=conv_tol,
             only_chem=only_chem,
             use_cumulant=use_cumulant,
-            hci_cutoff=self.hci_cutoff,
-            ci_coeff_cutoff=self.ci_coeff_cutoff,
             relax_density=relax_density,
-            select_cutoff=self.select_cutoff,
-            hci_pt=self.hci_pt,
             solver=solver,
             ebe_hf=self.ebe_hf,
-            DMRG_solver_kwargs=DMRG_solver_kwargs,
+            solver_args=solver_args,
         )
 
         if method == "QN":
             # Prepare the initial Jacobian matrix
             if only_chem:
-                J0 = numpy.array([[0.0]])
+                J0 = array([[0.0]])
                 J0 = self.get_be_error_jacobian(jac_solver="HF")
                 J0 = J0[-1:, -1:]
             else:
@@ -755,7 +728,7 @@ class BE(MixinLocalize):
 
     @copy_docstring(_ext_get_be_error_jacobian)
     def get_be_error_jacobian(self, jac_solver: str = "HF") -> Matrix[floating]:
-        return _ext_get_be_error_jacobian(self.Nfrag, self.Fobjs, jac_solver)
+        return _ext_get_be_error_jacobian(self.fobj.Nfrag, self.Fobjs, jac_solver)
 
     def print_ini(self):
         """
@@ -773,7 +746,7 @@ class BE(MixinLocalize):
 
         print(flush=True)
         print("            MOLECULAR BOOTSTRAP EMBEDDING", flush=True)
-        print("            BEn = ", self.be_type, flush=True)
+        print("            BEn = ", self.fobj.be_type, flush=True)
         print("-----------------------------------------------------------", flush=True)
         print(flush=True)
 
@@ -796,23 +769,23 @@ class BE(MixinLocalize):
         # Create a file to store ERIs
         if not restart:
             file_eri = h5py.File(self.eri_file, "w")
-        lentmp = len(self.edge_idx)
-        for I in range(self.Nfrag):
+        lentmp = len(self.fobj.edge_idx)
+        for I in range(self.fobj.Nfrag):
             if lentmp:
                 fobjs_ = Frags(
-                    self.fsites[I],
+                    self.fobj.fsites[I],
                     I,
-                    edge=self.edge[I],
+                    edge=self.fobj.edge[I],
                     eri_file=self.eri_file,
-                    center=self.center[I],
-                    edge_idx=self.edge_idx[I],
-                    center_idx=self.center_idx[I],
-                    efac=self.ebe_weight[I],
-                    centerf_idx=self.centerf_idx[I],
+                    center=self.fobj.center[I],
+                    edge_idx=self.fobj.edge_idx[I],
+                    center_idx=self.fobj.center_idx[I],
+                    efac=self.fobj.ebe_weight[I],
+                    centerf_idx=self.fobj.centerf_idx[I],
                 )
             else:
                 fobjs_ = Frags(
-                    self.fsites[I],
+                    self.fobj.fsites[I],
                     I,
                     edge=[],
                     center=[],
@@ -820,7 +793,7 @@ class BE(MixinLocalize):
                     edge_idx=[],
                     center_idx=[],
                     centerf_idx=[],
-                    efac=self.ebe_weight[I],
+                    efac=self.fobj.ebe_weight[I],
                 )
             fobjs_.sd(self.W, self.lmo_coeff, self.Nocc)
 
@@ -844,13 +817,13 @@ class BE(MixinLocalize):
             if (
                 eri_ is not None
             ):  # incore ao2mo using saved eri from mean-field calculation
-                for I in range(self.Nfrag):
+                for I in range(self.fobj.Nfrag):
                     eri = ao2mo.incore.full(eri_, self.Fobjs[I].TA, compact=True)
                     file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
             elif hasattr(self.mf, "with_df") and self.mf.with_df is not None:
                 # pyscf.ao2mo uses DF object in an outcore fashion using (ij|P)
                 #   in pyscf temp directory
-                for I in range(self.Nfrag):
+                for I in range(self.fobj.Nfrag):
                     eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)
                     file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
             else:
@@ -870,7 +843,7 @@ class BE(MixinLocalize):
 
         for fobjs_ in self.Fobjs:
             # Process each fragment
-            eri = numpy.array(file_eri.get(fobjs_.dname))
+            eri = array(file_eri.get(fobjs_.dname))
             _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
 
             fobjs_.cons_h1(self.hcore)
@@ -880,7 +853,7 @@ class BE(MixinLocalize):
 
             fobjs_.cons_fock(self.hf_veff, self.S, self.hf_dm, eri_=eri)
 
-            fobjs_.heff = numpy.zeros_like(fobjs_.h1)
+            fobjs_.heff = zeros_like(fobjs_.h1)
             fobjs_.scf(fs=True, eri=eri)
 
             fobjs_.dm0 = 2.0 * (
@@ -918,7 +891,7 @@ class BE(MixinLocalize):
         use_cumulant: bool = True,
         nproc: int = 1,
         ompnum: int = 4,
-        DMRG_solver_kwargs: KwargDict | None = None,
+        solver_args: UserSolverArgs | None = None,
     ) -> None:
         """
         Perform a one-shot bootstrap embedding calculation.
@@ -944,14 +917,11 @@ class BE(MixinLocalize):
                 solver,
                 self.enuc,
                 nproc=ompnum,
-                use_cumulant=use_cumulant,
                 eeval=True,
-                return_vec=False,
-                hci_cutoff=self.hci_cutoff,
-                ci_coeff_cutoff=self.ci_coeff_cutoff,
-                select_cutoff=self.select_cutoff,
                 scratch_dir=self.scratch_dir,
-                DMRG_solver_kwargs=DMRG_solver_kwargs,
+                solver_args=solver_args,
+                use_cumulant=use_cumulant,
+                return_vec=False,
             )
         else:
             rets = be_func_parallel(
@@ -960,15 +930,13 @@ class BE(MixinLocalize):
                 self.Nocc,
                 solver,
                 self.enuc,
+                eeval=True,
                 nproc=nproc,
                 ompnum=ompnum,
-                use_cumulant=use_cumulant,
-                eeval=True,
-                return_vec=False,
-                hci_cutoff=self.hci_cutoff,
-                ci_coeff_cutoff=self.ci_coeff_cutoff,
-                select_cutoff=self.select_cutoff,
                 scratch_dir=self.scratch_dir,
+                solver_args=solver_args,
+                use_cumulant=use_cumulant,
+                return_vec=False,
             )
 
         print("-----------------------------------------------------", flush=True)
