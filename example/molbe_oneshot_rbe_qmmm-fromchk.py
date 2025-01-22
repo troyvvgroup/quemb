@@ -30,12 +30,13 @@ be_energy = be2puffin(
     be_type="be2",  # BE type: this sets the fragment size.
     frozen_core=False,  # Frozen core
     unrestricted=False,  # specify restricted calculation
-    from_chk=True,  # can save the RHF as PySCF checkpoint.
-    # Set to true if running from converged UHF chk
+    from_chk=True,
+    # can save the RHF as PySCF checkpoint.
+    # Set to true if running from converged chk
     checkfile="data/oneshot_rbe_qmmm.chk",
-)  # if not None, will save RHF calculation to a checkfile.
-# if rerunning from chk (from_chk=True), name the checkfile here
-#            ecp = ecp) # can add ECP for heavy atoms as: {'Ru': 'def2-SVP'}
+    # if not None, will save RHF calculation to a checkfile.
+    # if rerunning from chk (from_chk=True), name the checkfile here
+    )
 
 """
 To not use or generate checkfile:
