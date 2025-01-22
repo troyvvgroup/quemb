@@ -116,10 +116,7 @@ class FragmentMap:
         return None
 
 
-def euclidean_distance(
-    i_coord: Vector,
-    j_coord: Vector,
-) -> np.floating:
+def euclidean_distance(i_coord: Vector, j_coord: Vector, ) -> np.floating:
     return norm(i_coord - j_coord)
 
 
@@ -316,7 +313,7 @@ def graphgen(
                         f_temp = set(fragment_map.fragment_atoms[adx])
                         c_temp = set(fragment_map.center_atoms[bdx])
                         edge_temp.add(tuple(overlap))
-                        eatoms_temp.add(i for i in f_temp.intersection(c_temp))
+                        eatoms_temp.add(f_temp.intersection(c_temp))
         fragment_map.edge.append(tuple(edge_temp))
         fragment_map.edge_atoms.append(tuple(eatoms_temp))
 
