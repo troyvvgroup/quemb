@@ -12,6 +12,7 @@ from pyscf import gto
 
 from quemb.molbe.helper import get_core
 from quemb.shared.helper import unused
+from quemb.shared.typing import Vector
 
 
 @define
@@ -111,11 +112,11 @@ class FragmentMap:
         return None
 
 
-def euclidean_norm(
-    i_coord: np.ndarray,
-    j_coord: np.ndarray,
-) -> np.floating[Any]:
-    return norm(np.asarray(i_coord - j_coord))
+def euclidean_distance(
+    i_coord: Vector,
+    j_coord: Vector,
+) -> np.floating:
+    return norm(i_coord - j_coord)
 
 
 def graphgen(
