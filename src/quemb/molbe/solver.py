@@ -2,7 +2,7 @@
 
 import os
 from abc import ABC
-from pathlib import PurePath
+from pathlib import Path, PurePath
 from typing import Final
 
 import numpy as np
@@ -19,7 +19,6 @@ from numpy import (
     zeros_like,
 )
 from numpy.linalg import multi_dot
-from pathlib import Path
 from pyscf import ao2mo, cc, fci, mcscf, mp
 from pyscf.cc.ccsd_rdm import make_rdm2
 from pyscf.scf.hf import RHF
@@ -35,7 +34,7 @@ from quemb.shared.external.ccsd_rdm import (
 )
 from quemb.shared.external.uccsd_eri import make_eris_incore
 from quemb.shared.external.unrestricted_utils import make_uhf_obj
-from quemb.shared.helper import delete_multiple_files, unused
+from quemb.shared.helper import unused
 from quemb.shared.manage_scratch import WorkDir
 
 
@@ -359,7 +358,7 @@ def be_func(
             assert isinstance(solver_args, SHCI_ArgsUser)
             SHCI_args = _SHCI_Args.from_user_input(solver_args)
 
-            frag_scratch = WorkDir(pathscratch_dir / fobj.dname)
+            frag_scratch = WorkDir(scratch_dir / fobj.dname)
 
             nmo = fobj._mf.mo_coeff.shape[1]
 
@@ -867,6 +866,7 @@ def solve_block2(
     frag_scratch: WorkDir,
     DMRG_args: DMRG_ArgsUser,
     use_cumulant: bool = True,
+    ompnum: int | None = None,
 ):
     """DMRG fragment solver using the pyscf.dmrgscf wrapper.
 
@@ -892,7 +892,9 @@ def solve_block2(
     """
     # pylint: disable-next=E0611
     from pyscf import dmrgscf  # noqa: PLC0415   # optional module
-    from pyscf.dmrgscf.dmrgci import writeDMRGConfFile
+
+    if ompnum is not None:
+        dmrgscf.settings.MPIPREFIX = "mpirun -np " + str(ompnum) + " --bind-to none"
 
     orbs = mf.mo_coeff
     scratch = str(PurePath(frag_scratch))
@@ -918,14 +920,18 @@ def solve_block2(
         # Generates the input files for block2 but stops short of calling it.
         # Instead loads the 1- and 2-RDM from `scratch` and proceed with BE.
         # (Currently this is only used in the unit tests: `dmrg_molBE_test`)
-        writeDMRGConfFile(mc.fcisolver, DMRG_args.nelec, Restart=False)
+        dmrgscf.dmrgci.writeDMRGConfFile(mc.fcisolver, DMRG_args.nelec, Restart=False)
         rdm1_path = Path(scratch + "/rdm1.npy")
         rdm2_path = Path(scratch + "/rdm2.npy")
         try:
             assert rdm1_path.is_file()
             assert rdm2_path.is_file()
         except AssertionError as e:
-            print("Error: `force_earlystop` requires manually specified fragment 1 and 2rdms!")
+            print(
+                "Error: `force_earlystop` requires",
+                "manually specified fragment 1 and 2rdms!",
+                flush=True,
+            )
             raise e
 
         rdm1 = np.load(rdm1_path)

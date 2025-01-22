@@ -5,8 +5,8 @@ Author(s): Shaun Weatherly
 
 import os
 import unittest
-
 from pathlib import Path
+
 from pyscf import gto, scf
 
 from quemb.molbe import BE, fragpart
@@ -24,7 +24,7 @@ class TestBE_DMRG(unittest.TestCase):
         reason="Optional module 'dmrgscf' not imported correctly.",
     )
     def test_h8_pipek_interface(self):
-        """ Test the QuEmb-to-block2 interface without calling block2."""
+        """Test the QuEmb-to-block2 interface without calling block2."""
         mol = gto.M()
         mol.atom = [["H", (0.0, 0.0, i * 1.2)] for i in range(8)]
         mol.basis = "sto-3g"
@@ -32,7 +32,12 @@ class TestBE_DMRG(unittest.TestCase):
         mol.spin = 0
         mol.build()
         self.molecular_DMRG_test(
-            mol, True, "be1", "dmrg_h8_pipek_interface", "hchain_simple", -4.20236532,
+            mol,
+            True,
+            "be1",
+            "dmrg_h8_pipek_interface",
+            "hchain_simple",
+            -4.20236532,
         )
 
     @unittest.skipIf(
@@ -40,7 +45,7 @@ class TestBE_DMRG(unittest.TestCase):
         "This test cannot be run in github actions.",
     )
     def test_h8_pipek_full(self):
-        """ Test the full QuEmb-to-block2 workflow; NOTE: requires block2."""
+        """Test the full QuEmb-to-block2 workflow; NOTE: requires block2."""
         mol = gto.M()
         mol.atom = [["H", (0.0, 0.0, i * 1.2)] for i in range(8)]
         mol.basis = "sto-3g"
@@ -48,11 +53,23 @@ class TestBE_DMRG(unittest.TestCase):
         mol.spin = 0
         mol.build()
         self.molecular_DMRG_test(
-            mol, False, "be1", "dmrg_h8_pipek_full", "hchain_simple", -4.20236532,
+            mol,
+            False,
+            "be1",
+            "dmrg_h8_pipek_full",
+            "hchain_simple",
+            -4.20236532,
         )
 
     def molecular_DMRG_test(
-        self, mol, force_earlystop, be_type, test_name, frag_type, target, delta=1e-4,
+        self,
+        mol,
+        force_earlystop,
+        be_type,
+        test_name,
+        frag_type,
+        target,
+        delta=1e-4,
     ):
         scratch = Path.cwd() / "tests/data/molecular_DMRG_test/"
         mf = scf.RHF(mol)
@@ -80,11 +97,11 @@ class TestBE_DMRG(unittest.TestCase):
         for fdx, _ in enumerate(fobj.fsites):
             dname = "f" + str(fdx)
             frag_scratch = Path(scratch / dname)
-            with open(frag_scratch / "dmrg.conf.target", 'r') as file:
+            with open(frag_scratch / "dmrg.conf.target", "r") as file:
                 target_dmrg_conf = [f for f in file if not f.startswith("prefix")]
-            with open(frag_scratch / "dmrg.conf", 'r') as file:
+            with open(frag_scratch / "dmrg.conf", "r") as file:
                 current_dmrg_conf = [f for f in file if not f.startswith("prefix")]
-            for (current_str, target_str) in zip(current_dmrg_conf, target_dmrg_conf):
+            for current_str, target_str in zip(current_dmrg_conf, target_dmrg_conf):
                 try:
                     assert current_str == target_str
                 except AssertionError as e:
