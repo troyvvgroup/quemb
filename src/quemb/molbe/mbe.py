@@ -183,7 +183,16 @@ class BE(MixinLocalize):
             )
         elif isinstance(scratch_dir, WorkDir):
             self.scratch_dir = scratch_dir
-            self.scratch_dir.cleanup_at_end = self.cleanup_at_end
+            if self.cleanup_at_end is not None:
+                if self.cleanup_at_end != self.scratch_dir.cleanup_at_end:
+                    print(
+                        f"WARNING: `BE.cleanup_at_end` ({self.cleanup_at_end})",
+                        "conflicts with the settings of the provided `scratch_dir`",
+                        f"({self.scratch_dir.cleanup_at_end})!\n",
+                        "... Settings for `scratch_dir` take precedence:",
+                        f"`cleanup_at_end = {self.scratch_dir.cleanup_at_end}`",
+                    )
+
 
         elif isinstance(scratch_dir, PathLike):
             self.scratch_dir = WorkDir(
