@@ -58,7 +58,6 @@ class WorkDir:
 
     Upon initialisation of the object the workdir :python:`path` is created,
     if it does not exist yet.
-    If it already exists, it is ensured, that it is empty.
     One can either enter a :python:`path` themselves, or if it is :class:`None`,
     then the path is automatically determined by the environment,
     i.e. are we on SLURM, where is the scratch etc.
