@@ -420,7 +420,6 @@ def be_func_parallel(
     enuc: float,  # noqa: ARG001
     scratch_dir: WorkDir,
     solver_args: UserSolverArgs | None,
-    cleanup_at_end: bool = True,
     nproc: int = 1,
     ompnum: int = 4,
     only_chem: bool = False,
