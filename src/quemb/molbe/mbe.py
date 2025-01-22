@@ -937,7 +937,6 @@ class BE(MixinLocalize):
                 solver_args=solver_args,
                 use_cumulant=use_cumulant,
                 return_vec=False,
-                cleanup_at_end=self.cleanup_at_end,
             )
         else:
             rets = be_func_parallel(
@@ -953,7 +952,6 @@ class BE(MixinLocalize):
                 solver_args=solver_args,
                 use_cumulant=use_cumulant,
                 return_vec=False,
-                cleanup_at_end=self.cleanup_at_end,
             )
 
         print("-----------------------------------------------------", flush=True)

@@ -50,7 +50,6 @@ def run_solver(
     h1_e: Matrix[float64],
     solver: str = "MP2",
     eri_file: str = "eri_file.h5",
-    cleanup_at_end: bool = True,
     veff: Matrix[float64] | None = None,
     veff0: Matrix[float64] | None = None,
     ompnum: int = 4,
@@ -178,7 +177,11 @@ def run_solver(
         # pylint: disable-next=E0401,E0611
         from pyscf.shciscf import shci  # noqa: PLC0415    # shci is an optional module
 
-        frag_scratch = WorkDir(scratch_dir / dname)
+        frag_scratch = WorkDir(
+            scratch_dir / dname,
+            cleanup_at_end=scratch_dir.cleanup_at_end,
+            allow_existing=scratch_dir.allow_existing,
+        )
 
         assert isinstance(solver_args, SHCI_ArgsUser)
         SHCI_args = _SHCI_Args.from_user_input(solver_args)
@@ -201,7 +204,8 @@ def run_solver(
     elif solver in ["block2", "DMRG", "DMRGCI", "DMRGSCF"]:
         frag_scratch = WorkDir(
             path=Path(scratch_dir / dname),
-            cleanup_at_end=cleanup_at_end,
+            cleanup_at_end=scratch_dir.cleanup_at_end,
+            allow_existing=scratch_dir.allow_existing,
         )
 
         assert isinstance(solver_args, DMRG_ArgsUser)
