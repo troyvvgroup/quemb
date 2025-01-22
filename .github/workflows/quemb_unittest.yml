@@ -117,6 +117,7 @@ jobs:
       run: |
         cd tests
         QUEMB_SKIP_EXPENSIVE_TESTS=true pytest --durations=0 --durations-min=1.0 --doctest-modules --junitxml=junit/quemb-test-results_${{ matrix.python-version }}.xml
+        # If --duration=0, pytest reports all tests that took longer than what was given with durations-min=[time in seconds]
 
 
     - name: Upload pytest junit results
