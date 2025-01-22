@@ -1247,12 +1247,6 @@ class TestBE_Fragmentation(unittest.TestCase):
     ):
         fobj = fragpart(frag_type=frag_type, be_type=be_type, mol=mf.mol)
         try:
-            # For debugging:
-            # print(fobj.fsites)
-            # print(fobj.edge)
-            # print(fobj.center)
-            # print(fobj.centerf_idx)
-            # print(fobj.ebe_weight)
             assert fobj.fsites == target["fsites"]
             assert fobj.edge == target["edge"]
             assert fobj.center == target["center"]
