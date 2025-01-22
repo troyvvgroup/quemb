@@ -927,16 +927,12 @@ def solve_block2(
         dmrgscf.dmrgci.writeDMRGConfFile(mc.fcisolver, DMRG_args.nelec, Restart=False)
         rdm1_path = Path(scratch + "/rdm1.npy")
         rdm2_path = Path(scratch + "/rdm2.npy")
-        try:
-            assert rdm1_path.is_file()
-            assert rdm2_path.is_file()
-        except AssertionError as e:
-            print(
-                "Error: `force_earlystop` requires",
-                "manually specified fragment 1 and 2rdms!",
-                flush=True,
+
+        if not (rdm1_path.is_file() and rdm2_path.is_file()):
+            raise FileNotFoundError(
+                "Error: `force_earlystop` requires manually specified"
+                "fragment 1 and 2rdms!"
             )
-            raise e
 
         rdm1 = np.load(rdm1_path)
         rdm2 = np.load(rdm2_path)
