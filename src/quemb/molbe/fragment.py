@@ -69,6 +69,7 @@ class fragpart:
         self.edge_idx = []
         self.center_idx = []
         self.centerf_idx = []
+        self.dnames = []
         self.be_type = be_type
         self.frozen_core = frozen_core
         self.iao_valence_basis = iao_valence_basis
@@ -112,6 +113,7 @@ class fragpart:
             # self.edge_idx = fragment_map["edge"]
             self.centerf_idx = fragment_map.centerf_idx
             self.ebe_weight = fragment_map.ebe_weights
+            self.dnames = fragment_map.dnames
             self.Nfrag = len(self.fsites)
 
         elif frag_type == "autogen":

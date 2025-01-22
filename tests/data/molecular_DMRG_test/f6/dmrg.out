@@ -1,0 +1,607 @@
+
+********************************** INPUT START **********************************
+nelec                                                            2
+spin                                                             0
+twodot_to_onedot                                                50
+orbitals                                                   FCIDUMP
+maxiter                                                         60
+sweep_tol                                               1.0000e-07
+outputlevel                                                      2
+hf_occ                                                    integral
+twopdm                                                            
+prefix                    /home/shaunrw/quemb/tests/data/molecular_DMRG_test/f6
+num_thrds                                                        8
+noreorder                                                         
+mem                                                            3 g
+schedule                  Sweep   0-   9 : Mmps =    25 Noise =     0.001 DavTol =     1e-05
+                          Sweep  10-  19 : Mmps =    50 Noise =     0.001 DavTol =     1e-05
+                          Sweep  20-  29 : Mmps =   100 Noise =    0.0001 DavTol =     1e-06
+                          Sweep  30-  39 : Mmps =   100 Noise =     1e-05 DavTol =     1e-07
+                          Sweep  40-  49 : Mmps =   100 Noise =     1e-05 DavTol =     1e-08
+                          Sweep  50-  59 : Mmps =   100 Noise =         0 DavTol =     1e-08
+irrep                                                            1
+********************************** INPUT END   **********************************
+
+SPIN ADAPTED - REAL DOMAIN - DOUBLE PREC
+qc mpo type =  QCTypes.Conventional
+ UseMainStack = 0 MinDiskUsage = 1 MinMemUsage = 0 IBuf = 0 OBuf = 0
+ FPCompression: prec = 1.00e-16 chunk = 1024
+ IMain = 0 B / 200 MB DMain = 0 B / 1.01 GB ISeco = 0 B / 85.8 MB DSeco = 0 B / 1.51 GB
+ OpenMP = 1 TBB = 0 BLIS = 0 MKL = GNU 2021.0.4 SeqType = Tasked MKLIntLen = 4
+ THREADING = 2 layers : Global | Operator BatchedGEMM 
+ NUMBER : Global = 8 Operator = 8 Quanta = 0 MKL = 1
+ COMPLEX = 1 SINGLE-PREC = 1 KSYMM = 0
+WARN: changed qc_mpo_type to NC because there are only 2 sites!
+read integral finished 0.0029394812881946564
+integral sym error =            0
+MinMPOMemUsage =  False
+MPS =  CC 0 2 < N=2 S=0 PG=0 >
+GS INIT MPS BOND DIMS =       1     3     1
+pre-mpo memory usage =  146 MB
+build mpo start ...
+build mpo finished ... Tread = 0.000 Twrite = 0.000 T = 0.000
+simpl mpo start ...
+simpl mpo finished ... Tread = 0.000 Twrite = 0.000 T = 0.000
+GS MPO BOND DIMS =       7     1
+build 1pdm mpo 0.023364488035440445
+build identity mpo 0.023552946746349335
+memory usage =  146 MB
+para mpo finished 0.02381652221083641
+Environment initialization | Nsites =     2 | Center =     0
+Time init sweep =        0.000 | MaxBmem =     0 B | MaxRmem =     0 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | data = 0 B | cpsd = 0 B | Tasync = 0.000
+
+env init finished 0.024365849792957306
+
+Sweep =    0 | Direction =  forward | Bond dimension =   25 | Noise =  1.00e-03 | Dav threshold =  1.00e-05
+ --> Site =    0-   1 .. Mmps =    3 Ndav =   3 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 2.53e+05 Tdav = 0.00 T = 0.01
+Time elapsed =      0.009 | E =      -1.5358086002 | DW = 0.00000e+00
+Time sweep =        0.009 | 120 FLOP/SWP
+ | Dmem = 24 B (100%) | Imem = 848 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.009 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =    1 | Direction = backward | Bond dimension =   25 | Noise =  1.00e-03 | Dav threshold =  1.00e-05
+ <-- Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.36e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.010 | E =      -1.5358086002 | DE = -2.22e-16 | DW = 0.00000e+00
+Time sweep =        0.001 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =    2 | Direction =  forward | Bond dimension =   25 | Noise =  1.00e-03 | Dav threshold =  1.00e-05
+ --> Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 3.99e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.011 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.001 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =    3 | Direction = backward | Bond dimension =   25 | Noise =  1.00e-03 | Dav threshold =  1.00e-05
+ <-- Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.55e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.012 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.001 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =    4 | Direction =  forward | Bond dimension =   25 | Noise =  1.00e-03 | Dav threshold =  1.00e-05
+ --> Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.29e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.014 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.001 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =    5 | Direction = backward | Bond dimension =   25 | Noise =  1.00e-03 | Dav threshold =  1.00e-05
+ <-- Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.75e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.014 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.001 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =    6 | Direction =  forward | Bond dimension =   25 | Noise =  1.00e-03 | Dav threshold =  1.00e-05
+ --> Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.60e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.016 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.001 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =    7 | Direction = backward | Bond dimension =   25 | Noise =  1.00e-03 | Dav threshold =  1.00e-05
+ <-- Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.65e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.017 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.001 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =    8 | Direction =  forward | Bond dimension =   25 | Noise =  1.00e-03 | Dav threshold =  1.00e-05
+ --> Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.40e+05 Tdav = 0.00 T = 0.01
+Time elapsed =      0.022 | E =      -1.5358086002 | DE = 2.22e-16 | DW = 0.00000e+00
+Time sweep =        0.006 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.006 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =    9 | Direction = backward | Bond dimension =   25 | Noise =  1.00e-03 | Dav threshold =  1.00e-05
+ <-- Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.40e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.026 | E =      -1.5358086002 | DE = -2.22e-16 | DW = 0.00000e+00
+Time sweep =        0.003 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.003 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   10 | Direction =  forward | Bond dimension =   50 | Noise =  1.00e-03 | Dav threshold =  1.00e-05
+ --> Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.49e+05 Tdav = 0.00 T = 0.02
+Time elapsed =      0.042 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.016 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.016 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   11 | Direction = backward | Bond dimension =   50 | Noise =  1.00e-03 | Dav threshold =  1.00e-05
+ <-- Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.13e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.043 | E =      -1.5358086002 | DE = 2.22e-16 | DW = 0.00000e+00
+Time sweep =        0.001 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   12 | Direction =  forward | Bond dimension =   50 | Noise =  1.00e-03 | Dav threshold =  1.00e-05
+ --> Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.55e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.044 | E =      -1.5358086002 | DE = -2.22e-16 | DW = 0.00000e+00
+Time sweep =        0.001 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   13 | Direction = backward | Bond dimension =   50 | Noise =  1.00e-03 | Dav threshold =  1.00e-05
+ <-- Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.30e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.046 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.001 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   14 | Direction =  forward | Bond dimension =   50 | Noise =  1.00e-03 | Dav threshold =  1.00e-05
+ --> Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.45e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.047 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.001 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   15 | Direction = backward | Bond dimension =   50 | Noise =  1.00e-03 | Dav threshold =  1.00e-05
+ <-- Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.60e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.048 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.001 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   16 | Direction =  forward | Bond dimension =   50 | Noise =  1.00e-03 | Dav threshold =  1.00e-05
+ --> Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.77e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.049 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.001 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   17 | Direction = backward | Bond dimension =   50 | Noise =  1.00e-03 | Dav threshold =  1.00e-05
+ <-- Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.60e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.051 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.002 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.002 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   18 | Direction =  forward | Bond dimension =   50 | Noise =  1.00e-03 | Dav threshold =  1.00e-05
+ --> Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.16e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.052 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.001 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   19 | Direction = backward | Bond dimension =   50 | Noise =  1.00e-03 | Dav threshold =  1.00e-05
+ <-- Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.25e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.053 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.001 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   20 | Direction =  forward | Bond dimension =  100 | Noise =  1.00e-04 | Dav threshold =  1.00e-06
+ --> Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.50e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.055 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.001 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   21 | Direction = backward | Bond dimension =  100 | Noise =  1.00e-04 | Dav threshold =  1.00e-06
+ <-- Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.50e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.057 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.002 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.002 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   22 | Direction =  forward | Bond dimension =  100 | Noise =  1.00e-04 | Dav threshold =  1.00e-06
+ --> Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.70e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.058 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.002 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   23 | Direction = backward | Bond dimension =  100 | Noise =  1.00e-04 | Dav threshold =  1.00e-06
+ <-- Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.50e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.060 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.001 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   24 | Direction =  forward | Bond dimension =  100 | Noise =  1.00e-04 | Dav threshold =  1.00e-06
+ --> Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.30e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.061 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.001 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   25 | Direction = backward | Bond dimension =  100 | Noise =  1.00e-04 | Dav threshold =  1.00e-06
+ <-- Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.60e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.062 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.001 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   26 | Direction =  forward | Bond dimension =  100 | Noise =  1.00e-04 | Dav threshold =  1.00e-06
+ --> Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.39e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.063 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.001 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   27 | Direction = backward | Bond dimension =  100 | Noise =  1.00e-04 | Dav threshold =  1.00e-06
+ <-- Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.49e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.065 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.001 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   28 | Direction =  forward | Bond dimension =  100 | Noise =  1.00e-04 | Dav threshold =  1.00e-06
+ --> Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.26e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.066 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.002 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   29 | Direction = backward | Bond dimension =  100 | Noise =  1.00e-04 | Dav threshold =  1.00e-06
+ <-- Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.26e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.068 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.002 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.002 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   30 | Direction =  forward | Bond dimension =  100 | Noise =  1.00e-05 | Dav threshold =  1.00e-07
+ --> Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.71e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.070 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.002 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.002 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   31 | Direction = backward | Bond dimension =  100 | Noise =  1.00e-05 | Dav threshold =  1.00e-07
+ <-- Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.44e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.071 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.001 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   32 | Direction =  forward | Bond dimension =  100 | Noise =  1.00e-05 | Dav threshold =  1.00e-07
+ --> Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.30e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.073 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.002 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.002 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   33 | Direction = backward | Bond dimension =  100 | Noise =  1.00e-05 | Dav threshold =  1.00e-07
+ <-- Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.60e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.075 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.001 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   34 | Direction =  forward | Bond dimension =  100 | Noise =  1.00e-05 | Dav threshold =  1.00e-07
+ --> Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.30e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.076 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.001 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   35 | Direction = backward | Bond dimension =  100 | Noise =  1.00e-05 | Dav threshold =  1.00e-07
+ <-- Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.45e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.077 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.002 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.002 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   36 | Direction =  forward | Bond dimension =  100 | Noise =  1.00e-05 | Dav threshold =  1.00e-07
+ --> Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.60e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.079 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.002 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.002 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   37 | Direction = backward | Bond dimension =  100 | Noise =  1.00e-05 | Dav threshold =  1.00e-07
+ <-- Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.45e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.081 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.002 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.002 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   38 | Direction =  forward | Bond dimension =  100 | Noise =  1.00e-05 | Dav threshold =  1.00e-07
+ --> Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.35e+05 Tdav = 0.00 T = 0.01
+Time elapsed =      0.093 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.012 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.012 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   39 | Direction = backward | Bond dimension =  100 | Noise =  1.00e-05 | Dav threshold =  1.00e-07
+ <-- Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.26e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.094 | E =      -1.5358086002 | DE = 2.22e-16 | DW = 0.00000e+00
+Time sweep =        0.001 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   40 | Direction =  forward | Bond dimension =  100 | Noise =  1.00e-05 | Dav threshold =  1.00e-08
+ --> Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.08e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.096 | E =      -1.5358086002 | DE = -2.22e-16 | DW = 0.00000e+00
+Time sweep =        0.001 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   41 | Direction = backward | Bond dimension =  100 | Noise =  1.00e-05 | Dav threshold =  1.00e-08
+ <-- Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.55e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.097 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.002 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.002 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   42 | Direction =  forward | Bond dimension =  100 | Noise =  1.00e-05 | Dav threshold =  1.00e-08
+ --> Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.13e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.099 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.002 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.002 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   43 | Direction = backward | Bond dimension =  100 | Noise =  1.00e-05 | Dav threshold =  1.00e-08
+ <-- Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.70e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.100 | E =      -1.5358086002 | DE = 2.22e-16 | DW = 0.00000e+00
+Time sweep =        0.001 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   44 | Direction =  forward | Bond dimension =  100 | Noise =  1.00e-05 | Dav threshold =  1.00e-08
+ --> Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.55e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.102 | E =      -1.5358086002 | DE = -2.22e-16 | DW = 0.00000e+00
+Time sweep =        0.002 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   45 | Direction = backward | Bond dimension =  100 | Noise =  1.00e-05 | Dav threshold =  1.00e-08
+ <-- Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.26e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.103 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.001 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   46 | Direction =  forward | Bond dimension =  100 | Noise =  1.00e-05 | Dav threshold =  1.00e-08
+ --> Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.22e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.104 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.001 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   47 | Direction = backward | Bond dimension =  100 | Noise =  1.00e-05 | Dav threshold =  1.00e-08
+ <-- Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.66e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.106 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.002 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.002 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   48 | Direction =  forward | Bond dimension =  100 | Noise =  1.00e-05 | Dav threshold =  1.00e-08
+ --> Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.45e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.107 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.001 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.001 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =   49 | Direction = backward | Bond dimension =  100 | Noise =  1.00e-05 | Dav threshold =  1.00e-08
+ <-- Site =    0-   1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.61e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.109 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 0.00000e+00
+Time sweep =        0.002 | 40 FLOP/SWP
+ | Dmem = 48 B (100%) | Imem = 908 B (100%) | Hmem = 240 B | Wmem = 24 B | Pmem = 80 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 0 B | cpsd = 0 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.002 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+
+Sweep =    0 | Direction =  forward | Bond dimension =  100 | Noise =  0.00e+00 | Dav threshold =  1.00e-08
+ --> Site =    0 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.35e+05 Tdav = 0.00 T = 0.00
+ --> Site =    1 .. Mmps =    1 Ndav =   1 E =     -1.5358086002 Error = 1.47e-17 FLOPS = 4.40e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.113 | E =      -1.5358086002 | DW = 1.47111e-17
+Time sweep =        0.004 | 80 FLOP/SWP
+ | Dmem = 144 B (16%) | Imem = 848 B (78%) | Hmem = 240 B | Wmem = 24 B | Pmem = 0 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 240 B | cpsd = 208 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.002 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Sweep =    1 | Direction = backward | Bond dimension =  100 | Noise =  0.00e+00 | Dav threshold =  1.00e-08
+ <-- Site =    1 .. Mmps =    3 Ndav =   1 E =     -1.5358086002 Error = 0.00e+00 FLOPS = 4.44e+05 Tdav = 0.00 T = 0.00
+ <-- Site =    0 .. Mmps =    1 Ndav =   1 E =     -1.5358086002 Error = 1.39e-17 FLOPS = 4.30e+05 Tdav = 0.00 T = 0.00
+Time elapsed =      0.118 | E =      -1.5358086002 | DE = 0.00e+00 | DW = 1.39077e-17
+Time sweep =        0.005 | 80 FLOP/SWP
+ | Dmem = 144 B (16%) | Imem = 848 B (78%) | Hmem = 240 B | Wmem = 24 B | Pmem = 0 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | Tmporead = 0.000 | Tasync = 0.000
+ | data = 120 B | cpsd = 104 B
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Tprt = 0.000 | Teig = 0.000 | Tblk = 0.005 | Tmve = 0.000 | Tdm = 0.000 | Tsplt = 0.000 | Tsvd = 0.000 | Torth = 0.000
+
+Final canonical form =  SR 0
+DMRG Energy =   -1.535808600247680
+npdm string = ['((C+(C+D)0)1+D)0']
+
+Build NPDM MPO | Nsites =     2 | Nmaxops =  4 | SymbolFree = T | Cutoff = 0.00e+00
+ Site =     0 /     2 .. L =       15 R =        1 M =            0 Tmid = 0.000 T = 0.000
+ Site =     1 /     2 .. L =        1 R =       15 M =           28 Tmid = 0.000 T = 0.000
+Ttotal =      0.000
+
+Environment initialization | Nsites =     2 | Center =     0
+ INIT-R <-- Site =    0 ..  Bmem =   176 B Rmem =   176 B T = 0.00
+Time init sweep =        0.000 | MaxBmem =   176 B | MaxRmem =   176 B
+ | Tread = 0.000 | Twrite = 0.000 | Tfpread = 0.000 | Tfpwrite = 0.000 | data = 176 B | cpsd = 128 B | Tasync = 0.000
+
+
+Expectation | Direction =  forward | BRA bond dimension =   25 | KET bond dimension =   25
+ --> Site =    0 .. Nterms =           18 Error =  0.000000000000/ 0.000000000000 FLOPS = 1.29e+05 Tmult = 0.00 T = 0.00
+ --> Site =    1 .. Nterms =            0 Error =  0.000000000000/ 0.000000000000 FLOPS = 0.00e+00 Tmult = 0.00 T = 0.00
+Time elapsed =      0.006
+Time sweep =        0.006 | 68 FLOP/SWP
+ | Dmem = 248 B (29%) | Imem = 732 B (72%) | Hmem = 352 B | Wmem = 24 B | MaxBmem = 176 B | MaxRmem = 176 B
+ | Tread = 0.000 | Twrite = 0.004 | Tfpread = 0.000 | Tfpwrite = 0.000 | data = 176 B | cpsd = 128 B | Tasync = 0.000
+ | Trot = 0.000 | Tctr = 0.000 | Tint = 0.000 | Tmid = 0.000 | Tdctr = 0.000 | Tdiag = 0.000 | Tinfo = 0.000
+ | Teff = 0.000 | Texpt = 0.001 | Tblk = 0.006 | Tmve = 0.000
+
+NPDM Sorting | Nsites =     2 | Nmaxops =  4 | DotSite = 0 | SymbolFree = T | Compressed = T | LowMem = F | Mem = 128 B
+ Site =     0 ..  T = 0.000
+Ttotal =      0.000
+
