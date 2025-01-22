@@ -1326,6 +1326,7 @@ class TestBE_Fragmentation(unittest.TestCase):
             "graphgen",
             target,
         )
+
     @unittest.skipIf(
         os.getenv("GITHUB_ACTIONS") == "true",
         "Temporary skip until graphgen fixes are merged.",
@@ -1349,6 +1350,7 @@ class TestBE_Fragmentation(unittest.TestCase):
             target,
             delta=1e-2,
         )
+
     @unittest.skipIf(
         os.getenv("GITHUB_ACTIONS") == "true",
         "Temporary skip until graphgen fixes are merged.",
