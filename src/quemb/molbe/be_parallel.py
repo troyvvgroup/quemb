@@ -500,7 +500,6 @@ def be_func_parallel(
                     fobj.fock + fobj.heff,
                     fobj.dm0.copy(),
                     scratch_dir,
-                    cleanup_at_end,
                     fobj.dname,
                     fobj.nao,
                     fobj.nsocc,
