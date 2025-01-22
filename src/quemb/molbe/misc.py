@@ -4,7 +4,6 @@ import os
 import time
 
 import h5py
-import numpy
 from numpy import einsum, ix_, loadtxt
 from pyscf import ao2mo, df, gto, qmmm, scf
 from pyscf.lib import chkfile
