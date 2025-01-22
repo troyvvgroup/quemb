@@ -22,7 +22,8 @@ class FragmentMap:
     Parameters
     ----------
     fsites:
-        List whose entries are sequences (tuple or list) containing all AO indices for a fragment.
+        List whose entries are sequences (tuple or list) containing
+        all AO indices for a fragment.
     fs:
         List whose entries are sequences of sequences, containing AO indices per atom
         per fragment.
@@ -63,7 +64,7 @@ class FragmentMap:
     centerf_idx: list[Sequence[int]]
     ebe_weights: list[Sequence]
     sites: list[Sequence]
-    dnames: list
+    dnames: list[str]
     fragment_atoms: list[Sequence[int]]
     center_atoms: list[Sequence[int]]
     edge_atoms: list[Sequence[int]]
