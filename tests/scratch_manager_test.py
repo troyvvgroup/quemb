@@ -34,20 +34,6 @@ def test_keep_upon_error() -> None:
     assert not my_tmp.exists()
 
 
-def test_already_created_non_empty() -> None:
-    my_tmp = Path(mkdtemp())
-
-    assert my_tmp.exists()
-
-    testfile = my_tmp / "testfile"
-    testfile.touch()
-    with raises(ValueError):
-        with WorkDir(my_tmp):
-            pass
-
-    assert my_tmp.exists()
-
-
 def test_context_manager() -> None:
     my_tmp = Path(mkdtemp())
     assert my_tmp.exists()

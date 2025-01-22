@@ -58,7 +58,6 @@ class WorkDir:
 
     Upon initialisation of the object the workdir :python:`path` is created,
     if it does not exist yet.
-    If it already exists, it is ensured, that it is empty.
     One can either enter a :python:`path` themselves, or if it is :class:`None`,
     then the path is automatically determined by the environment,
     i.e. are we on SLURM, where is the scratch etc.
@@ -91,8 +90,6 @@ class WorkDir:
     # we define the __attrs_post_init__ to create the directory
     def __attrs_post_init__(self) -> None:
         self.path.mkdir(parents=True, exist_ok=True)
-        if any(self.path.iterdir()):
-            raise ValueError("scratch_area has to be empty.")
         if self.cleanup_at_end:
             atexit.register(partial(self.cleanup, ignore_error=True))
 
