@@ -11,6 +11,7 @@ from pyscf import gto, scf
 
 from quemb.molbe import BE, fragpart
 from quemb.molbe.solver import DMRG_ArgsUser
+from quemb.shared.manage_scratch import WorkDir
 
 try:
     from pyscf import dmrgscf
@@ -71,7 +72,8 @@ class TestBE_DMRG(unittest.TestCase):
         target,
         delta=1e-4,
     ):
-        scratch = Path(__file__).absolute().parents[0] / "data/molecular_DMRG_test"
+        _tmp = Path(__file__).absolute().parents[0] / "data/molecular_DMRG_test"
+        scratch = WorkDir(_tmp, cleanup_at_end=False, allow_existing=True)
         mf = scf.RHF(mol)
         mf.kernel()
         fobj = fragpart(frag_type=frag_type, be_type=be_type, mol=mol)
@@ -81,7 +83,6 @@ class TestBE_DMRG(unittest.TestCase):
             lo_method="pipek",
             pop_method="lowdin",
             scratch_dir=scratch,
-            cleanup_at_end=False,
         )
         mybe.oneshot(
             solver="block2",

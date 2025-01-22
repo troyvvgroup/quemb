@@ -74,6 +74,11 @@ class WorkDir:
     then the cleanup is performed when leaving the ContextManager.
     Again, assuming that :python:`cleanup_at_end` is true.
 
+    If :python: `allow_existing` is False (default), then the directory
+    specified by :python: `path` must be empty.
+    NOTE: Use caution when setting this to True, as any files in the non-empty
+    directory may be overwritten!
+
     Examples
     --------
     >>> with WorkDir('./test_dir', cleanup_at_end=True) as scratch:
@@ -85,12 +90,15 @@ class WorkDir:
 
     path: Final[Annotated[Path, "An absolute path"]] = field(converter=_get_abs_path)
     cleanup_at_end: Final[bool] = True
+    allow_existing: Final[bool] = False
 
     # The __init__ is automatically created
     # the values `self.path` and `self.cleanup_at_end` are already filled.
     # we define the __attrs_post_init__ to create the directory
     def __attrs_post_init__(self) -> None:
         self.path.mkdir(parents=True, exist_ok=True)
+        if not self.allow_existing and any(self.path.iterdir()):
+            raise ValueError("scratch_area has to be empty.")
         if self.cleanup_at_end:
             atexit.register(partial(self.cleanup, ignore_error=True))
 
@@ -133,6 +141,8 @@ class WorkDir:
             The prefix for the subdirectory.
         cleanup_at_end:
             Perform cleanup when calling :python:`self.cleanup`.
+        allow_existing:
+            Assert whether :python: `user_defined_root` must be empty.
         """
         return cls(_determine_path(user_defined_root, prefix), cleanup_at_end)
 

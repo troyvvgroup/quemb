@@ -236,7 +236,6 @@ def be_func(
     relax_density: bool = False,
     return_vec: bool = False,
     use_cumulant: bool = True,
-    cleanup_at_end: bool = True,
 ):
     """
     Perform bootstrap embedding calculations for each fragment.
@@ -358,7 +357,11 @@ def be_func(
             assert isinstance(solver_args, SHCI_ArgsUser)
             SHCI_args = _SHCI_Args.from_user_input(solver_args)
 
-            frag_scratch = WorkDir(scratch_dir / fobj.dname)
+            frag_scratch = WorkDir(
+                scratch_dir / fobj.dname,
+                cleanup_at_end=scratch_dir.cleanup_at_end,
+                allow_existing=scratch_dir.allow_existing,
+            )
 
             nmo = fobj._mf.mo_coeff.shape[1]
 
@@ -405,8 +408,9 @@ def be_func(
 
         elif solver in ["block2", "DMRG", "DMRGCI", "DMRGSCF"]:
             frag_scratch = WorkDir(
-                path=Path(scratch_dir / fobj.dname),
-                cleanup_at_end=cleanup_at_end,
+                scratch_dir / fobj.dname,
+                cleanup_at_end=scratch_dir.cleanup_at_end,
+                allow_existing=scratch_dir.allow_existing,
             )
 
             assert isinstance(solver_args, DMRG_ArgsUser)

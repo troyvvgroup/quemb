@@ -181,13 +181,15 @@ class BE(MixinLocalize):
             self.scratch_dir = WorkDir.from_environment(
                 cleanup_at_end=self.cleanup_at_end,
             )
+        elif isinstance(scratch_dir, WorkDir):
+            self.scratch_dir = scratch_dir
+
         elif isinstance(scratch_dir, PathLike):
             self.scratch_dir = WorkDir(
                 path=Path(scratch_dir),
                 cleanup_at_end=self.cleanup_at_end,
+                allow_existing=False,
             )
-        else:
-            self.scratch_dir = scratch_dir
         self.eri_file = self.scratch_dir / eri_file
 
         self.frozen_core = fobj.frozen_core
