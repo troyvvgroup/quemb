@@ -60,7 +60,7 @@ class BE(Mixin_k_Localize):
         nproc: int = 1,
         ompnum: int = 4,
         iao_val_core: bool = True,
-        exxdiv: str = "ewald",
+        exxdiv: str | None = "ewald",
         kpts: list[list[float]] | None = None,
         cderi: PathLike | None = None,
         iao_wannier: bool = False,

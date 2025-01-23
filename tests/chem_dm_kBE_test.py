@@ -6,6 +6,7 @@ Also tests the gaussian density fitting interface, which is typically used by de
 Author(s): Shaun Weatherly
 """
 
+import os
 import unittest
 
 from numpy import eye
@@ -43,9 +44,14 @@ class Test_kBE_Full(unittest.TestCase):
         cell.build()
 
         self.periodic_test(
-            cell, kpt, "be1", "C2 (kBE1)", "autogen", -74.64695833012868, only_chem=True
+            cell, kpt, "be1", "C2 (kBE1)", "autogen", -102.16547952, only_chem=True
         )
 
+    @unittest.skipIf(libdmet is None, "Module `libdmet` not imported correctly.")
+    @unittest.skipIf(
+        os.getenv("QUEMB_SKIP_EXPENSIVE_TESTS") == "true",
+        "Skipped expensive tests for QuEmb.",
+    )
     def test_kc4_sto3g_be2_density(self) -> None:
         kpt = [1, 1, 1]
         cell = gto.Cell()
@@ -73,8 +79,42 @@ class Test_kBE_Full(unittest.TestCase):
             "be2",
             "C4 (kBE2)",
             "autogen",
-            -149.4085332249809,
+            -204.44557767,
             only_chem=False,
+        )
+
+    @unittest.skipIf(libdmet is None, "Module `libdmet` not imported correctly.")
+    def test_kc4_sto3g_be2_mp2density(self) -> None:
+        kpt = [1, 1, 2]
+        cell = gto.Cell()
+
+        a = 10.0
+        b = 10.0
+        c = 5.68
+
+        lat = eye(3)
+        lat[0, 0] = a
+        lat[1, 1] = b
+        lat[2, 2] = c
+
+        cell.a = lat
+        cell.atom = [["C", (0.0, 0.0, i * 1.42)] for i in range(4)]
+
+        cell.unit = "Angstrom"
+        cell.basis = "sto-3g"
+        cell.verbose = 0
+        cell.build()
+
+        self.periodic_test(
+            cell,
+            kpt,
+            "be2",
+            "C4 (kBE2, MP2/frozen core)",
+            "autogen",
+            -120.87412293,
+            solver="MP2",
+            only_chem=False,
+            frozen_core=True,
         )
 
     def periodic_test(
@@ -86,7 +126,9 @@ class Test_kBE_Full(unittest.TestCase):
         frag_type,
         target,
         delta=1e-4,
+        solver="CCSD",
         only_chem=True,
+        frozen_core=False,
     ) -> None:
         kpts = cell.make_kpts(kpt, wrap_around=True)
         mydf = df.GDF(cell, kpts)
@@ -99,10 +141,14 @@ class Test_kBE_Full(unittest.TestCase):
         kmf.kernel()
 
         kfrag = fragpart(
-            be_type=be_type, mol=cell, frag_type=frag_type, kpt=kpt, frozen_core=True
+            be_type=be_type,
+            mol=cell,
+            frag_type=frag_type,
+            kpt=kpt,
+            frozen_core=frozen_core,
         )
-        mykbe = BE(kmf, kfrag, kpts=kpts)
-        mykbe.optimize(solver="CCSD", only_chem=only_chem)
+        mykbe = BE(kmf, kfrag, kpts=kpts, exxdiv=None)
+        mykbe.optimize(solver=solver, only_chem=only_chem)
 
         self.assertAlmostEqual(
             mykbe.ebe_tot,

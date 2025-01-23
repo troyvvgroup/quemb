@@ -17,9 +17,8 @@ class fragpart:
     Parameters
     ----------
     frag_type : str
-        Name of fragmentation function. 'autogen', 'hchain_simple', and 'chain'
-        are supported. Defaults to 'autogen' For systems with only hydrogen,
-        use 'chain'; everything else should use 'autogen'
+        Name of fragmentation function. 'autogen', 'graphgen', 'hchain_simple',
+        and 'chain' are supported. Defaults to 'autogen'.
     be_type : str
         Specifies order of bootsrap calculation in the atom-based fragmentation.
         'be1', 'be2', 'be3', & 'be4' are supported.

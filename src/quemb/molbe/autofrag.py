@@ -1,11 +1,12 @@
 # Author: Oinam Romesh Meitei, Shaun Weatherly
 
 from copy import deepcopy
+from typing import Sequence
 
 import networkx as nx
 import numpy as np
 from attrs import define
-from networkx import shortest_path  # type: ignore[attr-defined]
+from networkx import shortest_path
 from numpy.linalg import norm
 from pyscf import gto
 
@@ -21,51 +22,52 @@ class FragmentMap:
     Parameters
     ----------
     fsites:
-        List whose entries are tuples containing all AO indices for a fragment.
+        List whose entries are sequences (tuple or list) containing
+        all AO indices for a fragment.
     fs:
-        List whose entries are tuples of tuples, containing AO indices per atom
+        List whose entries are sequences of sequences, containing AO indices per atom
         per fragment.
     edge:
-        List whose entries are tuples of tuples, containing edge AO
+        List whose entries are sequences of sequences, containing edge AO
         indices per atom (inner tuple) per fragment (outer tuple).
     center:
-        List whose entries are tuples of tuples, containing all fragment AO
+        List whose entries are sequences of sequences, containing all fragment AO
         indices per atom (inner tuple) and per fragment (outer tuple).
     centerf_idx:
-        List whose entries are tuples containing the relative index of all
+        List whose entries are sequences containing the relative index of all
         center sites within a fragment (ie, with respect to fsites).
     ebe_weights:
         Weights determining the energy contributions from each center site
         (ie, with respect to centerf_idx).
     sites:
-        List whose entries are tuples containing all AO indices per atom
+        List whose entries are sequences containing all AO indices per atom
         (excluding frozen core indices, if applicable).
     dnames:
         List of strings giving fragment data names. Useful for bookkeeping and
         for constructing fragment scratch directories.
     fragment_atoms:
-        List whose entries are tuples containing all atom indices for a fragment.
+        List whose entries are sequences containing all atom indices for a fragment.
     center_atoms:
-        List whose entries are tuples giving the center atom indices per fragment.
+        List whose entries are sequences giving the center atom indices per fragment.
     edge_atoms:
-        List whose entries are tuples giving the edge atom indices per fragment.
+        List whose entries are sequences giving the edge atom indices per fragment.
     adjacency_mat:
         The adjacency matrix for all sites (atoms) in the system.
     adjacency_graph:
         The adjacency graph corresponding to `adjacency_mat`.
     """
 
-    fsites: list[tuple[int, ...]]
-    fs: list[tuple[tuple[int, ...], ...]]
-    edge: list[tuple[tuple[int, ...], ...]]
-    center: list[tuple[int, ...]]
-    centerf_idx: list[tuple[int, ...]]
-    ebe_weights: list[tuple]
-    sites: list[tuple]
-    dnames: list
-    fragment_atoms: list[tuple[int, ...]]
-    center_atoms: list[tuple[int, ...]]
-    edge_atoms: list[tuple[int, ...]]
+    fsites: list[Sequence[int]]
+    fs: list[Sequence[Sequence[int]]]
+    edge: list[Sequence[Sequence[int]]]
+    center: list[Sequence[int]]
+    centerf_idx: list[Sequence[int]]
+    ebe_weights: list[Sequence]
+    sites: list[Sequence]
+    dnames: list[str]
+    fragment_atoms: list[Sequence[int]]
+    center_atoms: list[Sequence[int]]
+    edge_atoms: list[Sequence[int]]
     adjacency_mat: np.ndarray
     adjacency_graph: nx.Graph
 
@@ -91,12 +93,15 @@ class FragmentMap:
                     elif set(basb).issubset(set(basa)):
                         subsets.add(bdx)
                         self.center[adx] = tuple(
-                            set(self.center[adx] + deepcopy(self.center[bdx]))
+                            set(
+                                list(self.center[adx])
+                                + list(deepcopy(self.center[bdx]))
+                            )
                         )
                         self.center_atoms[adx] = tuple(
                             set(
-                                self.center_atoms[adx]
-                                + deepcopy(self.center_atoms[bdx])
+                                list(self.center_atoms[adx])
+                                + list(deepcopy(self.center_atoms[bdx]))
                             )
                         )
             if subsets:
@@ -250,7 +255,7 @@ def graphgen(
         for adx, map in adx_map.items():
             fragment_map.center_atoms.append((adx,))
             fragment_map.center.append(deepcopy(fragment_map.sites[adx]))
-            fsites_temp = deepcopy(fragment_map.sites[adx])
+            fsites_temp = deepcopy(list(fragment_map.sites[adx]))
             fatoms_temp = [adx]
             fs_temp = []
             fs_temp.append(deepcopy(fragment_map.sites[adx]))
@@ -276,7 +281,7 @@ def graphgen(
             # the set of fragment sites for adx.
             for bdx, path in map["shortest_paths"].items():
                 if 0 < (len(path) - 1) < fragment_type_order:
-                    fsites_temp = fsites_temp + deepcopy(fragment_map.sites[bdx])
+                    fsites_temp = fsites_temp + deepcopy(list(fragment_map.sites[bdx]))
                     fs_temp.append(deepcopy(fragment_map.sites[bdx]))
                     fatoms_temp.append(bdx)
 
@@ -300,7 +305,7 @@ def graphgen(
     # with the set of all center sites outside of A:
     for adx, fs in enumerate(fragment_map.fs):
         edge_temp: set[tuple] = set()
-        eatoms_temp: set = set()
+        eatoms_temp: set[tuple[int, ...]] = set()
         for bdx, center in enumerate(fragment_map.center):
             if adx == bdx:
                 pass
@@ -311,14 +316,14 @@ def graphgen(
                         f_temp = set(fragment_map.fragment_atoms[adx])
                         c_temp = set(fragment_map.center_atoms[bdx])
                         edge_temp.add(tuple(overlap))
-                        eatoms_temp.add(i for i in f_temp.intersection(c_temp))
+                        eatoms_temp.add(tuple(i for i in f_temp.intersection(c_temp)))
         fragment_map.edge.append(tuple(edge_temp))
-        fragment_map.edge_atoms.append(tuple(eatoms_temp))
+        fragment_map.edge_atoms.extend(tuple(eatoms_temp))
 
     # Update relative center site indices (centerf_idx) and weights
     # for center site contributions to the energy (ebe_weights):
     for adx, center in enumerate(fragment_map.center):
-        centerf_idx = tuple([fragment_map.fsites[adx].index(cdx) for cdx in center])
+        centerf_idx = tuple(fragment_map.fsites[adx].index(cdx) for cdx in center)
         ebe_weight = (1.0, tuple(centerf_idx))
         fragment_map.centerf_idx.append(centerf_idx)
         fragment_map.ebe_weights.append(ebe_weight)
