@@ -1,20 +1,32 @@
-from typing import Final, NewType
+from collections import defaultdict
+from typing import Final, NewType, Self
 
 from attr import define
 from chemcoord import Cartesian
+from ordered_set import OrderedSet
 from pyscf.gto import Mole
 
 from quemb.shared.typing import T
 
+#: The index of an atom.
 AtomIdx = NewType("AtomIdx", int)
 
+#: The index of an atomic orbital.
 AOIdx = NewType("AOIdx", int)
 
-CenterIdx = NewType("CenterIdx", AtomIdx)
+#: The index of a site in the molecule.
+#: By site we mean the heavy atom including its H- coordination sphere,
+#: i.e. CH2 is a site, CH3 is a site, etc.
+#: In the case where we do not treat hydrogens differently,
+#: the site index is the same as the atom index.
+SiteIdx = NewType("SiteIdx", AtomIdx)
 
-#: A dictionary that maps an atom index, the center,
+#: The index of a center of a fragment.
+CenterIdx = NewType("CenterIdx", SiteIdx)
+
+#: A dictionary that maps a Site index, the center,
 #: to a set of atom indices, the corresponding fragment.
-AtomPerFrag = NewType("AtomPerFrag", dict[CenterIdx, set[AtomIdx]])
+AtomPerFrag = NewType("AtomPerFrag", dict[SiteIdx, OrderedSet[AtomIdx]])
 
 
 #: A dictionary that maps an atom index, the center,
@@ -37,11 +49,12 @@ AtomPerFrag = NewType("AtomPerFrag", dict[CenterIdx, set[AtomIdx]])
 #:      if (j_center in contained_center_indices[i_center])
 #            and fragments[j_center] == fragments[i_center]):
 #:          i_center <= j_center
-ContainedCenterIdx = NewType("ContainedCenterIdx", dict[CenterIdx, set[CenterIdx]])
+ContainedCenterIdx = NewType("ContainedCenterIdx", dict[CenterIdx, OrderedSet[SiteIdx]])
 
 
-def merge_sets(*sets: set[T]) -> set[T]:
-    return set().union(*sets)
+def merge_sets(*sets: OrderedSet[T]) -> OrderedSet[T]:
+    # mypy wrongly complains that the arg type is not valid, which it is.
+    return OrderedSet().union(*sets)
 
 
 @define
@@ -52,45 +65,78 @@ class FragmentedMolecule:
 
 #: A dictionary that maps an atom index, the center,
 #: to a set of AO indices in the corresponding BE fragment.
-AOPerFrag = NewType("AOPerFrag", dict[CenterIdx, set[AOIdx]])
+AOPerFrag = NewType("AOPerFrag", dict[CenterIdx, OrderedSet[AOIdx]])
 
 
-def get_BE_fragment(m: Cartesian, i: int, n_BE: int) -> set[AtomIdx]:
-    """Return the BE fragment around atom :code:`i`.
+@define
+class ConnectivityData:
+    """Data structure to store the connectivity data of a molecule."""
 
-    Return the index of the atoms of the fragment that
-    contains the i_center atom and its (n_BE - 1) coordination sphere.
-    """
-    if m.index.min() != 0:
-        raise ValueError("We assume 0-indexed data for the rest of the code.")
-    m.get_bonds(set_lookup=True)
-    return m.get_coordination_sphere(
-        i, n_sphere=n_BE - 1, only_surface=False, give_only_index=True, use_lookup=True
-    )
+    #: The connectivity graph of the molecule.
+    bonds: Final[dict[AtomIdx, OrderedSet[AtomIdx]]]
+    #: The site/heavy atoms in the molecule.
+    sites: Final[OrderedSet[SiteIdx]]
+    #: The site connectivity graph of the molecule, i.e. ignoring the hydrogen atoms.
+    site_bonds: Final[dict[SiteIdx, OrderedSet[SiteIdx]]]
+    #: The hydrogen atoms per site.
+    H_per_site: Final[dict[SiteIdx, OrderedSet[AtomIdx]]]
+    #: The hydrogen atoms in the molecule.
+    H_atoms: Final[OrderedSet[AtomIdx]]
+
+    @classmethod
+    def from_cartesian(cls, m: Cartesian) -> Self:
+        if not (m.index.min() == 0 and m.index.max() == len(m) - 1):
+            raise ValueError("We assume 0-indexed data for the rest of the code.")
+        m = m.sort_index()
+        bonds = {k: OrderedSet(sorted(v)) for k, v in m.get_bonds().items()}
+        sites = OrderedSet(m.loc[m.atom != "H", :].index)
+        site_bonds = {site: bonds[site] & sites for site in sites}
+        H_atoms = OrderedSet(m.index) - sites
+        H_per_site = {i_site: bonds[i_site] & H_atoms for i_site in sites}
+        return cls(bonds, sites, site_bonds, H_atoms, H_per_site)
+
+    def get_BE_fragment(self, i_center: SiteIdx, n_BE: int) -> OrderedSet[SiteIdx]:
+        """Return the BE fragment around atom :code:`i_center`.
+
+        Return the index of the site atoms of the fragment that
+        contains the i_center atom and its (n_BE - 1) coordination sphere.
+        """
+        if n_BE < 1:
+            raise ValueError("n_BE must greater than or equal to 1.")
+
+        result = OrderedSet({i_center})
+        new = result.copy()
+        for _ in range(n_BE - 1):
+            new = merge_sets(*(self.site_bonds[i] for i in new)) - result
+            if not new:
+                break
+            result = result | new
+        return result
+
+    def all_fragments_sites_only(self, n_BE: int) -> dict[SiteIdx, OrderedSet[SiteIdx]]:
+        return {i: self.get_BE_fragment(i, n_BE) for i in self.sites}
 
 
 def cleanup_if_subset(fragment_indices: AtomPerFrag) -> FragmentedMolecule:
     """Remove fragments that are subsets of other fragments."""
-    result = AtomPerFrag({})
-    contained_center_indices = ContainedCenterIdx(
-        {i_center: {i_center} for i_center in fragment_indices}
-    )
-    for i_center, i_fragment in fragment_indices.items():
-        for j_center in i_fragment:
-            if j_center == i_center:
-                continue
-            if i_fragment <= fragment_indices[CenterIdx(j_center)]:
-                if i_center > j_center:
-                    contained_center_indices[CenterIdx(j_center)].add(i_center)
-                    break
-        else:
-            result[i_center] = i_fragment
+    contain_others = defaultdict(set)
+    are_subset_of_others = set()
 
+    for i_center, i_fragment in fragment_indices.items():
+        if i_center in are_subset_of_others:
+            continue
+        for j_center in i_fragment:
+            if i_center == j_center:
+                continue
+            if fragment_indices[j_center].issubset(i_fragment):
+                are_subset_of_others.add(j_center)
+                contain_others[i_center] |= {j_center}
+                if j_center in contain_others:
+                    contain_others[i_center] |= contain_others[j_center]
+                    del contain_others[j_center]
     return FragmentedMolecule(
-        AtomPerFrag(result),
-        ContainedCenterIdx(
-            {k: v for k, v in contained_center_indices.items() if k in result}
-        ),
+        {k: v for k, v in fragment_indices.items() if k not in are_subset_of_others},
+        contain_others,
     )
 
 
@@ -99,11 +145,11 @@ def add_back_H(m: Cartesian, n_BE: int, fragments: AtomPerFrag) -> AtomPerFrag:
 
     If we considered only non-hydrogen atoms before, i.e. :code:`pure_heavy is True`,
     then add back the hydrogens."""
-    only_H = set(m.loc[m.atom == "H", :].index)
+    only_H = OrderedSet(m.loc[m.atom == "H", :].index)
     m.get_bonds(set_lookup=True)
 
-    def get_BE_coord_sphere(i_center: CenterIdx) -> set[AtomIdx]:
-        return set(
+    def get_BE_coord_sphere(i_center: CenterIdx) -> OrderedSet[AtomIdx]:
+        return OrderedSet(
             m.get_coordination_sphere(
                 i_center, n_sphere=n_BE, only_surface=False, use_lookup=True
             ).index
@@ -111,46 +157,49 @@ def add_back_H(m: Cartesian, n_BE: int, fragments: AtomPerFrag) -> AtomPerFrag:
 
     return AtomPerFrag(
         {
-            i_center: fragment_index | (get_BE_coord_sphere(i_center) & only_H)
+            i_center: fragment_index.union(get_BE_coord_sphere(i_center) & only_H)
             for i_center, fragment_index in fragments.items()
         }
     )
 
 
-def get_BE_fragments(
-    m: Cartesian, n_BE: int = 3, pure_heavy: bool = True
-) -> FragmentedMolecule:
-    """Create the BE fragments for the molecule m.
+# def get_BE_fragments(
+#     m: Cartesian, n_BE: int = 3, pure_heavy: bool = True
+# ) -> FragmentedMolecule:
+#     """Create the BE fragments for the molecule m.
 
-    Adhere to BE literature nomenclature,
-    i.e. BE(n) takes the n - 1 coordination sphere."""
-    m_considered = m.loc[m.atom != "H", :] if pure_heavy else m
-    fragments = cleanup_if_subset(
-        AtomPerFrag(
-            {
-                i_center: get_BE_fragment(m_considered, i_center, n_BE)
-                for i_center in m_considered.index
-            }
-        )
-    )
-    if pure_heavy:
-        return FragmentedMolecule(
-            add_back_H(m, n_BE, fragments.atom_per_frag),
-            fragments.contained_center_indices,
-        )
-    return fragments
+#     Adhere to BE literature nomenclature,
+#     i.e. BE(n) takes the n - 1 coordination sphere."""
+#     m_considered = m.loc[m.atom != "H", :] if pure_heavy else m
+#     fragments = cleanup_if_subset(
+#         AtomPerFrag(
+#             {
+#                 i_center: get_BE_fragment(m_considered, i_center, n_BE)
+#                 for i_center in m_considered.index
+#             }
+#         )
+#     )
+#     if pure_heavy:
+#         return FragmentedMolecule(
+#             add_back_H(m, n_BE, fragments.atom_per_frag),
+#             fragments.contained_center_indices,
+#         )
+#     return fragments
 
 
 def get_fs(
     mol: Mole, fragments: AtomPerFrag
-) -> dict[CenterIdx, dict[AtomIdx, set[AOIdx]]]:
+) -> dict[CenterIdx, dict[AtomIdx, OrderedSet[AOIdx]]]:
     atom_to_AO = [
-        range(AO_offsets[2], AO_offsets[3]) for AO_offsets in mol.aoslice_by_atom()
+        OrderedSet(AOIdx(i) for i in range(AO_offsets[2], AO_offsets[3]))
+        for AO_offsets in mol.aoslice_by_atom()
     ]
 
-    def AO_indices_of_fragment(fragment: set[AtomIdx]) -> dict[AtomIdx, set[AOIdx]]:
+    def AO_indices_of_fragment(
+        fragment: OrderedSet[AtomIdx],
+    ) -> dict[AtomIdx, OrderedSet[AOIdx]]:
         # mypy wrongly complains that set(range(n)) is not valid, which it is.
-        return {i_atom: set(atom_to_AO[i_atom]) for i_atom in fragment}  # type: ignore[arg-type]
+        return {i_atom: atom_to_AO[i_atom] for i_atom in fragment}
 
     return {
         i_center: AO_indices_of_fragment(fragment)
@@ -167,12 +216,12 @@ def get_fsites(mol: Mole, fragments: AtomPerFrag) -> AOPerFrag:
     )
 
 
-def get_edge_idx(fragments: AtomPerFrag) -> dict[CenterIdx, set[CenterIdx]]:
-    return {
-        i_center: {
-            j_center
-            for j_center, j_fragment in fragments.items()
-            if (i_fragment & j_fragment)
-        }
-        for i_center, i_fragment in fragments.items()
-    }
+# def get_edge_idx(fragments: AtomPerFrag) -> dict[CenterIdx, OrderedSet[CenterIdx]]:
+#     return {
+#         i_center: {
+#             j_center
+#             for j_center, j_fragment in fragments.items()
+#             if (i_fragment & j_fragment)
+#         }
+#         for i_center, i_fragment in fragments.items()
+#     }
