@@ -90,15 +90,20 @@ class ConnectivityData:
     H_per_motif: Final[dict[MotifIdx, OrderedSet[AtomIdx]]]
     #: All atoms per motif. Lists the heavy atom first.
     atoms_per_motif: Final[dict[MotifIdx, OrderedSet[AtomIdx]]]
+    #: Do we treat hydrogens differently?
+    treat_H_different: Final[bool] = True
 
     @classmethod
-    def from_cartesian(cls, m: Cartesian) -> Self:
+    def from_cartesian(cls, m: Cartesian, treat_H_different: bool = True) -> Self:
         if not (m.index.min() == 0 and m.index.max() == len(m) - 1):
             raise ValueError("We assume 0-indexed data for the rest of the code.")
         m = m.sort_index()
 
         bonds = {k: OrderedSet(sorted(v)) for k, v in m.get_bonds().items()}
-        heavy_atoms = OrderedSet(m.loc[m.atom != "H", :].index)
+        if treat_H_different:
+            heavy_atoms = OrderedSet(m.loc[m.atom != "H", :].index)
+        else:
+            heavy_atoms = OrderedSet(m.index)
         site_bonds = {site: bonds[site] & heavy_atoms for site in heavy_atoms}
         H_atoms = OrderedSet(m.index).difference(heavy_atoms)
         H_per_motif = {i_site: bonds[i_site] & H_atoms for i_site in heavy_atoms}
@@ -107,7 +112,13 @@ class ConnectivityData:
             for i_site, H_atoms in H_per_motif.items()
         }
         return cls(
-            bonds, heavy_atoms, site_bonds, H_atoms, H_per_motif, atoms_per_motif
+            bonds,
+            heavy_atoms,
+            site_bonds,
+            H_atoms,
+            H_per_motif,
+            atoms_per_motif,
+            treat_H_different,
         )
 
     def get_BE_fragment(self, i_center: MotifIdx, n_BE: int) -> OrderedSet[MotifIdx]:
@@ -229,9 +240,13 @@ class FragmentedMolecule:
         )
 
     @classmethod
-    def from_cartesian(cls, mol: Cartesian, n_BE: int) -> Self:
-        return cls.from_motifs(ConnectivityData.from_cartesian(mol), n_BE)
+    def from_cartesian(
+        cls, mol: Cartesian, n_BE: int, treat_H_different: bool = True
+    ) -> Self:
+        return cls.from_motifs(
+            ConnectivityData.from_cartesian(mol, treat_H_different), n_BE
+        )
 
     @classmethod
-    def from_Mol(cls, mol: Mole, n_BE: int) -> Self:
-        return cls.from_cartesian(mol.to_pysf(), n_BE)
+    def from_Mol(cls, mol: Mole, n_BE: int, treat_H_different: bool = True) -> Self:
+        return cls.from_cartesian(Cartesian.from_pyscf(mol), n_BE, treat_H_different)
