@@ -95,6 +95,15 @@ class ConnectivityData:
 
     @classmethod
     def from_cartesian(cls, m: Cartesian, treat_H_different: bool = True) -> Self:
+        """Create a :class:`ConnectivityData` from a :class:`chemcoord.Cartesian`.
+
+        Parameters
+        ----------
+        m :
+            The Cartesian object to extract the connectivity data from.
+        treat_H_different :
+            If True, we treat hydrogen atoms differently from heavy atoms.
+        """
         if not (m.index.min() == 0 and m.index.max() == len(m) - 1):
             raise ValueError("We assume 0-indexed data for the rest of the code.")
         m = m.sort_index()
@@ -124,8 +133,16 @@ class ConnectivityData:
     def get_BE_fragment(self, i_center: MotifIdx, n_BE: int) -> OrderedSet[MotifIdx]:
         """Return the BE fragment around atom :code:`i_center`.
 
-        Return the index of the site atoms of the fragment that
-        contains the i_center atom and its (n_BE - 1) coordination sphere.
+        The BE fragment is the set of atoms (heavy atoms if hydrogens are different)
+        that are reachable from the center atom within :code:`(n_BE - 1)` bonds.
+        This means that :code:`n_BE == 1` returns only the center atom itself.
+
+        Parameters
+        ----------
+        i_center :
+            The index of the center atom.
+        n_BE :
+            The coordination sphere to consider.
         """
         if n_BE < 1:
             raise ValueError("n_BE must greater than or equal to 1.")
@@ -144,12 +161,30 @@ class ConnectivityData:
     def all_fragments_sites_only(
         self, n_BE: int
     ) -> dict[MotifIdx, OrderedSet[MotifIdx]]:
+        """Return all BE-fragments
+
+        Parameters
+        ----------
+        n_BE :
+            The coordination sphere to consider.
+
+        Returns
+        -------
+        dict
+            A dictionary mapping the center atom to the BE-fragment around it.
+        """
         return {i: self.get_BE_fragment(i, n_BE) for i in self.heavy_atoms}
 
 
 @define
 class SubsetsCleaned:
+    """Small dataclass to contain the results of the cleanup_if_subset function."""
+
+    #: The remaining fragments after removing subsets.
+    #: This is a dictionary mapping the origin index to the set of motif indices.
     motif_per_frag: Final[dict[OriginIdx, OrderedSet[MotifIdx]]]
+    #: The centers that are swallowed by the larger fragment whose center index
+    # becomes the origin index.
     swallowed_centers: Final[CenterPerFrag]
 
 
@@ -160,6 +195,16 @@ def cleanup_if_subset(
 
     We also keep track of the Center indices that are swallowed by the
     larger fragment whose center index becomes the origin index.
+
+    Parameters
+    ----------
+    fragment_indices :
+        A dictionary mapping the center index to the set of motif indices.
+
+    Returns
+    -------
+    SubsetsCleaned
+        The cleaned fragments and a dictionary to keep track of swallowed centers.
     """
     contain_others: CenterPerFrag = defaultdict(OrderedSet)
     subset_of_others: set[CenterIdx] = set()
@@ -196,10 +241,21 @@ def cleanup_if_subset(
 
 @define
 class FragmentedMolecule:
+    """Data structure to store the fragments of a molecule."""
+
+    #: The atoms per fragment.
     atoms_per_frag: Final[dict[OriginIdx, OrderedSet[AtomIdx]]]
+    #: The motifs per fragment.
+    #: Note that the set of motifs in the fragment
+    #: is the union of centers and edges.
     motifs_per_frag: Final[dict[OriginIdx, OrderedSet[MotifIdx]]]
+    #: The centers per fragment.
+    #: Note that the set of centers is the complement of the edges.
     center_per_frag: Final[CenterPerFrag]
+    #: The edges per fragment.
+    #: Note that the set of edges is the complement of the centers.
     edge_per_frag: Final[EdgePerFrag]
+    #: Connectivity data of the molecule.
     conn_data: Final[ConnectivityData]
     n_BE: Final[int]
 
@@ -247,10 +303,32 @@ class FragmentedMolecule:
     def from_cartesian(
         cls, mol: Cartesian, n_BE: int, treat_H_different: bool = True
     ) -> Self:
+        """Construct a :class:`FragmentedMolecule` from a :class:`chemcoord.Cartesian`.
+
+        Parameters
+        ----------
+        mol :
+            The Cartesian object to extract the connectivity data from.
+        n_BE :
+            The coordination sphere to consider.
+        treat_H_different :
+            If True, we treat hydrogen atoms differently from heavy atoms.
+        """
         return cls.from_motifs(
             ConnectivityData.from_cartesian(mol, treat_H_different), n_BE
         )
 
     @classmethod
     def from_Mol(cls, mol: Mole, n_BE: int, treat_H_different: bool = True) -> Self:
+        """Construct a :class:`FragmentedMolecule` from a :class:`pyscf.gto.mole.Mole`.
+
+        Parameters
+        ----------
+        mol :
+            The Molecule to extract the connectivity data from.
+        n_BE :
+            The coordination sphere to consider.
+        treat_H_different :
+            If True, we treat hydrogen atoms differently from heavy atoms.
+        """
         return cls.from_cartesian(Cartesian.from_pyscf(mol), n_BE, treat_H_different)
