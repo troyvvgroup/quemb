@@ -10,47 +10,53 @@ from typing_extensions import Self
 
 from quemb.shared.typing import T
 
-#: The index of an atomic orbital.
-AOIdx = NewType("AOIdx", int)
-
-
 #: The index of an atom.
 AtomIdx = NewType("AtomIdx", int)
 
-CenterIdx = NewType("CenterIdx", AtomIdx)
-EdgeIdx = NewType("EdgeIdx", AtomIdx)
-MotifIdx: TypeAlias = CenterIdx | EdgeIdx
+#: The index of a heavy atom, i.e. of a motif.
+#: If hydrogen atoms are not treated differently, then every atom
+#: is a motif, and this type is equivalent to :class:`AtomIdx`.
+MotifIdx = NewType("MotifIdx", AtomIdx)
+#: In a given fragment, this is the index of a center.
+#: A center was used to generate a fragment around it.
+#: Since a fragment can swallow other smaller fragments, there
+#: is only one origin per fragment but multiple centers,
+#: which are the origins of the swallowed fragments.
+CenterIdx = NewType("CenterIdx", MotifIdx)
+#: An edge is the complement of the set of centers in a fragment.
+EdgeIdx = NewType("EdgeIdx", MotifIdx)
 
+#: In a given BE fragment, this is the origin of the remaining
+#: fragment after subsets have been removed.
+#: Since a fragment can swallow other smaller fragments, there
+#: is only one origin per fragment but multiple centers,
+#: which are the origins of the swallowed fragments.
+#:
+#: In the following example we have drawn two fragments,
+#: one around atom A and one around atom B. The fragment
+#: around atom A is completely contained in the fragment around B,
+#: hence we remove it. The remaining fragment around B has the origin B,
+#: and swallowed the fragment around A.
+#: Hence its centers are A and B.
+#: The edge is the complement of the centers, hence for the fragment around B
+#: the set of edge is the one-element set {C}.
+#:
+#: .. code-block::
+#:
+#:    __________
+#:    |        |  BE2 fragment around A
+#:    |        |
+#:    ___________________
+#:    |        |        |   BE2 fragment around B
+#:    |        |        |
+#:    A ------ B ------ C ------ D
+#:    |        |        |        |
+#:
 OriginIdx = NewType("OriginIdx", CenterIdx)
 
 
-#: A dictionary that maps an atom index, the center,
-#: to a set of center indices.
-#: At the minimum this is just a dictionary that maps a center index
-#: to a one-element set containing itself,
-#: but if other fragments are contained in the fragment of the key :code:`i_center`,
-#: then the set can also contain other center indices.
-#: I.e.
-#: .. code-block:: python
-#:
-#:      j_center in contained_center_indices[i_center]
-#:      # implies
-#:      fragments[j_center] <= fragments[i_center]
-#:
-#: Note the following property for the case of exactly equal fragments:
-#:
-#: .. code-block:: python
-#:
-#:      if (j_center in contained_center_indices[i_center])
-#            and fragments[j_center] == fragments[i_center]):
-#:          i_center <= j_center
 CenterPerFrag: TypeAlias = dict[OriginIdx, OrderedSet[CenterIdx]]
-
 EdgePerFrag: TypeAlias = dict[OriginIdx, OrderedSet[EdgeIdx]]
-
-#: A dictionary that maps an atom index, the center,
-#: to a set of AO indices in the corresponding BE fragment.
-AOPerFrag = NewType("AOPerFrag", dict[CenterIdx, OrderedSet[AOIdx]])
 
 
 def merge_seqs(*seqs: Sequence[T]) -> OrderedSet[T]:
@@ -229,43 +235,3 @@ class FragmentedMolecule:
     @classmethod
     def from_Mol(cls, mol: Mole, n_BE: int) -> Self:
         return cls.from_cartesian(mol.to_pysf(), n_BE)
-
-
-# def get_fs(
-#     mol: Mole, fragments: AtomPerFrag
-# ) -> dict[CenterIdx, dict[AtomIdx, OrderedSet[AOIdx]]]:
-#     atom_to_AO = [
-#         OrderedSet(AOIdx(i) for i in range(AO_offsets[2], AO_offsets[3]))
-#         for AO_offsets in mol.aoslice_by_atom()
-#     ]
-
-#     def AO_indices_of_fragment(
-#         fragment: OrderedSet[AtomIdx],
-#     ) -> dict[AtomIdx, OrderedSet[AOIdx]]:
-#         # mypy wrongly complains that set(range(n)) is not valid, which it is.
-#         return {i_atom: atom_to_AO[i_atom] for i_atom in fragment}
-
-#     return {
-#         i_center: AO_indices_of_fragment(fragment)
-#         for i_center, fragment in fragments.items()
-#     }
-
-
-# def get_fsites(mol: Mole, fragments: AtomPerFrag) -> AOPerFrag:
-#     return AOPerFrag(
-#         {
-#             i_center: merge_sets(*i_fragment.values())
-#             for i_center, i_fragment in get_fs(mol, fragments).items()
-#         }
-#     )
-
-
-# # def get_edge_idx(fragments: AtomPerFrag) -> dict[CenterIdx, OrderedSet[CenterIdx]]:
-# #     return {
-# #         i_center: {
-# #             j_center
-# #             for j_center, j_fragment in fragments.items()
-# #             if (i_fragment & j_fragment)
-# #         }
-# #         for i_center, i_fragment in fragments.items()
-# #     }
