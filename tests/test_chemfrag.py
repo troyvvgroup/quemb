@@ -324,3 +324,24 @@ def test_cleaned_fragments():
     }
 
     assert cleaned_fragments == expected
+
+
+# def test_fragmented_molecule():
+#     V
+
+
+def test_pairwise_fragmentation():
+    """Tests Minsik's pathological example of a
+    ring with pairwise fragmentation
+
+    C3 - C2
+    |    |
+    C0 - C1
+    """
+    m = Cartesian.set_atom_coords(
+        atoms=["C", "C", "C", "C"], coords=[[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]]
+    )
+
+    conn_data = ConnectivityData.from_cartesian(m)
+
+    conn_data.all_fragments_sites_only(2)

@@ -1,11 +1,12 @@
 from collections import defaultdict
 from collections.abc import Sequence
-from typing import Final, NewType, Self, TypeAlias, cast
+from typing import Final, NewType, TypeAlias, cast
 
 from attr import define
 from chemcoord import Cartesian
 from ordered_set import OrderedSet
 from pyscf.gto import Mole
+from typing_extensions import Self
 
 from quemb.shared.typing import T
 
@@ -16,9 +17,9 @@ AOIdx = NewType("AOIdx", int)
 #: The index of an atom.
 AtomIdx = NewType("AtomIdx", int)
 
-CenterIdx = NewType("CenterIdx", AtomIdx)
-EdgeIdx = NewType("EdgeIdx", AtomIdx)
-MotifIdx: TypeAlias = CenterIdx | EdgeIdx
+MotifIdx = NewType("MotifIdx", AtomIdx)
+CenterIdx = NewType("CenterIdx", MotifIdx)
+EdgeIdx = NewType("EdgeIdx", MotifIdx)
 
 OriginIdx = NewType("OriginIdx", CenterIdx)
 
@@ -93,14 +94,14 @@ class ConnectivityData:
         bonds = {k: OrderedSet(sorted(v)) for k, v in m.get_bonds().items()}
         heavy_atoms = OrderedSet(m.loc[m.atom != "H", :].index)
         site_bonds = {site: bonds[site] & heavy_atoms for site in heavy_atoms}
-        H_atoms = OrderedSet(m.index).difference(heavy_atoms)
-        H_per_motif = {i_site: bonds[i_site] & H_atoms for i_site in heavy_atoms}
+        H_atoms = OrderedSet(m.index) - (heavy_atoms)
+        H_per_heavy_atom = {i_site: bonds[i_site] & H_atoms for i_site in heavy_atoms}
         atoms_per_motif = {
             i_site: merge_seqs([i_site], H_atoms)
-            for i_site, H_atoms in H_per_motif.items()
+            for i_site, H_atoms in H_per_heavy_atom.items()
         }
         return cls(
-            bonds, heavy_atoms, site_bonds, H_atoms, H_per_motif, atoms_per_motif
+            bonds, heavy_atoms, site_bonds, H_atoms, H_per_heavy_atom, atoms_per_motif
         )
 
     def get_BE_fragment(self, i_center: MotifIdx, n_BE: int) -> OrderedSet[MotifIdx]:
@@ -115,12 +116,10 @@ class ConnectivityData:
         result = OrderedSet({i_center})
         new = result.copy()
         for _ in range(n_BE - 1):
-            new = merge_seqs(*(self.heavy_atom_bonds[i] for i in new)).difference(
-                result
-            )
+            new = merge_seqs(*(self.heavy_atom_bonds[i] for i in new)) - result
             if not new:
                 break
-            result = result.union(new)
+            result = result | new
         return result
 
     def all_fragments_sites_only(
@@ -207,9 +206,7 @@ class FragmentedMolecule:
             # we can rightfully cast the result to EdgeIdx.
             return cast(
                 OrderedSet[EdgeIdx],
-                fragments.motif_per_frag[i_origin].difference(
-                    center_per_frag[i_origin]
-                ),
+                fragments.motif_per_frag[i_origin] - center_per_frag[i_origin],
             )
 
         return cls(
