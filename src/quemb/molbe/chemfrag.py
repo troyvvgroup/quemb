@@ -195,53 +195,6 @@ class FragmentedMolecule:
         return cls.from_cartesian(mol.to_pysf(), n_BE)
 
 
-# def add_back_H(m: Cartesian, n_BE: int, fragments: AtomPerFrag) -> AtomPerFrag:
-#     """Add back the non-considered hydrogens
-
-#     If we considered only non-hydrogen atoms before, i.e. :code:`pure_heavy is True`,
-#     then add back the hydrogens."""
-#     only_H = OrderedSet(m.loc[m.atom == "H", :].index)
-#     m.get_bonds(set_lookup=True)
-
-#     def get_BE_coord_sphere(i_center: CenterIdx) -> OrderedSet[AtomIdx]:
-#         return OrderedSet(
-#             m.get_coordination_sphere(
-#                 i_center, n_sphere=n_BE, only_surface=False, use_lookup=True
-#             ).index
-#         )
-
-#     return AtomPerFrag(
-#         {
-#             i_center: fragment_index.union(get_BE_coord_sphere(i_center) & only_H)
-#             for i_center, fragment_index in fragments.items()
-#         }
-#     )
-
-
-# # def get_BE_fragments(
-# #     m: Cartesian, n_BE: int = 3, pure_heavy: bool = True
-# # ) -> FragmentedMolecule:
-# #     """Create the BE fragments for the molecule m.
-
-# #     Adhere to BE literature nomenclature,
-# #     i.e. BE(n) takes the n - 1 coordination sphere."""
-# #     m_considered = m.loc[m.atom != "H", :] if pure_heavy else m
-# #     fragments = cleanup_if_subset(
-# #         AtomPerFrag(
-# #             {
-# #                 i_center: get_BE_fragment(m_considered, i_center, n_BE)
-# #                 for i_center in m_considered.index
-# #             }
-# #         )
-# #     )
-# #     if pure_heavy:
-# #         return FragmentedMolecule(
-# #             add_back_H(m, n_BE, fragments.atom_per_frag),
-# #             fragments.contained_center_indices,
-# #         )
-# #     return fragments
-
-
 # def get_fs(
 #     mol: Mole, fragments: AtomPerFrag
 # ) -> dict[CenterIdx, dict[AtomIdx, OrderedSet[AOIdx]]]:
