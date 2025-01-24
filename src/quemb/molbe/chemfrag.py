@@ -43,18 +43,28 @@ OriginIdx = NewType("OriginIdx", CenterIdx)
 #:      if (j_center in contained_center_indices[i_center])
 #            and fragments[j_center] == fragments[i_center]):
 #:          i_center <= j_center
-ContainedCenterIdx = NewType(
-    "ContainedCenterIdx", dict[OriginIdx, OrderedSet[CenterIdx]]
-)
+CenterPerFrag: TypeAlias = dict[OriginIdx, OrderedSet[CenterIdx]]
+
+EdgePerFrag: TypeAlias = dict[OriginIdx, OrderedSet[EdgeIdx]]
 
 #: A dictionary that maps an atom index, the center,
 #: to a set of AO indices in the corresponding BE fragment.
 AOPerFrag = NewType("AOPerFrag", dict[CenterIdx, OrderedSet[AOIdx]])
 
 
-def merge_sets(*sets: Sequence[T]) -> OrderedSet[T]:
+def merge_seq(*seqs: Sequence[T]) -> OrderedSet[T]:
+    """Merge multiple sequences into a single :class:`OrderedSet`.
+
+    This preserves the order of the elements in each sequence,
+    and of the arguments to this function, but removes duplicates.
+    (Always the first occurrence of an element is kept.)
+
+    .. code-block:: python
+
+        merge_seq([1, 2], [2, 3], [1, 4]) -> OrderedSet([1, 2, 3, 4])
+    """
     # mypy wrongly complains that the arg type is not valid, which it is.
-    return OrderedSet().union(*sets)  # type: ignore[arg-type]
+    return OrderedSet().union(*seqs)  # type: ignore[arg-type]
 
 
 @define
@@ -85,7 +95,7 @@ class ConnectivityData:
         H_atoms = OrderedSet(m.index).difference(heavy_atoms)
         H_per_motif = {i_site: bonds[i_site] & H_atoms for i_site in heavy_atoms}
         atoms_per_motif = {
-            i_site: merge_sets([i_site], H_atoms)
+            i_site: merge_seq([i_site], H_atoms)
             for i_site, H_atoms in H_per_motif.items()
         }
         return cls(
@@ -104,9 +114,7 @@ class ConnectivityData:
         result = OrderedSet({i_center})
         new = result.copy()
         for _ in range(n_BE - 1):
-            new = merge_sets(*(self.heavy_atom_bonds[i] for i in new)).difference(
-                result
-            )
+            new = merge_seq(*(self.heavy_atom_bonds[i] for i in new)).difference(result)
             if not new:
                 break
             result = result.union(new)
@@ -121,14 +129,14 @@ class ConnectivityData:
 @define
 class SubsetsCleaned:
     motif_per_frag: Final[dict[OriginIdx, OrderedSet[MotifIdx]]]
-    contained_center_indices: Final[ContainedCenterIdx]
+    center_per_frag: Final[CenterPerFrag]
 
 
 def cleanup_if_subset(
     fragment_indices: dict[MotifIdx, OrderedSet[MotifIdx]],
 ) -> SubsetsCleaned:
     """Remove fragments that are subsets of other fragments."""
-    contain_others = ContainedCenterIdx(defaultdict(OrderedSet))
+    contain_others = CenterPerFrag(defaultdict(OrderedSet))
     subset_of_others: set[CenterIdx] = set()
 
     for i_center, i_fragment in fragment_indices.items():
@@ -137,8 +145,13 @@ def cleanup_if_subset(
         for j_center in i_fragment:
             if i_center == j_center:
                 continue
+            # Now we treat j_center not as a mere MotifIdx, but as a CenterIdx.
+            # Hence cast it.
             j_center = cast(CenterIdx, j_center)
             if fragment_indices[j_center].issubset(i_fragment):
+                # Now we know that i_center is actually an origin,
+                # because it contains the fragment around j_center.
+                # Hence cast it.
                 i_center = cast(OriginIdx, i_center)
                 subset_of_others.add(j_center)
                 contain_others[i_center] |= {j_center}
@@ -160,7 +173,8 @@ def cleanup_if_subset(
 class FragmentedMolecule:
     atoms_per_frag: Final[dict[OriginIdx, OrderedSet[AtomIdx]]]
     motif_per_frag: Final[dict[OriginIdx, OrderedSet[MotifIdx]]]
-    contained_center_indices: Final[ContainedCenterIdx]
+    center_per_frag: Final[CenterPerFrag]
+    edge_per_frag: Final[EdgePerFrag]
     conn_data: Final[ConnectivityData]
     n_BE: Final[int]
 
@@ -173,15 +187,27 @@ class FragmentedMolecule:
             }
         )
         atoms_per_frag = {
-            i_origin: merge_sets(
-                *[conn_data.atoms_per_motif[i_motif] for i_motif in i_fragment]
+            i_origin: merge_seq(
+                *(conn_data.atoms_per_motif[i_motif] for i_motif in i_fragment)
             )
             for i_origin, i_fragment in fragments.motif_per_frag.items()
         }
+
+        def get_edges(i_origin: OriginIdx) -> OrderedSet[EdgeIdx]:
+            # the complement of the center set is the edge set,
+            # we can rightfully cast the result to EdgeIdx.
+            return cast(
+                OrderedSet[EdgeIdx],
+                fragments.motif_per_frag[i_origin].difference(
+                    fragments.center_per_frag[i_origin]
+                ),
+            )
+
         return cls(
             atoms_per_frag,
             fragments.motif_per_frag,
-            fragments.contained_center_indices,
+            fragments.center_per_frag,
+            {i_origin: get_edges(i_origin) for i_origin in fragments.motif_per_frag},
             conn_data,
             n_BE,
         )
