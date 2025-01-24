@@ -156,7 +156,11 @@ class SubsetsCleaned:
 def cleanup_if_subset(
     fragment_indices: dict[MotifIdx, OrderedSet[MotifIdx]],
 ) -> SubsetsCleaned:
-    """Remove fragments that are subsets of other fragments."""
+    """Remove fragments that are subsets of other fragments.
+
+    We also keep track of the Center indices that are swallowed by the
+    larger fragment whose center index becomes the origin index.
+    """
     contain_others: CenterPerFrag = defaultdict(OrderedSet)
     subset_of_others: set[CenterIdx] = set()
 
