@@ -52,7 +52,7 @@ EdgePerFrag: TypeAlias = dict[OriginIdx, OrderedSet[EdgeIdx]]
 AOPerFrag = NewType("AOPerFrag", dict[CenterIdx, OrderedSet[AOIdx]])
 
 
-def merge_seq(*seqs: Sequence[T]) -> OrderedSet[T]:
+def merge_seqs(*seqs: Sequence[T]) -> OrderedSet[T]:
     """Merge multiple sequences into a single :class:`OrderedSet`.
 
     This preserves the order of the elements in each sequence,
@@ -95,7 +95,7 @@ class ConnectivityData:
         H_atoms = OrderedSet(m.index).difference(heavy_atoms)
         H_per_motif = {i_site: bonds[i_site] & H_atoms for i_site in heavy_atoms}
         atoms_per_motif = {
-            i_site: merge_seq([i_site], H_atoms)
+            i_site: merge_seqs([i_site], H_atoms)
             for i_site, H_atoms in H_per_motif.items()
         }
         return cls(
@@ -114,7 +114,9 @@ class ConnectivityData:
         result = OrderedSet({i_center})
         new = result.copy()
         for _ in range(n_BE - 1):
-            new = merge_seq(*(self.heavy_atom_bonds[i] for i in new)).difference(result)
+            new = merge_seqs(*(self.heavy_atom_bonds[i] for i in new)).difference(
+                result
+            )
             if not new:
                 break
             result = result.union(new)
@@ -129,7 +131,7 @@ class ConnectivityData:
 @define
 class SubsetsCleaned:
     motif_per_frag: Final[dict[OriginIdx, OrderedSet[MotifIdx]]]
-    center_per_frag: Final[CenterPerFrag]
+    swallowed_centers: Final[CenterPerFrag]
 
 
 def cleanup_if_subset(
@@ -172,7 +174,7 @@ def cleanup_if_subset(
 @define
 class FragmentedMolecule:
     atoms_per_frag: Final[dict[OriginIdx, OrderedSet[AtomIdx]]]
-    motif_per_frag: Final[dict[OriginIdx, OrderedSet[MotifIdx]]]
+    motifs_per_frag: Final[dict[OriginIdx, OrderedSet[MotifIdx]]]
     center_per_frag: Final[CenterPerFrag]
     edge_per_frag: Final[EdgePerFrag]
     conn_data: Final[ConnectivityData]
@@ -187,10 +189,16 @@ class FragmentedMolecule:
             }
         )
         atoms_per_frag = {
-            i_origin: merge_seq(
+            i_origin: merge_seqs(
                 *[conn_data.atoms_per_motif[i_motif] for i_motif in i_fragment]
             )
             for i_origin, i_fragment in fragments.motif_per_frag.items()
+        }
+        center_per_frag = {
+            i_origin: merge_seqs(
+                [i_origin], fragments.swallowed_centers.get(i_origin, [])
+            )
+            for i_origin in fragments.motif_per_frag
         }
 
         def get_edges(i_origin: OriginIdx) -> OrderedSet[EdgeIdx]:
@@ -199,14 +207,14 @@ class FragmentedMolecule:
             return cast(
                 OrderedSet[EdgeIdx],
                 fragments.motif_per_frag[i_origin].difference(
-                    fragments.center_per_frag[i_origin]
+                    center_per_frag[i_origin]
                 ),
             )
 
         return cls(
             atoms_per_frag,
             fragments.motif_per_frag,
-            fragments.center_per_frag,
+            center_per_frag,
             {i_origin: get_edges(i_origin) for i_origin in fragments.motif_per_frag},
             conn_data,
             n_BE,
