@@ -1,11 +1,12 @@
 from collections import defaultdict
 from collections.abc import Sequence
-from typing import Final, NewType, Self, TypeAlias, cast
+from typing import Final, NewType, TypeAlias, cast
 
 from attr import define
 from chemcoord import Cartesian
 from ordered_set import OrderedSet
 from pyscf.gto import Mole
+from typing_extensions import Self
 
 from quemb.shared.typing import T
 
