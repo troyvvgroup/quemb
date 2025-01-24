@@ -158,9 +158,7 @@ class ConnectivityData:
             result = result.union(new)
         return result
 
-    def all_fragments_sites_only(
-        self, n_BE: int
-    ) -> dict[MotifIdx, OrderedSet[MotifIdx]]:
+    def get_all_BE_fragments(self, n_BE: int) -> dict[MotifIdx, OrderedSet[MotifIdx]]:
         """Return all BE-fragments
 
         Parameters

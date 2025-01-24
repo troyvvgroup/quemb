@@ -245,7 +245,7 @@ def test_fragment_generation():
     }
 
     fragments = {
-        n_BE: ConnectivityData.from_cartesian(m).all_fragments_sites_only(n_BE)
+        n_BE: ConnectivityData.from_cartesian(m).get_all_BE_fragments(n_BE)
         for n_BE in range(1, 9)
     }
 
@@ -320,7 +320,7 @@ def test_cleaned_fragments():
 
     cleaned_fragments = {
         n_BE: cleanup_if_subset(
-            ConnectivityData.from_cartesian(m).all_fragments_sites_only(n_BE)
+            ConnectivityData.from_cartesian(m).get_all_BE_fragments(n_BE)
         )
         for n_BE in range(1, 9)
     }
