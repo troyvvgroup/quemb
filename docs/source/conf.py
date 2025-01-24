@@ -59,6 +59,7 @@ intersphinx_mapping = {
     "pyscf": ("https://pyscf.org/", None),
     "h5py": ("https://docs.h5py.org/en/stable/", None),
     "networkx": ("https://networkx.org/documentation/stable/", None),
+    "chemcoord": ("https://chemcoord.readthedocs.io/en/latest/", None),
 }
 
 
