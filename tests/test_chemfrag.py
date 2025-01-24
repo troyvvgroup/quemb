@@ -3,6 +3,8 @@ from ordered_set import OrderedSet
 
 from quemb.molbe.chemfrag import (
     ConnectivityData,
+    SubsetsCleaned,
+    cleanup_if_subset,
 )
 
 
@@ -246,3 +248,79 @@ def test_fragment_generation():
     }
 
     assert fragments == expected
+
+
+def test_cleaned_fragments():
+    """In this test fragments that are subsets of others are also removed.
+    It is also tested if the assignment of an origin, i.e. the center with the
+    lowest index whose fragment is a superset of other fragments, reliably works.
+    """
+    m = Cartesian.read_xyz("data/octane.xyz")
+
+    expected = {
+        1: SubsetsCleaned(
+            motif_per_frag={
+                0: OrderedSet([0]),
+                1: OrderedSet([1]),
+                6: OrderedSet([6]),
+                7: OrderedSet([7]),
+                12: OrderedSet([12]),
+                13: OrderedSet([13]),
+                18: OrderedSet([18]),
+                19: OrderedSet([19]),
+            },
+            swallowed_centers={},
+        ),
+        2: SubsetsCleaned(
+            motif_per_frag={
+                0: OrderedSet([0, 1, 7]),
+                1: OrderedSet([1, 0, 6]),
+                6: OrderedSet([6, 1, 12]),
+                7: OrderedSet([7, 0, 13]),
+                12: OrderedSet([12, 6, 18]),
+                13: OrderedSet([13, 7, 19]),
+            },
+            swallowed_centers={12: OrderedSet([18]), 13: OrderedSet([19])},
+        ),
+        3: SubsetsCleaned(
+            motif_per_frag={
+                0: OrderedSet([0, 1, 7, 6, 13]),
+                1: OrderedSet([1, 0, 6, 7, 12]),
+                6: OrderedSet([6, 1, 12, 0, 18]),
+                7: OrderedSet([7, 0, 13, 1, 19]),
+            },
+            swallowed_centers={6: OrderedSet([12, 18]), 7: OrderedSet([13, 19])},
+        ),
+        4: SubsetsCleaned(
+            motif_per_frag={
+                0: OrderedSet([0, 1, 7, 6, 13, 12, 19]),
+                1: OrderedSet([1, 0, 6, 7, 12, 13, 18]),
+            },
+            swallowed_centers={0: OrderedSet([7, 13, 19]), 1: OrderedSet([6, 12, 18])},
+        ),
+        5: SubsetsCleaned(
+            motif_per_frag={0: OrderedSet([0, 1, 7, 6, 13, 12, 19, 18])},
+            swallowed_centers={0: OrderedSet([1, 7, 6, 13, 12, 19, 18])},
+        ),
+        6: SubsetsCleaned(
+            motif_per_frag={0: OrderedSet([0, 1, 7, 6, 13, 12, 19, 18])},
+            swallowed_centers={0: OrderedSet([1, 7, 6, 13, 12, 19, 18])},
+        ),
+        7: SubsetsCleaned(
+            motif_per_frag={0: OrderedSet([0, 1, 7, 6, 13, 12, 19, 18])},
+            swallowed_centers={0: OrderedSet([1, 7, 6, 13, 12, 19, 18])},
+        ),
+        8: SubsetsCleaned(
+            motif_per_frag={0: OrderedSet([0, 1, 7, 6, 13, 12, 19, 18])},
+            swallowed_centers={0: OrderedSet([1, 7, 6, 13, 12, 19, 18])},
+        ),
+    }
+
+    cleaned_fragments = {
+        n_BE: cleanup_if_subset(
+            ConnectivityData.from_cartesian(m).all_fragments_sites_only(n_BE)
+        )
+        for n_BE in range(1, 9)
+    }
+
+    assert cleaned_fragments == expected
