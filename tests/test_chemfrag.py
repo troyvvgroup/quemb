@@ -1,0 +1,248 @@
+from chemcoord import Cartesian
+from ordered_set import OrderedSet
+
+from quemb.molbe.chemfrag import (
+    ConnectivityData,
+)
+
+
+def test_connectivity_data():
+    m = Cartesian.read_xyz("data/octane.xyz")
+
+    conn_data = ConnectivityData.from_cartesian(m)
+    expected = ConnectivityData(
+        bonds={
+            0: OrderedSet([1, 3, 5, 7]),
+            1: OrderedSet([0, 2, 4, 6]),
+            2: OrderedSet([1]),
+            3: OrderedSet([0]),
+            4: OrderedSet([1]),
+            5: OrderedSet([0]),
+            6: OrderedSet([1, 8, 10, 12]),
+            7: OrderedSet([0, 9, 11, 13]),
+            8: OrderedSet([6]),
+            9: OrderedSet([7]),
+            10: OrderedSet([6]),
+            11: OrderedSet([7]),
+            12: OrderedSet([6, 14, 16, 18]),
+            13: OrderedSet([7, 15, 17, 19]),
+            14: OrderedSet([12]),
+            15: OrderedSet([13]),
+            16: OrderedSet([12]),
+            17: OrderedSet([13]),
+            18: OrderedSet([12, 20, 22, 25]),
+            19: OrderedSet([13, 21, 23, 24]),
+            20: OrderedSet([18]),
+            21: OrderedSet([19]),
+            22: OrderedSet([18]),
+            23: OrderedSet([19]),
+            24: OrderedSet([19]),
+            25: OrderedSet([18]),
+        },
+        heavy_atoms=OrderedSet([0, 1, 6, 7, 12, 13, 18, 19]),
+        heavy_atom_bonds={
+            0: OrderedSet([1, 7]),
+            1: OrderedSet([0, 6]),
+            6: OrderedSet([1, 12]),
+            7: OrderedSet([0, 13]),
+            12: OrderedSet([6, 18]),
+            13: OrderedSet([7, 19]),
+            18: OrderedSet([12]),
+            19: OrderedSet([13]),
+        },
+        H_atoms=OrderedSet(
+            [2, 3, 4, 5, 8, 9, 10, 11, 14, 15, 16, 17, 20, 21, 22, 23, 24, 25]
+        ),
+        H_per_motif={
+            0: OrderedSet([3, 5]),
+            1: OrderedSet([2, 4]),
+            6: OrderedSet([8, 10]),
+            7: OrderedSet([9, 11]),
+            12: OrderedSet([14, 16]),
+            13: OrderedSet([15, 17]),
+            18: OrderedSet([20, 22, 25]),
+            19: OrderedSet([21, 23, 24]),
+        },
+        atoms_per_motif={
+            0: OrderedSet([0, 3, 5]),
+            1: OrderedSet([1, 2, 4]),
+            6: OrderedSet([6, 8, 10]),
+            7: OrderedSet([7, 9, 11]),
+            12: OrderedSet([12, 14, 16]),
+            13: OrderedSet([13, 15, 17]),
+            18: OrderedSet([18, 20, 22, 25]),
+            19: OrderedSet([19, 21, 23, 24]),
+        },
+    )
+
+    assert conn_data == expected
+
+    # sort carbon atoms first and then by y coordinate,
+    # i.e. the visual order of the atoms in the molecule
+    resorted_conn_data = ConnectivityData.from_cartesian(
+        m.sort_values(by=["atom", "y"]).reset_index()
+    )
+
+    resorted_expected = ConnectivityData(
+        bonds={
+            0: OrderedSet([1, 8, 9, 10]),
+            1: OrderedSet([0, 2, 11, 12]),
+            2: OrderedSet([1, 3, 13, 14]),
+            3: OrderedSet([2, 4, 15, 16]),
+            4: OrderedSet([3, 5, 17, 18]),
+            5: OrderedSet([4, 6, 19, 20]),
+            6: OrderedSet([5, 7, 21, 22]),
+            7: OrderedSet([6, 23, 24, 25]),
+            8: OrderedSet([0]),
+            9: OrderedSet([0]),
+            10: OrderedSet([0]),
+            11: OrderedSet([1]),
+            12: OrderedSet([1]),
+            13: OrderedSet([2]),
+            14: OrderedSet([2]),
+            15: OrderedSet([3]),
+            16: OrderedSet([3]),
+            17: OrderedSet([4]),
+            18: OrderedSet([4]),
+            19: OrderedSet([5]),
+            20: OrderedSet([5]),
+            21: OrderedSet([6]),
+            22: OrderedSet([6]),
+            23: OrderedSet([7]),
+            24: OrderedSet([7]),
+            25: OrderedSet([7]),
+        },
+        heavy_atoms=OrderedSet([0, 1, 2, 3, 4, 5, 6, 7]),
+        heavy_atom_bonds={
+            0: OrderedSet([1]),
+            1: OrderedSet([0, 2]),
+            2: OrderedSet([1, 3]),
+            3: OrderedSet([2, 4]),
+            4: OrderedSet([3, 5]),
+            5: OrderedSet([4, 6]),
+            6: OrderedSet([5, 7]),
+            7: OrderedSet([6]),
+        },
+        H_atoms=OrderedSet(
+            [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]
+        ),
+        H_per_motif={
+            0: OrderedSet([8, 9, 10]),
+            1: OrderedSet([11, 12]),
+            2: OrderedSet([13, 14]),
+            3: OrderedSet([15, 16]),
+            4: OrderedSet([17, 18]),
+            5: OrderedSet([19, 20]),
+            6: OrderedSet([21, 22]),
+            7: OrderedSet([23, 24, 25]),
+        },
+        atoms_per_motif={
+            0: OrderedSet([0, 8, 9, 10]),
+            1: OrderedSet([1, 11, 12]),
+            2: OrderedSet([2, 13, 14]),
+            3: OrderedSet([3, 15, 16]),
+            4: OrderedSet([4, 17, 18]),
+            5: OrderedSet([5, 19, 20]),
+            6: OrderedSet([6, 21, 22]),
+            7: OrderedSet([7, 23, 24, 25]),
+        },
+    )
+
+    assert resorted_conn_data == resorted_expected
+
+
+def test_fragment_generation():
+    """This does not yet test the cleanup of subsets, i.e. also fragments
+    that are fully contained in others are returned."""
+
+    m = Cartesian.read_xyz("data/octane.xyz")
+
+    expected = {
+        1: {
+            0: OrderedSet([0]),
+            1: OrderedSet([1]),
+            6: OrderedSet([6]),
+            7: OrderedSet([7]),
+            12: OrderedSet([12]),
+            13: OrderedSet([13]),
+            18: OrderedSet([18]),
+            19: OrderedSet([19]),
+        },
+        2: {
+            0: OrderedSet([0, 1, 7]),
+            1: OrderedSet([1, 0, 6]),
+            6: OrderedSet([6, 1, 12]),
+            7: OrderedSet([7, 0, 13]),
+            12: OrderedSet([12, 6, 18]),
+            13: OrderedSet([13, 7, 19]),
+            18: OrderedSet([18, 12]),
+            19: OrderedSet([19, 13]),
+        },
+        3: {
+            0: OrderedSet([0, 1, 7, 6, 13]),
+            1: OrderedSet([1, 0, 6, 7, 12]),
+            6: OrderedSet([6, 1, 12, 0, 18]),
+            7: OrderedSet([7, 0, 13, 1, 19]),
+            12: OrderedSet([12, 6, 18, 1]),
+            13: OrderedSet([13, 7, 19, 0]),
+            18: OrderedSet([18, 12, 6]),
+            19: OrderedSet([19, 13, 7]),
+        },
+        4: {
+            0: OrderedSet([0, 1, 7, 6, 13, 12, 19]),
+            1: OrderedSet([1, 0, 6, 7, 12, 13, 18]),
+            6: OrderedSet([6, 1, 12, 0, 18, 7]),
+            7: OrderedSet([7, 0, 13, 1, 19, 6]),
+            12: OrderedSet([12, 6, 18, 1, 0]),
+            13: OrderedSet([13, 7, 19, 0, 1]),
+            18: OrderedSet([18, 12, 6, 1]),
+            19: OrderedSet([19, 13, 7, 0]),
+        },
+        5: {
+            0: OrderedSet([0, 1, 7, 6, 13, 12, 19, 18]),
+            1: OrderedSet([1, 0, 6, 7, 12, 13, 18, 19]),
+            6: OrderedSet([6, 1, 12, 0, 18, 7, 13]),
+            7: OrderedSet([7, 0, 13, 1, 19, 6, 12]),
+            12: OrderedSet([12, 6, 18, 1, 0, 7]),
+            13: OrderedSet([13, 7, 19, 0, 1, 6]),
+            18: OrderedSet([18, 12, 6, 1, 0]),
+            19: OrderedSet([19, 13, 7, 0, 1]),
+        },
+        6: {
+            0: OrderedSet([0, 1, 7, 6, 13, 12, 19, 18]),
+            1: OrderedSet([1, 0, 6, 7, 12, 13, 18, 19]),
+            6: OrderedSet([6, 1, 12, 0, 18, 7, 13, 19]),
+            7: OrderedSet([7, 0, 13, 1, 19, 6, 12, 18]),
+            12: OrderedSet([12, 6, 18, 1, 0, 7, 13]),
+            13: OrderedSet([13, 7, 19, 0, 1, 6, 12]),
+            18: OrderedSet([18, 12, 6, 1, 0, 7]),
+            19: OrderedSet([19, 13, 7, 0, 1, 6]),
+        },
+        7: {
+            0: OrderedSet([0, 1, 7, 6, 13, 12, 19, 18]),
+            1: OrderedSet([1, 0, 6, 7, 12, 13, 18, 19]),
+            6: OrderedSet([6, 1, 12, 0, 18, 7, 13, 19]),
+            7: OrderedSet([7, 0, 13, 1, 19, 6, 12, 18]),
+            12: OrderedSet([12, 6, 18, 1, 0, 7, 13, 19]),
+            13: OrderedSet([13, 7, 19, 0, 1, 6, 12, 18]),
+            18: OrderedSet([18, 12, 6, 1, 0, 7, 13]),
+            19: OrderedSet([19, 13, 7, 0, 1, 6, 12]),
+        },
+        8: {
+            0: OrderedSet([0, 1, 7, 6, 13, 12, 19, 18]),
+            1: OrderedSet([1, 0, 6, 7, 12, 13, 18, 19]),
+            6: OrderedSet([6, 1, 12, 0, 18, 7, 13, 19]),
+            7: OrderedSet([7, 0, 13, 1, 19, 6, 12, 18]),
+            12: OrderedSet([12, 6, 18, 1, 0, 7, 13, 19]),
+            13: OrderedSet([13, 7, 19, 0, 1, 6, 12, 18]),
+            18: OrderedSet([18, 12, 6, 1, 0, 7, 13, 19]),
+            19: OrderedSet([19, 13, 7, 0, 1, 6, 12, 18]),
+        },
+    }
+
+    fragments = {
+        n_BE: ConnectivityData.from_cartesian(m).all_fragments_sites_only(n_BE)
+        for n_BE in range(1, 9)
+    }
+
+    assert fragments == expected

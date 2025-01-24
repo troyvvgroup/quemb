@@ -89,6 +89,7 @@ class ConnectivityData:
         if not (m.index.min() == 0 and m.index.max() == len(m) - 1):
             raise ValueError("We assume 0-indexed data for the rest of the code.")
         m = m.sort_index()
+
         bonds = {k: OrderedSet(sorted(v)) for k, v in m.get_bonds().items()}
         heavy_atoms = OrderedSet(m.loc[m.atom != "H", :].index)
         site_bonds = {site: bonds[site] & heavy_atoms for site in heavy_atoms}
