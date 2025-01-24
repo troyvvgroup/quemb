@@ -1070,6 +1070,6 @@ def test_fragmented_molecule():
 
     assert fragmented == expected
     assert (
-        fragmented[6].motifs_per_frag
+        FragmentedMolecule.from_cartesian(m, n_BE=6).motifs_per_frag
         == FragmentedMolecule.from_cartesian(m, n_BE=20).motifs_per_frag
     )
