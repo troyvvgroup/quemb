@@ -2,6 +2,7 @@ from collections import defaultdict
 from collections.abc import Sequence
 from typing import Final, NewType, TypeAlias, cast
 
+import chemcoord as cc
 from attr import define
 from chemcoord import Cartesian
 from ordered_set import OrderedSet
@@ -74,7 +75,7 @@ def merge_seqs(*seqs: Sequence[T]) -> OrderedSet[T]:
     return OrderedSet().union(*seqs)  # type: ignore[arg-type]
 
 
-@define
+@define(frozen=True)
 class ConnectivityData:
     """Data structure to store the connectivity data of a molecule."""
 
@@ -108,7 +109,11 @@ class ConnectivityData:
             raise ValueError("We assume 0-indexed data for the rest of the code.")
         m = m.sort_index()
 
-        bonds = {k: OrderedSet(sorted(v)) for k, v in m.get_bonds().items()}
+        with cc.constants.RestoreElementData():
+            # temporarily increase van der Waals radius by 20 %
+            cc.constants.elements.loc[:, "atomic_radius_cc"] *= 1.2
+            bonds = {k: OrderedSet(sorted(v)) for k, v in m.get_bonds().items()}
+
         if treat_H_different:
             heavy_atoms = OrderedSet(m.loc[m.atom != "H", :].index)
         else:
@@ -174,7 +179,7 @@ class ConnectivityData:
         return {i: self.get_BE_fragment(i, n_BE) for i in self.heavy_atoms}
 
 
-@define
+@define(frozen=True)
 class SubsetsCleaned:
     """Small dataclass to contain the results of the cleanup_if_subset function."""
 
@@ -237,7 +242,7 @@ def cleanup_if_subset(
     )
 
 
-@define
+@define(frozen=True)
 class FragmentedMolecule:
     """Data structure to store the fragments of a molecule."""
 
