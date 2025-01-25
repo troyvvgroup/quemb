@@ -110,8 +110,8 @@ class ConnectivityData:
         m = m.sort_index()
 
         with cc.constants.RestoreElementData():
-            # temporarily increase van der Waals radius by 20 %
-            cc.constants.elements.loc[:, "atomic_radius_cc"] *= 1.2
+            # temporarily increase van der Waals radius by 15 %
+            cc.constants.elements.loc[:, "atomic_radius_cc"] *= 1.15
             bonds = {k: OrderedSet(sorted(v)) for k, v in m.get_bonds().items()}
 
         if treat_H_different:
