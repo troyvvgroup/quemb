@@ -33,14 +33,15 @@ EdgeIdx = NewType("EdgeIdx", MotifIdx)
 #: is only one origin per fragment but multiple centers,
 #: which are the origins of the swallowed fragments.
 #:
-#: In the following example we have drawn two fragments,
+#: In the following example, we have drawn two fragments,
 #: one around atom A and one around atom B. The fragment
 #: around atom A is completely contained in the fragment around B,
 #: hence we remove it. The remaining fragment around B has the origin B,
 #: and swallowed the fragment around A.
 #: Hence its centers are A and B.
-#: The edge is the complement of the centers, hence for the fragment around B
-#: the set of edge is the one-element set {C}.
+#: The set of edges is the complement of the set of centers,
+#: hence in this case for the fragment around B
+#: the set of edges is the one-element set {C}.
 #:
 #: .. code-block::
 #:
@@ -83,7 +84,7 @@ class ConnectivityData:
     bonds: Final[dict[AtomIdx, OrderedSet[AtomIdx]]]
     #: The heavy atoms/motifs in the molecule.
     heavy_atoms: Final[OrderedSet[MotifIdx]]
-    #: The connectivity graph of the heavy atoms, i.e. ignoring the hydrogen atoms.
+    #: The connectivity graph of the heavy atoms, i.e., ignoring the hydrogen atoms.
     heavy_atom_bonds: Final[dict[MotifIdx, OrderedSet[MotifIdx]]]
     #: The hydrogen atoms in the molecule.
     H_atoms: Final[OrderedSet[AtomIdx]]
@@ -181,13 +182,13 @@ class ConnectivityData:
 
 @define(frozen=True)
 class SubsetsCleaned:
-    """Small dataclass to contain the results of the cleanup_if_subset function."""
+    """Small data class to contain the results of the cleanup_if_subset function."""
 
     #: The remaining fragments after removing subsets.
     #: This is a dictionary mapping the origin index to the set of motif indices.
     motif_per_frag: Final[dict[OriginIdx, OrderedSet[MotifIdx]]]
     #: The centers that are swallowed by the larger fragment whose center index
-    # becomes the origin index.
+    #: becomes the origin index.
     swallowed_centers: Final[CenterPerFrag]
 
 
