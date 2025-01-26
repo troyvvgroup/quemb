@@ -8,6 +8,7 @@ from quemb.molbe.chemfrag import (
     SubsetsCleaned,
     cleanup_if_subset,
 )
+from quemb.molbe.fragment import fragpart
 
 
 def test_connectivity_data():
@@ -1443,3 +1444,22 @@ def test_hydrogen_chain():
     }
 
     assert fragmented == expected
+
+
+def test_agreement_with_autogen():
+    m = Cartesian.read_xyz("data/octane.xyz")
+    mol = m.to_pyscf()
+
+    for n_BE in range(1, 4):
+        chem_frags = FragmentedMolecule.from_cartesian(m, n_BE)
+        auto_frags = fragpart(mol=mol, frag_type="autogen", be_type=f"be{n_BE}")
+
+        motifs = list(chem_frags.motifs_per_frag.values())
+
+        for chem_fragment, auto_fragment in zip(motifs, auto_frags.Frag_atom):
+            # We assert that the first atom, i.e. the origin, is the same for both
+            # chemfrag and autogen
+            assert chem_fragment[0] == auto_fragment[0]
+            # For the rest of the atoms the order can be different,
+            # so we assert set equality
+            assert set(chem_fragment) == set(auto_fragment)
