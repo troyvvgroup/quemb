@@ -11,6 +11,9 @@ from typing_extensions import Self
 
 from quemb.shared.typing import T
 
+#: The index of an atomic orbital.
+AOIdx = NewType("AOIdx", int)
+
 #: The index of an atom.
 AtomIdx = NewType("AtomIdx", int)
 
@@ -246,8 +249,12 @@ def cleanup_if_subset(
 
 
 @define(frozen=True)
-class FragmentedMolecule:
-    """Data structure to store the fragments of a molecule."""
+class FragmentedStructure:
+    """Data structure to store the fragments of a molecule.
+
+    This takes into account only the geometrical data and is
+    independent of the basis sets or the electronic structure.
+    """
 
     #: The atoms per fragment.
     atoms_per_frag: Final[dict[OriginIdx, OrderedSet[AtomIdx]]]
@@ -338,3 +345,103 @@ class FragmentedMolecule:
             If True, we treat hydrogen atoms differently from heavy atoms.
         """
         return cls.from_cartesian(Cartesian.from_pyscf(mol), n_BE, treat_H_different)
+
+
+@define(frozen=True)
+class FragmentedMolecule:
+    """Data structure to store the fragments, including AO indices.
+
+    This takes into account the geometrical data and the used
+    basis sets, hence it "knows" which AO index belongs to which atom
+    and which fragment.
+    Hence, it depends on :class:`FragmentedStructure`.
+
+    Unlike :class:`FragmentedStructure`, this class represents the
+    fragments simply as Sequences of indices, and not as dictionaries.
+    This has the advantage that it makes it future-proof, when
+    we want to use more sophisticated fragmentations such as
+    pair-wise fragmentations, where there are multiple fragments
+    for one origin.
+    In addition it is also backwards compatible to the old Hubbard-model
+    fragmentations, where there are multiple origins per fragment.
+
+    On the other hand, the assumption of
+    exactly one unique origin per fragment
+    and
+    exactly one unique fragment per origin makes
+    the fragmentation code much
+    easier in :class:`FragmentedStructure` and also more efficient.
+    It might be that we never will use the pair-wise fragmentations,
+    hence, the :class:`FragmentedStructure` currently relies on dictionaries
+    and we use the :class:`collections.abc.Sequence` based structure
+    only for the final exposed class.
+    """
+
+    #: The atomic orbital indices per fragment
+    atoms_per_frag: Final[Sequence[OrderedSet[AtomIdx]]]
+    #: The motifs per fragment.
+    #: Note that the set of motifs in the fragment
+    #: is the union of centers and edges.
+    motifs_per_frag: Final[Sequence[OrderedSet[MotifIdx]]]
+    #: The centers per fragment.
+    #: Note that the set of centers is the complement of the edges.
+    center_per_frag: Final[Sequence[OrderedSet[CenterIdx]]]
+    #: The edges per fragment.
+    #: Note that the set of edges is the complement of the centers.
+    edge_per_frag: Final[Sequence[OrderedSet[EdgeIdx]]]
+    #: The origins per frag
+    origin_per_frag: Final[Sequence[OriginIdx]]
+    #: The actual molecule
+    mol: Final[Mole]
+
+    # #: The atomic orbital indices per atom
+    # AO_per_atom: Final[Sequence[range]]
+    # #: The atomic orbital indices per fragment
+    # AO_per_frag: Final[Sequence[range]]
+
+    #: Connectivity data of the molecule.
+    conn_data: Final[ConnectivityData]
+    n_BE: Final[int]
+
+    @classmethod
+    def from_frag_structure(
+        cls, mol: Mole, frag_structure: FragmentedStructure
+    ) -> Self:
+        """Construct a :class:`Fragmented Molecule`
+
+        Parameters
+        ----------
+        mol :
+            The Molecule to extract the connectivity data from.
+        frag_structure :
+            The fragmented structure to use.
+        """
+        AO_per_atom = get_AOidx_per_atom(mol)
+
+        return cls(
+            list(frag_structure.atoms_per_frag.values()),
+            list(frag_structure.motifs_per_frag.values()),
+            list(frag_structure.center_per_frag.values()),
+            list(frag_structure.edge_per_frag.values()),
+            list(frag_structure.atoms_per_frag.keys()),
+            AO_per_atom,
+            mol,
+            frag_structure.conn_data,
+            frag_structure.n_BE,
+        )
+
+
+def get_AOidx_per_atom(mol: Mole) -> list[range]:
+    """Get the range of atomic orbital indices per atom.
+
+    Parameters
+    ----------
+    mol :
+        The molecule to get the atomic orbital indices from.
+
+    Returns
+    -------
+    list
+        A list of ranges of atomic orbital indices per atom.
+    """
+    return [range(AO_offsets[2], AO_offsets[3]) for AO_offsets in mol.aoslice_by_atom()]

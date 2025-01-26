@@ -4,7 +4,7 @@ from pyscf.gto import M
 
 from quemb.molbe.chemfrag import (
     ConnectivityData,
-    FragmentedMolecule,
+    FragmentedStructure,
     SubsetsCleaned,
     cleanup_if_subset,
 )
@@ -332,10 +332,10 @@ def test_cleaned_fragments():
 def test_fragmented_molecule():
     m = Cartesian.read_xyz("data/octane.xyz")
     fragmented = {
-        n_BE: FragmentedMolecule.from_cartesian(m, n_BE=n_BE) for n_BE in range(1, 8)
+        n_BE: FragmentedStructure.from_cartesian(m, n_BE=n_BE) for n_BE in range(1, 8)
     }
     expected = {
-        1: FragmentedMolecule(
+        1: FragmentedStructure(
             atoms_per_frag={
                 0: OrderedSet([0, 3, 5]),
                 1: OrderedSet([1, 2, 4]),
@@ -442,7 +442,7 @@ def test_fragmented_molecule():
             ),
             n_BE=1,
         ),
-        2: FragmentedMolecule(
+        2: FragmentedStructure(
             atoms_per_frag={
                 0: OrderedSet([0, 3, 5, 1, 2, 4, 7, 9, 11]),
                 1: OrderedSet([1, 2, 4, 0, 3, 5, 6, 8, 10]),
@@ -541,7 +541,7 @@ def test_fragmented_molecule():
             ),
             n_BE=2,
         ),
-        3: FragmentedMolecule(
+        3: FragmentedStructure(
             atoms_per_frag={
                 0: OrderedSet([0, 3, 5, 1, 2, 4, 7, 9, 11, 6, 8, 10, 13, 15, 17]),
                 1: OrderedSet([1, 2, 4, 0, 3, 5, 6, 8, 10, 7, 9, 11, 12, 14, 16]),
@@ -632,7 +632,7 @@ def test_fragmented_molecule():
             ),
             n_BE=3,
         ),
-        4: FragmentedMolecule(
+        4: FragmentedStructure(
             atoms_per_frag={
                 0: OrderedSet(
                     [
@@ -762,7 +762,7 @@ def test_fragmented_molecule():
             ),
             n_BE=4,
         ),
-        5: FragmentedMolecule(
+        5: FragmentedStructure(
             atoms_per_frag={
                 0: OrderedSet(
                     [
@@ -864,7 +864,7 @@ def test_fragmented_molecule():
             ),
             n_BE=5,
         ),
-        6: FragmentedMolecule(
+        6: FragmentedStructure(
             atoms_per_frag={
                 0: OrderedSet(
                     [
@@ -966,7 +966,7 @@ def test_fragmented_molecule():
             ),
             n_BE=6,
         ),
-        7: FragmentedMolecule(
+        7: FragmentedStructure(
             atoms_per_frag={
                 0: OrderedSet(
                     [
@@ -1072,8 +1072,8 @@ def test_fragmented_molecule():
 
     assert fragmented == expected
     assert (
-        FragmentedMolecule.from_cartesian(m, n_BE=6).motifs_per_frag
-        == FragmentedMolecule.from_cartesian(m, n_BE=20).motifs_per_frag
+        FragmentedStructure.from_cartesian(m, n_BE=6).motifs_per_frag
+        == FragmentedStructure.from_cartesian(m, n_BE=20).motifs_per_frag
     )
 
 
@@ -1086,12 +1086,12 @@ def test_hydrogen_chain():
     )
 
     fragmented = {
-        n_BE: FragmentedMolecule.from_Mol(mol, n_BE, treat_H_different=False)
+        n_BE: FragmentedStructure.from_Mol(mol, n_BE, treat_H_different=False)
         for n_BE in range(1, 6)
     }
 
     expected = {
-        1: FragmentedMolecule(
+        1: FragmentedStructure(
             atoms_per_frag={
                 0: OrderedSet([0]),
                 1: OrderedSet([1]),
@@ -1179,7 +1179,7 @@ def test_hydrogen_chain():
             ),
             n_BE=1,
         ),
-        2: FragmentedMolecule(
+        2: FragmentedStructure(
             atoms_per_frag={
                 1: OrderedSet([1, 0, 2]),
                 2: OrderedSet([2, 1, 3]),
@@ -1259,7 +1259,7 @@ def test_hydrogen_chain():
             ),
             n_BE=2,
         ),
-        3: FragmentedMolecule(
+        3: FragmentedStructure(
             atoms_per_frag={
                 2: OrderedSet([2, 1, 3, 0, 4]),
                 3: OrderedSet([3, 2, 4, 1, 5]),
@@ -1331,7 +1331,7 @@ def test_hydrogen_chain():
             ),
             n_BE=3,
         ),
-        4: FragmentedMolecule(
+        4: FragmentedStructure(
             atoms_per_frag={
                 3: OrderedSet([3, 2, 4, 1, 5, 0, 6]),
                 4: OrderedSet([4, 3, 5, 2, 6, 1, 7]),
@@ -1389,7 +1389,7 @@ def test_hydrogen_chain():
             ),
             n_BE=4,
         ),
-        5: FragmentedMolecule(
+        5: FragmentedStructure(
             atoms_per_frag={3: OrderedSet([3, 2, 4, 1, 5, 0, 6, 7])},
             motifs_per_frag={3: OrderedSet([3, 2, 4, 1, 5, 0, 6, 7])},
             center_per_frag={3: OrderedSet([3, 2, 1, 0, 4, 5, 6, 7])},
@@ -1451,7 +1451,7 @@ def test_agreement_with_autogen():
     mol = m.to_pyscf()
 
     for n_BE in range(1, 4):
-        chem_frags = FragmentedMolecule.from_cartesian(m, n_BE)
+        chem_frags = FragmentedStructure.from_cartesian(m, n_BE)
         auto_frags = fragpart(mol=mol, frag_type="autogen", be_type=f"be{n_BE}")
 
         motifs = list(chem_frags.motifs_per_frag.values())
