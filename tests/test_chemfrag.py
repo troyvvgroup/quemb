@@ -331,51 +331,61 @@ def test_cleaned_fragments():
 
 def test_fragmented_molecule():
     m = Cartesian.read_xyz("data/octane.xyz")
-    fragmented = {
-        n_BE: FragmentedStructure.from_cartesian(m, n_BE=n_BE) for n_BE in range(1, 8)
-    }
-    expected = {
-        1: FragmentedStructure(
-            atoms_per_frag={
-                0: OrderedSet([0, 3, 5]),
-                1: OrderedSet([1, 2, 4]),
-                6: OrderedSet([6, 8, 10]),
-                7: OrderedSet([7, 9, 11]),
-                12: OrderedSet([12, 14, 16]),
-                13: OrderedSet([13, 15, 17]),
-                18: OrderedSet([18, 20, 22, 25]),
-                19: OrderedSet([19, 21, 23, 24]),
-            },
-            motifs_per_frag={
-                0: OrderedSet([0]),
-                1: OrderedSet([1]),
-                6: OrderedSet([6]),
-                7: OrderedSet([7]),
-                12: OrderedSet([12]),
-                13: OrderedSet([13]),
-                18: OrderedSet([18]),
-                19: OrderedSet([19]),
-            },
-            center_per_frag={
-                0: OrderedSet([0]),
-                1: OrderedSet([1]),
-                6: OrderedSet([6]),
-                7: OrderedSet([7]),
-                12: OrderedSet([12]),
-                13: OrderedSet([13]),
-                18: OrderedSet([18]),
-                19: OrderedSet([19]),
-            },
-            edge_per_frag={
-                0: OrderedSet(),
-                1: OrderedSet(),
-                6: OrderedSet(),
-                7: OrderedSet(),
-                12: OrderedSet(),
-                13: OrderedSet(),
-                18: OrderedSet(),
-                19: OrderedSet(),
-            },
+    fragmented = [
+        FragmentedStructure.from_cartesian(m, n_BE=n_BE) for n_BE in range(1, 8)
+    ]
+    expected = [
+        FragmentedStructure(
+            atoms_per_frag=[
+                OrderedSet([0, 3, 5]),
+                OrderedSet([1, 2, 4]),
+                OrderedSet([6, 8, 10]),
+                OrderedSet([7, 9, 11]),
+                OrderedSet([12, 14, 16]),
+                OrderedSet([13, 15, 17]),
+                OrderedSet([18, 20, 22, 25]),
+                OrderedSet([19, 21, 23, 24]),
+            ],
+            motifs_per_frag=[
+                OrderedSet([0]),
+                OrderedSet([1]),
+                OrderedSet([6]),
+                OrderedSet([7]),
+                OrderedSet([12]),
+                OrderedSet([13]),
+                OrderedSet([18]),
+                OrderedSet([19]),
+            ],
+            center_per_frag=[
+                OrderedSet([0]),
+                OrderedSet([1]),
+                OrderedSet([6]),
+                OrderedSet([7]),
+                OrderedSet([12]),
+                OrderedSet([13]),
+                OrderedSet([18]),
+                OrderedSet([19]),
+            ],
+            edge_per_frag=[
+                OrderedSet(),
+                OrderedSet(),
+                OrderedSet(),
+                OrderedSet(),
+                OrderedSet(),
+                OrderedSet(),
+                OrderedSet(),
+                OrderedSet(),
+            ],
+            origin_per_frag=[
+                OrderedSet([0]),
+                OrderedSet([1]),
+                OrderedSet([6]),
+                OrderedSet([7]),
+                OrderedSet([12]),
+                OrderedSet([13]),
+                OrderedSet([18]),
+                OrderedSet([19]),
+            ],
             conn_data=ConnectivityData(
                 bonds={
                     0: OrderedSet([1, 3, 5, 7]),
@@ -442,39 +452,47 @@ def test_fragmented_molecule():
             ),
             n_BE=1,
         ),
-        2: FragmentedStructure(
-            atoms_per_frag={
-                0: OrderedSet([0, 3, 5, 1, 2, 4, 7, 9, 11]),
-                1: OrderedSet([1, 2, 4, 0, 3, 5, 6, 8, 10]),
-                6: OrderedSet([6, 8, 10, 1, 2, 4, 12, 14, 16]),
-                7: OrderedSet([7, 9, 11, 0, 3, 5, 13, 15, 17]),
-                12: OrderedSet([12, 14, 16, 6, 8, 10, 18, 20, 22, 25]),
-                13: OrderedSet([13, 15, 17, 7, 9, 11, 19, 21, 23, 24]),
-            },
-            motifs_per_frag={
-                0: OrderedSet([0, 1, 7]),
-                1: OrderedSet([1, 0, 6]),
-                6: OrderedSet([6, 1, 12]),
-                7: OrderedSet([7, 0, 13]),
-                12: OrderedSet([12, 6, 18]),
-                13: OrderedSet([13, 7, 19]),
-            },
-            center_per_frag={
-                0: OrderedSet([0]),
-                1: OrderedSet([1]),
-                6: OrderedSet([6]),
-                7: OrderedSet([7]),
-                12: OrderedSet([12, 18]),
-                13: OrderedSet([13, 19]),
-            },
-            edge_per_frag={
-                0: OrderedSet([1, 7]),
-                1: OrderedSet([0, 6]),
-                6: OrderedSet([1, 12]),
-                7: OrderedSet([0, 13]),
-                12: OrderedSet([6]),
-                13: OrderedSet([7]),
-            },
+        FragmentedStructure(
+            atoms_per_frag=[
+                OrderedSet([0, 3, 5, 1, 2, 4, 7, 9, 11]),
+                OrderedSet([1, 2, 4, 0, 3, 5, 6, 8, 10]),
+                OrderedSet([6, 8, 10, 1, 2, 4, 12, 14, 16]),
+                OrderedSet([7, 9, 11, 0, 3, 5, 13, 15, 17]),
+                OrderedSet([12, 14, 16, 6, 8, 10, 18, 20, 22, 25]),
+                OrderedSet([13, 15, 17, 7, 9, 11, 19, 21, 23, 24]),
+            ],
+            motifs_per_frag=[
+                OrderedSet([0, 1, 7]),
+                OrderedSet([1, 0, 6]),
+                OrderedSet([6, 1, 12]),
+                OrderedSet([7, 0, 13]),
+                OrderedSet([12, 6, 18]),
+                OrderedSet([13, 7, 19]),
+            ],
+            center_per_frag=[
+                OrderedSet([0]),
+                OrderedSet([1]),
+                OrderedSet([6]),
+                OrderedSet([7]),
+                OrderedSet([12, 18]),
+                OrderedSet([13, 19]),
+            ],
+            edge_per_frag=[
+                OrderedSet([1, 7]),
+                OrderedSet([0, 6]),
+                OrderedSet([1, 12]),
+                OrderedSet([0, 13]),
+                OrderedSet([6]),
+                OrderedSet([7]),
+            ],
+            origin_per_frag=[
+                OrderedSet([0]),
+                OrderedSet([1]),
+                OrderedSet([6]),
+                OrderedSet([7]),
+                OrderedSet([12]),
+                OrderedSet([13]),
+            ],
             conn_data=ConnectivityData(
                 bonds={
                     0: OrderedSet([1, 3, 5, 7]),
@@ -541,31 +559,37 @@ def test_fragmented_molecule():
             ),
             n_BE=2,
         ),
-        3: FragmentedStructure(
-            atoms_per_frag={
-                0: OrderedSet([0, 3, 5, 1, 2, 4, 7, 9, 11, 6, 8, 10, 13, 15, 17]),
-                1: OrderedSet([1, 2, 4, 0, 3, 5, 6, 8, 10, 7, 9, 11, 12, 14, 16]),
-                6: OrderedSet([6, 8, 10, 1, 2, 4, 12, 14, 16, 0, 3, 5, 18, 20, 22, 25]),
-                7: OrderedSet([7, 9, 11, 0, 3, 5, 13, 15, 17, 1, 2, 4, 19, 21, 23, 24]),
-            },
-            motifs_per_frag={
-                0: OrderedSet([0, 1, 7, 6, 13]),
-                1: OrderedSet([1, 0, 6, 7, 12]),
-                6: OrderedSet([6, 1, 12, 0, 18]),
-                7: OrderedSet([7, 0, 13, 1, 19]),
-            },
-            center_per_frag={
-                0: OrderedSet([0]),
-                1: OrderedSet([1]),
-                6: OrderedSet([6, 12, 18]),
-                7: OrderedSet([7, 13, 19]),
-            },
-            edge_per_frag={
-                0: OrderedSet([1, 7, 6, 13]),
-                1: OrderedSet([0, 6, 7, 12]),
-                6: OrderedSet([1, 0]),
-                7: OrderedSet([0, 1]),
-            },
+        FragmentedStructure(
+            atoms_per_frag=[
+                OrderedSet([0, 3, 5, 1, 2, 4, 7, 9, 11, 6, 8, 10, 13, 15, 17]),
+                OrderedSet([1, 2, 4, 0, 3, 5, 6, 8, 10, 7, 9, 11, 12, 14, 16]),
+                OrderedSet([6, 8, 10, 1, 2, 4, 12, 14, 16, 0, 3, 5, 18, 20, 22, 25]),
+                OrderedSet([7, 9, 11, 0, 3, 5, 13, 15, 17, 1, 2, 4, 19, 21, 23, 24]),
+            ],
+            motifs_per_frag=[
+                OrderedSet([0, 1, 7, 6, 13]),
+                OrderedSet([1, 0, 6, 7, 12]),
+                OrderedSet([6, 1, 12, 0, 18]),
+                OrderedSet([7, 0, 13, 1, 19]),
+            ],
+            center_per_frag=[
+                OrderedSet([0]),
+                OrderedSet([1]),
+                OrderedSet([6, 12, 18]),
+                OrderedSet([7, 13, 19]),
+            ],
+            edge_per_frag=[
+                OrderedSet([1, 7, 6, 13]),
+                OrderedSet([0, 6, 7, 12]),
+                OrderedSet([1, 0]),
+                OrderedSet([0, 1]),
+            ],
+            origin_per_frag=[
+                OrderedSet([0]),
+                OrderedSet([1]),
+                OrderedSet([6]),
+                OrderedSet([7]),
+            ],
             conn_data=ConnectivityData(
                 bonds={
                     0: OrderedSet([1, 3, 5, 7]),
@@ -632,9 +656,9 @@ def test_fragmented_molecule():
             ),
             n_BE=3,
         ),
-        4: FragmentedStructure(
-            atoms_per_frag={
-                0: OrderedSet(
+        FragmentedStructure(
+            atoms_per_frag=[
+                OrderedSet(
                     [
                         0,
                         3,
@@ -660,7 +684,7 @@ def test_fragmented_molecule():
                         24,
                     ]
                 ),
-                1: OrderedSet(
+                OrderedSet(
                     [
                         1,
                         2,
@@ -686,16 +710,20 @@ def test_fragmented_molecule():
                         25,
                     ]
                 ),
-            },
-            motifs_per_frag={
-                0: OrderedSet([0, 1, 7, 6, 13, 12, 19]),
-                1: OrderedSet([1, 0, 6, 7, 12, 13, 18]),
-            },
-            center_per_frag={
-                0: OrderedSet([0, 7, 13, 19]),
-                1: OrderedSet([1, 6, 12, 18]),
-            },
-            edge_per_frag={0: OrderedSet([1, 6, 12]), 1: OrderedSet([0, 7, 13])},
+            ],
+            motifs_per_frag=[
+                OrderedSet([0, 1, 7, 6, 13, 12, 19]),
+                OrderedSet([1, 0, 6, 7, 12, 13, 18]),
+            ],
+            center_per_frag=[
+                OrderedSet([0, 7, 13, 19]),
+                OrderedSet([1, 6, 12, 18]),
+            ],
+            edge_per_frag=[OrderedSet([1, 6, 12]), OrderedSet([0, 7, 13])],
+            origin_per_frag=[
+                OrderedSet([0]),
+                OrderedSet([1]),
+            ],
             conn_data=ConnectivityData(
                 bonds={
                     0: OrderedSet([1, 3, 5, 7]),
@@ -762,9 +790,9 @@ def test_fragmented_molecule():
             ),
             n_BE=4,
         ),
-        5: FragmentedStructure(
-            atoms_per_frag={
-                0: OrderedSet(
+        FragmentedStructure(
+            atoms_per_frag=[
+                OrderedSet(
                     [
                         0,
                         3,
@@ -794,10 +822,13 @@ def test_fragmented_molecule():
                         25,
                     ]
                 )
-            },
-            motifs_per_frag={0: OrderedSet([0, 1, 7, 6, 13, 12, 19, 18])},
-            center_per_frag={0: OrderedSet([0, 1, 7, 6, 13, 12, 19, 18])},
-            edge_per_frag={0: OrderedSet()},
+            ],
+            motifs_per_frag=[OrderedSet([0, 1, 7, 6, 13, 12, 19, 18])],
+            center_per_frag=[OrderedSet([0, 1, 7, 6, 13, 12, 19, 18])],
+            edge_per_frag=[OrderedSet()],
+            origin_per_frag=[
+                OrderedSet([0]),
+            ],
             conn_data=ConnectivityData(
                 bonds={
                     0: OrderedSet([1, 3, 5, 7]),
@@ -864,9 +895,9 @@ def test_fragmented_molecule():
             ),
             n_BE=5,
         ),
-        6: FragmentedStructure(
-            atoms_per_frag={
-                0: OrderedSet(
+        FragmentedStructure(
+            atoms_per_frag=[
+                OrderedSet(
                     [
                         0,
                         3,
@@ -896,10 +927,13 @@ def test_fragmented_molecule():
                         25,
                     ]
                 )
-            },
-            motifs_per_frag={0: OrderedSet([0, 1, 7, 6, 13, 12, 19, 18])},
-            center_per_frag={0: OrderedSet([0, 1, 7, 6, 13, 12, 19, 18])},
-            edge_per_frag={0: OrderedSet()},
+            ],
+            motifs_per_frag=[OrderedSet([0, 1, 7, 6, 13, 12, 19, 18])],
+            center_per_frag=[OrderedSet([0, 1, 7, 6, 13, 12, 19, 18])],
+            edge_per_frag=[OrderedSet()],
+            origin_per_frag=[
+                OrderedSet([0]),
+            ],
             conn_data=ConnectivityData(
                 bonds={
                     0: OrderedSet([1, 3, 5, 7]),
@@ -966,9 +1000,9 @@ def test_fragmented_molecule():
             ),
             n_BE=6,
         ),
-        7: FragmentedStructure(
-            atoms_per_frag={
-                0: OrderedSet(
+        FragmentedStructure(
+            atoms_per_frag=[
+                OrderedSet(
                     [
                         0,
                         3,
@@ -998,10 +1032,13 @@ def test_fragmented_molecule():
                         25,
                     ]
                 )
-            },
-            motifs_per_frag={0: OrderedSet([0, 1, 7, 6, 13, 12, 19, 18])},
-            center_per_frag={0: OrderedSet([0, 1, 7, 6, 13, 12, 19, 18])},
-            edge_per_frag={0: OrderedSet()},
+            ],
+            motifs_per_frag=[OrderedSet([0, 1, 7, 6, 13, 12, 19, 18])],
+            center_per_frag=[OrderedSet([0, 1, 7, 6, 13, 12, 19, 18])],
+            edge_per_frag=[OrderedSet()],
+            origin_per_frag=[
+                OrderedSet([0]),
+            ],
             conn_data=ConnectivityData(
                 bonds={
                     0: OrderedSet([1, 3, 5, 7]),
@@ -1068,7 +1105,7 @@ def test_fragmented_molecule():
             ),
             n_BE=7,
         ),
-    }
+    ]
 
     assert fragmented == expected
     assert (
@@ -1085,53 +1122,63 @@ def test_hydrogen_chain():
         spin=0.0,
     )
 
-    fragmented = {
-        n_BE: FragmentedStructure.from_Mol(mol, n_BE, treat_H_different=False)
+    fragmented = [
+        FragmentedStructure.from_Mol(mol, n_BE, treat_H_different=False)
         for n_BE in range(1, 6)
-    }
+    ]
 
-    expected = {
-        1: FragmentedStructure(
-            atoms_per_frag={
-                0: OrderedSet([0]),
-                1: OrderedSet([1]),
-                2: OrderedSet([2]),
-                3: OrderedSet([3]),
-                4: OrderedSet([4]),
-                5: OrderedSet([5]),
-                6: OrderedSet([6]),
-                7: OrderedSet([7]),
-            },
-            motifs_per_frag={
-                0: OrderedSet([0]),
-                1: OrderedSet([1]),
-                2: OrderedSet([2]),
-                3: OrderedSet([3]),
-                4: OrderedSet([4]),
-                5: OrderedSet([5]),
-                6: OrderedSet([6]),
-                7: OrderedSet([7]),
-            },
-            center_per_frag={
-                0: OrderedSet([0]),
-                1: OrderedSet([1]),
-                2: OrderedSet([2]),
-                3: OrderedSet([3]),
-                4: OrderedSet([4]),
-                5: OrderedSet([5]),
-                6: OrderedSet([6]),
-                7: OrderedSet([7]),
-            },
-            edge_per_frag={
-                0: OrderedSet(),
-                1: OrderedSet(),
-                2: OrderedSet(),
-                3: OrderedSet(),
-                4: OrderedSet(),
-                5: OrderedSet(),
-                6: OrderedSet(),
-                7: OrderedSet(),
-            },
+    expected = [
+        FragmentedStructure(
+            atoms_per_frag=[
+                OrderedSet([0]),
+                OrderedSet([1]),
+                OrderedSet([2]),
+                OrderedSet([3]),
+                OrderedSet([4]),
+                OrderedSet([5]),
+                OrderedSet([6]),
+                OrderedSet([7]),
+            ],
+            motifs_per_frag=[
+                OrderedSet([0]),
+                OrderedSet([1]),
+                OrderedSet([2]),
+                OrderedSet([3]),
+                OrderedSet([4]),
+                OrderedSet([5]),
+                OrderedSet([6]),
+                OrderedSet([7]),
+            ],
+            center_per_frag=[
+                OrderedSet([0]),
+                OrderedSet([1]),
+                OrderedSet([2]),
+                OrderedSet([3]),
+                OrderedSet([4]),
+                OrderedSet([5]),
+                OrderedSet([6]),
+                OrderedSet([7]),
+            ],
+            edge_per_frag=[
+                OrderedSet(),
+                OrderedSet(),
+                OrderedSet(),
+                OrderedSet(),
+                OrderedSet(),
+                OrderedSet(),
+                OrderedSet(),
+                OrderedSet(),
+            ],
+            origin_per_frag=[
+                OrderedSet([0]),
+                OrderedSet([1]),
+                OrderedSet([2]),
+                OrderedSet([3]),
+                OrderedSet([4]),
+                OrderedSet([5]),
+                OrderedSet([6]),
+                OrderedSet([7]),
+            ],
             conn_data=ConnectivityData(
                 bonds={
                     0: OrderedSet([1]),
@@ -1179,39 +1226,47 @@ def test_hydrogen_chain():
             ),
             n_BE=1,
         ),
-        2: FragmentedStructure(
-            atoms_per_frag={
-                1: OrderedSet([1, 0, 2]),
-                2: OrderedSet([2, 1, 3]),
-                3: OrderedSet([3, 2, 4]),
-                4: OrderedSet([4, 3, 5]),
-                5: OrderedSet([5, 4, 6]),
-                6: OrderedSet([6, 5, 7]),
-            },
-            motifs_per_frag={
-                1: OrderedSet([1, 0, 2]),
-                2: OrderedSet([2, 1, 3]),
-                3: OrderedSet([3, 2, 4]),
-                4: OrderedSet([4, 3, 5]),
-                5: OrderedSet([5, 4, 6]),
-                6: OrderedSet([6, 5, 7]),
-            },
-            center_per_frag={
-                1: OrderedSet([1, 0]),
-                2: OrderedSet([2]),
-                3: OrderedSet([3]),
-                4: OrderedSet([4]),
-                5: OrderedSet([5]),
-                6: OrderedSet([6, 7]),
-            },
-            edge_per_frag={
-                1: OrderedSet([2]),
-                2: OrderedSet([1, 3]),
-                3: OrderedSet([2, 4]),
-                4: OrderedSet([3, 5]),
-                5: OrderedSet([4, 6]),
-                6: OrderedSet([5]),
-            },
+        FragmentedStructure(
+            atoms_per_frag=[
+                OrderedSet([1, 0, 2]),
+                OrderedSet([2, 1, 3]),
+                OrderedSet([3, 2, 4]),
+                OrderedSet([4, 3, 5]),
+                OrderedSet([5, 4, 6]),
+                OrderedSet([6, 5, 7]),
+            ],
+            motifs_per_frag=[
+                OrderedSet([1, 0, 2]),
+                OrderedSet([2, 1, 3]),
+                OrderedSet([3, 2, 4]),
+                OrderedSet([4, 3, 5]),
+                OrderedSet([5, 4, 6]),
+                OrderedSet([6, 5, 7]),
+            ],
+            center_per_frag=[
+                OrderedSet([1, 0]),
+                OrderedSet([2]),
+                OrderedSet([3]),
+                OrderedSet([4]),
+                OrderedSet([5]),
+                OrderedSet([6, 7]),
+            ],
+            edge_per_frag=[
+                OrderedSet([2]),
+                OrderedSet([1, 3]),
+                OrderedSet([2, 4]),
+                OrderedSet([3, 5]),
+                OrderedSet([4, 6]),
+                OrderedSet([5]),
+            ],
+            origin_per_frag=[
+                OrderedSet([1]),
+                OrderedSet([2]),
+                OrderedSet([3]),
+                OrderedSet([4]),
+                OrderedSet([5]),
+                OrderedSet([6]),
+            ],
             conn_data=ConnectivityData(
                 bonds={
                     0: OrderedSet([1]),
@@ -1259,31 +1314,37 @@ def test_hydrogen_chain():
             ),
             n_BE=2,
         ),
-        3: FragmentedStructure(
-            atoms_per_frag={
-                2: OrderedSet([2, 1, 3, 0, 4]),
-                3: OrderedSet([3, 2, 4, 1, 5]),
-                4: OrderedSet([4, 3, 5, 2, 6]),
-                5: OrderedSet([5, 4, 6, 3, 7]),
-            },
-            motifs_per_frag={
-                2: OrderedSet([2, 1, 3, 0, 4]),
-                3: OrderedSet([3, 2, 4, 1, 5]),
-                4: OrderedSet([4, 3, 5, 2, 6]),
-                5: OrderedSet([5, 4, 6, 3, 7]),
-            },
-            center_per_frag={
-                2: OrderedSet([2, 1, 0]),
-                3: OrderedSet([3]),
-                4: OrderedSet([4]),
-                5: OrderedSet([5, 6, 7]),
-            },
-            edge_per_frag={
-                2: OrderedSet([3, 4]),
-                3: OrderedSet([2, 4, 1, 5]),
-                4: OrderedSet([3, 5, 2, 6]),
-                5: OrderedSet([4, 3]),
-            },
+        FragmentedStructure(
+            atoms_per_frag=[
+                OrderedSet([2, 1, 3, 0, 4]),
+                OrderedSet([3, 2, 4, 1, 5]),
+                OrderedSet([4, 3, 5, 2, 6]),
+                OrderedSet([5, 4, 6, 3, 7]),
+            ],
+            motifs_per_frag=[
+                OrderedSet([2, 1, 3, 0, 4]),
+                OrderedSet([3, 2, 4, 1, 5]),
+                OrderedSet([4, 3, 5, 2, 6]),
+                OrderedSet([5, 4, 6, 3, 7]),
+            ],
+            center_per_frag=[
+                OrderedSet([2, 1, 0]),
+                OrderedSet([3]),
+                OrderedSet([4]),
+                OrderedSet([5, 6, 7]),
+            ],
+            edge_per_frag=[
+                OrderedSet([3, 4]),
+                OrderedSet([2, 4, 1, 5]),
+                OrderedSet([3, 5, 2, 6]),
+                OrderedSet([4, 3]),
+            ],
+            origin_per_frag=[
+                OrderedSet([2]),
+                OrderedSet([3]),
+                OrderedSet([4]),
+                OrderedSet([5]),
+            ],
             conn_data=ConnectivityData(
                 bonds={
                     0: OrderedSet([1]),
@@ -1331,17 +1392,21 @@ def test_hydrogen_chain():
             ),
             n_BE=3,
         ),
-        4: FragmentedStructure(
-            atoms_per_frag={
-                3: OrderedSet([3, 2, 4, 1, 5, 0, 6]),
-                4: OrderedSet([4, 3, 5, 2, 6, 1, 7]),
-            },
-            motifs_per_frag={
-                3: OrderedSet([3, 2, 4, 1, 5, 0, 6]),
-                4: OrderedSet([4, 3, 5, 2, 6, 1, 7]),
-            },
-            center_per_frag={3: OrderedSet([3, 2, 1, 0]), 4: OrderedSet([4, 5, 6, 7])},
-            edge_per_frag={3: OrderedSet([4, 5, 6]), 4: OrderedSet([3, 2, 1])},
+        FragmentedStructure(
+            atoms_per_frag=[
+                OrderedSet([3, 2, 4, 1, 5, 0, 6]),
+                OrderedSet([4, 3, 5, 2, 6, 1, 7]),
+            ],
+            motifs_per_frag=[
+                OrderedSet([3, 2, 4, 1, 5, 0, 6]),
+                OrderedSet([4, 3, 5, 2, 6, 1, 7]),
+            ],
+            center_per_frag=[OrderedSet([3, 2, 1, 0]), OrderedSet([4, 5, 6, 7])],
+            edge_per_frag=[OrderedSet([4, 5, 6]), OrderedSet([3, 2, 1])],
+            origin_per_frag=[
+                OrderedSet([3]),
+                OrderedSet([4]),
+            ],
             conn_data=ConnectivityData(
                 bonds={
                     0: OrderedSet([1]),
@@ -1389,11 +1454,14 @@ def test_hydrogen_chain():
             ),
             n_BE=4,
         ),
-        5: FragmentedStructure(
-            atoms_per_frag={3: OrderedSet([3, 2, 4, 1, 5, 0, 6, 7])},
-            motifs_per_frag={3: OrderedSet([3, 2, 4, 1, 5, 0, 6, 7])},
-            center_per_frag={3: OrderedSet([3, 2, 1, 0, 4, 5, 6, 7])},
-            edge_per_frag={3: OrderedSet()},
+        FragmentedStructure(
+            atoms_per_frag=[OrderedSet([3, 2, 4, 1, 5, 0, 6, 7])],
+            motifs_per_frag=[OrderedSet([3, 2, 4, 1, 5, 0, 6, 7])],
+            center_per_frag=[OrderedSet([3, 2, 1, 0, 4, 5, 6, 7])],
+            edge_per_frag=[OrderedSet()],
+            origin_per_frag=[
+                OrderedSet([3]),
+            ],
             conn_data=ConnectivityData(
                 bonds={
                     0: OrderedSet([1]),
@@ -1441,7 +1509,7 @@ def test_hydrogen_chain():
             ),
             n_BE=5,
         ),
-    }
+    ]
 
     assert fragmented == expected
 
@@ -1454,9 +1522,9 @@ def test_agreement_with_autogen():
         chem_frags = FragmentedStructure.from_cartesian(m, n_BE)
         auto_frags = fragpart(mol=mol, frag_type="autogen", be_type=f"be{n_BE}")
 
-        motifs = list(chem_frags.motifs_per_frag.values())
-
-        for chem_fragment, auto_fragment in zip(motifs, auto_frags.Frag_atom):
+        for chem_fragment, auto_fragment in zip(
+            chem_frags.motifs_per_frag, auto_frags.Frag_atom
+        ):
             # We assert that the first atom, i.e. the origin, is the same for both
             # chemfrag and autogen
             assert chem_fragment[0] == auto_fragment[0]

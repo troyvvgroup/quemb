@@ -286,7 +286,7 @@ class FragmentedStructure:
     #: Note that the set of edges is the complement of the centers.
     edge_per_frag: Final[Sequence[OrderedSet[EdgeIdx]]]
     #: The origins per frag
-    origin_per_frag: Final[Sequence[OriginIdx]]
+    origin_per_frag: Final[Sequence[OrderedSet[OriginIdx]]]
     #: Connectivity data of the molecule.
     conn_data: Final[ConnectivityData]
     n_BE: Final[int]
@@ -303,10 +303,12 @@ class FragmentedStructure:
             merge_seqs(*[conn_data.atoms_per_motif[i_motif] for i_motif in i_fragment])
             for i_fragment in fragments.motif_per_frag.values()
         ]
-        center_per_frag = [
-            merge_seqs([i_origin], fragments.swallowed_centers.get(i_origin, []))
+        center_per_frag = {
+            i_origin: merge_seqs(
+                [i_origin], fragments.swallowed_centers.get(i_origin, [])
+            )
             for i_origin in fragments.motif_per_frag
-        ]
+        }
 
         def get_edges(i_origin: OriginIdx) -> OrderedSet[EdgeIdx]:
             # the complement of the center set is the edge set,
@@ -321,9 +323,9 @@ class FragmentedStructure:
         return cls(
             atoms_per_frag,
             list(fragments.motif_per_frag.values()),
-            center_per_frag,
+            list(center_per_frag.values()),
             [get_edges(i_origin) for i_origin in fragments.motif_per_frag],
-            list(fragments.motif_per_frag.keys()),
+            [OrderedSet([i_origin]) for i_origin in fragments.motif_per_frag],
             conn_data,
             n_BE,
         )
