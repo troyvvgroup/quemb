@@ -83,7 +83,7 @@ class ConnectivityData:
     #: The connectivity graph of the molecule.
     bonds: Final[dict[AtomIdx, OrderedSet[AtomIdx]]]
     #: The heavy atoms/motifs in the molecule. If hydrogens are not treated differently
-    #: then this contains also the hydrogen atoms.
+    #: then every hydrogen is also a motif on its own.
     motifs: Final[OrderedSet[MotifIdx]]
     #: The connectivity graph solely of the motifs,
     # i.e. of the heavy atoms when ignoring the hydrogen atoms.
