@@ -186,8 +186,25 @@ class ConnectivityData:
 
 
 @define(frozen=True)
-class SubsetsCleaned:
-    """Small data class to contain the results of the cleanup_if_subset function."""
+class _SubsetsCleaned:
+    """Data class to contain the results of the :func:`cleanup_if_subset` function.
+
+    Currently, this data class is only used internally
+    and strictly assumes that there is exactly one unique origin per
+    fragment and one unique fragment per origin.
+    Otherwise the data structure of a
+    :python:`dict[OriginIdx, OrderedSet[MotifIdx]]`
+    would not make sense.
+    This assumption makes the code in :func:`cleanup_if_subset`
+    much easier to write and more performant,
+    but it is not true for all possible fragmentations.
+    For example pair-wise fragmentations, where there are multiple
+    fragments for one origin, are not supported.
+
+    The rest of the code, however, is written in a way that would fully support
+    pair-wise fragmentations, if we would use a different data structure
+    here and rewrote :func:`cleanup_if_subset` accordingly.
+    """
 
     #: The remaining fragments after removing subsets.
     #: This is a dictionary mapping the origin index to the set of motif indices.
@@ -199,7 +216,7 @@ class SubsetsCleaned:
 
 def cleanup_if_subset(
     fragment_indices: dict[MotifIdx, OrderedSet[MotifIdx]],
-) -> SubsetsCleaned:
+) -> _SubsetsCleaned:
     """Remove fragments that are subsets of other fragments.
 
     We also keep track of the Center indices that are swallowed by the
@@ -238,7 +255,7 @@ def cleanup_if_subset(
                     j_center = cast(OriginIdx, j_center)
                     contain_others[i_center] |= contain_others[j_center]
                     del contain_others[j_center]
-    return SubsetsCleaned(
+    return _SubsetsCleaned(
         {
             OriginIdx(CenterIdx(k)): v
             for k, v in fragment_indices.items()
@@ -256,18 +273,20 @@ class FragmentedStructure:
     independent of the basis sets or the electronic structure.
     """
 
-    #: The atoms per fragment.
-    atoms_per_frag: Final[dict[OriginIdx, OrderedSet[AtomIdx]]]
+    #: The atomic orbital indices per fragment
+    atoms_per_frag: Final[Sequence[OrderedSet[AtomIdx]]]
     #: The motifs per fragment.
     #: Note that the set of motifs in the fragment
     #: is the union of centers and edges.
-    motifs_per_frag: Final[dict[OriginIdx, OrderedSet[MotifIdx]]]
+    motifs_per_frag: Final[Sequence[OrderedSet[MotifIdx]]]
     #: The centers per fragment.
     #: Note that the set of centers is the complement of the edges.
-    center_per_frag: Final[CenterPerFrag]
+    center_per_frag: Final[Sequence[OrderedSet[CenterIdx]]]
     #: The edges per fragment.
     #: Note that the set of edges is the complement of the centers.
-    edge_per_frag: Final[EdgePerFrag]
+    edge_per_frag: Final[Sequence[OrderedSet[EdgeIdx]]]
+    #: The origins per frag
+    origin_per_frag: Final[Sequence[OriginIdx]]
     #: Connectivity data of the molecule.
     conn_data: Final[ConnectivityData]
     n_BE: Final[int]
@@ -280,18 +299,14 @@ class FragmentedStructure:
                 for i_center in conn_data.motifs
             }
         )
-        atoms_per_frag = {
-            i_origin: merge_seqs(
-                *[conn_data.atoms_per_motif[i_motif] for i_motif in i_fragment]
-            )
-            for i_origin, i_fragment in fragments.motif_per_frag.items()
-        }
-        center_per_frag = {
-            i_origin: merge_seqs(
-                [i_origin], fragments.swallowed_centers.get(i_origin, [])
-            )
+        atoms_per_frag = [
+            merge_seqs(*[conn_data.atoms_per_motif[i_motif] for i_motif in i_fragment])
+            for i_fragment in fragments.motif_per_frag.values()
+        ]
+        center_per_frag = [
+            merge_seqs([i_origin], fragments.swallowed_centers.get(i_origin, []))
             for i_origin in fragments.motif_per_frag
-        }
+        ]
 
         def get_edges(i_origin: OriginIdx) -> OrderedSet[EdgeIdx]:
             # the complement of the center set is the edge set,
@@ -305,9 +320,10 @@ class FragmentedStructure:
 
         return cls(
             atoms_per_frag,
-            fragments.motif_per_frag,
+            list(fragments.motif_per_frag.values()),
             center_per_frag,
-            {i_origin: get_edges(i_origin) for i_origin in fragments.motif_per_frag},
+            [get_edges(i_origin) for i_origin in fragments.motif_per_frag],
+            list(fragments.motif_per_frag.keys()),
             conn_data,
             n_BE,
         )
@@ -355,53 +371,14 @@ class FragmentedMolecule:
     basis sets, hence it "knows" which AO index belongs to which atom
     and which fragment.
     Hence, it depends on :class:`FragmentedStructure`.
-
-    Unlike :class:`FragmentedStructure`, this class represents the
-    fragments simply as Sequences of indices, and not as dictionaries.
-    This has the advantage that it makes it future-proof, when
-    we want to use more sophisticated fragmentations such as
-    pair-wise fragmentations, where there are multiple fragments
-    for one origin.
-    In addition it is also backwards compatible to the old Hubbard-model
-    fragmentations, where there are multiple origins per fragment.
-
-    On the other hand, the assumption of
-    exactly one unique origin per fragment
-    and
-    exactly one unique fragment per origin makes
-    the fragmentation code much
-    easier in :class:`FragmentedStructure` and also more efficient.
-    It might be that we never will use the pair-wise fragmentations,
-    hence, the :class:`FragmentedStructure` currently relies on dictionaries
-    and we use the :class:`collections.abc.Sequence` based structure
-    only for the final exposed class.
     """
 
-    #: The atomic orbital indices per fragment
-    atoms_per_frag: Final[Sequence[OrderedSet[AtomIdx]]]
-    #: The motifs per fragment.
-    #: Note that the set of motifs in the fragment
-    #: is the union of centers and edges.
-    motifs_per_frag: Final[Sequence[OrderedSet[MotifIdx]]]
-    #: The centers per fragment.
-    #: Note that the set of centers is the complement of the edges.
-    center_per_frag: Final[Sequence[OrderedSet[CenterIdx]]]
-    #: The edges per fragment.
-    #: Note that the set of edges is the complement of the centers.
-    edge_per_frag: Final[Sequence[OrderedSet[EdgeIdx]]]
-    #: The origins per frag
-    origin_per_frag: Final[Sequence[OriginIdx]]
+    fragmented_structure: Final[FragmentedStructure]
     #: The actual molecule
     mol: Final[Mole]
 
-    # #: The atomic orbital indices per atom
-    # AO_per_atom: Final[Sequence[range]]
-    # #: The atomic orbital indices per fragment
-    # AO_per_frag: Final[Sequence[range]]
-
-    #: Connectivity data of the molecule.
-    conn_data: Final[ConnectivityData]
-    n_BE: Final[int]
+    #: The atomic orbital indices per atom
+    AO_per_atom: Final[Sequence[range]]
 
     @classmethod
     def from_frag_structure(
@@ -419,15 +396,9 @@ class FragmentedMolecule:
         AO_per_atom = get_AOidx_per_atom(mol)
 
         return cls(
-            list(frag_structure.atoms_per_frag.values()),
-            list(frag_structure.motifs_per_frag.values()),
-            list(frag_structure.center_per_frag.values()),
-            list(frag_structure.edge_per_frag.values()),
-            list(frag_structure.atoms_per_frag.keys()),
-            AO_per_atom,
+            frag_structure,
             mol,
-            frag_structure.conn_data,
-            frag_structure.n_BE,
+            AO_per_atom,
         )
 
 
