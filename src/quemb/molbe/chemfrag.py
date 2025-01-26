@@ -82,15 +82,19 @@ class ConnectivityData:
 
     #: The connectivity graph of the molecule.
     bonds: Final[dict[AtomIdx, OrderedSet[AtomIdx]]]
-    #: The heavy atoms/motifs in the molecule.
-    heavy_atoms: Final[OrderedSet[MotifIdx]]
-    #: The connectivity graph of the heavy atoms, i.e., ignoring the hydrogen atoms.
-    heavy_atom_bonds: Final[dict[MotifIdx, OrderedSet[MotifIdx]]]
-    #: The hydrogen atoms in the molecule.
+    #: The heavy atoms/motifs in the molecule. If hydrogens are not treated differently
+    #: then this contains also the hydrogen atoms.
+    motifs: Final[OrderedSet[MotifIdx]]
+    #: The connectivity graph solely of the motifs,
+    # i.e. of the heavy atoms when ignoring the hydrogen atoms.
+    motif_bonds: Final[dict[MotifIdx, OrderedSet[MotifIdx]]]
+    #: The hydrogen atoms in the molecule. If hydrogens are not treated differently,
+    #: then this is an empty set.
     H_atoms: Final[OrderedSet[AtomIdx]]
-    #: The hydrogen atoms per motif.
+    #: The hydrogen atoms per motif. If hydrogens are not treated differently,
+    #: then the values of the dictionary are empty sets.
     H_per_motif: Final[dict[MotifIdx, OrderedSet[AtomIdx]]]
-    #: All atoms per motif. Lists the heavy atom first.
+    #: All atoms per motif. Lists the motif/heavy atom first.
     atoms_per_motif: Final[dict[MotifIdx, OrderedSet[AtomIdx]]]
     #: Do we treat hydrogens differently?
     treat_H_different: Final[bool] = True
@@ -116,19 +120,19 @@ class ConnectivityData:
             bonds = {k: OrderedSet(sorted(v)) for k, v in m.get_bonds().items()}
 
         if treat_H_different:
-            heavy_atoms = OrderedSet(m.loc[m.atom != "H", :].index)
+            motifs = OrderedSet(m.loc[m.atom != "H", :].index)
         else:
-            heavy_atoms = OrderedSet(m.index)
-        site_bonds = {site: bonds[site] & heavy_atoms for site in heavy_atoms}
-        H_atoms = OrderedSet(m.index).difference(heavy_atoms)
-        H_per_motif = {i_site: bonds[i_site] & H_atoms for i_site in heavy_atoms}
+            motifs = OrderedSet(m.index)
+        site_bonds = {site: bonds[site] & motifs for site in motifs}
+        H_atoms = OrderedSet(m.index).difference(motifs)
+        H_per_motif = {i_site: bonds[i_site] & H_atoms for i_site in motifs}
         atoms_per_motif = {
             i_site: merge_seqs([i_site], H_atoms)
             for i_site, H_atoms in H_per_motif.items()
         }
         return cls(
             bonds,
-            heavy_atoms,
+            motifs,
             site_bonds,
             H_atoms,
             H_per_motif,
@@ -139,7 +143,7 @@ class ConnectivityData:
     def get_BE_fragment(self, i_center: MotifIdx, n_BE: int) -> OrderedSet[MotifIdx]:
         """Return the BE fragment around atom :code:`i_center`.
 
-        The BE fragment is the set of atoms (heavy atoms if hydrogens are different)
+        The BE fragment is the set of motifs (heavy atoms if hydrogens are different)
         that are reachable from the center atom within :code:`(n_BE - 1)` bonds.
         This means that :code:`n_BE == 1` returns only the center atom itself.
 
@@ -156,9 +160,7 @@ class ConnectivityData:
         result = OrderedSet({i_center})
         new = result.copy()
         for _ in range(n_BE - 1):
-            new = merge_seqs(*(self.heavy_atom_bonds[i] for i in new)).difference(
-                result
-            )
+            new = merge_seqs(*(self.motif_bonds[i] for i in new)).difference(result)
             if not new:
                 break
             result = result.union(new)
@@ -177,7 +179,7 @@ class ConnectivityData:
         dict
             A dictionary mapping the center atom to the BE-fragment around it.
         """
-        return {i: self.get_BE_fragment(i, n_BE) for i in self.heavy_atoms}
+        return {i: self.get_BE_fragment(i, n_BE) for i in self.motifs}
 
 
 @define(frozen=True)
@@ -268,7 +270,7 @@ class FragmentedMolecule:
         fragments = cleanup_if_subset(
             {
                 i_center: conn_data.get_BE_fragment(i_center, n_BE)
-                for i_center in conn_data.heavy_atoms
+                for i_center in conn_data.motifs
             }
         )
         atoms_per_frag = {

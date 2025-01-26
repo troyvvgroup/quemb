@@ -43,8 +43,8 @@ def test_connectivity_data():
             24: OrderedSet([19]),
             25: OrderedSet([18]),
         },
-        heavy_atoms=OrderedSet([0, 1, 6, 7, 12, 13, 18, 19]),
-        heavy_atom_bonds={
+        motifs=OrderedSet([0, 1, 6, 7, 12, 13, 18, 19]),
+        motif_bonds={
             0: OrderedSet([1, 7]),
             1: OrderedSet([0, 6]),
             6: OrderedSet([1, 12]),
@@ -116,8 +116,8 @@ def test_connectivity_data():
             24: OrderedSet([7]),
             25: OrderedSet([7]),
         },
-        heavy_atoms=OrderedSet([0, 1, 2, 3, 4, 5, 6, 7]),
-        heavy_atom_bonds={
+        motifs=OrderedSet([0, 1, 2, 3, 4, 5, 6, 7]),
+        motif_bonds={
             0: OrderedSet([1]),
             1: OrderedSet([0, 2]),
             2: OrderedSet([1, 3]),
@@ -404,8 +404,8 @@ def test_fragmented_molecule():
                     24: OrderedSet([19]),
                     25: OrderedSet([18]),
                 },
-                heavy_atoms=OrderedSet([0, 1, 6, 7, 12, 13, 18, 19]),
-                heavy_atom_bonds={
+                motifs=OrderedSet([0, 1, 6, 7, 12, 13, 18, 19]),
+                motif_bonds={
                     0: OrderedSet([1, 7]),
                     1: OrderedSet([0, 6]),
                     6: OrderedSet([1, 12]),
@@ -503,8 +503,8 @@ def test_fragmented_molecule():
                     24: OrderedSet([19]),
                     25: OrderedSet([18]),
                 },
-                heavy_atoms=OrderedSet([0, 1, 6, 7, 12, 13, 18, 19]),
-                heavy_atom_bonds={
+                motifs=OrderedSet([0, 1, 6, 7, 12, 13, 18, 19]),
+                motif_bonds={
                     0: OrderedSet([1, 7]),
                     1: OrderedSet([0, 6]),
                     6: OrderedSet([1, 12]),
@@ -594,8 +594,8 @@ def test_fragmented_molecule():
                     24: OrderedSet([19]),
                     25: OrderedSet([18]),
                 },
-                heavy_atoms=OrderedSet([0, 1, 6, 7, 12, 13, 18, 19]),
-                heavy_atom_bonds={
+                motifs=OrderedSet([0, 1, 6, 7, 12, 13, 18, 19]),
+                motif_bonds={
                     0: OrderedSet([1, 7]),
                     1: OrderedSet([0, 6]),
                     6: OrderedSet([1, 12]),
@@ -724,8 +724,8 @@ def test_fragmented_molecule():
                     24: OrderedSet([19]),
                     25: OrderedSet([18]),
                 },
-                heavy_atoms=OrderedSet([0, 1, 6, 7, 12, 13, 18, 19]),
-                heavy_atom_bonds={
+                motifs=OrderedSet([0, 1, 6, 7, 12, 13, 18, 19]),
+                motif_bonds={
                     0: OrderedSet([1, 7]),
                     1: OrderedSet([0, 6]),
                     6: OrderedSet([1, 12]),
@@ -826,8 +826,8 @@ def test_fragmented_molecule():
                     24: OrderedSet([19]),
                     25: OrderedSet([18]),
                 },
-                heavy_atoms=OrderedSet([0, 1, 6, 7, 12, 13, 18, 19]),
-                heavy_atom_bonds={
+                motifs=OrderedSet([0, 1, 6, 7, 12, 13, 18, 19]),
+                motif_bonds={
                     0: OrderedSet([1, 7]),
                     1: OrderedSet([0, 6]),
                     6: OrderedSet([1, 12]),
@@ -928,8 +928,8 @@ def test_fragmented_molecule():
                     24: OrderedSet([19]),
                     25: OrderedSet([18]),
                 },
-                heavy_atoms=OrderedSet([0, 1, 6, 7, 12, 13, 18, 19]),
-                heavy_atom_bonds={
+                motifs=OrderedSet([0, 1, 6, 7, 12, 13, 18, 19]),
+                motif_bonds={
                     0: OrderedSet([1, 7]),
                     1: OrderedSet([0, 6]),
                     6: OrderedSet([1, 12]),
@@ -1030,8 +1030,8 @@ def test_fragmented_molecule():
                     24: OrderedSet([19]),
                     25: OrderedSet([18]),
                 },
-                heavy_atoms=OrderedSet([0, 1, 6, 7, 12, 13, 18, 19]),
-                heavy_atom_bonds={
+                motifs=OrderedSet([0, 1, 6, 7, 12, 13, 18, 19]),
+                motif_bonds={
                     0: OrderedSet([1, 7]),
                     1: OrderedSet([0, 6]),
                     6: OrderedSet([1, 12]),
@@ -1142,8 +1142,8 @@ def test_hydrogen_chain():
                     6: OrderedSet([5, 7]),
                     7: OrderedSet([6]),
                 },
-                heavy_atoms=OrderedSet([0, 1, 2, 3, 4, 5, 6, 7]),
-                heavy_atom_bonds={
+                motifs=OrderedSet([0, 1, 2, 3, 4, 5, 6, 7]),
+                motif_bonds={
                     0: OrderedSet([1]),
                     1: OrderedSet([0, 2]),
                     2: OrderedSet([1, 3]),
@@ -1222,8 +1222,8 @@ def test_hydrogen_chain():
                     6: OrderedSet([5, 7]),
                     7: OrderedSet([6]),
                 },
-                heavy_atoms=OrderedSet([0, 1, 2, 3, 4, 5, 6, 7]),
-                heavy_atom_bonds={
+                motifs=OrderedSet([0, 1, 2, 3, 4, 5, 6, 7]),
+                motif_bonds={
                     0: OrderedSet([1]),
                     1: OrderedSet([0, 2]),
                     2: OrderedSet([1, 3]),
@@ -1294,8 +1294,8 @@ def test_hydrogen_chain():
                     6: OrderedSet([5, 7]),
                     7: OrderedSet([6]),
                 },
-                heavy_atoms=OrderedSet([0, 1, 2, 3, 4, 5, 6, 7]),
-                heavy_atom_bonds={
+                motifs=OrderedSet([0, 1, 2, 3, 4, 5, 6, 7]),
+                motif_bonds={
                     0: OrderedSet([1]),
                     1: OrderedSet([0, 2]),
                     2: OrderedSet([1, 3]),
@@ -1352,8 +1352,8 @@ def test_hydrogen_chain():
                     6: OrderedSet([5, 7]),
                     7: OrderedSet([6]),
                 },
-                heavy_atoms=OrderedSet([0, 1, 2, 3, 4, 5, 6, 7]),
-                heavy_atom_bonds={
+                motifs=OrderedSet([0, 1, 2, 3, 4, 5, 6, 7]),
+                motif_bonds={
                     0: OrderedSet([1]),
                     1: OrderedSet([0, 2]),
                     2: OrderedSet([1, 3]),
@@ -1404,8 +1404,8 @@ def test_hydrogen_chain():
                     6: OrderedSet([5, 7]),
                     7: OrderedSet([6]),
                 },
-                heavy_atoms=OrderedSet([0, 1, 2, 3, 4, 5, 6, 7]),
-                heavy_atom_bonds={
+                motifs=OrderedSet([0, 1, 2, 3, 4, 5, 6, 7]),
+                motif_bonds={
                     0: OrderedSet([1]),
                     1: OrderedSet([0, 2]),
                     2: OrderedSet([1, 3]),
