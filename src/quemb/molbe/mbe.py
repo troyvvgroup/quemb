@@ -143,7 +143,6 @@ class BE(MixinLocalize):
         self.ompnum = ompnum
         self.integral_direct_DF = integral_direct_DF
         self.auxbasis = auxbasis
-        self.cleanup_at_end = cleanup_at_end
 
         # Fragment information from fobj
         self.fobj = fobj
