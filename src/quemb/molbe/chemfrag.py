@@ -186,7 +186,7 @@ class ConnectivityData:
 
 
 @define(frozen=True)
-class _SubsetsCleaned:
+class SubsetsCleaned:
     """Data class to contain the results of the :func:`cleanup_if_subset` function.
 
     Currently, this data class is only used internally
@@ -216,7 +216,7 @@ class _SubsetsCleaned:
 
 def cleanup_if_subset(
     fragment_indices: dict[MotifIdx, OrderedSet[MotifIdx]],
-) -> _SubsetsCleaned:
+) -> SubsetsCleaned:
     """Remove fragments that are subsets of other fragments.
 
     We also keep track of the Center indices that are swallowed by the
@@ -229,7 +229,7 @@ def cleanup_if_subset(
 
     Returns
     -------
-    SubsetsCleaned
+    SubsetsCleaned :
         The cleaned fragments and a dictionary to keep track of swallowed centers.
     """
     contain_others: CenterPerFrag = defaultdict(OrderedSet)
@@ -255,7 +255,7 @@ def cleanup_if_subset(
                     j_center = cast(OriginIdx, j_center)
                     contain_others[i_center] |= contain_others[j_center]
                     del contain_others[j_center]
-    return _SubsetsCleaned(
+    return SubsetsCleaned(
         {
             OriginIdx(CenterIdx(k)): v
             for k, v in fragment_indices.items()
@@ -386,7 +386,7 @@ class FragmentedMolecule:
     def from_frag_structure(
         cls, mol: Mole, frag_structure: FragmentedStructure
     ) -> Self:
-        """Construct a :class:`Fragmented Molecule`
+        """Construct a :class:`FragmentedMolecule`
 
         Parameters
         ----------

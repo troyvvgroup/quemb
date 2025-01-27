@@ -5,7 +5,7 @@ from pyscf.gto import M
 from quemb.molbe.chemfrag import (
     ConnectivityData,
     FragmentedStructure,
-    _SubsetsCleaned,
+    SubsetsCleaned,
     cleanup_if_subset,
 )
 from quemb.molbe.fragment import fragpart
@@ -261,7 +261,7 @@ def test_cleaned_fragments():
     m = Cartesian.read_xyz("data/octane.xyz")
 
     expected = {
-        1: _SubsetsCleaned(
+        1: SubsetsCleaned(
             motif_per_frag={
                 0: OrderedSet([0]),
                 1: OrderedSet([1]),
@@ -274,7 +274,7 @@ def test_cleaned_fragments():
             },
             swallowed_centers={},
         ),
-        2: _SubsetsCleaned(
+        2: SubsetsCleaned(
             motif_per_frag={
                 0: OrderedSet([0, 1, 7]),
                 1: OrderedSet([1, 0, 6]),
@@ -285,7 +285,7 @@ def test_cleaned_fragments():
             },
             swallowed_centers={12: OrderedSet([18]), 13: OrderedSet([19])},
         ),
-        3: _SubsetsCleaned(
+        3: SubsetsCleaned(
             motif_per_frag={
                 0: OrderedSet([0, 1, 7, 6, 13]),
                 1: OrderedSet([1, 0, 6, 7, 12]),
@@ -294,26 +294,26 @@ def test_cleaned_fragments():
             },
             swallowed_centers={6: OrderedSet([12, 18]), 7: OrderedSet([13, 19])},
         ),
-        4: _SubsetsCleaned(
+        4: SubsetsCleaned(
             motif_per_frag={
                 0: OrderedSet([0, 1, 7, 6, 13, 12, 19]),
                 1: OrderedSet([1, 0, 6, 7, 12, 13, 18]),
             },
             swallowed_centers={0: OrderedSet([7, 13, 19]), 1: OrderedSet([6, 12, 18])},
         ),
-        5: _SubsetsCleaned(
+        5: SubsetsCleaned(
             motif_per_frag={0: OrderedSet([0, 1, 7, 6, 13, 12, 19, 18])},
             swallowed_centers={0: OrderedSet([1, 7, 6, 13, 12, 19, 18])},
         ),
-        6: _SubsetsCleaned(
+        6: SubsetsCleaned(
             motif_per_frag={0: OrderedSet([0, 1, 7, 6, 13, 12, 19, 18])},
             swallowed_centers={0: OrderedSet([1, 7, 6, 13, 12, 19, 18])},
         ),
-        7: _SubsetsCleaned(
+        7: SubsetsCleaned(
             motif_per_frag={0: OrderedSet([0, 1, 7, 6, 13, 12, 19, 18])},
             swallowed_centers={0: OrderedSet([1, 7, 6, 13, 12, 19, 18])},
         ),
-        8: _SubsetsCleaned(
+        8: SubsetsCleaned(
             motif_per_frag={0: OrderedSet([0, 1, 7, 6, 13, 12, 19, 18])},
             swallowed_centers={0: OrderedSet([1, 7, 6, 13, 12, 19, 18])},
         ),
