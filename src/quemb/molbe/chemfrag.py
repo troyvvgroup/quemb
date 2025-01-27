@@ -14,6 +14,9 @@ from quemb.shared.typing import T
 #: The index of an atom.
 AOIdx = NewType("AOIdx", int)
 
+#: The index of a Fragment
+FragmentIdx = NewType("FragmentIdx", int)
+
 #: The index of an atom.
 AtomIdx = NewType("AtomIdx", int)
 
@@ -73,6 +76,8 @@ OriginIdx = NewType("OriginIdx", CenterIdx)
 # This is not ideal, but it is the best we can do at the moment.
 SeqOverFrag: TypeAlias = Sequence
 SeqOverAtom: TypeAlias = Sequence
+SeqOverCenter: TypeAlias = Sequence
+SeqOverEdge: TypeAlias = Sequence
 
 
 def merge_seqs(*seqs: Sequence[T]) -> OrderedSet[T]:
@@ -294,12 +299,18 @@ class FragmentedStructure:
     motifs_per_frag: Final[SeqOverFrag[OrderedSet[MotifIdx]]]
     #: The centers per fragment.
     #: Note that the set of centers is the complement of the edges.
-    center_per_frag: Final[SeqOverFrag[OrderedSet[CenterIdx]]]
+    centers_per_frag: Final[SeqOverFrag[OrderedSet[CenterIdx]]]
     #: The edges per fragment.
     #: Note that the set of edges is the complement of the centers.
-    edge_per_frag: Final[SeqOverFrag[OrderedSet[EdgeIdx]]]
+    edges_per_frag: Final[SeqOverFrag[OrderedSet[EdgeIdx]]]
     #: The origins per frag
     origin_per_frag: Final[SeqOverFrag[OrderedSet[OriginIdx]]]
+
+    #: For each edge in a fragment it contains the index
+    #: of the fragment where this fragment is a center, i.e.
+    #: where this edge is correctly described and should be matched against.
+    frag_idx_per_edge: Final[SeqOverFrag[SeqOverEdge[FragmentIdx]]]
+
     #: Connectivity data of the molecule.
     conn_data: Final[ConnectivityData]
     n_BE: Final[int]
@@ -316,7 +327,7 @@ class FragmentedStructure:
             merge_seqs(*[conn_data.atoms_per_motif[i_motif] for i_motif in i_fragment])
             for i_fragment in fragments.motif_per_frag.values()
         ]
-        center_per_frag = {
+        centers_per_frag = {
             i_origin: merge_seqs(
                 [i_origin], fragments.swallowed_centers.get(i_origin, [])
             )
@@ -329,16 +340,29 @@ class FragmentedStructure:
             return cast(
                 OrderedSet[EdgeIdx],
                 fragments.motif_per_frag[i_origin].difference(
-                    center_per_frag[i_origin]
+                    centers_per_frag[i_origin]
                 ),
             )
+
+        edges_per_frag = [get_edges(i_origin) for i_origin in fragments.motif_per_frag]
+
+        def frag_idx(edge: EdgeIdx) -> FragmentIdx:
+            for i_frag, centers in enumerate(centers_per_frag.values()):
+                if edge in centers:
+                    return FragmentIdx(i_frag)
+            raise ValueError(f"Edge {edge} not found in any fragment.")
+
+        frag_idx_per_edge = [
+            [frag_idx(edge) for edge in edges] for edges in edges_per_frag
+        ]
 
         return cls(
             atoms_per_frag,
             list(fragments.motif_per_frag.values()),
-            list(center_per_frag.values()),
-            [get_edges(i_origin) for i_origin in fragments.motif_per_frag],
+            list(centers_per_frag.values()),
+            edges_per_frag,
             [OrderedSet([i_origin]) for i_origin in fragments.motif_per_frag],
+            frag_idx_per_edge,
             conn_data,
             n_BE,
         )
