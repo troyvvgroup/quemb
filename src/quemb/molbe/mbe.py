@@ -78,7 +78,7 @@ class BE(MixinLocalize):
         nproc: int = 1,
         ompnum: int = 4,
         scratch_dir: WorkDir | PathLike | None = None,
-        cleanup_at_end: bool = True,
+        cleanup_at_end: bool | None = None,
         integral_direct_DF: bool = False,
         auxbasis: str | None = None,
     ) -> None:
@@ -184,15 +184,11 @@ class BE(MixinLocalize):
         elif isinstance(scratch_dir, WorkDir):
             self.scratch_dir = scratch_dir
             if self.cleanup_at_end is not None:
-                if self.cleanup_at_end != self.scratch_dir.cleanup_at_end:
-                    print(
-                        f"WARNING: `BE.cleanup_at_end` ({self.cleanup_at_end})",
-                        "conflicts with the settings of the provided `scratch_dir`",
-                        f"({self.scratch_dir.cleanup_at_end})!\n",
-                        "... Settings for `scratch_dir` take precedence:",
-                        f"`cleanup_at_end = {self.scratch_dir.cleanup_at_end}`",
-                    )
-
+                print(
+                    "WARNING: Scratch management options (`cleanup_at_end`)",
+                    "must be specified in WorkDir when `scratch_dir` is type",
+                    "`WorkDir`!!!",
+                )
 
         elif isinstance(scratch_dir, PathLike):
             self.scratch_dir = WorkDir(
