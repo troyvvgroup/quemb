@@ -1,6 +1,6 @@
 from collections import defaultdict
 from collections.abc import Sequence
-from typing import Final, NewType, cast
+from typing import Final, NewType, TypeAlias, cast
 
 import chemcoord as cc
 from attr import define
@@ -58,6 +58,21 @@ EdgeIdx = NewType("EdgeIdx", MotifIdx)
 #:    |        |        |        |
 #:
 OriginIdx = NewType("OriginIdx", CenterIdx)
+
+# We would like to have a subtype of Sequence that also behaves generically
+# so that we could write
+# `SeqOverFrag[AOIdx]` for a sequence that contains all AO indices in a fragment
+# or `SeqOverAtom[AOIdx]` for a sequence that contains all AO indices in an atom,
+# where the Sequence types are different, i.e. a function that takes a `SeqOverFrag`
+# would neither accept a `SeqOverAtom` nor a generic `Sequence`.
+# However, this is (currently) not possible in Python, see this issue:
+# https://github.com/python/mypy/issues/3331
+#
+# Hence we have to use just TypeAliases, which means that `SeqOverFrag`, `SeqOverAtom`
+# and `Sequence` are all the same type.
+# This is not ideal, but it is the best we can do at the moment.
+SeqOverFrag: TypeAlias = Sequence
+SeqOverAtom: TypeAlias = Sequence
 
 
 def merge_seqs(*seqs: Sequence[T]) -> OrderedSet[T]:
@@ -272,19 +287,19 @@ class FragmentedStructure:
     """
 
     #: The atomic orbital indices per fragment
-    atoms_per_frag: Final[Sequence[OrderedSet[AtomIdx]]]
+    atoms_per_frag: Final[SeqOverFrag[OrderedSet[AtomIdx]]]
     #: The motifs per fragment.
     #: Note that the set of motifs in the fragment
     #: is the union of centers and edges.
-    motifs_per_frag: Final[Sequence[OrderedSet[MotifIdx]]]
+    motifs_per_frag: Final[SeqOverFrag[OrderedSet[MotifIdx]]]
     #: The centers per fragment.
     #: Note that the set of centers is the complement of the edges.
-    center_per_frag: Final[Sequence[OrderedSet[CenterIdx]]]
+    center_per_frag: Final[SeqOverFrag[OrderedSet[CenterIdx]]]
     #: The edges per fragment.
     #: Note that the set of edges is the complement of the centers.
-    edge_per_frag: Final[Sequence[OrderedSet[EdgeIdx]]]
+    edge_per_frag: Final[SeqOverFrag[OrderedSet[EdgeIdx]]]
     #: The origins per frag
-    origin_per_frag: Final[Sequence[OrderedSet[OriginIdx]]]
+    origin_per_frag: Final[SeqOverFrag[OrderedSet[OriginIdx]]]
     #: Connectivity data of the molecule.
     conn_data: Final[ConnectivityData]
     n_BE: Final[int]
@@ -378,9 +393,10 @@ class FragmentedMolecule:
     mol: Final[Mole]
 
     #: The atomic orbital indices per atom
-    AO_per_atom: Final[Sequence[Sequence[AOIdx]]]
+    AO_per_atom: Final[SeqOverAtom[Sequence[AOIdx]]]
+
     #: The atomic orbital indices per fragment
-    AO_per_frag: Final[Sequence[Sequence[AOIdx]]]
+    AO_per_frag: Final[SeqOverFrag[Sequence[AOIdx]]]
 
     @classmethod
     def from_frag_structure(
