@@ -1,6 +1,6 @@
 from collections import defaultdict
 from collections.abc import Sequence
-from typing import Final, NewType, TypeAlias, cast
+from typing import Final, NewType, cast
 
 import chemcoord as cc
 from attr import define
@@ -58,10 +58,6 @@ EdgeIdx = NewType("EdgeIdx", MotifIdx)
 #:    |        |        |        |
 #:
 OriginIdx = NewType("OriginIdx", CenterIdx)
-
-
-CenterPerFrag: TypeAlias = dict[OriginIdx, OrderedSet[CenterIdx]]
-EdgePerFrag: TypeAlias = dict[OriginIdx, OrderedSet[EdgeIdx]]
 
 
 def merge_seqs(*seqs: Sequence[T]) -> OrderedSet[T]:
@@ -211,7 +207,7 @@ class SubsetsCleaned:
     motif_per_frag: Final[dict[OriginIdx, OrderedSet[MotifIdx]]]
     #: The centers that are swallowed by the larger fragment whose center index
     #: becomes the origin index.
-    swallowed_centers: Final[CenterPerFrag]
+    swallowed_centers: Final[dict[OriginIdx, OrderedSet[CenterIdx]]]
 
 
 def cleanup_if_subset(
@@ -232,7 +228,7 @@ def cleanup_if_subset(
     SubsetsCleaned :
         The cleaned fragments and a dictionary to keep track of swallowed centers.
     """
-    contain_others: CenterPerFrag = defaultdict(OrderedSet)
+    contain_others: dict[OriginIdx, OrderedSet[CenterIdx]] = defaultdict(OrderedSet)
     subset_of_others: set[CenterIdx] = set()
 
     for i_center, i_fragment in fragment_indices.items():
@@ -255,14 +251,16 @@ def cleanup_if_subset(
                     j_center = cast(OriginIdx, j_center)
                     contain_others[i_center] |= contain_others[j_center]
                     del contain_others[j_center]
-    return SubsetsCleaned(
-        {
-            OriginIdx(CenterIdx(k)): v
-            for k, v in fragment_indices.items()
-            if k not in subset_of_others
-        },
-        contain_others,
-    )
+
+    # We know that the first element of motifs is the cetner, which should
+    # stay at the first position. The rest of the motifs should be sorted.
+    # We also remove the swallowed centers, i.e. only origins are left.
+    cleaned_fragments = {
+        OriginIdx(CenterIdx(i_center)): merge_seqs([i_center], sorted(motifs[1:]))
+        for i_center, motifs in fragment_indices.items()
+        if i_center not in subset_of_others
+    }
+    return SubsetsCleaned(cleaned_fragments, contain_others)
 
 
 @define(frozen=True)
