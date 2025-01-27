@@ -901,7 +901,7 @@ def solve_block2(
         dmrgscf.settings.MPIPREFIX = "mpirun -np " + str(ompnum) + " --bind-to none"
 
     orbs = mf.mo_coeff
-    scratch = str(PurePath(frag_scratch))
+    scratch = str(frag_scratch.path)
 
     mc = mcscf.CASCI(mf, DMRG_args.norb, DMRG_args.nelec)
     mc.fcisolver = dmrgscf.DMRGCI(mf.mol)
