@@ -2,7 +2,7 @@
 
 import os
 from abc import ABC
-from pathlib import Path, PurePath
+from pathlib import Path
 from typing import Final
 
 import numpy as np

@@ -1,7 +1,6 @@
 # Author(s): Oinam Romesh Meitei
 
 import pickle
-from pathlib import Path
 
 import h5py
 import numpy
