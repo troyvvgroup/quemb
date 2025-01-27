@@ -329,7 +329,7 @@ class FragmentedStructure:
     def from_cartesian(
         cls, mol: Cartesian, n_BE: int, treat_H_different: bool = True
     ) -> Self:
-        """Construct a :class:`FragmentedMolecule` from a :class:`chemcoord.Cartesian`.
+        """Construct a :class:`FragmentedStructure` from a :class:`chemcoord.Cartesian`.
 
         Parameters
         ----------
@@ -346,7 +346,7 @@ class FragmentedStructure:
 
     @classmethod
     def from_Mol(cls, mol: Mole, n_BE: int, treat_H_different: bool = True) -> Self:
-        """Construct a :class:`FragmentedMolecule` from a :class:`pyscf.gto.mole.Mole`.
+        """Construct a :class:`FragmentedStructure` from a :class:`pyscf.gto.mole.Mole`.
 
         Parameters
         ----------
