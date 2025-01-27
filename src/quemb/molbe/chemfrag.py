@@ -412,15 +412,16 @@ class FragmentedMolecule:
             The fragmented structure to use.
         """
         AO_per_atom = get_AOidx_per_atom(mol)
+        AO_per_frag = [
+            merge_seqs(*(AO_per_atom[i_atom] for i_atom in i_frag))
+            for i_frag in frag_structure.atoms_per_frag
+        ]
 
         return cls(
             frag_structure,
             mol,
             AO_per_atom,
-            [
-                merge_seqs(*(AO_per_atom[i_atom] for i_atom in i_frag))
-                for i_frag in frag_structure.atoms_per_frag
-            ],
+            AO_per_frag,
         )
 
 
