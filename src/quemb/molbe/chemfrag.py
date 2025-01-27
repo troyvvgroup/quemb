@@ -12,6 +12,9 @@ from typing_extensions import Self
 from quemb.shared.typing import T
 
 #: The index of an atom.
+AOIdx = NewType("AOIdx", int)
+
+#: The index of an atom.
 AtomIdx = NewType("AtomIdx", int)
 
 #: The index of a heavy atom, i.e. of a motif.
@@ -358,3 +361,67 @@ class FragmentedStructure:
             If True, we treat hydrogen atoms differently from heavy atoms.
         """
         return cls.from_cartesian(Cartesian.from_pyscf(mol), n_BE, treat_H_different)
+
+
+@define(frozen=True)
+class FragmentedMolecule:
+    """Data structure to store the fragments, including AO indices.
+
+    This takes into account the geometrical data and the used
+    basis sets, hence it "knows" which AO index belongs to which atom
+    and which fragment.
+    Hence, it depends on :class:`FragmentedStructure`.
+    """
+
+    fragmented_structure: Final[FragmentedStructure]
+    #: The actual molecule
+    mol: Final[Mole]
+
+    #: The atomic orbital indices per atom
+    AO_per_atom: Final[Sequence[Sequence[AOIdx]]]
+    #: The atomic orbital indices per fragment
+    AO_per_frag: Final[Sequence[Sequence[AOIdx]]]
+
+    @classmethod
+    def from_frag_structure(
+        cls, mol: Mole, frag_structure: FragmentedStructure
+    ) -> Self:
+        """Construct a :class:`FragmentedMolecule`
+
+        Parameters
+        ----------
+        mol :
+            The Molecule to extract the connectivity data from.
+        frag_structure :
+            The fragmented structure to use.
+        """
+        AO_per_atom = get_AOidx_per_atom(mol)
+
+        return cls(
+            frag_structure,
+            mol,
+            AO_per_atom,
+            [
+                merge_seqs(*(AO_per_atom[i_atom] for i_atom in i_frag))
+                for i_frag in frag_structure.atoms_per_frag
+            ],
+        )
+
+
+def get_AOidx_per_atom(mol: Mole) -> Sequence[Sequence[AOIdx]]:
+    """Get the range of atomic orbital indices per atom.
+
+    Parameters
+    ----------
+    mol :
+        The molecule to get the atomic orbital indices from.
+
+    Returns
+    -------
+    list
+        A list of ranges of atomic orbital indices per atom.
+    """
+    return [
+        OrderedSet(AOIdx(i) for i in range(AO_offsets[2], AO_offsets[3]))
+        for AO_offsets in mol.aoslice_by_atom()
+    ]
