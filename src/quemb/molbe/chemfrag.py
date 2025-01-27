@@ -11,9 +11,6 @@ from typing_extensions import Self
 
 from quemb.shared.typing import T
 
-#: The index of an atomic orbital.
-AOIdx = NewType("AOIdx", int)
-
 #: The index of an atom.
 AtomIdx = NewType("AtomIdx", int)
 
@@ -361,58 +358,3 @@ class FragmentedStructure:
             If True, we treat hydrogen atoms differently from heavy atoms.
         """
         return cls.from_cartesian(Cartesian.from_pyscf(mol), n_BE, treat_H_different)
-
-
-@define(frozen=True)
-class FragmentedMolecule:
-    """Data structure to store the fragments, including AO indices.
-
-    This takes into account the geometrical data and the used
-    basis sets, hence it "knows" which AO index belongs to which atom
-    and which fragment.
-    Hence, it depends on :class:`FragmentedStructure`.
-    """
-
-    fragmented_structure: Final[FragmentedStructure]
-    #: The actual molecule
-    mol: Final[Mole]
-
-    #: The atomic orbital indices per atom
-    AO_per_atom: Final[Sequence[range]]
-
-    @classmethod
-    def from_frag_structure(
-        cls, mol: Mole, frag_structure: FragmentedStructure
-    ) -> Self:
-        """Construct a :class:`FragmentedMolecule`
-
-        Parameters
-        ----------
-        mol :
-            The Molecule to extract the connectivity data from.
-        frag_structure :
-            The fragmented structure to use.
-        """
-        AO_per_atom = get_AOidx_per_atom(mol)
-
-        return cls(
-            frag_structure,
-            mol,
-            AO_per_atom,
-        )
-
-
-def get_AOidx_per_atom(mol: Mole) -> list[range]:
-    """Get the range of atomic orbital indices per atom.
-
-    Parameters
-    ----------
-    mol :
-        The molecule to get the atomic orbital indices from.
-
-    Returns
-    -------
-    list
-        A list of ranges of atomic orbital indices per atom.
-    """
-    return [range(AO_offsets[2], AO_offsets[3]) for AO_offsets in mol.aoslice_by_atom()]
