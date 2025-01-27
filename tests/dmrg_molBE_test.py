@@ -98,7 +98,7 @@ class TestBE_DMRG(unittest.TestCase):
         for fdx, _ in enumerate(fobj.fsites):
             dname = "f" + str(fdx)
             frag_scratch = Path(scratch / dname)
-            print(frag_scratch)
+
             with open(frag_scratch / "dmrg.conf.target", "r") as file:
                 target_dmrg_conf = [f for f in file if not f.startswith("prefix")]
             with open(frag_scratch / "dmrg.conf", "r") as file:
