@@ -77,8 +77,7 @@ class BE(MixinLocalize):
         restart_file: PathLike = "storebe.pk",
         nproc: int = 1,
         ompnum: int = 4,
-        scratch_dir: WorkDir | PathLike | None = None,
-        cleanup_at_end: bool | None = None,
+        scratch_dir: WorkDir | None = None,
         integral_direct_DF: bool = False,
         auxbasis: str | None = None,
     ) -> None:
@@ -111,9 +110,6 @@ class BE(MixinLocalize):
             Number of OpenMP threads, by default 4.
         scratch_dir :
             Scratch directory.
-        cleanup_at_end :
-            Whether to remove dir/files created in  `scratch_dir` at the end of the
-            computation; defaults to True.
         integral_direct_DF:
             If mf._eri is None (i.e. ERIs are not saved in memory using incore_anyway),
             this flag is used to determine if the ERIs are computed integral-directly
@@ -178,24 +174,10 @@ class BE(MixinLocalize):
         self.pot = initialize_pot(self.fobj.Nfrag, self.fobj.edge_idx)
 
         if scratch_dir is None:
-            self.scratch_dir = WorkDir.from_environment(
-                cleanup_at_end=self.cleanup_at_end,
-            )
+            self.scratch_dir = WorkDir.from_environment()
         elif isinstance(scratch_dir, WorkDir):
             self.scratch_dir = scratch_dir
-            if self.cleanup_at_end is not None:
-                print(
-                    "WARNING: Scratch management options (`cleanup_at_end`)",
-                    "must be specified in WorkDir when `scratch_dir` is type",
-                    "`WorkDir`!!!",
-                )
 
-        elif isinstance(scratch_dir, PathLike):
-            self.scratch_dir = WorkDir(
-                path=Path(scratch_dir),
-                cleanup_at_end=self.cleanup_at_end,
-                allow_existing=False,
-            )
         self.eri_file = self.scratch_dir / eri_file
 
         self.frozen_core = fobj.frozen_core
