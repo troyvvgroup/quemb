@@ -1519,7 +1519,7 @@ def test_agreement_with_autogen():
         ):
             # We assert that the first atom, i.e. the origin, is the same for both
             # chemfrag and autogen
-            assert chem_fragment == auto_fragment
+            assert chem_fragment[0] == auto_fragment[0]
             # For the rest of the atoms the order can be different,
             # so we assert set equality
             assert set(chem_fragment) == set(auto_fragment)
