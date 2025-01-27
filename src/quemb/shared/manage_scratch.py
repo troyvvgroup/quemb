@@ -88,8 +88,8 @@ class WorkDir:
     """
 
     path: Final[Annotated[Path, "An absolute path"]] = field(converter=_get_abs_path)
-    cleanup_at_end: Final[bool] = True
-    allow_existing: Final[bool] = False
+    cleanup_at_end: Final[bool] = field(default=True)
+    allow_existing: Final[bool] = field(default=False)
 
     # The __init__ is automatically created
     # the values `self.path` and `self.cleanup_at_end` are already filled.
@@ -120,7 +120,7 @@ class WorkDir:
         *,
         user_defined_root: PathLike | None = None,
         prefix: str | None = None,
-        cleanup_at_end: bool = True,
+        cleanup_at_end: bool | None = None,
     ) -> WorkDir:
         """Create a WorkDir based on the environment.
 
