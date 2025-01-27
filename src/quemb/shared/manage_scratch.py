@@ -88,8 +88,8 @@ class WorkDir:
     """
 
     path: Final[Annotated[Path, "An absolute path"]] = field(converter=_get_abs_path)
-    cleanup_at_end: Final[bool] = field(default=True)
-    allow_existing: Final[bool] = field(default=False)
+    cleanup_at_end: Final[bool | None] = field(default=True)
+    allow_existing: Final[bool | None] = field(default=False)
 
     # The __init__ is automatically created
     # the values `self.path` and `self.cleanup_at_end` are already filled.
