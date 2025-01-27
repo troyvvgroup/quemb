@@ -79,6 +79,7 @@ jobs:
 
   testsuite:
     runs-on: ubuntu-latest
+    needs: analysis
     strategy:
       matrix:
         python-version: ["3.10", "3.12"]
