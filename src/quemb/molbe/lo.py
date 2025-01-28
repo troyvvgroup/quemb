@@ -395,11 +395,11 @@ class MixinLocalize:
             # Occupied mo_coeff (with core)
             Co = self.C[:, : self.Nocc]
 
-            # Get necessary overlaps, second arg is IAO working basis
-            S_vw, S_ww = get_xovlp(self.fobj.mol, basis=iao_valence_basis)
+            # Get necessary overlaps, second arg is IAO valence basis
+            S_vw, S_vv = get_xovlp(self.fobj.mol, basis=iao_valence_basis)
 
             # Use these to get IAOs
-            Ciao = get_iao(Co, S_vw, self.S, S2=S_ww)
+            Ciao = get_iao(Co, S_vw, self.S, S_vv)
 
             # Localize IAOs if desired
             if iao_loc_method.upper() != "SO":

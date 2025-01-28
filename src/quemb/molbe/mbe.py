@@ -224,7 +224,7 @@ class BE(MixinLocalize):
                     lo_method,
                     iao_valence_basis=fobj.iao_valence_basis,
                     iao_loc_method=iao_loc_method,
-                    valence_only=False,
+                    valence_only=False,  # WHY IS THIS FALSE?
                     pop_method=pop_method,
                     hstack=True,
                     nosave=True,
