@@ -77,13 +77,13 @@ class ConnectivityData:
     """Data structure to store the connectivity data of a molecule."""
 
     #: The connectivity graph of the molecule.
-    bonds: Final[dict[AtomIdx, OrderedSet[AtomIdx]]]
+    bonds_atoms: Final[dict[AtomIdx, OrderedSet[AtomIdx]]]
     #: The heavy atoms/motifs in the molecule. If hydrogens are not treated differently
     #: then every hydrogen is also a motif on its own.
     motifs: Final[OrderedSet[MotifIdx]]
     #: The connectivity graph solely of the motifs,
     # i.e. of the heavy atoms when ignoring the hydrogen atoms.
-    motif_bonds: Final[dict[MotifIdx, OrderedSet[MotifIdx]]]
+    bonds_motifs: Final[dict[MotifIdx, OrderedSet[MotifIdx]]]
     #: The hydrogen atoms in the molecule. If hydrogens are not treated differently,
     #: then this is an empty set.
     H_atoms: Final[OrderedSet[AtomIdx]]
@@ -113,23 +113,23 @@ class ConnectivityData:
         with cc.constants.RestoreElementData():
             # temporarily increase van der Waals radius by 15 %
             cc.constants.elements.loc[:, "atomic_radius_cc"] *= 1.15
-            bonds = {k: OrderedSet(sorted(v)) for k, v in m.get_bonds().items()}
+            bonds_atoms = {k: OrderedSet(sorted(v)) for k, v in m.get_bonds().items()}
 
         if treat_H_different:
             motifs = OrderedSet(m.loc[m.atom != "H", :].index)
         else:
             motifs = OrderedSet(m.index)
-        site_bonds = {site: bonds[site] & motifs for site in motifs}
+        bonds_motif = {motif: bonds_atoms[motif] & motifs for motif in motifs}
         H_atoms = OrderedSet(m.index).difference(motifs)
-        H_per_motif = {i_site: bonds[i_site] & H_atoms for i_site in motifs}
+        H_per_motif = {motif: bonds_atoms[motif] & H_atoms for motif in motifs}
         atoms_per_motif = {
-            i_site: merge_seqs([i_site], H_atoms)
-            for i_site, H_atoms in H_per_motif.items()
+            motif: merge_seqs([motif], H_atoms)
+            for motif, H_atoms in H_per_motif.items()
         }
         return cls(
-            bonds,
+            bonds_atoms,
             motifs,
-            site_bonds,
+            bonds_motif,
             H_atoms,
             H_per_motif,
             atoms_per_motif,
@@ -156,7 +156,7 @@ class ConnectivityData:
         result = OrderedSet({i_center})
         new = result.copy()
         for _ in range(n_BE - 1):
-            new = merge_seqs(*(self.motif_bonds[i] for i in new)).difference(result)
+            new = merge_seqs(*(self.bonds_motifs[i] for i in new)).difference(result)
             if not new:
                 break
             result = result.union(new)
