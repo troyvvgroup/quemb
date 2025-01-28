@@ -249,7 +249,7 @@ def cleanup_if_subset(
                     contain_others[i_center] |= contain_others[j_center]
                     del contain_others[j_center]
 
-    # We know that the first element of motifs is the cetner, which should
+    # We know that the first element of motifs is the center, which should
     # stay at the first position. The rest of the motifs should be sorted.
     # We also remove the swallowed centers, i.e. only origins are left.
     cleaned_fragments = {
