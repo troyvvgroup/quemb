@@ -1,7 +1,7 @@
 # Author(s): Minsik Cho
 # Based on: https://docs.github.com/en/actions/use-cases-and-examples/building-and-testing/building-and-testing-python
 
-name: Test building docs and depoly docs for merges to main
+name: Test building docs and deploy docs for merges to main
 
 on:
   push:
@@ -15,6 +15,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # get all refs for multiversion docs build
     - name: Set up Python 3.12
       uses: actions/setup-python@v5
       with:
@@ -29,7 +31,7 @@ jobs:
     - name: Test building docs & Archive the results
       run: |
         cd docs
-        make html SPHINXOPTS="-W --keep-going -n"
+        sphinx-multiversion source build/html
         ls build/html
         tar czf docs.tar.gz --directory=build/html .
         cd ..

@@ -8,8 +8,8 @@
 
 
 project = "QuEmb"
-copyright = "2024, Oinam Romesh Meitei"
-author = "Oinam Romesh Meitei"
+copyright = "2024, Van Voorhis Group"
+author = "Van Voorhis Group"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -31,7 +31,8 @@ extensions = [
     "sphinx_autodoc_typehints",
     # https://github.com/tox-dev/sphinx-autodoc-typehints
     "sphinx.ext.autosummary",
-    "sphinx_rtd_theme",
+    "sphinx.ext.githubpages",
+    "sphinx_multiversion",
 ]
 
 autodoc_typehints_format = "short"
@@ -44,7 +45,6 @@ autodoc_default_flags = [
 always_use_bars_union = True
 python_use_unqualified_type_names = True
 
-
 napoleon_google_docstring = False
 napoleon_include_init_with_doc = True
 napoleon_numpy_docstring = True
@@ -53,7 +53,7 @@ napoleon_use_param = True
 templates_path = ["_templates"]
 
 intersphinx_mapping = {
-    "numpy": ("https://docs.scipy.org/doc/numpy/", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
     "pandas": ("http://pandas.pydata.org/pandas-docs/stable/", None),
     "python": ("https://docs.python.org/3", None),
     "pyscf": ("https://pyscf.org/", None),
@@ -64,8 +64,7 @@ intersphinx_mapping = {
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
-
-html_theme = "sphinx_rtd_theme"
+html_theme = "furo"
 
 nitpicky = True
 nitpick_ignore = []
@@ -77,3 +76,20 @@ for line in open("nitpick-exceptions"):
     dtype, target = line.split(None, 1)
     target = target.strip()
     nitpick_ignore.append((dtype, target))
+
+html_sidebars = {
+    "**": [
+        "sidebar/brand.html",
+        "sidebar/search.html",
+        "sidebar/scroll-start.html",
+        "sidebar/navigation.html",
+        "sidebar/versions.html",
+        "sidebar/scroll-end.html",
+    ]
+}
+
+# -- Sphinx Multiversion --------------------------------------------------
+# https://holzhaus.github.io/sphinx-multiversion/master/configuration.html#
+smv_tag_whitelist = r"^v\d+\.\d+\.\d+$"
+smv_branch_whitelist = r"^main$"
+smv_remote_whitelist = r"^.*$"

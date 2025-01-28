@@ -1,4 +1,5 @@
 # the additional (!) requirements for building the doc
 # the dependencies of `quemb` itself are given in the setup.py
-sphinx_rtd_theme
+furo
 sphinx_autodoc_typehints
+sphinx-multiversion
