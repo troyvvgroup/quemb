@@ -1,16 +1,13 @@
 # Author(s): Minsik Cho
 # Based on: https://docs.github.com/en/actions/use-cases-and-examples/building-and-testing/building-and-testing-python
 
-name: Build docs for quemb
+name: Test building docs and depoly docs for merges to main
 
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
-
-permissions:
-  contents: read
 
 jobs:
   build-doc:
@@ -42,3 +39,11 @@ jobs:
         name: docs
         path: docs/docs.tar.gz
         retention-days: 3
+    - name: Publish docs to Github Pages
+      if:   github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: peaceiris/actions-gh-pages@v4
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: docs/build/html
+        destination_dir: 'main'
+        keep_files: true
