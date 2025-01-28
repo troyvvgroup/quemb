@@ -11,10 +11,14 @@ from typing_extensions import Self
 
 from quemb.shared.typing import T
 
-#: The index of an atom.
+#: The index of an atomic orbital. This is the global index, i.e. not per fragment.
 AOIdx = NewType("AOIdx", int)
 
-#: The index of a Fragment
+#: The relative AO index.
+#: This is relative to the own fragment.
+OwnRelAOIdx = NewType("OwnRelAOIdx", int)
+
+#: The index of a Fragment.
 FragmentIdx = NewType("FragmentIdx", int)
 
 #: The index of an atom.
@@ -76,8 +80,10 @@ OriginIdx = NewType("OriginIdx", CenterIdx)
 # This is not ideal, but it is the best we can do at the moment.
 SeqOverFrag: TypeAlias = Sequence
 SeqOverAtom: TypeAlias = Sequence
+SeqOverMotif: TypeAlias = Sequence
 SeqOverCenter: TypeAlias = Sequence
 SeqOverEdge: TypeAlias = Sequence
+SeqOverOrigin: TypeAlias = Sequence
 
 
 def merge_seqs(*seqs: Sequence[T]) -> OrderedSet[T]:
@@ -292,23 +298,26 @@ class FragmentedStructure:
     """
 
     #: The atomic orbital indices per fragment
-    atoms_per_frag: Final[SeqOverFrag[OrderedSet[AtomIdx]]]
+    atoms_per_frag: Final[SeqOverFrag[SeqOverAtom[AtomIdx]]]
     #: The motifs per fragment.
     #: Note that the set of motifs in the fragment
     #: is the union of centers and edges.
-    motifs_per_frag: Final[SeqOverFrag[OrderedSet[MotifIdx]]]
+    motifs_per_frag: Final[SeqOverFrag[SeqOverMotif[MotifIdx]]]
     #: The centers per fragment.
     #: Note that the set of centers is the complement of the edges.
-    centers_per_frag: Final[SeqOverFrag[OrderedSet[CenterIdx]]]
+    centers_per_frag: Final[SeqOverFrag[SeqOverCenter[CenterIdx]]]
     #: The edges per fragment.
     #: Note that the set of edges is the complement of the centers.
-    edges_per_frag: Final[SeqOverFrag[OrderedSet[EdgeIdx]]]
-    #: The origins per frag
-    origin_per_frag: Final[SeqOverFrag[OrderedSet[OriginIdx]]]
+    edges_per_frag: Final[SeqOverFrag[SeqOverEdge[EdgeIdx]]]
+    #: The origins per frag. Note that for "normal" BE calculations
+    #: there is exacctly one origin per fragment, i.e. the
+    #: `SeqOverOrigin` has one element.
+    origin_per_frag: Final[SeqOverFrag[SeqOverOrigin[OriginIdx]]]
 
     #: For each edge in a fragment it contains the index
     #: of the fragment where this fragment is a center, i.e.
     #: where this edge is correctly described and should be matched against.
+    #: Formerly known as `center`.
     frag_idx_per_edge: Final[SeqOverFrag[SeqOverEdge[FragmentIdx]]]
 
     #: Connectivity data of the molecule.
@@ -422,6 +431,23 @@ class FragmentedMolecule:
     #: The atomic orbital indices per fragment
     AO_per_frag: Final[SeqOverFrag[Sequence[AOIdx]]]
 
+    #: The relative atomic orbital indices per motif per fragment
+    #: Relative means that the AO indices are relative to the own fragment.
+    #: .. code-block:: python
+    #:     rel_AO_per_frag[i_frag][i_motif]
+    #:
+    #: returns the AO indexes of the atoms in the motif
+    AO_per_motif_per_frag: Final[Sequence[dict[MotifIdx, Sequence[AOIdx]]]]
+
+    rel_AO_per_motif_per_frag: Final[Sequence[dict[MotifIdx, Sequence[OwnRelAOIdx]]]]
+
+    # #: The relative atomic orbital indices per edge per fragment.
+    # #: Relative means that the AO indices are relative to the
+    # #: fragment where the edge is a center, **not** to the fragment
+    # #: where the edge is an edge.
+    # #: Formerly known as `center_idx`.
+    # rel_AO_per_edge_per_frag: Final[SeqOverFrag[SeqOverEdge[RelAOIdx]]]
+
     @classmethod
     def from_frag_structure(
         cls, mol: Mole, frag_structure: FragmentedStructure
@@ -440,12 +466,45 @@ class FragmentedMolecule:
             merge_seqs(*(AO_per_atom[i_atom] for i_atom in i_frag))
             for i_frag in frag_structure.atoms_per_frag
         ]
+        AO_per_frag = [
+            merge_seqs(*(AO_per_atom[i_atom] for i_atom in i_frag))
+            for i_frag in frag_structure.atoms_per_frag
+        ]
+
+        AO_per_motif_per_frag = [
+            {
+                motif: merge_seqs(
+                    *(
+                        AO_per_atom[atom]
+                        for atom in frag_structure.conn_data.atoms_per_motif[motif]
+                    )
+                )
+                for motif in motifs
+            }
+            for motifs in frag_structure.motifs_per_frag
+        ]
+
+        rel_AO_per_motif_per_frag = []
+        for motifs in AO_per_motif_per_frag:
+            rel_AO_per_motif = {}
+            previous = 0
+            for motif, AO_indices in motifs.items():
+                indices = range(previous, (previous := previous + len(AO_indices)))
+                rel_AO_per_motif[motif] = [OwnRelAOIdx(i) for i in indices]
+            rel_AO_per_motif_per_frag.append(rel_AO_per_motif)
+
+        # rel_AO_per_edge_per_frag = [
+        #     [AO_per_atom[i_atom] for i_atom in edges]
+        #     for edges in frag_structure.edges_per_frag
+        # ]
 
         return cls(
             frag_structure,
             mol,
             AO_per_atom,
             AO_per_frag,
+            AO_per_motif_per_frag,
+            rel_AO_per_motif_per_frag,
         )
 
 
