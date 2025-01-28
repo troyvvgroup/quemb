@@ -314,11 +314,11 @@ class FragmentedStructure:
     #: `SeqOverOrigin` has one element.
     origin_per_frag: Final[SeqOverFrag[SeqOverOrigin[OriginIdx]]]
 
-    #: For each edge in a fragment it contains the index
+    #: For each edge in a fragment it points to the index
     #: of the fragment where this fragment is a center, i.e.
     #: where this edge is correctly described and should be matched against.
-    #: Formerly known as `center`.
-    frag_idx_per_edge: Final[SeqOverFrag[SeqOverEdge[FragmentIdx]]]
+    #: Variable was formerly known as `center`.
+    frag_idx_per_edge: Final[SeqOverFrag[dict[EdgeIdx, FragmentIdx]]]
 
     #: Connectivity data of the molecule.
     conn_data: Final[ConnectivityData]
@@ -362,7 +362,7 @@ class FragmentedStructure:
             raise ValueError(f"Edge {edge} not found in any fragment.")
 
         frag_idx_per_edge = [
-            [frag_idx(edge) for edge in edges] for edges in edges_per_frag
+            {edge: frag_idx(edge) for edge in edges} for edges in edges_per_frag
         ]
 
         return cls(
@@ -436,17 +436,10 @@ class FragmentedMolecule:
     #: .. code-block:: python
     #:     rel_AO_per_frag[i_frag][i_motif]
     #:
-    #: returns the AO indexes of the atoms in the motif
+    #: returns the AO indexes of the atoms in fragment `i_frag` in motif `i_motif`.
     AO_per_motif_per_frag: Final[Sequence[dict[MotifIdx, Sequence[AOIdx]]]]
 
     rel_AO_per_motif_per_frag: Final[Sequence[dict[MotifIdx, Sequence[OwnRelAOIdx]]]]
-
-    # #: The relative atomic orbital indices per edge per fragment.
-    # #: Relative means that the AO indices are relative to the
-    # #: fragment where the edge is a center, **not** to the fragment
-    # #: where the edge is an edge.
-    # #: Formerly known as `center_idx`.
-    # rel_AO_per_edge_per_frag: Final[SeqOverFrag[SeqOverEdge[RelAOIdx]]]
 
     @classmethod
     def from_frag_structure(
@@ -492,11 +485,6 @@ class FragmentedMolecule:
                 indices = range(previous, (previous := previous + len(AO_indices)))
                 rel_AO_per_motif[motif] = [OwnRelAOIdx(i) for i in indices]
             rel_AO_per_motif_per_frag.append(rel_AO_per_motif)
-
-        # rel_AO_per_edge_per_frag = [
-        #     [AO_per_atom[i_atom] for i_atom in edges]
-        #     for edges in frag_structure.edges_per_frag
-        # ]
 
         return cls(
             frag_structure,
