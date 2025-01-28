@@ -300,7 +300,7 @@ class MixinLocalize:
         lo_method,
         iao_valence_basis="sto-3g",
         iao_loc_method="SO",
-        valence_only=False,
+        iao_valence_only=False,
         pop_method=None,
         init_guess=None,
         hstack=False,
@@ -322,7 +322,7 @@ class MixinLocalize:
             Name of localization method in quantum chemistry for the IAOs and PAOs.
             Options include 'Boys', 'PM', 'ER' (as documented in PySCF). Default is
             'SO', or symmetric orthogonalization.
-        valence_only : bool
+        iao_valence_only : bool
             If this option is set to True, all calculation will be performed in the
             valence basis in the IAO partitioning.
             This is an experimental feature.
@@ -438,8 +438,8 @@ class MixinLocalize:
                 Ciao = get_loc(self.fobj.mol, Ciao, iao_loc_method)
 
             # How do we describe the rest of the space?
-            # If valence_only=False, we use PAOs:
-            if not valence_only:
+            # If iao_valence_only=False, we use PAOs:
+            if not iao_valence_only:
                 if iao_loc_method.upper() == "SO":
                     Cpao = get_pao_native(
                         Ciao, self.S, self.fobj.mol, iao_valence_basis=iao_valence_basis
@@ -453,7 +453,7 @@ class MixinLocalize:
             aoind_by_atom = get_aoind_by_atom(self.fobj.mol)
             Ciao, iaoind_by_atom = reorder_by_atom_(Ciao, aoind_by_atom, self.S)
 
-            if not valence_only:
+            if not iao_valence_only:
                 Cpao, paoind_by_atom = reorder_by_atom_(Cpao, aoind_by_atom, self.S)
 
             if self.frozen_core:
@@ -463,7 +463,7 @@ class MixinLocalize:
 
             shift = 0
             ncore = 0
-            if not valence_only:
+            if not iao_valence_only:
                 Wstack = zeros(
                     (Ciao.shape[0], Ciao.shape[1] + Cpao.shape[1])
                 )  # -self.ncore))
@@ -478,7 +478,7 @@ class MixinLocalize:
                     iaoind_ix = [i_ - ncore for i_ in iaoind_by_atom[ix][nc:]]
                     Wstack[:, shift : shift + niao - nc] = Ciao[:, iaoind_ix]
                     shift += niao - nc
-                    if not valence_only:
+                    if not iao_valence_only:
                         npao = len(paoind_by_atom[ix])
                         Wstack[:, shift : shift + npao] = Cpao[:, paoind_by_atom[ix]]
                         shift += npao
@@ -488,7 +488,7 @@ class MixinLocalize:
                         niao = len(iaoind_by_atom[ix])
                         Wstack[:, shift : shift + niao] = Ciao[:, iaoind_by_atom[ix]]
                         shift += niao
-                        if not valence_only:
+                        if not iao_valence_only:
                             npao = len(paoind_by_atom[ix])
                             Wstack[:, shift : shift + npao] = Cpao[
                                 :, paoind_by_atom[ix]
@@ -505,7 +505,7 @@ class MixinLocalize:
             nmo = self.C.shape[1] - self.ncore
             nlo = self.W.shape[1]
 
-            if not valence_only:
+            if not iao_valence_only:
                 if nmo > nlo:
                     Co_nocore = self.C[:, self.ncore : self.Nocc]
                     Cv = self.C[:, self.Nocc :]

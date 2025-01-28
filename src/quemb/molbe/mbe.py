@@ -215,16 +215,16 @@ class BE(MixinLocalize):
                 lo_method,
                 iao_valence_basis=fobj.iao_valence_basis,
                 iao_loc_method=iao_loc_method,
-                valence_only=fobj.valence_only,
+                iao_valence_only=fobj.iao_valence_only,
                 pop_method=pop_method,
             )
 
-            if fobj.valence_only and lo_method.upper() == "IAO":
+            if fobj.iao_valence_only and lo_method.upper() == "IAO":
                 self.Ciao_pao = self.localize(
                     lo_method,
                     iao_valence_basis=fobj.iao_valence_basis,
                     iao_loc_method=iao_loc_method,
-                    valence_only=False,  # WHY IS THIS FALSE?
+                    iao_valence_only=False,  # WHY IS THIS FALSE?
                     pop_method=pop_method,
                     hstack=True,
                     nosave=True,

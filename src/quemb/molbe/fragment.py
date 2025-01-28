@@ -32,7 +32,7 @@ class fragpart:
         and 'chain' as frag_type.
     iao_valence_basis: str
         Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
-    valence_only: bool
+    iao_valence_only: bool
         If this option is set to True, all calculation will be performed in
         the valence basis in the IAO partitioning.
         This is an experimental feature.
@@ -66,7 +66,7 @@ class fragpart:
         frag_type="autogen",
         closed=False,
         iao_valence_basis=None,
-        valence_only=False,
+        iao_valence_only=False,
         print_frags=True,
         write_geom=False,
         be_type="be2",
@@ -93,7 +93,7 @@ class fragpart:
         self.connectivity = connectivity
         self.frozen_core = frozen_core
         self.iao_valence_basis = iao_valence_basis
-        self.valence_only = valence_only
+        self.iao_valence_only = iao_valence_only
         self.cutoff = cutoff
         self.remove_nonnunique_frags = remove_nonnunique_frags
 
@@ -146,7 +146,7 @@ class fragpart:
                 frozen_core=frozen_core,
                 write_geom=write_geom,
                 iao_valence_basis=iao_valence_basis,
-                valence_only=valence_only,
+                iao_valence_only=iao_valence_only,
                 print_frags=print_frags,
             )
 
