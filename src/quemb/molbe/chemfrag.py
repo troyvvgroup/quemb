@@ -14,9 +14,19 @@ from quemb.shared.typing import T
 #: The index of an atomic orbital. This is the global index, i.e. not per fragment.
 AOIdx = NewType("AOIdx", int)
 
+#: The global index of an atomic orbital, i.e. not per fragment.
+#: This is basically the result of
+#: the `func:pyscf.gto.mole.Mole.aoslice_by_atom` method.
+GlobalAOIdx = NewType("GlobalAOIdx", AOIdx)
+
 #: The relative AO index.
 #: This is relative to the own fragment.
-OwnRelAOIdx = NewType("OwnRelAOIdx", int)
+OwnRelAOIdx = NewType("OwnRelAOIdx", AOIdx)
+
+#: The relative AO index, relative to another fragment.
+#: For example for an edge in fragment 1 it is the AO index of the same atom
+#: interpreted as center in fragment 2.
+OtherRelAOIdx = NewType("OtherRelAOIdx", AOIdx)
 
 #: The index of a Fragment.
 FragmentIdx = NewType("FragmentIdx", int)
@@ -106,21 +116,21 @@ class ConnectivityData:
     """Data structure to store the connectivity data of a molecule."""
 
     #: The connectivity graph of the molecule.
-    bonds: Final[dict[AtomIdx, OrderedSet[AtomIdx]]]
+    bonds: Final[Mapping[AtomIdx, OrderedSet[AtomIdx]]]
     #: The heavy atoms/motifs in the molecule. If hydrogens are not treated differently
     #: then every hydrogen is also a motif on its own.
     motifs: Final[OrderedSet[MotifIdx]]
     #: The connectivity graph solely of the motifs,
     # i.e. of the heavy atoms when ignoring the hydrogen atoms.
-    motif_bonds: Final[dict[MotifIdx, OrderedSet[MotifIdx]]]
+    motif_bonds: Final[Mapping[MotifIdx, OrderedSet[MotifIdx]]]
     #: The hydrogen atoms in the molecule. If hydrogens are not treated differently,
     #: then this is an empty set.
     H_atoms: Final[OrderedSet[AtomIdx]]
     #: The hydrogen atoms per motif. If hydrogens are not treated differently,
     #: then the values of the dictionary are empty sets.
-    H_per_motif: Final[dict[MotifIdx, OrderedSet[AtomIdx]]]
+    H_per_motif: Final[Mapping[MotifIdx, OrderedSet[AtomIdx]]]
     #: All atoms per motif. Lists the motif/heavy atom first.
-    atoms_per_motif: Final[dict[MotifIdx, OrderedSet[AtomIdx]]]
+    atoms_per_motif: Final[Mapping[MotifIdx, OrderedSet[AtomIdx]]]
     #: Do we treat hydrogens differently?
     treat_H_different: Final[bool] = True
 
@@ -191,7 +201,9 @@ class ConnectivityData:
             result = result.union(new)
         return result
 
-    def get_all_BE_fragments(self, n_BE: int) -> dict[MotifIdx, OrderedSet[MotifIdx]]:
+    def get_all_BE_fragments(
+        self, n_BE: int
+    ) -> Mapping[MotifIdx, OrderedSet[MotifIdx]]:
         """Return all BE-fragments
 
         Parameters
@@ -215,7 +227,7 @@ class SubsetsCleaned:
     and strictly assumes that there is exactly one unique origin per
     fragment and one unique fragment per origin.
     Otherwise the data structure of a
-    :python:`dict[OriginIdx, OrderedSet[MotifIdx]]`
+    :python:`typing.Mapping[OriginIdx, OrderedSet[MotifIdx]]`
     would not make sense.
     This assumption makes the code in :func:`cleanup_if_subset`
     much easier to write and more performant,
@@ -230,14 +242,14 @@ class SubsetsCleaned:
 
     #: The remaining fragments after removing subsets.
     #: This is a dictionary mapping the origin index to the set of motif indices.
-    motif_per_frag: Final[dict[OriginIdx, OrderedSet[MotifIdx]]]
+    motif_per_frag: Final[Mapping[OriginIdx, OrderedSet[MotifIdx]]]
     #: The centers that are swallowed by the larger fragment whose center index
     #: becomes the origin index.
-    swallowed_centers: Final[dict[OriginIdx, OrderedSet[CenterIdx]]]
+    swallowed_centers: Final[Mapping[OriginIdx, OrderedSet[CenterIdx]]]
 
 
 def cleanup_if_subset(
-    fragment_indices: dict[MotifIdx, OrderedSet[MotifIdx]],
+    fragment_indices: Mapping[MotifIdx, OrderedSet[MotifIdx]],
 ) -> SubsetsCleaned:
     """Remove fragments that are subsets of other fragments.
 
@@ -254,6 +266,7 @@ def cleanup_if_subset(
     SubsetsCleaned :
         The cleaned fragments and a dictionary to keep track of swallowed centers.
     """
+    # We actually need mutability here, hence it is not a Mapping.
     contain_others: dict[OriginIdx, OrderedSet[CenterIdx]] = defaultdict(OrderedSet)
     subset_of_others: set[CenterIdx] = set()
 
@@ -318,7 +331,7 @@ class FragmentedStructure:
     #: of the fragment where this fragment is a center, i.e.
     #: where this edge is correctly described and should be matched against.
     #: Variable was formerly known as `center`.
-    frag_idx_per_edge: Final[SeqOverFrag[dict[EdgeIdx, FragmentIdx]]]
+    frag_idx_per_edge: Final[SeqOverFrag[Mapping[EdgeIdx, FragmentIdx]]]
 
     #: Connectivity data of the molecule.
     conn_data: Final[ConnectivityData]
@@ -440,7 +453,7 @@ class FragmentedMolecule:
     #:
     #: returns the AO indexes of the atoms in fragment `i_frag`
     #: in motif `i_motif`.
-    AO_per_motif_per_frag: Final[Sequence[dict[MotifIdx, Sequence[AOIdx]]]]
+    AO_per_motif_per_frag: Final[Sequence[Mapping[MotifIdx, Sequence[AOIdx]]]]
 
     rel_AO_per_motif_per_frag: Final[Sequence[Mapping[MotifIdx, Sequence[OwnRelAOIdx]]]]
 
@@ -467,7 +480,7 @@ class FragmentedMolecule:
             for i_frag in frag_structure.atoms_per_frag
         ]
 
-        AO_per_motif_per_frag: list[dict[MotifIdx, Sequence[AOIdx]]] = [
+        AO_per_motif_per_frag: list[Mapping[MotifIdx, Sequence[AOIdx]]] = [
             {
                 motif: merge_seqs(
                     *(
@@ -486,7 +499,7 @@ class FragmentedMolecule:
             previous = 0
             for motif, AO_indices in motifs.items():
                 indices = range(previous, (previous := previous + len(AO_indices)))
-                rel_AO_per_motif[motif] = [OwnRelAOIdx(i) for i in indices]
+                rel_AO_per_motif[motif] = [OwnRelAOIdx(AOIdx(i)) for i in indices]
             rel_AO_per_motif_per_frag.append(rel_AO_per_motif)
 
         return cls(
@@ -499,7 +512,7 @@ class FragmentedMolecule:
         )
 
 
-def get_AOidx_per_atom(mol: Mole) -> Sequence[Sequence[AOIdx]]:
+def get_AOidx_per_atom(mol: Mole) -> Sequence[Sequence[GlobalAOIdx]]:
     """Get the range of atomic orbital indices per atom.
 
     Parameters
@@ -513,6 +526,6 @@ def get_AOidx_per_atom(mol: Mole) -> Sequence[Sequence[AOIdx]]:
         A list of ranges of atomic orbital indices per atom.
     """
     return [
-        OrderedSet(AOIdx(i) for i in range(AO_offsets[2], AO_offsets[3]))
+        OrderedSet(GlobalAOIdx(AOIdx(i)) for i in range(AO_offsets[2], AO_offsets[3]))
         for AO_offsets in mol.aoslice_by_atom()
     ]
