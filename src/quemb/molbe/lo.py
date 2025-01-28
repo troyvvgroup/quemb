@@ -16,12 +16,14 @@ from quemb.shared.typing import Matrix, Tensor3D
 
 
 def dot_gen(A: Matrix, B: Matrix, ovlp: Matrix | None = None) -> Matrix:
+    """Return product A.T @ B or A.T @ ovlp @ B"""
     return A.T @ B if ovlp is None else A.T @ ovlp @ B
 
 
 def get_cano_orth_mat(
     A: Matrix, thr: float = 1.0e-6, ovlp: Matrix | None = None
 ) -> Matrix:
+    """Perform canonical orthogonalization of A"""
     S = dot_gen(A, A, ovlp)
     e, u = eigh(S)
     if thr > 0:
@@ -39,6 +41,7 @@ def cano_orth(A: Matrix, thr: float = 1.0e-6, ovlp: Matrix | None = None) -> Mat
 def get_symm_orth_mat(
     A: Matrix, thr: float = 1.0e-6, ovlp: Matrix | None = None
 ) -> Matrix:
+    """Perform symmetric orthogonalization of A"""
     S = dot_gen(A, A, ovlp)
     e, u = eigh(S)
     if (e < thr).any():
@@ -56,6 +59,7 @@ def symm_orth(A: Matrix, thr: float = 1.0e-6, ovlp: Matrix | None = None) -> Mat
 
 
 def remove_core_mo(Clo: Matrix, Ccore: Matrix, S: Matrix, thr: float = 0.5) -> Matrix:
+    """Remove core molecular orbitals from localized Clo"""
     assert allclose(Clo.T @ S @ Clo, eye(Clo.shape[1]))
     assert allclose(Ccore.T @ S @ Ccore, eye(Ccore.shape[1]))
 
@@ -104,7 +108,7 @@ def get_iao(
     S1: Matrix,
     S2: Matrix,
 ) -> Matrix:
-    """
+    """Gets symmetrically orthogonalized IAO coefficient matrix from system MOs
 
     Parameters
     ----------
@@ -151,12 +155,13 @@ def get_iao(
 
 
 def get_pao(Ciao: Matrix, S1: Matrix, S12: Matrix) -> Matrix:
-    """
+    """Get (symmetrically though often canonically) orthogonalized PAOs
+    from given (localized) IAOs
 
     Parameters
     ----------
     Ciao:
-        IAO indices, output of :func:`get_iao`
+        IAO indices, localized output of :func:`get_iao`
     S1:
         ao ovlp matrix in working (large) basis
     S12:
@@ -189,7 +194,8 @@ def get_pao(Ciao: Matrix, S1: Matrix, S12: Matrix) -> Matrix:
 def get_pao_native(
     Ciao: Matrix, S1: Matrix, mol: Mole, iao_valence_basis: str
 ) -> Matrix:
-    """
+    """Get (symmetrically though often canonically) orthogonalized PAOs from
+    symmetrically orthogonalized IAOs
 
     Parameters
     ----------
@@ -246,6 +252,31 @@ def get_loc(
     pop_method: str | None = None,
     init_guess: Matrix | None = None,
 ) -> Mole:
+    """Establish, initialize, and call localization procedure `method` for C
+    from `PySCF`
+
+    Parameters
+    ----------
+    mol:
+        mol object
+    C:
+        MO coefficients
+    method:
+        Localization method. Options include:
+        EDMINSTON-RUEDENBERG, ER;
+        PIPEK-MIZEY, PIPEK, PM;
+        FOSTER-BOYS, BOYS, FB
+    pop_method:
+        Method for calculating orbital population, by default 'meta-lowdin'
+        See pyscf.lo for more details and options
+    init_guess:
+        Initial guess for localization optimization.
+        Default is `atomic`, See pyscf.lo for more details and options
+    Returns
+    -------
+    mlo: :class:`quemb.shared.typing.Matrix`
+        Localized mol object
+    """
     if method.upper() in ["EDMINSTON-RUEDENBERG", "ER"]:
         from pyscf.lo import ER as Localizer  # noqa: PLC0415
     elif method.upper() in ["PIPEK-MIZEY", "PIPEK", "PM"]:
@@ -283,10 +314,11 @@ class MixinLocalize:
         Parameters
         ----------
         lo_method : str
-            Localization method in quantum chemistry. 'lowdin', 'boys', and 'iao'
-            are supported.
+            Localization method in quantum chemistry. 'lowdin', 'boys', 'er', 'pm', and
+            'iao' are supported.
         iao_valence_basis : str
             Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
+        iao_loc_method: str
             Name of localization method in quantum chemistry for the IAOs and PAOs.
             Options include 'Boys', 'PM', 'ER' (as documented in PySCF). Default is
             'SO', or symmetric orthogonalization.
@@ -416,9 +448,6 @@ class MixinLocalize:
                     Cpao = get_pao(Ciao, self.S, S_vw)
                     # Localize Cpao
                     Cpao = get_loc(self.fobj.mol, Cpao, iao_loc_method)
-
-            # if iao_loc_method.upper() != "SO":
-            #    Ciao = get_loc(self.fobj.mol, Ciao, iao_loc_method)
 
             # Rearrange by atom
             aoind_by_atom = get_aoind_by_atom(self.fobj.mol)
