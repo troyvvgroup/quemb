@@ -1,8 +1,9 @@
 from collections import defaultdict
-from collections.abc import Sequence
-from typing import Final, NewType, cast
+from collections.abc import Mapping, Sequence
+from typing import Callable, Final, NewType, cast
 
 import chemcoord as cc
+import numpy as np
 from attr import define
 from chemcoord import Cartesian
 from ordered_set import OrderedSet
@@ -77,32 +78,61 @@ class ConnectivityData:
     """Data structure to store the connectivity data of a molecule."""
 
     #: The connectivity graph of the molecule.
-    bonds_atoms: Final[dict[AtomIdx, OrderedSet[AtomIdx]]]
+    bonds_atoms: Final[Mapping[AtomIdx, OrderedSet[AtomIdx]]]
     #: The heavy atoms/motifs in the molecule. If hydrogens are not treated differently
     #: then every hydrogen is also a motif on its own.
     motifs: Final[OrderedSet[MotifIdx]]
     #: The connectivity graph solely of the motifs,
     # i.e. of the heavy atoms when ignoring the hydrogen atoms.
-    bonds_motifs: Final[dict[MotifIdx, OrderedSet[MotifIdx]]]
+    bonds_motifs: Final[Mapping[MotifIdx, OrderedSet[MotifIdx]]]
     #: The hydrogen atoms in the molecule. If hydrogens are not treated differently,
     #: then this is an empty set.
     H_atoms: Final[OrderedSet[AtomIdx]]
     #: The hydrogen atoms per motif. If hydrogens are not treated differently,
     #: then the values of the dictionary are empty sets.
-    H_per_motif: Final[dict[MotifIdx, OrderedSet[AtomIdx]]]
+    H_per_motif: Final[Mapping[MotifIdx, OrderedSet[AtomIdx]]]
     #: All atoms per motif. Lists the motif/heavy atom first.
-    atoms_per_motif: Final[dict[MotifIdx, OrderedSet[AtomIdx]]]
+    atoms_per_motif: Final[Mapping[MotifIdx, OrderedSet[AtomIdx]]]
     #: Do we treat hydrogens differently?
     treat_H_different: Final[bool] = True
 
     @classmethod
-    def from_cartesian(cls, m: Cartesian, treat_H_different: bool = True) -> Self:
+    def from_cartesian(
+        cls,
+        m: Cartesian,
+        in_bonds_atoms: Mapping[int, OrderedSet[int]] | None = None,
+        in_vdW_radius: float
+        | Callable[[float], float]
+        | Mapping[str, float]
+        | None = None,
+        treat_H_different: bool = True,
+    ) -> Self:
         """Create a :class:`ConnectivityData` from a :class:`chemcoord.Cartesian`.
 
         Parameters
         ----------
         m :
             The Cartesian object to extract the connectivity data from.
+        bonds_atoms :
+            Can be used to specify the connectivity graph of the molecule.
+            Has exactly the same format as the output of
+            :meth:`chemcoord.Cartesian.get_bonds`,
+            which is called internally if this argument is not specified.
+            Allows it to manually change the connectivity by modifying the output of
+            :meth:`chemcoord.Cartesian.get_bonds`.
+            The keyword is mutually exclusive with :python:`vdW_radius`.
+        vdW_radius :
+            If :python:`bonds_atoms` is :class:`None`, then the connectivity graph is
+            determined by the van der Waals radius of the atoms.
+            It is possible to pass:
+
+            * a single float which is used for all atoms,
+            * a callable which is applied to all radii
+              and can be used to e.g. scale via :python:`lambda r: r * 1.1`,
+            * a dictionary which maps the element symbol to the van der Waals radius,
+              to change the radius of individual elements, e.g. :python:`{"C": 1.5}`.
+
+            The keyword is mutually exclusive with :python:`bonds_atoms`.
         treat_H_different :
             If True, we treat hydrogen atoms differently from heavy atoms.
         """
@@ -110,16 +140,38 @@ class ConnectivityData:
             raise ValueError("We assume 0-indexed data for the rest of the code.")
         m = m.sort_index()
 
-        with cc.constants.RestoreElementData():
-            # temporarily increase van der Waals radius by 15 %
-            cc.constants.elements.loc[:, "atomic_radius_cc"] *= 1.15
-            bonds_atoms = {k: OrderedSet(sorted(v)) for k, v in m.get_bonds().items()}
+        if in_bonds_atoms is not None and in_vdW_radius is not None:
+            raise ValueError("Cannot specify both in_bonds_atoms and in_vdW_radius.")
+
+        if in_bonds_atoms is not None:
+            bonds_atoms = cast(Mapping[AtomIdx, OrderedSet[AtomIdx]], in_bonds_atoms)
+        else:
+            with cc.constants.RestoreElementData():
+                # `used_vdW_r` is a view, not a copy !!!
+                used_vdW_r = cc.constants.elements.loc[:, "atomic_radius_cc"]
+                if isinstance(in_vdW_radius, float):
+                    used_vdW_r[:] = used_vdW_r.map(lambda _: in_vdW_radius)
+                if callable(in_vdW_radius):
+                    used_vdW_r[:] = used_vdW_r.map(in_vdW_radius)
+                elif isinstance(in_vdW_radius, Mapping):
+                    used_vdW_r.update(in_vdW_radius)  # type: ignore[arg-type]
+                else:
+                    # To avoid false-negatives we set all vdW radii to
+                    # at least 0.55 Å
+                    # or 20 % larger than the tabulated value.
+                    used_vdW_r[:] = np.maximum(0.55, used_vdW_r * 1.20)
+                bonds_atoms = {
+                    k: OrderedSet(sorted(v)) for k, v in m.get_bonds().items()
+                }
 
         if treat_H_different:
             motifs = OrderedSet(m.loc[m.atom != "H", :].index)
         else:
             motifs = OrderedSet(m.index)
-        bonds_motif = {motif: bonds_atoms[motif] & motifs for motif in motifs}
+
+        bonds_motif: Mapping[MotifIdx, OrderedSet[MotifIdx]] = {
+            motif: motifs & bonds_atoms[motif] for motif in motifs
+        }
         H_atoms = OrderedSet(m.index).difference(motifs)
         H_per_motif = {motif: bonds_atoms[motif] & H_atoms for motif in motifs}
         atoms_per_motif = {
