@@ -77,9 +77,9 @@ def get_xovlp(
     Parameters
     ----------
     mol :
-        just need it for the working basis
+        mol object to get working (large) and valence (minimal) basis
     basis :
-        the IAO basis, Knizia recommended 'minao'
+        the IAO valence (minimal-like) basis, Knizia recommended 'minao'
 
     Returns
     ------
@@ -102,96 +102,105 @@ def get_iao(
     Co: Matrix,
     S12: Matrix,
     S1: Matrix,
-    S2: Matrix | None = None,
+    S2: Matrix,
 ) -> Matrix:
     """
 
     Parameters
     ----------
     Co:
-        occupied coefficient matrix with core
-    p:
-        valence AO matrix in AO
-    no:
-        number of occ orbitals
+        occupied MO coefficient matrix with core
     S12:
-        ovlp between working basis and valence basis
+        ovlp between working (large) basis and valence (minimal) basis
         can be thought of as working basis in valence basis
     S1:
-        ao ovlp matrix
+        AO ovlp matrix, in working (large) basis
     S2:
-        valence AO ovlp
+        AO ovlp matrix, in valence (minimal) basis
     """
-    # define projection operators
     n = Co.shape[0]
-    if S2 is None:
-        S2 = S12.T @ inv(S1) @ S12
-    P1 = inv(S1)
-    P2 = inv(S2)
 
-    # depolarized occ mo
-    Cotil = P1 @ S12 @ P2 @ S12.T @ Co
+    # Define Projection Matrices
+    inv_S1 = inv(S1)
+    inv_S2 = inv(S2)
 
-    # repolarized valence AOs
-    ptil = P1 @ S12
-    Stil = Cotil.T @ S1 @ Cotil
+    P_12 = inv_S1 @ S12
+    P_21 = inv_S2 @ S12.T
 
-    Po = Co @ Co.T
-    Potil = Cotil @ inv(Stil) @ Cotil.T
+    # Generated polarized occupied states, in working basis, O (in paper)
+    O_pol = Co @ Co.T
 
-    Ciao = (eye(n) - (Po + Potil - 2 * Po @ S1 @ Potil) @ S1) @ ptil
-    Ciao = symm_orth(Ciao, ovlp=S1)
+    # Generate depolarized occupied MOs
+    C_depol = P_12 @ P_21 @ Co
 
-    # check span
-    rep_err = norm(Ciao @ Ciao.T @ S1 @ Po - Po)
+    # Orthogonalize C_depol and get \tilde{O} (in paper)
+    S_til = C_depol.T @ S1 @ C_depol
+    O_depol = C_depol @ inv(S_til) @ C_depol.T
+
+    # Generate C_IAOs for the system
+    Ciao_pol = (eye(n) - (O_depol + O_pol - 2 * O_pol @ S1 @ O_depol) @ S1) @ P_12
+
+    # Orthoganize C_IAOs
+    Ciao = symm_orth(Ciao_pol, ovlp=S1)
+
+    # Check span
+    rep_err = norm(Ciao @ Ciao.T @ S1 @ O_pol - O_pol)
     if rep_err > 1.0e-10:
         raise RuntimeError
     return Ciao
 
 
-def get_pao(Ciao: Matrix, S: Matrix, S12: Matrix) -> Matrix:
+def get_pao(Ciao: Matrix, S1: Matrix, S12: Matrix) -> Matrix:
     """
+
     Parameters
     ----------
     Ciao:
-        output of :func:`get_iao`
-    S:
-        ao ovlp matrix
+        IAO indices, output of :func:`get_iao`
+    S1:
+        ao ovlp matrix in working (large) basis
     S12:
-        valence orbitals projected into ao basis
+        valence (minimal-like) orbitals projected into (large) ao basis
     Returns
     -------
     Cpao: :class:`quemb.shared.typing.Matrix`
         (orthogonalized)
     """
     n = Ciao.shape[0]
-    s12 = inv(S) @ S12
+    P_12 = inv(S1) @ S12
     nonval = (
-        eye(n) - s12 @ s12.T
+        eye(n) - P_12 @ P_12.T
     )  # set of orbitals minus valence (orth in working basis)
 
-    Piao = Ciao @ Ciao.T @ S  # projector into IAOs
-    Cpao_redundant = (eye(n) - Piao) @ nonval  # project out IAOs from non-valence basis
+    # projector into IAOs
+    Piao = Ciao @ Ciao.T @ S1
+
+    # project out IAOs from non-valence basis
+    Cpao_redundant = (eye(n) - Piao) @ nonval
 
     # begin canonical orthogonalization to get rid of redundant orbitals
-    return cano_orth(Cpao_redundant, ovlp=S)
+    try:
+        Cpao = symm_orth(Cpao_redundant, ovlp=S1)
+    except ValueError:
+        Cpao = cano_orth(Cpao_redundant, ovlp=S1)
+    return Cpao
 
 
 def get_pao_native(
-    Ciao: Matrix, S: Matrix, mol: Mole, iao_valence_basis: str
+    Ciao: Matrix, S1: Matrix, mol: Mole, iao_valence_basis: str
 ) -> Matrix:
     """
 
     Parameters
     ----------
     Ciao:
-        output of :code:`get_iao_native`
-    S:
-        ao ovlp matrix
+        IAO indices, output of :code:`get_iao`
+    S1:
+        ao ovlp matrix in working (large) basis
     mol:
         mol object
     iao_valence_basis:
-        basis used for valence orbitals
+        (minimal-like) basis used for valence orbitals
     Returns
     -------
     Cpao: :class:`quemb.shared.typing.Matrix`
@@ -214,15 +223,15 @@ def get_pao_native(
         if (label not in valence_ao_labels)
     ]
 
-    Piao = Ciao @ Ciao.T @ S
+    Piao = Ciao @ Ciao.T @ S1
     Cpao = (eye(n) - Piao)[:, vir_idx]
 
     try:
-        Cpao = symm_orth(Cpao, ovlp=S)
+        Cpao = symm_orth(Cpao, ovlp=S1)
     except ValueError:
         print("Symm orth PAO failed. Switch to cano orth", flush=True)
         npao0 = Cpao.shape[1]
-        Cpao = cano_orth(Cpao, ovlp=S)
+        Cpao = cano_orth(Cpao, ovlp=S1)
         npao1 = Cpao.shape[1]
         print("# of PAO: %d --> %d" % (npao0, npao1), flush=True)
         print("", flush=True)
@@ -286,7 +295,6 @@ class MixinLocalize:
             valence basis in the IAO partitioning.
             This is an experimental feature.
         """
-        print("in localize: self.__dict__", self.__dict__)
         if lo_method.upper() == "LOWDIN":
             es_, vs_ = eigh(self.S)
             edx = es_ > 1.0e-15
@@ -381,26 +389,38 @@ class MixinLocalize:
                 self.lmo_coeff = self.W.T @ self.S @ self.C[:, self.ncore :]
 
         elif lo_method.upper() == "IAO":
+            # IAO working basis: (w): (large) basis set we use
+            # IAO valence basis: (v): minimal-like basis we try to resemble
+
             # Occupied mo_coeff (with core)
             Co = self.C[:, : self.Nocc]
-            # Get necessary overlaps, second arg is IAO basis
-            S12, S2 = get_xovlp(self.fobj.mol, basis=iao_valence_basis)
+
+            # Get necessary overlaps, second arg is IAO working basis
+            S_vw, S_ww = get_xovlp(self.fobj.mol, basis=iao_valence_basis)
+
             # Use these to get IAOs
-            Ciao = get_iao(Co, S12, self.S, S2=S2)
+            Ciao = get_iao(Co, S_vw, self.S, S2=S_ww)
 
+            # Localize IAOs if desired
+            if iao_loc_method.upper() != "SO":
+                Ciao = get_loc(self.fobj.mol, Ciao, iao_loc_method)
+
+            # How do we describe the rest of the space?
+            # If valence_only=False, we use PAOs:
             if not valence_only:
-                # Now get PAOs
-                if iao_loc_method.upper() != "SO":
-                    Cpao = get_pao(Ciao, self.S, S12)
-                elif iao_loc_method.upper() == "SO":
+                if iao_loc_method.upper() == "SO":
                     Cpao = get_pao_native(
-                        Ciao,
-                        self.S,
-                        self.fobj.mol,
-                        iao_valence_basis=iao_valence_basis,
+                        Ciao, self.S, self.fobj.mol, iao_valence_basis=iao_valence_basis
                     )
+                else:
+                    Cpao = get_pao(Ciao, self.S, S_vw)
+                    # Localize Cpao
+                    Cpao = get_loc(self.fobj.mol, Cpao, iao_loc_method)
 
-            # rearrange by atom
+            # if iao_loc_method.upper() != "SO":
+            #    Ciao = get_loc(self.fobj.mol, Ciao, iao_loc_method)
+
+            # Rearrange by atom
             aoind_by_atom = get_aoind_by_atom(self.fobj.mol)
             Ciao, iaoind_by_atom = reorder_by_atom_(Ciao, aoind_by_atom, self.S)
 
@@ -411,12 +431,6 @@ class MixinLocalize:
                 # Remove core MOs
                 Cc = self.C[:, : self.ncore]  # Assumes core are first
                 Ciao = remove_core_mo(Ciao, Cc, self.S)
-
-            # Localize orbitals beyond symm orth
-            if iao_loc_method.upper() != "SO":
-                Ciao = get_loc(self.fobj.mol, Ciao, iao_loc_method)
-                if not valence_only:
-                    Cpao = get_loc(self.fobj.mol, Cpao, iao_loc_method)
 
             shift = 0
             ncore = 0

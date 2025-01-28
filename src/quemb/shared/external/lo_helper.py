@@ -68,7 +68,6 @@ def reorder_by_atom_(Clo, aoind_by_atom, S, thr=0.5):
         loind_by_atom[ia] = list(range(loshift, loshift + nlo_a))
         loshift += nlo_a
     if loind_reorder != list(range(nlo)):
-        print("REORDERD")
         Clo_new = Clo[:, loind_reorder]
     else:
         Clo_new = Clo
