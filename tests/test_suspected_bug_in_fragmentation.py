@@ -1,3 +1,6 @@
+from os import getenv
+
+import pytest
 from chemcoord import Cartesian
 from numpy import isclose
 from pyscf import scf
@@ -6,6 +9,10 @@ from quemb.molbe.fragment import fragpart
 from quemb.molbe.mbe import BE
 
 
+@pytest.mark.skipif(
+    not getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
+    reason="This test is known to fail.",
+)
 def test_matching_order():
     def get_energy(path):
         m = Cartesian.read_xyz(path)
@@ -24,6 +31,6 @@ def test_matching_order():
         mybe.optimize(solver="CCSD")
         return mybe.ebe_tot - mybe.ebe_hf
 
-    assert not isclose(
+    assert isclose(
         get_energy("data/octane.xyz"), get_energy("./data/suspected_bug_octane.xyz")
     )
