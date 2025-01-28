@@ -455,7 +455,18 @@ class FragmentedMolecule:
     #: in motif `i_motif`.
     AO_per_motif_per_frag: Final[Sequence[Mapping[MotifIdx, Sequence[AOIdx]]]]
 
+    #: The relative atomic orbital indices per motif per fragment.
+    #: Relative means that the AO indices are relative to
+    #: the **own** fragment.
     rel_AO_per_motif_per_frag: Final[Sequence[Mapping[MotifIdx, Sequence[OwnRelAOIdx]]]]
+
+    #: The relative atomic orbital indices per edge per fragment.
+    #: Relative means that the AO indices are relative to the **other**
+    #: fragment where the edge is a center.
+    #: This variable was formerly known as `center_idx`.
+    other_rel_AO_per_edge_per_frag: Final[
+        Sequence[Mapping[EdgeIdx, Sequence[OtherRelAOIdx]]]
+    ]
 
     @classmethod
     def from_frag_structure(
@@ -502,6 +513,23 @@ class FragmentedMolecule:
                 rel_AO_per_motif[motif] = [OwnRelAOIdx(AOIdx(i)) for i in indices]
             rel_AO_per_motif_per_frag.append(rel_AO_per_motif)
 
+        other_rel_AO_per_edge_per_frag: list[
+            Mapping[EdgeIdx, Sequence[OtherRelAOIdx]]
+        ] = [
+            {
+                i_edge: [
+                    # We correctly reinterpet the AO indices as
+                    # indices of the other fragment
+                    cast(OtherRelAOIdx, i)
+                    for i in rel_AO_per_motif_per_frag[frag_per_edge[i_edge]][i_edge]
+                ]
+                for i_edge in edges
+            }
+            for edges, frag_per_edge in zip(
+                frag_structure.edges_per_frag, frag_structure.frag_idx_per_edge
+            )
+        ]
+
         return cls(
             frag_structure,
             mol,
@@ -509,6 +537,7 @@ class FragmentedMolecule:
             AO_per_frag,
             AO_per_motif_per_frag,
             rel_AO_per_motif_per_frag,
+            other_rel_AO_per_edge_per_frag,
         )
 
 
