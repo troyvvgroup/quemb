@@ -1,0 +1,6 @@
+quemb.kbe.lo\_k.symm\_orth\_k
+=============================
+
+.. currentmodule:: quemb.kbe.lo_k
+
+.. autofunction:: symm_orth_k

@@ -1,0 +1,40 @@
+quemb.shared.typing
+===================
+
+.. automodule:: quemb.shared.typing
+
+   
+   
+   .. rubric:: Module Attributes
+
+   .. autosummary::
+      :toctree:
+   
+      T_dtype_co
+      Vector
+      Matrix
+      Tensor3D
+      Tensor4D
+      Tensor5D
+      Tensor6D
+      Tensor7D
+      Tensor
+      PathLike
+      KwargDict
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

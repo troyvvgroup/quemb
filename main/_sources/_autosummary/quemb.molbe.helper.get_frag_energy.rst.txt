@@ -1,0 +1,6 @@
+quemb.molbe.helper.get\_frag\_energy
+====================================
+
+.. currentmodule:: quemb.molbe.helper
+
+.. autofunction:: get_frag_energy

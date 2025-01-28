@@ -1,0 +1,6 @@
+quemb.molbe.ube.UBE.save
+========================
+
+.. currentmodule:: quemb.molbe.ube
+
+.. automethod:: UBE.save

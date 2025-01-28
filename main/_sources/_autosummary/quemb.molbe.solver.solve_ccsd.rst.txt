@@ -1,0 +1,6 @@
+quemb.molbe.solver.solve\_ccsd
+==============================
+
+.. currentmodule:: quemb.molbe.solver
+
+.. autofunction:: solve_ccsd

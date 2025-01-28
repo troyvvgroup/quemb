@@ -1,0 +1,31 @@
+quemb.molbe.opt
+===============
+
+.. automodule:: quemb.molbe.opt
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: custom-class-template.rst
+   
+      BEOPT
+   
+   
+
+   
+   
+   
+
+
+

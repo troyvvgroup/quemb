@@ -1,0 +1,6 @@
+quemb.shared.external.unrestricted\_utils.uccsd\_restore\_eris
+==============================================================
+
+.. currentmodule:: quemb.shared.external.unrestricted_utils
+
+.. autofunction:: uccsd_restore_eris

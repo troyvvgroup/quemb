@@ -1,0 +1,6 @@
+quemb.kbe.lo\_k.get\_pao\_native\_k
+===================================
+
+.. currentmodule:: quemb.kbe.lo_k
+
+.. autofunction:: get_pao_native_k

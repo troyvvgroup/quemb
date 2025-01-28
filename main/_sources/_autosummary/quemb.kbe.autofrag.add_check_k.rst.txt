@@ -1,0 +1,6 @@
+quemb.kbe.autofrag.add\_check\_k
+================================
+
+.. currentmodule:: quemb.kbe.autofrag
+
+.. autofunction:: add_check_k

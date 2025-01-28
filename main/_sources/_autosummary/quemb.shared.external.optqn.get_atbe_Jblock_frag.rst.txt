@@ -1,0 +1,6 @@
+quemb.shared.external.optqn.get\_atbe\_Jblock\_frag
+===================================================
+
+.. currentmodule:: quemb.shared.external.optqn
+
+.. autofunction:: get_atbe_Jblock_frag

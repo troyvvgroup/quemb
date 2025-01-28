@@ -1,0 +1,46 @@
+quemb.shared.external.optqn
+===========================
+
+.. automodule:: quemb.shared.external.optqn
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      ccsdres_func
+      get_atbe_Jblock_frag
+      get_be_error_jacobian
+      get_be_error_jacobian_selffrag
+      get_vpots_frag
+      hfres_func
+      line_search_LF
+      mp2res_func
+      trustRegion
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: custom-class-template.rst
+   
+      FrankQN
+   
+   
+
+   
+   
+   
+
+
+

@@ -1,0 +1,6 @@
+quemb.shared.external.ccsd\_rdm.make\_rdm2\_urlx
+================================================
+
+.. currentmodule:: quemb.shared.external.ccsd_rdm
+
+.. autofunction:: make_rdm2_urlx

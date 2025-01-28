@@ -1,0 +1,35 @@
+quemb.shared.helper
+===================
+
+.. automodule:: quemb.shared.helper
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      add_docstring
+      add_init_docstring
+      copy_docstring
+      delete_multiple_files
+      ncore_
+      unused
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

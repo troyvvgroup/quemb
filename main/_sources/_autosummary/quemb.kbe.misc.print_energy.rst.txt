@@ -1,0 +1,6 @@
+quemb.kbe.misc.print\_energy
+============================
+
+.. currentmodule:: quemb.kbe.misc
+
+.. autofunction:: print_energy

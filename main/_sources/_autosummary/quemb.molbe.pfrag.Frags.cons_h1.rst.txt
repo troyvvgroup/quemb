@@ -1,0 +1,6 @@
+quemb.molbe.pfrag.Frags.cons\_h1
+================================
+
+.. currentmodule:: quemb.molbe.pfrag
+
+.. automethod:: Frags.cons_h1

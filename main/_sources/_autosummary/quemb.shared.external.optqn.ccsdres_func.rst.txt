@@ -1,0 +1,6 @@
+quemb.shared.external.optqn.ccsdres\_func
+=========================================
+
+.. currentmodule:: quemb.shared.external.optqn
+
+.. autofunction:: ccsdres_func

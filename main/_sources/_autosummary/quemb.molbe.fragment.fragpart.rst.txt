@@ -1,0 +1,24 @@
+quemb.molbe.fragment.fragpart
+=============================
+
+.. currentmodule:: quemb.molbe.fragment
+
+.. autoclass:: fragpart
+
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~fragpart.__init__
+      ~fragpart.chain
+      ~fragpart.hchain_simple
+   
+   

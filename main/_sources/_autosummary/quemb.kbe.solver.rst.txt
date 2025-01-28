@@ -1,0 +1,30 @@
+quemb.kbe.solver
+================
+
+.. automodule:: quemb.kbe.solver
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      schmidt_decomp_svd
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

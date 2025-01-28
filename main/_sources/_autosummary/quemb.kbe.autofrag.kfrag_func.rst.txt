@@ -1,0 +1,6 @@
+quemb.kbe.autofrag.kfrag\_func
+==============================
+
+.. currentmodule:: quemb.kbe.autofrag
+
+.. autofunction:: kfrag_func

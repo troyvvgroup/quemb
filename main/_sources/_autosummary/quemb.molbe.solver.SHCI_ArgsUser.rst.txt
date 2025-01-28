@@ -1,0 +1,30 @@
+quemb.molbe.solver.SHCI\_ArgsUser
+=================================
+
+.. currentmodule:: quemb.molbe.solver
+
+.. autoclass:: SHCI_ArgsUser
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: SHCI_ArgsUser.hci_pt
+   .. autoattribute:: SHCI_ArgsUser.hci_cutoff
+   .. autoattribute:: SHCI_ArgsUser.ci_coeff_cutoff
+   .. autoattribute:: SHCI_ArgsUser.select_cutoff
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~SHCI_ArgsUser.__init__
+   
+   

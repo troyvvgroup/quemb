@@ -1,0 +1,6 @@
+quemb.molbe.ube.UBE.oneshot
+===========================
+
+.. currentmodule:: quemb.molbe.ube
+
+.. automethod:: UBE.oneshot
