@@ -1,11 +1,13 @@
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
-from typing import Callable, Final, NewType, cast
+from numbers import Number
+from typing import Callable, Final, NewType, TypeAlias, cast, overload
 
 import chemcoord as cc
 import numpy as np
 from attr import define
 from chemcoord import Cartesian
+from chemcoord.constants import elements
 from ordered_set import OrderedSet
 from pyscf.gto import Mole
 from typing_extensions import Self
@@ -96,15 +98,45 @@ class ConnectivityData:
     #: Do we treat hydrogens differently?
     treat_H_different: Final[bool] = True
 
+    # make it explicit via overloads that some arguments are mutually exclusive
+    InVdWRadius: TypeAlias = Number | Callable[[Number], Number] | Mapping[str, Number]
+
+    @overload
     @classmethod
     def from_cartesian(
         cls,
         m: Cartesian,
-        in_bonds_atoms: Mapping[int, OrderedSet[int]] | None = None,
-        in_vdW_radius: float
-        | Callable[[float], float]
-        | Mapping[str, float]
-        | None = None,
+        *,
+        treat_H_different: bool = True,
+    ) -> Self: ...
+
+    @overload
+    @classmethod
+    def from_cartesian(
+        cls,
+        m: Cartesian,
+        *,
+        in_vdW_radius: InVdWRadius,
+        treat_H_different: bool = True,
+    ) -> Self: ...
+
+    @overload
+    @classmethod
+    def from_cartesian(
+        cls,
+        m: Cartesian,
+        *,
+        in_bonds_atoms: Mapping[int, set[int]],
+        treat_H_different: bool = True,
+    ) -> Self: ...
+
+    @classmethod
+    def from_cartesian(
+        cls,
+        m: Cartesian,
+        *,
+        in_bonds_atoms: Mapping[int, set[int]] | None = None,
+        in_vdW_radius: InVdWRadius | None = None,
         treat_H_different: bool = True,
     ) -> Self:
         """Create a :class:`ConnectivityData` from a :class:`chemcoord.Cartesian`.
@@ -113,7 +145,7 @@ class ConnectivityData:
         ----------
         m :
             The Cartesian object to extract the connectivity data from.
-        bonds_atoms :
+        in_bonds_atoms : Mapping[int, OrderedSet[int]]
             Can be used to specify the connectivity graph of the molecule.
             Has exactly the same format as the output of
             :meth:`chemcoord.Cartesian.get_bonds`,
@@ -121,12 +153,12 @@ class ConnectivityData:
             Allows it to manually change the connectivity by modifying the output of
             :meth:`chemcoord.Cartesian.get_bonds`.
             The keyword is mutually exclusive with :python:`vdW_radius`.
-        vdW_radius :
+        in_vdW_radius : Number | Callable[[Number], Number] | Mapping[str, Number]
             If :python:`bonds_atoms` is :class:`None`, then the connectivity graph is
             determined by the van der Waals radius of the atoms.
             It is possible to pass:
 
-            * a single float which is used for all atoms,
+            * a single Number which is used for all atoms,
             * a callable which is applied to all radii
               and can be used to e.g. scale via :python:`lambda r: r * 1.1`,
             * a dictionary which maps the element symbol to the van der Waals radius,
@@ -144,22 +176,28 @@ class ConnectivityData:
             raise ValueError("Cannot specify both in_bonds_atoms and in_vdW_radius.")
 
         if in_bonds_atoms is not None:
-            bonds_atoms = cast(Mapping[AtomIdx, OrderedSet[AtomIdx]], in_bonds_atoms)
+            bonds_atoms = {
+                AtomIdx(k): OrderedSet([AtomIdx(j) for j in sorted(v)])
+                for k, v in m.get_bonds().items()
+            }
         else:
             with cc.constants.RestoreElementData():
-                # `used_vdW_r` is a view, not a copy !!!
-                used_vdW_r = cc.constants.elements.loc[:, "atomic_radius_cc"]
-                if isinstance(in_vdW_radius, float):
-                    used_vdW_r[:] = used_vdW_r.map(lambda _: in_vdW_radius)
-                if callable(in_vdW_radius):
-                    used_vdW_r[:] = used_vdW_r.map(in_vdW_radius)
+                used_vdW_r = elements.loc[:, "atomic_radius_cc"]
+                if isinstance(in_vdW_radius, Number):
+                    elements.loc[:, "atomic_radius_cc"] = used_vdW_r.map(
+                        lambda _: in_vdW_radius
+                    )
+                elif callable(in_vdW_radius):
+                    elements.loc[:, "atomic_radius_cc"] = used_vdW_r.map(in_vdW_radius)
                 elif isinstance(in_vdW_radius, Mapping):
-                    used_vdW_r.update(in_vdW_radius)  # type: ignore[arg-type]
+                    elements.loc[:, "atomic_radius_cc"].update(in_vdW_radius)  # type: ignore[arg-type]
                 else:
                     # To avoid false-negatives we set all vdW radii to
                     # at least 0.55 Å
                     # or 20 % larger than the tabulated value.
-                    used_vdW_r[:] = np.maximum(0.55, used_vdW_r * 1.20)
+                    elements.loc[:, "atomic_radius_cc"] = np.maximum(
+                        0.55, used_vdW_r * 1.20
+                    )
                 bonds_atoms = {
                     k: OrderedSet(sorted(v)) for k, v in m.get_bonds().items()
                 }
@@ -393,7 +431,8 @@ class FragmentedStructure:
             If True, we treat hydrogen atoms differently from heavy atoms.
         """
         return cls.from_motifs(
-            ConnectivityData.from_cartesian(mol, treat_H_different), n_BE
+            ConnectivityData.from_cartesian(mol, treat_H_different=treat_H_different),
+            n_BE,
         )
 
     @classmethod

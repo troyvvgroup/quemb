@@ -1523,3 +1523,22 @@ def test_agreement_with_autogen():
             # For the rest of the atoms the order can be different,
             # so we assert set equality
             assert set(chem_fragment) == set(auto_fragment)
+
+
+def test_manipulation_of_vdW():
+    m = Cartesian.read_xyz("data/octane.xyz")
+
+    conn_data = ConnectivityData.from_cartesian(m, in_vdW_radius=100)
+    for atom, connected in conn_data.bonds_atoms.items():
+        # check if everything is connected to everything
+        assert {atom} | connected == set(m.index)
+
+    conn_data = ConnectivityData.from_cartesian(m, in_vdW_radius=lambda r: r * 100)
+    for atom, connected in conn_data.bonds_atoms.items():
+        # check if everything is connected to everything
+        assert {atom} | connected == set(m.index)
+
+    conn_data = ConnectivityData.from_cartesian(m, in_vdW_radius={"C": 100})
+    for i_carbon in m.loc[m.atom == "C"].index:
+        # check if carbons are connected to everything
+        assert {i_carbon} | conn_data.bonds_atoms[i_carbon] == set(m.index)
