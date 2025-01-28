@@ -1,5 +1,5 @@
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Final, NewType, TypeAlias, cast
 
 import chemcoord as cc
@@ -433,13 +433,16 @@ class FragmentedMolecule:
 
     #: The relative atomic orbital indices per motif per fragment
     #: Relative means that the AO indices are relative to the own fragment.
+    #:
     #: .. code-block:: python
+    #:
     #:     rel_AO_per_frag[i_frag][i_motif]
     #:
-    #: returns the AO indexes of the atoms in fragment `i_frag` in motif `i_motif`.
+    #: returns the AO indexes of the atoms in fragment `i_frag`
+    #: in motif `i_motif`.
     AO_per_motif_per_frag: Final[Sequence[dict[MotifIdx, Sequence[AOIdx]]]]
 
-    rel_AO_per_motif_per_frag: Final[Sequence[dict[MotifIdx, Sequence[OwnRelAOIdx]]]]
+    rel_AO_per_motif_per_frag: Final[Sequence[Mapping[MotifIdx, Sequence[OwnRelAOIdx]]]]
 
     @classmethod
     def from_frag_structure(
@@ -464,7 +467,7 @@ class FragmentedMolecule:
             for i_frag in frag_structure.atoms_per_frag
         ]
 
-        AO_per_motif_per_frag = [
+        AO_per_motif_per_frag: list[dict[MotifIdx, Sequence[AOIdx]]] = [
             {
                 motif: merge_seqs(
                     *(
@@ -477,7 +480,7 @@ class FragmentedMolecule:
             for motifs in frag_structure.motifs_per_frag
         ]
 
-        rel_AO_per_motif_per_frag = []
+        rel_AO_per_motif_per_frag: list[Mapping[MotifIdx, Sequence[OwnRelAOIdx]]] = []
         for motifs in AO_per_motif_per_frag:
             rel_AO_per_motif = {}
             previous = 0
