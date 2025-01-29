@@ -35,6 +35,9 @@ jobs:
         ls build/html
         tar czf docs.tar.gz --directory=build/html .
         cd ..
+    - name: Redirect to docs for main
+      run: |
+        cp docs/index.html docs/build/html/
     - name: Upload docs as an artifact
       uses: actions/upload-artifact@v4
       with:
@@ -47,5 +50,4 @@ jobs:
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: docs/build/html
-        destination_dir: 'main'
         keep_files: true
