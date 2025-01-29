@@ -134,7 +134,7 @@ def get_pao_k(Ciao, S, S12):
     Parameters
     ----------
     Ciao:
-        output of :func:`quemb.kbe.lo_k.get_iao_k`
+        output of :func:`quemb.kbe.lo.get_iao_k`
     S:
         ao ovlp matrix
     S12:
