@@ -1,3 +1,4 @@
+import pytest
 from chemcoord import Cartesian
 from ordered_set import OrderedSet
 from pyscf.gto import M
@@ -16,7 +17,7 @@ def test_connectivity_data():
 
     conn_data = ConnectivityData.from_cartesian(m)
     expected = ConnectivityData(
-        bonds={
+        bonds_atoms={
             0: OrderedSet([1, 3, 5, 7]),
             1: OrderedSet([0, 2, 4, 6]),
             2: OrderedSet([1]),
@@ -45,7 +46,7 @@ def test_connectivity_data():
             25: OrderedSet([18]),
         },
         motifs=OrderedSet([0, 1, 6, 7, 12, 13, 18, 19]),
-        motif_bonds={
+        bonds_motifs={
             0: OrderedSet([1, 7]),
             1: OrderedSet([0, 6]),
             6: OrderedSet([1, 12]),
@@ -89,7 +90,7 @@ def test_connectivity_data():
     )
 
     resorted_expected = ConnectivityData(
-        bonds={
+        bonds_atoms={
             0: OrderedSet([1, 8, 9, 10]),
             1: OrderedSet([0, 2, 11, 12]),
             2: OrderedSet([1, 3, 13, 14]),
@@ -118,7 +119,7 @@ def test_connectivity_data():
             25: OrderedSet([7]),
         },
         motifs=OrderedSet([0, 1, 2, 3, 4, 5, 6, 7]),
-        motif_bonds={
+        bonds_motifs={
             0: OrderedSet([1]),
             1: OrderedSet([0, 2]),
             2: OrderedSet([1, 3]),
@@ -390,7 +391,7 @@ def test_fragmented_molecule():
             ],
             frag_idx_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
             conn_data=ConnectivityData(
-                bonds={
+                bonds_atoms={
                     0: OrderedSet([1, 3, 5, 7]),
                     1: OrderedSet([0, 2, 4, 6]),
                     2: OrderedSet([1]),
@@ -419,7 +420,7 @@ def test_fragmented_molecule():
                     25: OrderedSet([18]),
                 },
                 motifs=OrderedSet([0, 1, 6, 7, 12, 13, 18, 19]),
-                motif_bonds={
+                bonds_motifs={
                     0: OrderedSet([1, 7]),
                     1: OrderedSet([0, 6]),
                     6: OrderedSet([1, 12]),
@@ -506,7 +507,7 @@ def test_fragmented_molecule():
                 {7: 3},
             ],
             conn_data=ConnectivityData(
-                bonds={
+                bonds_atoms={
                     0: OrderedSet([1, 3, 5, 7]),
                     1: OrderedSet([0, 2, 4, 6]),
                     2: OrderedSet([1]),
@@ -535,7 +536,7 @@ def test_fragmented_molecule():
                     25: OrderedSet([18]),
                 },
                 motifs=OrderedSet([0, 1, 6, 7, 12, 13, 18, 19]),
-                motif_bonds={
+                bonds_motifs={
                     0: OrderedSet([1, 7]),
                     1: OrderedSet([0, 6]),
                     6: OrderedSet([1, 12]),
@@ -610,7 +611,7 @@ def test_fragmented_molecule():
                 {0: 0, 1: 1},
             ],
             conn_data=ConnectivityData(
-                bonds={
+                bonds_atoms={
                     0: OrderedSet([1, 3, 5, 7]),
                     1: OrderedSet([0, 2, 4, 6]),
                     2: OrderedSet([1]),
@@ -639,7 +640,7 @@ def test_fragmented_molecule():
                     25: OrderedSet([18]),
                 },
                 motifs=OrderedSet([0, 1, 6, 7, 12, 13, 18, 19]),
-                motif_bonds={
+                bonds_motifs={
                     0: OrderedSet([1, 7]),
                     1: OrderedSet([0, 6]),
                     6: OrderedSet([1, 12]),
@@ -740,7 +741,7 @@ def test_fragmented_molecule():
             origin_per_frag=[OrderedSet([0]), OrderedSet([1])],
             frag_idx_per_edge=[{1: 1, 6: 1, 12: 1}, {0: 0, 7: 0, 13: 0}],
             conn_data=ConnectivityData(
-                bonds={
+                bonds_atoms={
                     0: OrderedSet([1, 3, 5, 7]),
                     1: OrderedSet([0, 2, 4, 6]),
                     2: OrderedSet([1]),
@@ -769,7 +770,7 @@ def test_fragmented_molecule():
                     25: OrderedSet([18]),
                 },
                 motifs=OrderedSet([0, 1, 6, 7, 12, 13, 18, 19]),
-                motif_bonds={
+                bonds_motifs={
                     0: OrderedSet([1, 7]),
                     1: OrderedSet([0, 6]),
                     6: OrderedSet([1, 12]),
@@ -845,7 +846,7 @@ def test_fragmented_molecule():
             origin_per_frag=[OrderedSet([0])],
             frag_idx_per_edge=[{}],
             conn_data=ConnectivityData(
-                bonds={
+                bonds_atoms={
                     0: OrderedSet([1, 3, 5, 7]),
                     1: OrderedSet([0, 2, 4, 6]),
                     2: OrderedSet([1]),
@@ -874,7 +875,7 @@ def test_fragmented_molecule():
                     25: OrderedSet([18]),
                 },
                 motifs=OrderedSet([0, 1, 6, 7, 12, 13, 18, 19]),
-                motif_bonds={
+                bonds_motifs={
                     0: OrderedSet([1, 7]),
                     1: OrderedSet([0, 6]),
                     6: OrderedSet([1, 12]),
@@ -950,7 +951,7 @@ def test_fragmented_molecule():
             origin_per_frag=[OrderedSet([0])],
             frag_idx_per_edge=[{}],
             conn_data=ConnectivityData(
-                bonds={
+                bonds_atoms={
                     0: OrderedSet([1, 3, 5, 7]),
                     1: OrderedSet([0, 2, 4, 6]),
                     2: OrderedSet([1]),
@@ -979,7 +980,7 @@ def test_fragmented_molecule():
                     25: OrderedSet([18]),
                 },
                 motifs=OrderedSet([0, 1, 6, 7, 12, 13, 18, 19]),
-                motif_bonds={
+                bonds_motifs={
                     0: OrderedSet([1, 7]),
                     1: OrderedSet([0, 6]),
                     6: OrderedSet([1, 12]),
@@ -1055,7 +1056,7 @@ def test_fragmented_molecule():
             origin_per_frag=[OrderedSet([0])],
             frag_idx_per_edge=[{}],
             conn_data=ConnectivityData(
-                bonds={
+                bonds_atoms={
                     0: OrderedSet([1, 3, 5, 7]),
                     1: OrderedSet([0, 2, 4, 6]),
                     2: OrderedSet([1]),
@@ -1084,7 +1085,7 @@ def test_fragmented_molecule():
                     25: OrderedSet([18]),
                 },
                 motifs=OrderedSet([0, 1, 6, 7, 12, 13, 18, 19]),
-                motif_bonds={
+                bonds_motifs={
                     0: OrderedSet([1, 7]),
                     1: OrderedSet([0, 6]),
                     6: OrderedSet([1, 12]),
@@ -1197,7 +1198,7 @@ def test_hydrogen_chain():
             ],
             frag_idx_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
             conn_data=ConnectivityData(
-                bonds={
+                bonds_atoms={
                     0: OrderedSet([1]),
                     1: OrderedSet([0, 2]),
                     2: OrderedSet([1, 3]),
@@ -1208,7 +1209,7 @@ def test_hydrogen_chain():
                     7: OrderedSet([6]),
                 },
                 motifs=OrderedSet([0, 1, 2, 3, 4, 5, 6, 7]),
-                motif_bonds={
+                bonds_motifs={
                     0: OrderedSet([1]),
                     1: OrderedSet([0, 2]),
                     2: OrderedSet([1, 3]),
@@ -1293,7 +1294,7 @@ def test_hydrogen_chain():
                 {5: 4},
             ],
             conn_data=ConnectivityData(
-                bonds={
+                bonds_atoms={
                     0: OrderedSet([1]),
                     1: OrderedSet([0, 2]),
                     2: OrderedSet([1, 3]),
@@ -1304,7 +1305,7 @@ def test_hydrogen_chain():
                     7: OrderedSet([6]),
                 },
                 motifs=OrderedSet([0, 1, 2, 3, 4, 5, 6, 7]),
-                motif_bonds={
+                bonds_motifs={
                     0: OrderedSet([1]),
                     1: OrderedSet([0, 2]),
                     2: OrderedSet([1, 3]),
@@ -1377,7 +1378,7 @@ def test_hydrogen_chain():
                 {3: 1, 4: 2},
             ],
             conn_data=ConnectivityData(
-                bonds={
+                bonds_atoms={
                     0: OrderedSet([1]),
                     1: OrderedSet([0, 2]),
                     2: OrderedSet([1, 3]),
@@ -1388,7 +1389,7 @@ def test_hydrogen_chain():
                     7: OrderedSet([6]),
                 },
                 motifs=OrderedSet([0, 1, 2, 3, 4, 5, 6, 7]),
-                motif_bonds={
+                bonds_motifs={
                     0: OrderedSet([1]),
                     1: OrderedSet([0, 2]),
                     2: OrderedSet([1, 3]),
@@ -1437,7 +1438,7 @@ def test_hydrogen_chain():
             origin_per_frag=[OrderedSet([3]), OrderedSet([4])],
             frag_idx_per_edge=[{4: 1, 5: 1, 6: 1}, {1: 0, 2: 0, 3: 0}],
             conn_data=ConnectivityData(
-                bonds={
+                bonds_atoms={
                     0: OrderedSet([1]),
                     1: OrderedSet([0, 2]),
                     2: OrderedSet([1, 3]),
@@ -1448,7 +1449,7 @@ def test_hydrogen_chain():
                     7: OrderedSet([6]),
                 },
                 motifs=OrderedSet([0, 1, 2, 3, 4, 5, 6, 7]),
-                motif_bonds={
+                bonds_motifs={
                     0: OrderedSet([1]),
                     1: OrderedSet([0, 2]),
                     2: OrderedSet([1, 3]),
@@ -1491,7 +1492,7 @@ def test_hydrogen_chain():
             origin_per_frag=[OrderedSet([3])],
             frag_idx_per_edge=[{}],
             conn_data=ConnectivityData(
-                bonds={
+                bonds_atoms={
                     0: OrderedSet([1]),
                     1: OrderedSet([0, 2]),
                     2: OrderedSet([1, 3]),
@@ -1502,7 +1503,7 @@ def test_hydrogen_chain():
                     7: OrderedSet([6]),
                 },
                 motifs=OrderedSet([0, 1, 2, 3, 4, 5, 6, 7]),
-                motif_bonds={
+                bonds_motifs={
                     0: OrderedSet([1]),
                     1: OrderedSet([0, 2]),
                     2: OrderedSet([1, 3]),
@@ -1559,3 +1560,34 @@ def test_agreement_with_autogen():
             # For the rest of the atoms the order can be different,
             # so we assert set equality
             assert set(chem_fragment) == set(auto_fragment)
+
+
+def test_conn_data_manipulation_of_vdW():
+    m = Cartesian.read_xyz("data/octane.xyz")
+
+    # if hydrogens are shared among motifs we cannot treat H differently
+    with pytest.raises(ValueError):
+        conn_data = ConnectivityData.from_cartesian(m, in_vdW_radius=100)
+        conn_data = ConnectivityData.from_cartesian(m, in_vdW_radius=lambda r: r * 100)
+        conn_data = ConnectivityData.from_cartesian(m, in_vdW_radius={"C": 100})
+
+    conn_data = ConnectivityData.from_cartesian(
+        m, in_vdW_radius=100, treat_H_different=False
+    )
+    for atom, connected in conn_data.bonds_atoms.items():
+        # check if everything is connected to everything
+        assert {atom} | connected == set(m.index)
+
+    conn_data = ConnectivityData.from_cartesian(
+        m, in_vdW_radius=lambda r: r * 100, treat_H_different=False
+    )
+    for atom, connected in conn_data.bonds_atoms.items():
+        # check if everything is connected to everything
+        assert {atom} | connected == set(m.index)
+
+    conn_data = ConnectivityData.from_cartesian(
+        m, in_vdW_radius={"C": 100}, treat_H_different=False
+    )
+    for i_carbon in m.loc[m.atom == "C"].index:
+        # check if carbons are connected to everything
+        assert {i_carbon} | conn_data.bonds_atoms[i_carbon] == set(m.index)
