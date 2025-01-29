@@ -1,7 +1,7 @@
 from collections import defaultdict
-from collections.abc import Mapping, Sequence
+from collections.abc import Hashable, Mapping, Sequence
 from numbers import Number
-from typing import Callable, Final, NewType, TypeAlias, cast
+from typing import Callable, Final, NewType, TypeAlias, TypeVar, cast
 
 import chemcoord as cc
 import numpy as np
@@ -112,6 +112,27 @@ def merge_seqs(*seqs: Sequence[T]) -> OrderedSet[T]:
     """
     # mypy wrongly complains that the arg type is not valid, which it is.
     return OrderedSet().union(*seqs)  # type: ignore[arg-type]
+
+
+# We want to express the idea in the type system that restricting
+# the keys of a Mapping to a subset can also narrow down
+# the type of the keys, hence of the Mapping itself.
+# The direct approach, i.e.
+#   Key = TypeVar("Key", bound=Hashable)
+#   SubKey = TypeVar("SubKey", bound=Key)
+# is not possible, because one cannot bind a TypeVar
+# to another TypeVar, hence we form a union type of the subset key type
+# with its complement to obain the super type of the key.
+SubKey = TypeVar("SubKey", bound=Hashable)
+ComplementKey = TypeVar("ComplementKey", bound=Hashable)
+Val = TypeVar("Val")
+
+
+def restrict_keys(
+    D: Mapping[SubKey | ComplementKey, Val], keys: Sequence[SubKey]
+) -> Mapping[SubKey, Val]:
+    """Restrict the keys of a dictionary to a subset."""
+    return {k: D[k] for k in keys}
 
 
 # The following can be passed van der Waals radius alternative.
@@ -552,29 +573,39 @@ class FragmentedMolecule:
     #: The atomic orbital indices per fragment
     AO_per_frag: Final[SeqOverFrag[Sequence[AOIdx]]]
 
-    #: The relative atomic orbital indices per motif per fragment
-    #: Relative means that the AO indices are relative to the own fragment.
-    #:
-    #: .. code-block:: python
-    #:
-    #:     rel_AO_per_frag[i_frag][i_motif]
-    #:
-    #: returns the AO indexes of the atoms in fragment `i_frag`
-    #: in motif `i_motif`.
-    AO_per_motif_per_frag: Final[Sequence[Mapping[MotifIdx, Sequence[AOIdx]]]]
+    #: The atomic orbital indices per motif
+    AO_per_motif: Final[Mapping[MotifIdx, Sequence[AOIdx]]]
 
     #: The relative atomic orbital indices per motif per fragment.
     #: Relative means that the AO indices are relative to
     #: the **own** fragment.
-    rel_AO_per_motif_per_frag: Final[Sequence[Mapping[MotifIdx, Sequence[OwnRelAOIdx]]]]
+    rel_AO_per_motif_per_frag: Final[
+        SeqOverFrag[Mapping[MotifIdx, Sequence[OwnRelAOIdx]]]
+    ]
+
+    #: The relative atomic orbital indices per edge per fragment.
+    #: Relative means that the AO indices are relative to
+    #: the **own** fragment.
+    #: This variable is a strict subset of :attr:`rel_AO_per_motif_per_frag`,
+    #: in the sense that the motif indices, the keys in the mapping,
+    #: are restricted to the edgess of the fragment.
+    #: This variable was formerly known as `edge_idx`.
+    rel_AO_per_edge_per_frag: Final[
+        SeqOverFrag[Mapping[EdgeIdx, Sequence[OwnRelAOIdx]]]
+    ]
 
     #: The relative atomic orbital indices per edge per fragment.
     #: Relative means that the AO indices are relative to the **other**
     #: fragment where the edge is a center.
-    #: This variable was formerly known as `center_idx`.
+    #: This variable was formerly known as :python:`center_idx`.
     other_rel_AO_per_edge_per_frag: Final[
-        Sequence[Mapping[EdgeIdx, Sequence[OtherRelAOIdx]]]
+        SeqOverFrag[Mapping[EdgeIdx, Sequence[OtherRelAOIdx]]]
     ]
+
+    #: The atomic orbital indices per edge per fragment.
+    #: The AO index is global.
+    #: This variable was formerly known as `edgesites`.
+    AO_per_edge_per_frag: Final[SeqOverFrag[Mapping[EdgeIdx, Sequence[GlobalAOIdx]]]]
 
     @classmethod
     def from_frag_structure(
@@ -589,37 +620,38 @@ class FragmentedMolecule:
         frag_structure :
             The fragmented structure to use.
         """
-        AO_per_atom = get_AOidx_per_atom(mol)
-        AO_per_frag = [
+        AO_per_atom: Final = get_AOidx_per_atom(mol)
+        AO_per_frag: Final = [
             merge_seqs(*(AO_per_atom[i_atom] for i_atom in i_frag))
             for i_frag in frag_structure.atoms_per_frag
         ]
-        AO_per_frag = [
-            merge_seqs(*(AO_per_atom[i_atom] for i_atom in i_frag))
-            for i_frag in frag_structure.atoms_per_frag
-        ]
-
-        AO_per_motif_per_frag: list[Mapping[MotifIdx, Sequence[AOIdx]]] = [
-            {
-                motif: merge_seqs(
-                    *(
-                        AO_per_atom[atom]
-                        for atom in frag_structure.conn_data.atoms_per_motif[motif]
-                    )
+        AO_per_motif: Final = {
+            motif: merge_seqs(
+                *(
+                    AO_per_atom[atom]
+                    for atom in frag_structure.conn_data.atoms_per_motif[motif]
                 )
-                for motif in motifs
-            }
-            for motifs in frag_structure.motifs_per_frag
-        ]
+            )
+            for motif in frag_structure.conn_data.motifs
+        }
 
         rel_AO_per_motif_per_frag: list[Mapping[MotifIdx, Sequence[OwnRelAOIdx]]] = []
-        for motifs in AO_per_motif_per_frag:
+        for motifs in frag_structure.motifs_per_frag:
             rel_AO_per_motif = {}
             previous = 0
-            for motif, AO_indices in motifs.items():
-                indices = range(previous, (previous := previous + len(AO_indices)))
+            for motif in motifs:
+                indices = range(
+                    previous, (previous := previous + len(AO_per_motif[motif]))
+                )
                 rel_AO_per_motif[motif] = [OwnRelAOIdx(AOIdx(i)) for i in indices]
             rel_AO_per_motif_per_frag.append(rel_AO_per_motif)
+
+        rel_AO_per_edge_per_frag: Final = [
+            restrict_keys(rel_AO_per_motif, edges)
+            for (edges, rel_AO_per_motif) in zip(
+                frag_structure.edges_per_frag, rel_AO_per_motif_per_frag
+            )
+        ]
 
         other_rel_AO_per_edge_per_frag: list[
             Mapping[EdgeIdx, Sequence[OtherRelAOIdx]]
@@ -638,14 +670,21 @@ class FragmentedMolecule:
             )
         ]
 
+        AO_per_edge_per_frag: Final = [
+            {i_edge: AO_per_motif[i_edge] for i_edge in edges}
+            for edges in frag_structure.edges_per_frag
+        ]
+
         return cls(
             frag_structure,
             mol,
             AO_per_atom,
             AO_per_frag,
-            AO_per_motif_per_frag,
+            AO_per_motif,
             rel_AO_per_motif_per_frag,
+            rel_AO_per_edge_per_frag,
             other_rel_AO_per_edge_per_frag,
+            AO_per_edge_per_frag,
         )
 
 
