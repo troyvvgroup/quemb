@@ -382,7 +382,7 @@ def autogen(
     -------
     fsites : list of list of int
         List of fragment sites where each fragment is a list of LO indices.
-    edgsites : list of list of list of int
+    edgesites : list of list of list of int
         List of edge sites for each fragment where each edge is a list of LO indices.
     center : list of list of int
         List of the fragment index of each edge site for all fragments.
@@ -399,7 +399,7 @@ def autogen(
         LO indices.
     Frag_atom: list of lists
         Heavy atom indices for each fragment, per fragment
-    cen: list
+    center_atom: list
         Atom indices of all centers
     """
 
