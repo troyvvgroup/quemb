@@ -1,0 +1,30 @@
+quemb.molbe.eri\_onthefly
+=========================
+
+.. automodule:: quemb.molbe.eri_onthefly
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      integral_direct_DF
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

@@ -1,0 +1,6 @@
+quemb.molbe.autofrag.autogen
+============================
+
+.. currentmodule:: quemb.molbe.autofrag
+
+.. autofunction:: autogen

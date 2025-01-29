@@ -1,0 +1,6 @@
+quemb.molbe.ube.UBE.read\_heff
+==============================
+
+.. currentmodule:: quemb.molbe.ube
+
+.. automethod:: UBE.read_heff

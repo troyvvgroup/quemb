@@ -1,0 +1,6 @@
+quemb.kbe.autofrag.warn\_large\_fragment
+========================================
+
+.. currentmodule:: quemb.kbe.autofrag
+
+.. autofunction:: warn_large_fragment

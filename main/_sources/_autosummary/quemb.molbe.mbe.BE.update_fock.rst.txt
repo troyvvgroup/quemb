@@ -1,0 +1,6 @@
+quemb.molbe.mbe.BE.update\_fock
+===============================
+
+.. currentmodule:: quemb.molbe.mbe
+
+.. automethod:: BE.update_fock

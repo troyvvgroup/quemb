@@ -1,0 +1,6 @@
+quemb.kbe.autofrag.nearestof2coord
+==================================
+
+.. currentmodule:: quemb.kbe.autofrag
+
+.. autofunction:: nearestof2coord

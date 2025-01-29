@@ -1,0 +1,38 @@
+quemb.shared.config
+===================
+
+.. automodule:: quemb.shared.config
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      dump_settings
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: custom-class-template.rst
+   
+      Settings
+   
+   
+
+   
+   
+   
+
+
+

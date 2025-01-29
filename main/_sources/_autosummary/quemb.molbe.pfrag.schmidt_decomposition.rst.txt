@@ -1,0 +1,6 @@
+quemb.molbe.pfrag.schmidt\_decomposition
+========================================
+
+.. currentmodule:: quemb.molbe.pfrag
+
+.. autofunction:: schmidt_decomposition

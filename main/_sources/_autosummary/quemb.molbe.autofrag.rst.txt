@@ -1,0 +1,40 @@
+quemb.molbe.autofrag
+====================
+
+.. automodule:: quemb.molbe.autofrag
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      autogen
+      euclidean_distance
+      graphgen
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: custom-class-template.rst
+   
+      FragmentMap
+   
+   
+
+   
+   
+   
+
+
+

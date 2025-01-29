@@ -1,0 +1,6 @@
+quemb.kbe.pbe.BE.ewald\_sum
+===========================
+
+.. currentmodule:: quemb.kbe.pbe
+
+.. automethod:: BE.ewald_sum

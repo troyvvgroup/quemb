@@ -1,0 +1,34 @@
+quemb.molbe.ube.UBE
+===================
+
+.. currentmodule:: quemb.molbe.ube
+
+.. autoclass:: UBE
+
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~UBE.__init__
+      ~UBE.compute_energy_full
+      ~UBE.get_be_error_jacobian
+      ~UBE.initialize
+      ~UBE.localize
+      ~UBE.oneshot
+      ~UBE.optimize
+      ~UBE.print_ini
+      ~UBE.rdm1_fullbasis
+      ~UBE.read_heff
+      ~UBE.save
+      ~UBE.update_fock
+      ~UBE.write_heff
+   
+   

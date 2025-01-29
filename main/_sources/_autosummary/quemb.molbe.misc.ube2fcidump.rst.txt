@@ -1,0 +1,6 @@
+quemb.molbe.misc.ube2fcidump
+============================
+
+.. currentmodule:: quemb.molbe.misc
+
+.. autofunction:: ube2fcidump

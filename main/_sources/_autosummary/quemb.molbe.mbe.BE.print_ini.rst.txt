@@ -1,0 +1,6 @@
+quemb.molbe.mbe.BE.print\_ini
+=============================
+
+.. currentmodule:: quemb.molbe.mbe
+
+.. automethod:: BE.print_ini

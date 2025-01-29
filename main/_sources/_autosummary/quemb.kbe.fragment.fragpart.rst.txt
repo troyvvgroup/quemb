@@ -1,0 +1,23 @@
+quemb.kbe.fragment.fragpart
+===========================
+
+.. currentmodule:: quemb.kbe.fragment
+
+.. autoclass:: fragpart
+
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~fragpart.__init__
+      ~fragpart.polychain
+   
+   

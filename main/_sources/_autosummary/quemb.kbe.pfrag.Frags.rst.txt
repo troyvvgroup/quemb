@@ -1,0 +1,30 @@
+quemb.kbe.pfrag.Frags
+=====================
+
+.. currentmodule:: quemb.kbe.pfrag
+
+.. autoclass:: Frags
+
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~Frags.__init__
+      ~Frags.cons_fock
+      ~Frags.cons_h1
+      ~Frags.get_nsocc
+      ~Frags.scf
+      ~Frags.sd
+      ~Frags.set_udim
+      ~Frags.update_ebe_hf
+      ~Frags.update_heff
+   
+   

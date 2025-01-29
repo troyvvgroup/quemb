@@ -1,0 +1,6 @@
+quemb.kbe.fragment.fragpart.polychain
+=====================================
+
+.. currentmodule:: quemb.kbe.fragment
+
+.. automethod:: fragpart.polychain

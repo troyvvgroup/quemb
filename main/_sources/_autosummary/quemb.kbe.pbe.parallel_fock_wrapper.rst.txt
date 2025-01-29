@@ -1,0 +1,6 @@
+quemb.kbe.pbe.parallel\_fock\_wrapper
+=====================================
+
+.. currentmodule:: quemb.kbe.pbe
+
+.. autofunction:: parallel_fock_wrapper

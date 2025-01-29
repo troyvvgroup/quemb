@@ -1,0 +1,30 @@
+quemb.shared.io
+===============
+
+.. automodule:: quemb.shared.io
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      write_cube
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

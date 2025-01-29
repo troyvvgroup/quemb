@@ -1,0 +1,6 @@
+quemb.molbe.mbe.BE.compute\_energy\_full
+========================================
+
+.. currentmodule:: quemb.molbe.mbe
+
+.. automethod:: BE.compute_energy_full

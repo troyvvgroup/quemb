@@ -1,0 +1,46 @@
+quemb.molbe.opt.BEOPT
+=====================
+
+.. currentmodule:: quemb.molbe.opt
+
+.. autoclass:: BEOPT
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: BEOPT.pot
+   .. autoattribute:: BEOPT.Fobjs
+   .. autoattribute:: BEOPT.Nocc
+   .. autoattribute:: BEOPT.enuc
+   .. autoattribute:: BEOPT.scratch_dir
+   .. autoattribute:: BEOPT.solver
+   .. autoattribute:: BEOPT.nproc
+   .. autoattribute:: BEOPT.ompnum
+   .. autoattribute:: BEOPT.only_chem
+   .. autoattribute:: BEOPT.use_cumulant
+   .. autoattribute:: BEOPT.max_space
+   .. autoattribute:: BEOPT.conv_tol
+   .. autoattribute:: BEOPT.relax_density
+   .. autoattribute:: BEOPT.ebe_hf
+   .. autoattribute:: BEOPT.iter
+   .. autoattribute:: BEOPT.err
+   .. autoattribute:: BEOPT.Ebe
+   .. autoattribute:: BEOPT.solver_args
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~BEOPT.__init__
+      ~BEOPT.objfunc
+      ~BEOPT.optimize
+   
+   

@@ -1,0 +1,6 @@
+quemb.molbe.solver.solve\_error
+===============================
+
+.. currentmodule:: quemb.molbe.solver
+
+.. autofunction:: solve_error

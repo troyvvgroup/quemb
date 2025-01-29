@@ -1,0 +1,6 @@
+quemb.molbe.opt.BEOPT.optimize
+==============================
+
+.. currentmodule:: quemb.molbe.opt
+
+.. automethod:: BEOPT.optimize

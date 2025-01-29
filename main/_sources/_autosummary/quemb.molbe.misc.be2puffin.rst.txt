@@ -1,0 +1,6 @@
+quemb.molbe.misc.be2puffin
+==========================
+
+.. currentmodule:: quemb.molbe.misc
+
+.. autofunction:: be2puffin

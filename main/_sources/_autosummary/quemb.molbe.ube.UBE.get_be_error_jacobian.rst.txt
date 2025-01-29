@@ -1,0 +1,6 @@
+quemb.molbe.ube.UBE.get\_be\_error\_jacobian
+============================================
+
+.. currentmodule:: quemb.molbe.ube
+
+.. automethod:: UBE.get_be_error_jacobian

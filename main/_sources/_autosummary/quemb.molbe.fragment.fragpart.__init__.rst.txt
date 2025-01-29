@@ -1,0 +1,6 @@
+quemb.molbe.fragment.fragpart.\_\_init\_\_
+==========================================
+
+.. currentmodule:: quemb.molbe.fragment
+
+.. automethod:: fragpart.__init__

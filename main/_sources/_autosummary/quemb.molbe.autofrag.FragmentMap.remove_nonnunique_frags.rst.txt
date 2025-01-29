@@ -1,0 +1,6 @@
+quemb.molbe.autofrag.FragmentMap.remove\_nonnunique\_frags
+==========================================================
+
+.. currentmodule:: quemb.molbe.autofrag
+
+.. automethod:: FragmentMap.remove_nonnunique_frags

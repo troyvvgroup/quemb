@@ -1,0 +1,6 @@
+quemb.kbe.lo\_k.remove\_core\_mo\_k
+===================================
+
+.. currentmodule:: quemb.kbe.lo_k
+
+.. autofunction:: remove_core_mo_k

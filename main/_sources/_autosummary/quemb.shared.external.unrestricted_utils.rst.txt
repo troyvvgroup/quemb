@@ -1,0 +1,32 @@
+quemb.shared.external.unrestricted\_utils
+=========================================
+
+.. automodule:: quemb.shared.external.unrestricted_utils
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      make_uhf_obj
+      restore_eri_gen
+      uccsd_restore_eris
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

@@ -1,0 +1,32 @@
+quemb.shared.external.lo\_helper
+================================
+
+.. automodule:: quemb.shared.external.lo_helper
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      get_aoind_by_atom
+      get_symm_mat_pow
+      reorder_by_atom_
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

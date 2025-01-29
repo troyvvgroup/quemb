@@ -1,0 +1,23 @@
+quemb.molbe.lo.MixinLocalize
+============================
+
+.. currentmodule:: quemb.molbe.lo
+
+.. autoclass:: MixinLocalize
+
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~MixinLocalize.__init__
+      ~MixinLocalize.localize
+   
+   
