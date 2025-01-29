@@ -31,7 +31,7 @@ jobs:
     - name: Test building docs & Archive the results
       run: |
         cd docs
-        sphinx-multiversion source build/html
+        sphinx-multiversion -W --keep-going -n source build/html
         ls build/html
         tar czf docs.tar.gz --directory=build/html .
         cd ..
