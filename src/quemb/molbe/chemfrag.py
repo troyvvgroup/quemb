@@ -164,12 +164,16 @@ class ConnectivityData:
 
                 elif isinstance(in_vdW_radius, Mapping):
                     elements.loc[:, "atomic_radius_cc"].update(in_vdW_radius)
-                else:
+                elif in_vdW_radius is None:
                     # To avoid false-negatives we set all vdW radii to
                     # at least 0.55 Å
                     # or 20 % larger than the tabulated value.
                     elements.loc[:, "atomic_radius_cc"] = np.maximum(
                         0.55, used_vdW_r * 1.20
+                    )
+                else:
+                    raise TypeError(
+                        f"Invalid type {type(in_vdW_radius)} for in_vdW_radius."
                     )
                 bonds_atoms = {
                     k: OrderedSet(sorted(v)) for k, v in m.get_bonds().items()
