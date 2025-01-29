@@ -324,8 +324,8 @@ class MixinLocalize:
             'SO', or symmetric orthogonalization.
         iao_valence_only : bool
             If this option is set to True, all calculation will be performed in the
-            valence basis in the IAO partitioning.
-            This is an experimental feature.
+            valence basis in the IAO partitioning. Default is False.
+            This is an experimental feature: the returned energy is not accurate
         """
         if lo_method.upper() == "LOWDIN":
             es_, vs_ = eigh(self.S)
