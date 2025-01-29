@@ -1,0 +1,6 @@
+quemb.molbe.opt.BEOPT.\_\_init\_\_
+==================================
+
+.. currentmodule:: quemb.molbe.opt
+
+.. automethod:: BEOPT.__init__

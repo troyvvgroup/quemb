@@ -1,0 +1,6 @@
+quemb.molbe.lo.get\_symm\_orth\_mat
+===================================
+
+.. currentmodule:: quemb.molbe.lo
+
+.. autofunction:: get_symm_orth_mat

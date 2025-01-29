@@ -1,0 +1,31 @@
+quemb.kbe.chain
+===============
+
+.. automodule:: quemb.kbe.chain
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      findH
+      polychain
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

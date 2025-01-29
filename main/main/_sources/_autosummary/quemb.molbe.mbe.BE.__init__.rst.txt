@@ -1,0 +1,6 @@
+quemb.molbe.mbe.BE.\_\_init\_\_
+===============================
+
+.. currentmodule:: quemb.molbe.mbe
+
+.. automethod:: BE.__init__

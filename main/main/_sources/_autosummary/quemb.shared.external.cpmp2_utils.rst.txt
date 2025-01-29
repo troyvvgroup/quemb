@@ -1,0 +1,43 @@
+quemb.shared.external.cpmp2\_utils
+==================================
+
+.. automodule:: quemb.shared.external.cpmp2_utils
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      get_Diajb_r
+      get_Diajb_u
+      get_Pmp2_r
+      get_Pmp2_u
+      get_dF_r
+      get_dF_u
+      get_dPmp2_batch_r
+      get_dPmp2_batch_u
+      get_dVovov_r
+      get_dVovov_u
+      get_dmoe_F_r
+      get_dmoe_F_u
+      get_full_u_F_r
+      get_full_u_F_u
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

@@ -1,0 +1,6 @@
+quemb.molbe.lchain.chain
+========================
+
+.. currentmodule:: quemb.molbe.lchain
+
+.. autofunction:: chain

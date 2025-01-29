@@ -1,0 +1,32 @@
+quemb.shared.external.uccsd\_eri
+================================
+
+.. automodule:: quemb.shared.external.uccsd_eri
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      frank_get_fock
+      frank_get_veff
+      make_eris_incore
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

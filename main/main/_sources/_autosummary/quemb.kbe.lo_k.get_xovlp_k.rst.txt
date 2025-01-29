@@ -1,0 +1,6 @@
+quemb.kbe.lo\_k.get\_xovlp\_k
+=============================
+
+.. currentmodule:: quemb.kbe.lo_k
+
+.. autofunction:: get_xovlp_k

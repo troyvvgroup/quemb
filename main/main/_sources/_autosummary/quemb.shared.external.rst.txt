@@ -1,0 +1,39 @@
+quemb.shared.external
+=====================
+
+.. automodule:: quemb.shared.external
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+
+.. rubric:: Modules
+
+.. autosummary::
+   :toctree:
+   :template: custom-module-template.rst
+   :recursive:
+
+   ccsd_rdm
+   cphf_utils
+   cpmp2_utils
+   jac_utils
+   lo_helper
+   optqn
+   uccsd_eri
+   unrestricted_utils
+

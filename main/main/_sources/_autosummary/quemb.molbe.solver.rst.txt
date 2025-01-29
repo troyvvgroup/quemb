@@ -1,0 +1,46 @@
+quemb.molbe.solver
+==================
+
+.. automodule:: quemb.molbe.solver
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      be_func
+      be_func_u
+      solve_block2
+      solve_ccsd
+      solve_error
+      solve_mp2
+      solve_uccsd
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: custom-class-template.rst
+   
+      DMRG_ArgsUser
+      SHCI_ArgsUser
+      UserSolverArgs
+   
+   
+
+   
+   
+   
+
+
+

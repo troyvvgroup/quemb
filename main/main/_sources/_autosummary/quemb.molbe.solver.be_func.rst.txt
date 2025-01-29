@@ -1,0 +1,6 @@
+quemb.molbe.solver.be\_func
+===========================
+
+.. currentmodule:: quemb.molbe.solver
+
+.. autofunction:: be_func

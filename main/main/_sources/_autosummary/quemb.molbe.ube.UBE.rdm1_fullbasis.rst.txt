@@ -1,0 +1,6 @@
+quemb.molbe.ube.UBE.rdm1\_fullbasis
+===================================
+
+.. currentmodule:: quemb.molbe.ube
+
+.. automethod:: UBE.rdm1_fullbasis

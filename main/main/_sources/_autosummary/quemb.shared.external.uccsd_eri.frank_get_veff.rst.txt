@@ -1,0 +1,6 @@
+quemb.shared.external.uccsd\_eri.frank\_get\_veff
+=================================================
+
+.. currentmodule:: quemb.shared.external.uccsd_eri
+
+.. autofunction:: frank_get_veff

@@ -1,0 +1,6 @@
+quemb.shared.external.cphf\_utils.get\_dP\_lagrangian
+=====================================================
+
+.. currentmodule:: quemb.shared.external.cphf_utils
+
+.. autofunction:: get_dP_lagrangian

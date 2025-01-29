@@ -1,0 +1,35 @@
+quemb.molbe.misc
+================
+
+.. automodule:: quemb.molbe.misc
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      be2fcidump
+      be2puffin
+      libint2pyscf
+      print_energy_cumulant
+      print_energy_noncumulant
+      ube2fcidump
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

@@ -1,0 +1,33 @@
+quemb.shared.external.ccsd\_rdm
+===============================
+
+.. automodule:: quemb.shared.external.ccsd_rdm
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      make_rdm1_ccsd_t1
+      make_rdm1_uccsd
+      make_rdm2_uccsd
+      make_rdm2_urlx
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

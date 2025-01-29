@@ -1,0 +1,30 @@
+quemb.kbe.helper
+================
+
+.. automodule:: quemb.kbe.helper
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      get_veff
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

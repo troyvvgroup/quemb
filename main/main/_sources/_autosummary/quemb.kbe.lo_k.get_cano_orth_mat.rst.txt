@@ -1,0 +1,6 @@
+quemb.kbe.lo\_k.get\_cano\_orth\_mat
+====================================
+
+.. currentmodule:: quemb.kbe.lo_k
+
+.. autofunction:: get_cano_orth_mat

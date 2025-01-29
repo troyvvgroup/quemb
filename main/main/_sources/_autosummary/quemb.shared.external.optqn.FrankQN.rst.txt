@@ -1,0 +1,24 @@
+quemb.shared.external.optqn.FrankQN
+===================================
+
+.. currentmodule:: quemb.shared.external.optqn
+
+.. autoclass:: FrankQN
+
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~FrankQN.__init__
+      ~FrankQN.get_Bnfn
+      ~FrankQN.next_step
+   
+   

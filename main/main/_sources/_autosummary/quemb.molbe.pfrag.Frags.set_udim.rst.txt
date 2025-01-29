@@ -1,0 +1,6 @@
+quemb.molbe.pfrag.Frags.set\_udim
+=================================
+
+.. currentmodule:: quemb.molbe.pfrag
+
+.. automethod:: Frags.set_udim

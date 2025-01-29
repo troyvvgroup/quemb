@@ -1,0 +1,6 @@
+quemb.molbe.eri\_onthefly.integral\_direct\_DF
+==============================================
+
+.. currentmodule:: quemb.molbe.eri_onthefly
+
+.. autofunction:: integral_direct_DF

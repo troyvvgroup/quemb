@@ -1,0 +1,6 @@
+quemb.molbe.lo.dot\_gen
+=======================
+
+.. currentmodule:: quemb.molbe.lo
+
+.. autofunction:: dot_gen

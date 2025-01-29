@@ -1,0 +1,6 @@
+quemb.kbe.autofrag.sidefunc
+===========================
+
+.. currentmodule:: quemb.kbe.autofrag
+
+.. autofunction:: sidefunc

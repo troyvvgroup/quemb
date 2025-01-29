@@ -1,0 +1,6 @@
+quemb.kbe.helper.get\_veff
+==========================
+
+.. currentmodule:: quemb.kbe.helper
+
+.. autofunction:: get_veff

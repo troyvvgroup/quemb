@@ -1,0 +1,30 @@
+quemb.molbe.lchain
+==================
+
+.. automodule:: quemb.molbe.lchain
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      chain
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

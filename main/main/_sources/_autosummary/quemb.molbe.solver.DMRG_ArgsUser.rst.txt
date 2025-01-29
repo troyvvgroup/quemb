@@ -1,0 +1,39 @@
+quemb.molbe.solver.DMRG\_ArgsUser
+=================================
+
+.. currentmodule:: quemb.molbe.solver
+
+.. autoclass:: DMRG_ArgsUser
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: DMRG_ArgsUser.norb
+   .. autoattribute:: DMRG_ArgsUser.nelec
+   .. autoattribute:: DMRG_ArgsUser.startM
+   .. autoattribute:: DMRG_ArgsUser.maxM
+   .. autoattribute:: DMRG_ArgsUser.max_iter
+   .. autoattribute:: DMRG_ArgsUser.max_mem
+   .. autoattribute:: DMRG_ArgsUser.max_noise
+   .. autoattribute:: DMRG_ArgsUser.min_tol
+   .. autoattribute:: DMRG_ArgsUser.twodot_to_onedot
+   .. autoattribute:: DMRG_ArgsUser.root
+   .. autoattribute:: DMRG_ArgsUser.block_extra_keyword
+   .. autoattribute:: DMRG_ArgsUser.schedule_kwargs
+   .. autoattribute:: DMRG_ArgsUser.force_cleanup
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~DMRG_ArgsUser.__init__
+   
+   

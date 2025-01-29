@@ -1,0 +1,6 @@
+quemb.kbe.lo\_k.cano\_orth
+==========================
+
+.. currentmodule:: quemb.kbe.lo_k
+
+.. autofunction:: cano_orth

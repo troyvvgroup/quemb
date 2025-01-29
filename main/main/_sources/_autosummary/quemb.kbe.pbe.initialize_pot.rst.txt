@@ -1,0 +1,6 @@
+quemb.kbe.pbe.initialize\_pot
+=============================
+
+.. currentmodule:: quemb.kbe.pbe
+
+.. autofunction:: initialize_pot

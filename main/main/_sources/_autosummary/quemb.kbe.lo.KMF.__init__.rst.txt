@@ -1,0 +1,6 @@
+quemb.kbe.lo.KMF.\_\_init\_\_
+=============================
+
+.. currentmodule:: quemb.kbe.lo
+
+.. automethod:: KMF.__init__

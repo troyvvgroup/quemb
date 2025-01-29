@@ -1,0 +1,6 @@
+quemb.molbe.pfrag.Frags.get\_nsocc
+==================================
+
+.. currentmodule:: quemb.molbe.pfrag
+
+.. automethod:: Frags.get_nsocc

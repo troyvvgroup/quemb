@@ -1,0 +1,45 @@
+quemb.shared.external.cphf\_utils
+=================================
+
+.. automodule:: quemb.shared.external.cphf_utils
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      cphf_kernel
+      cphf_kernel_batch
+      get_cphf_A
+      get_cphf_rhs
+      get_cpuhf_A
+      get_cpuhf_A_spin_eri
+      get_cpuhf_A_spinless_eri
+      get_cpuhf_u
+      get_cpuhf_u_batch
+      get_dP_lagrangian
+      get_full_u
+      get_full_u_batch
+      get_rhf_dP_from_u
+      get_uhf_dP_from_u
+      get_zvec
+      uvo_as_full_u_batch
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

@@ -1,0 +1,6 @@
+quemb.molbe.lo.MixinLocalize.localize
+=====================================
+
+.. currentmodule:: quemb.molbe.lo
+
+.. automethod:: MixinLocalize.localize

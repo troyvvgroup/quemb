@@ -1,0 +1,37 @@
+quemb.kbe.autofrag
+==================
+
+.. automodule:: quemb.kbe.autofrag
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      add_check_k
+      autogen
+      be_reduce
+      kfrag_func
+      nearestof2coord
+      sidefunc
+      surround
+      warn_large_fragment
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

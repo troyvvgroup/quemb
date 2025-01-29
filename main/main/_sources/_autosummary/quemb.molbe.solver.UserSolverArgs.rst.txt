@@ -1,0 +1,22 @@
+quemb.molbe.solver.UserSolverArgs
+=================================
+
+.. currentmodule:: quemb.molbe.solver
+
+.. autoclass:: UserSolverArgs
+
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~UserSolverArgs.__init__
+   
+   

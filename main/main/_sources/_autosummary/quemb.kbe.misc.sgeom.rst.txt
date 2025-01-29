@@ -1,0 +1,6 @@
+quemb.kbe.misc.sgeom
+====================
+
+.. currentmodule:: quemb.kbe.misc
+
+.. autofunction:: sgeom

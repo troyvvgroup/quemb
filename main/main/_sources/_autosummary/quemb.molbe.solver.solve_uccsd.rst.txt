@@ -1,0 +1,6 @@
+quemb.molbe.solver.solve\_uccsd
+===============================
+
+.. currentmodule:: quemb.molbe.solver
+
+.. autofunction:: solve_uccsd

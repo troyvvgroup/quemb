@@ -1,0 +1,30 @@
+quemb.shared.manage\_scratch.WorkDir
+====================================
+
+.. currentmodule:: quemb.shared.manage_scratch
+
+.. autoclass:: WorkDir
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: WorkDir.path
+   .. autoattribute:: WorkDir.cleanup_at_end
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~WorkDir.__init__
+      ~WorkDir.cleanup
+      ~WorkDir.from_environment
+   
+   

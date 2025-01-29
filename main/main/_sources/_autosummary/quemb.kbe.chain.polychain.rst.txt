@@ -1,0 +1,6 @@
+quemb.kbe.chain.polychain
+=========================
+
+.. currentmodule:: quemb.kbe.chain
+
+.. autofunction:: polychain

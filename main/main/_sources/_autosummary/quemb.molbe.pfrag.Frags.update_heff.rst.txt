@@ -1,0 +1,6 @@
+quemb.molbe.pfrag.Frags.update\_heff
+====================================
+
+.. currentmodule:: quemb.molbe.pfrag
+
+.. automethod:: Frags.update_heff

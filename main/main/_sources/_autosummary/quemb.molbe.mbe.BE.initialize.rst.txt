@@ -1,0 +1,6 @@
+quemb.molbe.mbe.BE.initialize
+=============================
+
+.. currentmodule:: quemb.molbe.mbe
+
+.. automethod:: BE.initialize

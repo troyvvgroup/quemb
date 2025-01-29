@@ -1,0 +1,41 @@
+quemb.kbe.misc
+==============
+
+.. automodule:: quemb.kbe.misc
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      get_phase
+      get_phase1
+      print_energy
+      sgeom
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: custom-class-template.rst
+   
+      storePBE
+   
+   
+
+   
+   
+   
+
+
+

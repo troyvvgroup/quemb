@@ -1,0 +1,6 @@
+quemb.kbe.chain.findH
+=====================
+
+.. currentmodule:: quemb.kbe.chain
+
+.. autofunction:: findH
