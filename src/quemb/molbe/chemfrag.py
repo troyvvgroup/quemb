@@ -124,9 +124,9 @@ class ConnectivityData:
             which is called internally if this argument is not specified.
             Allows it to manually change the connectivity by modifying the output of
             :meth:`chemcoord.Cartesian.get_bonds`.
-            The keyword is mutually exclusive with :python:`vdW_radius`.
+            The keyword is mutually exclusive with :python:`in_vdW_radius`.
         in_vdW_radius : Number | Callable[[Number], Number] | Mapping[str, Number]
-            If :python:`bonds_atoms` is :class:`None`, then the connectivity graph is
+            If :python:`in_bonds_atoms` is :class:`None`, then the connectivity graph is
             determined by the van der Waals radius of the atoms.
             It is possible to pass:
 
@@ -136,7 +136,7 @@ class ConnectivityData:
             * a dictionary which maps the element symbol to the van der Waals radius,
               to change the radius of individual elements, e.g. :python:`{"C": 1.5}`.
 
-            The keyword is mutually exclusive with :python:`bonds_atoms`.
+            The keyword is mutually exclusive with :python:`in_bonds_atoms`.
         treat_H_different :
             If True, we treat hydrogen atoms differently from heavy atoms.
         """
