@@ -150,7 +150,7 @@ class ConnectivityData:
         if in_bonds_atoms is not None:
             bonds_atoms = {
                 AtomIdx(k): OrderedSet([AtomIdx(j) for j in sorted(v)])
-                for k, v in m.get_bonds().items()
+                for k, v in in_bonds_atoms.items()
             }
         else:
             with cc.constants.RestoreElementData():
