@@ -1,6 +1,0 @@
-quemb.shared.manage\_scratch.WorkDir.cleanup
-============================================
-
-.. currentmodule:: quemb.shared.manage_scratch
-
-.. automethod:: WorkDir.cleanup

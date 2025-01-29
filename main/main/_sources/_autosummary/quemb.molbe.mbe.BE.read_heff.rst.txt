@@ -1,6 +1,0 @@
-quemb.molbe.mbe.BE.read\_heff
-=============================
-
-.. currentmodule:: quemb.molbe.mbe
-
-.. automethod:: BE.read_heff

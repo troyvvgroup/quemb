@@ -1,6 +1,0 @@
-quemb.molbe.solver.solve\_block2
-================================
-
-.. currentmodule:: quemb.molbe.solver
-
-.. autofunction:: solve_block2

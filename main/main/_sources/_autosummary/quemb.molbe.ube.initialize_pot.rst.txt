@@ -1,6 +1,0 @@
-quemb.molbe.ube.initialize\_pot
-===============================
-
-.. currentmodule:: quemb.molbe.ube
-
-.. autofunction:: initialize_pot

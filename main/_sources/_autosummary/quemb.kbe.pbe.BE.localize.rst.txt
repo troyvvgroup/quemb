@@ -1,6 +1,0 @@
-quemb.kbe.pbe.BE.localize
-=========================
-
-.. currentmodule:: quemb.kbe.pbe
-
-.. automethod:: BE.localize

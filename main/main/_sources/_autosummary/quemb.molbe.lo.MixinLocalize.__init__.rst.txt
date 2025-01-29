@@ -1,6 +1,0 @@
-quemb.molbe.lo.MixinLocalize.\_\_init\_\_
-=========================================
-
-.. currentmodule:: quemb.molbe.lo
-
-.. automethod:: MixinLocalize.__init__

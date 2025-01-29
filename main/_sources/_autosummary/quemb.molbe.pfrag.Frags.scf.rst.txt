@@ -1,6 +1,0 @@
-quemb.molbe.pfrag.Frags.scf
-===========================
-
-.. currentmodule:: quemb.molbe.pfrag
-
-.. automethod:: Frags.scf

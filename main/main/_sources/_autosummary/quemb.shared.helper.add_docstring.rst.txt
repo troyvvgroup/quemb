@@ -1,6 +1,0 @@
-quemb.shared.helper.add\_docstring
-==================================
-
-.. currentmodule:: quemb.shared.helper
-
-.. autofunction:: add_docstring

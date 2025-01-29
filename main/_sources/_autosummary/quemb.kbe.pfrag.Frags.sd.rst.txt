@@ -1,6 +1,0 @@
-quemb.kbe.pfrag.Frags.sd
-========================
-
-.. currentmodule:: quemb.kbe.pfrag
-
-.. automethod:: Frags.sd

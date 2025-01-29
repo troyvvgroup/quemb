@@ -1,6 +1,0 @@
-quemb.kbe.pbe.eritransform\_parallel
-====================================
-
-.. currentmodule:: quemb.kbe.pbe
-
-.. autofunction:: eritransform_parallel

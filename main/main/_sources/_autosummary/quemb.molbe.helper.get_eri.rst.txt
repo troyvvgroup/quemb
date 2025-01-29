@@ -1,6 +1,0 @@
-quemb.molbe.helper.get\_eri
-===========================
-
-.. currentmodule:: quemb.molbe.helper
-
-.. autofunction:: get_eri

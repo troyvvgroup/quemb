@@ -1,6 +1,0 @@
-quemb.shared.external.optqn.FrankQN.next\_step
-==============================================
-
-.. currentmodule:: quemb.shared.external.optqn
-
-.. automethod:: FrankQN.next_step

@@ -1,6 +1,0 @@
-quemb.molbe.solver.UserSolverArgs.\_\_init\_\_
-==============================================
-
-.. currentmodule:: quemb.molbe.solver
-
-.. automethod:: UserSolverArgs.__init__

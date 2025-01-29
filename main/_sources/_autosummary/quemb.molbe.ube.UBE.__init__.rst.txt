@@ -1,6 +1,0 @@
-quemb.molbe.ube.UBE.\_\_init\_\_
-================================
-
-.. currentmodule:: quemb.molbe.ube
-
-.. automethod:: UBE.__init__

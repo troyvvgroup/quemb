@@ -1,6 +1,0 @@
-quemb.molbe.helper.get\_scfObj
-==============================
-
-.. currentmodule:: quemb.molbe.helper
-
-.. autofunction:: get_scfObj

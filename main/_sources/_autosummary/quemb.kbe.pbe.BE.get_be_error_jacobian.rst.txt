@@ -1,6 +1,0 @@
-quemb.kbe.pbe.BE.get\_be\_error\_jacobian
-=========================================
-
-.. currentmodule:: quemb.kbe.pbe
-
-.. automethod:: BE.get_be_error_jacobian

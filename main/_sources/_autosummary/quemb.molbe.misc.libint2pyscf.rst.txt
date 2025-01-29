@@ -1,6 +1,0 @@
-quemb.molbe.misc.libint2pyscf
-=============================
-
-.. currentmodule:: quemb.molbe.misc
-
-.. autofunction:: libint2pyscf

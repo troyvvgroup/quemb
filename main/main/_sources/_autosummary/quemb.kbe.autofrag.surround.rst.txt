@@ -1,6 +1,0 @@
-quemb.kbe.autofrag.surround
-===========================
-
-.. currentmodule:: quemb.kbe.autofrag
-
-.. autofunction:: surround

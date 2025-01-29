@@ -1,6 +1,0 @@
-quemb.kbe.pfrag.Frags.update\_heff
-==================================
-
-.. currentmodule:: quemb.kbe.pfrag
-
-.. automethod:: Frags.update_heff

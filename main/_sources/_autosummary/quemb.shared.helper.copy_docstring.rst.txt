@@ -1,6 +1,0 @@
-quemb.shared.helper.copy\_docstring
-===================================
-
-.. currentmodule:: quemb.shared.helper
-
-.. autofunction:: copy_docstring

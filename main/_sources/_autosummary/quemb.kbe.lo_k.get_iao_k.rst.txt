@@ -1,6 +1,0 @@
-quemb.kbe.lo\_k.get\_iao\_k
-===========================
-
-.. currentmodule:: quemb.kbe.lo_k
-
-.. autofunction:: get_iao_k

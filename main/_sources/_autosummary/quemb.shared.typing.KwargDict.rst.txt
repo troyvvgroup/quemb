@@ -1,6 +1,0 @@
-quemb.shared.typing.KwargDict
-=============================
-
-.. currentmodule:: quemb.shared.typing
-
-.. autodata:: KwargDict

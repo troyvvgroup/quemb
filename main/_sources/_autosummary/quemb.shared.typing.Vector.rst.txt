@@ -1,6 +1,0 @@
-quemb.shared.typing.Vector
-==========================
-
-.. currentmodule:: quemb.shared.typing
-
-.. autodata:: Vector

@@ -1,6 +1,0 @@
-quemb.kbe.pbe.BE.\_\_init\_\_
-=============================
-
-.. currentmodule:: quemb.kbe.pbe
-
-.. automethod:: BE.__init__

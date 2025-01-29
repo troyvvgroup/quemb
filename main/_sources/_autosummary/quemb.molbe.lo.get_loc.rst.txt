@@ -1,6 +1,0 @@
-quemb.molbe.lo.get\_loc
-=======================
-
-.. currentmodule:: quemb.molbe.lo
-
-.. autofunction:: get_loc

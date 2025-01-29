@@ -1,6 +1,0 @@
-quemb.molbe.ube.UBE.optimize
-============================
-
-.. currentmodule:: quemb.molbe.ube
-
-.. automethod:: UBE.optimize

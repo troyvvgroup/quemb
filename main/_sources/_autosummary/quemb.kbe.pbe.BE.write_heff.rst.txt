@@ -1,6 +1,0 @@
-quemb.kbe.pbe.BE.write\_heff
-============================
-
-.. currentmodule:: quemb.kbe.pbe
-
-.. automethod:: BE.write_heff

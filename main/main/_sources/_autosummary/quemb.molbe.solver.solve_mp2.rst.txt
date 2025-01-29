@@ -1,6 +1,0 @@
-quemb.molbe.solver.solve\_mp2
-=============================
-
-.. currentmodule:: quemb.molbe.solver
-
-.. autofunction:: solve_mp2

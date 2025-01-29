@@ -1,6 +1,0 @@
-quemb.molbe.mbe.BE.oneshot
-==========================
-
-.. currentmodule:: quemb.molbe.mbe
-
-.. automethod:: BE.oneshot

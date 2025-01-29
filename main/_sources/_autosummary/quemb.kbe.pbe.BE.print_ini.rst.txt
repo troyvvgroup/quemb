@@ -1,6 +1,0 @@
-quemb.kbe.pbe.BE.print\_ini
-===========================
-
-.. currentmodule:: quemb.kbe.pbe
-
-.. automethod:: BE.print_ini

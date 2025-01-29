@@ -1,6 +1,0 @@
-quemb.shared.typing.PathLike
-============================
-
-.. currentmodule:: quemb.shared.typing
-
-.. autodata:: PathLike

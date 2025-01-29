@@ -1,6 +1,0 @@
-quemb.shared.typing.Tensor3D
-============================
-
-.. currentmodule:: quemb.shared.typing
-
-.. autodata:: Tensor3D

@@ -1,6 +1,0 @@
-quemb.molbe.mbe.BE.localize
-===========================
-
-.. currentmodule:: quemb.molbe.mbe
-
-.. automethod:: BE.localize

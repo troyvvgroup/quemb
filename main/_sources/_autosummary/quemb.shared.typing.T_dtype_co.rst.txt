@@ -1,6 +1,0 @@
-quemb.shared.typing.T\_dtype\_co
-================================
-
-.. currentmodule:: quemb.shared.typing
-
-.. autodata:: T_dtype_co

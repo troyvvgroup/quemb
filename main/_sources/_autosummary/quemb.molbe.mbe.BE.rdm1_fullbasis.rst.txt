@@ -1,6 +1,0 @@
-quemb.molbe.mbe.BE.rdm1\_fullbasis
-==================================
-
-.. currentmodule:: quemb.molbe.mbe
-
-.. automethod:: BE.rdm1_fullbasis

@@ -1,6 +1,0 @@
-quemb.molbe.pfrag.Frags.cons\_fock
-==================================
-
-.. currentmodule:: quemb.molbe.pfrag
-
-.. automethod:: Frags.cons_fock

@@ -1,6 +1,0 @@
-quemb.kbe.misc.get\_phase
-=========================
-
-.. currentmodule:: quemb.kbe.misc
-
-.. autofunction:: get_phase

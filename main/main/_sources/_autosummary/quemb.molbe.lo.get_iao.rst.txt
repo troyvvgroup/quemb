@@ -1,6 +1,0 @@
-quemb.molbe.lo.get\_iao
-=======================
-
-.. currentmodule:: quemb.molbe.lo
-
-.. autofunction:: get_iao

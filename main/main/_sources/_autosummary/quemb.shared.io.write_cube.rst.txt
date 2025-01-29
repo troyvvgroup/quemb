@@ -1,6 +1,0 @@
-quemb.shared.io.write\_cube
-===========================
-
-.. currentmodule:: quemb.shared.io
-
-.. autofunction:: write_cube

@@ -1,6 +1,0 @@
-quemb.molbe.ube.UBE.localize
-============================
-
-.. currentmodule:: quemb.molbe.ube
-
-.. automethod:: UBE.localize

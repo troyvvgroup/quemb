@@ -1,6 +1,0 @@
-quemb.kbe.pfrag.Frags.set\_udim
-===============================
-
-.. currentmodule:: quemb.kbe.pfrag
-
-.. automethod:: Frags.set_udim

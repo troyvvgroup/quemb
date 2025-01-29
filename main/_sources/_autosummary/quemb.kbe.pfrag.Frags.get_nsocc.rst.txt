@@ -1,6 +1,0 @@
-quemb.kbe.pfrag.Frags.get\_nsocc
-================================
-
-.. currentmodule:: quemb.kbe.pfrag
-
-.. automethod:: Frags.get_nsocc

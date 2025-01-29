@@ -1,6 +1,0 @@
-quemb.molbe.lo.get\_pao\_native
-===============================
-
-.. currentmodule:: quemb.molbe.lo
-
-.. autofunction:: get_pao_native

@@ -1,6 +1,0 @@
-quemb.shared.external.optqn.hfres\_func
-=======================================
-
-.. currentmodule:: quemb.shared.external.optqn
-
-.. autofunction:: hfres_func

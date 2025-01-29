@@ -1,6 +1,0 @@
-quemb.shared.helper.unused
-==========================
-
-.. currentmodule:: quemb.shared.helper
-
-.. autofunction:: unused

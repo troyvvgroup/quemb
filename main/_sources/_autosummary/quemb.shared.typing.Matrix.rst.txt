@@ -1,6 +1,0 @@
-quemb.shared.typing.Matrix
-==========================
-
-.. currentmodule:: quemb.shared.typing
-
-.. autodata:: Matrix

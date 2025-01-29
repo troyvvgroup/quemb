@@ -1,6 +1,0 @@
-quemb.kbe.autofrag.autogen
-==========================
-
-.. currentmodule:: quemb.kbe.autofrag
-
-.. autofunction:: autogen

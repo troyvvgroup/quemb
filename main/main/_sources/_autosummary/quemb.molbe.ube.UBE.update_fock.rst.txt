@@ -1,6 +1,0 @@
-quemb.molbe.ube.UBE.update\_fock
-================================
-
-.. currentmodule:: quemb.molbe.ube
-
-.. automethod:: UBE.update_fock

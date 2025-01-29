@@ -1,6 +1,0 @@
-quemb.molbe.ube.UBE.write\_heff
-===============================
-
-.. currentmodule:: quemb.molbe.ube
-
-.. automethod:: UBE.write_heff

@@ -1,6 +1,0 @@
-quemb.molbe.autofrag.euclidean\_distance
-========================================
-
-.. currentmodule:: quemb.molbe.autofrag
-
-.. autofunction:: euclidean_distance

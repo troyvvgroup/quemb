@@ -1,6 +1,0 @@
-quemb.molbe.helper.get\_core
-============================
-
-.. currentmodule:: quemb.molbe.helper
-
-.. autofunction:: get_core

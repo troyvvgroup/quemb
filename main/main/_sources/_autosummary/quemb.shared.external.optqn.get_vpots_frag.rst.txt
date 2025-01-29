@@ -1,6 +1,0 @@
-quemb.shared.external.optqn.get\_vpots\_frag
-============================================
-
-.. currentmodule:: quemb.shared.external.optqn
-
-.. autofunction:: get_vpots_frag

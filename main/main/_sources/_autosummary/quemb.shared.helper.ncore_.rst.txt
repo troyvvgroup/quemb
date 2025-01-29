@@ -1,6 +1,0 @@
-quemb.shared.helper.ncore\_
-===========================
-
-.. currentmodule:: quemb.shared.helper
-
-.. autofunction:: ncore_

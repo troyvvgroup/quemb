@@ -1,6 +1,0 @@
-quemb.molbe.fragment.fragpart.hchain\_simple
-============================================
-
-.. currentmodule:: quemb.molbe.fragment
-
-.. automethod:: fragpart.hchain_simple

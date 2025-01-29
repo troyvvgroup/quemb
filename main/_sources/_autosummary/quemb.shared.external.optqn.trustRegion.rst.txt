@@ -1,6 +1,0 @@
-quemb.shared.external.optqn.trustRegion
-=======================================
-
-.. currentmodule:: quemb.shared.external.optqn
-
-.. autofunction:: trustRegion
