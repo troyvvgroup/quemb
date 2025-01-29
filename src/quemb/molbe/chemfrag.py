@@ -189,6 +189,21 @@ class ConnectivityData:
             motif: merge_seqs([motif], H_atoms)
             for motif, H_atoms in H_per_motif.items()
         }
+
+        def motifs_share_H() -> bool:
+            for i_motif, i_H_atoms in H_per_motif.items():
+                for j_motif, j_H_atoms in H_per_motif.items():
+                    if i_motif == j_motif:
+                        continue
+                    if i_H_atoms & j_H_atoms:
+                        return True
+            return False
+
+        if treat_H_different and motifs_share_H():
+            raise ValueError(
+                "Cannot treat hydrogens differently if motifs share hydrogens."
+            )
+
         return cls(
             bonds_atoms,
             motifs,

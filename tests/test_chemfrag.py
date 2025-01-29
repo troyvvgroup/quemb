@@ -1,3 +1,4 @@
+import pytest
 from chemcoord import Cartesian
 from ordered_set import OrderedSet
 from pyscf.gto import M
@@ -1528,17 +1529,29 @@ def test_agreement_with_autogen():
 def test_conn_data_manipulation_of_vdW():
     m = Cartesian.read_xyz("data/octane.xyz")
 
-    conn_data = ConnectivityData.from_cartesian(m, in_vdW_radius=100)
+    # if hydrogens are shared among motifs we cannot treat H differently
+    with pytest.raises(ValueError):
+        conn_data = ConnectivityData.from_cartesian(m, in_vdW_radius=100)
+        conn_data = ConnectivityData.from_cartesian(m, in_vdW_radius=lambda r: r * 100)
+        conn_data = ConnectivityData.from_cartesian(m, in_vdW_radius={"C": 100})
+
+    conn_data = ConnectivityData.from_cartesian(
+        m, in_vdW_radius=100, treat_H_different=False
+    )
     for atom, connected in conn_data.bonds_atoms.items():
         # check if everything is connected to everything
         assert {atom} | connected == set(m.index)
 
-    conn_data = ConnectivityData.from_cartesian(m, in_vdW_radius=lambda r: r * 100)
+    conn_data = ConnectivityData.from_cartesian(
+        m, in_vdW_radius=lambda r: r * 100, treat_H_different=False
+    )
     for atom, connected in conn_data.bonds_atoms.items():
         # check if everything is connected to everything
         assert {atom} | connected == set(m.index)
 
-    conn_data = ConnectivityData.from_cartesian(m, in_vdW_radius={"C": 100})
+    conn_data = ConnectivityData.from_cartesian(
+        m, in_vdW_radius={"C": 100}, treat_H_different=False
+    )
     for i_carbon in m.loc[m.atom == "C"].index:
         # check if carbons are connected to everything
         assert {i_carbon} | conn_data.bonds_atoms[i_carbon] == set(m.index)
