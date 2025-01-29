@@ -277,7 +277,7 @@ def autogen(
     iao_valence_basis : str, optional
         Name of minimal basis set for IAO scheme. 'sto-3g' is sufficient for most cases.
         Defaults to None.
-    valence_only : bool, optional
+    iao_valence_only : bool, optional
         If True, all calculations will be performed in the valence basis in
         the IAO partitioning. This is an experimental feature. Defaults to False.
     print_frags : bool, optional
