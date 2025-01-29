@@ -54,6 +54,9 @@ class Mixin_k_Localize:
         Performs orbital localization computations for periodic systems. For large
         basis, IAO is recommended augmented with PAO orbitals.
 
+        NOTE: For periodic systems, the core and valence are localized SEPARATELY.
+        This is not the case of molecular systems.
+
         Parameters
         ----------
         lo_method : str
@@ -66,10 +69,10 @@ class Mixin_k_Localize:
         iao_wannier : bool
             Whether to perform Wannier localization in the IAO space
         """
-        if lo_method == "iao" and iao_val_core:
+        if lo_method.upper() == "IAO" and iao_val_core:
             raise NotImplementedError("iao_val_core and lo_method='iao' not supported.")
 
-        if lo_method == "lowdin":
+        if lo_method.upper() == "LOWDIN":
             # Lowdin orthogonalization with k-points
             W = zeros_like(self.S)
             nk, nao, nmo = self.C.shape
@@ -124,7 +127,7 @@ class Mixin_k_Localize:
             self.lmo_coeff = lmo_coeff
             self.cinv = cinv_
 
-        elif lo_method == "iao":
+        elif lo_method.upper() == "IAO":
             if not iao_val_core or not self.frozen_core:
                 Co = self.C[:, :, : self.Nocc].copy()
                 S12, S2 = get_xovlp_k(self.cell, self.kpts, basis=iao_valence_basis)
@@ -382,7 +385,7 @@ class Mixin_k_Localize:
             self.lmo_coeff = lmo_coeff
             self.cinv = cinv_
 
-        elif lo_method == "wannier":
+        elif lo_method.upper() == "WANNIER":
             nk, nao, nmo = self.C.shape
             lorb = zeros((nk, nao, nmo), dtype=complex128)
             lorb_nocore = zeros((nk, nao, nmo - self.ncore), dtype=complex128)

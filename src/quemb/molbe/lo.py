@@ -311,6 +311,9 @@ class MixinLocalize:
         Performs molecular orbital localization computations. For large basis,
         IAO is recommended augmented with PAO orbitals.
 
+        NOTE: For molecular systems, with frozen core, the core and valence are
+        localized TOGETHER. This is not the case of periodic systems.
+
         Parameters
         ----------
         lo_method : str
