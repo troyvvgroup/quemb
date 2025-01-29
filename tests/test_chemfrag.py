@@ -1525,7 +1525,7 @@ def test_agreement_with_autogen():
             assert set(chem_fragment) == set(auto_fragment)
 
 
-def test_manipulation_of_vdW():
+def test_conn_data_manipulation_of_vdW():
     m = Cartesian.read_xyz("data/octane.xyz")
 
     conn_data = ConnectivityData.from_cartesian(m, in_vdW_radius=100)

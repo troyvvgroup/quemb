@@ -1,7 +1,7 @@
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from numbers import Number
-from typing import Callable, Final, NewType, TypeAlias, cast, overload
+from typing import Callable, Final, NewType, TypeAlias, cast
 
 import chemcoord as cc
 import numpy as np
@@ -75,6 +75,10 @@ def merge_seqs(*seqs: Sequence[T]) -> OrderedSet[T]:
     return OrderedSet().union(*seqs)  # type: ignore[arg-type]
 
 
+# The following can be passed van der Waals radius alternative.
+InVdWRadius: TypeAlias = Number | Callable[[Number], Number] | Mapping[str, Number]
+
+
 @define(frozen=True)
 class ConnectivityData:
     """Data structure to store the connectivity data of a molecule."""
@@ -97,38 +101,6 @@ class ConnectivityData:
     atoms_per_motif: Final[Mapping[MotifIdx, OrderedSet[AtomIdx]]]
     #: Do we treat hydrogens differently?
     treat_H_different: Final[bool] = True
-
-    # make it explicit via overloads that some arguments are mutually exclusive
-    InVdWRadius: TypeAlias = Number | Callable[[Number], Number] | Mapping[str, Number]
-
-    @overload
-    @classmethod
-    def from_cartesian(
-        cls,
-        m: Cartesian,
-        *,
-        treat_H_different: bool = True,
-    ) -> Self: ...
-
-    @overload
-    @classmethod
-    def from_cartesian(
-        cls,
-        m: Cartesian,
-        *,
-        in_vdW_radius: InVdWRadius,
-        treat_H_different: bool = True,
-    ) -> Self: ...
-
-    @overload
-    @classmethod
-    def from_cartesian(
-        cls,
-        m: Cartesian,
-        *,
-        in_bonds_atoms: Mapping[int, set[int]],
-        treat_H_different: bool = True,
-    ) -> Self: ...
 
     @classmethod
     def from_cartesian(
@@ -189,8 +161,9 @@ class ConnectivityData:
                     )
                 elif callable(in_vdW_radius):
                     elements.loc[:, "atomic_radius_cc"] = used_vdW_r.map(in_vdW_radius)
+
                 elif isinstance(in_vdW_radius, Mapping):
-                    elements.loc[:, "atomic_radius_cc"].update(in_vdW_radius)  # type: ignore[arg-type]
+                    elements.loc[:, "atomic_radius_cc"].update(in_vdW_radius)
                 else:
                     # To avoid false-negatives we set all vdW radii to
                     # at least 0.55 Å
@@ -417,7 +390,13 @@ class FragmentedStructure:
 
     @classmethod
     def from_cartesian(
-        cls, mol: Cartesian, n_BE: int, treat_H_different: bool = True
+        cls,
+        mol: Cartesian,
+        n_BE: int,
+        *,
+        treat_H_different: bool = True,
+        in_bonds_atoms: Mapping[int, set[int]] | None = None,
+        in_vdW_radius: InVdWRadius | None = None,
     ) -> Self:
         """Construct a :class:`FragmentedStructure` from a :class:`chemcoord.Cartesian`.
 
@@ -431,12 +410,25 @@ class FragmentedStructure:
             If True, we treat hydrogen atoms differently from heavy atoms.
         """
         return cls.from_motifs(
-            ConnectivityData.from_cartesian(mol, treat_H_different=treat_H_different),
+            ConnectivityData.from_cartesian(
+                mol,
+                treat_H_different=treat_H_different,
+                in_bonds_atoms=in_bonds_atoms,
+                in_vdW_radius=in_vdW_radius,
+            ),
             n_BE,
         )
 
     @classmethod
-    def from_Mol(cls, mol: Mole, n_BE: int, treat_H_different: bool = True) -> Self:
+    def from_Mol(
+        cls,
+        mol: Mole,
+        n_BE: int,
+        *,
+        treat_H_different: bool = True,
+        in_bonds_atoms: Mapping[int, set[int]] | None = None,
+        in_vdW_radius: InVdWRadius | None = None,
+    ) -> Self:
         """Construct a :class:`FragmentedStructure` from a :class:`pyscf.gto.mole.Mole`.
 
         Parameters
@@ -448,4 +440,10 @@ class FragmentedStructure:
         treat_H_different :
             If True, we treat hydrogen atoms differently from heavy atoms.
         """
-        return cls.from_cartesian(Cartesian.from_pyscf(mol), n_BE, treat_H_different)
+        return cls.from_cartesian(
+            Cartesian.from_pyscf(mol),
+            n_BE,
+            treat_H_different=treat_H_different,
+            in_bonds_atoms=in_bonds_atoms,
+            in_vdW_radius=in_vdW_radius,
+        )
