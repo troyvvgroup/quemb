@@ -8,54 +8,13 @@ from pyscf.gto import intor_cross
 from pyscf.gto.mole import Mole
 
 from quemb.shared.external.lo_helper import (
+    cano_orth,
     get_aoind_by_atom,
     reorder_by_atom_,
+    symm_orth,
 )
 from quemb.shared.helper import ncore_, unused
 from quemb.shared.typing import Matrix, Tensor3D
-
-
-def dot_gen(A: Matrix, B: Matrix, ovlp: Matrix | None = None) -> Matrix:
-    """Return product A.T @ B or A.T @ ovlp @ B"""
-    return A.T @ B if ovlp is None else A.T @ ovlp @ B
-
-
-def get_cano_orth_mat(
-    A: Matrix, thr: float = 1.0e-6, ovlp: Matrix | None = None
-) -> Matrix:
-    """Perform canonical orthogonalization of A"""
-    S = dot_gen(A, A, ovlp)
-    e, u = eigh(S)
-    if thr > 0:
-        idx_keep = e / e[-1] > thr
-    else:
-        idx_keep = slice(0, e.shape[0])
-    return u[:, idx_keep] * e[idx_keep] ** -0.5
-
-
-def cano_orth(A: Matrix, thr: float = 1.0e-6, ovlp: Matrix | None = None) -> Matrix:
-    """Canonically orthogonalize columns of A"""
-    return A @ get_cano_orth_mat(A, thr, ovlp)
-
-
-def get_symm_orth_mat(
-    A: Matrix, thr: float = 1.0e-6, ovlp: Matrix | None = None
-) -> Matrix:
-    """Perform symmetric orthogonalization of A"""
-    S = dot_gen(A, A, ovlp)
-    e, u = eigh(S)
-    if (e < thr).any():
-        raise ValueError(
-            "Linear dependence is detected in the column space of A: "
-            "smallest eigenvalue (%.3E) is less than thr (%.3E). "
-            "Please use 'cano_orth' instead." % (np.min(e), thr)
-        )
-    return u @ diag(e**-0.5) @ u.T
-
-
-def symm_orth(A: Matrix, thr: float = 1.0e-6, ovlp: Matrix | None = None) -> Matrix:
-    """Symmetrically orthogonalize columns of A"""
-    return A @ get_symm_orth_mat(A, thr, ovlp)
 
 
 def remove_core_mo(Clo: Matrix, Ccore: Matrix, S: Matrix, thr: float = 0.5) -> Matrix:

@@ -8,6 +8,51 @@ import numpy as np
 from numpy import diag, where
 from numpy.linalg import eigh, matrix_power, norm
 
+from quemb.shared.typing import Matrix
+
+
+def dot_gen(A: Matrix, B: Matrix, ovlp: Matrix | None = None) -> Matrix:
+    """Return product A.T @ B or A.T @ ovlp @ B"""
+    return A.T @ B if ovlp is None else A.T @ ovlp @ B
+
+
+def get_cano_orth_mat(
+    A: Matrix, thr: float = 1.0e-6, ovlp: Matrix | None = None
+) -> Matrix:
+    """Perform canonical orthogonalization of A"""
+    S = dot_gen(A, A, ovlp)
+    e, u = eigh(S)
+    if thr > 0:
+        idx_keep = e / e[-1] > thr
+    else:
+        idx_keep = slice(0, e.shape[0])
+    return u[:, idx_keep] * e[idx_keep] ** -0.5
+
+
+def cano_orth(A: Matrix, thr: float = 1.0e-6, ovlp: Matrix | None = None) -> Matrix:
+    """Canonically orthogonalize columns of A"""
+    return A @ get_cano_orth_mat(A, thr, ovlp)
+
+
+def get_symm_orth_mat(
+    A: Matrix, thr: float = 1.0e-6, ovlp: Matrix | None = None
+) -> Matrix:
+    """Perform symmetric orthogonalization of A"""
+    S = dot_gen(A, A, ovlp)
+    e, u = eigh(S)
+    if (e < thr).any():
+        raise ValueError(
+            "Linear dependence is detected in the column space of A: "
+            "smallest eigenvalue (%.3E) is less than thr (%.3E). "
+            "Please use 'cano_orth' instead." % (np.min(e), thr)
+        )
+    return u @ diag(e**-0.5) @ u.T
+
+
+def symm_orth(A: Matrix, thr: float = 1.0e-6, ovlp: Matrix | None = None) -> Matrix:
+    """Symmetrically orthogonalize columns of A"""
+    return A @ get_symm_orth_mat(A, thr, ovlp)
+
 
 def get_symm_mat_pow(A, p, check_symm=True, thresh=1.0e-8):
     """A ** p where A is symmetric
