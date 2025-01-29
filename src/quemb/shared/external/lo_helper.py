@@ -28,6 +28,8 @@ def get_symm_mat_pow(A, p, check_symm=True, thresh=1.0e-8):
 
 
 def get_aoind_by_atom(mol, atomind_by_motif=None):
+    """Return a list across all atoms (motifs). Each element contains a list of
+    AO indices for that atom (or motif, if atomind_by_motif True)"""
     natom = mol.natm
     aoslice_by_atom = mol.aoslice_by_atom()
     aoshift_by_atom = [0] + [aoslice_by_atom[ia][-1] for ia in range(natom)]
@@ -50,6 +52,7 @@ def get_aoind_by_atom(mol, atomind_by_motif=None):
 
 
 def reorder_by_atom_(Clo, aoind_by_atom, S, thr=0.5):
+    """Reorder the ~LOCALIZED~ Clo orbitals by atom"""
     natom = len(aoind_by_atom)
     nlo = Clo.shape[1]
     X = get_symm_mat_pow(S, 0.5)

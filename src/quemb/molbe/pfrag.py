@@ -140,7 +140,6 @@ class Frags:
             Retrun the number of orbitals in each space, for UBE use/
             Default is False
         """
-        print("lmo", lmo.shape, lmo)
         if return_orb_count:
             TA, n_f, n_b = schmidt_decomposition(
                 lmo, nocc, self.fsites, norb=norb, return_orb_count=return_orb_count
