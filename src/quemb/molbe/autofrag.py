@@ -671,7 +671,7 @@ def autogen(
             hsites[hdx].extend(b1list)
 
     fsites = []
-    edgsites = []
+    edgesites = []
     edge_idx = []
     centerf_idx = []
     edge = []
@@ -735,7 +735,7 @@ def autogen(
                     edind.append(ind__)
                 indix += ls
             edge.append(edg)
-            edgsites.append(ftmpe)
+            edgesites.append(ftmpe)
             edge_idx.append(edind)
         fsites.append(ftmp)
     center = []
@@ -810,7 +810,7 @@ def autogen(
 
     return (
         fsites,
-        edgsites,
+        edgesites,
         center,
         edge_idx,
         center_idx,
