@@ -15,6 +15,11 @@ from typing_extensions import Self
 
 from quemb.shared.typing import T
 
+# Note that most OrderedSet types could be a non-mutable equivalent here,
+# unfortunately this is not that easy to achieve.
+# see https://stackoverflow.com/questions/79401030/good-way-to-define-new-protocol-for-collection-types
+
+
 #: The index of an atomic orbital. This is the global index, i.e. not per fragment.
 AOIdx = NewType("AOIdx", int)
 
@@ -425,25 +430,25 @@ class FragmentedStructure:
     #: The order is guaranteed to be first
     #: origin, centers, then edges
     #: and in each category the motif index is ascending.
-    motifs_per_frag: Final[SeqOverFrag[SeqOverMotif[MotifIdx]]]
+    motifs_per_frag: Final[SeqOverFrag[OrderedSet[MotifIdx]]]
     #: The centers per fragment.
     #: Note that the set of centers is the complement of the edges.
     #: The order is guaranteed to be ascending.
-    centers_per_frag: Final[SeqOverFrag[SeqOverCenter[CenterIdx]]]
+    centers_per_frag: Final[SeqOverFrag[OrderedSet[CenterIdx]]]
     #: The edges per fragment.
     #: Note that the set of edges is the complement of the centers.
     #: The order is guaranteed to be ascending.
-    edges_per_frag: Final[SeqOverFrag[SeqOverEdge[EdgeIdx]]]
+    edges_per_frag: Final[SeqOverFrag[OrderedSet[EdgeIdx]]]
     #: The origins per frag. Note that for "normal" BE calculations
     #: there is exacctly one origin per fragment, i.e. the
     #: `SeqOverOrigin` has one element.
     #: The order is guaranteed to be ascending.
-    origin_per_frag: Final[SeqOverFrag[SeqOverOrigin[OriginIdx]]]
+    origin_per_frag: Final[SeqOverFrag[OrderedSet[OriginIdx]]]
 
     #: The atom indices per fragment.
     #: The order of the motifs is the same as in :attr:`motifs_per_frag`
     #: and hydrogen atoms directly follow their motif and are then ascending.
-    atoms_per_frag: Final[SeqOverFrag[SeqOverAtom[AtomIdx]]]
+    atoms_per_frag: Final[SeqOverFrag[OrderedSet[AtomIdx]]]
 
     #: For each edge in a fragment it points to the index
     #: of the fragment where this fragment is a center, i.e.
@@ -587,7 +592,7 @@ class FragmentedStructure:
 
 @define(frozen=True, kw_only=True)
 class AutogenOutput:
-    """Data structure make it easy to match explicitly the output of autogen."""
+    """Data structure to match explicitly the output of autogen."""
 
     fsites: Final[SeqOverFrag[Sequence[GlobalAOIdx]]]
     edgesites: Final[SeqOverFrag[SeqOverEdge[Sequence[GlobalAOIdx]]]]
@@ -621,24 +626,24 @@ class FragmentedMolecule:
     frag_structure: Final[FragmentedStructure]
 
     #: The atomic orbital indices per atom
-    AO_per_atom: Final[SeqOverAtom[Sequence[GlobalAOIdx]]]
+    AO_per_atom: Final[SeqOverAtom[OrderedSet[GlobalAOIdx]]]
 
     #: The atomic orbital indices per fragment
-    AO_per_frag: Final[SeqOverFrag[Sequence[GlobalAOIdx]]]
+    AO_per_frag: Final[SeqOverFrag[OrderedSet[GlobalAOIdx]]]
 
     #: The atomic orbital indices per motif
-    AO_per_motif: Final[Mapping[MotifIdx, Sequence[GlobalAOIdx]]]
+    AO_per_motif: Final[Mapping[MotifIdx, OrderedSet[GlobalAOIdx]]]
 
     #: The atomic orbital indices per edge per fragment.
     #: The AO index is global.
     #: This variable was formerly known as :python:`edgesites`.
-    AO_per_edge_per_frag: Final[SeqOverFrag[Mapping[EdgeIdx, Sequence[GlobalAOIdx]]]]
+    AO_per_edge_per_frag: Final[SeqOverFrag[Mapping[EdgeIdx, OrderedSet[GlobalAOIdx]]]]
 
     #: The relative atomic orbital indices per motif per fragment.
     #: Relative means that the AO indices are relative to
     #: the **own** fragment.
     rel_AO_per_motif_per_frag: Final[
-        SeqOverFrag[Mapping[MotifIdx, Sequence[OwnRelAOIdx]]]
+        SeqOverFrag[Mapping[MotifIdx, OrderedSet[OwnRelAOIdx]]]
     ]
 
     #: The relative atomic orbital indices per edge per fragment.
@@ -649,7 +654,7 @@ class FragmentedMolecule:
     #: are restricted to the edgess of the fragment.
     #: This variable was formerly known as :python:`edge_idx`.
     rel_AO_per_edge_per_frag: Final[
-        SeqOverFrag[Mapping[EdgeIdx, Sequence[OwnRelAOIdx]]]
+        SeqOverFrag[Mapping[EdgeIdx, OrderedSet[OwnRelAOIdx]]]
     ]
 
     #: Is the complement of :attr:`rel_AO_per_edge_per_frag`.
@@ -659,7 +664,7 @@ class FragmentedMolecule:
     #: :func:`quemb.molbe.autofrag.autogen`
     #: so it did actually not matter.
     rel_AO_per_center_per_frag: Final[
-        SeqOverFrag[Mapping[CenterIdx, Sequence[OwnRelAOIdx]]]
+        SeqOverFrag[Mapping[CenterIdx, OrderedSet[OwnRelAOIdx]]]
     ]
 
     #: The relative atomic orbital indices per origin per fragment.
@@ -670,7 +675,7 @@ class FragmentedMolecule:
     #: are restricted to the edgess of the fragment.
     #: This variable was formerly known as :python:`centerf_idx`.
     rel_AO_per_origin_per_frag: Final[
-        SeqOverFrag[Mapping[OriginIdx, Sequence[OwnRelAOIdx]]]
+        SeqOverFrag[Mapping[OriginIdx, OrderedSet[OwnRelAOIdx]]]
     ]
 
     #: The relative atomic orbital indices per edge per fragment.
@@ -678,7 +683,7 @@ class FragmentedMolecule:
     #: fragment where the edge is a center.
     #: This variable was formerly known as :python:`center_idx`.
     other_rel_AO_per_edge_per_frag: Final[
-        SeqOverFrag[Mapping[EdgeIdx, Sequence[OtherRelAOIdx]]]
+        SeqOverFrag[Mapping[EdgeIdx, OrderedSet[OtherRelAOIdx]]]
     ]
 
     @classmethod
@@ -712,7 +717,7 @@ class FragmentedMolecule:
             for edges in frag_structure.edges_per_frag
         ]
 
-        rel_AO_per_motif_per_frag: list[Mapping[MotifIdx, Sequence[OwnRelAOIdx]]] = []
+        rel_AO_per_motif_per_frag: list[Mapping[MotifIdx, OrderedSet[OwnRelAOIdx]]] = []
         for motifs in frag_structure.motifs_per_frag:
             rel_AO_per_motif = {}
             previous = 0
@@ -720,7 +725,9 @@ class FragmentedMolecule:
                 indices = range(
                     previous, (previous := previous + len(AO_per_motif[motif]))
                 )
-                rel_AO_per_motif[motif] = [OwnRelAOIdx(AOIdx(i)) for i in indices]
+                rel_AO_per_motif[motif] = OrderedSet(
+                    OwnRelAOIdx(AOIdx(i)) for i in indices
+                )
             rel_AO_per_motif_per_frag.append(rel_AO_per_motif)
 
         rel_AO_per_edge_per_frag: Final = [
@@ -745,15 +752,15 @@ class FragmentedMolecule:
         ]
 
         other_rel_AO_per_edge_per_frag: list[
-            Mapping[EdgeIdx, Sequence[OtherRelAOIdx]]
+            Mapping[EdgeIdx, OrderedSet[OtherRelAOIdx]]
         ] = [
             {
-                i_edge: [
+                i_edge: OrderedSet(
                     # We correctly reinterpet the AO indices as
                     # indices of the other fragment
                     cast(OtherRelAOIdx, i)
                     for i in rel_AO_per_motif_per_frag[frag_per_edge[i_edge]][i_edge]
-                ]
+                )
                 for i_edge in edges
             }
             for edges, frag_per_edge in zip(
@@ -833,7 +840,7 @@ def extract_values(nested: Sequence[Mapping[Key, Val]]) -> Sequence[Sequence[Val
     return [list(D.values()) for D in nested]
 
 
-def get_AOidx_per_atom(mol: Mole) -> Sequence[Sequence[GlobalAOIdx]]:
+def get_AOidx_per_atom(mol: Mole) -> Sequence[OrderedSet[GlobalAOIdx]]:
     """Get the range of atomic orbital indices per atom.
 
     Parameters
