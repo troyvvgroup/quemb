@@ -1,4 +1,3 @@
-import copy
 from collections import defaultdict
 from collections.abc import Hashable, Mapping, Sequence
 from numbers import Number
@@ -105,7 +104,7 @@ SeqOverEdge: TypeAlias = Sequence
 SeqOverOrigin: TypeAlias = Sequence
 
 
-def merge_seqs(*seqs: Sequence[T]) -> OrderedSet[T]:
+def union_of_seqs(*seqs: Sequence[T]) -> OrderedSet[T]:
     """Merge multiple sequences into a single :class:`OrderedSet`.
 
     This preserves the order of the elements in each sequence,
@@ -261,7 +260,7 @@ class ConnectivityData:
         H_atoms = OrderedSet(m.index).difference(motifs)
         H_per_motif = {motif: bonds_atoms[motif] & H_atoms for motif in motifs}
         atoms_per_motif = {
-            motif: merge_seqs([motif], H_atoms)
+            motif: union_of_seqs([motif], H_atoms)
             for motif, H_atoms in H_per_motif.items()
         }
 
@@ -309,15 +308,13 @@ class ConnectivityData:
         result = OrderedSet({i_center})
         new = result.copy()
         for _ in range(n_BE - 1):
-            new = merge_seqs(*(self.bonds_motifs[i] for i in new)).difference(result)
+            new = union_of_seqs(*(self.bonds_motifs[i] for i in new)).difference(result)
             if not new:
                 break
             result = result.union(new)
         return result
 
-    def get_all_BE_fragments(
-        self, n_BE: int
-    ) -> Mapping[MotifIdx, OrderedSet[MotifIdx]]:
+    def get_all_BE_fragments(self, n_BE: int) -> dict[MotifIdx, OrderedSet[MotifIdx]]:
         """Return all BE-fragments
 
         Parameters
@@ -409,7 +406,7 @@ def cleanup_if_subset(
     # stay at the first position. The rest of the motifs should be sorted.
     # We also remove the swallowed centers, i.e. only origins are left.
     cleaned_fragments = {
-        OriginIdx(CenterIdx(i_center)): merge_seqs([i_center], sorted(motifs[1:]))
+        OriginIdx(CenterIdx(i_center)): union_of_seqs([i_center], sorted(motifs[1:]))
         for i_center, motifs in fragment_indices.items()
         if i_center not in subset_of_others
     }
@@ -469,7 +466,7 @@ class FragmentedStructure:
             }
         )
         centers_per_frag = {
-            i_origin: merge_seqs(
+            i_origin: union_of_seqs(
                 [i_origin], sorted(fragments.swallowed_centers.get(i_origin, []))
             )
             for i_origin in fragments.motif_per_frag
@@ -503,14 +500,16 @@ class FragmentedStructure:
 
         # The final reordered motifs per frag
         motifs_per_frag = [
-            merge_seqs(cast(Sequence[MotifIdx], origin), centers, edges)
+            union_of_seqs(cast(Sequence[MotifIdx], origin), centers, edges)
             for origin, centers, edges in zip(
                 origin_per_frag, centers_per_frag.values(), edges_per_frag
             )
         ]
 
         atoms_per_frag = [
-            merge_seqs(*[conn_data.atoms_per_motif[i_motif] for i_motif in i_fragment])
+            union_of_seqs(
+                *[conn_data.atoms_per_motif[i_motif] for i_motif in i_fragment]
+            )
             for i_fragment in motifs_per_frag
         ]
 
@@ -590,21 +589,26 @@ class FragmentedStructure:
         )
 
 
+ListOverFrag: TypeAlias = list
+ListOverEdge: TypeAlias = list
+ListOverMotif: TypeAlias = list
+
+
 @define(frozen=True, kw_only=True)
 class AutogenOutput:
     """Data structure to match explicitly the output of autogen."""
 
-    fsites: Final[SeqOverFrag[Sequence[GlobalAOIdx]]]
-    edgesites: Final[SeqOverFrag[SeqOverEdge[Sequence[GlobalAOIdx]]]]
-    center: Final[SeqOverFrag[SeqOverEdge[FragmentIdx]]]
-    edge_idx: Final[SeqOverFrag[SeqOverEdge[Sequence[OwnRelAOIdx]]]]
-    center_idx: Final[SeqOverFrag[SeqOverEdge[Sequence[OtherRelAOIdx]]]]
-    centerf_idx: Final[SeqOverFrag[Sequence[OwnRelAOIdx]]]
-    ebe_weight: Final[SeqOverFrag[tuple[float, Sequence[OwnRelAOIdx]]]]
-    Frag_atom: Final[SeqOverFrag[SeqOverMotif[MotifIdx]]]
-    center_atom: Final[SeqOverFrag[OriginIdx]]
-    hlist_atom: Final[SeqOverAtom[Sequence[AtomIdx]]]
-    add_center_atom: Final[SeqOverFrag[Sequence[CenterIdx]]]
+    fsites: Final[ListOverFrag[list[GlobalAOIdx]]]
+    edgesites: Final[ListOverFrag[ListOverEdge[list[GlobalAOIdx]]]]
+    center: Final[ListOverFrag[ListOverEdge[FragmentIdx]]]
+    edge_idx: Final[ListOverFrag[ListOverEdge[list[OwnRelAOIdx]]]]
+    center_idx: Final[ListOverFrag[ListOverEdge[list[OtherRelAOIdx]]]]
+    centerf_idx: Final[ListOverFrag[list[OwnRelAOIdx]]]
+    ebe_weight: Final[ListOverFrag[tuple[float, list[OwnRelAOIdx]]]]
+    Frag_atom: Final[ListOverFrag[ListOverMotif[MotifIdx]]]
+    center_atom: Final[ListOverFrag[OriginIdx]]
+    hlist_atom: Final[SeqOverAtom[list[AtomIdx]]]
+    add_center_atom: Final[ListOverFrag[list[CenterIdx]]]
 
 
 @define(frozen=True, kw_only=True)
@@ -702,11 +706,11 @@ class FragmentedMolecule:
         conn_data: Final = frag_structure.conn_data
         AO_per_atom: Final = get_AOidx_per_atom(mol)
         AO_per_frag: Final = [
-            merge_seqs(*(AO_per_atom[i_atom] for i_atom in i_frag))
+            union_of_seqs(*(AO_per_atom[i_atom] for i_atom in i_frag))
             for i_frag in frag_structure.atoms_per_frag
         ]
         AO_per_motif: Final = {
-            motif: merge_seqs(
+            motif: union_of_seqs(
                 *(AO_per_atom[atom] for atom in conn_data.atoms_per_motif[motif])
             )
             for motif in conn_data.motifs
@@ -796,37 +800,37 @@ class FragmentedMolecule:
         # level too much. We therefore need to merge over all origins,
         # (which there is usually only one per fragment).
         centerf_idx = [
-            merge_seqs(*idx_per_origin)
+            union_of_seqs(*idx_per_origin)
             for idx_per_origin in extract_values(self.rel_AO_per_origin_per_frag)
         ]
         # A similar issue occurs for ebe_weight, where the output
         # of autogen is a union over all centers.
         ebe_weight = [
-            (1.0, merge_seqs(*idx_per_center))
+            (1.0, list(union_of_seqs(*idx_per_center)))
             for idx_per_center in extract_values(self.rel_AO_per_center_per_frag)
         ]
         # Again, we have to account for the fact that
         # autogen assumes a single origin per fragment.
         # Check with an assert as well
-        center_atom = merge_seqs(*self.frag_structure.origin_per_frag)
+        center_atom = list(union_of_seqs(*self.frag_structure.origin_per_frag))
         assert len(center_atom) == len(self)
 
         return AutogenOutput(
-            fsites=copy.deepcopy(self.AO_per_frag),
+            fsites=[list(AO_indices) for AO_indices in self.AO_per_frag],
             edgesites=extract_values(self.AO_per_edge_per_frag),
-            center=extract_values(self.frag_structure.frag_idx_per_edge),
+            center=[list(D.values()) for D in self.frag_structure.frag_idx_per_edge],
             edge_idx=extract_values(self.rel_AO_per_edge_per_frag),
             center_idx=extract_values(self.other_rel_AO_per_edge_per_frag),
-            centerf_idx=centerf_idx,
+            centerf_idx=[list(seq) for seq in centerf_idx],
             ebe_weight=ebe_weight,
-            Frag_atom=copy.deepcopy(self.frag_structure.motifs_per_frag),
+            Frag_atom=[list(motifs) for motifs in self.frag_structure.motifs_per_frag],
             center_atom=center_atom,
             hlist_atom=[
-                self.conn_data.H_per_motif.get(MotifIdx(atom), [])
+                list(self.conn_data.H_per_motif.get(MotifIdx(atom), []))
                 for atom in self.conn_data.bonds_atoms
             ],
             add_center_atom=[
-                centers.difference(origins)
+                list(centers.difference(origins))
                 for (centers, origins) in zip(
                     self.frag_structure.centers_per_frag,
                     self.frag_structure.origin_per_frag,
@@ -835,12 +839,14 @@ class FragmentedMolecule:
         )
 
 
-def extract_values(nested: Sequence[Mapping[Key, Val]]) -> Sequence[Sequence[Val]]:
+def extract_values(
+    nested: Sequence[Mapping[Key, Sequence[Val]]],
+) -> list[list[list[Val]]]:
     """Extract the values of a mapping from a sequence of mappings"""
-    return [list(D.values()) for D in nested]
+    return [[list(v) for v in D.values()] for D in nested]
 
 
-def get_AOidx_per_atom(mol: Mole) -> Sequence[OrderedSet[GlobalAOIdx]]:
+def get_AOidx_per_atom(mol: Mole) -> list[OrderedSet[GlobalAOIdx]]:
     """Get the range of atomic orbital indices per atom.
 
     Parameters
