@@ -34,8 +34,11 @@ class FragmentMap:
         List whose entries are sequences of sequences, containing all fragment AO
         indices per atom (inner tuple) and per fragment (outer tuple).
     centerf_idx:
-        List whose entries are sequences containing the relative index of all
-        center sites within a fragment (ie, with respect to fsites).
+        List whose entries are sequences containing the relative AO index of the
+        origin site within a fragment.
+        Relative is to the own fragment; since the origin site is at the beginning
+        of the motif list for each fragment, this is always a Sequence
+        :python:`range(0, n)`.
     ebe_weights:
         Weights determining the energy contributions from each center site
         (ie, with respect to centerf_idx).
