@@ -798,7 +798,7 @@ class FragmentedMolecule:
         in_bonds_atoms: Mapping[int, set[int]] | None = None,
         in_vdW_radius: InVdWRadius | None = None,
     ) -> Self:
-        """Construct a :class:`FragmentedMolecule` from a :class:`Mole`."""
+        """Construct a :class:`FragmentedMolecule` from :class:`pyscf.gto.mole.Mole`."""
         return cls.from_frag_structure(
             mol,
             FragmentedStructure.from_Mol(
