@@ -181,7 +181,7 @@ class fragpart:
             self.center_atom = fgs.center_atom
             self.hlist_atom = fgs.hlist_atom
             self.add_center_atom = fgs.add_center_atom
-            self.Nfrag = len(fgs)
+            self.Nfrag = fgs.Nfrag
 
         else:
             raise ValueError(f"Fragmentation type = {frag_type} not implemented!")

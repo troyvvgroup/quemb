@@ -609,6 +609,7 @@ class AutogenOutput:
     center_atom: Final[ListOverFrag[OriginIdx]]
     hlist_atom: Final[SeqOverAtom[list[AtomIdx]]]
     add_center_atom: Final[ListOverFrag[list[CenterIdx]]]
+    Nfrag: Final[int]
 
 
 @define(frozen=True, kw_only=True)
@@ -858,6 +859,7 @@ class FragmentedMolecule:
                     self.frag_structure.origin_per_frag,
                 )
             ],
+            Nfrag=len(self),
         )
 
 
