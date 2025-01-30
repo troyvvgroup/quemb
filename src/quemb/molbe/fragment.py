@@ -2,6 +2,7 @@
 
 
 from quemb.molbe.autofrag import autogen, graphgen
+from quemb.molbe.chemfrag import FragmentedMolecule
 from quemb.molbe.helper import get_core
 from quemb.molbe.lchain import chain as _ext_chain
 from quemb.shared.helper import copy_docstring
@@ -161,6 +162,26 @@ class fragpart:
                 self.add_center_atom,
             ) = fgs
             self.Nfrag = len(self.fsites)
+
+        elif frag_type == "chemgen":
+            fgs = (
+                FragmentedMolecule
+                    .from_mol(mol, n_BE=int(be_type[2]))
+                    .match_autogen_output()
+            )  # fmt: skip
+
+            self.fsites = fgs.fsites
+            self.edgesites = fgs.edgesites
+            self.center = fgs.center
+            self.edge_idx = fgs.edge_idx
+            self.center_idx = fgs.center_idx
+            self.centerf_idx = fgs.centerf_idx
+            self.ebe_weight = fgs.ebe_weight
+            self.Frag_atom = fgs.Frag_atom
+            self.center_atom = fgs.center_atom
+            self.hlist_atom = fgs.hlist_atom
+            self.add_center_atom = fgs.add_center_atom
+            self.Nfrag = len(fgs)
 
         else:
             raise ValueError(f"Fragmentation type = {frag_type} not implemented!")

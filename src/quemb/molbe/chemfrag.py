@@ -787,6 +787,28 @@ class FragmentedMolecule:
             other_rel_AO_per_edge_per_frag=other_rel_AO_per_edge_per_frag,
         )
 
+    @classmethod
+    def from_mol(
+        cls,
+        mol: Mole,
+        n_BE: int,
+        *,
+        treat_H_different: bool = True,
+        in_bonds_atoms: Mapping[int, set[int]] | None = None,
+        in_vdW_radius: InVdWRadius | None = None,
+    ) -> Self:
+        """Construct a :class:`FragmentedMolecule` from a :class:`Mole`."""
+        return cls.from_frag_structure(
+            mol,
+            FragmentedStructure.from_Mol(
+                mol,
+                n_BE=n_BE,
+                treat_H_different=treat_H_different,
+                in_bonds_atoms=in_bonds_atoms,
+                in_vdW_radius=in_vdW_radius,
+            ),
+        )
+
     def __len__(self) -> int:
         """The number of fragments."""
         return len(self.AO_per_frag)
