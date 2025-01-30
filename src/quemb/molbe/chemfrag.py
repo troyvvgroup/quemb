@@ -427,13 +427,16 @@ class FragmentedStructure:
     motifs_per_frag: Final[SeqOverFrag[SeqOverMotif[MotifIdx]]]
     #: The centers per fragment.
     #: Note that the set of centers is the complement of the edges.
+    #: The order is guaranteed to be ascending.
     centers_per_frag: Final[SeqOverFrag[SeqOverCenter[CenterIdx]]]
     #: The edges per fragment.
     #: Note that the set of edges is the complement of the centers.
+    #: The order is guaranteed to be ascending.
     edges_per_frag: Final[SeqOverFrag[SeqOverEdge[EdgeIdx]]]
     #: The origins per frag. Note that for "normal" BE calculations
     #: there is exacctly one origin per fragment, i.e. the
     #: `SeqOverOrigin` has one element.
+    #: The order is guaranteed to be ascending.
     origin_per_frag: Final[SeqOverFrag[SeqOverOrigin[OriginIdx]]]
 
     #: The atom indices per fragment.
