@@ -461,7 +461,7 @@ class FragmentedStructure:
         )
         centers_per_frag = {
             i_origin: merge_seqs(
-                [i_origin], fragments.swallowed_centers.get(i_origin, [])
+                [i_origin], sorted(fragments.swallowed_centers.get(i_origin, []))
             )
             for i_origin in fragments.motif_per_frag
         }
@@ -471,8 +471,12 @@ class FragmentedStructure:
             # we can rightfully cast the result to EdgeIdx.
             return cast(
                 OrderedSet[EdgeIdx],
-                fragments.motif_per_frag[i_origin].difference(
-                    centers_per_frag[i_origin]
+                OrderedSet(
+                    sorted(
+                        fragments.motif_per_frag[i_origin].difference(
+                            centers_per_frag[i_origin]
+                        )
+                    )
                 ),
             )
 
