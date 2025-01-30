@@ -404,6 +404,11 @@ def autogen(
         Heavy atom indices for each fragment, per fragment
     center_atom: list
         Atom indices of all centers
+    hlist_atom: list of lists
+        All hydrogen atom indices for each fragment, per fragment
+    add_center_atom: list of lists
+        "additional centers" for all fragments, per fragment: contains heavy atoms
+        which are not centers in any other fragments
     """
 
     if not valence_only:
@@ -510,7 +515,7 @@ def autogen(
             Frag_atom.append(flist)
             center_atom.append(idx)
 
-    hlist = [[] for i in coord]
+    hlist_atom = [[] for i in coord]
     if not hchain:
         for idx, i in enumerate(normlist):
             if cell.atom_pure_symbol(idx) == "H":
@@ -524,7 +529,7 @@ def autogen(
                 for jdx in clist:
                     dist = norm(coord[idx] - coord[jdx])
                     if dist <= hbond:
-                        hlist[jdx].append(idx)
+                        hlist_atom[jdx].append(idx)
 
     # Print fragments if requested
     if print_frags:
@@ -543,7 +548,7 @@ def autogen(
                 end=" ",
                 flush=True,
             )
-            for j in hlist[center_atom[idx]]:
+            for j in hlist_atom[center_atom[idx]]:
                 print(
                     " {:>5} ".format("*" + cell.atom_pure_symbol(j) + str(j + 1)),
                     end=" ",
@@ -557,7 +562,7 @@ def autogen(
                     end=" ",
                     flush=True,
                 )
-                for k in hlist[j]:
+                for k in hlist_atom[j]:
                     print(
                         " {:>5} ".format(cell.atom_pure_symbol(k) + str(k + 1)),
                         end=" ",
@@ -573,9 +578,12 @@ def autogen(
     if write_geom:
         w = open("fragments.xyz", "w")
         for idx, i in enumerate(Frag_atom):
-            w.write(str(len(i) + len(hlist[center_atom[idx]]) + len(hlist[j])) + "\n")
+            w.write(
+                str(len(i) + len(hlist_atom[center_atom[idx]]) + len(hlist_atom[j]))
+                + "\n"
+            )
             w.write("Fragment - " + str(idx) + "\n")
-            for j in hlist[center_atom[idx]]:
+            for j in hlist_atom[center_atom[idx]]:
                 w.write(
                     " {:>3}   {:>10.7f}   {:>10.7f}   {:>10.7f} \n".format(
                         cell.atom_pure_symbol(j),
@@ -593,7 +601,7 @@ def autogen(
                         coord[j][2] / ang2bohr,
                     )
                 )
-                for k in hlist[j]:
+                for k in hlist_atom[j]:
                     w.write(
                         " {:>3}   {:>10.7f}   {:>10.7f}   {:>10.7f} \n".format(
                             cell.atom_pure_symbol(k),
@@ -656,7 +664,7 @@ def autogen(
 
     hsites = [[] for i in coord]
     nbas2H = [0 for i in coord]
-    for hdx, h in enumerate(hlist):
+    for hdx, h in enumerate(hlist_atom):
         for hidx in h:
             basH = baslist[hidx]
             startH = basH[2]
@@ -756,7 +764,7 @@ def autogen(
 
     Nfrag = len(fsites)
 
-    add_centers = [[] for x in range(Nfrag)]  # additional centers for mixed-basis
+    add_center_atom = [[] for x in range(Nfrag)]  # additional centers for mixed-basis
     ebe_weight = []
 
     # Compute weights for each fragment
@@ -766,7 +774,7 @@ def autogen(
         if ix in open_frag:
             for pidx__, pid__ in enumerate(open_frag):
                 if ix == pid__:
-                    add_centers[pid__].append(open_frag_cen[pidx__])
+                    add_center_atom[pid__].append(open_frag_cen[pidx__])
                     tmp_.extend([i.index(pq) for pq in sites__[open_frag_cen[pidx__]]])
                     tmp_.extend([i.index(pq) for pq in hsites[open_frag_cen[pidx__]]])
         ebe_weight.append([1.0, tmp_])
@@ -821,4 +829,6 @@ def autogen(
         ebe_weight,
         Frag_atom,
         center_atom,
+        hlist_atom,
+        add_center_atom,
     )
