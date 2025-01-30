@@ -1,3 +1,4 @@
+import copy
 from collections import defaultdict
 from collections.abc import Hashable, Mapping, Sequence
 from numbers import Number
@@ -123,14 +124,14 @@ def merge_seqs(*seqs: Sequence[T]) -> OrderedSet[T]:
 # is not possible, because one cannot bind a TypeVar
 # to another TypeVar, hence we form a union type of the subset key type
 # with its complement to obain the super type of the key.
-SubKey = TypeVar("SubKey", bound=Hashable)
+Key = TypeVar("Key", bound=Hashable)
 ComplementKey = TypeVar("ComplementKey", bound=Hashable)
 Val = TypeVar("Val")
 
 
 def restrict_keys(
-    D: Mapping[SubKey | ComplementKey, Val], keys: Sequence[SubKey]
-) -> Mapping[SubKey, Val]:
+    D: Mapping[Key | ComplementKey, Val], keys: Sequence[Key]
+) -> Mapping[Key, Val]:
     """Restrict the keys of a dictionary to a subset."""
     return {k: D[k] for k in keys}
 
@@ -585,6 +586,23 @@ class FragmentedStructure:
 
 
 @define(frozen=True, kw_only=True)
+class AutogenOutput:
+    """Data structure make it easy to match explicitly the output of autogen."""
+
+    fsites: Final[SeqOverFrag[Sequence[GlobalAOIdx]]]
+    edgesites: Final[SeqOverFrag[SeqOverEdge[Sequence[GlobalAOIdx]]]]
+    center: Final[SeqOverFrag[SeqOverEdge[FragmentIdx]]]
+    edge_idx: Final[SeqOverFrag[SeqOverEdge[Sequence[OwnRelAOIdx]]]]
+    center_idx: Final[SeqOverFrag[SeqOverEdge[Sequence[OtherRelAOIdx]]]]
+    centerf_idx: Final[SeqOverFrag[Sequence[OwnRelAOIdx]]]
+    ebe_weight: Final[SeqOverFrag[tuple[float, Sequence[OwnRelAOIdx]]]]
+    Frag_atom: Final[SeqOverFrag[SeqOverMotif[MotifIdx]]]
+    center_atom: Final[SeqOverFrag[OriginIdx]]
+    hlist_atom: Final[SeqOverAtom[Sequence[AtomIdx]]]
+    add_center_atom: Final[SeqOverFrag[Sequence[CenterIdx]]]
+
+
+@define(frozen=True, kw_only=True)
 class FragmentedMolecule:
     """Data structure to store the fragments, including AO indices.
 
@@ -594,18 +612,22 @@ class FragmentedMolecule:
     Hence, it depends on :class:`FragmentedStructure`.
     """
 
-    fragmented_structure: Final[FragmentedStructure]
     #: The actual molecule
     mol: Final[Mole]
+    # yes, it is a bit redundant, because it is also contained in
+    # fragmented_structure, but it is very convenient to have it here
+    # as well. Due to the immutability the two views are also not a problem.
+    conn_data: Final[ConnectivityData]
+    frag_structure: Final[FragmentedStructure]
 
     #: The atomic orbital indices per atom
-    AO_per_atom: Final[SeqOverAtom[Sequence[AOIdx]]]
+    AO_per_atom: Final[SeqOverAtom[Sequence[GlobalAOIdx]]]
 
     #: The atomic orbital indices per fragment
-    AO_per_frag: Final[SeqOverFrag[Sequence[AOIdx]]]
+    AO_per_frag: Final[SeqOverFrag[Sequence[GlobalAOIdx]]]
 
     #: The atomic orbital indices per motif
-    AO_per_motif: Final[Mapping[MotifIdx, Sequence[AOIdx]]]
+    AO_per_motif: Final[Mapping[MotifIdx, Sequence[GlobalAOIdx]]]
 
     #: The atomic orbital indices per edge per fragment.
     #: The AO index is global.
@@ -672,6 +694,7 @@ class FragmentedMolecule:
         frag_structure :
             The fragmented structure to use.
         """
+        conn_data: Final = frag_structure.conn_data
         AO_per_atom: Final = get_AOidx_per_atom(mol)
         AO_per_frag: Final = [
             merge_seqs(*(AO_per_atom[i_atom] for i_atom in i_frag))
@@ -679,12 +702,9 @@ class FragmentedMolecule:
         ]
         AO_per_motif: Final = {
             motif: merge_seqs(
-                *(
-                    AO_per_atom[atom]
-                    for atom in frag_structure.conn_data.atoms_per_motif[motif]
-                )
+                *(AO_per_atom[atom] for atom in conn_data.atoms_per_motif[motif])
             )
-            for motif in frag_structure.conn_data.motifs
+            for motif in conn_data.motifs
         }
 
         AO_per_edge_per_frag: Final = [
@@ -742,7 +762,8 @@ class FragmentedMolecule:
         ]
 
         return cls(
-            fragmented_structure=frag_structure,
+            frag_structure=frag_structure,
+            conn_data=conn_data,
             mol=mol,
             AO_per_atom=AO_per_atom,
             AO_per_frag=AO_per_frag,
@@ -754,6 +775,62 @@ class FragmentedMolecule:
             rel_AO_per_origin_per_frag=rel_AO_per_origin_per_frag,
             other_rel_AO_per_edge_per_frag=other_rel_AO_per_edge_per_frag,
         )
+
+    def __len__(self) -> int:
+        """The number of fragments."""
+        return len(self.AO_per_frag)
+
+    def match_autogen_output(self) -> AutogenOutput:
+        """Match the output of :func:`quemb.molbe.autofrag.autogen`."""
+        # We cannot use the `extract_values(self.rel_AO_per_origin_per_frag)`
+        # alone, because the structure in `self.rel_AO_per_origin_per_frag`
+        # is more flexible and allows multiple origins per fragment.
+        # extracting the values from this structure would give one nesting
+        # level too much. We therefore need to merge over all origins,
+        # (which there is usually only one per fragment).
+        centerf_idx = [
+            merge_seqs(*idx_per_origin)
+            for idx_per_origin in extract_values(self.rel_AO_per_origin_per_frag)
+        ]
+        # A similar issue occurs for ebe_weight, where the output
+        # of autogen is a union over all centers.
+        ebe_weight = [
+            (1.0, merge_seqs(*idx_per_center))
+            for idx_per_center in extract_values(self.rel_AO_per_center_per_frag)
+        ]
+        # Again, we have to account for the fact that
+        # autogen assumes a single origin per fragment.
+        # Check with an assert as well
+        center_atom = merge_seqs(*self.frag_structure.origin_per_frag)
+        assert len(center_atom) == len(self)
+
+        return AutogenOutput(
+            fsites=copy.deepcopy(self.AO_per_frag),
+            edgesites=extract_values(self.AO_per_edge_per_frag),
+            center=extract_values(self.frag_structure.frag_idx_per_edge),
+            edge_idx=extract_values(self.rel_AO_per_edge_per_frag),
+            center_idx=extract_values(self.other_rel_AO_per_edge_per_frag),
+            centerf_idx=centerf_idx,
+            ebe_weight=ebe_weight,
+            Frag_atom=copy.deepcopy(self.frag_structure.motifs_per_frag),
+            center_atom=center_atom,
+            hlist_atom=[
+                self.conn_data.H_per_motif.get(MotifIdx(atom), [])
+                for atom in self.conn_data.bonds_atoms
+            ],
+            add_center_atom=[
+                centers.difference(origins)
+                for (centers, origins) in zip(
+                    self.frag_structure.centers_per_frag,
+                    self.frag_structure.origin_per_frag,
+                )
+            ],
+        )
+
+
+def extract_values(nested: Sequence[Mapping[Key, Val]]) -> Sequence[Sequence[Val]]:
+    """Extract the values of a mapping from a sequence of mappings"""
+    return [list(D.values()) for D in nested]
 
 
 def get_AOidx_per_atom(mol: Mole) -> Sequence[Sequence[GlobalAOIdx]]:
