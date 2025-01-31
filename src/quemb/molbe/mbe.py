@@ -173,8 +173,9 @@ class BE(MixinLocalize):
 
         if scratch_dir is None:
             self.scratch_dir = WorkDir.from_environment()
-        else:
+        elif isinstance(scratch_dir, WorkDir):
             self.scratch_dir = scratch_dir
+
         self.eri_file = self.scratch_dir / eri_file
 
         self.frozen_core = fobj.frozen_core
@@ -948,11 +949,12 @@ class BE(MixinLocalize):
             print_energy_cumulant(
                 rets[0], rets[1][1], rets[1][0] + rets[1][2], self.ebe_hf
             )
-            self.ebe_tot = rets[0]
+            self.ebe_tot = rets[0] + self.ebe_hf
         else:
             print_energy_noncumulant(
                 rets[0], rets[1][0], rets[1][2], rets[1][1], self.ebe_hf, self.enuc
             )
+
             self.ebe_tot = rets[0] + self.enuc
 
     def update_fock(self, heff: list[Matrix[floating]] | None = None) -> None:

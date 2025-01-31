@@ -51,6 +51,7 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
+.tests/data/molecular_DMRG_test/*
 
 # Translations
 *.mo
