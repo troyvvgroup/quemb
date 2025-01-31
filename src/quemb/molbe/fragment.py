@@ -166,7 +166,7 @@ class fragpart:
         elif frag_type == "chemgen":
             fgs = (
                 FragmentedMolecule
-                    .from_mol(mol, n_BE=int(be_type[2]))
+                    .from_mol(mol, n_BE=int(be_type[2:]))
                     .match_autogen_output()
             )  # fmt: skip
 
