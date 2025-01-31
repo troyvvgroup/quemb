@@ -6,28 +6,53 @@ import tempfile
 from typing import Tuple
 
 import numpy as np
+import pytest
 from pyscf import gto, scf
 
 from quemb.molbe import BE, fragpart
 from quemb.shared.io import write_cube
 
 
-def test_octane_molbe() -> None:
+def test_BE2_octane_molbe() -> None:
     # Prepare octane molecule
     mol, mf = prepare_octane()
 
     # initialize fragments (without using frozen core approximation)
-    fobj = fragpart(be_type="be2", mol=mol, frozen_core=False)
-    # Initialize BE
-    mybe = BE(mf, fobj)
+    for frag_type in ["autogen", "chemgen"]:
+        fobj = fragpart(be_type="be2", frag_type=frag_type, mol=mol, frozen_core=False)
+        # Initialize BE
+        mybe = BE(mf, fobj)
 
-    # Perform BE density matching.
-    # Uses 4 procs, each fragment calculation assigned OMP_NUM_THREADS to 2
-    # effectively running 2 fragment calculations in parallel
-    mybe.optimize(solver="CCSD", nproc=4, ompnum=2)
+        # Perform BE density matching.
+        # Uses 4 procs, each fragment calculation assigned OMP_NUM_THREADS to 2
+        # effectively running 2 fragment calculations in parallel
+        mybe.optimize(solver="CCSD", nproc=4, ompnum=2)
 
-    assert np.isclose(mybe.ebe_tot, -310.3347211309688)
-    assert np.isclose(mybe.ebe_hf, -309.7847696458918)
+        assert np.isclose(mybe.ebe_tot, -310.3347211309688)
+        assert np.isclose(mybe.ebe_hf, -309.7847696458918)
+
+
+@pytest.mark.skipif(
+    os.getenv("QUEMB_SKIP_EXPENSIVE_TESTS") == "true",
+    reason="Skipped expensive BE3 test for QuEmb.",
+)
+def test_BE3_octane_molbe() -> None:
+    # Prepare octane molecule
+    mol, mf = prepare_octane()
+
+    # initialize fragments (without using frozen core approximation)
+    for frag_type in ["autogen", "chemgen"]:
+        fobj = fragpart(be_type="be3", frag_type=frag_type, mol=mol, frozen_core=False)
+        # Initialize BE
+        mybe = BE(mf, fobj)
+
+        # Perform BE density matching.
+        # Uses 4 procs, each fragment calculation assigned OMP_NUM_THREADS to 2
+        # effectively running 2 fragment calculations in parallel
+        mybe.optimize(solver="CCSD", nproc=4, ompnum=2)
+
+        assert np.isclose(mybe.ebe_tot, -310.3344717358742)
+        assert np.isclose(mybe.ebe_hf, -309.7847695501025)
 
 
 def test_cubegen() -> None:

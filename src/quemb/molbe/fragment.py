@@ -2,6 +2,7 @@
 
 
 from quemb.molbe.autofrag import autogen, graphgen
+from quemb.molbe.chemfrag import FragmentedMolecule
 from quemb.molbe.helper import get_core
 from quemb.molbe.lchain import chain as _ext_chain
 from quemb.shared.helper import copy_docstring
@@ -77,12 +78,11 @@ class fragpart:
         cutoff=20,
         remove_nonnunique_frags=True,
     ):
-        # Initialize class attributes
         self.mol = mol
         self.frag_type = frag_type
         self.fsites = []
         self.Nfrag = 0
-        self.edge = []
+        self.edgesites = []
         self.center = []
         self.ebe_weight = []
         self.edge_idx = []
@@ -96,8 +96,6 @@ class fragpart:
         self.valence_only = valence_only
         self.cutoff = cutoff
         self.remove_nonnunique_frags = remove_nonnunique_frags
-
-        # Initialize class attributes necessary for mixed-basis BE
         self.Frag_atom = []
         self.center_atom = []
         self.hlist_atom = []
@@ -131,7 +129,7 @@ class fragpart:
             )
 
             self.fsites = fragment_map.fsites
-            self.edge = fragment_map.edge
+            self.edgesites = fragment_map.edge
             self.center = fragment_map.center
             self.Frag_atom = fragment_map.fragment_atoms
             self.center_atom = fragment_map.center_atoms
@@ -152,7 +150,7 @@ class fragpart:
 
             (
                 self.fsites,
-                self.edge,
+                self.edgesites,
                 self.center,
                 self.edge_idx,
                 self.center_idx,
@@ -164,6 +162,26 @@ class fragpart:
                 self.add_center_atom,
             ) = fgs
             self.Nfrag = len(self.fsites)
+
+        elif frag_type == "chemgen":
+            fgs = (
+                FragmentedMolecule
+                    .from_mol(mol, n_BE=int(be_type[2:]))
+                    .match_autogen_output()
+            )  # fmt: skip
+
+            self.fsites = fgs.fsites
+            self.edgesites = fgs.edgesites
+            self.center = fgs.center
+            self.edge_idx = fgs.edge_idx
+            self.center_idx = fgs.center_idx
+            self.centerf_idx = fgs.centerf_idx
+            self.ebe_weight = fgs.ebe_weight
+            self.Frag_atom = fgs.Frag_atom
+            self.center_atom = fgs.center_atom
+            self.hlist_atom = fgs.hlist_atom
+            self.add_center_atom = fgs.add_center_atom
+            self.Nfrag = fgs.Nfrag
 
         else:
             raise ValueError(f"Fragmentation type = {frag_type} not implemented!")
@@ -178,7 +196,7 @@ class fragpart:
         if self.be_type == "be1":
             for i in range(self.natom):
                 self.fsites.append([i])
-                self.edge.append([])
+                self.edgesites.append([])
             self.Nfrag = len(self.fsites)
 
         elif self.be_type == "be2":
@@ -187,10 +205,10 @@ class fragpart:
                 self.centerf_idx.append([1])
             self.Nfrag = len(self.fsites)
 
-            self.edge.append([[2]])
+            self.edgesites.append([[2]])
             for i in self.fsites[1:-1]:
-                self.edge.append([[i[0]], [i[-1]]])
-            self.edge.append([[self.fsites[-1][0]]])
+                self.edgesites.append([[i[0]], [i[-1]]])
+            self.edgesites.append([[self.fsites[-1][0]]])
 
             self.center.append([1])
             for i in range(self.Nfrag - 2):
@@ -203,10 +221,10 @@ class fragpart:
                 self.centerf_idx.append([2])
             self.Nfrag = len(self.fsites)
 
-            self.edge.append([[3], [4]])
+            self.edgesites.append([[3], [4]])
             for i in self.fsites[1:-1]:
-                self.edge.append([[i[0]], [i[1]], [i[-2]], [i[-1]]])
-            self.edge.append([[self.fsites[-1][0]], [self.fsites[-1][1]]])
+                self.edgesites.append([[i[0]], [i[1]], [i[-2]], [i[-1]]])
+            self.edgesites.append([[self.fsites[-1][0]], [self.fsites[-1][1]]])
 
             self.center.append([1, 2])
             self.center.append([0, 0, 2, 3])
@@ -220,7 +238,7 @@ class fragpart:
 
         for ix, i in enumerate(self.fsites):
             tmp_ = []
-            elist_ = [xx for yy in self.edge[ix] for xx in yy]
+            elist_ = [xx for yy in self.edgesites[ix] for xx in yy]
             for j in i:
                 if j not in elist_:
                     tmp_.append(i.index(j))
@@ -229,7 +247,7 @@ class fragpart:
         if not self.be_type == "be1":
             for i in range(self.Nfrag):
                 idx = []
-                for j in self.edge[i]:
+                for j in self.edgesites[i]:
                     idx.append([self.fsites[i].index(k) for k in j])
                 self.edge_idx.append(idx)
 
@@ -239,7 +257,7 @@ class fragpart:
                     idx.append(
                         [
                             self.fsites[self.center[i][j]].index(k)
-                            for k in self.edge[i][j]
+                            for k in self.edgesites[i][j]
                         ]
                     )
                 self.center_idx.append(idx)
