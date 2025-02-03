@@ -1,0 +1,6 @@
+quemb.molbe.chemfrag.FragmentedStructure.\_\_init\_\_
+=====================================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. automethod:: FragmentedStructure.__init__

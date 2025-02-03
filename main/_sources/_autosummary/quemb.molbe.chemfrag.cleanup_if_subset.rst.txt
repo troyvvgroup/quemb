@@ -1,0 +1,6 @@
+quemb.molbe.chemfrag.cleanup\_if\_subset
+========================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. autofunction:: cleanup_if_subset

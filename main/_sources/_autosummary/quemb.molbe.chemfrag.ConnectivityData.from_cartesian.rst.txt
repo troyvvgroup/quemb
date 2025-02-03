@@ -1,0 +1,6 @@
+quemb.molbe.chemfrag.ConnectivityData.from\_cartesian
+=====================================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. automethod:: ConnectivityData.from_cartesian

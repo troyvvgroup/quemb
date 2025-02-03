@@ -30,6 +30,7 @@
 
    autofrag
    be_parallel
+   chemfrag
    eri_onthefly
    fragment
    helper

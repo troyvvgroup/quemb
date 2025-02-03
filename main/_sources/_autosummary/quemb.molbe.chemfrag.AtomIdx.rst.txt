@@ -1,0 +1,6 @@
+quemb.molbe.chemfrag.AtomIdx
+============================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. autodata:: AtomIdx

@@ -1,0 +1,6 @@
+quemb.molbe.chemfrag.EdgeIdx
+============================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. autodata:: EdgeIdx

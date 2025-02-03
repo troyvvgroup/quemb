@@ -1,0 +1,36 @@
+quemb.molbe.chemfrag.ConnectivityData
+=====================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. autoclass:: ConnectivityData
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: ConnectivityData.bonds_atoms
+   .. autoattribute:: ConnectivityData.motifs
+   .. autoattribute:: ConnectivityData.bonds_motifs
+   .. autoattribute:: ConnectivityData.H_atoms
+   .. autoattribute:: ConnectivityData.H_per_motif
+   .. autoattribute:: ConnectivityData.atoms_per_motif
+   .. autoattribute:: ConnectivityData.treat_H_different
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~ConnectivityData.__init__
+      ~ConnectivityData.from_cartesian
+      ~ConnectivityData.get_BE_fragment
+      ~ConnectivityData.get_all_BE_fragments
+   
+   

@@ -1,0 +1,6 @@
+quemb.molbe.chemfrag.ConnectivityData.get\_all\_BE\_fragments
+=============================================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. automethod:: ConnectivityData.get_all_BE_fragments

@@ -1,0 +1,36 @@
+quemb.molbe.chemfrag.FragmentedStructure
+========================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. autoclass:: FragmentedStructure
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: FragmentedStructure.atoms_per_frag
+   .. autoattribute:: FragmentedStructure.motifs_per_frag
+   .. autoattribute:: FragmentedStructure.center_per_frag
+   .. autoattribute:: FragmentedStructure.edge_per_frag
+   .. autoattribute:: FragmentedStructure.origin_per_frag
+   .. autoattribute:: FragmentedStructure.conn_data
+   .. autoattribute:: FragmentedStructure.n_BE
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~FragmentedStructure.__init__
+      ~FragmentedStructure.from_Mol
+      ~FragmentedStructure.from_cartesian
+      ~FragmentedStructure.from_motifs
+   
+   

@@ -1,0 +1,28 @@
+quemb.molbe.chemfrag.SubsetsCleaned
+===================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. autoclass:: SubsetsCleaned
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: SubsetsCleaned.motif_per_frag
+   .. autoattribute:: SubsetsCleaned.swallowed_centers
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~SubsetsCleaned.__init__
+   
+   

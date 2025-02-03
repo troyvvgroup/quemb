@@ -1,0 +1,6 @@
+quemb.molbe.chemfrag.CenterIdx
+==============================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. autodata:: CenterIdx

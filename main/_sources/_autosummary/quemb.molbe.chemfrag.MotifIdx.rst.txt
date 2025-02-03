@@ -1,0 +1,6 @@
+quemb.molbe.chemfrag.MotifIdx
+=============================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. autodata:: MotifIdx

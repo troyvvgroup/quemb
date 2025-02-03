@@ -1,0 +1,6 @@
+quemb.molbe.chemfrag.FragmentedStructure.from\_cartesian
+========================================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. automethod:: FragmentedStructure.from_cartesian

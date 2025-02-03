@@ -1,0 +1,6 @@
+quemb.molbe.chemfrag.merge\_seqs
+================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. autofunction:: merge_seqs

@@ -1,0 +1,6 @@
+quemb.molbe.chemfrag.OriginIdx
+==============================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. autodata:: OriginIdx

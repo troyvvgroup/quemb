@@ -1,0 +1,52 @@
+quemb.molbe.chemfrag
+====================
+
+.. automodule:: quemb.molbe.chemfrag
+
+   
+   
+   .. rubric:: Module Attributes
+
+   .. autosummary::
+      :toctree:
+   
+      AtomIdx
+      MotifIdx
+      CenterIdx
+      EdgeIdx
+      OriginIdx
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      cleanup_if_subset
+      merge_seqs
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: custom-class-template.rst
+   
+      ConnectivityData
+      FragmentedStructure
+      SubsetsCleaned
+   
+   
+
+   
+   
+   
+
+
+
