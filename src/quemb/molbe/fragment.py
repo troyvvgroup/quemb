@@ -98,6 +98,8 @@ class fragpart:
         self.remove_nonnunique_frags = remove_nonnunique_frags
         self.Frag_atom = []
         self.center_atom = []
+        self.hlist_atom = []
+        self.add_center_atom = []
 
         # Check for frozen core approximation
         if frozen_core:
@@ -156,6 +158,8 @@ class fragpart:
                 self.ebe_weight,
                 self.Frag_atom,
                 self.center_atom,
+                self.hlist_atom,
+                self.add_center_atom,
             ) = fgs
             self.Nfrag = len(self.fsites)
 
