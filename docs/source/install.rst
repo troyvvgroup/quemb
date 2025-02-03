@@ -4,7 +4,7 @@ Installation
 Prerequisites
 -------------
 
- * Python >=10 or higher
+ * Python :code:`3.10 <= version < 3.13`
  * PySCF library
  * Numpy
  * Scipy

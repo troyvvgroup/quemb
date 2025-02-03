@@ -77,7 +77,6 @@ class fragpart:
         cutoff=20,
         remove_nonnunique_frags=True,
     ):
-        # Initialize class attributes
         self.mol = mol
         self.frag_type = frag_type
         self.fsites = []
@@ -96,12 +95,8 @@ class fragpart:
         self.valence_only = valence_only
         self.cutoff = cutoff
         self.remove_nonnunique_frags = remove_nonnunique_frags
-
-        # Initialize class attributes necessary for mixed-basis BE
         self.Frag_atom = []
         self.center_atom = []
-        self.hlist_atom = []
-        self.add_center_atom = []
 
         # Check for frozen core approximation
         if frozen_core:
@@ -160,8 +155,6 @@ class fragpart:
                 self.ebe_weight,
                 self.Frag_atom,
                 self.center_atom,
-                self.hlist_atom,
-                self.add_center_atom,
             ) = fgs
             self.Nfrag = len(self.fsites)
 

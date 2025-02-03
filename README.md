@@ -25,7 +25,7 @@ processors.
 
 ### Prerequisites
 
-- Python `>=3.10`
+- Python `3.10 <= version < 3.13`
 - PySCF library
 - Numpy
 - Scipy
