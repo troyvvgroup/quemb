@@ -395,10 +395,6 @@ class MixinLocalize:
             # Use these to get IAOs
             Ciao = get_iao(Co, S_vw, self.S, S_vv)
 
-            # Localize IAOs if desired
-            if iao_loc_method.upper() != "SO":
-                Ciao = get_loc(self.fobj.mol, Ciao, iao_loc_method)
-
             # How do we describe the rest of the space?
             # If iao_valence_only=False, we use PAOs:
             if not iao_valence_only:
@@ -408,8 +404,12 @@ class MixinLocalize:
                     )
                 else:
                     Cpao = get_pao(Ciao, self.S, S_vw)
-                    # Localize Cpao
+                    # Localize PAOs
                     Cpao = get_loc(self.fobj.mol, Cpao, iao_loc_method)
+
+            # Localize IAOs if desired
+            if iao_loc_method.upper() != "SO":
+                Ciao = get_loc(self.fobj.mol, Ciao, iao_loc_method)
 
             # Rearrange by atom
             aoind_by_atom = get_aoind_by_atom(self.fobj.mol)
