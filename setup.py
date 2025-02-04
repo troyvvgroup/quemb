@@ -13,11 +13,12 @@ setup(
     "surfaces, and solids via Bootstrap Embedding",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/oimeitei/quemb",
+    download_url="https://github.com/troyvvgroup/quemb",
+    url="https://vanvoorhisgroup.mit.edu/quemb",
     license="Apache 2.0",
     packages=find_packages("src"),
     package_dir={"": "src"},
-    python_requires=">=3.10",
+    python_requires=">=3.10,<3.13",
     install_requires=[
         "numpy>=1.22.0",
         "scipy>=1.7.0",
@@ -28,5 +29,9 @@ setup(
         "attrs",
         "cattrs",
         "pyyaml",
+        # TODO: Remove the git dependency once chemcoord >= 2.2 is on PyPI
+        "chemcoord @ git+https://github.com/mcocdawc/chemcoord.git",
+        "numba",
+        "ordered-set",
     ],
 )

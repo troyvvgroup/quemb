@@ -25,7 +25,7 @@ processors.
 
 ### Prerequisites
 
-- Python `>=3.10`
+- Python `3.10 <= version < 3.13`
 - PySCF library
 - Numpy
 - Scipy
@@ -83,7 +83,7 @@ See documentation and `quemb/example` for more details.
 
 Comprehensive documentation for QuEmb is available at `quemb/docs`. The documentation provides detailed infomation on installation, usage, API reference, and examples. To build the documentation locally, simply navigate to `docs` and build using `make html` or `make latexpdf`.
 
-Alternatively, you can view the latest documentation online [here](https://quemb.readthedocs.io/).
+Alternatively, you can view the latest documentation online [here](https://vanvoorhisgroup.mit.edu/quemb/).
 
 ## References
 
