@@ -238,7 +238,7 @@ def get_loc(
     """
     if method.upper() in ["EDMINSTON-RUEDENBERG", "ER"]:
         from pyscf.lo import ER as Localizer  # noqa: PLC0415
-    elif method.upper() in ["PIPEK-MIZEY", "PIPEK", "PM"]:
+    elif method.upper() in ["PIPEK-MEZEY", "PIPEK", "PM"]:
         from pyscf.lo import PM as Localizer  # noqa: PLC0415
     elif method.upper() in ["FOSTER-BOYS", "BOYS", "FB"]:
         from pyscf.lo import Boys as Localizer  # noqa: PLC0415
@@ -347,7 +347,7 @@ class MixinLocalize:
                     self.lmo_coeff = multi_dot((self.W.T, self.S, self.C))
 
         elif lo_method.upper() in [
-            "PIPEK-MIZEY",
+            "PIPEK-MEZEY",
             "PIPEK",
             "PM",
             "FOSTER-BOYS",
