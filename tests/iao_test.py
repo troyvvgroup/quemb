@@ -70,7 +70,7 @@ def ret_octane_lmo(
     iao_valence_basis,
     lo_method,
     iao_loc_method,
-) -> None:
+):
     # Fragment molecule
     fobj = fragpart(
         be_type=be,
