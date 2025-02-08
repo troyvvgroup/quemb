@@ -1,6 +1,5 @@
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
-from numbers import Number
 from typing import Callable, Final, NewType, TypeAlias, cast
 
 import chemcoord as cc
@@ -8,14 +7,12 @@ import numpy as np
 from attr import define
 from chemcoord import Cartesian
 from chemcoord.constants import elements
+from chemcoord.typing import AtomIdx
 from ordered_set import OrderedSet
 from pyscf.gto import Mole
 from typing_extensions import Self
 
 from quemb.shared.typing import T
-
-#: The index of an atom.
-AtomIdx = NewType("AtomIdx", int)
 
 #: The index of a heavy atom, i.e. of a motif.
 #: If hydrogen atoms are not treated differently, then every atom
@@ -76,7 +73,7 @@ def merge_seqs(*seqs: Sequence[T]) -> OrderedSet[T]:
 
 
 # The following can be passed van der Waals radius alternative.
-InVdWRadius: TypeAlias = Number | Callable[[Number], Number] | Mapping[str, Number]
+InVdWRadius: TypeAlias = float | Callable[[float], float] | Mapping[str, float]
 
 
 @define(frozen=True)
@@ -155,7 +152,7 @@ class ConnectivityData:
         else:
             with cc.constants.RestoreElementData():
                 used_vdW_r = elements.loc[:, "atomic_radius_cc"]
-                if isinstance(in_vdW_radius, Number):
+                if isinstance(in_vdW_radius, float):
                     elements.loc[:, "atomic_radius_cc"] = used_vdW_r.map(
                         lambda _: in_vdW_radius
                     )
@@ -163,7 +160,7 @@ class ConnectivityData:
                     elements.loc[:, "atomic_radius_cc"] = used_vdW_r.map(in_vdW_radius)
 
                 elif isinstance(in_vdW_radius, Mapping):
-                    elements.loc[:, "atomic_radius_cc"].update(in_vdW_radius)
+                    elements.loc[:, "atomic_radius_cc"].update(in_vdW_radius)  # type: ignore[arg-type]
                 elif in_vdW_radius is None:
                     # To avoid false-negatives we set all vdW radii to
                     # at least 0.55 Å
