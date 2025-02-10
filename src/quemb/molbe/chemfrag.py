@@ -1,6 +1,7 @@
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
-from typing import Callable, Final, NewType, TypeAlias, cast
+from numbers import Real
+from typing import Callable, Final, NewType, TypeAlias, assert_never, cast
 
 import chemcoord as cc
 import numpy as np
@@ -73,7 +74,7 @@ def merge_seqs(*seqs: Sequence[T]) -> OrderedSet[T]:
 
 
 # The following can be passed van der Waals radius alternative.
-InVdWRadius: TypeAlias = float | Callable[[float], float] | Mapping[str, float]
+InVdWRadius: TypeAlias = Real | Callable[[Real], Real] | Mapping[str, Real]
 
 
 @define(frozen=True)
@@ -152,13 +153,12 @@ class ConnectivityData:
         else:
             with cc.constants.RestoreElementData():
                 used_vdW_r = elements.loc[:, "atomic_radius_cc"]
-                if isinstance(in_vdW_radius, float):
+                if isinstance(in_vdW_radius, Real):
                     elements.loc[:, "atomic_radius_cc"] = used_vdW_r.map(
-                        lambda _: in_vdW_radius
+                        lambda _: float(in_vdW_radius)
                     )
                 elif callable(in_vdW_radius):
-                    elements.loc[:, "atomic_radius_cc"] = used_vdW_r.map(in_vdW_radius)
-
+                    elements.loc[:, "atomic_radius_cc"] = used_vdW_r.map(in_vdW_radius)  # type: ignore[arg-type]
                 elif isinstance(in_vdW_radius, Mapping):
                     elements.loc[:, "atomic_radius_cc"].update(in_vdW_radius)  # type: ignore[arg-type]
                 elif in_vdW_radius is None:
@@ -169,9 +169,7 @@ class ConnectivityData:
                         0.55, used_vdW_r * 1.20
                     )
                 else:
-                    raise TypeError(
-                        f"Invalid type {type(in_vdW_radius)} for in_vdW_radius."
-                    )
+                    assert_never(in_vdW_radius)
                 bonds_atoms = {
                     k: OrderedSet(sorted(v)) for k, v in m.get_bonds().items()
                 }
