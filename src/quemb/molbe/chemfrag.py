@@ -1,7 +1,7 @@
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from numbers import Real
-from typing import Callable, Final, NewType, TypeAlias, assert_never, cast
+from typing import Callable, Final, NewType, TypeAlias, cast
 
 import chemcoord as cc
 import numpy as np
@@ -11,7 +11,7 @@ from chemcoord.constants import elements
 from chemcoord.typing import AtomIdx
 from ordered_set import OrderedSet
 from pyscf.gto import Mole
-from typing_extensions import Self
+from typing_extensions import Self, assert_never
 
 from quemb.shared.typing import T
 
