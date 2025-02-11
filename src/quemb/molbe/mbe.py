@@ -70,7 +70,7 @@ class BE(MixinLocalize):
         fobj: fragpart,
         eri_file: PathLike = "eri_file.h5",
         lo_method: str = "lowdin",
-        iao_loc_method: str = "SO",
+        iao_loc_method: str | None = "SO",
         pop_method: str | None = None,
         compute_hf: bool = True,
         restart: bool = False,
@@ -953,12 +953,12 @@ class BE(MixinLocalize):
             print_energy_cumulant(
                 rets[0], rets[1][1], rets[1][0] + rets[1][2], self.ebe_hf
             )
-            self.ebe_tot = rets[0]
+            self.ebe_tot = rets[0] + self.ebe_hf
         else:
             print_energy_noncumulant(
                 rets[0], rets[1][0], rets[1][2], rets[1][1], self.ebe_hf, self.enuc
             )
-            self.ebe_tot = rets[0] + self.enuc
+            self.ebe_tot = rets[0] + self.enuc + self.ebe_hf
 
     def update_fock(self, heff: list[Matrix[floating]] | None = None) -> None:
         """

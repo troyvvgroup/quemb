@@ -1,6 +1,7 @@
 # Author(s): Henry Tran, Oinam Meitei, Shaun Weatherly
 #
 
+
 import numpy as np
 from numpy import allclose, diag, eye, sqrt, where, zeros
 from numpy.linalg import eigh, inv, multi_dot, norm, svd
@@ -209,7 +210,7 @@ def get_loc(
     C: Matrix,
     method: str,
     pop_method: str | None = None,
-    init_guess: Matrix | None = None,
+    init_guess: Matrix | str | None = "atomic",
 ) -> Mole:
     """Establish, initialize, and call localization procedure `method` for C
     from `PySCF`
@@ -242,6 +243,8 @@ def get_loc(
         from pyscf.lo import PM as Localizer  # noqa: PLC0415
     elif method.upper() in ["FOSTER-BOYS", "BOYS", "FB"]:
         from pyscf.lo import Boys as Localizer  # noqa: PLC0415
+        # Note: Convergence issues for IAO-Boys with frozen core,
+        # when not using an 'atomic' initial guess
     else:
         raise NotImplementedError("Localization scheme not understood")
 
@@ -284,6 +287,8 @@ class MixinLocalize:
             Name of localization method in quantum chemistry for the IAOs and PAOs.
             Options include 'Boys', 'PM', 'ER' (as documented in PySCF). Default is
             'SO', or symmetric orthogonalization.
+            If not using SO, we suggest using 'PM', as it is more robust than 'Boys'
+            localization and less expensive than 'ER'
         iao_valence_only : bool
             If this option is set to True, all calculation will be performed in the
             valence basis in the IAO partitioning. Default is False.
@@ -407,7 +412,7 @@ class MixinLocalize:
                     # Localize PAOs
                     Cpao = get_loc(self.fobj.mol, Cpao, iao_loc_method)
 
-            # Localize IAOs if desired
+            # Localize IAOs, if specified
             if iao_loc_method.upper() != "SO":
                 Ciao = get_loc(self.fobj.mol, Ciao, iao_loc_method)
 
