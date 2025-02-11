@@ -180,7 +180,7 @@ class ConnectivityData:
         m: Cartesian,
         *,
         bonds_atoms: Mapping[int, set[int]] | None = None,
-        in_vdW_radius: InVdWRadius | None = None,
+        vdW_radius: InVdWRadius | None = None,
         treat_H_different: bool = True,
     ) -> Self:
         """Create a :class:`ConnectivityData` from a :class:`chemcoord.Cartesian`.
@@ -196,8 +196,8 @@ class ConnectivityData:
             which is called internally if this argument is not specified.
             Allows it to manually change the connectivity by modifying the output of
             :meth:`chemcoord.Cartesian.get_bonds`.
-            The keyword is mutually exclusive with :python:`in_vdW_radius`.
-        in_vdW_radius : Real | Callable[[Real], Real] | Mapping[str, Real]
+            The keyword is mutually exclusive with :python:`vdW_radius`.
+        vdW_radius : Real | Callable[[Real], Real] | Mapping[str, Real]
             If :python:`bonds_atoms` is :class:`None`, then the connectivity graph is
             determined by the van der Waals radius of the atoms.
             It is possible to pass:
@@ -216,8 +216,8 @@ class ConnectivityData:
             raise ValueError("We assume 0-indexed data for the rest of the code.")
         m = m.sort_index()
 
-        if bonds_atoms is not None and in_vdW_radius is not None:
-            raise ValueError("Cannot specify both bonds_atoms and in_vdW_radius.")
+        if bonds_atoms is not None and vdW_radius is not None:
+            raise ValueError("Cannot specify both bonds_atoms and vdW_radius.")
 
         if bonds_atoms is not None:
             processed_bonds_atoms = {
@@ -227,15 +227,15 @@ class ConnectivityData:
         else:
             with cc.constants.RestoreElementData():
                 used_vdW_r = elements.loc[:, "atomic_radius_cc"]
-                if isinstance(in_vdW_radius, Real):
+                if isinstance(vdW_radius, Real):
                     elements.loc[:, "atomic_radius_cc"] = used_vdW_r.map(
-                        lambda _: float(in_vdW_radius)
+                        lambda _: float(vdW_radius)
                     )
-                elif callable(in_vdW_radius):
-                    elements.loc[:, "atomic_radius_cc"] = used_vdW_r.map(in_vdW_radius)  # type: ignore[arg-type]
-                elif isinstance(in_vdW_radius, Mapping):
-                    elements.loc[:, "atomic_radius_cc"].update(in_vdW_radius)  # type: ignore[arg-type]
-                elif in_vdW_radius is None:
+                elif callable(vdW_radius):
+                    elements.loc[:, "atomic_radius_cc"] = used_vdW_r.map(vdW_radius)  # type: ignore[arg-type]
+                elif isinstance(vdW_radius, Mapping):
+                    elements.loc[:, "atomic_radius_cc"].update(vdW_radius)  # type: ignore[arg-type]
+                elif vdW_radius is None:
                     # To avoid false-negatives we set all vdW radii to
                     # at least 0.55 Å
                     # or 20 % larger than the tabulated value.
@@ -243,7 +243,7 @@ class ConnectivityData:
                         0.55, used_vdW_r * 1.20
                     )
                 else:
-                    assert_never(in_vdW_radius)
+                    assert_never(vdW_radius)
                 processed_bonds_atoms = {
                     k: OrderedSet(sorted(v)) for k, v in m.get_bonds().items()
                 }
@@ -537,7 +537,7 @@ class FragmentedStructure:
         *,
         treat_H_different: bool = True,
         bonds_atoms: Mapping[int, set[int]] | None = None,
-        in_vdW_radius: InVdWRadius | None = None,
+        vdW_radius: InVdWRadius | None = None,
     ) -> Self:
         """Construct a :class:`FragmentedStructure` from a :class:`chemcoord.Cartesian`.
 
@@ -555,7 +555,7 @@ class FragmentedStructure:
                 mol,
                 treat_H_different=treat_H_different,
                 bonds_atoms=bonds_atoms,
-                in_vdW_radius=in_vdW_radius,
+                vdW_radius=vdW_radius,
             ),
             n_BE,
         )
@@ -568,7 +568,7 @@ class FragmentedStructure:
         *,
         treat_H_different: bool = True,
         bonds_atoms: Mapping[int, set[int]] | None = None,
-        in_vdW_radius: InVdWRadius | None = None,
+        vdW_radius: InVdWRadius | None = None,
     ) -> Self:
         """Construct a :class:`FragmentedStructure` from a :class:`pyscf.gto.mole.Mole`.
 
@@ -586,7 +586,7 @@ class FragmentedStructure:
             n_BE,
             treat_H_different=treat_H_different,
             bonds_atoms=bonds_atoms,
-            in_vdW_radius=in_vdW_radius,
+            vdW_radius=vdW_radius,
         )
 
     def is_ordered(self) -> bool:
@@ -816,7 +816,7 @@ class FragmentedMolecule:
         *,
         treat_H_different: bool = True,
         bonds_atoms: Mapping[int, set[int]] | None = None,
-        in_vdW_radius: InVdWRadius | None = None,
+        vdW_radius: InVdWRadius | None = None,
     ) -> Self:
         """Construct a :class:`FragmentedMolecule` from :class:`pyscf.gto.mole.Mole`."""
         return cls.from_frag_structure(
@@ -826,7 +826,7 @@ class FragmentedMolecule:
                 n_BE=n_BE,
                 treat_H_different=treat_H_different,
                 bonds_atoms=bonds_atoms,
-                in_vdW_radius=in_vdW_radius,
+                vdW_radius=vdW_radius,
             ),
         )
 
@@ -836,6 +836,13 @@ class FragmentedMolecule:
 
     def match_autogen_output(self) -> AutogenOutput:
         """Match the output of :func:`quemb.molbe.autofrag.autogen`."""
+
+        def extract_values(
+            nested: Sequence[Mapping[Key, Sequence[Val]]],
+        ) -> list[list[list[Val]]]:
+            """Extract the values of a mapping from a sequence of mappings"""
+            return [[list(v) for v in D.values()] for D in nested]
+
         # We cannot use the `extract_values(self.rel_AO_per_origin_per_frag)`
         # alone, because the structure in `self.rel_AO_per_origin_per_frag`
         # is more flexible and allows multiple origins per fragment.
@@ -881,13 +888,6 @@ class FragmentedMolecule:
             ],
             Nfrag=len(self),
         )
-
-
-def extract_values(
-    nested: Sequence[Mapping[Key, Sequence[Val]]],
-) -> list[list[list[Val]]]:
-    """Extract the values of a mapping from a sequence of mappings"""
-    return [[list(v) for v in D.values()] for D in nested]
 
 
 def get_AOidx_per_atom(mol: Mole) -> list[OrderedSet[GlobalAOIdx]]:

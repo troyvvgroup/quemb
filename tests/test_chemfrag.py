@@ -1570,26 +1570,26 @@ def test_conn_data_manipulation_of_vdW():
 
     # if hydrogens are shared among motifs we cannot treat H differently
     with pytest.raises(ValueError):
-        conn_data = ConnectivityData.from_cartesian(m, in_vdW_radius=100)
-        conn_data = ConnectivityData.from_cartesian(m, in_vdW_radius=lambda r: r * 100)
-        conn_data = ConnectivityData.from_cartesian(m, in_vdW_radius={"C": 100})
+        conn_data = ConnectivityData.from_cartesian(m, vdW_radius=100)
+        conn_data = ConnectivityData.from_cartesian(m, vdW_radius=lambda r: r * 100)
+        conn_data = ConnectivityData.from_cartesian(m, vdW_radius={"C": 100})
 
     conn_data = ConnectivityData.from_cartesian(
-        m, in_vdW_radius=100, treat_H_different=False
+        m, vdW_radius=100, treat_H_different=False
     )
     for atom, connected in conn_data.bonds_atoms.items():
         # check if everything is connected to everything
         assert {atom} | connected == set(m.index)
 
     conn_data = ConnectivityData.from_cartesian(
-        m, in_vdW_radius=lambda r: r * 100, treat_H_different=False
+        m, vdW_radius=lambda r: r * 100, treat_H_different=False
     )
     for atom, connected in conn_data.bonds_atoms.items():
         # check if everything is connected to everything
         assert {atom} | connected == set(m.index)
 
     conn_data = ConnectivityData.from_cartesian(
-        m, in_vdW_radius={"C": 100}, treat_H_different=False
+        m, vdW_radius={"C": 100}, treat_H_different=False
     )
     for i_carbon in m.loc[m.atom == "C"].index:
         # check if carbons are connected to everything
