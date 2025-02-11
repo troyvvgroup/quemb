@@ -134,7 +134,11 @@ Val = TypeVar("Val")
 def restrict_keys(
     D: Mapping[Key | ComplementKey, Val], keys: Sequence[Key]
 ) -> Mapping[Key, Val]:
-    """Restrict the keys of a dictionary to a subset."""
+    """Restrict the keys of a dictionary to a subset.
+
+    The function has the interface declared in such a way that if the subset of
+    keys is actually a subtype of the type of the keys, the type of the keys
+    of the returned dictionary is narrowed down."""
     return {k: D[k] for k in keys}
 
 
@@ -175,7 +179,7 @@ class ConnectivityData:
         cls,
         m: Cartesian,
         *,
-        in_bonds_atoms: Mapping[int, set[int]] | None = None,
+        bonds_atoms: Mapping[int, set[int]] | None = None,
         in_vdW_radius: InVdWRadius | None = None,
         treat_H_different: bool = True,
     ) -> Self:
@@ -185,7 +189,7 @@ class ConnectivityData:
         ----------
         m :
             The Cartesian object to extract the connectivity data from.
-        in_bonds_atoms : Mapping[int, OrderedSet[int]]
+        bonds_atoms : Mapping[int, OrderedSet[int]]
             Can be used to specify the connectivity graph of the molecule.
             Has exactly the same format as the output of
             :meth:`chemcoord.Cartesian.get_bonds`,
@@ -194,7 +198,7 @@ class ConnectivityData:
             :meth:`chemcoord.Cartesian.get_bonds`.
             The keyword is mutually exclusive with :python:`in_vdW_radius`.
         in_vdW_radius : Real | Callable[[Real], Real] | Mapping[str, Real]
-            If :python:`in_bonds_atoms` is :class:`None`, then the connectivity graph is
+            If :python:`bonds_atoms` is :class:`None`, then the connectivity graph is
             determined by the van der Waals radius of the atoms.
             It is possible to pass:
 
@@ -204,7 +208,7 @@ class ConnectivityData:
             * a dictionary which maps the element symbol to the van der Waals radius,
               to change the radius of individual elements, e.g. :python:`{"C": 1.5}`.
 
-            The keyword is mutually exclusive with :python:`in_bonds_atoms`.
+            The keyword is mutually exclusive with :python:`bonds_atoms`.
         treat_H_different :
             If True, we treat hydrogen atoms differently from heavy atoms.
         """
@@ -212,13 +216,13 @@ class ConnectivityData:
             raise ValueError("We assume 0-indexed data for the rest of the code.")
         m = m.sort_index()
 
-        if in_bonds_atoms is not None and in_vdW_radius is not None:
-            raise ValueError("Cannot specify both in_bonds_atoms and in_vdW_radius.")
+        if bonds_atoms is not None and in_vdW_radius is not None:
+            raise ValueError("Cannot specify both bonds_atoms and in_vdW_radius.")
 
-        if in_bonds_atoms is not None:
-            bonds_atoms = {
+        if bonds_atoms is not None:
+            processed_bonds_atoms = {
                 AtomIdx(k): OrderedSet([AtomIdx(j) for j in sorted(v)])
-                for k, v in in_bonds_atoms.items()
+                for k, v in bonds_atoms.items()
             }
         else:
             with cc.constants.RestoreElementData():
@@ -240,7 +244,7 @@ class ConnectivityData:
                     )
                 else:
                     assert_never(in_vdW_radius)
-                bonds_atoms = {
+                processed_bonds_atoms = {
                     k: OrderedSet(sorted(v)) for k, v in m.get_bonds().items()
                 }
 
@@ -250,10 +254,12 @@ class ConnectivityData:
             motifs = OrderedSet(m.index)
 
         bonds_motif: Mapping[MotifIdx, OrderedSet[MotifIdx]] = {
-            motif: motifs & bonds_atoms[motif] for motif in motifs
+            motif: motifs & processed_bonds_atoms[motif] for motif in motifs
         }
         H_atoms = OrderedSet(m.index).difference(motifs)
-        H_per_motif = {motif: bonds_atoms[motif] & H_atoms for motif in motifs}
+        H_per_motif = {
+            motif: processed_bonds_atoms[motif] & H_atoms for motif in motifs
+        }
         atoms_per_motif = {
             motif: union_of_seqs([motif], H_atoms)
             for motif, H_atoms in H_per_motif.items()
@@ -274,7 +280,7 @@ class ConnectivityData:
             )
 
         return cls(
-            bonds_atoms,
+            processed_bonds_atoms,
             motifs,
             bonds_motif,
             H_atoms,
@@ -453,7 +459,7 @@ class FragmentedStructure:
     n_BE: Final[int]
 
     @classmethod
-    def from_motifs(cls, conn_data: ConnectivityData, n_BE: int) -> Self:
+    def from_conn_data(cls, conn_data: ConnectivityData, n_BE: int) -> Self:
         fragments = cleanup_if_subset(
             {
                 i_center: conn_data.get_BE_fragment(i_center, n_BE)
@@ -530,7 +536,7 @@ class FragmentedStructure:
         n_BE: int,
         *,
         treat_H_different: bool = True,
-        in_bonds_atoms: Mapping[int, set[int]] | None = None,
+        bonds_atoms: Mapping[int, set[int]] | None = None,
         in_vdW_radius: InVdWRadius | None = None,
     ) -> Self:
         """Construct a :class:`FragmentedStructure` from a :class:`chemcoord.Cartesian`.
@@ -544,11 +550,11 @@ class FragmentedStructure:
         treat_H_different :
             If True, we treat hydrogen atoms differently from heavy atoms.
         """
-        return cls.from_motifs(
+        return cls.from_conn_data(
             ConnectivityData.from_cartesian(
                 mol,
                 treat_H_different=treat_H_different,
-                in_bonds_atoms=in_bonds_atoms,
+                bonds_atoms=bonds_atoms,
                 in_vdW_radius=in_vdW_radius,
             ),
             n_BE,
@@ -561,7 +567,7 @@ class FragmentedStructure:
         n_BE: int,
         *,
         treat_H_different: bool = True,
-        in_bonds_atoms: Mapping[int, set[int]] | None = None,
+        bonds_atoms: Mapping[int, set[int]] | None = None,
         in_vdW_radius: InVdWRadius | None = None,
     ) -> Self:
         """Construct a :class:`FragmentedStructure` from a :class:`pyscf.gto.mole.Mole`.
@@ -579,7 +585,7 @@ class FragmentedStructure:
             Cartesian.from_pyscf(mol),
             n_BE,
             treat_H_different=treat_H_different,
-            in_bonds_atoms=in_bonds_atoms,
+            bonds_atoms=bonds_atoms,
             in_vdW_radius=in_vdW_radius,
         )
 
@@ -809,7 +815,7 @@ class FragmentedMolecule:
         n_BE: int,
         *,
         treat_H_different: bool = True,
-        in_bonds_atoms: Mapping[int, set[int]] | None = None,
+        bonds_atoms: Mapping[int, set[int]] | None = None,
         in_vdW_radius: InVdWRadius | None = None,
     ) -> Self:
         """Construct a :class:`FragmentedMolecule` from :class:`pyscf.gto.mole.Mole`."""
@@ -819,7 +825,7 @@ class FragmentedMolecule:
                 mol,
                 n_BE=n_BE,
                 treat_H_different=treat_H_different,
-                in_bonds_atoms=in_bonds_atoms,
+                bonds_atoms=bonds_atoms,
                 in_vdW_radius=in_vdW_radius,
             ),
         )
