@@ -1,6 +1,6 @@
 from collections import defaultdict
 from collections.abc import Hashable, Mapping, Sequence
-from numbers import Number
+from numbers import Real
 from typing import Callable, Final, NewType, TypeAlias, TypeVar, cast
 
 import chemcoord as cc
@@ -8,14 +8,15 @@ import numpy as np
 from attr import define
 from chemcoord import Cartesian
 from chemcoord.constants import elements
+from chemcoord.typing import AtomIdx
 from ordered_set import OrderedSet
 from pyscf.gto import Mole
-from typing_extensions import Self
+from typing_extensions import Self, assert_never
 
 from quemb.shared.typing import T
 
 # Note that most OrderedSet types could be a non-mutable equivalent here,
-# unfortunately this is not that easy to achieve.
+# unfortunately this is not that easy to declare
 # see https://stackoverflow.com/questions/79401030/good-way-to-define-new-protocol-for-collection-types
 
 
@@ -38,9 +39,6 @@ OtherRelAOIdx = NewType("OtherRelAOIdx", AOIdx)
 
 #: The index of a Fragment.
 FragmentIdx = NewType("FragmentIdx", int)
-
-#: The index of an atom.
-AtomIdx = NewType("AtomIdx", int)
 
 #: The index of a heavy atom, i.e. of a motif.
 #: If hydrogen atoms are not treated differently, then every atom
@@ -141,7 +139,7 @@ def restrict_keys(
 
 
 # The following can be passed van der Waals radius alternative.
-InVdWRadius: TypeAlias = Number | Callable[[Number], Number] | Mapping[str, Number]
+InVdWRadius: TypeAlias = Real | Callable[[Real], Real] | Mapping[str, Real]
 
 
 @define(frozen=True)
@@ -225,15 +223,14 @@ class ConnectivityData:
         else:
             with cc.constants.RestoreElementData():
                 used_vdW_r = elements.loc[:, "atomic_radius_cc"]
-                if isinstance(in_vdW_radius, Number):
+                if isinstance(in_vdW_radius, Real):
                     elements.loc[:, "atomic_radius_cc"] = used_vdW_r.map(
-                        lambda _: in_vdW_radius
+                        lambda _: float(in_vdW_radius)
                     )
                 elif callable(in_vdW_radius):
-                    elements.loc[:, "atomic_radius_cc"] = used_vdW_r.map(in_vdW_radius)
-
+                    elements.loc[:, "atomic_radius_cc"] = used_vdW_r.map(in_vdW_radius)  # type: ignore[arg-type]
                 elif isinstance(in_vdW_radius, Mapping):
-                    elements.loc[:, "atomic_radius_cc"].update(in_vdW_radius)
+                    elements.loc[:, "atomic_radius_cc"].update(in_vdW_radius)  # type: ignore[arg-type]
                 elif in_vdW_radius is None:
                     # To avoid false-negatives we set all vdW radii to
                     # at least 0.55 Å
@@ -242,9 +239,7 @@ class ConnectivityData:
                         0.55, used_vdW_r * 1.20
                     )
                 else:
-                    raise TypeError(
-                        f"Invalid type {type(in_vdW_radius)} for in_vdW_radius."
-                    )
+                    assert_never(in_vdW_radius)
                 bonds_atoms = {
                     k: OrderedSet(sorted(v)) for k, v in m.get_bonds().items()
                 }

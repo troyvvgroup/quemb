@@ -3,3 +3,4 @@ py:class numpy.float64
 py:class OrderedSet
 py:class ordered_set.OrderedSet
 py:class Number
+py:class AtomIdx
