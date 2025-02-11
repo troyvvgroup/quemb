@@ -193,12 +193,12 @@ class ConnectivityData:
             Allows it to manually change the connectivity by modifying the output of
             :meth:`chemcoord.Cartesian.get_bonds`.
             The keyword is mutually exclusive with :python:`in_vdW_radius`.
-        in_vdW_radius : Number | Callable[[Number], Number] | Mapping[str, Number]
+        in_vdW_radius : Real | Callable[[Real], Real] | Mapping[str, Real]
             If :python:`in_bonds_atoms` is :class:`None`, then the connectivity graph is
             determined by the van der Waals radius of the atoms.
             It is possible to pass:
 
-            * a single Number which is used for all atoms,
+            * a single number which is used as radius for all atoms,
             * a callable which is applied to all radii
               and can be used to e.g. scale via :python:`lambda r: r * 1.1`,
             * a dictionary which maps the element symbol to the van der Waals radius,
@@ -581,6 +581,25 @@ class FragmentedStructure:
             treat_H_different=treat_H_different,
             in_bonds_atoms=in_bonds_atoms,
             in_vdW_radius=in_vdW_radius,
+        )
+
+    def is_ordered(self) -> bool:
+        """Return if :class:`self` is ordered.
+
+        Ordered in this context means, that first the
+        origins, then centers, then edges appear in the motif.
+        """
+        # note that centers is a subset of origins.
+        # All centers that are origins appear first due to
+        # how the union of OrderedSet works.
+        return all(
+            origins | centers | edges == motifs
+            for origins, centers, edges, motifs in zip(
+                self.origin_per_frag,
+                self.centers_per_frag,
+                self.edges_per_frag,
+                self.motifs_per_frag,
+            )
         )
 
 

@@ -337,6 +337,9 @@ def test_fragmented_molecule():
         n_BE: FragmentedStructure.from_cartesian(m, n_BE=n_BE) for n_BE in range(1, 8)
     }
 
+    for fragment in fragmented.values():
+        assert fragment.is_ordered()
+
     expected = {
         1: FragmentedStructure(
             motifs_per_frag=[
