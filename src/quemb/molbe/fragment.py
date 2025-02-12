@@ -82,7 +82,7 @@ class fragpart:
         self.frag_type = frag_type
         self.fsites = []
         self.Nfrag = 0
-        self.edgesites = []
+        self.edge_sites = []
         self.center = []
         self.ebe_weight = []
         self.edge_idx = []
@@ -129,7 +129,7 @@ class fragpart:
             )
 
             self.fsites = fragment_map.fsites
-            self.edgesites = fragment_map.edge
+            self.edge_sites = fragment_map.edge
             self.center = fragment_map.center
             self.Frag_atom = fragment_map.fragment_atoms
             self.center_atom = fragment_map.center_atoms
@@ -150,7 +150,7 @@ class fragpart:
 
             (
                 self.fsites,
-                self.edgesites,
+                self.edge_sites,
                 self.center,
                 self.edge_idx,
                 self.center_idx,
@@ -171,7 +171,7 @@ class fragpart:
             )  # fmt: skip
 
             self.fsites = fgs.fsites
-            self.edgesites = fgs.edgesites
+            self.edge_sites = fgs.edge_sites
             self.center = fgs.center
             self.edge_idx = fgs.edge_idx
             self.center_idx = fgs.center_idx
@@ -196,7 +196,7 @@ class fragpart:
         if self.be_type == "be1":
             for i in range(self.natom):
                 self.fsites.append([i])
-                self.edgesites.append([])
+                self.edge_sites.append([])
             self.Nfrag = len(self.fsites)
 
         elif self.be_type == "be2":
@@ -205,10 +205,10 @@ class fragpart:
                 self.centerf_idx.append([1])
             self.Nfrag = len(self.fsites)
 
-            self.edgesites.append([[2]])
+            self.edge_sites.append([[2]])
             for i in self.fsites[1:-1]:
-                self.edgesites.append([[i[0]], [i[-1]]])
-            self.edgesites.append([[self.fsites[-1][0]]])
+                self.edge_sites.append([[i[0]], [i[-1]]])
+            self.edge_sites.append([[self.fsites[-1][0]]])
 
             self.center.append([1])
             for i in range(self.Nfrag - 2):
@@ -221,10 +221,10 @@ class fragpart:
                 self.centerf_idx.append([2])
             self.Nfrag = len(self.fsites)
 
-            self.edgesites.append([[3], [4]])
+            self.edge_sites.append([[3], [4]])
             for i in self.fsites[1:-1]:
-                self.edgesites.append([[i[0]], [i[1]], [i[-2]], [i[-1]]])
-            self.edgesites.append([[self.fsites[-1][0]], [self.fsites[-1][1]]])
+                self.edge_sites.append([[i[0]], [i[1]], [i[-2]], [i[-1]]])
+            self.edge_sites.append([[self.fsites[-1][0]], [self.fsites[-1][1]]])
 
             self.center.append([1, 2])
             self.center.append([0, 0, 2, 3])
@@ -238,7 +238,7 @@ class fragpart:
 
         for ix, i in enumerate(self.fsites):
             tmp_ = []
-            elist_ = [xx for yy in self.edgesites[ix] for xx in yy]
+            elist_ = [xx for yy in self.edge_sites[ix] for xx in yy]
             for j in i:
                 if j not in elist_:
                     tmp_.append(i.index(j))
@@ -247,7 +247,7 @@ class fragpart:
         if not self.be_type == "be1":
             for i in range(self.Nfrag):
                 idx = []
-                for j in self.edgesites[i]:
+                for j in self.edge_sites[i]:
                     idx.append([self.fsites[i].index(k) for k in j])
                 self.edge_idx.append(idx)
 
@@ -257,7 +257,7 @@ class fragpart:
                     idx.append(
                         [
                             self.fsites[self.center[i][j]].index(k)
-                            for k in self.edgesites[i][j]
+                            for k in self.edge_sites[i][j]
                         ]
                     )
                 self.center_idx.append(idx)

@@ -385,7 +385,7 @@ def autogen(
     -------
     fsites : list of list of int
         List of fragment sites where each fragment is a list of LO indices.
-    edgesites : list of list of list of int
+    edge_sites : list of list of list of int
         List of edge sites for each fragment where each edge is a list of LO indices.
     center : list of list of int
         List of the fragment index of each edge site for all fragments.
@@ -682,7 +682,7 @@ def autogen(
             hsites[hdx].extend(b1list)
 
     fsites = []
-    edgesites = []
+    edge_sites = []
     edge_idx = []
     centerf_idx = []
     edge = []
@@ -746,7 +746,7 @@ def autogen(
                     edind.append(ind__)
                 indix += ls
             edge.append(edg)
-            edgesites.append(ftmpe)
+            edge_sites.append(ftmpe)
             edge_idx.append(edind)
         fsites.append(ftmp)
     center = []
@@ -821,7 +821,7 @@ def autogen(
 
     return (
         fsites,
-        edgesites,
+        edge_sites,
         center,
         edge_idx,
         center_idx,

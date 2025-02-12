@@ -589,7 +589,7 @@ class AutogenOutput:
     """Data structure to match explicitly the output of autogen."""
 
     fsites: Final[ListOverFrag[list[GlobalAOIdx]]]
-    edgesites: Final[ListOverFrag[ListOverEdge[list[GlobalAOIdx]]]]
+    edge_sites: Final[ListOverFrag[ListOverEdge[list[GlobalAOIdx]]]]
     center: Final[ListOverFrag[ListOverEdge[FragmentIdx]]]
     edge_idx: Final[ListOverFrag[ListOverEdge[list[OwnRelAOIdx]]]]
     center_idx: Final[ListOverFrag[ListOverEdge[list[OtherRelAOIdx]]]]
@@ -837,7 +837,7 @@ class FragmentedMolecule:
 
         return AutogenOutput(
             fsites=[list(AO_indices) for AO_indices in self.AO_per_frag],
-            edgesites=extract_values(self.AO_per_edge_per_frag),
+            edge_sites=extract_values(self.AO_per_edge_per_frag),
             center=[list(D.values()) for D in self.frag_structure.frag_idx_per_edge],
             edge_idx=extract_values(self.rel_AO_per_edge_per_frag),
             center_idx=extract_values(self.other_rel_AO_per_edge_per_frag),
