@@ -1,3 +1,24 @@
+"""This module implements the fragmentation of a molecule based
+on chemical connectivity that uses the overlap of tabulated van der Waals radii.
+
+There are three main classes:
+
+* :class:`ConnectivityData` contains the connectivity data of a molecule
+    and is fully independent of the BE fragmentation level or used basis sets.
+    After construction the knowledge about motifs in the molecule are available,
+    if hydrogen atoms are treated differently then the motifs are all
+    non-hydrogen atoms, while if hydrogen atoms are treated equal then
+    all atoms are motifs.
+* :class:`FragmentedStructure` is depending on the :class:`ConnectivityData`
+    and performs the fragmentation depending on the BE fragmentation level, but is still
+    independent of the used basis set.
+    After construction this class knows about the assignment of origins, centers,
+    and edges.
+* :class:`FragmentedMolecule` is depending on the :class:`FragmentedStructure`
+    and assigns the AO indices to each fragment and is responsible for the book keeping
+    of which AO index belongs to which center and edge.
+"""
+
 from collections import defaultdict
 from collections.abc import Hashable, Mapping, Sequence
 from numbers import Real
@@ -590,7 +611,7 @@ class FragmentedStructure:
         )
 
     def is_ordered(self) -> bool:
-        """Return if :class:`self` is ordered.
+        """Return if :python:`self` is ordered.
 
         Ordered in this context means, that first the
         origins, then centers, then edges appear in the motif.
