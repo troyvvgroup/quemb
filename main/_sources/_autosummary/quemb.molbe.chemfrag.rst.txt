@@ -10,7 +10,6 @@ quemb.molbe.chemfrag
    .. autosummary::
       :toctree:
    
-      AtomIdx
       MotifIdx
       CenterIdx
       EdgeIdx
