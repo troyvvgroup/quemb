@@ -353,8 +353,8 @@ class ConnectivityData:
 
 
 @define(frozen=True)
-class SubsetsCleaned:
-    """Data class to contain the results of the :func:`cleanup_if_subset` function.
+class _SubsetsCleaned:
+    """Data class to contain the results of the :func:`_cleanup_if_subset` function.
 
     Currently, this data class is only used internally
     and strictly assumes that there is exactly one unique origin per
@@ -362,7 +362,7 @@ class SubsetsCleaned:
     Otherwise the data structure of a
     :python:`typing.Mapping[OriginIdx, OrderedSet[MotifIdx]]`
     would not make sense.
-    This assumption makes the code in :func:`cleanup_if_subset`
+    This assumption makes the code in :func:`_cleanup_if_subset`
     much easier to write and more performant,
     but it is not true for all possible fragmentations.
     For example pair-wise fragmentations, where there are multiple
@@ -370,7 +370,7 @@ class SubsetsCleaned:
 
     The rest of the code, however, is written in a way that would fully support
     pair-wise fragmentations, if we would use a different data structure
-    here and rewrote :func:`cleanup_if_subset` accordingly.
+    here and rewrote :func:`_cleanup_if_subset` accordingly.
     """
 
     #: The remaining fragments after removing subsets.
@@ -381,9 +381,9 @@ class SubsetsCleaned:
     swallowed_centers: Final[Mapping[OriginIdx, OrderedSet[CenterIdx]]]
 
 
-def cleanup_if_subset(
+def _cleanup_if_subset(
     fragment_indices: Mapping[MotifIdx, OrderedSet[MotifIdx]],
-) -> SubsetsCleaned:
+) -> _SubsetsCleaned:
     """Remove fragments that are subsets of other fragments.
 
     We also keep track of the Center indices that are swallowed by the
@@ -396,7 +396,7 @@ def cleanup_if_subset(
 
     Returns
     -------
-    SubsetsCleaned :
+    _SubsetsCleaned :
         The cleaned fragments and a dictionary to keep track of swallowed centers.
     """
     # We actually need mutability here, hence it is not a Mapping.
@@ -432,7 +432,7 @@ def cleanup_if_subset(
         for i_center, motifs in fragment_indices.items()
         if i_center not in subset_of_others
     }
-    return SubsetsCleaned(cleaned_fragments, contain_others)
+    return _SubsetsCleaned(cleaned_fragments, contain_others)
 
 
 @define(frozen=True, kw_only=True)
@@ -481,7 +481,7 @@ class FragmentedStructure:
 
     @classmethod
     def from_conn_data(cls, conn_data: ConnectivityData, n_BE: int) -> Self:
-        fragments = cleanup_if_subset(
+        fragments = _cleanup_if_subset(
             {
                 i_center: conn_data.get_BE_fragment(i_center, n_BE)
                 for i_center in conn_data.motifs
