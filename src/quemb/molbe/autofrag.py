@@ -1,8 +1,11 @@
 # Author: Oinam Romesh Meitei, Shaun Weatherly
 
+import re
 from copy import deepcopy
 from typing import Sequence
 
+import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 from attrs import define
@@ -12,7 +15,7 @@ from pyscf import gto
 
 from quemb.molbe.helper import get_core
 from quemb.shared.helper import unused
-from quemb.shared.typing import Vector
+from quemb.shared.typing import PathLike, Vector
 
 
 @define
@@ -55,6 +58,9 @@ class FragmentMap:
         The adjacency matrix for all sites (atoms) in the system.
     adjacency_graph:
         The adjacency graph corresponding to `adjacency_mat`.
+    edge_list:
+        Sequences of edge pairs per fragment (these correspond to edges in
+        `adjacency_graph`).
     """
 
     fsites: list[Sequence[int]]
@@ -70,6 +76,8 @@ class FragmentMap:
     edge_atoms: list[Sequence[int]]
     adjacency_mat: np.ndarray
     adjacency_graph: nx.Graph
+    edge_list: list[Sequence]
+    adx_map: dict
 
     def remove_nonnunique_frags(self, natm: int) -> None:
         """Remove all fragments which are strict subsets of another.
@@ -107,13 +115,73 @@ class FragmentMap:
             if subsets:
                 sorted_subsets = sorted(subsets, reverse=True)
                 for bdx in sorted_subsets:
-                    del self.center[bdx]
-                    del self.fsites[bdx]
-                    del self.fs[bdx]
-                    del self.center_atoms[bdx]
-                    del self.fragment_atoms[bdx]
-
+                    if len(self.fsites) == 1:
+                        # If all fragments are identified as subsets,
+                        # this stops the loop from deleting the final fragment.
+                        break
+                    else:
+                        # Otherwise, delete the subset fragment.
+                        del self.center[bdx]
+                        del self.fsites[bdx]
+                        del self.fs[bdx]
+                        del self.center_atoms[bdx]
+                        del self.fragment_atoms[bdx]
+                        del self.edge_list[bdx]
         return None
+
+    def export_graph(
+        self,
+        outdir: PathLike,
+        outname: str = "AdjGraph",
+        cmap: str = "cubehelix",
+    ) -> None:
+        F = 2
+        c_ = plt.cm.get_cmap(cmap)
+        c = [
+            c_(fdx / len(self.edge_list))[0:3] for fdx in range(0, len(self.edge_list))
+        ]
+        patches = [mpatches.Patch(color=color, alpha=0.9) for color in c]
+        labels = {adx: (map["label"] + str(adx)) for adx, map in self.adx_map.items()}
+
+        G = self.adjacency_graph
+        # pos = nx.spring_layout(G, seed=3068)
+        pos = [
+            (
+                map["coord"][0] + (map["coord"][2] / F),
+                map["coord"][1] + (map["coord"][2] / F),
+            )
+            for _, map in self.adx_map.items()
+        ]
+
+        # nodes
+        __, _ = plt.subplots()
+        options = {"edgecolors": "tab:gray", "node_size": 800, "alpha": 1}
+        arc_rads = np.arange(-0.3, 0.3, 0.6 / len(c), dtype=float)
+
+        for fdx, color in enumerate(c):
+            edges = self.edge_list[fdx]
+            weight = len(edges) + 1
+            nc = "whitesmoke" if weight > 1 else color
+            nx.draw_networkx_nodes(
+                G, pos, nodelist=self.fragment_atoms[fdx], node_color=nc, **options
+            )
+            nx.draw_networkx_edges(
+                G,
+                pos,
+                arrows=True,
+                edgelist=edges,
+                width=5,
+                alpha=0.9,
+                edge_color=color,
+                connectionstyle=f"arc3,rad={arc_rads[fdx]}",
+            )
+        nx.draw_networkx_labels(
+            G, pos, labels, font_size=10, font_color="black", alpha=0.8
+        )
+        plt.tight_layout()
+        plt.legend(patches, self.dnames, loc="upper left")
+        plt.axis("off")
+        plt.savefig(outdir + outname + ".png", dpi=1500)
 
 
 def euclidean_distance(
@@ -131,7 +199,8 @@ def graphgen(
     frag_prefix: str = "f",
     connectivity: str = "euclidean",
     iao_valence_basis: str | None = None,
-    cutoff: float = 20.0,
+    cutoff: float | None = None,
+    export_graph_to: PathLike | None = None,
 ) -> FragmentMap:
     """Generate fragments via adjacency graph.
 
@@ -186,7 +255,12 @@ def graphgen(
     if iao_valence_basis is not None:
         raise NotImplementedError("IAOs not yet implemented for graphgen.")
 
-    fragment_type_order = int(be_type[-1])
+    fragment_type_order = int(re.findall(r"\d+", str(be_type))[0])
+    if cutoff is None and fragment_type_order <= 3:
+        cutoff = 4.5
+    elif cutoff is None:
+        cutoff = 4.5 * fragment_type_order
+
     natm = mol.natm
 
     adx_map = {
@@ -213,6 +287,8 @@ def graphgen(
         edge_atoms=list(),
         adjacency_mat=np.zeros((natm, natm), np.float64),
         adjacency_graph=nx.Graph(),
+        edge_list=list(),
+        adx_map=adx_map,
     )
     fragment_map.adjacency_graph.add_nodes_from(adx_map)
 
@@ -237,16 +313,13 @@ def graphgen(
         # their distance in real space.
         for adx in range(natm):
             for bdx in range(adx + 1, natm):
-                dr = (
-                    euclidean_distance(
-                        adx_map[adx]["coord"],
-                        adx_map[bdx]["coord"],
-                    )
-                    ** 2
+                dr = euclidean_distance(
+                    adx_map[adx]["coord"],
+                    adx_map[bdx]["coord"],
                 )
-                fragment_map.adjacency_mat[adx, bdx] = dr
+                fragment_map.adjacency_mat[adx, bdx] = dr**2
                 if dr <= cutoff:
-                    fragment_map.adjacency_graph.add_edge(adx, bdx, weight=dr)
+                    fragment_map.adjacency_graph.add_edge(adx, bdx, weight=dr**2)
 
         # For a given center site (adx), find the set of shortest
         # paths to all other sites. The number of nodes visited
@@ -257,6 +330,7 @@ def graphgen(
             fragment_map.center.append(deepcopy(fragment_map.sites[adx]))
             fsites_temp = deepcopy(list(fragment_map.sites[adx]))
             fatoms_temp = [adx]
+            edges_temp = []
             fs_temp = []
             fs_temp.append(deepcopy(fragment_map.sites[adx]))
 
@@ -284,10 +358,12 @@ def graphgen(
                     fsites_temp = fsites_temp + deepcopy(list(fragment_map.sites[bdx]))
                     fs_temp.append(deepcopy(fragment_map.sites[bdx]))
                     fatoms_temp.append(bdx)
+                    edges_temp = edges_temp + list(nx.utils.pairwise(path))
 
             fragment_map.fsites.append(tuple(fsites_temp))
             fragment_map.fs.append(tuple(fs_temp))
             fragment_map.fragment_atoms.append(tuple(fatoms_temp))
+            fragment_map.edge_list.append(edges_temp)
 
     elif connectivity.lower() in ["resistance_distance", "resistance"]:
         raise NotImplementedError("Work in progress...")
@@ -331,6 +407,12 @@ def graphgen(
     # Finally, set fragment data names for scratch and bookkeeping:
     for adx, _ in enumerate(fragment_map.fs):
         fragment_map.dnames.append(str(frag_prefix) + str(adx))
+
+    if export_graph_to:
+        fragment_map.export_graph(
+            outdir=str(export_graph_to),
+            outname=f"AdjGraph_{be_type}",
+        )
 
     return fragment_map
 

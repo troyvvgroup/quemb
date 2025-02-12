@@ -74,8 +74,9 @@ class fragpart:
         connectivity="euclidean",
         mol=None,
         frozen_core=False,
-        cutoff=20,
+        cutoff=None,
         remove_nonnunique_frags=True,
+        export_graph_to=None,
     ):
         self.mol = mol
         self.frag_type = frag_type
@@ -95,6 +96,7 @@ class fragpart:
         self.valence_only = valence_only
         self.cutoff = cutoff
         self.remove_nonnunique_frags = remove_nonnunique_frags
+        self.export_graph_to = export_graph_to
         self.Frag_atom = []
         self.center_atom = []
         self.hlist_atom = []
@@ -125,6 +127,7 @@ class fragpart:
                 connectivity=self.connectivity,
                 iao_valence_basis=self.iao_valence_basis,
                 cutoff=self.cutoff,
+                export_graph_to=self.export_graph_to,
             )
 
             self.fsites = fragment_map.fsites
