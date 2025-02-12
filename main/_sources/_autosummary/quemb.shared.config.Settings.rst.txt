@@ -12,7 +12,7 @@ quemb.shared.config.Settings
 
    
    .. autoattribute:: Settings.PRINT_LEVEL
-   .. autoattribute:: Settings.SCRATCH
+   .. autoattribute:: Settings.SCRATCH_ROOT
    .. autoattribute:: Settings.INTEGRAL_TRANSFORM_MAX_MEMORY
    
    
