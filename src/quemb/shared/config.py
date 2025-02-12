@@ -7,7 +7,7 @@ Examples
 --------
 >>> from quemb.shared.config import settings
 >>>
->>> settings.SCRATCH = "/scratch"
+>>> settings.SCRATCH_ROOT = "/scratch"
 Changes the default root for the scratch directory
 for this python session.
 
@@ -33,7 +33,7 @@ DEFAULT_RC_PATH: Final = Path("~/.quembrc.yml")
 @define
 class Settings:
     PRINT_LEVEL: int = 5
-    SCRATCH: Path = Path(gettempdir())
+    SCRATCH_ROOT: Path = Path(gettempdir())
     INTEGRAL_TRANSFORM_MAX_MEMORY: float = 50  # in GB
 
 
