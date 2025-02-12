@@ -24,7 +24,7 @@ def _determine_path(
     on systems with :python:`SLURM`.
     If :python:`SLURM` is not available, then the process ID is used instead.
     """
-    scratch_root = Path(root) if root else Path(settings.SCRATCH)
+    scratch_root = Path(root) if root else Path(settings.SCRATCH_ROOT)
     subdir_prefix = "QuEmb_" if subdir_prefix is None else subdir_prefix
     if "SLURM_JOB_ID" in os.environ:
         # we can safely assume that the SLURM_JOB_ID is unique
@@ -125,7 +125,7 @@ class WorkDir:
         user_defined_root:
             The root directory where to create temporary directories
             e.g. :bash:`/tmp` or :bash:`/scratch`.
-            If :class:`None`, then the :python:`SCRATCH`
+            If :class:`None`, then the :python:`SCRATCH_ROOT`
             value from :class:`quemb.shared.config.Settings`
             is taken.
         prefix:
