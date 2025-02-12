@@ -47,6 +47,8 @@ from quemb.shared.typing import (
     T,
 )
 
+# NOTE: We rely on the fact that post python 3.7 dictionaries preserve insertion order!
+
 # Note that most OrderedSet types could be a non-mutable equivalent here,
 # unfortunately this is not that easy to declare
 # see https://stackoverflow.com/questions/79401030/good-way-to-define-new-protocol-for-collection-types
