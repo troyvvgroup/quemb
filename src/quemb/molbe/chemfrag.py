@@ -697,7 +697,7 @@ class FragmentedMolecule:
     #: the **own** fragment.
     #: This variable is a strict subset of :attr:`rel_AO_per_motif_per_frag`,
     #: in the sense that the motif indices, the keys in the mapping,
-    #: are restricted to the edgess of the fragment.
+    #: are restricted to the edges of the fragment.
     #: This variable was formerly known as :python:`edge_idx`.
     rel_AO_per_edge_per_frag: Final[
         SeqOverFrag[Mapping[EdgeIdx, OrderedSet[OwnRelAOIdx]]]
@@ -716,9 +716,9 @@ class FragmentedMolecule:
     #: The relative atomic orbital indices per origin per fragment.
     #: Relative means that the AO indices are relative to
     #: the **own** fragment.
-    #: This variable is a strict subset of :attr:`rel_AO_per_motif_per_frag`,
+    #: This variable is a strict subset of :attr:`rel_AO_per_center_per_frag`,
     #: in the sense that the motif indices, the keys in the mapping,
-    #: are restricted to the edgess of the fragment.
+    #: are restricted to the origins of the fragment.
     #: This variable was formerly known as :python:`centerf_idx`.
     rel_AO_per_origin_per_frag: Final[
         SeqOverFrag[Mapping[OriginIdx, OrderedSet[OwnRelAOIdx]]]
