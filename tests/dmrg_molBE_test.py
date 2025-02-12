@@ -49,7 +49,7 @@ class TestBE_DMRG(unittest.TestCase):
                 force_cleanup=True,
             )
             self.assertAlmostEqual(
-                mybe.ebe_tot,
+                mybe.ebe_tot - mybe.ebe_hf,
                 target,
                 msg="BE Correlation Energy (Chem. Pot. Optimization) for "
                 + test_name
