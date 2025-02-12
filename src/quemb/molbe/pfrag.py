@@ -140,6 +140,7 @@ class Frags:
             Retrun the number of orbitals in each space, for UBE use/
             Default is False
         """
+
         if return_orb_count:
             TA, n_f, n_b = schmidt_decomposition(
                 lmo, nocc, self.fsites, norb=norb, return_orb_count=return_orb_count
@@ -443,6 +444,8 @@ def schmidt_decomposition(
 
     # Total number of sites
     Tot_sites = Dhf.shape[0]
+
+    # Identify environment sites (indices not in Frag_sites)
     Env_sites1 = array([i for i in range(Tot_sites) if i not in Frag_sites])
     Env_sites = array([[i] for i in range(Tot_sites) if i not in Frag_sites])
     Frag_sites1 = array([[i] for i in Frag_sites])
