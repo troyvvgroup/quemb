@@ -1,11 +1,18 @@
 # Author: Oinam Romesh Meitei
 
+from typing import Literal, TypeAlias, assert_never
+
+from pyscf.gto.mole import Mole
 
 from quemb.molbe.autofrag import autogen, graphgen
 from quemb.molbe.chemfrag import FragmentedMolecule
 from quemb.molbe.helper import get_core
 from quemb.molbe.lchain import chain as _ext_chain
 from quemb.shared.helper import copy_docstring
+
+FragType: TypeAlias = Literal[
+    "chemgen", "graphgen", "autogen", "hchain_simple", "chain"
+]
 
 
 class fragpart:
@@ -64,20 +71,20 @@ class fragpart:
 
     def __init__(
         self,
-        frag_type="autogen",
-        closed=False,
-        iao_valence_basis=None,
-        valence_only=False,
-        print_frags=True,
-        write_geom=False,
-        be_type="be2",
-        frag_prefix="f",
-        connectivity="euclidean",
-        mol=None,
-        frozen_core=False,
-        cutoff=20,
-        remove_nonnunique_frags=True,
-    ):
+        frag_type: FragType = "autogen",
+        closed: bool = False,
+        iao_valence_basis: str | None = None,
+        valence_only: bool = False,
+        print_frags: bool = True,
+        write_geom: bool = False,
+        be_type: str = "be2",
+        frag_prefix: str = "f",
+        connectivity: str = "euclidean",
+        mol: Mole | None = None,
+        frozen_core: bool = False,
+        cutoff: float = 20.0,
+        remove_nonnunique_frags: bool = True,
+    ) -> None:
         self.mol = mol
         self.frag_type = frag_type
         self.fsites = []
@@ -117,6 +124,7 @@ class fragpart:
             self.chain(self.mol, frozen_core=frozen_core, closed=closed)
 
         elif frag_type == "graphgen":
+            assert self.mol is not None
             fragment_map = graphgen(
                 mol=self.mol.copy(),
                 be_type=self.be_type,
@@ -184,7 +192,7 @@ class fragpart:
             self.Nfrag = fgs.Nfrag
 
         else:
-            raise ValueError(f"Fragmentation type = {frag_type} not implemented!")
+            assert_never(frag_type)
 
     @copy_docstring(_ext_chain)
     def chain(self, mol, frozen_core=False, closed=False):

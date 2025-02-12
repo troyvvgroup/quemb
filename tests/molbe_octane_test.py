@@ -3,13 +3,14 @@
 
 import os
 import tempfile
-from typing import Tuple
+from typing import Tuple, cast
 
 import numpy as np
 import pytest
 from pyscf import gto, scf
 
 from quemb.molbe import BE, fragpart
+from quemb.molbe.fragment import FragType
 from quemb.shared.io import write_cube
 
 
@@ -18,7 +19,7 @@ def test_BE2_octane_molbe() -> None:
     mol, mf = prepare_octane()
 
     # initialize fragments (without using frozen core approximation)
-    for frag_type in ["autogen", "chemgen"]:
+    for frag_type in cast(list[FragType], ["autogen", "chemgen"]):
         fobj = fragpart(be_type="be2", frag_type=frag_type, mol=mol, frozen_core=False)
         # Initialize BE
         mybe = BE(mf, fobj)
@@ -44,7 +45,7 @@ def test_BE3_octane_molbe() -> None:
     mol, mf = prepare_octane()
 
     # initialize fragments (without using frozen core approximation)
-    for frag_type in ["autogen", "chemgen"]:
+    for frag_type in cast(list[FragType], ["autogen", "chemgen"]):
         fobj = fragpart(be_type="be3", frag_type=frag_type, mol=mol, frozen_core=False)
         # Initialize BE
         mybe = BE(mf, fobj)
