@@ -172,12 +172,18 @@ class fragpart:
             self.Nfrag = len(self.fsites)
 
         elif frag_type == "chemgen":
-            fgs = (
-                FragmentedMolecule
-                    .from_mol(mol, n_BE=int(be_type[2:]))
-                    .match_autogen_output()
-            )  # fmt: skip
-
+            if iao_valence_basis is not None:
+                raise NotImplementedError(
+                    "iao_valence_basis is not implemented for chemgen"
+                )
+            if frozen_core:
+                raise NotImplementedError("frozen_core is not implemented for chemgen")
+            if valence_only:
+                raise NotImplementedError("valence_only is not implemented for chemgen")
+            fragments = FragmentedMolecule.from_mol(mol, n_BE=int(be_type[2:]))
+            if write_geom:
+                fragments.write_geom(prefix=frag_prefix)
+            fgs = fragments.match_autogen_output()
             self.fsites = fgs.fsites
             self.edge_sites = fgs.edge_sites
             self.center = fgs.center
