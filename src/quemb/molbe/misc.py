@@ -490,7 +490,7 @@ def be2puffin(
     # Run oneshot embedding and return system energy
 
     mybe.oneshot(solver=solver, nproc=nproc, ompnum=ompnum)
-    return mybe.ebe_tot
+    return mybe.ebe_tot - mybe.ebe_hf
 
 
 def print_energy_cumulant(ecorr, e_V_Kapprox, e_F_dg, e_hf):

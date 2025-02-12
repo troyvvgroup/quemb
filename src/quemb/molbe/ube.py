@@ -37,6 +37,7 @@ class UBE(BE):  # 🍠
         scratch_dir: WorkDir | None = None,
         eri_file: PathLike = "eri_file.h5",
         lo_method: PathLike = "lowdin",
+        pop_method: str | None = None,
         compute_hf: bool = True,
     ) -> None:
         """Initialize Unrestricted BE Object (ube🍠)
@@ -58,6 +59,9 @@ class UBE(BE):  # 🍠
         lo_method : str, optional
             Method for orbital localization. Supports 'lowdin', 'boys', and 'wannier',
             by default "lowdin"
+        pop_method :
+            Method for calculating orbital population, by default 'meta-lowdin'
+            See pyscf.lo for more details and options
         """
         self.unrestricted = True
 
@@ -142,7 +146,8 @@ class UBE(BE):  # 🍠
         self.localize(
             lo_method,
             iao_valence_basis=fobj.iao_valence_basis,
-            valence_only=fobj.valence_only,
+            iao_valence_only=fobj.iao_valence_only,
+            pop_method=pop_method,
         )
 
         if scratch_dir is None:
