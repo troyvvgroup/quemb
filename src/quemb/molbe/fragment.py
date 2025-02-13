@@ -182,10 +182,10 @@ class fragpart:
             if valence_only:
                 raise NotImplementedError("valence_only is not implemented for chemgen")
             fragments = FragmentedMolecule.from_mol(mol, n_BE=int(be_type[2:]))
-            # if write_geom:
-            #     fragments.frag_structure.write_geom(prefix=frag_prefix)
-            # if print_frags:
-            #     print(fragments.frag_structure.get_string())
+            if write_geom:
+                fragments.frag_structure.write_geom(prefix=frag_prefix)
+            if print_frags:
+                print(fragments.frag_structure.get_string())
             fgs = fragments.match_autogen_output()
             self.fsites = fgs.fsites
             self.edge_sites = fgs.edge_sites

@@ -1143,7 +1143,7 @@ def test_hydrogen_chain():
     )
 
     fragmented = {
-        n_BE: FragmentedStructure.from_Mol(mol, n_BE, treat_H_different=False)
+        n_BE: FragmentedStructure.from_mole(mol, n_BE, treat_H_different=False)
         for n_BE in range(1, 6)
     }
 

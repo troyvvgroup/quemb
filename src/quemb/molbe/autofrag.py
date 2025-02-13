@@ -536,7 +536,7 @@ def autogen(
         print(flush=True)
         print("Fragment sites", flush=True)
         print("--------------------------", flush=True)
-        print("Fragment |   Center | Edges ", flush=True)
+        print("Fragment |   Origin | Atoms ", flush=True)
         print("--------------------------", flush=True)
 
         for idx, i in enumerate(Frag_atom):

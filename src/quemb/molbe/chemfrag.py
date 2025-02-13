@@ -22,6 +22,7 @@ There are three main classes:
 from collections import defaultdict
 from collections.abc import Hashable, Mapping, Sequence
 from numbers import Real
+from pathlib import Path
 from typing import Callable, Final, TypeAlias, TypeVar, cast
 
 import chemcoord as cc
@@ -169,7 +170,7 @@ class ConnectivityData:
             Allows it to manually change the connectivity by modifying the output of
             :meth:`chemcoord.Cartesian.get_bonds`.
             The keyword is mutually exclusive with :python:`vdW_radius`.
-        vdW_radius : Real | Callable[[Real], Real] | Mapping[str, Real]
+        vdW_radius :
             If :python:`bonds_atoms` is :class:`None`, then the connectivity graph is
             determined by the van der Waals radius of the atoms.
             It is possible to pass:
@@ -259,6 +260,22 @@ class ConnectivityData:
             H_per_motif,
             atoms_per_motif,
             treat_H_different,
+        )
+
+    @classmethod
+    def from_mole(
+        cls,
+        m: Mole,
+        *,
+        bonds_atoms: Mapping[int, set[int]] | None = None,
+        vdW_radius: InVdWRadius | None = None,
+        treat_H_different: bool = True,
+    ) -> Self:
+        return cls.from_cartesian(
+            Cartesian.from_pyscf(m),
+            bonds_atoms=bonds_atoms,
+            vdW_radius=vdW_radius,
+            treat_H_different=treat_H_different,
         )
 
     def get_BE_fragment(self, i_center: MotifIdx, n_BE: int) -> OrderedSet[MotifIdx]:
@@ -394,6 +411,9 @@ class FragmentedStructure:
     scheme but is independent of the basis sets or the electronic structure.
     """
 
+    #: The actual molecule
+    mol: Final[Mole]
+
     #: The motifs per fragment.
     #: Note that the set of motifs in the fragment
     #: is the union of centers and edges.
@@ -431,7 +451,7 @@ class FragmentedStructure:
     n_BE: Final[int]
 
     @classmethod
-    def from_conn_data(cls, conn_data: ConnectivityData, n_BE: int) -> Self:
+    def from_conn_data(cls, mol: Mole, conn_data: ConnectivityData, n_BE: int) -> Self:
         fragments = _cleanup_if_subset(
             {
                 i_center: conn_data.get_BE_fragment(i_center, n_BE)
@@ -491,6 +511,7 @@ class FragmentedStructure:
         ]
 
         return cls(
+            mol=mol,
             atoms_per_frag=atoms_per_frag,
             motifs_per_frag=motifs_per_frag,
             centers_per_frag=list(centers_per_frag.values()),
@@ -502,38 +523,7 @@ class FragmentedStructure:
         )
 
     @classmethod
-    def from_cartesian(
-        cls,
-        mol: Cartesian,
-        n_BE: int,
-        *,
-        treat_H_different: bool = True,
-        bonds_atoms: Mapping[int, set[int]] | None = None,
-        vdW_radius: InVdWRadius | None = None,
-    ) -> Self:
-        """Construct a :class:`FragmentedStructure` from a :class:`chemcoord.Cartesian`.
-
-        Parameters
-        ----------
-        mol :
-            The Cartesian object to extract the connectivity data from.
-        n_BE :
-            The coordination sphere to consider.
-        treat_H_different :
-            If True, we treat hydrogen atoms differently from heavy atoms.
-        """
-        return cls.from_conn_data(
-            ConnectivityData.from_cartesian(
-                mol,
-                treat_H_different=treat_H_different,
-                bonds_atoms=bonds_atoms,
-                vdW_radius=vdW_radius,
-            ),
-            n_BE,
-        )
-
-    @classmethod
-    def from_Mol(
+    def from_mole(
         cls,
         mol: Mole,
         n_BE: int,
@@ -553,12 +543,15 @@ class FragmentedStructure:
         treat_H_different :
             If True, we treat hydrogen atoms differently from heavy atoms.
         """
-        return cls.from_cartesian(
-            Cartesian.from_pyscf(mol),
+        return cls.from_conn_data(
+            mol,
+            ConnectivityData.from_mole(
+                mol,
+                treat_H_different=treat_H_different,
+                bonds_atoms=bonds_atoms,
+                vdW_radius=vdW_radius,
+            ),
             n_BE,
-            treat_H_different=treat_H_different,
-            bonds_atoms=bonds_atoms,
-            vdW_radius=vdW_radius,
         )
 
     def is_ordered(self) -> bool:
@@ -579,6 +572,48 @@ class FragmentedStructure:
                 self.motifs_per_frag,
             )
         )
+
+    def write_geom(self, prefix: str = "f", dir: Path = Path(".")) -> None:
+        """Write the structures of the fragments to files."""
+        mol = Cartesian.from_pyscf(self.mol)
+        for i_frag, atoms in enumerate(self.atoms_per_frag):
+            mol.loc[atoms, :].to_xyz(dir / f"{prefix}{i_frag}.xyz")
+
+    def get_string(self) -> str:
+        """Get a long string representation of the fragments.
+
+        One can also call :python:`str(self)` to get a short string representation.
+        """
+
+        def to_comma_output(seq: Sequence) -> str:
+            return ", ".join(str(x + 1) for x in seq)
+
+        n_col_centers: Final = max(
+            10, *(len(to_comma_output(centers)) for centers in self.centers_per_frag)
+        )
+        n_col_edges: Final = max(
+            10, *(len(to_comma_output(edges)) for edges in self.edges_per_frag)
+        )
+        separator_line: Final = (28 + n_col_edges + n_col_centers) * "-"
+
+        output = (
+            "Atom indices of motifs (1-indexed)\n"
+            f"{separator_line}\n"
+            f" Fragment |    Origin | {'Centers':>{n_col_centers}} | {'Edges':>{n_col_edges}}\n"  # noqa: E501
+            f"{separator_line}\n"
+        )
+        for i_frag, (motifs, centers, edges, origins) in enumerate(
+            zip(
+                self.motifs_per_frag,
+                self.centers_per_frag,
+                self.edges_per_frag,
+                self.origin_per_frag,
+            )
+        ):
+            output += f"{i_frag + 1:>9} | {to_comma_output(origins):>9} | {to_comma_output(centers):>{n_col_centers}} | {to_comma_output(edges):>{n_col_edges}}\n"  # noqa: E501
+
+        output += f"{separator_line}\n"
+        return output
 
 
 ListOverFrag: TypeAlias = list
@@ -793,7 +828,7 @@ class FragmentedMolecule:
         """Construct a :class:`FragmentedMolecule` from :class:`pyscf.gto.mole.Mole`."""
         return cls.from_frag_structure(
             mol,
-            FragmentedStructure.from_Mol(
+            FragmentedStructure.from_mole(
                 mol,
                 n_BE=n_BE,
                 treat_H_different=treat_H_different,
