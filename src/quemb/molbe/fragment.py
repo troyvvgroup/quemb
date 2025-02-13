@@ -82,6 +82,8 @@ class fragpart:
         `shortest_path` calculation. This is crucial when handling very large
         systems, where computing the shortest paths from all to all becomes
         non-trivial. Defaults to 20.0.
+    additional_args:
+        Additional arguments for different fragmentation functions.
     """
 
     def __init__(
