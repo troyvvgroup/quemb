@@ -765,7 +765,7 @@ class FragmentedMolecule:
             The fragmented structure to use.
         """
         conn_data: Final = frag_structure.conn_data
-        AO_per_atom: Final = get_AOidx_per_atom(mol)
+        AO_per_atom: Final = _get_AOidx_per_atom(mol)
         AO_per_frag: Final = [
             union_of_seqs(*(AO_per_atom[i_atom] for i_atom in i_frag))
             for i_frag in frag_structure.atoms_per_frag
@@ -958,7 +958,7 @@ class FragmentedMolecule:
         )
 
 
-def get_AOidx_per_atom(mol: Mole) -> list[OrderedSet[GlobalAOIdx]]:
+def _get_AOidx_per_atom(mol: Mole) -> list[OrderedSet[GlobalAOIdx]]:
     """Get the range of atomic orbital indices per atom.
 
     Parameters
@@ -975,3 +975,34 @@ def get_AOidx_per_atom(mol: Mole) -> list[OrderedSet[GlobalAOIdx]]:
         OrderedSet(GlobalAOIdx(AOIdx(i)) for i in range(AO_offsets[2], AO_offsets[3]))
         for AO_offsets in mol.aoslice_by_atom()
     ]
+
+
+@define(frozen=True, kw_only=True)
+class ChemGenArgs:
+    """Additional arguments for ChemGen fragmentation.
+
+    These are passed on to :func:`quemb.molbe.chemfrag.FragmentedMolecule.from_mole`
+    """
+
+    treat_H_different: Final[bool] = True
+    bonds_atoms: Mapping[int, set[int]] | None = None
+    vdW_radius: InVdWRadius | None = None
+
+
+def chemgen(
+    mol: Mole, n_BE: int, args: ChemGenArgs | None = None
+) -> FragmentedMolecule:
+    """Fragment a molecule based on chemical connectivity."""
+    if args is None:
+        return FragmentedMolecule.from_mole(
+            mol,
+            n_BE=n_BE,
+        )
+    else:
+        return FragmentedMolecule.from_mole(
+            mol,
+            n_BE=n_BE,
+            treat_H_different=args.treat_H_different,
+            bonds_atoms=args.bonds_atoms,
+            vdW_radius=args.vdW_radius,
+        )

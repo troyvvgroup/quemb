@@ -1,14 +1,12 @@
 # Author: Oinam Romesh Meitei
 
-from collections.abc import Mapping
-from typing import Final, Literal, TypeAlias
+from typing import Literal, TypeAlias
 
-from attrs import define
 from pyscf.gto.mole import Mole
 from typing_extensions import assert_never
 
 from quemb.molbe.autofrag import autogen, graphgen
-from quemb.molbe.chemfrag import FragmentedMolecule, InVdWRadius
+from quemb.molbe.chemfrag import ChemGenArgs, chemgen
 from quemb.molbe.helper import get_core
 from quemb.molbe.lchain import chain as _ext_chain
 from quemb.shared.helper import copy_docstring
@@ -16,18 +14,6 @@ from quemb.shared.helper import copy_docstring
 FragType: TypeAlias = Literal[
     "chemgen", "graphgen", "autogen", "hchain_simple", "chain"
 ]
-
-
-@define(frozen=True, kw_only=True)
-class ChemGenArgs:
-    """Additional arguments for ChemGen fragmentation.
-
-    These are passed on to :func:`quemb.molbe.chemfrag.FragmentedMolecule.from_mole`
-    """
-
-    treat_H_different: Final[bool] = True
-    bonds_atoms: Mapping[int, set[int]] | None = None
-    vdW_radius: InVdWRadius | None = None
 
 
 class fragpart:
@@ -198,13 +184,11 @@ class fragpart:
                 raise NotImplementedError("frozen_core is not implemented for chemgen")
             if valence_only:
                 raise NotImplementedError("valence_only is not implemented for chemgen")
-            assert isinstance(additional_args, ChemGenArgs)
-            fragments = FragmentedMolecule.from_mole(
+            assert isinstance(additional_args, (type(None), ChemGenArgs))
+            fragments = chemgen(
                 mol,
                 n_BE=int(be_type[2:]),
-                treat_H_different=additional_args.treat_H_different,
-                bonds_atoms=additional_args.bonds_atoms,
-                vdW_radius=additional_args.vdW_radius,
+                args=additional_args,
             )
             if write_geom:
                 fragments.frag_structure.write_geom(prefix=frag_prefix)

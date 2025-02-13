@@ -66,7 +66,7 @@ def test_cubegen() -> None:
     # Prepare octane molecule
     mol, mf = prepare_octane()
     # Build fragments
-    fobj = fragpart(be_type="be2", mol=mol, frozen_core=True)
+    fobj = fragpart(be_type="be2", frag_type="autogen", mol=mol, frozen_core=True)
     # Run BE2
     mybe = BE(mf, fobj)
     mybe.optimize(solver="CCSD", nproc=1, ompnum=1)
