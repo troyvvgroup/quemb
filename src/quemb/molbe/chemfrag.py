@@ -277,6 +277,35 @@ class ConnectivityData:
         vdW_radius: InVdWRadius | None = None,
         treat_H_different: bool = True,
     ) -> Self:
+        """Create a :class:`ConnectivityData` from a :class:`pyscf.gto.mole.Mole`.
+
+        Parameters
+        ----------
+        m :
+            The :class:`pyscf.gto.mole.Mole` to extract the connectivity data from.
+        bonds_atoms : Mapping[int, OrderedSet[int]]
+            Can be used to specify the connectivity graph of the molecule.
+            Has exactly the same format as the output of
+            :meth:`chemcoord.Cartesian.get_bonds`,
+            which is called internally if this argument is not specified.
+            Allows it to manually change the connectivity by modifying the output of
+            :meth:`chemcoord.Cartesian.get_bonds`.
+            The keyword is mutually exclusive with :python:`vdW_radius`.
+        vdW_radius :
+            If :python:`bonds_atoms` is :class:`None`, then the connectivity graph is
+            determined by the van der Waals radius of the atoms.
+            It is possible to pass:
+
+            * a single number which is used as radius for all atoms,
+            * a callable which is applied to all radii
+              and can be used to e.g. scale via :python:`lambda r: r * 1.1`,
+            * a dictionary which maps the element symbol to the van der Waals radius,
+              to change the radius of individual elements, e.g. :python:`{"C": 1.5}`.
+
+            The keyword is mutually exclusive with :python:`bonds_atoms`.
+        treat_H_different :
+            If True, we treat hydrogen atoms differently from heavy atoms.
+        """
         return cls.from_cartesian(
             Cartesian.from_pyscf(m),
             bonds_atoms=bonds_atoms,
@@ -822,7 +851,7 @@ class FragmentedMolecule:
         )
 
     @classmethod
-    def from_mol(
+    def from_mole(
         cls,
         mol: Mole,
         n_BE: int,
@@ -831,7 +860,35 @@ class FragmentedMolecule:
         bonds_atoms: Mapping[int, set[int]] | None = None,
         vdW_radius: InVdWRadius | None = None,
     ) -> Self:
-        """Construct a :class:`FragmentedMolecule` from :class:`pyscf.gto.mole.Mole`."""
+        """Construct a :class:`FragmentedMolecule` from :class:`pyscf.gto.mole.Mole`.
+
+        Parameters
+        ----------
+        m :
+            The :class:`pyscf.gto.mole.Mole` to extract the connectivity data from.
+        treat_H_different :
+            If True, we treat hydrogen atoms differently from heavy atoms.
+        bonds_atoms : Mapping[int, OrderedSet[int]]
+            Can be used to specify the connectivity graph of the molecule.
+            Has exactly the same format as the output of
+            :meth:`chemcoord.Cartesian.get_bonds`,
+            which is called internally if this argument is not specified.
+            Allows it to manually change the connectivity by modifying the output of
+            :meth:`chemcoord.Cartesian.get_bonds`.
+            The keyword is mutually exclusive with :python:`vdW_radius`.
+        vdW_radius :
+            If :python:`bonds_atoms` is :class:`None`, then the connectivity graph is
+            determined by the van der Waals radius of the atoms.
+            It is possible to pass:
+
+            * a single number which is used as radius for all atoms,
+            * a callable which is applied to all radii
+              and can be used to e.g. scale via :python:`lambda r: r * 1.1`,
+            * a dictionary which maps the element symbol to the van der Waals radius,
+              to change the radius of individual elements, e.g. :python:`{"C": 1.5}`.
+
+            The keyword is mutually exclusive with :python:`bonds_atoms`.
+        """
         return cls.from_frag_structure(
             mol,
             FragmentedStructure.from_mole(
