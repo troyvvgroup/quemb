@@ -1,7 +1,8 @@
 # Author: Oinam Romesh Meitei
 
-from typing import Literal, TypeAlias
+from typing import Final, Literal, TypeAlias
 
+from attrs import define
 from pyscf.gto.mole import Mole
 from typing_extensions import assert_never
 
@@ -14,6 +15,13 @@ from quemb.shared.helper import copy_docstring
 FragType: TypeAlias = Literal[
     "chemgen", "graphgen", "autogen", "hchain_simple", "chain"
 ]
+
+
+@define(frozen=True, kw_only=True)
+class ChemGenArgs:
+    """Additional arguments for ChemGen fragmentation."""
+
+    treat_H_different: Final[bool] = True
 
 
 class fragpart:
@@ -85,6 +93,7 @@ class fragpart:
         frozen_core: bool = False,
         cutoff: float = 20.0,
         remove_nonnunique_frags: bool = True,
+        additional_args: ChemGenArgs | None = None,
     ) -> None:
         self.mol = mol
         self.frag_type = frag_type
@@ -181,7 +190,11 @@ class fragpart:
                 raise NotImplementedError("frozen_core is not implemented for chemgen")
             if valence_only:
                 raise NotImplementedError("valence_only is not implemented for chemgen")
-            fragments = FragmentedMolecule.from_mol(mol, n_BE=int(be_type[2:]))
+            fragments = FragmentedMolecule.from_mol(
+                mol,
+                n_BE=int(be_type[2:]),
+                treat_H_different=additional_args.treat_H_different,
+            )
             if write_geom:
                 fragments.frag_structure.write_geom(prefix=frag_prefix)
             if print_frags:
