@@ -45,7 +45,6 @@ jobs:
         path: ${{ env.pythonLocation }}
         key: ${{ env.pythonLocation }}-${{ runner.OS  }}-pip-cache-${{ hashFiles('setup.py') }}}}}}
 
-
     - name: Install dependencies
       run: |
         pip install -r tests/static_analysis_requirements.txt
@@ -92,49 +91,18 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Restore pip Cache
-      id: restore-pip-cache
-      uses: actions/cache/restore@v4
-      with:
-        path: ${{ env.pythonLocation }}
-        key: ${{ env.pythonLocation }}-${{ runner.OS  }}-pip-cache-${{ hashFiles('setup.py') }}}}
+    - name: Prepare pip
+      run: |
+        python -m pip install --upgrade pip
 
-    - name: Install pip
-      if: steps.restore-pip-cache.outputs.cache-hit != 'true'
-      run: python -m pip install --upgrade pip
-    
-    - name: Save pip Cache
-      if: steps.restore-pip-cache.outputs.cache-hit != 'true'
-      id: save-pip-cache
-      uses: actions/cache/save@v4
-      with: 
-        path: ${{ env.pythonLocation }}
-        key: ${{ steps.restore-pip-cache.outputs.cache-primary-key }}
 
-    - name: Restore quemb-deps Cache
-      id: restore-quemb-deps-cache
-      uses: actions/cache/restore@v4
-      with:
-        path: ${{ env.pythonLocation }}
-        key: ${{ env.pythonLocation }}-${{ runner.OS  }}-quemb-deps-cache-${{ hashFiles('setup.py') }}-${{ hashFiles('dev-requirements.txt') }}-${{ hashFiles('tests/test_requirements.txt') }}}}
-
-    - name: Install quemb
-      if: steps.restore-quemb-deps-cache.outputs.cache-hit != 'true'
+    - name: Install QuEmb and Dependencies
       run: |
         pip install -r tests/test_requirements.txt
         pip install .
 
-    - name: Save quemb Cache
-      if: steps.restore-quemb-deps-cache.outputs.cache-hit != 'true'
-      id: save-quemb-deps-cache
-      uses: actions/cache/save@v4
-      with: 
-        path: ${{ env.pythonLocation }}
-        key: ${{ steps.restore-quemb-deps-cache.outputs.cache-primary-key }}
-
     - name: Test with pytest
       run: |
-        pip install .
         cd tests
         QUEMB_SKIP_EXPENSIVE_TESTS=true pytest --durations=0 --durations-min=1.0 --doctest-modules --junitxml=junit/quemb-test-results_${{ matrix.python-version }}.xml
         # If --duration=0, pytest reports all tests that took longer than what was given with durations-min=[time in seconds]

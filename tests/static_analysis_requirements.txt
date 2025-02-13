@@ -4,6 +4,7 @@ ruff
 pylint
 mypy
 scipy-stubs
+pandas-stubs
 types-PyYAML
 types-networkx
 pytest
