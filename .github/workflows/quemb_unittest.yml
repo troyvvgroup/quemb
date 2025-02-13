@@ -65,9 +65,9 @@ jobs:
         pylint --disable=all --enable=E0401,R0401,E0611 .
 
 
-    # - name: Static analysis with mypy
-    #   run: |
-    #     mypy tests/ example/ src/
+    - name: Static analysis with mypy
+      run: |
+        mypy tests/ example/ src/
 
 
 

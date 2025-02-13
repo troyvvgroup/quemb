@@ -163,7 +163,7 @@ class FragmentMap:
             weight = len(edges) + 1
             nc = "whitesmoke" if weight > 1 else color
             nx.draw_networkx_nodes(
-                G, pos, nodelist=self.fragment_atoms[fdx], node_color=nc, **options
+                G, pos, nodelist=self.fragment_atoms[fdx], node_color=nc, **options # type: ignore[arg-type]
             )
             nx.draw_networkx_edges(
                 G,
@@ -172,7 +172,7 @@ class FragmentMap:
                 edgelist=edges,
                 width=5,
                 alpha=0.9,
-                edge_color=color,
+                edge_color=color, # type: ignore[arg-type]
                 connectionstyle=f"arc3,rad={arc_rads[fdx]}",
             )
         nx.draw_networkx_labels(
@@ -181,7 +181,7 @@ class FragmentMap:
         plt.tight_layout()
         plt.legend(patches, self.dnames, loc="upper left")
         plt.axis("off")
-        plt.savefig(outdir + outname + ".png", dpi=1500)
+        plt.savefig(outdir + outname + ".png", dpi=1500) # type: ignore[operator]
 
 
 def euclidean_distance(
@@ -330,7 +330,7 @@ def graphgen(
             fragment_map.center.append(deepcopy(fragment_map.sites[adx]))
             fsites_temp = deepcopy(list(fragment_map.sites[adx]))
             fatoms_temp = [adx]
-            edges_temp = []
+            edges_temp = [] # type: ignore[var-annotated]
             fs_temp = []
             fs_temp.append(deepcopy(fragment_map.sites[adx]))
 
