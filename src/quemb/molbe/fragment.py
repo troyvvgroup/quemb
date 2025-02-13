@@ -196,11 +196,12 @@ class fragpart:
                 raise NotImplementedError("frozen_core is not implemented for chemgen")
             if valence_only:
                 raise NotImplementedError("valence_only is not implemented for chemgen")
+            assert isinstance(additional_args, ChemGenArgs)
             fragments = FragmentedMolecule.from_mole(
                 mol,
                 n_BE=int(be_type[2:]),
                 treat_H_different=additional_args.treat_H_different,
-                bonds_atoms=additional_args.treat_H_different,
+                bonds_atoms=additional_args.bonds_atoms,
                 vdW_radius=additional_args.vdW_radius,
             )
             if write_geom:
