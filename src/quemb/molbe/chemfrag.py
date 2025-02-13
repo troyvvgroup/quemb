@@ -247,9 +247,15 @@ class ConnectivityData:
                         return True
             return False
 
-        if treat_H_different and motifs_share_H():
+        def all_H_belong_to_a_motif() -> bool:
+            print(H_atoms)
+            print(union_of_seqs(*(H_per_motif.values())))
+            return H_atoms.issubset(union_of_seqs(*(H_per_motif.values())))
+
+        if treat_H_different and not (all_H_belong_to_a_motif() and motifs_share_H()):
             raise ValueError(
-                "Cannot treat hydrogens differently if motifs share hydrogens."
+                "Cannot treat hydrogens differently if not all hydrogens belong "
+                "to exactly one motif."
             )
 
         return cls(
