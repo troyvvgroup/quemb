@@ -75,8 +75,9 @@ class WorkDir:
 
     If :python: `allow_existing` is False (default), then the directory
     specified by :python: `path` must be empty.
-    NOTE: Use caution when setting this to True, as any files in the non-empty
-    directory may be overwritten!
+    .. warning::
+        Use caution when setting `allow_existing=True`, as any files in the non-empty
+        directory may be overwritten and/or deleted if `cleanup_at_end`!
 
     Examples
     --------
