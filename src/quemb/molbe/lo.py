@@ -252,7 +252,7 @@ def get_loc(
 
     mlo = Localizer(mol, C)
     if pop_method is not None:
-        mlo.pop_method = pop_method
+        mlo.pop_method = pop_method  # type: ignore[union-attr]
 
     mlo.init_guess = init_guess
     return mlo.kernel()
