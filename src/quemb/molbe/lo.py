@@ -6,6 +6,9 @@ from numpy import allclose, diag, eye, sqrt, where, zeros
 from numpy.linalg import eigh, inv, multi_dot, norm, svd
 from pyscf.gto import intor_cross
 from pyscf.gto.mole import Mole
+from pyscf.lo import Boys
+from pyscf.lo.edmiston import EdmistonRuedenberg
+from pyscf.lo.pipek import PipekMezey
 
 from quemb.shared.external.lo_helper import (
     get_aoind_by_atom,
@@ -237,18 +240,19 @@ def get_loc(
     pop_method: str | None = None,
     init_guess: Matrix | None = None,
 ) -> Mole:
+    Localizer: type[EdmistonRuedenberg] | type[PipekMezey] | type[Boys]
     if method.upper() == "ER":
-        from pyscf.lo import ER as Localizer  # noqa: PLC0415
+        Localizer = EdmistonRuedenberg
     elif method.upper() == "PM":
-        from pyscf.lo import PM as Localizer  # noqa: PLC0415
+        Localizer = PipekMezey
     elif method.upper() == "FB" or method.upper() == "BOYS":
-        from pyscf.lo import Boys as Localizer  # noqa: PLC0415
+        Localizer = Boys
     else:
         raise NotImplementedError("Localization scheme not understood")
 
     mlo = Localizer(mol, C)
     if pop_method is not None:
-        mlo.pop_method = pop_method
+        mlo.pop_method = pop_method  # type: ignore[union-attr]
 
     mlo.init_guess = init_guess
     return mlo.kernel()
