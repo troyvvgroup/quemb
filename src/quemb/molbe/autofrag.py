@@ -2,6 +2,7 @@
 
 import re
 from copy import deepcopy
+from pathlib import Path
 from typing import Sequence
 
 import matplotlib.patches as mpatches
@@ -134,7 +135,9 @@ class FragmentMap:
         outdir: PathLike,
         outname: str = "AdjGraph",
         cmap: str = "cubehelix",
+        node_position: str = "coordinates",
     ) -> None:
+        outdir = Path(outdir)
         F = 2
         c_ = plt.cm.get_cmap(cmap)
         c = [
@@ -144,16 +147,18 @@ class FragmentMap:
         labels = {adx: (map["label"] + str(adx)) for adx, map in self.adx_map.items()}
 
         G = self.adjacency_graph
-        # pos = nx.spring_layout(G, seed=3068)
-        pos = [
-            (
-                map["coord"][0] + (map["coord"][2] / F),
-                map["coord"][1] + (map["coord"][2] / F),
-            )
-            for _, map in self.adx_map.items()
-        ]
 
-        # nodes
+        if node_position in ["coordinates"]:
+            pos = [
+                (
+                    map["coord"][0] + (map["coord"][2] / F),
+                    map["coord"][1] + (map["coord"][2] / F),
+                )
+                for _, map in self.adx_map.items()
+            ]
+        elif node_position in ["spring"]:
+            pos = nx.spring_layout(G, seed=3068)
+
         __, _ = plt.subplots()
         options = {"edgecolors": "tab:gray", "node_size": 800, "alpha": 1}
         arc_rads = np.arange(-0.3, 0.3, 0.6 / len(c), dtype=float)
@@ -163,7 +168,11 @@ class FragmentMap:
             weight = len(edges) + 1
             nc = "whitesmoke" if weight > 1 else color
             nx.draw_networkx_nodes(
-                G, pos, nodelist=self.fragment_atoms[fdx], node_color=nc, **options # type: ignore[arg-type]
+                G,
+                pos,
+                nodelist=self.fragment_atoms[fdx],
+                node_color=nc,  # type: ignore[arg-type]
+                **options,  # type: ignore[arg-type]
             )
             nx.draw_networkx_edges(
                 G,
@@ -172,7 +181,7 @@ class FragmentMap:
                 edgelist=edges,
                 width=5,
                 alpha=0.9,
-                edge_color=color, # type: ignore[arg-type]
+                edge_color=color,  # type: ignore[arg-type]
                 connectionstyle=f"arc3,rad={arc_rads[fdx]}",
             )
         nx.draw_networkx_labels(
@@ -181,7 +190,7 @@ class FragmentMap:
         plt.tight_layout()
         plt.legend(patches, self.dnames, loc="upper left")
         plt.axis("off")
-        plt.savefig(outdir + outname + ".png", dpi=1500) # type: ignore[operator]
+        plt.savefig(outdir / f"{outname}.png", dpi=1500)
 
 
 def euclidean_distance(
@@ -330,7 +339,7 @@ def graphgen(
             fragment_map.center.append(deepcopy(fragment_map.sites[adx]))
             fsites_temp = deepcopy(list(fragment_map.sites[adx]))
             fatoms_temp = [adx]
-            edges_temp = [] # type: ignore[var-annotated]
+            edges_temp = []  # type: ignore[var-annotated]
             fs_temp = []
             fs_temp.append(deepcopy(fragment_map.sites[adx]))
 
