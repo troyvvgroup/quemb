@@ -8,8 +8,8 @@ import h5py
 import numpy as np
 from libdmet.basis_transform.eri_transform import get_emb_eri_fast_gdf
 from numpy import array, einsum, floating, result_type, zeros, zeros_like
-from pyscf import ao2mo, pbc
-from pyscf.pbc import df, gto
+from pyscf import ao2mo
+from pyscf.pbc import df, gto, scf
 from pyscf.pbc.df.df_jk import _ewald_exxdiv_for_G0
 
 from quemb.kbe.fragment import fragpart
@@ -38,7 +38,7 @@ class BE(Mixin_k_Localize):
 
     Attributes
     ----------
-    mf : pyscf.scf.hf.SCF
+    mf :
         PySCF mean-field object.
     fobj : quemb.kbe.fragment.fragpart
         Fragment object containing sites, centers, edges, and indices.
@@ -50,7 +50,7 @@ class BE(Mixin_k_Localize):
 
     def __init__(
         self,
-        mf: pbc.scf.hf.SCF,
+        mf: scf.khf.KSCF,
         fobj: fragpart,
         eri_file: PathLike = "eri_file.h5",
         lo_method: str = "lowdin",
@@ -149,9 +149,9 @@ class BE(Mixin_k_Localize):
             self.hf_dm = mf.make_rdm1()
             self.hf_veff = mf.get_veff(
                 self.fobj.mol,
-                dm=self.hf_dm,
+                dm_kpts=self.hf_dm,
                 hermi=1,
-                kpt=self.kpts,
+                kpts=self.kpts,
                 kpts_band=None,
             )
             self.hf_etot = mf.e_tot
@@ -226,9 +226,9 @@ class BE(Mixin_k_Localize):
                 self.hf_dm = dm_nocore
                 self.core_veff = mf.get_veff(
                     self.fobj.mol,
-                    dm=self.P_core * 2.0,
+                    dm_kpts=self.P_core * 2.0,
                     hermi=1,
-                    kpt=self.kpts,
+                    kpts=self.kpts,
                     kpts_band=None,
                 )
 
