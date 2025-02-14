@@ -145,7 +145,7 @@ def run_solver(
         rdm1_tmp = mc_.make_rdm1(civec, mc_.norb, mc_.nelec)
     elif solver == "HCI":
         # pylint: disable-next=E0611
-        from pyscf import hci  # noqa: PLC0415  # hci is an optional module
+        from pyscf import hci  # type: ignore[attr-defined]  # noqa: PLC0415
 
         assert isinstance(solver_args, SHCI_ArgsUser)
         SHCI_args = _SHCI_Args.from_user_input(solver_args)
@@ -171,7 +171,7 @@ def run_solver(
 
     elif solver == "SHCI":
         # pylint: disable-next=E0401,E0611
-        from pyscf.shciscf import shci  # noqa: PLC0415    # shci is an optional module
+        from pyscf.shciscf import shci  # type: ignore[attr-defined]  # noqa: PLC0415
 
         frag_scratch = WorkDir(scratch_dir / dname)
 
@@ -195,7 +195,7 @@ def run_solver(
 
     elif solver == "SCI":
         # pylint: disable-next=E0611
-        from pyscf import cornell_shci  # noqa: PLC0415  # optional module
+        from pyscf import cornell_shci  # type: ignore[attr-defined]  # noqa: PLC0415
 
         assert isinstance(solver_args, SHCI_ArgsUser)
         SHCI_args = _SHCI_Args.from_user_input(solver_args)

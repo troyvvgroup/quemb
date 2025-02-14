@@ -9,15 +9,11 @@ Author(s): Shaun Weatherly
 import os
 import unittest
 
+import libdmet
 from numpy import eye
 from pyscf.pbc import df, gto, scf
 
 from quemb.kbe import BE, fragpart
-
-try:
-    import libdmet
-except ImportError:
-    libdmet = None
 
 
 class Test_kBE_Full(unittest.TestCase):
