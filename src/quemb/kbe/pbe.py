@@ -149,9 +149,9 @@ class BE(Mixin_k_Localize):
             self.hf_dm = mf.make_rdm1()
             self.hf_veff = mf.get_veff(
                 self.fobj.mol,
-                dm_kpts=self.hf_dm,
+                dm=self.hf_dm,
                 hermi=1,
-                kpts=self.kpts,
+                kpt=self.kpts,
                 kpts_band=None,
             )
             self.hf_etot = mf.e_tot
@@ -226,9 +226,9 @@ class BE(Mixin_k_Localize):
                 self.hf_dm = dm_nocore
                 self.core_veff = mf.get_veff(
                     self.fobj.mol,
-                    dm_kpts=self.P_core * 2.0,
+                    dm=self.P_core * 2.0,
                     hermi=1,
-                    kpts=self.kpts,
+                    kpt=self.kpts,
                     kpts_band=None,
                 )
 
