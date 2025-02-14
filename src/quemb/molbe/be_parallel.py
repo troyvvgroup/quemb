@@ -2,6 +2,7 @@
 
 import os
 from multiprocessing import Pool
+from pathlib import Path
 
 from numpy import asarray, diag_indices, einsum, float64, zeros_like
 from numpy.linalg import multi_dot
@@ -16,11 +17,14 @@ from quemb.molbe.helper import (
 )
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import (
+    DMRG_ArgsUser,
     SHCI_ArgsUser,
     UserSolverArgs,
+    _DMRG_Args,
     _SHCI_Args,
     make_rdm1_ccsd_t1,
     make_rdm2_urlx,
+    solve_block2,
     solve_ccsd,
     solve_error,
     solve_mp2,
@@ -173,7 +177,11 @@ def run_solver(
         # pylint: disable-next=E0401,E0611
         from pyscf.shciscf import shci  # noqa: PLC0415    # shci is an optional module
 
-        frag_scratch = WorkDir(scratch_dir / dname)
+        frag_scratch = WorkDir(
+            scratch_dir / dname,
+            cleanup_at_end=scratch_dir.cleanup_at_end,
+            allow_existing=scratch_dir.allow_existing,
+        )
 
         assert isinstance(solver_args, SHCI_ArgsUser)
         SHCI_args = _SHCI_Args.from_user_input(solver_args)
@@ -192,6 +200,25 @@ def run_solver(
             mch.fcisolver.restart = True
         mch.mc1step()
         rdm1_tmp, rdm2s = mch.fcisolver.make_rdm12(0, nmo, nelec)
+
+    elif solver in ["block2", "DMRG", "DMRGCI", "DMRGSCF"]:
+        frag_scratch = WorkDir(
+            path=Path(scratch_dir / dname),
+            cleanup_at_end=scratch_dir.cleanup_at_end,
+            allow_existing=scratch_dir.allow_existing,
+        )
+
+        assert isinstance(solver_args, DMRG_ArgsUser)
+        DMRG_args = _DMRG_Args.from_user_input(solver_args, mf_)
+
+        rdm1_tmp, rdm2s = solve_block2(
+            mf_,
+            nocc,
+            frag_scratch=frag_scratch,
+            DMRG_args=DMRG_args,
+            use_cumulant=use_cumulant,
+            ompnum=ompnum,
+        )
 
     elif solver == "SCI":
         # pylint: disable-next=E0611
@@ -434,6 +461,9 @@ def be_func_parallel(
         Whether to evaluate energies. Defaults to False.
     scratch_dir :
         Scratch directory root
+    cleanup_at_end :
+            Whether to remove dir/files created in  `scratch_dir` at the end of the
+            computation; defaults to True.
     use_cumulant :
         Use cumulant energy expression. Defaults to True
     return_vec :

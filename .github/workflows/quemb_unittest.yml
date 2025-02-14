@@ -40,6 +40,11 @@ jobs:
       run: |
         python -m pip install --upgrade pip
 
+    - uses: actions/cache@v4
+      with:
+        path: ${{ env.pythonLocation }}
+        key: ${{ env.pythonLocation }}-${{ runner.OS  }}-pip-cache-${{ hashFiles('setup.py') }}}}}}
+
     - name: Install dependencies
       run: |
         pip install -r tests/static_analysis_requirements.txt
@@ -91,22 +96,16 @@ jobs:
         python -m pip install --upgrade pip
 
 
-    - name: Install dependencies
+    - name: Install QuEmb and Dependencies
       run: |
         pip install -r tests/test_requirements.txt
-        pip install git+https://github.com/pyscf/dmrgscf
-        PYSCFHOME=$(pip show pyscf-dmrgscf | grep 'Location' | tr ' ' '\n' | tail -n 1)
-        wget https://raw.githubusercontent.com/pyscf/dmrgscf/master/pyscf/dmrgscf/settings.py.example
-        mv settings.py.example ${PYSCFHOME}/pyscf/dmrgscf/settings.py
         pip install .
-
 
     - name: Test with pytest
       run: |
         cd tests
         QUEMB_SKIP_EXPENSIVE_TESTS=true pytest --durations=0 --durations-min=1.0 --doctest-modules --junitxml=junit/quemb-test-results_${{ matrix.python-version }}.xml
         # If --duration=0, pytest reports all tests that took longer than what was given with durations-min=[time in seconds]
-
 
     - name: Upload pytest junit results
       uses: actions/upload-artifact@v4

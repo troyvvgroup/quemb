@@ -2,8 +2,10 @@
 
 import os
 from abc import ABC
+from pathlib import Path
 from typing import Final
 
+import numpy as np
 from attrs import Factory, define, field
 from numpy import (
     allclose,
@@ -32,7 +34,7 @@ from quemb.shared.external.ccsd_rdm import (
 )
 from quemb.shared.external.uccsd_eri import make_eris_incore
 from quemb.shared.external.unrestricted_utils import make_uhf_obj
-from quemb.shared.helper import delete_multiple_files, unused
+from quemb.shared.helper import unused
 from quemb.shared.manage_scratch import WorkDir
 
 
@@ -92,7 +94,7 @@ class DMRG_ArgsUser(UserSolverArgs):
     root: Final[int] = 0
     block_extra_keyword: Final[list[str]] = Factory(lambda: ["fiedler"])
     schedule_kwargs: dict[str, list[int] | list[float]] = field()
-    force_cleanup: Final[bool] = False
+    force_earlystop: Final[bool] = False
 
     @schedule_kwargs.default
     def _get_schedule_kwargs_default(self) -> dict[str, list[int] | list[float]]:
@@ -147,7 +149,7 @@ class _DMRG_Args:
     root: Final[int]
     block_extra_keyword: Final[list[str]]
     schedule_kwargs: Final[dict[str, list[int] | list[float]]]
-    force_cleanup: Final[bool]
+    force_earlystop: Final[bool]
 
     @classmethod
     def from_user_input(cls, user_args: DMRG_ArgsUser, mf: RHF):
@@ -172,7 +174,7 @@ class _DMRG_Args:
             root=user_args.root,
             block_extra_keyword=block_extra_keyword,
             schedule_kwargs=user_args.schedule_kwargs,
-            force_cleanup=user_args.force_cleanup,
+            force_earlystop=user_args.force_earlystop,
         )
 
 
@@ -355,7 +357,11 @@ def be_func(
             assert isinstance(solver_args, SHCI_ArgsUser)
             SHCI_args = _SHCI_Args.from_user_input(solver_args)
 
-            frag_scratch = WorkDir(scratch_dir / fobj.dname)
+            frag_scratch = WorkDir(
+                scratch_dir / fobj.dname,
+                cleanup_at_end=scratch_dir.cleanup_at_end,
+                allow_existing=scratch_dir.allow_existing,
+            )
 
             nmo = fobj._mf.mo_coeff.shape[1]
 
@@ -401,7 +407,11 @@ def be_func(
             rdm1_tmp, rdm2s = ci.make_rdm12(0, nmo, nelec)
 
         elif solver in ["block2", "DMRG", "DMRGCI", "DMRGSCF"]:
-            frag_scratch = WorkDir(scratch_dir / fobj.dname)
+            frag_scratch = WorkDir(
+                scratch_dir / fobj.dname,
+                cleanup_at_end=scratch_dir.cleanup_at_end,
+                allow_existing=scratch_dir.allow_existing,
+            )
 
             assert isinstance(solver_args, DMRG_ArgsUser)
             DMRG_args = _DMRG_Args.from_user_input(solver_args, fobj._mf)
@@ -416,13 +426,6 @@ def be_func(
                 )
             except Exception as inst:
                 raise inst
-            finally:
-                if DMRG_args.force_cleanup:
-                    delete_multiple_files(
-                        frag_scratch.path.glob("F.*"),
-                        frag_scratch.path.glob("FCIDUMP*"),
-                        frag_scratch.path.glob("node*"),
-                    )
 
         else:
             raise ValueError("Solver not implemented")
@@ -866,7 +869,8 @@ def solve_block2(
     nocc: int,
     frag_scratch: WorkDir,
     DMRG_args: DMRG_ArgsUser,
-    use_cumulant: bool,
+    use_cumulant: bool = True,
+    ompnum: int | None = None,
 ):
     """DMRG fragment solver using the pyscf.dmrgscf wrapper.
 
@@ -893,7 +897,11 @@ def solve_block2(
     # pylint: disable-next=E0611
     from pyscf import dmrgscf  # noqa: PLC0415   # optional module
 
+    if ompnum is not None:
+        dmrgscf.settings.MPIPREFIX = "mpirun -np " + str(ompnum) + " --bind-to none"
+
     orbs = mf.mo_coeff
+    scratch = str(frag_scratch.path)
 
     mc = mcscf.CASCI(mf, DMRG_args.norb, DMRG_args.nelec)
     mc.fcisolver = dmrgscf.DMRGCI(mf.mol)
@@ -908,35 +916,53 @@ def solve_block2(
     mc.fcisolver.twodot_to_onedot = DMRG_args.twodot_to_onedot
     mc.fcisolver.maxIter = DMRG_args.max_iter
     mc.fcisolver.block_extra_keyword = DMRG_args.block_extra_keyword
-    mc.fcisolver.scratchDirectory = frag_scratch.path
-    mc.fcisolver.runtimeDir = frag_scratch.path
+    mc.fcisolver.scratchDirectory = scratch
+    mc.fcisolver.runtimeDir = scratch
     mc.fcisolver.memory = DMRG_args.max_mem
-    os.chdir(frag_scratch)
 
-    mc.kernel(orbs)
-    rdm1, rdm2 = dmrgscf.DMRGCI.make_rdm12(
-        mc.fcisolver, DMRG_args.root, DMRG_args.norb, DMRG_args.nelec
-    )
+    if DMRG_args.force_earlystop:
+        # Generates the input files for block2 but stops short of calling it.
+        # Instead loads the 1- and 2-RDM from `scratch` and proceed with BE.
+        # (Currently this is only used in the unit tests: `dmrg_molBE_test`)
+        dmrgscf.dmrgci.writeDMRGConfFile(mc.fcisolver, DMRG_args.nelec, Restart=False)
+        rdm1_path = Path(scratch + "/rdm1.npy")
+        rdm2_path = Path(scratch + "/rdm2.npy")
 
-    # Subtract off non-cumulant contribution to correlated 2RDM.
-    if use_cumulant:
-        hf_dm = zeros_like(rdm1)
-        hf_dm[diag_indices(nocc)] += 2.0
+        if not (rdm1_path.is_file() and rdm2_path.is_file()):
+            raise FileNotFoundError(
+                "Error: `force_earlystop` requires manually specified"
+                "fragment 1 and 2rdms!"
+            )
 
-        del_rdm1 = rdm1.copy()
-        del_rdm1[diag_indices(nocc)] -= 2.0
-        nc = (
-            einsum("ij,kl->ijkl", hf_dm, hf_dm)
-            + einsum("ij,kl->ijkl", hf_dm, del_rdm1)
-            + einsum("ij,kl->ijkl", del_rdm1, hf_dm)
+        rdm1 = np.load(rdm1_path)
+        rdm2 = np.load(rdm2_path)
+
+    else:
+        # Call block2 as per usual.
+        mc.kernel(orbs)
+        rdm1, rdm2 = dmrgscf.DMRGCI.make_rdm12(
+            mc.fcisolver, DMRG_args.root, DMRG_args.norb, DMRG_args.nelec
         )
-        nc -= (
-            einsum("ij,kl->iklj", hf_dm, hf_dm)
-            + einsum("ij,kl->iklj", hf_dm, del_rdm1)
-            + einsum("ij,kl->iklj", del_rdm1, hf_dm)
-        ) * 0.5
 
-        rdm2 -= nc
+        # Subtract off non-cumulant contribution to correlated 2RDM.
+        if use_cumulant:
+            hf_dm = zeros_like(rdm1)
+            hf_dm[diag_indices(nocc)] += 2.0
+
+            del_rdm1 = rdm1.copy()
+            del_rdm1[diag_indices(nocc)] -= 2.0
+            nc = (
+                einsum("ij,kl->ijkl", hf_dm, hf_dm)
+                + einsum("ij,kl->ijkl", hf_dm, del_rdm1)
+                + einsum("ij,kl->ijkl", del_rdm1, hf_dm)
+            )
+            nc -= (
+                einsum("ij,kl->iklj", hf_dm, hf_dm)
+                + einsum("ij,kl->iklj", hf_dm, del_rdm1)
+                + einsum("ij,kl->iklj", del_rdm1, hf_dm)
+            ) * 0.5
+
+            rdm2 -= nc
 
     return rdm1, rdm2
 

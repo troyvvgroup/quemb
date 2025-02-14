@@ -73,6 +73,9 @@ class WorkDir:
     then the cleanup is performed when leaving the ContextManager.
     Again, assuming that :python:`cleanup_at_end` is true.
 
+    If :python: `allow_existing` is False (default), then the directory
+    specified by :python: `path` must be empty.
+
     Examples
     --------
     >>> with WorkDir('./test_dir', cleanup_at_end=True) as scratch:
@@ -80,16 +83,24 @@ class WorkDir:
     >>>         f.write('hello world')
     './test_dir' does not exist anymore, if the outer contextmanager is left
     without errors.
+
+    .. warning::
+        Use caution when setting `allow_existing=True`, as any files in the non-empty
+        directory may be overwritten and/or deleted if `cleanup_at_end=True`!
+
     """
 
     path: Final[Annotated[Path, "An absolute path"]] = field(converter=_get_abs_path)
-    cleanup_at_end: Final[bool] = True
+    cleanup_at_end: Final[bool | None] = field(default=True)
+    allow_existing: Final[bool | None] = field(default=False)
 
     # The __init__ is automatically created
     # the values `self.path` and `self.cleanup_at_end` are already filled.
     # we define the __attrs_post_init__ to create the directory
     def __attrs_post_init__(self) -> None:
         self.path.mkdir(parents=True, exist_ok=True)
+        if not self.allow_existing and any(self.path.iterdir()):
+            raise ValueError("scratch_area has to be empty.")
         if self.cleanup_at_end:
             atexit.register(partial(self.cleanup, ignore_error=True))
 
@@ -112,7 +123,7 @@ class WorkDir:
         *,
         user_defined_root: PathLike | None = None,
         prefix: str | None = None,
-        cleanup_at_end: bool = True,
+        cleanup_at_end: bool | None = None,
     ) -> WorkDir:
         """Create a WorkDir based on the environment.
 
@@ -132,6 +143,8 @@ class WorkDir:
             The prefix for the subdirectory.
         cleanup_at_end:
             Perform cleanup when calling :python:`self.cleanup`.
+        allow_existing:
+            Assert whether :python: `user_defined_root` must be empty.
         """
         return cls(_determine_path(user_defined_root, prefix), cleanup_at_end)
 
