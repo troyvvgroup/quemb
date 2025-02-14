@@ -75,9 +75,6 @@ class WorkDir:
 
     If :python: `allow_existing` is False (default), then the directory
     specified by :python: `path` must be empty.
-    .. warning::
-        Use caution when setting `allow_existing=True`, as any files in the non-empty
-        directory may be overwritten and/or deleted if `cleanup_at_end`!
 
     Examples
     --------
@@ -86,6 +83,11 @@ class WorkDir:
     >>>         f.write('hello world')
     './test_dir' does not exist anymore, if the outer contextmanager is left
     without errors.
+
+    .. warning::
+        Use caution when setting `allow_existing=True`, as any files in the non-empty
+        directory may be overwritten and/or deleted if `cleanup_at_end=True`!
+
     """
 
     path: Final[Annotated[Path, "An absolute path"]] = field(converter=_get_abs_path)
