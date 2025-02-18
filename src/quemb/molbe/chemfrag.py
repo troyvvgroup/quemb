@@ -278,7 +278,7 @@ class BondConnectivity:
 
         Parameters
         ----------
-        m :
+        mol :
             The :class:`pyscf.gto.mole.Mole` to extract the connectivity data from.
         bonds_atoms : Mapping[int, OrderedSet[int]]
             Can be used to specify the connectivity graph of the molecule.
@@ -465,13 +465,18 @@ class FragmentedStructure:
     edges_per_frag: Final[SeqOverFrag[OrderedSet[EdgeIdx]]]
     #: The origins per frag. Note that for "normal" BE calculations
     #: there is exacctly one origin per fragment, i.e. the
-    #: `SeqOverOrigin` has one element.
+    #: `SeqOverFrag` has one element.
     #: The order is guaranteed to be ascending.
     origin_per_frag: Final[SeqOverFrag[OrderedSet[OriginIdx]]]
 
-    #: The atom indices per fragment.
-    #: The order of the motifs is the same as in :attr:`motifs_per_frag`
-    #: and hydrogen atoms directly follow their motif and are then ascending.
+    #: The atom indices per fragment. it contains both
+    #: motif **and** hydrogen indices.
+    #: The order of the motifs is the same as in :attr:`motifs_per_frag`.
+    #: The hydrogen atoms directly follow the motif to which they are attached,
+    #: and are then ascendingly sorted.
+    #: To given an example: if 1 and 4 are motif indices and
+    #: hydrogen atoms 5, 6 are connected to 1, while hydrogen atoms 2, 3
+    #: are connected to 4, then the order is: :python:`[1, 5, 6, 4, 2, 3]`.
     atoms_per_frag: Final[SeqOverFrag[OrderedSet[AtomIdx]]]
 
     #: For each edge in a fragment it points to the index
@@ -596,7 +601,7 @@ class FragmentedStructure:
         Ordered in this context means, that first the
         origins, then centers, then edges appear in the motif.
         """
-        # note that centers is a subset of origins.
+        # note that origins is a subset of centers.
         # All centers that are origins appear first due to
         # how the union of OrderedSet works.
         return all(
@@ -865,7 +870,7 @@ class FragmentedMolecule:
 
         Parameters
         ----------
-        m :
+        mol :
             The :class:`pyscf.gto.mole.Mole` to extract the connectivity data from.
         treat_H_different :
             If True, we treat hydrogen atoms differently from heavy atoms.
