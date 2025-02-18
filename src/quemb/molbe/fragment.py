@@ -187,7 +187,7 @@ class fragpart:
             assert isinstance(additional_args, (type(None), ChemGenArgs))
             fragments = chemgen(
                 mol,
-                n_BE=int(be_type[2:]),
+                be_type=int(be_type[2:]),
                 args=additional_args,
             )
             if write_geom:
