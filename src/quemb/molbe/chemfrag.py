@@ -268,7 +268,7 @@ class BondConnectivity:
     @classmethod
     def from_mole(
         cls,
-        m: Mole,
+        mol: Mole,
         *,
         bonds_atoms: Mapping[int, set[int]] | None = None,
         vdW_radius: InVdWRadius | None = None,
@@ -304,7 +304,7 @@ class BondConnectivity:
             If True, we treat hydrogen atoms differently from heavy atoms.
         """
         return cls.from_cartesian(
-            Cartesian.from_pyscf(m),
+            Cartesian.from_pyscf(mol),
             bonds_atoms=bonds_atoms,
             vdW_radius=vdW_radius,
             treat_H_different=treat_H_different,
