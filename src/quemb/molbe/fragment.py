@@ -25,10 +25,10 @@ class fragpart:
 
     Parameters
     ----------
-    frag_type : str
+    frag_type :
         Name of fragmentation function. 'chemgen', 'autogen', 'graphgen',
         'hchain_simple', and 'chain' are supported. Defaults to 'chemgen'.
-    be_type : str
+    be_type :
         Specifies order of bootsrap calculation in the atom-based fragmentation.
         'be1', 'be2', 'be3', & 'be4' are supported.
         Defaults to 'be2'
@@ -36,20 +36,20 @@ class fragpart:
         be1 only has fragments [A], [B], [C], [D]
         be2 has [A, B, C], [B, C, D]
         ben ...
-    mol : pyscf.gto.mole.Mole
+    mol :
         This is required for the following :python:`frag_type` options:
         :python:`"chemgen", "graphgen", "autogen"`
-    iao_valence_basis: str
+    iao_valence_basis:
         Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
-    valence_only: bool
+    valence_only:
         If this option is set to True, all calculation will be performed in
         the valence basis in the IAO partitioning.
         This is an experimental feature.
-    frozen_core: bool
+    frozen_core:
         Whether to invoke frozen core approximation. This is set to False by default
-    print_frags: bool
+    print_frags:
         Whether to print out list of resulting fragments. True by default
-    write_geom: bool
+    write_geom:
         Whether to write 'fragment.xyz' file which contains all the fragments
         in cartesian coordinates.
     remove_nonunique_frags:

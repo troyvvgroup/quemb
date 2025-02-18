@@ -870,7 +870,7 @@ class FragmentedMolecule:
             The :class:`pyscf.gto.mole.Mole` to extract the connectivity data from.
         treat_H_different :
             If True, we treat hydrogen atoms differently from heavy atoms.
-        bonds_atoms : Mapping[int, OrderedSet[int]]
+        bonds_atoms :
             Can be used to specify the connectivity graph of the molecule.
             Has exactly the same format as the output of
             :meth:`chemcoord.Cartesian.get_bonds`,
