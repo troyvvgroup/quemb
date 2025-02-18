@@ -119,7 +119,7 @@ InVdWRadius: TypeAlias = Real | Callable[[Real], Real] | Mapping[str, Real]
 
 
 @define(frozen=True)
-class ConnectivityData:
+class BondConnectivity:
     """Data structure to store the connectivity data of a molecule.
 
     This collects all information that is independent of the chosen
@@ -481,12 +481,12 @@ class FragmentedStructure:
     frag_idx_per_edge: Final[SeqOverFrag[Mapping[EdgeIdx, FragmentIdx]]]
 
     #: Connectivity data of the molecule.
-    conn_data: Final[ConnectivityData]
+    conn_data: Final[BondConnectivity]
     be_type: Final[int]
 
     @classmethod
     def from_conn_data(
-        cls, mol: Mole, conn_data: ConnectivityData, be_type: int
+        cls, mol: Mole, conn_data: BondConnectivity, be_type: int
     ) -> Self:
         fragments = _cleanup_if_subset(
             {
@@ -581,7 +581,7 @@ class FragmentedStructure:
         """
         return cls.from_conn_data(
             mol,
-            ConnectivityData.from_mole(
+            BondConnectivity.from_mole(
                 mol,
                 treat_H_different=treat_H_different,
                 bonds_atoms=bonds_atoms,
@@ -690,7 +690,7 @@ class FragmentedMolecule:
     # yes, it is a bit redundant, because it is also contained in
     # fragmented_structure, but it is very convenient to have it here
     # as well. Due to the immutability the two views are also not a problem.
-    conn_data: Final[ConnectivityData]
+    conn_data: Final[BondConnectivity]
     frag_structure: Final[FragmentedStructure]
 
     #: The atomic orbital indices per atom
