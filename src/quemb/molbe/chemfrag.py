@@ -72,7 +72,6 @@ SeqOverAtom: TypeAlias = Sequence
 SeqOverMotif: TypeAlias = Sequence
 SeqOverCenter: TypeAlias = Sequence
 SeqOverEdge: TypeAlias = Sequence
-SeqOverOrigin: TypeAlias = Sequence
 
 
 def union_of_seqs(*seqs: Sequence[T]) -> OrderedSet[T]:
