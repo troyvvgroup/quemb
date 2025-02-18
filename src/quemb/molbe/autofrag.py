@@ -851,7 +851,7 @@ class ChemGenArgs:
 
 
 def chemgen(
-    mol: Mole, be_type: int, args: ChemGenArgs | None = None
+    mol: Mole, n_BE: int, args: ChemGenArgs | None = None
 ) -> FragmentedMolecule:
     """Fragment a molecule based on chemical connectivity.
 
@@ -859,7 +859,7 @@ def chemgen(
     ----------
     mol :
         Molecule to be fragmented.
-    be_type :
+    n_BE :
         BE fragmentation level.
     args :
         Additional arguments for ChemGen fragmentation.
@@ -869,12 +869,12 @@ def chemgen(
     if args is None:
         return FragmentedMolecule.from_mole(
             mol,
-            be_type=be_type,
+            n_BE=n_BE,
         )
     else:
         return FragmentedMolecule.from_mole(
             mol,
-            be_type=be_type,
+            n_BE=n_BE,
             treat_H_different=args.treat_H_different,
             bonds_atoms=args.bonds_atoms,
             vdW_radius=args.vdW_radius,

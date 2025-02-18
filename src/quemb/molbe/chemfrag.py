@@ -310,40 +310,38 @@ class BondConnectivity:
             treat_H_different=treat_H_different,
         )
 
-    def get_BE_fragment(self, i_center: MotifIdx, be_type: int) -> OrderedSet[MotifIdx]:
+    def get_BE_fragment(self, i_center: MotifIdx, n_BE: int) -> OrderedSet[MotifIdx]:
         """Return the BE fragment around atom :code:`i_center`.
 
         The BE fragment is the set of motifs (heavy atoms if hydrogens are different)
-        that are reachable from the center atom within :code:`(be_type - 1)` bonds.
-        This means that :code:`be_type == 1` returns only the center atom itself.
+        that are reachable from the center atom within :code:`(n_BE - 1)` bonds.
+        This means that :code:`n_BE == 1` returns only the center atom itself.
 
         Parameters
         ----------
         i_center :
             The index of the center atom.
-        be_type :
-            Defines the :python:`(be_type - 1)`-th coordination sphere to consider.
+        n_BE :
+            Defines the :python:`(n_BE - 1)`-th coordination sphere to consider.
         """
-        if be_type < 1:
-            raise ValueError("be_type must greater than or equal to 1.")
+        if n_BE < 1:
+            raise ValueError("n_BE must greater than or equal to 1.")
 
         result = OrderedSet({i_center})
         new = result.copy()
-        for _ in range(be_type - 1):
+        for _ in range(n_BE - 1):
             new = union_of_seqs(*(self.bonds_motifs[i] for i in new)).difference(result)
             if not new:
                 break
             result = result.union(new)
         return result
 
-    def get_all_BE_fragments(
-        self, be_type: int
-    ) -> dict[MotifIdx, OrderedSet[MotifIdx]]:
+    def get_all_BE_fragments(self, n_BE: int) -> dict[MotifIdx, OrderedSet[MotifIdx]]:
         """Return all BE-fragments
 
         Parameters
         ----------
-        be_type :
+        n_BE :
             The coordination sphere to consider.
 
         Returns
@@ -351,7 +349,7 @@ class BondConnectivity:
         dict
             A dictionary mapping the center atom to the BE-fragment around it.
         """
-        return {i: self.get_BE_fragment(i, be_type) for i in self.motifs}
+        return {i: self.get_BE_fragment(i, n_BE) for i in self.motifs}
 
 
 @define(frozen=True)
@@ -487,15 +485,13 @@ class FragmentedStructure:
 
     #: Connectivity data of the molecule.
     conn_data: Final[BondConnectivity]
-    be_type: Final[int]
+    n_BE: Final[int]
 
     @classmethod
-    def from_conn_data(
-        cls, mol: Mole, conn_data: BondConnectivity, be_type: int
-    ) -> Self:
+    def from_conn_data(cls, mol: Mole, conn_data: BondConnectivity, n_BE: int) -> Self:
         fragments = _cleanup_if_subset(
             {
-                i_center: conn_data.get_BE_fragment(i_center, be_type)
+                i_center: conn_data.get_BE_fragment(i_center, n_BE)
                 for i_center in conn_data.motifs
             }
         )
@@ -560,14 +556,14 @@ class FragmentedStructure:
             origin_per_frag=origin_per_frag,
             frag_idx_per_edge=frag_idx_per_edge,
             conn_data=conn_data,
-            be_type=be_type,
+            n_BE=n_BE,
         )
 
     @classmethod
     def from_mole(
         cls,
         mol: Mole,
-        be_type: int,
+        n_BE: int,
         *,
         treat_H_different: bool = True,
         bonds_atoms: Mapping[int, set[int]] | None = None,
@@ -579,7 +575,7 @@ class FragmentedStructure:
         ----------
         mol :
             The Molecule to extract the connectivity data from.
-        be_type :
+        n_BE :
             The coordination sphere to consider.
         treat_H_different :
             If True, we treat hydrogen atoms differently from heavy atoms.
@@ -592,7 +588,7 @@ class FragmentedStructure:
                 bonds_atoms=bonds_atoms,
                 vdW_radius=vdW_radius,
             ),
-            be_type,
+            n_BE,
         )
 
     def is_ordered(self) -> bool:
@@ -861,7 +857,7 @@ class FragmentedMolecule:
     def from_mole(
         cls,
         mol: Mole,
-        be_type: int,
+        n_BE: int,
         *,
         treat_H_different: bool = True,
         bonds_atoms: Mapping[int, set[int]] | None = None,
@@ -873,7 +869,7 @@ class FragmentedMolecule:
         ----------
         mol :
             The :class:`pyscf.gto.mole.Mole` to extract the connectivity data from.
-        be_type :
+        n_BE :
             The BE fragmentation level.
         treat_H_different :
             If True, we treat hydrogen atoms differently from heavy atoms.
@@ -902,7 +898,7 @@ class FragmentedMolecule:
             mol,
             FragmentedStructure.from_mole(
                 mol,
-                be_type=be_type,
+                n_BE=n_BE,
                 treat_H_different=treat_H_different,
                 bonds_atoms=bonds_atoms,
                 vdW_radius=vdW_radius,

@@ -335,7 +335,7 @@ def test_fragmented_molecule():
     mol = m.to_pyscf()
 
     fragmented = {
-        n_BE: FragmentedStructure.from_mole(mol, be_type=n_BE) for n_BE in range(1, 8)
+        n_BE: FragmentedStructure.from_mole(mol, n_BE=n_BE) for n_BE in range(1, 8)
     }
 
     for fragment in fragmented.values():
@@ -460,7 +460,7 @@ def test_fragmented_molecule():
                 },
                 treat_H_different=True,
             ),
-            be_type=1,
+            n_BE=1,
         ),
         2: FragmentedStructure(
             mol=mol,
@@ -577,7 +577,7 @@ def test_fragmented_molecule():
                 },
                 treat_H_different=True,
             ),
-            be_type=2,
+            n_BE=2,
         ),
         3: FragmentedStructure(
             mol=mol,
@@ -682,7 +682,7 @@ def test_fragmented_molecule():
                 },
                 treat_H_different=True,
             ),
-            be_type=3,
+            n_BE=3,
         ),
         4: FragmentedStructure(
             mol=mol,
@@ -813,7 +813,7 @@ def test_fragmented_molecule():
                 },
                 treat_H_different=True,
             ),
-            be_type=4,
+            n_BE=4,
         ),
         5: FragmentedStructure(
             mol=mol,
@@ -919,7 +919,7 @@ def test_fragmented_molecule():
                 },
                 treat_H_different=True,
             ),
-            be_type=5,
+            n_BE=5,
         ),
         6: FragmentedStructure(
             mol=mol,
@@ -1025,7 +1025,7 @@ def test_fragmented_molecule():
                 },
                 treat_H_different=True,
             ),
-            be_type=6,
+            n_BE=6,
         ),
         7: FragmentedStructure(
             mol=mol,
@@ -1131,14 +1131,14 @@ def test_fragmented_molecule():
                 },
                 treat_H_different=True,
             ),
-            be_type=7,
+            n_BE=7,
         ),
     }
 
     assert fragmented == expected
     assert (
-        FragmentedStructure.from_mole(mol, be_type=6).motifs_per_frag
-        == FragmentedStructure.from_mole(mol, be_type=20).motifs_per_frag
+        FragmentedStructure.from_mole(mol, n_BE=6).motifs_per_frag
+        == FragmentedStructure.from_mole(mol, n_BE=20).motifs_per_frag
     )
 
 
@@ -1254,7 +1254,7 @@ def test_hydrogen_chain():
                 },
                 treat_H_different=False,
             ),
-            be_type=1,
+            n_BE=1,
         ),
         2: FragmentedStructure(
             mol=mol,
@@ -1351,7 +1351,7 @@ def test_hydrogen_chain():
                 },
                 treat_H_different=False,
             ),
-            be_type=2,
+            n_BE=2,
         ),
         3: FragmentedStructure(
             mol=mol,
@@ -1436,7 +1436,7 @@ def test_hydrogen_chain():
                 },
                 treat_H_different=False,
             ),
-            be_type=3,
+            n_BE=3,
         ),
         4: FragmentedStructure(
             mol=mol,
@@ -1497,7 +1497,7 @@ def test_hydrogen_chain():
                 },
                 treat_H_different=False,
             ),
-            be_type=4,
+            n_BE=4,
         ),
         5: FragmentedStructure(
             mol=mol,
@@ -1552,7 +1552,7 @@ def test_hydrogen_chain():
                 },
                 treat_H_different=False,
             ),
-            be_type=5,
+            n_BE=5,
         ),
     }
 
