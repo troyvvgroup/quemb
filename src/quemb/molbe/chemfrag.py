@@ -370,7 +370,7 @@ class _SubsetsCleaned:
     For example pair-wise fragmentations, where there are multiple
     fragments for one origin, are not supported.
 
-    The rest of the code, however, is written in a way that would fully support
+    The rest of the code, however, is written in a way that fully supports
     pair-wise fragmentations, if we would use a different data structure
     here and rewrote :func:`_cleanup_if_subset` accordingly.
     """
@@ -449,8 +449,8 @@ class FragmentedStructure:
     mol: Final[Mole]
 
     #: The motifs per fragment.
-    #: Note that the set of motifs in the fragment
-    #: is the union of centers and edges.
+    #: Note that the full set of motifs for a fragment is the union of all center motifs
+    #: and edge motifs.
     #: The order is guaranteed to be first
     #: origin, centers, then edges
     #: and in each category the motif index is ascending.
