@@ -34,7 +34,6 @@ from ordered_set import OrderedSet
 from pyscf.gto import Mole
 from typing_extensions import Self, assert_never
 
-from quemb.shared.helper import add_docstring
 from quemb.shared.typing import (
     AOIdx,
     AtomIdx,
@@ -119,35 +118,6 @@ def restrict_keys(
 InVdWRadius: TypeAlias = Real | Callable[[Real], Real] | Mapping[str, Real]
 
 
-_parameter_description: Final = """Parameters
-----------
-m :
-    The Cartesian object to extract the connectivity data from.
-bonds_atoms :
-    Can be used to specify the connectivity graph of the molecule.
-    Has exactly the same format as the output of
-    :meth:`chemcoord.Cartesian.get_bonds`,
-    which is called internally if this argument is not specified.
-    Allows it to manually change the connectivity by modifying the output of
-    :meth:`chemcoord.Cartesian.get_bonds`.
-    The keyword is mutually exclusive with :python:`vdW_radius`.
-vdW_radius :
-    If :python:`bonds_atoms` is :class:`None`, then the connectivity graph is
-    determined by the van der Waals radius of the atoms.
-    It is possible to pass:
-
-    * a single number which is used as radius for all atoms,
-    * a callable which is applied to all radii
-        and can be used to e.g. scale via :python:`lambda r: r * 1.1`,
-    * a dictionary which maps the element symbol to the van der Waals radius,
-        to change the radius of individual elements, e.g. :python:`{"C": 1.5}`.
-
-    The keyword is mutually exclusive with :python:`bonds_atoms`.
-treat_H_different :
-    If True, we treat hydrogen atoms differently from heavy atoms.
-"""
-
-
 @define(frozen=True)
 class BondConnectivity:
     """Data structure to store the connectivity data of a molecule.
@@ -177,10 +147,6 @@ class BondConnectivity:
     treat_H_different: Final[bool] = True
 
     @classmethod
-    @add_docstring(
-        "Create a :class:`BondConnectivity` instance from a :class:`chemcoord.Cartesian`.\n\n"  # noqa: E501
-        + _parameter_description
-    )
     def from_cartesian(
         cls,
         m: Cartesian,
@@ -189,6 +155,35 @@ class BondConnectivity:
         vdW_radius: InVdWRadius | None = None,
         treat_H_different: bool = True,
     ) -> Self:
+        """Create a :class:`BondConnectivity` from a :class:`chemcoord.Cartesian`.
+
+        Parameters
+        ----------
+        m :
+            The Cartesian object to extract the connectivity data from.
+        bonds_atoms :
+            Can be used to specify the connectivity graph of the molecule.
+            Has exactly the same format as the output of
+            :meth:`chemcoord.Cartesian.get_bonds`,
+            which is called internally if this argument is not specified.
+            Allows it to manually change the connectivity by modifying the output of
+            :meth:`chemcoord.Cartesian.get_bonds`.
+            The keyword is mutually exclusive with :python:`vdW_radius`.
+        vdW_radius :
+            If :python:`bonds_atoms` is :class:`None`, then the connectivity graph is
+            determined by the van der Waals radius of the atoms.
+            It is possible to pass:
+
+            * a single number which is used as radius for all atoms,
+            * a callable which is applied to all radii
+              and can be used to e.g. scale via :python:`lambda r: r * 1.1`,
+            * a dictionary which maps the element symbol to the van der Waals radius,
+              to change the radius of individual elements, e.g. :python:`{"C": 1.5}`.
+
+            The keyword is mutually exclusive with :python:`bonds_atoms`.
+        treat_H_different :
+            If True, we treat hydrogen atoms differently from heavy atoms.
+        """
         if not (m.index.min() == 0 and m.index.max() == len(m) - 1):
             raise ValueError("We assume 0-indexed data for the rest of the code.")
         m = m.sort_index()
