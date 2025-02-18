@@ -446,7 +446,7 @@ class FragmentedStructure:
     scheme but is independent of the basis sets or the electronic structure.
     """
 
-    #: The actual molecule
+    #: The full molecule
     mol: Final[Mole]
 
     #: The motifs per fragment.
@@ -739,7 +739,7 @@ class FragmentedMolecule:
     #: The relative atomic orbital indices per origin per fragment.
     #: Relative means that the AO indices are relative to
     #: the **own** fragment.
-    #: This variable is a strict subset of :attr:`rel_AO_per_center_per_frag`,
+    #: This variable is a subset of :attr:`rel_AO_per_center_per_frag`,
     #: in the sense that the motif indices, the keys in the mapping,
     #: are restricted to the origins of the fragment.
     #: This variable was formerly known as :python:`centerf_idx`.
