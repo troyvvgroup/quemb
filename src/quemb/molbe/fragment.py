@@ -5,8 +5,7 @@ from typing import Literal, TypeAlias
 from pyscf.gto.mole import Mole
 from typing_extensions import assert_never
 
-from quemb.molbe.autofrag import autogen, graphgen
-from quemb.molbe.chemfrag import ChemGenArgs, chemgen
+from quemb.molbe.autofrag import ChemGenArgs, autogen, chemgen, graphgen
 from quemb.molbe.helper import get_core
 from quemb.molbe.lchain import chain as _ext_chain
 from quemb.shared.helper import copy_docstring

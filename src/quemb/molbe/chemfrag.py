@@ -986,34 +986,3 @@ def _get_AOidx_per_atom(mol: Mole) -> list[OrderedSet[GlobalAOIdx]]:
         OrderedSet(GlobalAOIdx(AOIdx(i)) for i in range(AO_offsets[2], AO_offsets[3]))
         for AO_offsets in mol.aoslice_by_atom()
     ]
-
-
-@define(frozen=True, kw_only=True)
-class ChemGenArgs:
-    """Additional arguments for ChemGen fragmentation.
-
-    These are passed on to :func:`quemb.molbe.chemfrag.FragmentedMolecule.from_mole`
-    """
-
-    treat_H_different: Final[bool] = True
-    bonds_atoms: Mapping[int, set[int]] | None = None
-    vdW_radius: InVdWRadius | None = None
-
-
-def chemgen(
-    mol: Mole, be_type: int, args: ChemGenArgs | None = None
-) -> FragmentedMolecule:
-    """Fragment a molecule based on chemical connectivity."""
-    if args is None:
-        return FragmentedMolecule.from_mole(
-            mol,
-            be_type=be_type,
-        )
-    else:
-        return FragmentedMolecule.from_mole(
-            mol,
-            be_type=be_type,
-            treat_H_different=args.treat_H_different,
-            bonds_atoms=args.bonds_atoms,
-            vdW_radius=args.vdW_radius,
-        )
