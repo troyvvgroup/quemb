@@ -27,7 +27,7 @@ class fragpart:
     ----------
     frag_type :
         Name of fragmentation function. 'chemgen', 'autogen', 'graphgen',
-        'hchain_simple', and 'chain' are supported. Defaults to 'chemgen'.
+        'hchain_simple', and 'chain' are supported. Defaults to 'autogen'.
     be_type :
         Specifies order of bootsrap calculation in the atom-based fragmentation.
         'be1', 'be2', 'be3', & 'be4' are supported.
@@ -74,7 +74,7 @@ class fragpart:
 
     def __init__(
         self,
-        frag_type: FragType = "chemgen",
+        frag_type: FragType = "autogen",
         closed: bool = False,
         iao_valence_basis: str | None = None,
         valence_only: bool = False,
