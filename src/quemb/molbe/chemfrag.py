@@ -323,7 +323,7 @@ class ConnectivityData:
         i_center :
             The index of the center atom.
         be_type :
-            The coordination sphere to consider.
+            Defines the :python:`(be_type - 1)`th coordination sphere to consider.
         """
         if be_type < 1:
             raise ValueError("be_type must greater than or equal to 1.")
