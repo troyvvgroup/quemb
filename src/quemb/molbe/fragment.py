@@ -209,7 +209,7 @@ class fragpart:
             self.Nfrag = fgs.Nfrag
 
         else:
-            assert_never(frag_type)
+            assert_never(f"Fragmentation type = {frag_type} not implemented!")
 
     @copy_docstring(_ext_chain)
     def chain(self, mol, frozen_core=False, closed=False):
