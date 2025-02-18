@@ -12,7 +12,7 @@ from numpy.linalg import norm
 from pyscf import gto
 from pyscf.gto import Mole
 
-from quemb.molbe.chemfrag import FragmentedMolecule, InVdWRadius
+from quemb.molbe.chemfrag import Fragmented, InVdWRadius
 from quemb.molbe.helper import get_core
 from quemb.shared.helper import unused
 from quemb.shared.typing import Vector
@@ -850,9 +850,7 @@ class ChemGenArgs:
     vdW_radius: InVdWRadius | None = None
 
 
-def chemgen(
-    mol: Mole, n_BE: int, args: ChemGenArgs | None = None
-) -> FragmentedMolecule:
+def chemgen(mol: Mole, n_BE: int, args: ChemGenArgs | None = None) -> Fragmented:
     """Fragment a molecule based on chemical connectivity.
 
     Parameters
@@ -867,12 +865,12 @@ def chemgen(
         and documented there.
     """
     if args is None:
-        return FragmentedMolecule.from_mole(
+        return Fragmented.from_mole(
             mol,
             n_BE=n_BE,
         )
     else:
-        return FragmentedMolecule.from_mole(
+        return Fragmented.from_mole(
             mol,
             n_BE=n_BE,
             treat_H_different=args.treat_H_different,

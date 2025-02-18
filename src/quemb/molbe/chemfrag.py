@@ -9,12 +9,12 @@ There are three main classes:
     if hydrogen atoms are treated differently then the motifs are all
     non-hydrogen atoms, while if hydrogen atoms are treated equal then
     all atoms are motifs.
-* :class:`FragmentedStructure` is depending on the :class:`BondConnectivity`
+* :class:`PurelyStructureFragmented` is depending on the :class:`BondConnectivity`
     and performs the fragmentation depending on the BE fragmentation level, but is still
     independent of the used basis set.
     After construction this class knows about the assignment of origins, centers,
     and edges.
-* :class:`FragmentedMolecule` is depending on the :class:`FragmentedStructure`
+* :class:`Fragmented` is depending on the :class:`PurelyStructureFragmented`
     and assigns the AO indices to each fragment and is responsible for the book keeping
     of which AO index belongs to which center and edge.
 """
@@ -436,7 +436,7 @@ def _cleanup_if_subset(
 
 
 @define(frozen=True, kw_only=True)
-class FragmentedStructure:
+class PurelyStructureFragmented:
     """Data structure to store the fragments of a molecule.
 
     This takes into account only the connectivity data and the fragmentation
@@ -569,7 +569,8 @@ class FragmentedStructure:
         bonds_atoms: Mapping[int, set[int]] | None = None,
         vdW_radius: InVdWRadius | None = None,
     ) -> Self:
-        """Construct a :class:`FragmentedStructure` from a :class:`pyscf.gto.mole.Mole`.
+        """Construct a :class:`PurelyStructureFragmented`
+        from a :class:`pyscf.gto.mole.Mole`.
 
         Parameters
         ----------
@@ -677,13 +678,13 @@ class AutogenOutput:
 
 
 @define(frozen=True, kw_only=True)
-class FragmentedMolecule:
+class Fragmented:
     """Contains the whole BE fragmentation information, including AO indices.
 
     This takes into account the geometrical data and the used
     basis sets, hence it "knows" which AO index belongs to which atom
     and which fragment.
-    It depends on :class:`FragmentedStructure` to store structural data,
+    It depends on :class:`PurelyStructureFragmented` to store structural data,
     but contains more information.
     """
 
@@ -693,7 +694,7 @@ class FragmentedMolecule:
     # fragmented_structure, but it is very convenient to have it here
     # as well. Due to the immutability the two views are also not a problem.
     conn_data: Final[BondConnectivity]
-    frag_structure: Final[FragmentedStructure]
+    frag_structure: Final[PurelyStructureFragmented]
 
     #: The atomic orbital indices per atom
     AO_per_atom: Final[SeqOverAtom[OrderedSet[GlobalAOIdx]]]
@@ -758,9 +759,9 @@ class FragmentedMolecule:
 
     @classmethod
     def from_frag_structure(
-        cls, mol: Mole, frag_structure: FragmentedStructure
+        cls, mol: Mole, frag_structure: PurelyStructureFragmented
     ) -> Self:
-        """Construct a :class:`FragmentedMolecule`
+        """Construct a :class:`Fragmented`
 
         Parameters
         ----------
@@ -863,7 +864,7 @@ class FragmentedMolecule:
         bonds_atoms: Mapping[int, set[int]] | None = None,
         vdW_radius: InVdWRadius | None = None,
     ) -> Self:
-        """Construct a :class:`FragmentedMolecule` from :class:`pyscf.gto.mole.Mole`.
+        """Construct a :class:`Fragmented` from :class:`pyscf.gto.mole.Mole`.
 
         Parameters
         ----------
@@ -896,7 +897,7 @@ class FragmentedMolecule:
         """
         return cls.from_frag_structure(
             mol,
-            FragmentedStructure.from_mole(
+            PurelyStructureFragmented.from_mole(
                 mol,
                 n_BE=n_BE,
                 treat_H_different=treat_H_different,
