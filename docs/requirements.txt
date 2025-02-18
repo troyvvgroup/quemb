@@ -1,5 +1,6 @@
 # the additional (!) requirements for building the doc
 # the dependencies of `quemb` itself are given in the setup.py
+sphinx==8.1.3
 furo
 sphinx_autodoc_typehints
 sphinx-multiversion
