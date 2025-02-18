@@ -841,7 +841,8 @@ def autogen(
 class ChemGenArgs:
     """Additional arguments for ChemGen fragmentation.
 
-    These are passed on to :func:`quemb.molbe.chemfrag.FragmentedMolecule.from_mole`
+    These are passed on to
+    :func:`quemb.molbe.chemfrag.PurelyStructureFragmented.from_mole`
     and documented there.
     """
 
@@ -861,7 +862,8 @@ def chemgen(mol: Mole, n_BE: int, args: ChemGenArgs | None = None) -> Fragmented
         BE fragmentation level.
     args :
         Additional arguments for ChemGen fragmentation.
-        These are passed on to :func:`quemb.molbe.chemfrag.FragmentedMolecule.from_mole`
+        These are passed on to
+        :func:`quemb.molbe.chemfrag.PurelyStructureFragmented.from_mole`
         and documented there.
     """
     if args is None:
