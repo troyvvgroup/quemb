@@ -161,7 +161,7 @@ class BondConnectivity:
         ----------
         m :
             The Cartesian object to extract the connectivity data from.
-        bonds_atoms : Mapping[int, OrderedSet[int]]
+        bonds_atoms :
             Can be used to specify the connectivity graph of the molecule.
             Has exactly the same format as the output of
             :meth:`chemcoord.Cartesian.get_bonds`,
@@ -682,12 +682,13 @@ class AutogenOutput:
 
 @define(frozen=True, kw_only=True)
 class FragmentedMolecule:
-    """Data structure to store the fragments, including AO indices.
+    """Contains the whole BE fragmentation information, including AO indices.
 
     This takes into account the geometrical data and the used
     basis sets, hence it "knows" which AO index belongs to which atom
     and which fragment.
-    Hence, it depends on :class:`FragmentedStructure`.
+    It depends on :class:`FragmentedStructure` to store structural data,
+    but contains more information.
     """
 
     #: The actual molecule
@@ -872,6 +873,8 @@ class FragmentedMolecule:
         ----------
         mol :
             The :class:`pyscf.gto.mole.Mole` to extract the connectivity data from.
+        be_type :
+            The BE fragmentation level.
         treat_H_different :
             If True, we treat hydrogen atoms differently from heavy atoms.
         bonds_atoms :
