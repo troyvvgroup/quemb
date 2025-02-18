@@ -3,13 +3,13 @@ on chemical connectivity that uses the overlap of tabulated van der Waals radii.
 
 There are three main classes:
 
-* :class:`ConnectivityData` contains the connectivity data of a molecule
+* :class:`BondConnectivity` contains the connectivity data of a molecule
     and is fully independent of the BE fragmentation level or used basis sets.
     After construction the knowledge about motifs in the molecule are available,
     if hydrogen atoms are treated differently then the motifs are all
     non-hydrogen atoms, while if hydrogen atoms are treated equal then
     all atoms are motifs.
-* :class:`FragmentedStructure` is depending on the :class:`ConnectivityData`
+* :class:`FragmentedStructure` is depending on the :class:`BondConnectivity`
     and performs the fragmentation depending on the BE fragmentation level, but is still
     independent of the used basis set.
     After construction this class knows about the assignment of origins, centers,
@@ -155,7 +155,7 @@ class BondConnectivity:
         vdW_radius: InVdWRadius | None = None,
         treat_H_different: bool = True,
     ) -> Self:
-        """Create a :class:`ConnectivityData` from a :class:`chemcoord.Cartesian`.
+        """Create a :class:`BondConnectivity` from a :class:`chemcoord.Cartesian`.
 
         Parameters
         ----------
@@ -274,7 +274,7 @@ class BondConnectivity:
         vdW_radius: InVdWRadius | None = None,
         treat_H_different: bool = True,
     ) -> Self:
-        """Create a :class:`ConnectivityData` from a :class:`pyscf.gto.mole.Mole`.
+        """Create a :class:`BondConnectivity` from a :class:`pyscf.gto.mole.Mole`.
 
         Parameters
         ----------
