@@ -1,7 +1,8 @@
 # Author: Oinam Romesh Meitei, Shaun Weatherly
 
+from collections.abc import Mapping, Sequence
 from copy import deepcopy
-from typing import Sequence
+from typing import Final
 
 import networkx as nx
 import numpy as np
@@ -9,7 +10,9 @@ from attrs import define
 from networkx import shortest_path
 from numpy.linalg import norm
 from pyscf import gto
+from pyscf.gto import Mole
 
+from quemb.molbe.chemfrag import Fragmented, InVdWRadius
 from quemb.molbe.helper import get_core
 from quemb.shared.helper import unused
 from quemb.shared.typing import Vector
@@ -34,8 +37,11 @@ class FragmentMap:
         List whose entries are sequences of sequences, containing all fragment AO
         indices per atom (inner tuple) and per fragment (outer tuple).
     centerf_idx:
-        List whose entries are sequences containing the relative index of all
-        center sites within a fragment (ie, with respect to fsites).
+        List whose entries are sequences containing the relative AO index of the
+        origin site within a fragment.
+        Relative is to the own fragment; since the origin site is at the beginning
+        of the motif list for each fragment, this is always a Sequence
+        :python:`range(0, n)`.
     ebe_weights:
         Weights determining the energy contributions from each center site
         (ie, with respect to centerf_idx).
@@ -533,7 +539,7 @@ def autogen(
         print(flush=True)
         print("Fragment sites", flush=True)
         print("--------------------------", flush=True)
-        print("Fragment |   Center | Edges ", flush=True)
+        print("Fragment |   Origin | Atoms ", flush=True)
         print("--------------------------", flush=True)
 
         for idx, i in enumerate(Frag_atom):
@@ -829,3 +835,47 @@ def autogen(
         hlist_atom,
         add_center_atom,
     )
+
+
+@define(frozen=True, kw_only=True)
+class ChemGenArgs:
+    """Additional arguments for ChemGen fragmentation.
+
+    These are passed on to
+    :func:`quemb.molbe.chemfrag.PurelyStructureFragmented.from_mole`
+    and documented there.
+    """
+
+    treat_H_different: Final[bool] = True
+    bonds_atoms: Mapping[int, set[int]] | None = None
+    vdW_radius: InVdWRadius | None = None
+
+
+def chemgen(mol: Mole, n_BE: int, args: ChemGenArgs | None = None) -> Fragmented:
+    """Fragment a molecule based on chemical connectivity.
+
+    Parameters
+    ----------
+    mol :
+        Molecule to be fragmented.
+    n_BE :
+        BE fragmentation level.
+    args :
+        Additional arguments for ChemGen fragmentation.
+        These are passed on to
+        :func:`quemb.molbe.chemfrag.PurelyStructureFragmented.from_mole`
+        and documented there.
+    """
+    if args is None:
+        return Fragmented.from_mole(
+            mol,
+            n_BE=n_BE,
+        )
+    else:
+        return Fragmented.from_mole(
+            mol,
+            n_BE=n_BE,
+            treat_H_different=args.treat_H_different,
+            bonds_atoms=args.bonds_atoms,
+            vdW_radius=args.vdW_radius,
+        )
