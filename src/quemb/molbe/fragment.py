@@ -1,10 +1,18 @@
 # Author: Oinam Romesh Meitei
 
+from typing import Literal, TypeAlias
 
-from quemb.molbe.autofrag import autogen, graphgen
+from pyscf.gto.mole import Mole
+from typing_extensions import assert_never
+
+from quemb.molbe.autofrag import ChemGenArgs, autogen, chemgen, graphgen
 from quemb.molbe.helper import get_core
 from quemb.molbe.lchain import chain as _ext_chain
 from quemb.shared.helper import copy_docstring
+
+FragType: TypeAlias = Literal[
+    "chemgen", "graphgen", "autogen", "hchain_simple", "chain"
+]
 
 
 class fragpart:
@@ -16,10 +24,10 @@ class fragpart:
 
     Parameters
     ----------
-    frag_type : str
-        Name of fragmentation function. 'autogen', 'graphgen', 'hchain_simple',
-        and 'chain' are supported. Defaults to 'autogen'.
-    be_type : str
+    frag_type :
+        Name of fragmentation function. 'chemgen', 'autogen', 'graphgen',
+        'hchain_simple', and 'chain' are supported. Defaults to 'autogen'.
+    be_type :
         Specifies order of bootsrap calculation in the atom-based fragmentation.
         'be1', 'be2', 'be3', & 'be4' are supported.
         Defaults to 'be2'
@@ -27,20 +35,20 @@ class fragpart:
         be1 only has fragments [A], [B], [C], [D]
         be2 has [A, B, C], [B, C, D]
         ben ...
-    mol : pyscf.gto.mole.Mole
-        This is required for the options, 'autogen'
-        and 'chain' as frag_type.
-    iao_valence_basis: str
+    mol :
+        This is required for the following :python:`frag_type` options:
+        :python:`"chemgen", "graphgen", "autogen"`
+    iao_valence_basis:
         Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
-    valence_only: bool
+    valence_only:
         If this option is set to True, all calculation will be performed in
         the valence basis in the IAO partitioning.
         This is an experimental feature.
-    frozen_core: bool
+    frozen_core:
         Whether to invoke frozen core approximation. This is set to False by default
-    print_frags: bool
+    print_frags:
         Whether to print out list of resulting fragments. True by default
-    write_geom: bool
+    write_geom:
         Whether to write 'fragment.xyz' file which contains all the fragments
         in cartesian coordinates.
     remove_nonunique_frags:
@@ -59,24 +67,27 @@ class fragpart:
         `shortest_path` calculation. This is crucial when handling very large
         systems, where computing the shortest paths from all to all becomes
         non-trivial. Defaults to 20.0.
+    additional_args:
+        Additional arguments for different fragmentation functions.
     """
 
     def __init__(
         self,
-        frag_type="autogen",
-        closed=False,
-        iao_valence_basis=None,
-        valence_only=False,
-        print_frags=True,
-        write_geom=False,
-        be_type="be2",
-        frag_prefix="f",
-        connectivity="euclidean",
-        mol=None,
-        frozen_core=False,
-        cutoff=20,
-        remove_nonnunique_frags=True,
-    ):
+        frag_type: FragType = "autogen",
+        closed: bool = False,
+        iao_valence_basis: str | None = None,
+        valence_only: bool = False,
+        print_frags: bool = True,
+        write_geom: bool = False,
+        be_type: str = "be2",
+        frag_prefix: str = "f",
+        connectivity: str = "euclidean",
+        mol: Mole | None = None,
+        frozen_core: bool = False,
+        cutoff: float = 20.0,
+        remove_nonnunique_frags: bool = True,
+        additional_args: ChemGenArgs | None = None,
+    ) -> None:
         self.mol = mol
         self.frag_type = frag_type
         self.fsites = []
@@ -116,6 +127,7 @@ class fragpart:
             self.chain(self.mol, frozen_core=frozen_core, closed=closed)
 
         elif frag_type == "graphgen":
+            assert self.mol is not None
             fragment_map = graphgen(
                 mol=self.mol.copy(),
                 be_type=self.be_type,
@@ -162,8 +174,41 @@ class fragpart:
             ) = fgs
             self.Nfrag = len(self.fsites)
 
+        elif frag_type == "chemgen":
+            if iao_valence_basis is not None:
+                raise NotImplementedError(
+                    "iao_valence_basis is not implemented for chemgen"
+                )
+            if frozen_core:
+                raise NotImplementedError("frozen_core is not implemented for chemgen")
+            if valence_only:
+                raise NotImplementedError("valence_only is not implemented for chemgen")
+            assert isinstance(additional_args, (type(None), ChemGenArgs))
+            fragments = chemgen(
+                mol,
+                n_BE=int(be_type[2:]),
+                args=additional_args,
+            )
+            if write_geom:
+                fragments.frag_structure.write_geom(prefix=frag_prefix)
+            if print_frags:
+                print(fragments.frag_structure.get_string())
+            fgs = fragments.match_autogen_output()
+            self.fsites = fgs.fsites
+            self.edge_sites = fgs.edge_sites
+            self.center = fgs.center
+            self.edge_idx = fgs.edge_idx
+            self.center_idx = fgs.center_idx
+            self.centerf_idx = fgs.centerf_idx
+            self.ebe_weight = fgs.ebe_weight
+            self.Frag_atom = fgs.Frag_atom
+            self.center_atom = fgs.center_atom
+            self.hlist_atom = fgs.hlist_atom
+            self.add_center_atom = fgs.add_center_atom
+            self.Nfrag = fgs.Nfrag
+
         else:
-            raise ValueError(f"Fragmentation type = {frag_type} not implemented!")
+            assert_never(f"Fragmentation type = {frag_type} not implemented!")
 
     @copy_docstring(_ext_chain)
     def chain(self, mol, frozen_core=False, closed=False):
