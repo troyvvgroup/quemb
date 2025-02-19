@@ -55,11 +55,13 @@ def test_BE3_octane_molbe() -> None:
         # effectively running 2 fragment calculations in parallel
         mybe.optimize(solver="CCSD", nproc=4, ompnum=2)
 
-        assert np.isclose(mybe.ebe_tot, -310.3344717358742)
-        assert np.isclose(mybe.ebe_hf, -309.7847695501025)
+        assert np.isclose(mybe.ebe_tot, -310.3344717358742), f"{frag_type} failed"
+        assert np.isclose(mybe.ebe_hf, -309.7847695501025), f"{frag_type} failed"
         # Note that the test for the correlation energy is stricter, because np.isclose
         # scales the difference threshold by the absolute values of the inputs.
-        assert np.isclose(mybe.ebe_tot - mybe.ebe_hf, -0.5497021857717073)
+        assert np.isclose(mybe.ebe_tot - mybe.ebe_hf, -0.5497021857717073), (
+            f"{frag_type} failed"
+        )
 
 
 def test_cubegen() -> None:

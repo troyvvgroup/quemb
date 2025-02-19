@@ -3,18 +3,18 @@ on chemical connectivity that uses the overlap of tabulated van der Waals radii.
 
 There are three main classes:
 
-* :class:`ConnectivityData` contains the connectivity data of a molecule
+* :class:`BondConnectivity` contains the connectivity data of a molecule
     and is fully independent of the BE fragmentation level or used basis sets.
     After construction the knowledge about motifs in the molecule are available,
     if hydrogen atoms are treated differently then the motifs are all
     non-hydrogen atoms, while if hydrogen atoms are treated equal then
     all atoms are motifs.
-* :class:`FragmentedStructure` is depending on the :class:`ConnectivityData`
+* :class:`PurelyStructureFragmented` is depending on the :class:`BondConnectivity`
     and performs the fragmentation depending on the BE fragmentation level, but is still
     independent of the used basis set.
     After construction this class knows about the assignment of origins, centers,
     and edges.
-* :class:`FragmentedMolecule` is depending on the :class:`FragmentedStructure`
+* :class:`Fragmented` is depending on the :class:`PurelyStructureFragmented`
     and assigns the AO indices to each fragment and is responsible for the book keeping
     of which AO index belongs to which center and edge.
 """
@@ -72,7 +72,6 @@ SeqOverAtom: TypeAlias = Sequence
 SeqOverMotif: TypeAlias = Sequence
 SeqOverCenter: TypeAlias = Sequence
 SeqOverEdge: TypeAlias = Sequence
-SeqOverOrigin: TypeAlias = Sequence
 
 
 def union_of_seqs(*seqs: Sequence[T]) -> OrderedSet[T]:
@@ -120,7 +119,7 @@ InVdWRadius: TypeAlias = Real | Callable[[Real], Real] | Mapping[str, Real]
 
 
 @define(frozen=True)
-class ConnectivityData:
+class BondConnectivity:
     """Data structure to store the connectivity data of a molecule.
 
     This collects all information that is independent of the chosen
@@ -156,13 +155,13 @@ class ConnectivityData:
         vdW_radius: InVdWRadius | None = None,
         treat_H_different: bool = True,
     ) -> Self:
-        """Create a :class:`ConnectivityData` from a :class:`chemcoord.Cartesian`.
+        """Create a :class:`BondConnectivity` from a :class:`chemcoord.Cartesian`.
 
         Parameters
         ----------
         m :
             The Cartesian object to extract the connectivity data from.
-        bonds_atoms : Mapping[int, OrderedSet[int]]
+        bonds_atoms :
             Can be used to specify the connectivity graph of the molecule.
             Has exactly the same format as the output of
             :meth:`chemcoord.Cartesian.get_bonds`,
@@ -269,17 +268,17 @@ class ConnectivityData:
     @classmethod
     def from_mole(
         cls,
-        m: Mole,
+        mol: Mole,
         *,
         bonds_atoms: Mapping[int, set[int]] | None = None,
         vdW_radius: InVdWRadius | None = None,
         treat_H_different: bool = True,
     ) -> Self:
-        """Create a :class:`ConnectivityData` from a :class:`pyscf.gto.mole.Mole`.
+        """Create a :class:`BondConnectivity` from a :class:`pyscf.gto.mole.Mole`.
 
         Parameters
         ----------
-        m :
+        mol :
             The :class:`pyscf.gto.mole.Mole` to extract the connectivity data from.
         bonds_atoms : Mapping[int, OrderedSet[int]]
             Can be used to specify the connectivity graph of the molecule.
@@ -305,7 +304,7 @@ class ConnectivityData:
             If True, we treat hydrogen atoms differently from heavy atoms.
         """
         return cls.from_cartesian(
-            Cartesian.from_pyscf(m),
+            Cartesian.from_pyscf(mol),
             bonds_atoms=bonds_atoms,
             vdW_radius=vdW_radius,
             treat_H_different=treat_H_different,
@@ -323,7 +322,7 @@ class ConnectivityData:
         i_center :
             The index of the center atom.
         n_BE :
-            The coordination sphere to consider.
+            Defines the :python:`(n_BE - 1)`-th coordination sphere to consider.
         """
         if n_BE < 1:
             raise ValueError("n_BE must greater than or equal to 1.")
@@ -369,7 +368,7 @@ class _SubsetsCleaned:
     For example pair-wise fragmentations, where there are multiple
     fragments for one origin, are not supported.
 
-    The rest of the code, however, is written in a way that would fully support
+    The rest of the code, however, is written in a way that fully supports
     pair-wise fragmentations, if we would use a different data structure
     here and rewrote :func:`_cleanup_if_subset` accordingly.
     """
@@ -437,19 +436,19 @@ def _cleanup_if_subset(
 
 
 @define(frozen=True, kw_only=True)
-class FragmentedStructure:
+class PurelyStructureFragmented:
     """Data structure to store the fragments of a molecule.
 
     This takes into account only the connectivity data and the fragmentation
     scheme but is independent of the basis sets or the electronic structure.
     """
 
-    #: The actual molecule
+    #: The full molecule
     mol: Final[Mole]
 
     #: The motifs per fragment.
-    #: Note that the set of motifs in the fragment
-    #: is the union of centers and edges.
+    #: Note that the full set of motifs for a fragment is the union of all center motifs
+    #: and edge motifs.
     #: The order is guaranteed to be first
     #: origin, centers, then edges
     #: and in each category the motif index is ascending.
@@ -464,13 +463,18 @@ class FragmentedStructure:
     edges_per_frag: Final[SeqOverFrag[OrderedSet[EdgeIdx]]]
     #: The origins per frag. Note that for "normal" BE calculations
     #: there is exacctly one origin per fragment, i.e. the
-    #: `SeqOverOrigin` has one element.
+    #: `SeqOverFrag` has one element.
     #: The order is guaranteed to be ascending.
     origin_per_frag: Final[SeqOverFrag[OrderedSet[OriginIdx]]]
 
-    #: The atom indices per fragment.
-    #: The order of the motifs is the same as in :attr:`motifs_per_frag`
-    #: and hydrogen atoms directly follow their motif and are then ascending.
+    #: The atom indices per fragment. it contains both
+    #: motif **and** hydrogen indices.
+    #: The order of the motifs is the same as in :attr:`motifs_per_frag`.
+    #: The hydrogen atoms directly follow the motif to which they are attached,
+    #: and are then ascendingly sorted.
+    #: To given an example: if 1 and 4 are motif indices and
+    #: hydrogen atoms 5, 6 are connected to 1, while hydrogen atoms 2, 3
+    #: are connected to 4, then the order is: :python:`[1, 5, 6, 4, 2, 3]`.
     atoms_per_frag: Final[SeqOverFrag[OrderedSet[AtomIdx]]]
 
     #: For each edge in a fragment it points to the index
@@ -480,11 +484,11 @@ class FragmentedStructure:
     frag_idx_per_edge: Final[SeqOverFrag[Mapping[EdgeIdx, FragmentIdx]]]
 
     #: Connectivity data of the molecule.
-    conn_data: Final[ConnectivityData]
+    conn_data: Final[BondConnectivity]
     n_BE: Final[int]
 
     @classmethod
-    def from_conn_data(cls, mol: Mole, conn_data: ConnectivityData, n_BE: int) -> Self:
+    def from_conn_data(cls, mol: Mole, conn_data: BondConnectivity, n_BE: int) -> Self:
         fragments = _cleanup_if_subset(
             {
                 i_center: conn_data.get_BE_fragment(i_center, n_BE)
@@ -565,7 +569,8 @@ class FragmentedStructure:
         bonds_atoms: Mapping[int, set[int]] | None = None,
         vdW_radius: InVdWRadius | None = None,
     ) -> Self:
-        """Construct a :class:`FragmentedStructure` from a :class:`pyscf.gto.mole.Mole`.
+        """Construct a :class:`PurelyStructureFragmented`
+        from a :class:`pyscf.gto.mole.Mole`.
 
         Parameters
         ----------
@@ -578,7 +583,7 @@ class FragmentedStructure:
         """
         return cls.from_conn_data(
             mol,
-            ConnectivityData.from_mole(
+            BondConnectivity.from_mole(
                 mol,
                 treat_H_different=treat_H_different,
                 bonds_atoms=bonds_atoms,
@@ -593,7 +598,7 @@ class FragmentedStructure:
         Ordered in this context means, that first the
         origins, then centers, then edges appear in the motif.
         """
-        # note that centers is a subset of origins.
+        # note that origins is a subset of centers.
         # All centers that are origins appear first due to
         # how the union of OrderedSet works.
         return all(
@@ -673,13 +678,14 @@ class AutogenOutput:
 
 
 @define(frozen=True, kw_only=True)
-class FragmentedMolecule:
-    """Data structure to store the fragments, including AO indices.
+class Fragmented:
+    """Contains the whole BE fragmentation information, including AO indices.
 
     This takes into account the geometrical data and the used
     basis sets, hence it "knows" which AO index belongs to which atom
     and which fragment.
-    Hence, it depends on :class:`FragmentedStructure`.
+    It depends on :class:`PurelyStructureFragmented` to store structural data,
+    but contains more information.
     """
 
     #: The actual molecule
@@ -687,8 +693,8 @@ class FragmentedMolecule:
     # yes, it is a bit redundant, because it is also contained in
     # fragmented_structure, but it is very convenient to have it here
     # as well. Due to the immutability the two views are also not a problem.
-    conn_data: Final[ConnectivityData]
-    frag_structure: Final[FragmentedStructure]
+    conn_data: Final[BondConnectivity]
+    frag_structure: Final[PurelyStructureFragmented]
 
     #: The atomic orbital indices per atom
     AO_per_atom: Final[SeqOverAtom[OrderedSet[GlobalAOIdx]]]
@@ -735,7 +741,7 @@ class FragmentedMolecule:
     #: The relative atomic orbital indices per origin per fragment.
     #: Relative means that the AO indices are relative to
     #: the **own** fragment.
-    #: This variable is a strict subset of :attr:`rel_AO_per_center_per_frag`,
+    #: This variable is a subset of :attr:`rel_AO_per_center_per_frag`,
     #: in the sense that the motif indices, the keys in the mapping,
     #: are restricted to the origins of the fragment.
     #: This variable was formerly known as :python:`centerf_idx`.
@@ -753,9 +759,9 @@ class FragmentedMolecule:
 
     @classmethod
     def from_frag_structure(
-        cls, mol: Mole, frag_structure: FragmentedStructure
+        cls, mol: Mole, frag_structure: PurelyStructureFragmented
     ) -> Self:
-        """Construct a :class:`FragmentedMolecule`
+        """Construct a :class:`Fragmented`
 
         Parameters
         ----------
@@ -858,15 +864,17 @@ class FragmentedMolecule:
         bonds_atoms: Mapping[int, set[int]] | None = None,
         vdW_radius: InVdWRadius | None = None,
     ) -> Self:
-        """Construct a :class:`FragmentedMolecule` from :class:`pyscf.gto.mole.Mole`.
+        """Construct a :class:`Fragmented` from :class:`pyscf.gto.mole.Mole`.
 
         Parameters
         ----------
-        m :
+        mol :
             The :class:`pyscf.gto.mole.Mole` to extract the connectivity data from.
+        n_BE :
+            The BE fragmentation level.
         treat_H_different :
             If True, we treat hydrogen atoms differently from heavy atoms.
-        bonds_atoms : Mapping[int, OrderedSet[int]]
+        bonds_atoms :
             Can be used to specify the connectivity graph of the molecule.
             Has exactly the same format as the output of
             :meth:`chemcoord.Cartesian.get_bonds`,
@@ -889,7 +897,7 @@ class FragmentedMolecule:
         """
         return cls.from_frag_structure(
             mol,
-            FragmentedStructure.from_mole(
+            PurelyStructureFragmented.from_mole(
                 mol,
                 n_BE=n_BE,
                 treat_H_different=treat_H_different,
@@ -975,34 +983,3 @@ def _get_AOidx_per_atom(mol: Mole) -> list[OrderedSet[GlobalAOIdx]]:
         OrderedSet(GlobalAOIdx(AOIdx(i)) for i in range(AO_offsets[2], AO_offsets[3]))
         for AO_offsets in mol.aoslice_by_atom()
     ]
-
-
-@define(frozen=True, kw_only=True)
-class ChemGenArgs:
-    """Additional arguments for ChemGen fragmentation.
-
-    These are passed on to :func:`quemb.molbe.chemfrag.FragmentedMolecule.from_mole`
-    """
-
-    treat_H_different: Final[bool] = True
-    bonds_atoms: Mapping[int, set[int]] | None = None
-    vdW_radius: InVdWRadius | None = None
-
-
-def chemgen(
-    mol: Mole, n_BE: int, args: ChemGenArgs | None = None
-) -> FragmentedMolecule:
-    """Fragment a molecule based on chemical connectivity."""
-    if args is None:
-        return FragmentedMolecule.from_mole(
-            mol,
-            n_BE=n_BE,
-        )
-    else:
-        return FragmentedMolecule.from_mole(
-            mol,
-            n_BE=n_BE,
-            treat_H_different=args.treat_H_different,
-            bonds_atoms=args.bonds_atoms,
-            vdW_radius=args.vdW_radius,
-        )

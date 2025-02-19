@@ -1,7 +1,8 @@
 # Author: Oinam Romesh Meitei, Shaun Weatherly
 
+from collections.abc import Mapping, Sequence
 from copy import deepcopy
-from typing import Sequence
+from typing import Final
 
 import networkx as nx
 import numpy as np
@@ -9,7 +10,9 @@ from attrs import define
 from networkx import shortest_path
 from numpy.linalg import norm
 from pyscf import gto
+from pyscf.gto import Mole
 
+from quemb.molbe.chemfrag import Fragmented, InVdWRadius
 from quemb.molbe.helper import get_core
 from quemb.shared.helper import unused
 from quemb.shared.typing import Vector
@@ -832,3 +835,47 @@ def autogen(
         hlist_atom,
         add_center_atom,
     )
+
+
+@define(frozen=True, kw_only=True)
+class ChemGenArgs:
+    """Additional arguments for ChemGen fragmentation.
+
+    These are passed on to
+    :func:`quemb.molbe.chemfrag.PurelyStructureFragmented.from_mole`
+    and documented there.
+    """
+
+    treat_H_different: Final[bool] = True
+    bonds_atoms: Mapping[int, set[int]] | None = None
+    vdW_radius: InVdWRadius | None = None
+
+
+def chemgen(mol: Mole, n_BE: int, args: ChemGenArgs | None = None) -> Fragmented:
+    """Fragment a molecule based on chemical connectivity.
+
+    Parameters
+    ----------
+    mol :
+        Molecule to be fragmented.
+    n_BE :
+        BE fragmentation level.
+    args :
+        Additional arguments for ChemGen fragmentation.
+        These are passed on to
+        :func:`quemb.molbe.chemfrag.PurelyStructureFragmented.from_mole`
+        and documented there.
+    """
+    if args is None:
+        return Fragmented.from_mole(
+            mol,
+            n_BE=n_BE,
+        )
+    else:
+        return Fragmented.from_mole(
+            mol,
+            n_BE=n_BE,
+            treat_H_different=args.treat_H_different,
+            bonds_atoms=args.bonds_atoms,
+            vdW_radius=args.vdW_radius,
+        )

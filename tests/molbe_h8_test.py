@@ -34,7 +34,10 @@ def prepare_system():
 
 def do_BE(mol, mf, be_type: str, only_chem: bool):
     fobj = fragpart(
-        be_type=be_type, mol=mol, additional_args=ChemGenArgs(treat_H_different=False)
+        be_type=be_type,
+        frag_type="chemgen",
+        mol=mol,
+        additional_args=ChemGenArgs(treat_H_different=False),
     )
     mybe = BE(mf, fobj)
     mybe.optimize(solver="FCI", only_chem=only_chem)

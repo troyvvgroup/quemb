@@ -5,8 +5,7 @@ from typing import Literal, TypeAlias
 from pyscf.gto.mole import Mole
 from typing_extensions import assert_never
 
-from quemb.molbe.autofrag import autogen, graphgen
-from quemb.molbe.chemfrag import ChemGenArgs, chemgen
+from quemb.molbe.autofrag import ChemGenArgs, autogen, chemgen, graphgen
 from quemb.molbe.helper import get_core
 from quemb.molbe.lchain import chain as _ext_chain
 from quemb.shared.helper import copy_docstring
@@ -25,10 +24,10 @@ class fragpart:
 
     Parameters
     ----------
-    frag_type : str
+    frag_type :
         Name of fragmentation function. 'chemgen', 'autogen', 'graphgen',
-        'hchain_simple', and 'chain' are supported. Defaults to 'chemgen'.
-    be_type : str
+        'hchain_simple', and 'chain' are supported. Defaults to 'autogen'.
+    be_type :
         Specifies order of bootsrap calculation in the atom-based fragmentation.
         'be1', 'be2', 'be3', & 'be4' are supported.
         Defaults to 'be2'
@@ -36,20 +35,20 @@ class fragpart:
         be1 only has fragments [A], [B], [C], [D]
         be2 has [A, B, C], [B, C, D]
         ben ...
-    mol : pyscf.gto.mole.Mole
+    mol :
         This is required for the following :python:`frag_type` options:
         :python:`"chemgen", "graphgen", "autogen"`
-    iao_valence_basis: str
+    iao_valence_basis:
         Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
-    valence_only: bool
+    valence_only:
         If this option is set to True, all calculation will be performed in
         the valence basis in the IAO partitioning.
         This is an experimental feature.
-    frozen_core: bool
+    frozen_core:
         Whether to invoke frozen core approximation. This is set to False by default
-    print_frags: bool
+    print_frags:
         Whether to print out list of resulting fragments. True by default
-    write_geom: bool
+    write_geom:
         Whether to write 'fragment.xyz' file which contains all the fragments
         in cartesian coordinates.
     remove_nonunique_frags:
@@ -74,7 +73,7 @@ class fragpart:
 
     def __init__(
         self,
-        frag_type: FragType = "chemgen",
+        frag_type: FragType = "autogen",
         closed: bool = False,
         iao_valence_basis: str | None = None,
         valence_only: bool = False,
@@ -185,7 +184,6 @@ class fragpart:
             if valence_only:
                 raise NotImplementedError("valence_only is not implemented for chemgen")
             assert isinstance(additional_args, (type(None), ChemGenArgs))
-            assert mol is not None
             fragments = chemgen(
                 mol,
                 n_BE=int(be_type[2:]),
@@ -210,7 +208,7 @@ class fragpart:
             self.Nfrag = fgs.Nfrag
 
         else:
-            assert_never(frag_type)
+            assert_never(f"Fragmentation type = {frag_type} not implemented!")
 
     @copy_docstring(_ext_chain)
     def chain(self, mol, frozen_core=False, closed=False):
