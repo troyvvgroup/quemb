@@ -186,7 +186,7 @@ class BEOPT:
             else:
                 # Perform optimization steps
                 for iter_ in range(self.max_space):
-                    iter_timer = Timer("Time to complete Iteration " + self.iter)
+                    iter_timer = Timer("Time to complete Iteration " + str(self.iter))
                     print("-- In iter ", self.iter, flush=True)
                     optQN.next_step(trust_region=trust_region)
                     self.iter += 1

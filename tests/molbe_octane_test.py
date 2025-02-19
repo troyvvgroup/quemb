@@ -59,9 +59,9 @@ def test_BE3_octane_molbe() -> None:
         assert np.isclose(mybe.ebe_hf, -309.7847695501025), f"{frag_type} failed"
         # Note that the test for the correlation energy is stricter, because np.isclose
         # scales the difference threshold by the absolute values of the inputs.
-        assert np.isclose(mybe.ebe_tot - mybe.ebe_hf, -0.5497021857717073), (
-            f"{frag_type} failed"
-        )
+        assert np.isclose(
+            mybe.ebe_tot - mybe.ebe_hf, -0.5497021857717073
+        ), f"{frag_type} failed"
 
 
 def test_cubegen() -> None:
