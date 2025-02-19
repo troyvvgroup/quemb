@@ -3,38 +3,72 @@
 
 import os
 import tempfile
-from typing import Tuple
+from typing import Tuple, cast
 
 import numpy as np
+import pytest
 from pyscf import gto, scf
 
 from quemb.molbe import BE, fragpart
+from quemb.molbe.fragment import FragType
 from quemb.shared.io import write_cube
 
 
-def test_octane_molbe() -> None:
+def test_BE2_octane_molbe() -> None:
     # Prepare octane molecule
     mol, mf = prepare_octane()
 
     # initialize fragments (without using frozen core approximation)
-    fobj = fragpart(be_type="be2", mol=mol, frozen_core=False)
-    # Initialize BE
-    mybe = BE(mf, fobj)
+    for frag_type in cast(list[FragType], ["autogen", "chemgen"]):
+        fobj = fragpart(be_type="be2", frag_type=frag_type, mol=mol, frozen_core=False)
+        # Initialize BE
+        mybe = BE(mf, fobj)
 
-    # Perform BE density matching.
-    # Uses 4 procs, each fragment calculation assigned OMP_NUM_THREADS to 2
-    # effectively running 2 fragment calculations in parallel
-    mybe.optimize(solver="CCSD", nproc=4, ompnum=2)
+        # Perform BE density matching.
+        # Uses 4 procs, each fragment calculation assigned OMP_NUM_THREADS to 2
+        # effectively running 2 fragment calculations in parallel
+        mybe.optimize(solver="CCSD", nproc=4, ompnum=2)
 
-    assert np.isclose(mybe.ebe_tot, -310.3347211309688)
-    assert np.isclose(mybe.ebe_hf, -309.7847696458918)
+        assert np.isclose(mybe.ebe_tot, -310.3347211309688)
+        assert np.isclose(mybe.ebe_hf, -309.7847696458918)
+        # Note that the test for the correlation energy is stricter, because np.isclose
+        # scales the difference threshold by the absolute values of the inputs.
+        assert np.isclose(mybe.ebe_tot - mybe.ebe_hf, -0.5499514850769742)
+
+
+@pytest.mark.skipif(
+    os.getenv("QUEMB_SKIP_EXPENSIVE_TESTS") == "true",
+    reason="Skipped expensive BE3 test for QuEmb.",
+)
+def test_BE3_octane_molbe() -> None:
+    # Prepare octane molecule
+    mol, mf = prepare_octane()
+
+    # initialize fragments (without using frozen core approximation)
+    for frag_type in cast(list[FragType], ["autogen", "chemgen"]):
+        fobj = fragpart(be_type="be3", frag_type=frag_type, mol=mol, frozen_core=False)
+        # Initialize BE
+        mybe = BE(mf, fobj)
+
+        # Perform BE density matching.
+        # Uses 4 procs, each fragment calculation assigned OMP_NUM_THREADS to 2
+        # effectively running 2 fragment calculations in parallel
+        mybe.optimize(solver="CCSD", nproc=4, ompnum=2)
+
+        assert np.isclose(mybe.ebe_tot, -310.3344717358742), f"{frag_type} failed"
+        assert np.isclose(mybe.ebe_hf, -309.7847695501025), f"{frag_type} failed"
+        # Note that the test for the correlation energy is stricter, because np.isclose
+        # scales the difference threshold by the absolute values of the inputs.
+        assert np.isclose(mybe.ebe_tot - mybe.ebe_hf, -0.5497021857717073), (
+            f"{frag_type} failed"
+        )
 
 
 def test_cubegen() -> None:
     # Prepare octane molecule
     mol, mf = prepare_octane()
     # Build fragments
-    fobj = fragpart(be_type="be2", mol=mol, frozen_core=True)
+    fobj = fragpart(be_type="be2", frag_type="autogen", mol=mol, frozen_core=True)
     # Run BE2
     mybe = BE(mf, fobj)
     mybe.optimize(solver="CCSD", nproc=1, ompnum=1)
