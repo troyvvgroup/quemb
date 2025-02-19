@@ -37,11 +37,43 @@ kv_ty = (int64, float64)
 class TwoElIntegral:
     """Sparsely stores the 2-electron integrals using chemist's notation.
 
+    This is a :python:`jitclass` which can be used with numba functions.
+
+    8-fold permutational symmetry is assumed for the spatial integrals, i.e.
+
+    .. math::
+
+        g_{ijkl} = g_{klij} = g_{jikl} = g_{jilk} = g_{lkji} = g_{lkij} = g_{ilkj} = g_{ikjl}
+
+    There is no boundary checking! It will not crash, but just return 0.0
+    if you try to access an index that is not in the dictionary.
+
     The 2-electron integrals are stored in a dictionary.
     The keys of the dictionary are tuples of the form (i, j, k, l)
     where i, j, k, l are the indices of the basis functions.
     The values of the dictionary are the 2-electron integrals.
-    """
+
+    Examples
+    --------
+
+    >>> g = TwoElIntegral()
+    >>> g[1, 2, 3, 4] = 3
+
+    We can test all possible permutations:
+
+    >>> assert g[1, 2, 3, 4] == 3
+    >>> assert g[1, 2, 4, 3] == 3
+    >>> assert g[2, 1, 3, 4] == 3
+    >>> assert g[2, 1, 4, 3] == 3
+    >>> assert g[3, 4, 1, 2] == 3
+    >>> assert g[4, 3, 1, 2] == 3
+    >>> assert g[3, 4, 2, 1] == 3
+    >>> assert g[4, 3, 2, 1] == 3
+
+    A non-existing index returns 0.0:
+
+    >>> assert g[1, 2, 3, 10] == 0
+    """  # noqa: E501
 
     def __init__(self) -> None:
         self._data = Dict.empty(*kv_ty)
