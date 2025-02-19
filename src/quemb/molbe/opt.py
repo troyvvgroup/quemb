@@ -1,7 +1,7 @@
 # Author(s): Oinam Romesh Meitei
 
 
-import time
+from time import time
 
 from attrs import Factory, define
 from numpy import array, float64
@@ -161,7 +161,7 @@ class BEOPT:
         print("-----------------------------------------------------", flush=True)
         print(flush=True)
         if method == "QN":
-            optstep0_start_time = time.time()
+            step0_start_time = time()
             print("-- In iter ", self.iter, flush=True)
 
             # Initial step
@@ -180,7 +180,7 @@ class BEOPT:
 
             if settings.PRINT_LEVEL >= 10:
                 print(
-                    f"Time for step {self.iter}: {time.time() - optstep0_start_time}",
+                    f"Time for step {self.iter}: {time() - step0_start_time}",
                     flush=True,
                 )
             if self.err < self.conv_tol:
@@ -190,7 +190,7 @@ class BEOPT:
             else:
                 # Perform optimization steps
                 for iter_ in range(self.max_space):
-                    iter_start_time = time.time()
+                    iter_start_time = time()
                     print("-- In iter ", self.iter, flush=True)
                     optQN.next_step(trust_region=trust_region)
                     self.iter += 1
@@ -200,9 +200,7 @@ class BEOPT:
                     )
                     if settings.PRINT_LEVEL >= 10:
                         print(
-                            f"Time for step {self.iter}: {
-                                time.time() - iter_start_time
-                            }",
+                            f"Time for step {self.iter}: {time() - iter_start_time}",
                             flush=True,
                         )
                     print(flush=True)
@@ -211,9 +209,7 @@ class BEOPT:
                         print("CONVERGED", flush=True)
                         if settings.PRINT_LEVEL >= 10:
                             print(
-                                f"Time for optimization: {
-                                    time.time() - optstep0_start_time
-                                }",
+                                f"Time for optimization: {time() - step0_start_time}",
                                 flush=True,
                             )
                         print(flush=True)

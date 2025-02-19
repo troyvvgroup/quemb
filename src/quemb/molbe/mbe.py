@@ -1,7 +1,7 @@
 # Author(s): Oinam Romesh Meitei
 
 import pickle
-import time
+from time import time
 
 import h5py
 import numpy
@@ -119,7 +119,7 @@ class BE(MixinLocalize):
             Auxiliary basis for density fitting, by default None
             (uses default auxiliary basis defined in PySCF).
         """
-        init_start_time = time.time()
+        init_start_time = time()
         if restart:
             # Load previous calculation data from restart file
             with open(restart_file, "rb") as rfile:
@@ -235,7 +235,7 @@ class BE(MixinLocalize):
             self.initialize(None, compute_hf, restart=True)
         if settings.PRINT_LEVEL >= 10:
             print(
-                f"Time to initialize BE object: {time.time() - init_start_time}",
+                f"Time to initialize BE object: {time() - init_start_time}",
                 flush=True,
             )
 
@@ -807,7 +807,7 @@ class BE(MixinLocalize):
 
             self.Fobjs.append(fobjs_)
 
-        eritransform_start_time = time.time()
+        eritransform_start_time = time()
         if not restart:
             # Transform ERIs for each fragment and store in the file
             # ERI Transform Decision Tree
@@ -851,7 +851,7 @@ class BE(MixinLocalize):
             eri = None
         if settings.PRINT_LEVEL >= 10:
             print(
-                f"Time to transform ERIs: {time.time() - eritransform_start_time}",
+                f"Time to transform ERIs: {time() - eritransform_start_time}",
                 flush=True,
             )
 
@@ -923,7 +923,7 @@ class BE(MixinLocalize):
         ompnum :
             Number of OpenMP threads, by default 4.
         """
-        oneshot_start_time = time.time()
+        oneshot_start_time = time()
         if nproc == 1:
             rets = be_func(
                 None,
@@ -971,7 +971,7 @@ class BE(MixinLocalize):
             self.ebe_tot = rets[0] + self.enuc
         if settings.PRINT_LEVEL >= 10:
             print(
-                f"Time to perform one-shot BE: {time.time() - oneshot_start_time}",
+                f"Time to perform one-shot BE: {time() - oneshot_start_time}",
                 flush=True,
             )
 
