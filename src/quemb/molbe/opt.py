@@ -201,7 +201,8 @@ class BEOPT:
                     if settings.PRINT_LEVEL >= 10:
                         print(
                             f"Time for step {self.iter}: {
-                                time.time() - iter_start_time}",
+                                time.time() - iter_start_time
+                            }",
                             flush=True,
                         )
                     print(flush=True)
@@ -211,7 +212,8 @@ class BEOPT:
                         if settings.PRINT_LEVEL >= 10:
                             print(
                                 f"Time for optimization: {
-                                    time.time() - optstep0_start_time}",
+                                    time.time() - optstep0_start_time
+                                }",
                                 flush=True,
                             )
                         print(flush=True)
