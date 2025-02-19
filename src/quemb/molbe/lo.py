@@ -256,8 +256,8 @@ def get_loc(
         raise NotImplementedError("Localization scheme not understood")
 
     mlo = Localizer(mol, C)
-    print(Localizer, "local")
-    if pop_method is not None:
+
+    if pop_method is not None and method.upper() in ["PIPEK-MEZEY", "PIPEK", "PM"]:
         mlo.pop_method = pop_method
 
     mlo.init_guess = init_guess
