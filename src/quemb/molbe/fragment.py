@@ -88,7 +88,6 @@ class fragpart:
         remove_nonnunique_frags: bool = True,
         additional_args: ChemGenArgs | None = None,
     ) -> None:
-
         self.mol = mol
         self.frag_type = frag_type
         self.fsites = []
@@ -183,7 +182,9 @@ class fragpart:
             if frozen_core:
                 raise NotImplementedError("frozen_core is not implemented for chemgen")
             if iao_valence_only:
-                raise NotImplementedError("iao_valence_only is not implemented for chemgen")
+                raise NotImplementedError(
+                    "iao_valence_only is not implemented for chemgen"
+                )
             assert isinstance(additional_args, (type(None), ChemGenArgs))
             fragments = chemgen(
                 mol,
