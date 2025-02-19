@@ -36,7 +36,9 @@ def remove_core_mo(Clo: Matrix, Ccore: Matrix, S: Matrix, thr: float = 0.5) -> M
 def get_xovlp(
     mol: Mole, basis: str = "sto-3g"
 ) -> tuple[Matrix | Tensor3D, Matrix | Tensor3D]:
-    """Gets set of valence orbitals based on smaller (should be minimal) basis
+    """Gets overlap matrix between the two bases and in secondary basis.
+    Used for IAOs: returns the overlap between valence (minimal) and working
+    (large) bases and overlap in the minimal basis
 
     Parameters
     ----------
@@ -69,6 +71,7 @@ def get_iao(
     S2: Matrix,
 ) -> Matrix:
     """Gets symmetrically orthogonalized IAO coefficient matrix from system MOs
+    Derived from G. Knizia: J. Chem. Theory Comput. 2013, 9, 11, 4834–4843
 
     Parameters
     ----------
@@ -91,13 +94,13 @@ def get_iao(
     P_12 = inv_S1 @ S12
     P_21 = inv_S2 @ S12.T
 
-    # Generated polarized occupied states, in working basis, O (in paper)
+    # Generated polarized occupied states, in working basis, O in Knizia paper
     O_pol = Co @ Co.T
 
     # Generate depolarized occupied MOs
     C_depol = P_12 @ P_21 @ Co
 
-    # Orthogonalize C_depol and get \tilde{O} (in paper)
+    # Orthogonalize C_depol and get \tilde{O}, in Knizia paper
     S_til = C_depol.T @ S1 @ C_depol
     O_depol = C_depol @ inv(S_til) @ C_depol.T
 
@@ -117,15 +120,17 @@ def get_iao(
 def get_pao(Ciao: Matrix, S1: Matrix, S12: Matrix) -> Matrix:
     """Get (symmetrically though often canonically) orthogonalized PAOs
     from given (localized) IAOs
+    Defined in detail in J. Chem. Theory Comput. 2024, 20, 24, 10912–10921
 
     Parameters
     ----------
     Ciao:
-        IAO indices, localized output of :func:`get_iao`
+        the orthogonalized IAO coefficient matrix
+        (output of :func:get_iao)
     S1:
         ao ovlp matrix in working (large) basis
     S12:
-        valence (minimal-like) orbitals projected into (large) ao basis
+        ovlp between working (large) basis and valence (minimal) basis
     Returns
     -------
     Cpao: :class:`quemb.shared.typing.Matrix`
@@ -160,7 +165,8 @@ def get_pao_native(
     Parameters
     ----------
     Ciao:
-        IAO indices, output of :code:`get_iao`
+        the orthogonalized IAO coefficient matrix
+        (output of :func:get_iao)
     S1:
         ao ovlp matrix in working (large) basis
     mol:
@@ -212,7 +218,7 @@ def get_loc(
     pop_method: str | None = None,
     init_guess: Matrix | str | None = "atomic",
 ) -> Mole:
-    """Establish, initialize, and call localization procedure `method` for C
+    """Import, initialize, and call localization procedure `method` for C
     from `PySCF`
 
     Parameters
@@ -228,7 +234,8 @@ def get_loc(
         FOSTER-BOYS, BOYS, FB
     pop_method:
         Method for calculating orbital population, by default 'meta-lowdin'
-        See pyscf.lo for more details and options
+        See pyscf.lo for more details and options. This is only used for
+        Pipek-Mezey localization
     init_guess:
         Initial guess for localization optimization.
         Default is `atomic`, See pyscf.lo for more details and options
@@ -249,6 +256,7 @@ def get_loc(
         raise NotImplementedError("Localization scheme not understood")
 
     mlo = Localizer(mol, C)
+    print(Localizer, "local")
     if pop_method is not None:
         mlo.pop_method = pop_method
 

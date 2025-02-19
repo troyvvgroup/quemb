@@ -46,7 +46,9 @@ def remove_core_mo_k(Clo, Ccore, S, thr=0.5):
 
 
 def get_xovlp_k(cell, kpts, basis="sto-3g"):
-    """Gets set of valence orbitals based on smaller (should be minimal) basis
+    """Gets overlap matrix between the two bases and in secondary basis.
+    Used for IAOs: returns the overlap between valence (minimal) and working
+    (large) bases and overlap in the minimal basis
 
     Parameters
     ----------
@@ -81,17 +83,13 @@ def get_iao_k(Co, S12, S1, S2=None, ortho=True):
     ----------
     Co:
         occupied coefficient matrix with core
-    p:
-        valence AO matrix in AO
-    no:
-        number of occ orbitals
     S12:
-        ovlp between working basis and valence basis
-        can be thought of as working basis in valence basis
+        ovlp between working (large) basis and valence (minimal)
+        basis. Can be thought of as working basis in valence basis
     S1:
-        ao ovlp matrix
+        AO ovlp matrix, in working (large) basis
     S2:
-        valence AO ovlp
+        valence (minimal) AO ovlp matrix
     """
 
     nk, nao, nmo = S12.shape
@@ -165,7 +163,7 @@ def get_pao_native_k(Ciao, S, mol, iao_valence_basis, ortho=True):
     Parameters
     ----------
     Ciao :
-        output of :code:`get_iao_native`
+        output of :code:`get_iao_k`
     S :
         ao ovlp matrix
     mol :

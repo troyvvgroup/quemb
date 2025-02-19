@@ -11,7 +11,7 @@ from pyscf import gto, scf
 from quemb.molbe import BE, fragpart
 
 
-def test_hexene_loc_a(hexene) -> None:
+def test_hexene_loc_be1_froz_pm(hexene) -> None:
     be1_f_pm = ret_ecorr(
         hexene[0],
         hexene[1],
@@ -28,7 +28,7 @@ def test_hexene_loc_a(hexene) -> None:
     os.getenv("QUEMB_SKIP_EXPENSIVE_TESTS") == "true",
     "Skipped expensive tests for QuEmb.",
 )
-def test_hexene_loc_b(hexene) -> None:
+def test_hexene_loc_be2_unfroz_lowdin(hexene) -> None:
     be2_nf_lo = ret_ecorr(
         hexene[0],
         hexene[1],
@@ -41,7 +41,7 @@ def test_hexene_loc_b(hexene) -> None:
     assert np.isclose(be2_nf_lo, -0.94588487)
 
 
-def test_hexene_loc_c(hexene) -> None:
+def test_hexene_loc_be1_unfroz_iao_minao_so(hexene) -> None:
     be1_nf_iao_so = ret_ecorr(
         hexene[0],
         hexene[1],
@@ -58,7 +58,7 @@ def test_hexene_loc_c(hexene) -> None:
     os.getenv("QUEMB_SKIP_EXPENSIVE_TESTS") == "true",
     "Skipped expensive tests for QuEmb.",
 )
-def test_hexene_loc_d(hexene) -> None:
+def test_hexene_loc_be2_froz_iao_sto3g_boys(hexene) -> None:
     be2_f_iao_fb = ret_ecorr(
         hexene[0],
         hexene[1],
@@ -122,7 +122,7 @@ def hexene():
 
 
 if __name__ == "__main__":
-    test_hexene_loc_a(hexene)
-    test_hexene_loc_b(hexene)
-    test_hexene_loc_c(hexene)
-    test_hexene_loc_d(hexene)
+    test_hexene_loc_be1_froz_pm(hexene)
+    test_hexene_loc_be2_unfroz_lowdin(hexene)
+    test_hexene_loc_be1_unfroz_iao_minao_so(hexene)
+    test_hexene_loc_be2_froz_iao_sto3g_boys(hexene)

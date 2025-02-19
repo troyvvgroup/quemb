@@ -49,11 +49,11 @@ class TestBE_DMRG(unittest.TestCase):
                 force_cleanup=True,
             )
             self.assertAlmostEqual(
-                mybe.ebe_tot - mybe.ebe_hf,
+                mybe.ebe_tot,
                 target,
-                msg="BE Correlation Energy (Chem. Pot. Optimization) for "
+                msg="BE Total Energy (Chem. Pot. Optimization) for "
                 + test_name
-                + " does not match the expected correlation energy!",
+                + " does not match the expected total energy!",
                 delta=delta,
             )
             tmpfiles = []
