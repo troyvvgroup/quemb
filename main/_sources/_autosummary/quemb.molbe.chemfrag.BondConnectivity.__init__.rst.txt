@@ -1,0 +1,6 @@
+quemb.molbe.chemfrag.BondConnectivity.\_\_init\_\_
+==================================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. automethod:: BondConnectivity.__init__

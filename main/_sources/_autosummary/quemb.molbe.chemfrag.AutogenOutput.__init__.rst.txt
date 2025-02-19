@@ -1,0 +1,6 @@
+quemb.molbe.chemfrag.AutogenOutput.\_\_init\_\_
+===============================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. automethod:: AutogenOutput.__init__

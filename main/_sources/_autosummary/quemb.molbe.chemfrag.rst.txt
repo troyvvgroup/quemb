@@ -5,16 +5,6 @@ quemb.molbe.chemfrag
 
    
    
-   .. rubric:: Module Attributes
-
-   .. autosummary::
-      :toctree:
-   
-      MotifIdx
-      CenterIdx
-      EdgeIdx
-      OriginIdx
-   
    
 
    
@@ -24,8 +14,8 @@ quemb.molbe.chemfrag
    .. autosummary::
       :toctree:
    
-      cleanup_if_subset
-      merge_seqs
+      restrict_keys
+      union_of_seqs
    
    
 
@@ -37,9 +27,10 @@ quemb.molbe.chemfrag
       :toctree:
       :template: custom-class-template.rst
    
-      ConnectivityData
-      FragmentedStructure
-      SubsetsCleaned
+      AutogenOutput
+      BondConnectivity
+      Fragmented
+      PurelyStructureFragmented
    
    
 

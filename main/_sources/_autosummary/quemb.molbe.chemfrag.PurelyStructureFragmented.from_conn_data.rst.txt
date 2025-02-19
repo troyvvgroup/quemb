@@ -1,0 +1,6 @@
+quemb.molbe.chemfrag.PurelyStructureFragmented.from\_conn\_data
+===============================================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. automethod:: PurelyStructureFragmented.from_conn_data

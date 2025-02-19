@@ -1,0 +1,6 @@
+quemb.molbe.chemfrag.restrict\_keys
+===================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. autofunction:: restrict_keys

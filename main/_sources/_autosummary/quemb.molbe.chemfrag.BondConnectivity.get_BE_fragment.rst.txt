@@ -1,0 +1,6 @@
+quemb.molbe.chemfrag.BondConnectivity.get\_BE\_fragment
+=======================================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. automethod:: BondConnectivity.get_BE_fragment

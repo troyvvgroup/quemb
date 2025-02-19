@@ -1,0 +1,6 @@
+quemb.molbe.chemfrag.PurelyStructureFragmented.write\_geom
+==========================================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. automethod:: PurelyStructureFragmented.write_geom

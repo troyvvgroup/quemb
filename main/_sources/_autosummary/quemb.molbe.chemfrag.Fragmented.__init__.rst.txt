@@ -1,0 +1,6 @@
+quemb.molbe.chemfrag.Fragmented.\_\_init\_\_
+============================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. automethod:: Fragmented.__init__

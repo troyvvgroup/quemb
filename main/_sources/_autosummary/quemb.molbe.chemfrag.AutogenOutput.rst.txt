@@ -1,0 +1,38 @@
+quemb.molbe.chemfrag.AutogenOutput
+==================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. autoclass:: AutogenOutput
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: AutogenOutput.fsites
+   .. autoattribute:: AutogenOutput.edge_sites
+   .. autoattribute:: AutogenOutput.center
+   .. autoattribute:: AutogenOutput.edge_idx
+   .. autoattribute:: AutogenOutput.center_idx
+   .. autoattribute:: AutogenOutput.centerf_idx
+   .. autoattribute:: AutogenOutput.ebe_weight
+   .. autoattribute:: AutogenOutput.Frag_atom
+   .. autoattribute:: AutogenOutput.center_atom
+   .. autoattribute:: AutogenOutput.hlist_atom
+   .. autoattribute:: AutogenOutput.add_center_atom
+   .. autoattribute:: AutogenOutput.Nfrag
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~AutogenOutput.__init__
+   
+   

@@ -1,0 +1,6 @@
+quemb.molbe.autofrag.ChemGenArgs.\_\_init\_\_
+=============================================
+
+.. currentmodule:: quemb.molbe.autofrag
+
+.. automethod:: ChemGenArgs.__init__

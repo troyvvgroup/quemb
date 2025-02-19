@@ -1,0 +1,6 @@
+quemb.molbe.chemfrag.Fragmented.match\_autogen\_output
+======================================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. automethod:: Fragmented.match_autogen_output

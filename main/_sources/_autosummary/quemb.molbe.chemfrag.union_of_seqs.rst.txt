@@ -1,0 +1,6 @@
+quemb.molbe.chemfrag.union\_of\_seqs
+====================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. autofunction:: union_of_seqs
