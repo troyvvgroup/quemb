@@ -2,7 +2,10 @@ from collections.abc import Iterable
 from inspect import signature
 from itertools import islice
 from pathlib import Path
+from time import time
 from typing import Any, Callable, TypeVar
+
+from attr import define, field
 
 Function = TypeVar("Function", bound=Callable)
 
@@ -96,3 +99,17 @@ def delete_multiple_files(*args: Iterable[Path]) -> None:
     for files in args:
         for file in files:
             file.unlink()
+
+
+@define
+class Timer:
+    """Simple class to time code execution"""
+
+    message: str = "Elapsed time"
+    start: float = field(init=False, factory=time)
+
+    def elapsed(self) -> float:
+        return time() - self.start
+
+    def str_elapsed(self) -> str:
+        return f"{self.message}: {self.elapsed():.5f}"
