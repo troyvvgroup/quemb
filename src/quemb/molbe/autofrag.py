@@ -19,6 +19,23 @@ from quemb.shared.helper import unused
 from quemb.shared.typing import PathLike, Vector
 
 
+@staticmethod
+def euclidean_distance(
+    i_coord: Vector,
+    j_coord: Vector,
+) -> np.floating:
+    return norm(i_coord - j_coord)
+
+
+@staticmethod
+def graph_to_string(
+    graph: nx.Graph,
+    options: dict = {"with_labels": True},
+) -> str:
+    for element in nx.generate_network_text(graph, **options):
+        yield element
+
+
 @define
 class FragmentMap:
     """Dataclass for fragment bookkeeping.
@@ -200,12 +217,48 @@ class FragmentMap:
         plt.axis("off")
         plt.savefig(outdir / f"{outname}.png", dpi=1500)
 
+    def get_subgraphs(
+        self,
+        fdx: int | None = None,
+        options: dict = {},
+    ) -> dict | nx.Graph:
+        """
+        Return the subgraph for a fragment indexed by `fdx`.
 
-def euclidean_distance(
-    i_coord: Vector,
-    j_coord: Vector,
-) -> np.floating:
-    return norm(i_coord - j_coord)
+        If `fdx=None`, returns subgraphs for all fragments as a dictionary keyed
+        by each fragment index (`fdx`).
+        """
+        labels = {adx: (map["label"] + str(adx)) for adx, map in self.adx_map.items()}
+
+        if fdx is not None:
+            f_labels = []
+            subgraph = nx.Graph(**options)
+            nodelist = self.fragment_atoms[fdx]
+            edgelist = self.edge_list[fdx]
+            for adx in nodelist:
+                if adx in self.center_atoms[fdx]:
+                    f_labels.append((adx, {"label": f"[{labels[adx]}]"}))
+                else:
+                    f_labels.append((adx, {"label": labels[adx]}))
+            subgraph.add_nodes_from(f_labels)
+            subgraph.add_edges_from(edgelist)
+
+            return subgraph
+        else:
+            subgraph_dict = {}
+            for fdx, edge in enumerate(self.edge_list):
+                f_labels = []
+                subgraph_dict[fdx] = nx.Graph(**options)
+                nodelist = self.fragment_atoms[fdx]
+                for adx in nodelist:
+                    if adx in self.center_atoms[fdx]:
+                        f_labels.append((adx, {"label": f"[{labels[adx]}]"}))
+                    else:
+                        f_labels.append((adx, {"label": labels[adx]}))
+                subgraph_dict[fdx].add_nodes_from(f_labels)
+                subgraph_dict[fdx].add_edges_from(edge)
+
+            return subgraph_dict
 
 
 def graphgen(
@@ -218,6 +271,7 @@ def graphgen(
     iao_valence_basis: str | None = None,
     cutoff: float | None = None,
     export_graph_to: PathLike | None = None,
+    print_frags: bool = True,
 ) -> FragmentMap:
     """Generate fragments via adjacency graph.
 
@@ -430,6 +484,16 @@ def graphgen(
             outdir=str(export_graph_to),
             outname=f"AdjGraph_{be_type}",
         )
+
+    if print_frags:
+        title = "VERBOSE: Fragment Connectivity Graphs"
+        print(title, "-" * (80 - len(title)))
+        print("(Center sites within a fragment are [bracketed])")
+        subgraphs = fragment_map.get_subgraphs()
+        for fdx, sg in subgraphs.items():
+            print(f"Frag `{fragment_map.dnames[fdx]}`:", )
+            for st in graph_to_string(sg):
+                print(st, flush=True)
 
     return fragment_map
 

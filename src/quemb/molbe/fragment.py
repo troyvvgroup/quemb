@@ -128,6 +128,7 @@ class fragpart:
                 iao_valence_basis=self.iao_valence_basis,
                 cutoff=self.cutoff,
                 export_graph_to=self.export_graph_to,
+                print_frags=print_frags,
             )
 
             self.fsites = fragment_map.fsites
