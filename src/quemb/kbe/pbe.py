@@ -50,7 +50,7 @@ class BE(Mixin_k_Localize):
 
     def __init__(
         self,
-        mf: scf.khf.KSCF,
+        mf: scf.khf.KRHF,
         fobj: fragpart,
         eri_file: PathLike = "eri_file.h5",
         lo_method: str = "lowdin",

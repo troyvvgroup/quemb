@@ -9,7 +9,6 @@ Author(s): Shaun Weatherly
 import os
 import unittest
 
-import libdmet
 from numpy import eye
 from pyscf.pbc import df, gto, scf
 
@@ -17,7 +16,6 @@ from quemb.kbe import BE, fragpart
 
 
 class Test_kBE_Full(unittest.TestCase):
-    @unittest.skipIf(libdmet is None, "Module `libdmet` not imported correctly.")
     def test_kc2_sto3g_be1_chempot(self) -> None:
         kpt = [1, 1, 1]
         cell = gto.Cell()
@@ -43,7 +41,6 @@ class Test_kBE_Full(unittest.TestCase):
             cell, kpt, "be1", "C2 (kBE1)", "autogen", -102.16547952, only_chem=True
         )
 
-    @unittest.skipIf(libdmet is None, "Module `libdmet` not imported correctly.")
     @unittest.skipIf(
         os.getenv("QUEMB_SKIP_EXPENSIVE_TESTS") == "true",
         "Skipped expensive tests for QuEmb.",
@@ -79,7 +76,6 @@ class Test_kBE_Full(unittest.TestCase):
             only_chem=False,
         )
 
-    @unittest.skipIf(libdmet is None, "Module `libdmet` not imported correctly.")
     def test_kc4_sto3g_be2_mp2density(self) -> None:
         kpt = [1, 1, 2]
         cell = gto.Cell()
