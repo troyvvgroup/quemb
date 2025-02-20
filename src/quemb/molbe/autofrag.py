@@ -491,7 +491,9 @@ def graphgen(
         print("(Center sites within a fragment are [bracketed])")
         subgraphs = fragment_map.get_subgraphs()
         for fdx, sg in subgraphs.items():
-            print(f"Frag `{fragment_map.dnames[fdx]}`:", )
+            print(
+                f"Frag `{fragment_map.dnames[fdx]}`:",
+            )
             for st in graph_to_string(sg):
                 print(st, flush=True)
 
