@@ -101,7 +101,7 @@ def delete_multiple_files(*args: Iterable[Path]) -> None:
             file.unlink()
 
 
-@define
+@define(frozen=True)
 class Timer:
     """Simple class to time code execution"""
 
@@ -111,5 +111,5 @@ class Timer:
     def elapsed(self) -> float:
         return time() - self.start
 
-    def str_elapsed(self) -> str:
-        return f"{self.message}: {self.elapsed():.5f}"
+    def str_elapsed(self, message: str | None = None) -> str:
+        return f"{self.message if message is None else message}: {self.elapsed():.5f}"

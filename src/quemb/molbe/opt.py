@@ -201,10 +201,11 @@ class BEOPT:
                         print(flush=True)
                         print("CONVERGED", flush=True)
                         if settings.PRINT_LEVEL >= 10:
-                            step0_timer.message = (
-                                "Total time to complete BE optimization"
+                            print(
+                                step0_timer.str_elapsed(
+                                    "Total time to complete BE optimization"
+                                )
                             )
-                            print(step0_timer.str_elapsed())
                         print(flush=True)
                         break
         else:
