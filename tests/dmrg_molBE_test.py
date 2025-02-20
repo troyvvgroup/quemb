@@ -12,7 +12,7 @@ from pyscf import gto, scf
 from quemb.molbe import BE, fragpart
 
 try:
-    from pyscf import dmrgscf
+    from pyscf import dmrgscf  # type: ignore[attr-defined]
 except ImportError:
     dmrgscf = None
 
