@@ -184,6 +184,7 @@ class fragpart:
             if valence_only:
                 raise NotImplementedError("valence_only is not implemented for chemgen")
             assert isinstance(additional_args, (type(None), ChemGenArgs))
+            assert mol is not None
             fragments = chemgen(
                 mol,
                 n_BE=int(be_type[2:]),
