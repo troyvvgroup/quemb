@@ -160,19 +160,27 @@ class FragmentMap:
             pos = nx.spring_layout(G, seed=3068)
 
         __, _ = plt.subplots()
-        options = {"edgecolors": "tab:gray", "node_size": 800, "alpha": 1}
         arc_rads = np.arange(-0.3, 0.3, 0.6 / len(c), dtype=float)
 
         for fdx, color in enumerate(c):
             edges = self.edge_list[fdx]
-            weight = len(edges) + 1
-            nc = "whitesmoke" if weight > 1 else color
             nx.draw_networkx_nodes(
                 G,
                 pos,
-                nodelist=self.fragment_atoms[fdx],
-                node_color=nc,  # type: ignore[arg-type]
-                **options,  # type: ignore[arg-type]
+                nodelist=self.center_atoms[fdx],
+                node_color=[color for _ in self.center_atoms[fdx]],  # type: ignore[arg-type]
+                edgecolors="tab:gray",
+                node_size=850,
+                alpha=1.0,
+            )
+            nx.draw_networkx_nodes(
+                G,
+                pos,
+                nodelist=self.center_atoms[fdx],
+                node_color="whitesmoke",  # type: ignore[arg-type]
+                edgecolors=color,
+                node_size=700,
+                alpha=0.6,
             )
             nx.draw_networkx_edges(
                 G,
@@ -180,15 +188,15 @@ class FragmentMap:
                 arrows=True,
                 edgelist=edges,
                 width=5,
-                alpha=0.9,
+                alpha=0.8,
                 edge_color=color,  # type: ignore[arg-type]
                 connectionstyle=f"arc3,rad={arc_rads[fdx]}",
             )
         nx.draw_networkx_labels(
-            G, pos, labels, font_size=10, font_color="black", alpha=0.8
+            G, pos, labels, font_size=10, font_color="black", alpha=1
         )
         plt.tight_layout()
-        plt.legend(patches, self.dnames, loc="upper left")
+        plt.legend(patches, self.dnames, loc="upper left", fontsize=8)
         plt.axis("off")
         plt.savefig(outdir / f"{outname}.png", dpi=1500)
 
