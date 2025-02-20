@@ -16,10 +16,11 @@ from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
 from quemb.molbe.opt import BEOPT
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import UserSolverArgs, be_func
+from quemb.shared.config import settings
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
-from quemb.shared.helper import copy_docstring
+from quemb.shared.helper import Timer, copy_docstring
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix, PathLike
 
@@ -117,6 +118,7 @@ class BE(MixinLocalize):
             Auxiliary basis for density fitting, by default None
             (uses default auxiliary basis defined in PySCF).
         """
+        init_timer = Timer("Time to initialize BE object")
         if restart:
             # Load previous calculation data from restart file
             with open(restart_file, "rb") as rfile:
@@ -230,6 +232,8 @@ class BE(MixinLocalize):
             self.initialize(mf._eri, compute_hf)
         else:
             self.initialize(None, compute_hf, restart=True)
+        if settings.PRINT_LEVEL >= 10:
+            print(init_timer.str_elapsed())
 
     def save(self, save_file: PathLike = "storebe.pk") -> None:
         """
@@ -799,6 +803,7 @@ class BE(MixinLocalize):
 
             self.Fobjs.append(fobjs_)
 
+        eritransform_timer = Timer("Time to transform ERIs")
         if not restart:
             # Transform ERIs for each fragment and store in the file
             # ERI Transform Decision Tree
@@ -840,6 +845,8 @@ class BE(MixinLocalize):
                     raise NotImplementedError
         else:
             eri = None
+        if settings.PRINT_LEVEL >= 10:
+            print(eritransform_timer.str_elapsed())
 
         for fobjs_ in self.Fobjs:
             # Process each fragment
@@ -909,6 +916,7 @@ class BE(MixinLocalize):
         ompnum :
             Number of OpenMP threads, by default 4.
         """
+        oneshot_timer = Timer("Time to perform one-shot BE")
         if nproc == 1:
             rets = be_func(
                 None,
@@ -954,6 +962,8 @@ class BE(MixinLocalize):
                 rets[0], rets[1][0], rets[1][2], rets[1][1], self.ebe_hf, self.enuc
             )
             self.ebe_tot = rets[0] + self.enuc
+        if settings.PRINT_LEVEL >= 10:
+            print(oneshot_timer.str_elapsed())
 
     def update_fock(self, heff: list[Matrix[floating]] | None = None) -> None:
         """
