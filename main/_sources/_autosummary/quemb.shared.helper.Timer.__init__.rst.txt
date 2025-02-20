@@ -1,0 +1,6 @@
+quemb.shared.helper.Timer.\_\_init\_\_
+======================================
+
+.. currentmodule:: quemb.shared.helper
+
+.. automethod:: Timer.__init__

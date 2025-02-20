@@ -25,6 +25,14 @@ quemb.shared.helper
 
    
    
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: custom-class-template.rst
+   
+      Timer
+   
    
 
    
