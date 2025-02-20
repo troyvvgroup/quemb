@@ -1,0 +1,28 @@
+quemb.molbe.sparse\_2el\_integral.TwoElIntegral
+===============================================
+
+.. currentmodule:: quemb.molbe.sparse_2el_integral
+
+.. autoclass:: TwoElIntegral
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: TwoElIntegral.class_type
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~TwoElIntegral.__init__
+      ~TwoElIntegral.compound
+   
+   

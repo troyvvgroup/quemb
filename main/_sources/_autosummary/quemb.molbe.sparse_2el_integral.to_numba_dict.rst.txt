@@ -1,0 +1,6 @@
+quemb.molbe.sparse\_2el\_integral.to\_numba\_dict
+=================================================
+
+.. currentmodule:: quemb.molbe.sparse_2el_integral
+
+.. autofunction:: to_numba_dict

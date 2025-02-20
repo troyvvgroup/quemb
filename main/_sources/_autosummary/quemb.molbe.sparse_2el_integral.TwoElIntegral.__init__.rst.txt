@@ -1,0 +1,6 @@
+quemb.molbe.sparse\_2el\_integral.TwoElIntegral.\_\_init\_\_
+============================================================
+
+.. currentmodule:: quemb.molbe.sparse_2el_integral
+
+.. automethod:: TwoElIntegral.__init__

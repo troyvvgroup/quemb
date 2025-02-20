@@ -41,5 +41,6 @@
    opt
    pfrag
    solver
+   sparse_2el_integral
    ube
 

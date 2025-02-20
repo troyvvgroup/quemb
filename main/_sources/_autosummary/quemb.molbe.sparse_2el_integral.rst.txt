@@ -1,0 +1,39 @@
+quemb.molbe.sparse\_2el\_integral
+=================================
+
+.. automodule:: quemb.molbe.sparse_2el_integral
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      gauss_sum
+      to_numba_dict
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: custom-class-template.rst
+   
+      TwoElIntegral
+   
+   
+
+   
+   
+   
+
+
+
