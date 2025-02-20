@@ -1,10 +1,10 @@
 from collections.abc import Hashable, Mapping
 from typing import TypeVar
 
-from numba import njit, typeof, types  # type: ignore[attr-defined]
+from numba import njit, typeof  # type: ignore[attr-defined]
 from numba.experimental import jitclass
 from numba.typed import Dict
-from numba.types import DictType, float64, int64
+from numba.types import DictType, float64, int64  # type: ignore[attr-defined]
 
 Key = TypeVar("Key", bound=Hashable)
 Val = TypeVar("Val")
@@ -78,7 +78,7 @@ class TwoElIntegral:
     def __init__(self) -> None:
         self._data = Dict.empty(*kv_ty)
 
-    def __getitem__(self, key: tuple[int, int, int, int]) -> types.float64:
+    def __getitem__(self, key: tuple[int, int, int, int]) -> float:
         idx = self.compound(*key)
         return self._data.get(idx, 0.0)
 
