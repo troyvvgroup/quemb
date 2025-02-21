@@ -1,12 +1,16 @@
 # Author(s): Henry Tran, Oinam Meitei, Shaun Weatherly
 #
 
+from typing import Literal, overload
 
 import numpy as np
 from numpy import allclose, diag, eye, sqrt, where, zeros
 from numpy.linalg import eigh, inv, multi_dot, norm, solve, svd
 from pyscf.gto import intor_cross
 from pyscf.gto.mole import Mole
+from pyscf.lo import Boys
+from pyscf.lo.edmiston import EdmistonRuedenberg
+from pyscf.lo.pipek import PipekMezey
 
 from quemb.shared.external.lo_helper import (
     cano_orth,
@@ -236,10 +240,30 @@ def get_pao(
     return Cpao
 
 
+@overload
 def get_loc(
     mol: Mole,
     C: Matrix,
-    method: str,
+    method: Literal["PM"],
+    pop_method: str | None = ...,
+    init_guess: Matrix | None = ...,
+) -> Mole: ...
+
+
+@overload
+def get_loc(
+    mol: Mole,
+    C: Matrix,
+    method: Literal["ER", "FB"],
+    pop_method: None = ...,
+    init_guess: Matrix | None = ...,
+) -> Mole: ...
+
+
+def get_loc(
+    mol: Mole,
+    C: Matrix,
+    method: Literal["ER", "PM", "FB"] = "ER",
     pop_method: str | None = None,
     init_guess: Matrix | str | None = "atomic",
 ) -> Mole:
@@ -269,20 +293,21 @@ def get_loc(
     mlo: :class:`quemb.shared.typing.Matrix`
         Localized mol object
     """
+    Localizer: type[EdmistonRuedenberg] | type[PipekMezey] | type[Boys]
     if method.upper() in ["EDMINSTON-RUEDENBERG", "ER"]:
-        from pyscf.lo import ER as Localizer  # noqa: PLC0415
+        Localizer = EdmistonRuedenberg
     elif method.upper() in ["PIPEK-MEZEY", "PIPEK", "PM"]:
-        from pyscf.lo import PM as Localizer  # noqa: PLC0415
+        Localizer = PipekMezey
     elif method.upper() in ["FOSTER-BOYS", "BOYS", "FB"]:
-        from pyscf.lo import Boys as Localizer  # noqa: PLC0415
+        Localizer = Boys
         # Note: Convergence issues for IAO-Boys with frozen core,
         # when not using an 'atomic' initial guess
     else:
         raise NotImplementedError("Localization scheme not understood")
 
     mlo = Localizer(mol, C)
-
-    if pop_method is not None and method.upper() in ["PIPEK-MEZEY", "PIPEK", "PM"]:
+    if pop_method is not None:
+        assert isinstance(Localizer, PipekMezey)
         mlo.pop_method = pop_method
 
     mlo.init_guess = init_guess

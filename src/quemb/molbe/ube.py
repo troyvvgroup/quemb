@@ -73,6 +73,7 @@ class UBE(BE):  # 🍠
         self.mo_energy = mf.mo_energy
 
         self.mf = mf
+        assert mf.mo_coeff is not None
         self.Nocc = [mf.mol.nelec[0], mf.mol.nelec[1]]
         self.enuc = mf.energy_nuc()
 
