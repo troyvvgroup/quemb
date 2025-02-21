@@ -51,7 +51,7 @@ def test_hexene_loc_be1_unfroz_iao_minao_so(hexene) -> None:
         lo_method="iao",
         iao_loc_method="SO",
     )
-    assert np.isclose(be1_nf_iao_so, -0.85133572)
+    assert np.isclose(be1_nf_iao_so, -0.83985647)
 
 
 @unittest.skipIf(
