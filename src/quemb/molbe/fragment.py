@@ -176,10 +176,6 @@ class fragpart:
             self.Nfrag = len(self.fsites)
 
         elif frag_type == "chemgen":
-            if iao_valence_basis is not None:
-                raise NotImplementedError(
-                    "iao_valence_basis is not implemented for chemgen"
-                )
             if iao_valence_only:
                 raise NotImplementedError(
                     "iao_valence_only is not implemented for chemgen"

@@ -414,10 +414,8 @@ def autogen(
         which are not centers in any other fragments
     """
 
-    if not iao_valence_only:
-        cell = mol.copy()
-    else:
-        cell = mol.copy()
+    cell = mol.copy()
+    if iao_valence_only:
         cell.basis = iao_valence_basis
         cell.build()
 
