@@ -12,23 +12,205 @@ from numpy import (
     complex128,
     diag,
     eye,
-    hstack,
     sqrt,
     where,
     zeros,
     zeros_like,
 )
-from numpy.linalg import eigh, multi_dot, svd
+from numpy.linalg import eigh, inv, multi_dot, norm, svd
+from pyscf.pbc import gto as pgto
 
-from quemb.kbe.lo_k import (
-    get_iao_k,
-    get_pao_native_k,
-    get_xovlp_k,
-    remove_core_mo_k,
-    symm_orth_k,
+from quemb.shared.external.lo_helper import (
+    cano_orth,
+    get_aoind_by_atom,
+    reorder_by_atom_,
+    symm_orth,
 )
-from quemb.shared.external.lo_helper import get_aoind_by_atom, reorder_by_atom_
 from quemb.shared.helper import ncore_, unused
+
+
+def remove_core_mo_k(Clo, Ccore, S, thr=0.5):
+    assert allclose(Clo.conj().T @ S @ Clo, eye(Clo.shape[1]))
+    assert allclose(Ccore.conj().T @ S @ Ccore, eye(Ccore.shape[1]))
+
+    n, nlo = Clo.shape
+    ncore = Ccore.shape[1]
+    Pcore = Ccore @ Ccore.conj().T @ S
+    Clo1 = (eye(n) - Pcore) @ Clo
+    pop = diag(Clo1.conj().T @ S @ Clo1)
+    idx_keep = where(pop > thr)[0]
+    assert len(idx_keep) == nlo - ncore
+    Clo2 = symm_orth(Clo1[:, idx_keep], ovlp=S)
+
+    return Clo2
+
+
+def get_xovlp_k(cell, kpts, basis="sto-3g"):
+    """Gets overlap matrix between the two bases and in secondary basis.
+    Used for IAOs: returns the overlap between valence (minimal) and working
+    (large) bases and overlap in the minimal basis
+
+    Parameters
+    ----------
+    cell:
+        pyscf cell object, just need it for the working basis
+    basis:
+        the IAO basis, Knizia recommended 'minao'
+
+    Returns
+    -------
+    tuple:
+        S12 - Overlap of two basis sets,
+        S22 - Overlap in new basis set
+    """
+    cell_alt = cell.copy()
+    cell_alt.basis = basis
+    cell_alt.build()
+
+    S22 = array(cell_alt.pbc_intor("int1e_ovlp", hermi=1, kpts=kpts), dtype=complex128)
+    S12 = array(
+        pgto.cell.intor_cross("int1e_ovlp", cell, cell_alt, kpts=kpts),
+        dtype=complex128,
+    )
+
+    return (S12, S22)
+
+
+def get_iao_k(Co, S12, S1, S2=None, ortho=True):
+    """
+
+    Parameters
+    ----------
+    Co:
+        occupied coefficient matrix with core
+    S12:
+        ovlp between working (large) basis and valence (minimal)
+        basis. Can be thought of as working basis in valence basis
+    S1:
+        AO ovlp matrix, in working (large) basis
+    S2:
+        valence (minimal) AO ovlp matrix
+    """
+
+    nk, nao, nmo = S12.shape
+    unused(nmo)
+    P1 = zeros_like(S1, dtype=complex128)
+    P2 = zeros_like(S2, dtype=complex128)
+
+    for k in range(nk):
+        P1[k] = inv(S1[k])
+        P2[k] = inv(S2[k])
+
+    Ciao = zeros((nk, nao, S12.shape[-1]), dtype=complex128)
+    for k in range(nk):
+        # Cotil = P1[k] @ S12[k] @ P2[k] @ S12[k].conj().T @ Co[k]
+        Cotil = multi_dot((P1[k], S12[k], P2[k], S12[k].conj().T, Co[k]))
+        ptil = P1[k] @ S12[k]
+        Stil = multi_dot((Cotil.conj().T, S1[k], Cotil))
+
+        Po = Co[k] @ Co[k].conj().T
+
+        Potil = multi_dot((Cotil, inv(Stil), Cotil.conj().T))
+
+        Ciao[k] = (
+            eye(nao, dtype=complex128)
+            - (Po + Potil - 2.0 * multi_dot([Po, S1[k], Potil])) @ S1[k]
+        ) @ ptil
+        if ortho:
+            Ciao[k] = symm_orth(Ciao[k], ovlp=S1[k])
+
+            rep_err = norm(multi_dot(Ciao[k], Ciao[k].conj().T, S1[k], Po) - Po)
+            if rep_err > 1.0e-10:
+                raise RuntimeError
+
+    return Ciao
+
+
+def get_pao_k(Ciao, S, S12):
+    """
+
+    Parameters
+    ----------
+    Ciao:
+        output of :func:`quemb.kbe.lo.get_iao_k`
+    S:
+        ao ovlp matrix
+    S12:
+        valence orbitals projected into ao basis
+
+    Returns
+    -------
+    Cpao: numpy.ndarray
+        (orthogonalized)
+    """
+    nk, nao, niao = Ciao.shape
+    unused(niao)
+    Cpao = []
+    for k in range(nk):
+        s12 = inv(S[k]) @ S12[k]
+        nonval = eye(nao) - s12 @ s12.conj().T
+
+        Piao = Ciao[k] @ Ciao[k].conj().T @ S[k]
+        cpao_ = (eye(nao) - Piao) @ nonval
+
+        Cpao.append(cano_orth(cpao_, ovlp=S[k]))
+    return asarray(Cpao)
+
+
+def get_pao_native_k(Ciao, S, mol, iao_valence_basis, ortho=True):
+    """
+
+    Parameters
+    ----------
+    Ciao :
+        output of :code:`get_iao_k`
+    S :
+        ao ovlp matrix
+    mol :
+        mol object
+    iao_valence_basis:
+        basis used for valence orbitals
+
+    Returns
+    --------
+    Cpao : numpy.ndarray
+        (symmetrically orthogonalized)
+    """
+    nk, nao, niao = Ciao.shape
+
+    # Form a mol object with the valence basis for the ao_labels
+    mol_alt = mol.copy()
+    mol_alt.basis = iao_valence_basis
+    mol_alt.build()
+
+    full_ao_labels = mol.ao_labels()
+    valence_ao_labels = mol_alt.ao_labels()
+
+    vir_idx = [
+        idx
+        for idx, label in enumerate(full_ao_labels)
+        if (label not in valence_ao_labels)
+    ]
+
+    niao = len(vir_idx)
+    Cpao = zeros((nk, nao, niao), dtype=complex128)
+    for k in range(nk):
+        Piao = multi_dot((Ciao[k], Ciao[k].conj().T, S[k]))
+        cpao_ = (eye(nao) - Piao)[:, vir_idx]
+        if ortho:
+            try:
+                Cpao[k] = symm_orth(cpao_, ovlp=S[k])
+            except ValueError:
+                print("Symm orth PAO failed. Switch to cano orth", flush=True)
+                npao0 = cpao_.shape[1]
+                Cpao[k] = cano_orth(cpao_, ovlp=S[k])
+                npao1 = cpao_.shape[1]
+                print("# of PAO: %d --> %d" % (npao0, npao1), flush=True)
+                print("", flush=True)
+        else:
+            Cpao[k] = cpao_.copy()
+
+    return Cpao
 
 
 class KMF:
@@ -55,6 +237,9 @@ class Mixin_k_Localize:
         Performs orbital localization computations for periodic systems. For large
         basis, IAO is recommended augmented with PAO orbitals.
 
+        NOTE: For periodic systems, with frozen core, the core and valence are localized
+        SEPARATELY. This is not the case of molecular systems.
+
         Parameters
         ----------
         lo_method : str
@@ -67,10 +252,10 @@ class Mixin_k_Localize:
         iao_wannier : bool
             Whether to perform Wannier localization in the IAO space
         """
-        if lo_method == "iao" and iao_val_core:
+        if lo_method.upper() == "IAO" and iao_val_core:
             raise NotImplementedError("iao_val_core and lo_method='iao' not supported.")
 
-        if lo_method == "lowdin":
+        if lo_method.upper() == "LOWDIN":
             # Lowdin orthogonalization with k-points
             W = zeros_like(self.S)
             nk, nao, nmo = self.C.shape
@@ -125,7 +310,7 @@ class Mixin_k_Localize:
             self.lmo_coeff = lmo_coeff
             self.cinv = cinv_
 
-        elif lo_method == "iao":
+        elif lo_method.upper() == "IAO":
             if not iao_val_core or not self.frozen_core:
                 Co = self.C[:, :, : self.Nocc].copy()
                 S12, S2 = get_xovlp_k(self.cell, self.kpts, basis=iao_valence_basis)
@@ -188,7 +373,7 @@ class Mixin_k_Localize:
                 )
                 for k in range(nk_):
                     ciao_core[k] = C_core_[k] @ ciao_core_[k]
-                    ciao_core[k] = symm_orth_k(ciao_core[k], ovlp=self.S[k])
+                    ciao_core[k] = symm_orth(ciao_core[k], ovlp=self.S[k])
 
                 # Begin valence
                 s12_val_, s2_val = get_xovlp_k(
@@ -215,7 +400,7 @@ class Mixin_k_Localize:
                 Ciao_ = zeros((nk_, nao_, ciao_val_.shape[-1]), dtype=ciao_val_.dtype)
                 for k in range(nk_):
                     Ciao_[k] = C_nocore[k] @ ciao_val_[k]
-                    Ciao_[k] = symm_orth_k(Ciao_[k], ovlp=self.S[k])
+                    Ciao_[k] = symm_orth(Ciao_[k], ovlp=self.S[k])
 
                 # stack core|val
                 nao = self.S.shape[-1]
@@ -223,7 +408,7 @@ class Mixin_k_Localize:
                     (nk_, nao, Ciao_.shape[-1] + self.ncore), dtype=Ciao_.dtype
                 )
                 for k in range(nk_):
-                    c_core_val[k] = hstack((ciao_core[k], Ciao_[k]))
+                    c_core_val[k] = np.hstack((ciao_core[k], Ciao_[k]))
 
                 # tmp - aos are not rearrange and so below is not necessary
                 #   (iaoind_by_atom is used to stack iao|pao later)
@@ -364,7 +549,7 @@ class Mixin_k_Localize:
                     unused(u)
                     nvlo = nlo - self.Nocc - self.ncore
                     assert allclose(np.sum(l[:nvlo]), nvlo)
-                    C_ = hstack([Co_nocore[k], Cv[k] @ vt[:nvlo].conj().T])
+                    C_ = np.hstack([Co_nocore[k], Cv[k] @ vt[:nvlo].conj().T])
                     lmo_ = self.W[k].conj().T @ self.S[k] @ C_
                     assert allclose(lmo_.conj().T @ lmo_, eye(lmo_.shape[1]))
                     lmo_coeff.append(lmo_)
@@ -383,7 +568,7 @@ class Mixin_k_Localize:
             self.lmo_coeff = lmo_coeff
             self.cinv = cinv_
 
-        elif lo_method == "wannier":
+        elif lo_method.upper() == "WANNIER":
             nk, nao, nmo = self.C.shape
             lorb = zeros((nk, nao, nmo), dtype=complex128)
             lorb_nocore = zeros((nk, nao, nmo - self.ncore), dtype=complex128)
