@@ -867,6 +867,8 @@ def chemgen(
         These are passed on to
         :func:`quemb.molbe.chemfrag.PurelyStructureFragmented.from_mole`
         and documented there.
+    frozen_core :
+        Do we perform a frozen core calculation?
     """
     if args is None:
         return Fragmented.from_mole(

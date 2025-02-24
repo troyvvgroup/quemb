@@ -758,6 +758,9 @@ class Fragmented:
         SeqOverFrag[Mapping[EdgeIdx, OrderedSet[OtherRelAOIdx]]]
     ]
 
+    #: Do we have frozen_core AO index offsets?
+    frozen_core: Final[bool]
+
     @classmethod
     def from_frag_structure(
         cls, mol: Mole, frag_structure: PurelyStructureFragmented, frozen_core: bool
@@ -853,6 +856,7 @@ class Fragmented:
             rel_AO_per_center_per_frag=rel_AO_per_center_per_frag,
             rel_AO_per_origin_per_frag=rel_AO_per_origin_per_frag,
             other_rel_AO_per_edge_per_frag=other_rel_AO_per_edge_per_frag,
+            frozen_core=frozen_core,
         )
 
     @classmethod
