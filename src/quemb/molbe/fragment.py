@@ -113,6 +113,7 @@ class fragpart:
 
         # Check for frozen core approximation
         if frozen_core:
+            assert self.mol is not None
             self.ncore, self.no_core_idx, self.core_list = get_core(self.mol)
 
         if frag_type != "hchain_simple" and self.mol is None:
@@ -179,8 +180,6 @@ class fragpart:
                 raise NotImplementedError(
                     "iao_valence_basis is not implemented for chemgen"
                 )
-            if frozen_core:
-                raise NotImplementedError("frozen_core is not implemented for chemgen")
             if valence_only:
                 raise NotImplementedError("valence_only is not implemented for chemgen")
             assert isinstance(additional_args, (type(None), ChemGenArgs))
@@ -188,6 +187,7 @@ class fragpart:
             fragments = chemgen(
                 mol,
                 n_BE=int(be_type[2:]),
+                frozen_core=frozen_core,
                 args=additional_args,
             )
             if write_geom:
