@@ -973,7 +973,7 @@ class Fragmented:
         )
 
 
-def _get_AOidx_per_atom(mol: Mole, frozen_core: bool) -> list[OrderedSet[GlobalAOIdx]]:  # type: ignore
+def _get_AOidx_per_atom(mol: Mole, frozen_core: bool) -> list[OrderedSet[GlobalAOIdx]]:
     """Get the range of atomic orbital indices per atom.
 
     Parameters
