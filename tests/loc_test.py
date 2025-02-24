@@ -21,6 +21,7 @@ def test_hexene_loc_be1_froz_pm(hexene) -> None:
         lo_method="pipek-mezey",
         iao_loc_method=None,
         oneshot=True,
+        nproc=1,
     )
     assert np.isclose(be1_f_pm, -0.85564574)
 
@@ -39,6 +40,7 @@ def test_hexene_loc_be2_unfroz_lowdin(hexene) -> None:
         lo_method="lowdin",
         iao_loc_method=None,
         oneshot=True,
+        nproc=2,
     )
     assert np.isclose(be2_nf_lo, -0.94588487)
 
@@ -53,6 +55,7 @@ def test_hexene_loc_be1_unfroz_iao_minao_so(hexene) -> None:
         lo_method="iao",
         iao_loc_method="SO",
         oneshot=True,
+        nproc=1,
     )
     assert np.isclose(be1_nf_iao_so, -0.83985647)
 
@@ -71,6 +74,7 @@ def test_hexene_loc_be2_froz_iao_sto3g_boys(hexene) -> None:
         lo_method="iao",
         iao_loc_method="Boys",
         oneshot=False,
+        nproc=2,
     )
     # energy after four iterations
     assert np.isclose(be2_f_iao_fb, -0.92794903)
@@ -88,6 +92,7 @@ def ret_ecorr(
     lo_method: str,
     iao_loc_method: str | None,
     oneshot: bool,
+    nproc: float,
 ) -> float:
     # Fragment molecule
     fobj = fragpart(
@@ -108,11 +113,11 @@ def ret_ecorr(
 
     # Solve and return the one-shot correlation energy
     if oneshot:
-        mybe.oneshot(solver="CCSD", nproc=1, ompnum=1, use_cumulant=True)
+        mybe.oneshot(solver="CCSD", nproc=nproc, ompnum=1, use_cumulant=True)
     else:
         mybe.optimize(
             solver="CCSD",
-            nproc=1,
+            nproc=nproc,
             ompnum=1,
             use_cumulant=True,
             only_chem=False,
