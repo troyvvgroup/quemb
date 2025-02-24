@@ -34,6 +34,7 @@ from ordered_set import OrderedSet
 from pyscf.gto import Mole
 from typing_extensions import Self, assert_never
 
+from quemb.molbe.helper import get_core
 from quemb.shared.typing import (
     AOIdx,
     AtomIdx,
@@ -757,9 +758,12 @@ class Fragmented:
         SeqOverFrag[Mapping[EdgeIdx, OrderedSet[OtherRelAOIdx]]]
     ]
 
+    #: Do we have frozen_core AO index offsets?
+    frozen_core: Final[bool]
+
     @classmethod
     def from_frag_structure(
-        cls, mol: Mole, frag_structure: PurelyStructureFragmented
+        cls, mol: Mole, frag_structure: PurelyStructureFragmented, frozen_core: bool
     ) -> Self:
         """Construct a :class:`Fragmented`
 
@@ -771,7 +775,7 @@ class Fragmented:
             The fragmented structure to use.
         """
         conn_data: Final = frag_structure.conn_data
-        AO_per_atom: Final = _get_AOidx_per_atom(mol)
+        AO_per_atom: Final = _get_AOidx_per_atom(mol, frozen_core)
         AO_per_frag: Final = [
             union_of_seqs(*(AO_per_atom[i_atom] for i_atom in i_frag))
             for i_frag in frag_structure.atoms_per_frag
@@ -852,6 +856,7 @@ class Fragmented:
             rel_AO_per_center_per_frag=rel_AO_per_center_per_frag,
             rel_AO_per_origin_per_frag=rel_AO_per_origin_per_frag,
             other_rel_AO_per_edge_per_frag=other_rel_AO_per_edge_per_frag,
+            frozen_core=frozen_core,
         )
 
     @classmethod
@@ -860,6 +865,7 @@ class Fragmented:
         mol: Mole,
         n_BE: int,
         *,
+        frozen_core: bool = False,
         treat_H_different: bool = True,
         bonds_atoms: Mapping[int, set[int]] | None = None,
         vdW_radius: InVdWRadius | None = None,
@@ -904,6 +910,7 @@ class Fragmented:
                 bonds_atoms=bonds_atoms,
                 vdW_radius=vdW_radius,
             ),
+            frozen_core,
         )
 
     def __len__(self) -> int:
@@ -966,20 +973,38 @@ class Fragmented:
         )
 
 
-def _get_AOidx_per_atom(mol: Mole) -> list[OrderedSet[GlobalAOIdx]]:
+def _get_AOidx_per_atom(mol: Mole, frozen_core: bool) -> list[OrderedSet[GlobalAOIdx]]:
     """Get the range of atomic orbital indices per atom.
 
     Parameters
     ----------
     mol :
         The molecule to get the atomic orbital indices from.
+    frozen_core :
+        Do we perform a frozen core calculation?
 
     Returns
     -------
     list
-        A list of ranges of atomic orbital indices per atom.
+        A list of ordered sets of atomic orbital indices per atom.
     """
-    return [
-        OrderedSet(GlobalAOIdx(AOIdx(i)) for i in range(AO_offsets[2], AO_offsets[3]))
-        for AO_offsets in mol.aoslice_by_atom()
-    ]
+    if frozen_core:
+        core_offset = 0
+        result = []
+        core_list = get_core(mol)[2]
+        for n_core, (_, _, start, stop) in zip(core_list, mol.aoslice_by_atom()):
+            result.append(
+                OrderedSet(
+                    GlobalAOIdx(AOIdx(i))
+                    for i in range(start - core_offset, stop - (core_offset + n_core))
+                )
+            )
+            core_offset += n_core
+        return result
+    else:
+        return [
+            OrderedSet(
+                GlobalAOIdx(AOIdx(i)) for i in range(AO_offsets[2], AO_offsets[3])
+            )
+            for AO_offsets in mol.aoslice_by_atom()
+        ]

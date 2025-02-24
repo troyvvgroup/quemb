@@ -86,7 +86,7 @@ def ret_ecorr(
         mol=mol,
         frozen_core=frozen,
         iao_valence_basis=iao_valence_basis,
-        frag_type="autogen",
+        frag_type="chemgen",
     )
 
     # Run BE initialization and localization
