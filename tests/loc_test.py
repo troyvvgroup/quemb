@@ -92,7 +92,7 @@ def ret_ecorr(
     lo_method: str,
     iao_loc_method: str | None,
     oneshot: bool,
-    nproc: float,
+    nproc: int,
 ) -> float:
     # Fragment molecule
     fobj = fragpart(
