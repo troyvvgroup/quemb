@@ -851,7 +851,9 @@ class ChemGenArgs:
     vdW_radius: InVdWRadius | None = None
 
 
-def chemgen(mol: Mole, n_BE: int, args: ChemGenArgs | None = None) -> Fragmented:
+def chemgen(
+    mol: Mole, n_BE: int, args: ChemGenArgs | None = None, frozen_core: bool = False
+) -> Fragmented:
     """Fragment a molecule based on chemical connectivity.
 
     Parameters
@@ -865,16 +867,20 @@ def chemgen(mol: Mole, n_BE: int, args: ChemGenArgs | None = None) -> Fragmented
         These are passed on to
         :func:`quemb.molbe.chemfrag.PurelyStructureFragmented.from_mole`
         and documented there.
+    frozen_core :
+        Do we perform a frozen core calculation?
     """
     if args is None:
         return Fragmented.from_mole(
             mol,
             n_BE=n_BE,
+            frozen_core=frozen_core,
         )
     else:
         return Fragmented.from_mole(
             mol,
             n_BE=n_BE,
+            frozen_core=frozen_core,
             treat_H_different=args.treat_H_different,
             bonds_atoms=args.bonds_atoms,
             vdW_radius=args.vdW_radius,

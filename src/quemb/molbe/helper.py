@@ -186,7 +186,7 @@ def get_eri(i_frag, Nao, symm=8, ignore_symm=False, eri_file="eri_file.h5"):
     return eri__
 
 
-def get_core(mol):
+def get_core(mol: gto.Mole) -> tuple[int, list[int], list[int]]:
     """
     Calculate the number of cores for each atom in the molecule.
 
@@ -200,9 +200,9 @@ def get_core(mol):
     tuple
         (Ncore, idx, corelist)
     """
+    Ncore = 0
     idx = []
     corelist = []
-    Ncore = 0
     for ix, bas in enumerate(mol.aoslice_by_atom()):
         ncore = ncore_(mol.atom_charge(ix))
         corelist.append(ncore)
