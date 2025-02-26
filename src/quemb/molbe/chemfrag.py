@@ -28,14 +28,14 @@ from typing import Callable, Final, TypeAlias, TypeVar, cast
 
 import chemcoord as cc
 import numpy as np
-from attr import define
+from attr import cmp_using, define, field
 from chemcoord import Cartesian
 from chemcoord.constants import elements
 from ordered_set import OrderedSet
 from pyscf.gto import Mole
 from typing_extensions import Self, assert_never
 
-from quemb.molbe.helper import get_core
+from quemb.molbe.helper import are_equal, get_core
 from quemb.shared.typing import (
     AOIdx,
     AtomIdx,
@@ -454,7 +454,7 @@ class PurelyStructureFragmented:
     """
 
     #: The full molecule
-    mol: Final[Mole]
+    mol: Final[Mole] = field(eq=cmp_using(are_equal))
 
     #: The motifs per fragment.
     #: Note that the full set of motifs for a fragment is the union of all center motifs
@@ -699,7 +699,7 @@ class Fragmented:
     """
 
     #: The full molecule
-    mol: Final[Mole]
+    mol: Final[Mole] = field(eq=cmp_using(are_equal))
 
     # yes, it is a bit redundant, because it is also contained in
     # fragmented_structure, but it is very convenient to have it here
@@ -774,7 +774,12 @@ class Fragmented:
     frozen_core: Final[bool]
 
     #: The molecule with the valence/minimal basis, if we use IAO.
-    iao_valence_mol: Final[Mole | None]
+    iao_valence_mol: Final[Mole | None] = field(
+        eq=cmp_using(
+            lambda x, y: (x is None and y is None)
+            or (x is not None and y is not None and are_equal(x, y))
+        )
+    )
 
     @classmethod
     def from_frag_structure(
@@ -971,7 +976,7 @@ class Fragmented:
         # A similar issue occurs for ebe_weight, where the output
         # of autogen is a union over all centers.
         ebe_weight = [
-            (1.0, list(union_of_seqs(*idx_per_center)))
+            [1.0, list(union_of_seqs(*idx_per_center))]
             for idx_per_center in _extract_values(self.rel_AO_per_center_per_frag)
         ]
         # Again, we have to account for the fact that
