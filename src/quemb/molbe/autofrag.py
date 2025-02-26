@@ -347,7 +347,7 @@ def autogen(
     be_type="be2",
     write_geom=False,
     iao_valence_basis=None,
-    valence_only=False,
+    iao_valence_only=False,
     print_frags=True,
 ):
     """
@@ -378,7 +378,7 @@ def autogen(
     iao_valence_basis : str, optional
         Name of minimal basis set for IAO scheme. 'sto-3g' is sufficient for most cases.
         Defaults to None.
-    valence_only : bool, optional
+    iao_valence_only : bool, optional
         If True, all calculations will be performed in the valence basis in
         the IAO partitioning. This is an experimental feature. Defaults to False.
     print_frags : bool, optional
@@ -414,10 +414,8 @@ def autogen(
         which are not centers in any other fragments
     """
 
-    if not valence_only:
-        cell = mol.copy()
-    else:
-        cell = mol.copy()
+    cell = mol.copy()
+    if iao_valence_only:
         cell.basis = iao_valence_basis
         cell.build()
 
@@ -616,7 +614,7 @@ def autogen(
         w.close()
 
     # Prepare for PAO basis if requested
-    pao = bool(iao_valence_basis and not valence_only)
+    pao = bool(iao_valence_basis and not iao_valence_only)
 
     if pao:
         cell2 = cell.copy()
@@ -852,7 +850,11 @@ class ChemGenArgs:
 
 
 def chemgen(
-    mol: Mole, n_BE: int, args: ChemGenArgs | None = None, frozen_core: bool = False
+    mol: Mole,
+    n_BE: int,
+    args: ChemGenArgs | None,
+    frozen_core: bool,
+    iao_valence_basis: str | None,
 ) -> Fragmented:
     """Fragment a molecule based on chemical connectivity.
 
@@ -872,9 +874,7 @@ def chemgen(
     """
     if args is None:
         return Fragmented.from_mole(
-            mol,
-            n_BE=n_BE,
-            frozen_core=frozen_core,
+            mol, n_BE=n_BE, frozen_core=frozen_core, iao_valence_basis=iao_valence_basis
         )
     else:
         return Fragmented.from_mole(
@@ -884,4 +884,5 @@ def chemgen(
             treat_H_different=args.treat_H_different,
             bonds_atoms=args.bonds_atoms,
             vdW_radius=args.vdW_radius,
+            iao_valence_basis=iao_valence_basis,
         )

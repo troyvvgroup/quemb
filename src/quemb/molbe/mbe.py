@@ -71,6 +71,7 @@ class BE(MixinLocalize):
         fobj: fragpart,
         eri_file: PathLike = "eri_file.h5",
         lo_method: str = "lowdin",
+        iao_loc_method: str | None = "SO",
         pop_method: str | None = None,
         compute_hf: bool = True,
         restart: bool = False,
@@ -94,6 +95,8 @@ class BE(MixinLocalize):
             Path to the file storing two-electron integrals.
         lo_method :
             Method for orbital localization, by default 'lowdin'.
+        iao_loc_method :
+            Method for IAO localization, by default "SO"
         pop_method :
             Method for calculating orbital population, by default 'meta-lowdin'
             See pyscf.lo for more details and options
@@ -212,18 +215,20 @@ class BE(MixinLocalize):
             # Localize orbitals
             self.localize(
                 lo_method,
-                pop_method=pop_method,
                 iao_valence_basis=fobj.iao_valence_basis,
-                valence_only=fobj.valence_only,
+                iao_loc_method=iao_loc_method,
+                iao_valence_only=fobj.iao_valence_only,
+                pop_method=pop_method,
             )
 
-            if fobj.valence_only and lo_method == "iao":
+            if fobj.iao_valence_only and lo_method.upper() == "IAO":
                 self.Ciao_pao = self.localize(
                     lo_method,
-                    pop_method=pop_method,
                     iao_valence_basis=fobj.iao_valence_basis,
+                    iao_loc_method=iao_loc_method,
+                    iao_valence_only=False,
+                    pop_method=pop_method,
                     hstack=True,
-                    valence_only=False,
                     nosave=True,
                 )
 
@@ -956,12 +961,12 @@ class BE(MixinLocalize):
             print_energy_cumulant(
                 rets[0], rets[1][1], rets[1][0] + rets[1][2], self.ebe_hf
             )
-            self.ebe_tot = rets[0]
+            self.ebe_tot = rets[0] + self.ebe_hf
         else:
             print_energy_noncumulant(
                 rets[0], rets[1][0], rets[1][2], rets[1][1], self.ebe_hf, self.enuc
             )
-            self.ebe_tot = rets[0] + self.enuc
+            self.ebe_tot = rets[0] + self.enuc + self.ebe_hf
         if settings.PRINT_LEVEL >= 10:
             print(oneshot_timer.str_elapsed())
 
