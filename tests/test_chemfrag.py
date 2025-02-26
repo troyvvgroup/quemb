@@ -26278,8 +26278,6 @@ def test_AO_indexing():
         ),
     }
 
-    #  Only for n_BE=1, 2 we have exact agreement between autogen and chemfrag
-    #  due to different ordering of atoms in the fragments.
     result = {}
     for n_BE in range(1, 5):
         for basis, iao_valence_basis in bases:
@@ -26290,11 +26288,9 @@ def test_AO_indexing():
                     n_BE=n_BE,
                     frozen_core=frozen_core,
                 )
-                assert (
-                    fragmented
-                    == expected[(n_BE, basis, iao_valence_basis, frozen_core)]
-                )
                 result[(n_BE, basis, iao_valence_basis, frozen_core)] = fragmented
+
+    assert result == expected
 
 
 def test_conn_data_manipulation_of_vdW():
