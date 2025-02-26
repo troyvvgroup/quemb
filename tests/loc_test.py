@@ -1,8 +1,8 @@
 # Tests the standard localization and IAO routines for hexene
 
-
 import os
 import unittest
+from typing import Literal
 
 import numpy as np
 import pytest
@@ -74,13 +74,34 @@ def test_hexene_loc_be2_froz_iao_sto3g_boys(hexene) -> None:
         lo_method="iao",
         iao_loc_method="Boys",
         oneshot=False,
-        nproc=2,
+        nproc=8,
     )
     # energy after four iterations
     assert np.isclose(be2_f_iao_fb, -0.92794903)
 
     # Oneshot energy
     # assert np.isclose(be2_f_iao_fb, -0.92843714)
+
+
+@unittest.skipIf(
+    os.getenv("QUEMB_SKIP_EXPENSIVE_TESTS") == "true",
+    "Skipped expensive tests for QuEmb.",
+)
+def test_chem_gen_hexene_loc_be2_froz_iao_sto3g_boys(hexene) -> None:
+    be2_f_iao_fb = ret_ecorr(
+        hexene[0],
+        hexene[1],
+        be="be2",
+        frozen=True,
+        iao_valence_basis="sto-3g",
+        lo_method="iao",
+        iao_loc_method="Boys",
+        oneshot=False,
+        nproc=8,
+        frag_type="chemgen",
+    )
+    # energy after four iterations
+    assert np.isclose(be2_f_iao_fb, -0.92794903)
 
 
 def ret_ecorr(
@@ -93,6 +114,7 @@ def ret_ecorr(
     iao_loc_method: str | None,
     oneshot: bool,
     nproc: int,
+    frag_type: Literal["autogen", "chemgen"] = "autogen",
 ) -> float:
     # Fragment molecule
     fobj = fragpart(
@@ -100,7 +122,7 @@ def ret_ecorr(
         mol=mol,
         frozen_core=frozen,
         iao_valence_basis=iao_valence_basis,
-        frag_type="chemgen",
+        frag_type=frag_type,
     )
 
     # Run BE initialization and localization

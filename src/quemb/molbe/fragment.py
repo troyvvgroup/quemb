@@ -187,6 +187,7 @@ class fragpart:
                 n_BE=int(be_type[2:]),
                 frozen_core=frozen_core,
                 args=additional_args,
+                iao_valence_basis=iao_valence_basis,
             )
             if write_geom:
                 fragments.frag_structure.write_geom(prefix=frag_prefix)

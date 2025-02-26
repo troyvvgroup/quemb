@@ -850,7 +850,11 @@ class ChemGenArgs:
 
 
 def chemgen(
-    mol: Mole, n_BE: int, args: ChemGenArgs | None = None, frozen_core: bool = False
+    mol: Mole,
+    n_BE: int,
+    args: ChemGenArgs | None,
+    frozen_core: bool,
+    iao_valence_basis: str | None,
 ) -> Fragmented:
     """Fragment a molecule based on chemical connectivity.
 
@@ -870,9 +874,7 @@ def chemgen(
     """
     if args is None:
         return Fragmented.from_mole(
-            mol,
-            n_BE=n_BE,
-            frozen_core=frozen_core,
+            mol, n_BE=n_BE, frozen_core=frozen_core, iao_valence_basis=iao_valence_basis
         )
     else:
         return Fragmented.from_mole(
@@ -882,4 +884,5 @@ def chemgen(
             treat_H_different=args.treat_H_different,
             bonds_atoms=args.bonds_atoms,
             vdW_radius=args.vdW_radius,
+            iao_valence_basis=iao_valence_basis,
         )
