@@ -1056,38 +1056,6 @@ class Fragmented:
             AO_full_basis: Sequence[
                 Mapping[_T_motif, Mapping[AtomIdx, OrderedSet[_T_AOIdx]]]
             ],
-        ) -> list[list[list[_T_AOIdx]]]:
-            result = []
-            for fragment, fragment_big_basis in zip(AO_small_basis, AO_full_basis):
-                tmp: list[list[_T_AOIdx]] = []
-                for motif in fragment:
-                    H_offset = _iloc(fragment_big_basis[motif].values(), 1)[0]
-                    tmp.append(
-                        list(
-                            union_of_seqs(
-                                _iloc(fragment_big_basis[motif].values(), 0)[
-                                    : len(_iloc(fragment[motif].values(), 0))
-                                ],
-                                cast(
-                                    Sequence[_T_AOIdx],
-                                    range(
-                                        H_offset,
-                                        H_offset + (n_conn_H[motif] * n_small_AO_H),
-                                    ),
-                                ),
-                            )
-                        )
-                    )
-                result.append(tmp)
-            return result
-
-        def _new_extract_with_iao_offset(
-            AO_small_basis: Sequence[
-                Mapping[_T_motif, Mapping[AtomIdx, OrderedSet[_T_AOIdx]]]
-            ],
-            AO_full_basis: Sequence[
-                Mapping[_T_motif, Mapping[AtomIdx, OrderedSet[_T_AOIdx]]]
-            ],
             fix_iao_indexing: bool,
         ) -> list[list[list[_T_AOIdx]]]:
             result = []
@@ -1127,17 +1095,17 @@ class Fragmented:
                 result.append(tmp)
             return result
 
-        center_idx: Final = _new_extract_with_iao_offset(
+        center_idx: Final = _extract_with_iao_offset(
             valence_frags.other_rel_AO_per_edge_per_frag,
             self.other_rel_AO_per_edge_per_frag,
             fix_iao_indexing=fix_iao_indexing,
         )
-        edge_sites: Final = _new_extract_with_iao_offset(
+        edge_sites: Final = _extract_with_iao_offset(
             valence_frags.AO_per_edge_per_frag,
             self.AO_per_edge_per_frag,
             fix_iao_indexing=fix_iao_indexing,
         )
-        edge_idx: Final = _new_extract_with_iao_offset(
+        edge_idx: Final = _extract_with_iao_offset(
             valence_frags.rel_AO_per_edge_per_frag,
             self.rel_AO_per_edge_per_frag,
             fix_iao_indexing=fix_iao_indexing,
@@ -1147,7 +1115,7 @@ class Fragmented:
         # of autogen that there is always only one origin per fragment.,
         centerf_idx: Final = [
             L[0]
-            for L in _new_extract_with_iao_offset(
+            for L in _extract_with_iao_offset(
                 valence_frags.rel_AO_per_origin_per_frag,
                 self.rel_AO_per_origin_per_frag,
                 fix_iao_indexing=fix_iao_indexing,
