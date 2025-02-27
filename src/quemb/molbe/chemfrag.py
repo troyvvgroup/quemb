@@ -124,6 +124,22 @@ def restrict_keys(
     return {k: D[k] for k in keys}
 
 
+_T_motif = TypeVar("_T_motif", bound=MotifIdx)
+_T_AOIdx = TypeVar("_T_AOIdx", bound=AOIdx)
+
+
+def _restrict(
+    AO_per_motif_per_frag: Sequence[
+        Mapping[MotifIdx, Mapping[AtomIdx, OrderedSet[_T_AOIdx]]]
+    ],
+    subsets_motifs: SeqOverFrag[OrderedSet[_T_motif]],
+) -> Sequence[Mapping[_T_motif, Mapping[AtomIdx, OrderedSet[_T_AOIdx]]]]:
+    return [
+        restrict_keys(AO_per_motif, motif_subset)
+        for (motif_subset, AO_per_motif) in zip(subsets_motifs, AO_per_motif_per_frag)
+    ]
+
+
 # The following can be passed van der Waals radius alternative.
 InVdWRadius: TypeAlias = Real | Callable[[Real], Real] | Mapping[str, Real]
 
@@ -836,26 +852,17 @@ class Fragmented:
                     )
             rel_AO_per_motif_per_frag.append(rel_AO_per_motif)
 
-        rel_AO_per_edge_per_frag: Final = [
-            restrict_keys(rel_AO_per_motif, edges)
-            for (edges, rel_AO_per_motif) in zip(
-                frag_structure.edges_per_frag, rel_AO_per_motif_per_frag
-            )
-        ]
+        rel_AO_per_edge_per_frag: Final = _restrict(
+            rel_AO_per_motif_per_frag, frag_structure.edges_per_frag
+        )
 
-        rel_AO_per_center_per_frag: Final = [
-            restrict_keys(rel_AO_per_motif, centers)
-            for (centers, rel_AO_per_motif) in zip(
-                frag_structure.centers_per_frag, rel_AO_per_motif_per_frag
-            )
-        ]
+        rel_AO_per_center_per_frag: Final = _restrict(
+            rel_AO_per_motif_per_frag, frag_structure.centers_per_frag
+        )
 
-        rel_AO_per_origin_per_frag: Final = [
-            restrict_keys(rel_AO_per_motif, origin)
-            for (origin, rel_AO_per_motif) in zip(
-                frag_structure.origin_per_frag, rel_AO_per_motif_per_frag
-            )
-        ]
+        rel_AO_per_origin_per_frag: Final = _restrict(
+            rel_AO_per_motif_per_frag, frag_structure.origin_per_frag
+        )
 
         other_rel_AO_per_edge_per_frag: list[
             Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[OtherRelAOIdx]]]
@@ -1013,7 +1020,7 @@ class Fragmented:
         """Match the output of :func:`quemb.molbe.autofrag.autogen`."""
 
         assert self.iao_valence_mol is not None
-        small_fragmented: Final = Fragmented.from_frag_structure(
+        valence_frags: Final = Fragmented.from_frag_structure(
             self.iao_valence_mol, self.frag_structure, self.frozen_core, None
         )
 
@@ -1024,15 +1031,20 @@ class Fragmented:
         }
 
         #: The number of AO indices per H atom in the small basis
-        n_small_AO_H: Final = len(
-            small_fragmented.AO_per_atom[
-                small_fragmented.frag_structure.conn_data.H_atoms[0]
-            ]
-        )
+        try:
+            n_small_AO_H: Final = len(
+                valence_frags.AO_per_atom[
+                    # We take exemplary the first H atom
+                    self.frag_structure.conn_data.H_atoms[0]
+                ]
+            )
+        except IndexError:
+            # If there are no H atoms, we set it to 0
+            n_small_AO_H = 0
 
         center_idx = []
         for fragment, fragment_big_basis, edges in zip(
-            small_fragmented.other_rel_AO_per_edge_per_frag,
+            valence_frags.other_rel_AO_per_edge_per_frag,
             self.other_rel_AO_per_edge_per_frag,
             self.frag_structure.edges_per_frag,
         ):
@@ -1051,7 +1063,7 @@ class Fragmented:
 
         edge_sites = []
         for fragment, fragment_big_basis, edges in zip(
-            small_fragmented.AO_per_edge_per_frag,
+            valence_frags.AO_per_edge_per_frag,
             self.AO_per_edge_per_frag,
             self.frag_structure.edges_per_frag,
         ):
@@ -1070,7 +1082,7 @@ class Fragmented:
 
         edge_idx = []
         for fragment, fragment_big_basis, edges in zip(
-            small_fragmented.rel_AO_per_edge_per_frag,
+            valence_frags.rel_AO_per_edge_per_frag,
             self.rel_AO_per_edge_per_frag,
             self.frag_structure.edges_per_frag,
         ):
@@ -1089,7 +1101,7 @@ class Fragmented:
 
         centerf_idx = []
         for fragment, fragment_big_basis, origins in zip(
-            small_fragmented.rel_AO_per_origin_per_frag,
+            valence_frags.rel_AO_per_origin_per_frag,
             self.rel_AO_per_origin_per_frag,
             self.frag_structure.origin_per_frag,
         ):
@@ -1106,39 +1118,21 @@ class Fragmented:
                 )
             centerf_idx.append(_flatten(tmp))
 
-        # A similar issue occurs for ebe_weight, where the output
-        # of autogen is a union over all centers.
-        ebe_weight = [
-            [1.0, list(union_of_seqs(*idx_per_center))]
-            for idx_per_center in _extract_values(self.rel_AO_per_center_per_frag)
-        ]
-        # Again, we have to account for the fact that
-        # autogen assumes a single origin per fragment.
-        # Check with an assert as well
-        center_atom = list(union_of_seqs(*self.frag_structure.origin_per_frag))
-        assert len(center_atom) == len(self)
+        matched_output_no_iao = self._match_autogen_output_no_iao()
 
+        # Only edge_sites, edge_idx, center_idx, and centerf_idx are actually different
         return AutogenOutput(
-            fsites=[list(AO_indices) for AO_indices in self.AO_per_frag],
             edge_sites=edge_sites,
-            center=[list(D.values()) for D in self.frag_structure.frag_idx_per_edge],
             edge_idx=edge_idx,
             center_idx=center_idx,
             centerf_idx=centerf_idx,
-            ebe_weight=ebe_weight,
-            Frag_atom=[list(motifs) for motifs in self.frag_structure.motifs_per_frag],
-            center_atom=center_atom,
-            hlist_atom=[
-                list(self.conn_data.H_per_motif.get(MotifIdx(atom), []))
-                for atom in self.conn_data.bonds_atoms
-            ],
-            add_center_atom=[
-                list(centers.difference(origins))
-                for (centers, origins) in zip(
-                    self.frag_structure.centers_per_frag,
-                    self.frag_structure.origin_per_frag,
-                )
-            ],
+            fsites=matched_output_no_iao.fsites,
+            center=matched_output_no_iao.center,
+            ebe_weight=matched_output_no_iao.ebe_weight,
+            Frag_atom=matched_output_no_iao.Frag_atom,
+            center_atom=matched_output_no_iao.center_atom,
+            hlist_atom=matched_output_no_iao.hlist_atom,
+            add_center_atom=matched_output_no_iao.add_center_atom,
             Nfrag=len(self),
         )
 
