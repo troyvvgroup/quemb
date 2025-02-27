@@ -1,5 +1,3 @@
-from typing import Final
-
 import pytest
 from chemcoord import Cartesian
 from ordered_set import OrderedSet
@@ -1583,14 +1581,14 @@ def test_structure_agreement_with_autogen():
 
 
 def test_AO_indexing():
-    m: Final = Cartesian.read_xyz("data/octane.xyz")
-    bases: Final = [
+    m = Cartesian.read_xyz("data/octane.xyz")
+    bases = [
         ("sto-3g", None),
         ("cc-pvdz", None),
         ("cc-pvdz", "sto-3g"),
     ]
 
-    expected: Final = {
+    expected = {
         (1, "sto-3g", None, True): Fragmented(
             mol=m.to_pyscf(basis="sto-3g"),
             conn_data=BondConnectivity(
@@ -26295,8 +26293,8 @@ def test_AO_indexing():
 
 
 def test_match_autogen_output():
-    m: Final = Cartesian.read_xyz("data/octane.xyz")
-    bases: Final = [
+    m = Cartesian.read_xyz("data/octane.xyz")
+    bases = [
         ("sto-3g", None),
         ("cc-pvdz", None),
         ("cc-pvdz", "sto-3g"),
