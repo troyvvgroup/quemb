@@ -78,7 +78,6 @@ def test_hexene_loc_be2_froz_iao_sto3g_boys(hexene) -> None:
     )
     # energy after four iterations
     assert np.isclose(be2_f_iao_fb, -0.92794903, atol=1e-8, rtol=0), be2_f_iao_fb
-
     # Oneshot energy
     # assert np.isclose(be2_f_iao_fb, -0.92843714)
 
@@ -115,6 +114,7 @@ def ret_ecorr(
     oneshot: bool,
     nproc: int,
     frag_type: Literal["autogen", "chemgen"] = "autogen",
+    fix_iao_indexing: bool = False,
 ) -> float:
     # Fragment molecule
     fobj = fragpart(
@@ -123,6 +123,7 @@ def ret_ecorr(
         frozen_core=frozen,
         iao_valence_basis=iao_valence_basis,
         frag_type=frag_type,
+        fix_iao_indexing=fix_iao_indexing,
     )
 
     # Run BE initialization and localization
