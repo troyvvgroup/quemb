@@ -24,7 +24,7 @@ from collections.abc import Hashable, Iterable, Mapping, Sequence
 from itertools import chain
 from numbers import Real
 from pathlib import Path
-from typing import Callable, Final, TypeAlias, TypeVar, cast
+from typing import Callable, Final, Literal, TypeAlias, TypeVar, cast
 
 import chemcoord as cc
 import numpy as np
@@ -65,15 +65,6 @@ from quemb.shared.typing import (
 # would neither accept a `SeqOverAtom` nor a generic `Sequence`.
 # However, this is (currently) not possible in Python, see this issue:
 # https://github.com/python/mypy/issues/3331
-#
-# Hence we have to use just TypeAliases, which means that `SeqOverFrag`, `SeqOverAtom`
-# and `Sequence` are all the same type.
-# This is not ideal, but it is the best we can do at the moment.
-SeqOverFrag: TypeAlias = Sequence
-SeqOverAtom: TypeAlias = Sequence
-SeqOverMotif: TypeAlias = Sequence
-SeqOverCenter: TypeAlias = Sequence
-SeqOverEdge: TypeAlias = Sequence
 
 
 def union_of_seqs(*seqs: Sequence[T]) -> OrderedSet[T]:
@@ -91,7 +82,11 @@ def union_of_seqs(*seqs: Sequence[T]) -> OrderedSet[T]:
     return OrderedSet().union(*seqs)  # type: ignore[arg-type]
 
 
-def _iloc(view, n):
+def _iloc(view: Iterable[T], n: int) -> T:
+    """Get the n-th element of an iterable.
+
+    Scales linearly! Do not use for large n!
+    """
     return next(x for i, x in enumerate(iter(view)) if i == n)
 
 
@@ -132,7 +127,7 @@ def _restrict(
     AO_per_motif_per_frag: Sequence[
         Mapping[MotifIdx, Mapping[AtomIdx, OrderedSet[_T_AOIdx]]]
     ],
-    subsets_motifs: SeqOverFrag[OrderedSet[_T_motif]],
+    subsets_motifs: Sequence[OrderedSet[_T_motif]],
 ) -> Sequence[Mapping[_T_motif, Mapping[AtomIdx, OrderedSet[_T_AOIdx]]]]:
     return [
         restrict_keys(AO_per_motif, motif_subset)
@@ -478,20 +473,20 @@ class PurelyStructureFragmented:
     #: The order is guaranteed to be first
     #: origin, centers, then edges
     #: and in each category the motif index is ascending.
-    motifs_per_frag: Final[SeqOverFrag[OrderedSet[MotifIdx]]]
+    motifs_per_frag: Final[Sequence[OrderedSet[MotifIdx]]]
     #: The centers per fragment.
     #: Note that the set of centers is the complement of the edges.
     #: The order is guaranteed to be ascending.
-    centers_per_frag: Final[SeqOverFrag[OrderedSet[CenterIdx]]]
+    centers_per_frag: Final[Sequence[OrderedSet[CenterIdx]]]
     #: The edges per fragment.
     #: Note that the set of edges is the complement of the centers.
     #: The order is guaranteed to be ascending.
-    edges_per_frag: Final[SeqOverFrag[OrderedSet[EdgeIdx]]]
+    edges_per_frag: Final[Sequence[OrderedSet[EdgeIdx]]]
     #: The origins per frag. Note that for "normal" BE calculations
     #: there is exacctly one origin per fragment, i.e. the
     #: `SeqOverFrag` has one element.
     #: The order is guaranteed to be ascending.
-    origin_per_frag: Final[SeqOverFrag[OrderedSet[OriginIdx]]]
+    origin_per_frag: Final[Sequence[OrderedSet[OriginIdx]]]
 
     #: The atom indices per fragment. it contains both
     #: motif **and** hydrogen indices.
@@ -501,13 +496,13 @@ class PurelyStructureFragmented:
     #: To given an example: if 1 and 4 are motif indices and
     #: hydrogen atoms 5, 6 are connected to 1, while hydrogen atoms 2, 3
     #: are connected to 4, then the order is: :python:`[1, 5, 6, 4, 2, 3]`.
-    atoms_per_frag: Final[SeqOverFrag[OrderedSet[AtomIdx]]]
+    atoms_per_frag: Final[Sequence[OrderedSet[AtomIdx]]]
 
     #: For each edge in a fragment it points to the index
     #: of the fragment where this fragment is a center, i.e.
     #: where this edge is correctly described and should be matched against.
     #: Variable was formerly known as `center`.
-    frag_idx_per_edge: Final[SeqOverFrag[Mapping[EdgeIdx, FragmentIdx]]]
+    frag_idx_per_edge: Final[Sequence[Mapping[EdgeIdx, FragmentIdx]]]
 
     #: Connectivity data of the molecule.
     conn_data: Final[BondConnectivity]
@@ -695,10 +690,11 @@ class AutogenOutput:
     edge_idx: Final[ListOverFrag[ListOverEdge[list[OwnRelAOIdx]]]]
     center_idx: Final[ListOverFrag[ListOverEdge[list[OtherRelAOIdx]]]]
     centerf_idx: Final[ListOverFrag[list[OwnRelAOIdx]]]
-    ebe_weight: Final[ListOverFrag[tuple[float, list[OwnRelAOIdx]]]]
+    #: The first element is a float, the second is the list
+    ebe_weight: Final[ListOverFrag[list[float | list[OwnRelAOIdx]]]]
     Frag_atom: Final[ListOverFrag[ListOverMotif[MotifIdx]]]
     center_atom: Final[ListOverFrag[OriginIdx]]
-    hlist_atom: Final[SeqOverAtom[list[AtomIdx]]]
+    hlist_atom: Final[Sequence[list[AtomIdx]]]
     add_center_atom: Final[ListOverFrag[list[CenterIdx]]]
     Nfrag: Final[int]
 
@@ -724,10 +720,10 @@ class Fragmented:
     frag_structure: Final[PurelyStructureFragmented]
 
     #: The atomic orbital indices per atom
-    AO_per_atom: Final[SeqOverAtom[OrderedSet[GlobalAOIdx]]]
+    AO_per_atom: Final[Sequence[OrderedSet[GlobalAOIdx]]]
 
     #: The atomic orbital indices per fragment
-    AO_per_frag: Final[SeqOverFrag[OrderedSet[GlobalAOIdx]]]
+    AO_per_frag: Final[Sequence[OrderedSet[GlobalAOIdx]]]
 
     #: The atomic orbital indices per motif
     AO_per_motif: Final[Mapping[MotifIdx, Mapping[AtomIdx, OrderedSet[GlobalAOIdx]]]]
@@ -736,14 +732,14 @@ class Fragmented:
     #: The AO index is global.
     #: This variable was formerly known as :python:`edgesites`.
     AO_per_edge_per_frag: Final[
-        SeqOverFrag[Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[GlobalAOIdx]]]]
+        Sequence[Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[GlobalAOIdx]]]]
     ]
 
     #: The relative atomic orbital indices per motif per fragment.
     #: Relative means that the AO indices are relative to
     #: the **own** fragment.
     rel_AO_per_motif_per_frag: Final[
-        SeqOverFrag[Mapping[MotifIdx, Mapping[AtomIdx, OrderedSet[OwnRelAOIdx]]]]
+        Sequence[Mapping[MotifIdx, Mapping[AtomIdx, OrderedSet[OwnRelAOIdx]]]]
     ]
 
     #: The relative atomic orbital indices per edge per fragment.
@@ -754,7 +750,7 @@ class Fragmented:
     #: are restricted to the edges of the fragment.
     #: This variable was formerly known as :python:`edge_idx`.
     rel_AO_per_edge_per_frag: Final[
-        SeqOverFrag[Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[OwnRelAOIdx]]]]
+        Sequence[Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[OwnRelAOIdx]]]]
     ]
 
     #: Is the complement of :attr:`rel_AO_per_edge_per_frag`.
@@ -764,7 +760,7 @@ class Fragmented:
     #: :func:`quemb.molbe.autofrag.autogen`
     #: so it did actually not matter.
     rel_AO_per_center_per_frag: Final[
-        SeqOverFrag[Mapping[CenterIdx, Mapping[AtomIdx, OrderedSet[OwnRelAOIdx]]]]
+        Sequence[Mapping[CenterIdx, Mapping[AtomIdx, OrderedSet[OwnRelAOIdx]]]]
     ]
 
     #: The relative atomic orbital indices per origin per fragment.
@@ -775,7 +771,7 @@ class Fragmented:
     #: are restricted to the origins of the fragment.
     #: This variable was formerly known as :python:`centerf_idx`.
     rel_AO_per_origin_per_frag: Final[
-        SeqOverFrag[Mapping[OriginIdx, Mapping[AtomIdx, OrderedSet[OwnRelAOIdx]]]]
+        Sequence[Mapping[OriginIdx, Mapping[AtomIdx, OrderedSet[OwnRelAOIdx]]]]
     ]
 
     #: The relative atomic orbital indices per edge per fragment.
@@ -783,7 +779,7 @@ class Fragmented:
     #: fragment where the edge is a center.
     #: This variable was formerly known as :python:`center_idx`.
     other_rel_AO_per_edge_per_frag: Final[
-        SeqOverFrag[Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[OtherRelAOIdx]]]]
+        Sequence[Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[OtherRelAOIdx]]]]
     ]
 
     #: Do we have frozen_core AO index offsets?
@@ -983,7 +979,10 @@ class Fragmented:
         # A similar issue occurs for ebe_weight, where the output
         # of autogen is a union over all centers.
         ebe_weight = [
-            [1.0, list(union_of_seqs(*idx_per_center))]
+            cast(
+                list[float | list[OwnRelAOIdx]],
+                [1.0, list(union_of_seqs(*idx_per_center))],
+            )
             for idx_per_center in _extract_values(self.rel_AO_per_center_per_frag)
         ]
         # Again, we have to account for the fact that
@@ -1030,93 +1029,83 @@ class Fragmented:
             for motif, H_atoms in self.frag_structure.conn_data.H_per_motif.items()
         }
 
-        #: The number of AO indices per H atom in the small basis
-        try:
-            n_small_AO_H: Final = len(
+        #: The number of AO indices per H atom in the small basis.
+        #: Set to zero if there are no H atoms.
+        n_small_AO_H: Final = (
+            len(
                 valence_frags.AO_per_atom[
                     # We take exemplary the first H atom
                     self.frag_structure.conn_data.H_atoms[0]
                 ]
             )
-        except IndexError:
-            # If there are no H atoms, we set it to 0
-            n_small_AO_H = 0
+            if self.frag_structure.conn_data.H_atoms
+            else 0
+        )
 
-        center_idx = []
-        for fragment, fragment_big_basis, edges in zip(
+        def _extract_with_iao_offset(
+            AO_small_basis: Sequence[
+                Mapping[_T_motif, Mapping[AtomIdx, OrderedSet[_T_AOIdx]]]
+            ],
+            AO_full_basis: Sequence[
+                Mapping[_T_motif, Mapping[AtomIdx, OrderedSet[_T_AOIdx]]]
+            ],
+            offset: Literal["after_motif", "from_first_H"],
+        ) -> list[list[list[_T_AOIdx]]]:
+            result = []
+            for fragment, fragment_big_basis in zip(AO_small_basis, AO_full_basis):
+                tmp: list[list[_T_AOIdx]] = []
+                for edge in fragment:
+                    if offset == "after_motif":
+                        H_offset = _iloc(fragment_big_basis[edge].values(), 0)[-1] + 1
+                    elif offset == "from_first_H":
+                        H_offset = _iloc(fragment_big_basis[edge].values(), 1)[0]
+                    else:
+                        assert_never(offset)
+                    tmp.append(
+                        list(
+                            union_of_seqs(
+                                _iloc(fragment_big_basis[edge].values(), 0)[
+                                    : len(_iloc(fragment[edge].values(), 0))
+                                ],
+                                cast(
+                                    Sequence[_T_AOIdx],
+                                    range(
+                                        H_offset,
+                                        H_offset + (n_conn_H[edge] * n_small_AO_H),
+                                    ),
+                                ),
+                            )
+                        )
+                    )
+                result.append(tmp)
+            return result
+
+        center_idx: Final = _extract_with_iao_offset(
             valence_frags.other_rel_AO_per_edge_per_frag,
             self.other_rel_AO_per_edge_per_frag,
-            self.frag_structure.edges_per_frag,
-        ):
-            tmp = []
-            for edge in edges:
-                H_offset = _iloc(fragment_big_basis[edge].values(), 0)[-1] + 1
-                tmp.append(
-                    union_of_seqs(
-                        _iloc(fragment_big_basis[edge].values(), 0)[
-                            : len(_iloc(fragment[edge].values(), 0))
-                        ],
-                        range(H_offset, H_offset + (n_conn_H[edge] * n_small_AO_H)),
-                    )
-                )
-            center_idx.append(tmp)
-
-        edge_sites = []
-        for fragment, fragment_big_basis, edges in zip(
+            "after_motif",
+        )
+        edge_sites: Final = _extract_with_iao_offset(
             valence_frags.AO_per_edge_per_frag,
             self.AO_per_edge_per_frag,
-            self.frag_structure.edges_per_frag,
-        ):
-            tmp = []
-            for edge in edges:
-                H_offset = _iloc(fragment_big_basis[edge].values(), 1)[0]
-                tmp.append(
-                    union_of_seqs(
-                        _iloc(fragment_big_basis[edge].values(), 0)[
-                            : len(_iloc(fragment[edge].values(), 0))
-                        ],
-                        range(H_offset, H_offset + (n_conn_H[edge] * n_small_AO_H)),
-                    )
-                )
-            edge_sites.append(tmp)
-
-        edge_idx = []
-        for fragment, fragment_big_basis, edges in zip(
+            "from_first_H",
+        )
+        edge_idx: Final = _extract_with_iao_offset(
             valence_frags.rel_AO_per_edge_per_frag,
             self.rel_AO_per_edge_per_frag,
-            self.frag_structure.edges_per_frag,
-        ):
-            tmp = []
-            for edge in edges:
-                H_offset = _iloc(fragment_big_basis[edge].values(), 1)[0]
-                tmp.append(
-                    union_of_seqs(
-                        _iloc(fragment_big_basis[edge].values(), 0)[
-                            : len(_iloc(fragment[edge].values(), 0))
-                        ],
-                        range(H_offset, H_offset + (n_conn_H[edge] * n_small_AO_H)),
-                    )
-                )
-            edge_idx.append(tmp)
+            "from_first_H",
+        )
 
-        centerf_idx = []
-        for fragment, fragment_big_basis, origins in zip(
-            valence_frags.rel_AO_per_origin_per_frag,
-            self.rel_AO_per_origin_per_frag,
-            self.frag_structure.origin_per_frag,
-        ):
-            tmp = []
-            for origin in origins:
-                H_offset = _iloc(fragment_big_basis[origin].values(), 0)[-1] + 1
-                tmp.append(
-                    union_of_seqs(
-                        _iloc(fragment_big_basis[origin].values(), 0)[
-                            : len(_iloc(fragment[origin].values(), 0))
-                        ],
-                        range(H_offset, H_offset + (n_conn_H[origin] * n_small_AO_H)),
-                    )
-                )
-            centerf_idx.append(_flatten(tmp))
+        # We have to flatten one nesting level since it is assumed in the output
+        # of autogen that there is always only one origin per fragment.,
+        centerf_idx: Final = [
+            L[0]
+            for L in _extract_with_iao_offset(
+                valence_frags.rel_AO_per_origin_per_frag,
+                self.rel_AO_per_origin_per_frag,
+                "from_first_H",
+            )
+        ]
 
         matched_output_no_iao = self._match_autogen_output_no_iao()
 
@@ -1133,7 +1122,7 @@ class Fragmented:
             center_atom=matched_output_no_iao.center_atom,
             hlist_atom=matched_output_no_iao.hlist_atom,
             add_center_atom=matched_output_no_iao.add_center_atom,
-            Nfrag=len(self),
+            Nfrag=matched_output_no_iao.Nfrag,
         )
 
     def match_autogen_output(self) -> AutogenOutput:
