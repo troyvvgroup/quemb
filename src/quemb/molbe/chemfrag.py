@@ -1125,6 +1125,7 @@ class Fragmented:
         matched_output_no_iao = self._match_autogen_output_no_iao()
 
         # Only edge_sites, edge_idx, center_idx, and centerf_idx are actually different
+        # when doing IAOs
         return AutogenOutput(
             edge_sites=edge_sites,
             edge_idx=edge_idx,
