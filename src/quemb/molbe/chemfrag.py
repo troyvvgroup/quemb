@@ -1102,7 +1102,12 @@ class Fragmented:
                     else:
                         offset = _iloc(fragment_big_basis[motif].values(), 1)[0]
                         H_offsets = [
-                            OrderedSet(range(start, start + n_small_AO_H))
+                            OrderedSet(
+                                cast(
+                                    Sequence[_T_AOIdx],
+                                    range(start, start + n_small_AO_H),
+                                )
+                            )
                             for start in range(
                                 offset,
                                 offset + n_conn_H[motif] * n_small_AO_H,
