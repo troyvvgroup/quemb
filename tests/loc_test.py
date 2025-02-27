@@ -77,7 +77,7 @@ def test_hexene_loc_be2_froz_iao_sto3g_boys(hexene) -> None:
         nproc=8,
     )
     # energy after four iterations
-    assert np.isclose(be2_f_iao_fb, -0.92794903)
+    assert np.isclose(be2_f_iao_fb, -0.92794903, atol=1e-8, rtol=0), be2_f_iao_fb
 
     # Oneshot energy
     # assert np.isclose(be2_f_iao_fb, -0.92843714)
@@ -101,7 +101,7 @@ def test_chem_gen_hexene_loc_be2_froz_iao_sto3g_boys(hexene) -> None:
         frag_type="chemgen",
     )
     # energy after four iterations
-    assert np.isclose(be2_f_iao_fb, -0.92794903)
+    assert np.isclose(be2_f_iao_fb, -0.92794903, atol=1e-8, rtol=0), be2_f_iao_fb
 
 
 def ret_ecorr(

@@ -24,7 +24,7 @@ from collections.abc import Hashable, Iterable, Mapping, Sequence
 from itertools import chain
 from numbers import Real
 from pathlib import Path
-from typing import Callable, Final, Literal, TypeAlias, TypeVar, cast
+from typing import Callable, Final, TypeAlias, TypeVar, cast
 
 import chemcoord as cc
 import numpy as np
@@ -1022,11 +1022,11 @@ class Fragmented:
         valence_frags: Final = Fragmented.from_frag_structure(
             self.iao_valence_mol, self.frag_structure, self.frozen_core, None
         )
+        H_per_motif: Final = self.conn_data.H_per_motif
 
         #: The number of H atoms connected to motif.
         n_conn_H: Final = {
-            motif: len(H_atoms)
-            for motif, H_atoms in self.frag_structure.conn_data.H_per_motif.items()
+            motif: len(H_atoms) for motif, H_atoms in H_per_motif.items()
         }
 
         #: The number of AO indices per H atom in the small basis.
@@ -1049,31 +1049,54 @@ class Fragmented:
             AO_full_basis: Sequence[
                 Mapping[_T_motif, Mapping[AtomIdx, OrderedSet[_T_AOIdx]]]
             ],
-            offset: Literal["after_motif", "from_first_H"],
         ) -> list[list[list[_T_AOIdx]]]:
             result = []
             for fragment, fragment_big_basis in zip(AO_small_basis, AO_full_basis):
                 tmp: list[list[_T_AOIdx]] = []
-                for edge in fragment:
-                    if offset == "after_motif":
-                        H_offset = _iloc(fragment_big_basis[edge].values(), 0)[-1] + 1
-                    elif offset == "from_first_H":
-                        H_offset = _iloc(fragment_big_basis[edge].values(), 1)[0]
-                    else:
-                        assert_never(offset)
+                for motif in fragment:
+                    H_offset = _iloc(fragment_big_basis[motif].values(), 1)[0]
                     tmp.append(
                         list(
                             union_of_seqs(
-                                _iloc(fragment_big_basis[edge].values(), 0)[
-                                    : len(_iloc(fragment[edge].values(), 0))
+                                _iloc(fragment_big_basis[motif].values(), 0)[
+                                    : len(_iloc(fragment[motif].values(), 0))
                                 ],
                                 cast(
                                     Sequence[_T_AOIdx],
                                     range(
                                         H_offset,
-                                        H_offset + (n_conn_H[edge] * n_small_AO_H),
+                                        H_offset + (n_conn_H[motif] * n_small_AO_H),
                                     ),
                                 ),
+                            )
+                        )
+                    )
+                result.append(tmp)
+            return result
+
+        def _new_extract_with_iao_offset(
+            AO_small_basis: Sequence[
+                Mapping[_T_motif, Mapping[AtomIdx, OrderedSet[_T_AOIdx]]]
+            ],
+            AO_full_basis: Sequence[
+                Mapping[_T_motif, Mapping[AtomIdx, OrderedSet[_T_AOIdx]]]
+            ],
+        ) -> list[list[list[_T_AOIdx]]]:
+            result = []
+            for fragment, fragment_big_basis in zip(AO_small_basis, AO_full_basis):
+                tmp: list[list[_T_AOIdx]] = []
+                for motif in fragment:
+                    H_offsets = [
+                        fragment_big_basis[motif][H_atom][:n_small_AO_H]
+                        for H_atom in H_per_motif[motif]
+                    ]
+                    tmp.append(
+                        _flatten(
+                            (
+                                _iloc(fragment_big_basis[motif].values(), 0)[
+                                    : len(_iloc(fragment[motif].values(), 0))
+                                ],
+                                *H_offsets,
                             )
                         )
                     )
@@ -1083,17 +1106,14 @@ class Fragmented:
         center_idx: Final = _extract_with_iao_offset(
             valence_frags.other_rel_AO_per_edge_per_frag,
             self.other_rel_AO_per_edge_per_frag,
-            "after_motif",
         )
         edge_sites: Final = _extract_with_iao_offset(
             valence_frags.AO_per_edge_per_frag,
             self.AO_per_edge_per_frag,
-            "from_first_H",
         )
         edge_idx: Final = _extract_with_iao_offset(
             valence_frags.rel_AO_per_edge_per_frag,
             self.rel_AO_per_edge_per_frag,
-            "from_first_H",
         )
 
         # We have to flatten one nesting level since it is assumed in the output
@@ -1103,7 +1123,6 @@ class Fragmented:
             for L in _extract_with_iao_offset(
                 valence_frags.rel_AO_per_origin_per_frag,
                 self.rel_AO_per_origin_per_frag,
-                "from_first_H",
             )
         ]
 
