@@ -103,6 +103,28 @@ def test_chem_gen_hexene_loc_be2_froz_iao_sto3g_boys(hexene) -> None:
     assert np.isclose(be2_f_iao_fb, -0.92794903, atol=1e-8, rtol=0), be2_f_iao_fb
 
 
+@unittest.skipIf(
+    os.getenv("QUEMB_SKIP_EXPENSIVE_TESTS") == "true",
+    "Skipped expensive tests for QuEmb.",
+)
+def test_chem_gen_hexene_loc_be2_froz_iao_sto3g_boys_fixed_AOs(hexene) -> None:
+    be2_f_iao_fb = ret_ecorr(
+        hexene[0],
+        hexene[1],
+        be="be2",
+        frozen=True,
+        iao_valence_basis="sto-3g",
+        lo_method="iao",
+        iao_loc_method="Boys",
+        oneshot=False,
+        nproc=8,
+        frag_type="chemgen",
+        fix_iao_indexing=True,
+    )
+    # energy after four iterations
+    assert np.isclose(be2_f_iao_fb, -0.92794903, atol=1e-8, rtol=0), be2_f_iao_fb
+
+
 def ret_ecorr(
     mol: gto.Mole,
     mf: scf.hf.RHF,
