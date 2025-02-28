@@ -13,7 +13,7 @@ from quemb.molbe.helper import get_eri, get_scfObj
 from quemb.shared.config import settings
 from quemb.shared.external.cphf_utils import cphf_kernel_batch, get_rhf_dP_from_u
 from quemb.shared.external.cpmp2_utils import get_dPmp2_batch_r
-from quemb.shared.external.jac_utils import get_dPccsdurlx_batch_u
+from quemb.shared.external.utils import get_dPccsdurlx_batch_u
 
 
 def line_search_LF(func, xold, fold, dx, iter_):
