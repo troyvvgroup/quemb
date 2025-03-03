@@ -56,9 +56,11 @@ KwargDict: TypeAlias = Dict[str, Any]
 #: A generic type variable, without any constraints.
 T = TypeVar("T")
 
+#: The index of an orbital.
+OrbitalIdx = NewType("OrbitalIdx", int)
 
-#: The index of an atomic orbital. This is the global index, i.e. not per fragment.
-AOIdx = NewType("AOIdx", int)
+#: The index of an atomic orbital.
+AOIdx = NewType("AOIdx", OrbitalIdx)
 
 #: The global index of an atomic orbital, i.e. not per fragment.
 #: This is basically the result of
@@ -73,6 +75,14 @@ OwnRelAOIdx = NewType("OwnRelAOIdx", AOIdx)
 #: For example for an edge in fragment 1 it is the AO index of the same atom
 #: interpreted as center in fragment 2.
 OtherRelAOIdx = NewType("OtherRelAOIdx", AOIdx)
+
+
+#: The index of a molecular orbital.
+MOIdx = NewType("MOIdx", OrbitalIdx)
+
+#: The global index of a molecular orbital, i.e. not per fragment.
+GlobalMOIdx = NewType("GlobalMOIdx", MOIdx)
+
 
 #: The index of a Fragment.
 FragmentIdx = NewType("FragmentIdx", int)

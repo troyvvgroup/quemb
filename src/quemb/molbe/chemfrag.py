@@ -844,7 +844,7 @@ class Fragmented:
                         (previous := previous + len(AO_per_motif[motif][atom])),
                     )
                     rel_AO_per_motif[motif][atom] = OrderedSet(
-                        OwnRelAOIdx(AOIdx(i)) for i in indices
+                        cast(OwnRelAOIdx, i) for i in indices
                     )
             rel_AO_per_motif_per_frag.append(rel_AO_per_motif)
 
@@ -1173,17 +1173,19 @@ def _get_AOidx_per_atom(mol: Mole, frozen_core: bool) -> list[OrderedSet[GlobalA
         core_list = get_core(mol)[2]
         for n_core, (_, _, start, stop) in zip(core_list, mol.aoslice_by_atom()):
             result.append(
-                OrderedSet(
-                    GlobalAOIdx(AOIdx(i))
-                    for i in range(start - core_offset, stop - (core_offset + n_core))
+                cast(
+                    OrderedSet[GlobalAOIdx],
+                    OrderedSet(
+                        range(start - core_offset, stop - (core_offset + n_core))
+                    ),
                 )
             )
             core_offset += n_core
         return result
     else:
         return [
-            OrderedSet(
-                GlobalAOIdx(AOIdx(i)) for i in range(AO_offsets[2], AO_offsets[3])
+            cast(
+                OrderedSet[GlobalAOIdx], OrderedSet(range(AO_offsets[2], AO_offsets[3]))
             )
             for AO_offsets in mol.aoslice_by_atom()
         ]

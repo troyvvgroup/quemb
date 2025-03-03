@@ -1,10 +1,17 @@
-from collections.abc import Hashable, Mapping
+from collections import defaultdict
+from collections.abc import Hashable, Mapping, Set
+from itertools import chain
 from typing import TypeVar
 
 from numba import njit, typeof  # type: ignore[attr-defined]
 from numba.experimental import jitclass
-from numba.typed import Dict
+from numba.typed import Dict, List
 from numba.types import DictType, float64, int64  # type: ignore[attr-defined]
+
+from quemb.shared.typing import (
+    AtomIdx,
+    OrbitalIdx,
+)
 
 Key = TypeVar("Key", bound=Hashable)
 Val = TypeVar("Val")
@@ -91,3 +98,33 @@ class TwoElIntegral:
         ab = gauss_sum(a) + b if a > b else gauss_sum(b) + a
         cd = gauss_sum(c) + d if c > d else gauss_sum(d) + c
         return gauss_sum(ab) + cd if ab > cd else gauss_sum(cd) + ab
+
+
+def get_orb_per_atom(
+    atom_per_orb: Mapping[OrbitalIdx, Set[AtomIdx]],
+) -> dict[AtomIdx, set[OrbitalIdx]]:
+    orb_per_atom = defaultdict(set)
+    for i_AO, atoms in atom_per_orb.items():
+        for i_atom in atoms:
+            orb_per_atom[i_atom].add(i_AO)
+    return dict(orb_per_atom)
+
+
+def get_AOs_reachable_by_atom(
+    orb_per_atom: Mapping[AtomIdx, Set[OrbitalIdx]],
+    screened: Mapping[AtomIdx, Set[AtomIdx]],
+) -> dict[AtomIdx, dict[AtomIdx, Set[OrbitalIdx]]]:
+    return {
+        i_atom: {j_atom: orb_per_atom[j_atom] for j_atom in sorted(connected)}
+        for i_atom, connected in screened.items()
+    }
+
+
+def _orb_reachable_by_atom_for_numba(
+    orb_in_reach: Mapping[AtomIdx, Mapping[AtomIdx, Set[OrbitalIdx]]],
+) -> List[List[OrbitalIdx]]:
+    list(range(len(orb_in_reach))) == sorted(orb_in_reach.keys())
+    return List(
+        List(sorted(set(chain(*orb_in_reach[i_atom].values()))))
+        for i_atom in sorted(orb_in_reach)
+    )
