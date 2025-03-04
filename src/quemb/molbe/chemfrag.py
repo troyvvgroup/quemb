@@ -216,14 +216,16 @@ class BondConnectivity:
                 for k, v in bonds_atoms.items()
             }
         else:
-            if vdW_radius is None:
-                # To avoid false-negatives we set all vdW radii to
-                # at least 0.55 Å
-                # or 20 % larger than the tabulated value.
-                lambda r: np.maximum(0.55, r * 1.20)
+            # To avoid false-negatives we set all vdW radii to
+            # at least 0.55 Å
+            # or 20 % larger than the tabulated value.
             processed_bonds_atoms = {
                 k: OrderedSet(sorted(v))
-                for k, v in m.get_bonds(modify_element_data=vdW_radius).items()
+                for k, v in m.get_bonds(
+                    modify_element_data=lambda r: np.maximum(0.55, r * 1.20)
+                    if vdW_radius is None
+                    else vdW_radius
+                ).items()
             }
 
         if treat_H_different:
