@@ -22,7 +22,6 @@ There are three main classes:
 from collections import defaultdict
 from collections.abc import Hashable, Iterable, Mapping, Sequence
 from itertools import chain
-from numbers import Real
 from pathlib import Path
 from typing import Callable, Final, TypeAlias, TypeVar, cast
 
@@ -45,6 +44,7 @@ from quemb.shared.typing import (
     OriginIdx,
     OtherRelAOIdx,
     OwnRelAOIdx,
+    Real,
     T,
 )
 
@@ -527,7 +527,7 @@ class PurelyStructureFragmented:
         def frag_idx(edge: EdgeIdx) -> FragmentIdx:
             for i_frag, centers in enumerate(centers_per_frag.values()):
                 if edge in centers:
-                    return FragmentIdx(i_frag)
+                    return cast(FragmentIdx, i_frag)
             raise ValueError(f"Edge {edge} not found in any fragment.")
 
         origin_per_frag = [

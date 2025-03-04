@@ -194,7 +194,7 @@ def count_non_zero_2el(
 ) -> int:
     n_AO = len(exch_reachable) if n_AO is None else n_AO
     result = np.zeros(n_AO, dtype=np.int64)
-    for p in prange(n_AO):
+    for p in prange(n_AO):  # type: ignore[attr-defined]
         for q in sorted(exch_reachable[p]):
             if q > p:
                 break
