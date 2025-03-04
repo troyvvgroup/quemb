@@ -1,11 +1,10 @@
 from collections import defaultdict
 from collections.abc import Hashable, Mapping, Set
-from itertools import chain
 from typing import TypeVar
 
 from numba import njit, typeof  # type: ignore[attr-defined]
 from numba.experimental import jitclass
-from numba.typed import Dict, List
+from numba.typed import Dict
 from numba.types import DictType, float64, int64  # type: ignore[attr-defined]
 
 from quemb.shared.typing import (
@@ -110,7 +109,7 @@ def get_orb_per_atom(
     return dict(orb_per_atom)
 
 
-def get_AOs_reachable_by_atom(
+def get_orb_reachable_by_atom(
     orb_per_atom: Mapping[AtomIdx, Set[OrbitalIdx]],
     screened: Mapping[AtomIdx, Set[AtomIdx]],
 ) -> dict[AtomIdx, dict[AtomIdx, Set[OrbitalIdx]]]:
@@ -120,11 +119,31 @@ def get_AOs_reachable_by_atom(
     }
 
 
-def _orb_reachable_by_atom_for_numba(
-    orb_in_reach: Mapping[AtomIdx, Mapping[AtomIdx, Set[OrbitalIdx]]],
-) -> List[List[OrbitalIdx]]:
-    list(range(len(orb_in_reach))) == sorted(orb_in_reach.keys())
-    return List(
-        List(sorted(set(chain(*orb_in_reach[i_atom].values()))))
-        for i_atom in sorted(orb_in_reach)
-    )
+def get_orb_reachable_by_orb(
+    reachable_orb_per_atom: Mapping[AtomIdx, Mapping[AtomIdx, Set[OrbitalIdx]]],
+    atom_per_orb: Mapping[OrbitalIdx, Set[AtomIdx]],
+) -> dict[OrbitalIdx, dict[AtomIdx, Mapping[AtomIdx, Set[OrbitalIdx]]]]:
+    return {
+        i_AO: {atom: reachable_orb_per_atom[atom] for atom in atoms}
+        for i_AO, atoms in atom_per_orb.items()
+    }
+
+
+# def _orb_reachable_by_atom_for_numba(
+#     orb_in_reach: Mapping[AtomIdx, Mapping[AtomIdx, Set[OrbitalIdx]]],
+# ) -> List[List[OrbitalIdx]]:
+#     list(range(len(orb_in_reach))) == sorted(orb_in_reach.keys())
+#     return List(
+#         List(sorted(set(chain(*orb_in_reach[i_atom].values()))))
+#         for i_atom in sorted(orb_in_reach)
+#     )
+
+
+# def _orb_reachable_by_orb_for_numba(
+#     orb_in_reach: Mapping[OrbitalIdx, Mapping[AtomIdx, Set[OrbitalIdx]]],
+# ) -> List[set[OrbitalIdx]]:
+#     list(range(len(orb_in_reach))) == sorted(orb_in_reach.keys())
+#     return List(
+#         set(chain(*orb_in_reach[i_orb].values()))
+#         for i_orb in sorted(orb_in_reach)
+#     )

@@ -26,14 +26,12 @@ from numbers import Real
 from pathlib import Path
 from typing import Callable, Final, TypeAlias, TypeVar, cast
 
-import chemcoord as cc
 import numpy as np
 from attr import cmp_using, define, field
 from chemcoord import Cartesian
-from chemcoord.constants import elements
 from ordered_set import OrderedSet
 from pyscf.gto import Mole
-from typing_extensions import Self, assert_never
+from typing_extensions import Self
 
 from quemb.molbe.helper import are_equal, get_core
 from quemb.shared.typing import (
@@ -218,28 +216,15 @@ class BondConnectivity:
                 for k, v in bonds_atoms.items()
             }
         else:
-            with cc.constants.RestoreElementData():
-                used_vdW_r = elements.loc[:, "atomic_radius_cc"]
-                if isinstance(vdW_radius, Real):
-                    elements.loc[:, "atomic_radius_cc"] = used_vdW_r.map(
-                        lambda _: float(vdW_radius)
-                    )
-                elif callable(vdW_radius):
-                    elements.loc[:, "atomic_radius_cc"] = used_vdW_r.map(vdW_radius)  # type: ignore[arg-type]
-                elif isinstance(vdW_radius, Mapping):
-                    elements.loc[:, "atomic_radius_cc"].update(vdW_radius)  # type: ignore[arg-type]
-                elif vdW_radius is None:
-                    # To avoid false-negatives we set all vdW radii to
-                    # at least 0.55 Å
-                    # or 20 % larger than the tabulated value.
-                    elements.loc[:, "atomic_radius_cc"] = np.maximum(
-                        0.55, used_vdW_r * 1.20
-                    )
-                else:
-                    assert_never(vdW_radius)
-                processed_bonds_atoms = {
-                    k: OrderedSet(sorted(v)) for k, v in m.get_bonds().items()
-                }
+            if vdW_radius is None:
+                # To avoid false-negatives we set all vdW radii to
+                # at least 0.55 Å
+                # or 20 % larger than the tabulated value.
+                lambda r: np.maximum(0.55, r * 1.20)
+            processed_bonds_atoms = {
+                k: OrderedSet(sorted(v))
+                for k, v in m.get_bonds(modify_element_data=vdW_radius).items()
+            }
 
         if treat_H_different:
             motifs = OrderedSet(m.loc[m.atom != "H", :].index)
