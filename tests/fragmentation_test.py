@@ -1222,7 +1222,7 @@ class TestBE_Fragmentation(unittest.TestCase):
             fobj = fragpart(frag_type=frag_type, be_type=be_type, mol=mf.mol)
             mbe = BE(mf, fobj)
             mbe.oneshot(solver="CCSD")
-            Es.update({frag_type: mbe.ebe_tot})
+            Es.update({frag_type: mbe.ebe_tot - mbe.ebe_hf})
 
         for frag_type_A, E_A in Es.items():
             for frag_type_B, E_B in Es.items():

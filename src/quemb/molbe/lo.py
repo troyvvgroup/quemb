@@ -5,7 +5,7 @@ from typing import Literal, overload
 
 import numpy as np
 from numpy import allclose, diag, eye, sqrt, where, zeros
-from numpy.linalg import eigh, inv, multi_dot, norm, svd
+from numpy.linalg import eigh, inv, multi_dot, norm, solve, svd
 from pyscf.gto import intor_cross
 from pyscf.gto.mole import Mole
 from pyscf.lo import Boys
@@ -13,54 +13,17 @@ from pyscf.lo.edmiston import EdmistonRuedenberg
 from pyscf.lo.pipek import PipekMezey
 
 from quemb.shared.external.lo_helper import (
+    cano_orth,
     get_aoind_by_atom,
     reorder_by_atom_,
+    symm_orth,
 )
 from quemb.shared.helper import ncore_, unused
 from quemb.shared.typing import Matrix, Tensor3D
 
 
-def dot_gen(A: Matrix, B: Matrix, ovlp: Matrix | None = None) -> Matrix:
-    return A.T @ B if ovlp is None else A.T @ ovlp @ B
-
-
-def get_cano_orth_mat(
-    A: Matrix, thr: float = 1.0e-6, ovlp: Matrix | None = None
-) -> Matrix:
-    S = dot_gen(A, A, ovlp)
-    e, u = eigh(S)
-    if thr > 0:
-        idx_keep = e / e[-1] > thr
-    else:
-        idx_keep = slice(0, e.shape[0])
-    return u[:, idx_keep] * e[idx_keep] ** -0.5
-
-
-def cano_orth(A: Matrix, thr: float = 1.0e-6, ovlp: Matrix | None = None) -> Matrix:
-    """Canonically orthogonalize columns of A"""
-    return A @ get_cano_orth_mat(A, thr, ovlp)
-
-
-def get_symm_orth_mat(
-    A: Matrix, thr: float = 1.0e-6, ovlp: Matrix | None = None
-) -> Matrix:
-    S = dot_gen(A, A, ovlp)
-    e, u = eigh(S)
-    if (e < thr).any():
-        raise ValueError(
-            "Linear dependence is detected in the column space of A: "
-            "smallest eigenvalue (%.3E) is less than thr (%.3E). "
-            "Please use 'cano_orth' instead." % (np.min(e), thr)
-        )
-    return u @ diag(e**-0.5) @ u.T
-
-
-def symm_orth(A: Matrix, thr: float = 1.0e-6, ovlp: Matrix | None = None) -> Matrix:
-    """Symmetrically orthogonalize columns of A"""
-    return A @ get_symm_orth_mat(A, thr, ovlp)
-
-
 def remove_core_mo(Clo: Matrix, Ccore: Matrix, S: Matrix, thr: float = 0.5) -> Matrix:
+    """Remove core molecular orbitals from localized Clo"""
     assert allclose(Clo.T @ S @ Clo, eye(Clo.shape[1]))
     assert allclose(Ccore.T @ S @ Ccore, eye(Ccore.shape[1]))
 
@@ -77,14 +40,16 @@ def remove_core_mo(Clo: Matrix, Ccore: Matrix, S: Matrix, thr: float = 0.5) -> M
 def get_xovlp(
     mol: Mole, basis: str = "sto-3g"
 ) -> tuple[Matrix | Tensor3D, Matrix | Tensor3D]:
-    """Gets set of valence orbitals based on smaller (should be minimal) basis
+    """Gets overlap matrix between the two bases and in secondary basis.
+    Used for IAOs: returns the overlap between valence (minimal) and working
+    (large) bases and overlap in the minimal basis
 
     Parameters
     ----------
     mol :
-        just need it for the working basis
+        mol object to get working (large) and valence (minimal) basis
     basis :
-        the IAO basis, Knizia recommended 'minao'
+        the IAO valence (minimal-like) basis, Knizia recommended 'minao'
 
     Returns
     ------
@@ -107,131 +72,171 @@ def get_iao(
     Co: Matrix,
     S12: Matrix,
     S1: Matrix,
-    S2: Matrix | None = None,
+    S2: Matrix,
+    mol: Mole,
+    iao_valence_basis: str,
+    iao_loc_method: str = "SO",
 ) -> Matrix:
-    """
+    """Gets symmetrically orthogonalized IAO coefficient matrix from system MOs
+    Derived from G. Knizia: J. Chem. Theory Comput. 2013, 9, 11, 4834–4843
+    Note: same function as `get_iao_from_s12` in frankenstein
 
     Parameters
     ----------
     Co:
-        occupied coefficient matrix with core
-    p:
-        valence AO matrix in AO
-    no:
-        number of occ orbitals
+        occupied MO coefficient matrix with core
     S12:
-        ovlp between working basis and valence basis
+        ovlp between working (large) basis and valence (minimal) basis
         can be thought of as working basis in valence basis
     S1:
-        ao ovlp matrix
+        AO ovlp matrix, in working (large) basis
     S2:
-        valence AO ovlp
+        AO ovlp matrix, in valence (minimal) basis
+    mol:
+        mol object
+    iao_valence_basis:
+        (minimal-like) basis used for valence orbitals
+    iao_loc_method:
+        Localization method for the IAOs and PAOs.
+        If symmetric orthogonalization is used, the overlap matrices between
+        the valence (minimal) and working (large) basis are determined by
+        separating S1 (working) by AO labels. If other localization methods
+        are used, these matrices are calculated in full
+        Default is SO
+    Return
+    ------
+    Ciao :class:`quemb.shared.typing.Matrix`
+        (symmetrically orthogonalized)
     """
-    # define projection operators
     n = Co.shape[0]
-    if S2 is None:
-        S2 = S12.T @ inv(S1) @ S12
-    P1 = inv(S1)
-    P2 = inv(S2)
 
-    # depolarized occ mo
-    Cotil = P1 @ S12 @ P2 @ S12.T @ Co
+    if iao_loc_method.upper() == "SO":
+        # this is the "native" option in Frankenstein and older versions of Quemb.
+        # Rather than form the full S matrices in all bases, the S1 in the
+        # large, working basis is separated by labels
 
-    # repolarized valence AOs
-    ptil = P1 @ S12
-    Stil = Cotil.T @ S1 @ Cotil
+        # This should not be the default, and it tends to produce less accurate
+        # results
 
-    Po = Co @ Co.T
-    Potil = Cotil @ inv(Stil) @ Cotil.T
+        # Form a mol object with the valence basis for the ao_labels
+        mol_alt = mol.copy()
+        mol_alt.basis = iao_valence_basis
+        mol_alt.build()
 
-    Ciao = (eye(n) - (Po + Potil - 2 * Po @ S1 @ Potil) @ S1) @ ptil
-    Ciao = symm_orth(Ciao, ovlp=S1)
+        full_ao_labels = mol.ao_labels()
+        valence_ao_labels = mol_alt.ao_labels()
 
-    # check span
-    rep_err = norm(Ciao @ Ciao.T @ S1 @ Po - Po)
+        # list of working basis indices which are in the valence basis
+        nonvir_idx = [
+            idx
+            for idx, label in enumerate(full_ao_labels)
+            if (label in valence_ao_labels)
+        ]
+
+        # Set up the overlap matrices
+        S2 = S1[np.ix_(nonvir_idx, nonvir_idx)]
+        S12 = S1[:, nonvir_idx]
+
+    # Define Projection Matrices
+    # Note: timing for this step is better than inverting, then multiplying
+    P_12 = solve(S1, S12)
+    P_21 = solve(S2, S12.T)
+
+    # Generated polarized occupied states, in working basis, O in Knizia paper
+    O_pol = Co @ Co.T
+
+    # Generate depolarized occupied MOs
+    C_depol = P_12 @ P_21 @ Co
+
+    # Orthogonalize C_depol and get \tilde{O}, in Knizia paper
+    S_til = C_depol.T @ S1 @ C_depol
+    O_depol = C_depol @ inv(S_til) @ C_depol.T
+
+    # Generate C_IAOs for the system
+    Ciao_pol = (eye(n) - (O_depol + O_pol - 2 * O_pol @ S1 @ O_depol) @ S1) @ P_12
+
+    # Orthoganize C_IAOs
+    Ciao = symm_orth(Ciao_pol, ovlp=S1)
+
+    # Check span
+    rep_err = norm(Ciao @ Ciao.T @ S1 @ O_pol - O_pol)
     if rep_err > 1.0e-10:
         raise RuntimeError
     return Ciao
 
 
-def get_pao(Ciao: Matrix, S: Matrix, S12: Matrix) -> Matrix:
-    """
+def get_pao(
+    Ciao: Matrix,
+    S1: Matrix,
+    S12: Matrix,
+    mol: Mole,
+    iao_valence_basis: str,
+    iao_loc_method: str = "SO",
+) -> Matrix:
+    """Get (symmetrically though often canonically) orthogonalized PAOs
+    from given (localized) IAOs
+    Defined in detail in J. Chem. Theory Comput. 2024, 20, 24, 10912–10921
+
     Parameters
     ----------
     Ciao:
-        output of :func:`get_iao`
-    S:
-        ao ovlp matrix
+        the orthogonalized IAO coefficient matrix
+        (output of :func:get_iao)
+    S1:
+        ao ovlp matrix in working (large) basis
     S12:
-        valence orbitals projected into ao basis
+        ovlp between working (large) basis and valence (minimal) basis
+    mol:
+        mol object
+    iao_valence_basis:
+        (minimal-like) basis used for valence orbitals
+    iao_loc_method:
+        Localization method for the IAOs and PAOs.
+        If symmetric orthogonalization is used, the overlap matrices between
+        the valence (minimal) and working (large) basis are determined by
+        separating S1 (working) by AO labels. If other localization methods
+        are used, these matrices are calculated in full
+        Default is SO
     Returns
     -------
     Cpao: :class:`quemb.shared.typing.Matrix`
         (orthogonalized)
     """
     n = Ciao.shape[0]
-    s12 = inv(S) @ S12
-    nonval = (
-        eye(n) - s12 @ s12.T
-    )  # set of orbitals minus valence (orth in working basis)
 
-    Piao = Ciao @ Ciao.T @ S  # projector into IAOs
-    Cpao_redundant = (eye(n) - Piao) @ nonval  # project out IAOs from non-valence basis
+    # projector into IAOs
+    Piao = Ciao @ Ciao.T @ S1
+
+    if iao_loc_method.upper() == "SO":
+        # Read further info in `get_iao`
+        # Form a mol object with the valence basis for the ao_labels
+        mol_alt = mol.copy()
+        mol_alt.basis = iao_valence_basis
+        mol_alt.build()
+
+        full_ao_labels = mol.ao_labels()
+        valence_ao_labels = mol_alt.ao_labels()
+
+        # list of working basis indices which are in the valence basis
+        vir_idx = [
+            idx
+            for idx, label in enumerate(full_ao_labels)
+            if (label not in valence_ao_labels)
+        ]
+
+        Cpao_redundant = (eye(n) - Piao)[:, vir_idx]
+    else:
+        P_12 = inv(S1) @ S12
+        # set of orbitals minus valence (orth in working basis)
+        nonval = eye(n) - P_12 @ P_12.T
+
+        Cpao_redundant = (eye(n) - Piao) @ nonval
 
     # begin canonical orthogonalization to get rid of redundant orbitals
-    return cano_orth(Cpao_redundant, ovlp=S)
-
-
-def get_pao_native(
-    Ciao: Matrix, S: Matrix, mol: Mole, iao_valence_basis: str
-) -> Matrix:
-    """
-
-    Parameters
-    ----------
-    Ciao:
-        output of :code:`get_iao_native`
-    S:
-        ao ovlp matrix
-    mol:
-        mol object
-    iao_valence_basis:
-        basis used for valence orbitals
-    Returns
-    -------
-    Cpao: :class:`quemb.shared.typing.Matrix`
-        (symmetrically orthogonalized)
-
-    """
-    n = Ciao.shape[0]
-
-    # Form a mol object with the valence basis for the ao_labels
-    mol_alt = mol.copy()
-    mol_alt.basis = iao_valence_basis
-    mol_alt.build()
-
-    full_ao_labels = mol.ao_labels()
-    valence_ao_labels = mol_alt.ao_labels()
-
-    vir_idx = [
-        idx
-        for idx, label in enumerate(full_ao_labels)
-        if (label not in valence_ao_labels)
-    ]
-
-    Piao = Ciao @ Ciao.T @ S
-    Cpao = (eye(n) - Piao)[:, vir_idx]
-
     try:
-        Cpao = symm_orth(Cpao, ovlp=S)
+        Cpao = symm_orth(Cpao_redundant, ovlp=S1)
     except ValueError:
-        print("Symm orth PAO failed. Switch to cano orth", flush=True)
-        npao0 = Cpao.shape[1]
-        Cpao = cano_orth(Cpao, ovlp=S)
-        npao1 = Cpao.shape[1]
-        print("# of PAO: %d --> %d" % (npao0, npao1), flush=True)
-        print("", flush=True)
-
+        Cpao = cano_orth(Cpao_redundant, ovlp=S1)
     return Cpao
 
 
@@ -260,15 +265,43 @@ def get_loc(
     C: Matrix,
     method: Literal["ER", "PM", "FB"] = "ER",
     pop_method: str | None = None,
-    init_guess: Matrix | None = None,
+    init_guess: Matrix | str | None = "atomic",
 ) -> Mole:
+    """Import, initialize, and call localization procedure `method` for C
+    from `PySCF`
+
+    Parameters
+    ----------
+    mol:
+        mol object
+    C:
+        MO coefficients
+    method:
+        Localization method. Options include:
+        EDMINSTON-RUEDENBERG, ER;
+        PIPEK-MIZEY, PIPEK, PM;
+        FOSTER-BOYS, BOYS, FB
+    pop_method:
+        Method for calculating orbital population, by default 'meta-lowdin'
+        See pyscf.lo for more details and options. This is only used for
+        Pipek-Mezey localization
+    init_guess:
+        Initial guess for localization optimization.
+        Default is `atomic`, See pyscf.lo for more details and options
+    Returns
+    -------
+    mlo: :class:`quemb.shared.typing.Matrix`
+        Localized mol object
+    """
     Localizer: type[EdmistonRuedenberg] | type[PipekMezey] | type[Boys]
-    if method.upper() == "ER":
+    if method.upper() in ["EDMINSTON-RUEDENBERG", "ER"]:
         Localizer = EdmistonRuedenberg
-    elif method.upper() == "PM":
+    elif method.upper() in ["PIPEK-MEZEY", "PIPEK", "PM"]:
         Localizer = PipekMezey
-    elif method.upper() == "FB" or method.upper() == "BOYS":
+    elif method.upper() in ["FOSTER-BOYS", "BOYS", "FB"]:
         Localizer = Boys
+        # Note: Convergence issues for IAO-Boys with frozen core,
+        # when not using an 'atomic' initial guess
     else:
         raise NotImplementedError("Localization scheme not understood")
 
@@ -286,10 +319,11 @@ class MixinLocalize:
         self,
         lo_method,
         iao_valence_basis="sto-3g",
-        hstack=False,
+        iao_loc_method="SO",
+        iao_valence_only=False,
         pop_method=None,
         init_guess=None,
-        valence_only=False,
+        hstack=False,
         nosave=False,
     ):
         """Molecular orbital localization
@@ -297,19 +331,28 @@ class MixinLocalize:
         Performs molecular orbital localization computations. For large basis,
         IAO is recommended augmented with PAO orbitals.
 
+        NOTE: For molecular systems, with frozen core, the core and valence are
+        localized TOGETHER. This is not the case of periodic systems.
+
         Parameters
         ----------
         lo_method : str
-            Localization method in quantum chemistry. 'lowdin', 'boys', and 'iao'
-            are supported.
+            Localization method in quantum chemistry. 'lowdin', 'boys', 'er', 'pm', and
+            'iao' are supported.
         iao_valence_basis : str
             Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
-        valence_only : bool
+        iao_loc_method: str
+            Name of localization method in quantum chemistry for the IAOs and PAOs.
+            Options include 'Boys', 'PM', 'ER' (as documented in PySCF). Default is
+            'SO', or symmetric orthogonalization.
+            If not using SO, we suggest using 'PM', as it is more robust than 'Boys'
+            localization and less expensive than 'ER'
+        iao_valence_only : bool
             If this option is set to True, all calculation will be performed in the
-            valence basis in the IAO partitioning.
-            This is an experimental feature.
+            valence basis in the IAO partitioning. Default is False.
+            This is an experimental feature: the returned energy is not accurate
         """
-        if lo_method == "lowdin":
+        if lo_method.upper() == "LOWDIN":
             es_, vs_ = eigh(self.S)
             edx = es_ > 1.0e-15
             self.W = vs_[:, edx] / sqrt(es_[edx]) @ vs_[:, edx].T
@@ -366,11 +409,16 @@ class MixinLocalize:
                 else:
                     self.lmo_coeff = multi_dot((self.W.T, self.S, self.C))
 
-        elif lo_method in ["pipek-mezey", "pipek", "PM"]:
-            es_, vs_ = eigh(self.S)
-            edx = es_ > 1.0e-15
-            self.W = vs_[:, edx] / sqrt(es_[edx]) @ vs_[:, edx].T
-
+        elif lo_method.upper() in [
+            "PIPEK-MEZEY",
+            "PIPEK",
+            "PM",
+            "FOSTER-BOYS",
+            "BOYS",
+            "FB",
+            "EDMINSTON-RUEDENBERG",
+            "ER",
+        ]:
             es_, vs_ = eigh(self.S)
             edx = es_ > 1.0e-15
             W_ = vs_[:, edx] / sqrt(es_[edx]) @ vs_[:, edx].T
@@ -389,7 +437,7 @@ class MixinLocalize:
                 W_ = C_ @ W_
 
             self.W = get_loc(
-                self.mf.mol, W_, "PM", pop_method=pop_method, init_guess=init_guess
+                self.mf.mol, W_, lo_method, pop_method=pop_method, init_guess=init_guess
             )
 
             if not self.frozen_core:
@@ -397,33 +445,56 @@ class MixinLocalize:
             else:
                 self.lmo_coeff = self.W.T @ self.S @ self.C[:, self.ncore :]
 
-        elif lo_method == "iao":
-            loc_type = "SO"
+        elif lo_method.upper() == "IAO":
+            # IAO working basis: (w): (large) basis set we use
+            # IAO valence basis: (v): minimal-like basis we try to resemble
 
             # Occupied mo_coeff (with core)
             Co = self.C[:, : self.Nocc]
-            # Get necessary overlaps, second arg is IAO basis
-            S12, S2 = get_xovlp(self.mol, basis=iao_valence_basis)
-            # Use these to get IAOs
-            Ciao = get_iao(Co, S12, self.S, S2=S2)
 
-            if not valence_only:
-                # Now get PAOs
-                if loc_type.upper() != "SO":
-                    Cpao = get_pao(Ciao, self.S, S12)
-                elif loc_type.upper() == "SO":
-                    Cpao = get_pao_native(
-                        Ciao,
-                        self.S,
-                        self.mol,
-                        iao_valence_basis=iao_valence_basis,
-                    )
+            # Get necessary overlaps, second arg is IAO valence basis
+            S_vw, S_vv = get_xovlp(self.fobj.mol, basis=iao_valence_basis)
 
-            # rearrange by atom
-            aoind_by_atom = get_aoind_by_atom(self.mol)
+            # How do we describe the rest of the space?
+            # If iao_valence_only=False, we use PAOs:
+            if not iao_valence_only:
+                Ciao = get_iao(
+                    Co,
+                    S_vw,
+                    self.S,
+                    S_vv,
+                    self.fobj.mol,
+                    iao_valence_basis,
+                    iao_loc_method,
+                )
+
+                Cpao = get_pao(
+                    Ciao, self.S, S_vw, self.fobj.mol, iao_valence_basis, iao_loc_method
+                )
+
+                if iao_loc_method.upper() != "SO":
+                    # Localize IAOs and PAOs
+                    Ciao = get_loc(self.fobj.mol, Ciao, iao_loc_method)
+                    Cpao = get_loc(self.fobj.mol, Cpao, iao_loc_method)
+            else:
+                Ciao = get_iao(
+                    Co,
+                    S_vw,
+                    self.S,
+                    S_vv,
+                    self.fobj.mol,
+                    iao_valence_basis,
+                    iao_loc_method,
+                )
+
+                if iao_loc_method.upper() != "SO":
+                    Ciao = get_loc(self.fobj.mol, Ciao, iao_loc_method)
+
+            # Rearrange by atom
+            aoind_by_atom = get_aoind_by_atom(self.fobj.mol)
             Ciao, iaoind_by_atom = reorder_by_atom_(Ciao, aoind_by_atom, self.S)
 
-            if not valence_only:
+            if not iao_valence_only:
                 Cpao, paoind_by_atom = reorder_by_atom_(Cpao, aoind_by_atom, self.S)
 
             if self.frozen_core:
@@ -431,15 +502,9 @@ class MixinLocalize:
                 Cc = self.C[:, : self.ncore]  # Assumes core are first
                 Ciao = remove_core_mo(Ciao, Cc, self.S)
 
-            # Localize orbitals beyond symm orth
-            if loc_type.upper() != "SO":
-                Ciao = get_loc(self.mol, Ciao, loc_type)
-                if not valence_only:
-                    Cpao = get_loc(self.mol, Cpao, loc_type)
-
             shift = 0
             ncore = 0
-            if not valence_only:
+            if not iao_valence_only:
                 Wstack = zeros(
                     (Ciao.shape[0], Ciao.shape[1] + Cpao.shape[1])
                 )  # -self.ncore))
@@ -447,31 +512,31 @@ class MixinLocalize:
                 Wstack = zeros((Ciao.shape[0], Ciao.shape[1]))
 
             if self.frozen_core:
-                for ix in range(self.mol.natm):
-                    nc = ncore_(self.mol.atom_charge(ix))
+                for ix in range(self.fobj.mol.natm):
+                    nc = ncore_(self.fobj.mol.atom_charge(ix))
                     ncore += nc
                     niao = len(iaoind_by_atom[ix])
                     iaoind_ix = [i_ - ncore for i_ in iaoind_by_atom[ix][nc:]]
                     Wstack[:, shift : shift + niao - nc] = Ciao[:, iaoind_ix]
                     shift += niao - nc
-                    if not valence_only:
+                    if not iao_valence_only:
                         npao = len(paoind_by_atom[ix])
                         Wstack[:, shift : shift + npao] = Cpao[:, paoind_by_atom[ix]]
                         shift += npao
             else:
                 if not hstack:
-                    for ix in range(self.mol.natm):
+                    for ix in range(self.fobj.mol.natm):
                         niao = len(iaoind_by_atom[ix])
                         Wstack[:, shift : shift + niao] = Ciao[:, iaoind_by_atom[ix]]
                         shift += niao
-                        if not valence_only:
+                        if not iao_valence_only:
                             npao = len(paoind_by_atom[ix])
                             Wstack[:, shift : shift + npao] = Cpao[
                                 :, paoind_by_atom[ix]
                             ]
                             shift += npao
                 else:
-                    Wstack = hstack((Ciao, Cpao))
+                    Wstack = np.hstack((Ciao, Cpao))
             if not nosave:
                 self.W = Wstack
                 assert allclose(self.W.T @ self.S @ self.W, eye(self.W.shape[1]))
@@ -481,7 +546,7 @@ class MixinLocalize:
             nmo = self.C.shape[1] - self.ncore
             nlo = self.W.shape[1]
 
-            if not valence_only:
+            if not iao_valence_only:
                 if nmo > nlo:
                     Co_nocore = self.C[:, self.ncore : self.Nocc]
                     Cv = self.C[:, self.Nocc :]
@@ -495,35 +560,10 @@ class MixinLocalize:
                     unused(u)
                     nvlo = nlo - self.Nocc - self.ncore
                     assert allclose(np.sum(l[:nvlo]), nvlo)
-                    C_ = hstack([Co_nocore, Cv @ vt[:nvlo].T])
+                    C_ = np.hstack([Co_nocore, Cv @ vt[:nvlo].T])
                     self.lmo_coeff = self.W.T @ self.S @ C_
                 else:
                     self.lmo_coeff = self.W.T @ self.S @ self.C[:, self.ncore :]
-            else:
-                self.lmo_coeff = self.W.T @ self.S @ self.C[:, self.ncore :]
-
-        elif lo_method == "boys":
-            es_, vs_ = eigh(self.S)
-            edx = es_ > 1.0e-15
-            W_ = vs_[:, edx] / sqrt(es_[edx]) @ vs_[:, edx].T
-            if self.frozen_core:
-                P_core = eye(W_.shape[0]) - self.P_core @ self.S
-                C_ = P_core @ W_
-                Cpop = multi_dot((C_.T, self.S, C_))
-                Cpop = diag(Cpop)
-                no_core_idx = where(Cpop > 0.55)[0]
-                C_ = C_[:, no_core_idx]
-                S_ = multi_dot((C_.T, self.S, C_))
-                es_, vs_ = eigh(S_)
-                s_ = sqrt(es_)
-                s_ = diag(1.0 / s_)
-                W_ = multi_dot((vs_, s_, vs_.T))
-                W_ = C_ @ W_
-
-            self.W = get_loc(self.mol, W_, "BOYS")
-
-            if not self.frozen_core:
-                self.lmo_coeff = self.W.T @ self.S @ self.C
             else:
                 self.lmo_coeff = self.W.T @ self.S @ self.C[:, self.ncore :]
 

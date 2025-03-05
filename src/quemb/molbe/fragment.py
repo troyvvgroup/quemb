@@ -40,7 +40,7 @@ class fragpart:
         :python:`"chemgen", "graphgen", "autogen"`
     iao_valence_basis:
         Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
-    valence_only:
+    iao_valence_only:
         If this option is set to True, all calculation will be performed in
         the valence basis in the IAO partitioning.
         This is an experimental feature.
@@ -76,7 +76,7 @@ class fragpart:
         frag_type: FragType = "autogen",
         closed: bool = False,
         iao_valence_basis: str | None = None,
-        valence_only: bool = False,
+        iao_valence_only: bool = False,
         print_frags: bool = True,
         write_geom: bool = False,
         be_type: str = "be2",
@@ -103,7 +103,7 @@ class fragpart:
         self.connectivity = connectivity
         self.frozen_core = frozen_core
         self.iao_valence_basis = iao_valence_basis
-        self.valence_only = valence_only
+        self.iao_valence_only = iao_valence_only
         self.cutoff = cutoff
         self.remove_nonnunique_frags = remove_nonnunique_frags
         self.Frag_atom = []
@@ -156,7 +156,7 @@ class fragpart:
                 frozen_core=frozen_core,
                 write_geom=write_geom,
                 iao_valence_basis=iao_valence_basis,
-                valence_only=valence_only,
+                iao_valence_only=iao_valence_only,
                 print_frags=print_frags,
             )
 
@@ -180,8 +180,10 @@ class fragpart:
                 raise NotImplementedError(
                     "iao_valence_basis is not implemented for chemgen"
                 )
-            if valence_only:
-                raise NotImplementedError("valence_only is not implemented for chemgen")
+            if iao_valence_only:
+                raise NotImplementedError(
+                    "iao_valence_only is not implemented for chemgen"
+                )
             assert isinstance(additional_args, (type(None), ChemGenArgs))
             assert mol is not None
             fragments = chemgen(
