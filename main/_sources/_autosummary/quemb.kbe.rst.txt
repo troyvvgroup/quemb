@@ -33,7 +33,6 @@
    fragment
    helper
    lo
-   lo_k
    misc
    pbe
    pfrag

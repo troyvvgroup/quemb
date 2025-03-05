@@ -14,9 +14,14 @@ quemb.shared.external.lo\_helper
    .. autosummary::
       :toctree:
    
+      cano_orth
+      dot_gen
       get_aoind_by_atom
+      get_cano_orth_mat
       get_symm_mat_pow
+      get_symm_orth_mat
       reorder_by_atom_
+      symm_orth
    
    
 
