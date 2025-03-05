@@ -6,6 +6,7 @@ from time import time
 from typing import Any, Callable, TypeVar
 
 from attr import define, field
+from numba import njit
 
 Function = TypeVar("Function", bound=Callable)
 
@@ -113,3 +114,25 @@ class Timer:
 
     def str_elapsed(self, message: str | None = None) -> str:
         return f"{self.message if message is None else message}: {self.elapsed():.5f}"
+
+
+@njit(cache=True)
+def gauss_sum(n: int) -> int:
+    """Return the sum(1, ..., n)"""
+    return (n * (n + 1)) // 2
+
+
+@njit(cache=True)
+def symmetric_index(a: int, b: int) -> int:
+    """Flatten the index a, b assuming symmetry.
+
+    The resulting indexation for a matrix looks like this:
+    .. text::
+
+        0
+        1   2
+        3   4   5
+        6   7   8   9
+
+    """
+    return gauss_sum(a) + b if a > b else gauss_sum(b) + a

@@ -1,55 +1,27 @@
 from collections import defaultdict
-from collections.abc import Hashable, Mapping, Sequence, Set
+from collections.abc import Mapping, Sequence, Set
 from itertools import chain
-from typing import TypeVar, cast
+from typing import cast
 
 import numpy as np
 from chemcoord import Cartesian
-from numba import njit, prange, typeof
+from numba import njit, prange
 from numba.experimental import jitclass
-from numba.typed import Dict
-from numba.types import DictType, float64, int64  # type: ignore[attr-defined]
+from numba.typed import Dict, List
+from numba.types import DictType, float64, uint64  # type: ignore[attr-defined]
 from pyscf.gto import Mole
 
 from quemb.molbe.chemfrag import (
     _get_AOidx_per_atom,
 )
+from quemb.shared.helper import symmetric_index
 from quemb.shared.typing import (
     AtomIdx,
     OrbitalIdx,
     Vector,
 )
 
-Key = TypeVar("Key", bound=Hashable)
-Val = TypeVar("Val")
-
-
-def to_numba_dict(py_dict: Mapping[Key, Val]) -> Dict[Key, Val]:
-    # Just check the types of the first key and value
-    # and assume uniformness
-    key_type = typeof(next(iter(py_dict.keys())))
-    value_type = typeof(next(iter(py_dict.values())))
-
-    numba_dict = Dict.empty(
-        key_type=key_type,
-        value_type=value_type,
-    )
-    for key, value in py_dict.items():
-        numba_dict[key] = value
-    return numba_dict
-
-
-@njit(cache=True)
-def gauss_sum(n: int) -> int:
-    return (n * (n + 1)) // 2
-
-
-@njit(cache=True)
-def symmetric_index(a: int, b: int) -> int:
-    return gauss_sum(a) + b if a > b else gauss_sum(b) + a
-
-
-kv_ty = (int64, float64)
+kv_ty = (uint64, float64)
 
 
 @jitclass([("_data", DictType(*kv_ty))])
@@ -186,6 +158,34 @@ def get_reachable(
     }
 
 
+def to_numba_input(
+    exch_reachable: Mapping[OrbitalIdx, set[OrbitalIdx]],
+) -> List[Vector[OrbitalIdx]]:
+    assert list(exch_reachable.keys()) == list(range(len(exch_reachable)))
+    return List(
+        [
+            np.array(sorted(orbitals), dtype=np.uint64)
+            for orbitals in exch_reachable.values()
+        ]
+    )
+
+
+@njit
+def get_pq_reachable(
+    exch_reachable: Sequence[Vector[OrbitalIdx]],
+    coul_reachable: Sequence[Vector[OrbitalIdx]],
+) -> dict[tuple[OrbitalIdx, OrbitalIdx], Vector[OrbitalIdx]]:
+    coul_reachable = [set(orbitals) for orbitals in coul_reachable]
+
+    return {
+        (np.uint64(p), q): np.array(
+            sorted(coul_reachable[p] & coul_reachable[q]), dtype=np.uint64
+        )
+        for p in range(len(exch_reachable))
+        for q in exch_reachable[p]
+    }
+
+
 @njit(parallel=True)
 def count_non_zero_2el(
     exch_reachable: list[Vector[OrbitalIdx]],
@@ -193,9 +193,9 @@ def count_non_zero_2el(
     n_AO: int | None = None,
 ) -> int:
     n_AO = len(exch_reachable) if n_AO is None else n_AO
-    result = np.zeros(n_AO, dtype=np.int64)
+    result = 0
     for p in prange(n_AO):  # type: ignore[attr-defined]
-        for q in sorted(exch_reachable[p]):
+        for q in exch_reachable[p]:
             if q > p:
                 break
             for r in pq_coul_reachable[p, q]:
@@ -204,5 +204,21 @@ def count_non_zero_2el(
                 for s in exch_reachable[r]:
                     if s > r:
                         break
-                    result[p] += 1
-    return result.sum()
+                    result += 1
+    return result
+
+
+@njit(parallel=True)
+def count_non_zero_2el_with_permutations(
+    exch_reachable: list[Vector[OrbitalIdx]],
+    pq_coul_reachable: Mapping[tuple[OrbitalIdx, OrbitalIdx], Vector[OrbitalIdx]],
+    n_AO: int | None = None,
+) -> int:
+    n_AO = len(exch_reachable) if n_AO is None else n_AO
+    result = 0
+    for p in prange(n_AO):  # type: ignore[attr-defined]
+        for q in exch_reachable[p]:
+            for r in pq_coul_reachable[p, q]:
+                for s in exch_reachable[r]:
+                    result += 1
+    return result
