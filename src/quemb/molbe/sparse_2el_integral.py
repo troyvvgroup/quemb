@@ -164,7 +164,7 @@ def to_numba_input(
     assert list(exch_reachable.keys()) == list(range(len(exch_reachable)))
     return List(
         [
-            np.array(sorted(orbitals), dtype=np.uint64)
+            np.sort(np.array(orbitals, dtype=np.uint64))
             for orbitals in exch_reachable.values()
         ]
     )
@@ -175,11 +175,14 @@ def get_pq_reachable(
     exch_reachable: Sequence[Vector[OrbitalIdx]],
     coul_reachable: Sequence[Vector[OrbitalIdx]],
 ) -> dict[tuple[OrbitalIdx, OrbitalIdx], Vector[OrbitalIdx]]:
-    coul_reachable = [set(orbitals) for orbitals in coul_reachable]
+    prepared_coul_reachable = [set(orbitals) for orbitals in coul_reachable]
 
     return {
-        (np.uint64(p), q): np.array(
-            sorted(coul_reachable[p] & coul_reachable[q]), dtype=np.uint64
+        cast(tuple[OrbitalIdx, OrbitalIdx], (np.uint64(p), q)): np.sort(
+            np.array(
+                prepared_coul_reachable[p] & prepared_coul_reachable[q],
+                dtype=np.uint64,
+            )
         )
         for p in range(len(exch_reachable))
         for q in exch_reachable[p]

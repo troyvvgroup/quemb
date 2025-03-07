@@ -17,7 +17,7 @@ import numpy as np
 # We just reexpose the AtomIdx type from chemcoord here
 from chemcoord.typing import AtomIdx
 
-Real: TypeAlias = int | float | np.integer | np.floating
+Real: TypeAlias = int | float | np.floating
 Integral: TypeAlias = int | np.integer
 
 # We want the dtype to behave covariant, i.e. if a
