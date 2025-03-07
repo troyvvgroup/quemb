@@ -121,6 +121,7 @@ class fragpart:
         self.center_atom = []
         self.hlist_atom = []
         self.add_center_atom = []
+        self.iao_valence_only = False
 
         # Check for frozen core approximation
         if frozen_core:
@@ -173,6 +174,8 @@ class fragpart:
                 additional_args = AutogenArgs()
             else:
                 assert isinstance(additional_args, AutogenArgs)
+
+            self.iao_valence_only = additional_args.iao_valence_only
             fgs = autogen(
                 mol,
                 be_type=be_type,
