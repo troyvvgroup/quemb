@@ -368,6 +368,21 @@ def graphgen(
     return fragment_map
 
 
+@define
+class AutogenArgs:
+    """Additional arguments for autogen
+
+    Parameters
+    ----------
+    iao_valence_only:
+        If this option is set to True, all calculation will be performed in
+        the valence basis in the IAO partitioning.
+        This is an experimental feature.
+    """
+
+    iao_valence_only: bool = False
+
+
 def autogen(
     mol,
     frozen_core=True,
