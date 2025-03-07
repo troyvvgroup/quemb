@@ -9,6 +9,7 @@ import pytest
 from pyscf import gto, scf
 
 from quemb.molbe import BE, fragpart
+from quemb.molbe.fragment import ChemGenArgs
 
 
 def test_hexene_loc_be1_froz_pm(hexene) -> None:
@@ -98,6 +99,7 @@ def test_chem_gen_hexene_loc_be2_froz_iao_sto3g_boys(hexene) -> None:
         oneshot=False,
         nproc=8,
         frag_type="chemgen",
+        additional_args=ChemGenArgs(wrong_iao_indexing=True),
     )
     # energy after four iterations
     assert np.isclose(be2_f_iao_fb, -0.92794903, atol=1e-8, rtol=0), be2_f_iao_fb
@@ -119,7 +121,7 @@ def test_chem_gen_hexene_loc_be2_froz_iao_sto3g_boys_fixed_AOs(hexene) -> None:
         oneshot=False,
         nproc=8,
         frag_type="chemgen",
-        fix_iao_indexing=True,
+        additional_args=ChemGenArgs(wrong_iao_indexing=False),
     )
     # energy after four iterations
     assert np.isclose(be2_f_iao_fb, -0.92794903, atol=1e-8, rtol=0), be2_f_iao_fb
@@ -136,16 +138,17 @@ def ret_ecorr(
     oneshot: bool,
     nproc: int,
     frag_type: Literal["autogen", "chemgen"] = "autogen",
-    fix_iao_indexing: bool = False,
+    additional_args: ChemGenArgs | None = None,
 ) -> float:
     # Fragment molecule
+
     fobj = fragpart(
         be_type=be,
         mol=mol,
         frozen_core=frozen,
         iao_valence_basis=iao_valence_basis,
         frag_type=frag_type,
-        fix_iao_indexing=fix_iao_indexing,
+        additional_args=additional_args,
     )
 
     # Run BE initialization and localization
