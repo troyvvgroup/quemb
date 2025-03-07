@@ -5,7 +5,7 @@ from typing import Literal, TypeAlias
 from pyscf.gto.mole import Mole
 from typing_extensions import assert_never
 
-from quemb.molbe.autofrag import ChemGenArgs, autogen, chemgen, graphgen
+from quemb.molbe.autofrag import ChemGenArgs, GraphGenArgs, autogen, chemgen, graphgen
 from quemb.molbe.helper import get_core
 from quemb.molbe.lchain import chain as _ext_chain
 from quemb.shared.helper import copy_docstring
@@ -81,12 +81,9 @@ class fragpart:
         write_geom: bool = False,
         be_type: str = "be2",
         frag_prefix: str = "f",
-        connectivity: str = "euclidean",
         mol: Mole | None = None,
         frozen_core: bool = False,
-        cutoff: float = 20.0,
-        remove_nonnunique_frags: bool = True,
-        additional_args: ChemGenArgs | None = None,
+        additional_args: ChemGenArgs | GraphGenArgs | None = None,
     ) -> None:
         self.mol = mol
         self.frag_type = frag_type
@@ -100,12 +97,9 @@ class fragpart:
         self.centerf_idx = []
         self.be_type = be_type
         self.frag_prefix = frag_prefix
-        self.connectivity = connectivity
         self.frozen_core = frozen_core
         self.iao_valence_basis = iao_valence_basis
         self.iao_valence_only = iao_valence_only
-        self.cutoff = cutoff
-        self.remove_nonnunique_frags = remove_nonnunique_frags
         self.Frag_atom = []
         self.center_atom = []
         self.hlist_atom = []
@@ -129,15 +123,19 @@ class fragpart:
 
         elif frag_type == "graphgen":
             assert self.mol is not None
+            if additional_args is None:
+                additional_args = GraphGenArgs()
+            else:
+                assert additional_args is None
             fragment_map = graphgen(
                 mol=self.mol.copy(),
                 be_type=self.be_type,
                 frozen_core=self.frozen_core,
-                remove_nonunique_frags=self.remove_nonnunique_frags,
+                remove_nonunique_frags=additional_args.remove_nonnunique_frags,
                 frag_prefix=self.frag_prefix,
-                connectivity=self.connectivity,
+                connectivity=additional_args.connectivity,
                 iao_valence_basis=self.iao_valence_basis,
-                cutoff=self.cutoff,
+                cutoff=additional_args.cutoff,
             )
 
             self.fsites = fragment_map.fsites

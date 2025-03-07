@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping, Sequence
 from copy import deepcopy
-from typing import Final
+from typing import Final, Literal
 
 import networkx as nx
 import numpy as np
@@ -16,6 +16,33 @@ from quemb.molbe.chemfrag import Fragmented, InVdWRadius
 from quemb.molbe.helper import get_core
 from quemb.shared.helper import unused
 from quemb.shared.typing import Vector
+
+
+@define(frozen=True, kw_only=True)
+class GraphGenArgs:
+    """Graphgen specific arguments.
+
+    Parameters
+    ----------
+
+    connectivity:
+        Keyword string specifying the distance metric to be used for edge
+        weights in the fragment adjacency graph. Currently supports "euclidean"
+        (which uses the square of the distance between atoms in real
+        space to determine connectivity within a fragment.)
+    cutoff:
+        Atoms with an edge weight beyond `cutoff` will be excluded from the
+        `shortest_path` calculation. This is crucial when handling very large
+        systems, where computing the shortest paths from all to all becomes
+        non-trivial. Defaults to 20.0.
+    remove_nonunique_frags:
+        Whether to remove fragments which are strict subsets of another
+        fragment in the system. True by default.
+    """
+
+    connectivity: Final[Literal["euclidean"]] = "euclidean"
+    cutoff: Final[float] = 20.0
+    remove_nonnunique_frags: Final[bool] = True
 
 
 @define
