@@ -222,7 +222,7 @@ class BondConnectivity:
             processed_bonds_atoms = {
                 k: OrderedSet(sorted(v))
                 for k, v in m.get_bonds(
-                    modify_element_data=lambda r: np.maximum(0.55, r * 1.20)  # type: ignore[arg-type,return-value]
+                    modify_element_data=(lambda r: np.maximum(0.55, 1.2 * r))
                     if vdW_radius is None
                     else vdW_radius
                 ).items()
