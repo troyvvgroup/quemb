@@ -149,6 +149,8 @@ class fragpart:
                 additional_args = GraphGenArgs()
             else:
                 assert isinstance(additional_args, GraphGenArgs)
+            if iao_valence_basis:
+                raise ValueError("iao_valence_basis not yet supported for 'graphgen'")
             fragment_map = graphgen(
                 mol=self.mol.copy(),
                 be_type=self.be_type,
