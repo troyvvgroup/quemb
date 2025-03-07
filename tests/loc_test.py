@@ -9,6 +9,7 @@ import pytest
 from pyscf import gto, scf
 
 from quemb.molbe import BE, fragpart
+from quemb.molbe.fragment import ChemGenArgs
 
 
 def test_hexene_loc_be1_froz_pm(hexene) -> None:
@@ -139,13 +140,18 @@ def ret_ecorr(
     fix_iao_indexing: bool = False,
 ) -> float:
     # Fragment molecule
+    if frag_type == "chemgen":
+        args = ChemGenArgs(wrong_iao_indexing=not fix_iao_indexing)
+    else:
+        args = None
+
     fobj = fragpart(
         be_type=be,
         mol=mol,
         frozen_core=frozen,
         iao_valence_basis=iao_valence_basis,
         frag_type=frag_type,
-        fix_iao_indexing=fix_iao_indexing,
+        additional_args=args,
     )
 
     # Run BE initialization and localization
