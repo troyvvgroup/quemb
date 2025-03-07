@@ -848,6 +848,11 @@ class ChemGenArgs:
     bonds_atoms: Mapping[int, set[int]] | None = None
     vdW_radius: InVdWRadius | None = None
 
+    #: This argument is not meant to be used by the user.
+    #: If it is true, then chemgen adheres to the old **wrong** indexing
+    #: of :python:`"autogen"``.
+    _wrong_iao_indexing: bool = False
+
 
 def chemgen(
     mol: Mole,

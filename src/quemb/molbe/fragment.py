@@ -86,7 +86,6 @@ class fragpart:
         frozen_core: bool = False,
         cutoff: float = 20.0,
         remove_nonnunique_frags: bool = True,
-        fix_iao_indexing: bool | None = None,
         additional_args: ChemGenArgs | None = None,
     ) -> None:
         self.mol = mol
@@ -194,7 +193,11 @@ class fragpart:
                 fragments.frag_structure.write_geom(prefix=frag_prefix)
             if print_frags:
                 print(fragments.frag_structure.get_string())
-            fgs = fragments.match_autogen_output(fix_iao_indexing)
+            fgs = fragments.match_autogen_output(
+                wrong_iao_indexing=False
+                if additional_args is None
+                else additional_args._wrong_iao_indexing
+            )
             self.fsites = fgs.fsites
             self.edge_sites = fgs.edge_sites
             self.center = fgs.center

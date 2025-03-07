@@ -1015,12 +1015,12 @@ class Fragmented:
             Nfrag=len(self),
         )
 
-    def _match_autogen_output_with_iao(self, fix_iao_indexing: bool) -> AutogenOutput:
+    def _match_autogen_output_with_iao(self, wrong_iao_indexing: bool) -> AutogenOutput:
         """Match the output of :func:`quemb.molbe.autofrag.autogen`.
 
         Parameters
         ----------
-        fix_iao_indexing:
+        wrong_iao_indexing:
             There is a suspected error in how autogen treats the ordering
             of AOs for H atoms. Do we fix it, or adhere to the wrong indexing?
         """
@@ -1056,18 +1056,13 @@ class Fragmented:
             AO_full_basis: Sequence[
                 Mapping[_T_motif, Mapping[AtomIdx, OrderedSet[_T_AOIdx]]]
             ],
-            fix_iao_indexing: bool,
+            wrong_iao_indexing: bool,
         ) -> list[list[list[_T_AOIdx]]]:
             result = []
             for fragment, fragment_big_basis in zip(AO_small_basis, AO_full_basis):
                 tmp: list[list[_T_AOIdx]] = []
                 for motif in fragment:
-                    if fix_iao_indexing:
-                        H_offsets = [
-                            fragment_big_basis[motif][H_atom][:n_small_AO_H]
-                            for H_atom in H_per_motif[motif]
-                        ]
-                    else:
+                    if wrong_iao_indexing:
                         offset = _iloc(fragment_big_basis[motif].values(), 1)[0]
                         H_offsets = [
                             OrderedSet(
@@ -1081,6 +1076,11 @@ class Fragmented:
                                 offset + n_conn_H[motif] * n_small_AO_H,
                                 n_small_AO_H,
                             )
+                        ]
+                    else:
+                        H_offsets = [
+                            fragment_big_basis[motif][H_atom][:n_small_AO_H]
+                            for H_atom in H_per_motif[motif]
                         ]
                     tmp.append(
                         _flatten(
@@ -1098,17 +1098,17 @@ class Fragmented:
         center_idx: Final = _extract_with_iao_offset(
             valence_frags.other_rel_AO_per_edge_per_frag,
             self.other_rel_AO_per_edge_per_frag,
-            fix_iao_indexing=fix_iao_indexing,
+            wrong_iao_indexing=wrong_iao_indexing,
         )
         edge_sites: Final = _extract_with_iao_offset(
             valence_frags.AO_per_edge_per_frag,
             self.AO_per_edge_per_frag,
-            fix_iao_indexing=fix_iao_indexing,
+            wrong_iao_indexing=wrong_iao_indexing,
         )
         edge_idx: Final = _extract_with_iao_offset(
             valence_frags.rel_AO_per_edge_per_frag,
             self.rel_AO_per_edge_per_frag,
-            fix_iao_indexing=fix_iao_indexing,
+            wrong_iao_indexing=wrong_iao_indexing,
         )
 
         # We have to flatten one nesting level since it is assumed in the output
@@ -1118,7 +1118,7 @@ class Fragmented:
             for L in _extract_with_iao_offset(
                 valence_frags.rel_AO_per_origin_per_frag,
                 self.rel_AO_per_origin_per_frag,
-                fix_iao_indexing=fix_iao_indexing,
+                wrong_iao_indexing=wrong_iao_indexing,
             )
         ]
 
@@ -1142,14 +1142,14 @@ class Fragmented:
         )
 
     def match_autogen_output(
-        self, fix_iao_indexing: bool | None = None
+        self, wrong_iao_indexing: bool | None = None
     ) -> AutogenOutput:
         """Match the output of :func:`quemb.molbe.autofrag.autogen`."""
         if self.iao_valence_mol is None:
             return self._match_autogen_output_no_iao()
         else:
-            assert fix_iao_indexing is not None
-            return self._match_autogen_output_with_iao(fix_iao_indexing)
+            assert wrong_iao_indexing is not None
+            return self._match_autogen_output_with_iao(wrong_iao_indexing)
 
 
 def _get_AOidx_per_atom(mol: Mole, frozen_core: bool) -> list[OrderedSet[GlobalAOIdx]]:
