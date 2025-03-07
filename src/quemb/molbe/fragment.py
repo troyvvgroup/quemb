@@ -13,6 +13,7 @@ from quemb.shared.helper import copy_docstring
 FragType: TypeAlias = Literal[
     "chemgen", "graphgen", "autogen", "hchain_simple", "chain"
 ]
+AdditionalArgs: TypeAlias = ChemGenArgs | GraphGenArgs
 
 
 class fragpart:
@@ -83,7 +84,7 @@ class fragpart:
         frag_prefix: str = "f",
         mol: Mole | None = None,
         frozen_core: bool = False,
-        additional_args: ChemGenArgs | GraphGenArgs | None = None,
+        additional_args: AdditionalArgs | None = None,
     ) -> None:
         self.mol = mol
         self.frag_type = frag_type
