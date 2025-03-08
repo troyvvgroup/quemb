@@ -499,3 +499,12 @@ def get_frag_energy_u(
             ec_tmp += efac[s][0] * ec[s][i]
 
     return [e1_tmp, e2_tmp, ec_tmp]
+
+
+def are_equal(m1: gto.Mole, m2: gto.Mole) -> bool:
+    return (
+        m1.atom == m2.atom
+        and m1.basis == m2.basis
+        and m1.charge == m2.charge
+        and m1.multiplicity == m2.multiplicity
+    )
