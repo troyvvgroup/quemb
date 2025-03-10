@@ -223,8 +223,10 @@ class FrankQN:
             # udpate vs, dxs, and fs
             self.vs[self.iter_] = self.B0 @ self.fnew
         self.dxs[self.iter_] = self.xnew - self.xold
-        self.fs[self.iter_ + 1] = self.fnew.copy()
-
+        if self.iter_ + 1 < len(self.fs):
+            self.fs[self.iter_ + 1] = self.fnew.copy()
+        else:
+            print("Reached the maximum number of iteration:", len(self.fs))
         self.iter_ += 1
 
     def get_Bnfn(self, n):
