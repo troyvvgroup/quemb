@@ -188,7 +188,7 @@ class BEOPT:
                 for iter_ in range(self.max_space):
                     iter_timer = Timer("Time to complete Iteration " + str(self.iter))
                     print("-- In iter ", self.iter, flush=True)
-                    optQN.next_step(trust_region=trust_region)
+                    optQN.next_step(self.iter, trust_region=trust_region)
                     self.iter += 1
                     print(
                         "Error in density matching      :   {:>2.4e}".format(self.err),
@@ -208,5 +208,9 @@ class BEOPT:
                             )
                         print(flush=True)
                         break
+                print(
+                    "BE DID NOT CONVERGE IN " + str(self.max_space) + " STEPS",
+                    flush=True,
+                )
         else:
             raise ValueError("This optimization method for BE is not supported")
