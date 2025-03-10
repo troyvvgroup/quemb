@@ -161,7 +161,7 @@ class BEOPT:
         print(flush=True)
         if method == "QN":
             step0_timer = Timer("Time to complete Iteration 0")
-            print("-- In iter ", self.iter, flush=True)
+            print("-- Beginning optimization iteration ", self.iter, flush=True)
 
             # Initial step
             f0 = self.objfunc(self.pot)

@@ -223,8 +223,10 @@ class FrankQN:
             # udpate vs, dxs, and fs
             self.vs[self.iter_] = self.B0 @ self.fnew
         self.dxs[self.iter_] = self.xnew - self.xold
-        self.fs[self.iter_ + 1] = self.fnew.copy()
-
+        if self.iter_ + 1 < len(self.fs):
+            self.fs[self.iter_ + 1] = self.fnew.copy()
+        else:
+            print("Reached the maximum number of iteration:", len(self.fs))
         self.iter_ += 1
 
     def get_Bnfn(self, n):
@@ -258,11 +260,11 @@ def get_be_error_jacobian(Nfrag, Fobjs, jac_solver="HF"):
     ys = [None] * Nfrag
     alphas = [None] * Nfrag
 
-    if jac_solver == "MP2":
+    if jac_solver.upper() == "MP2":
         res_func = mp2res_func
-    elif jac_solver == "CCSD":
+    elif jac_solver.upper() == "CCSD":
         res_func = ccsdres_func
-    elif jac_solver == "HF":
+    elif jac_solver.upper() == "HF":
         res_func = hfres_func
 
     Ncout = [None] * Nfrag

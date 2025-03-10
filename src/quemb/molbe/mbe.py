@@ -628,7 +628,7 @@ class BE(MixinLocalize):
         use_cumulant: bool = True,
         conv_tol: float = 1.0e-6,
         relax_density: bool = False,
-        J0: Matrix[floating] | None = None,
+        jac_solver: str = "HF",
         nproc: int = 1,
         ompnum: int = 4,
         max_iter: int = 500,
@@ -666,8 +666,9 @@ class BE(MixinLocalize):
         ompnum :
             If nproc > 1, ompnum sets the number of cores for OpenMP parallelization.
             Defaults to 4
-        J0 :
-            Initial Jacobian.
+        jac_solver :
+            Method to form Jacobian used in optimization routine, by default HF.
+            Options include HF, MP2, CCSD
         trust_region :
             Use trust-region based QN optimization, by default False
         """
@@ -705,10 +706,10 @@ class BE(MixinLocalize):
             # Prepare the initial Jacobian matrix
             if only_chem:
                 J0 = array([[0.0]])
-                J0 = self.get_be_error_jacobian(jac_solver="HF")
+                J0 = self.get_be_error_jacobian(jac_solver=jac_solver)
                 J0 = J0[-1:, -1:]
             else:
-                J0 = self.get_be_error_jacobian(jac_solver="HF")
+                J0 = self.get_be_error_jacobian(jac_solver=jac_solver)
 
             # Perform the optimization
             be_.optimize(method, J0=J0, trust_region=trust_region)
