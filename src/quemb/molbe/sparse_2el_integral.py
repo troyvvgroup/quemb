@@ -164,7 +164,7 @@ def to_numba_input(
     assert list(exch_reachable.keys()) == list(range(len(exch_reachable)))
     return List(
         [
-            np.sort(np.array(orbitals, dtype=np.uint64))
+            np.array(sorted(orbitals), dtype=np.uint64)  # type: ignore[type-var]
             for orbitals in exch_reachable.values()
         ]
     )
@@ -178,9 +178,9 @@ def get_pq_reachable(
     prepared_coul_reachable = [set(orbitals) for orbitals in coul_reachable]
 
     return {
-        cast(tuple[OrbitalIdx, OrbitalIdx], (np.uint64(p), q)): np.sort(
+        (np.uint64(p), q): np.sort(  # type: ignore[misc]
             np.array(
-                prepared_coul_reachable[p] & prepared_coul_reachable[q],
+                list(prepared_coul_reachable[p] & prepared_coul_reachable[q]),
                 dtype=np.uint64,
             )
         )
@@ -189,39 +189,45 @@ def get_pq_reachable(
     }
 
 
-@njit(parallel=True)
-def count_non_zero_2el(
-    exch_reachable: list[Vector[OrbitalIdx]],
-    pq_coul_reachable: Mapping[tuple[OrbitalIdx, OrbitalIdx], Vector[OrbitalIdx]],
-    n_AO: int | None = None,
-) -> int:
-    n_AO = len(exch_reachable) if n_AO is None else n_AO
-    result = 0
-    for p in prange(n_AO):  # type: ignore[attr-defined]
-        for q in exch_reachable[p]:
+@njit
+def account_for_symmetry(
+    reachable: list[Vector[OrbitalIdx]],
+) -> list[Vector[OrbitalIdx]]:
+    result = []
+    for p, reachable_by_p in enumerate(reachable):
+        index = len(reachable_by_p)
+        for i, q in enumerate(reachable_by_p):
             if q > p:
+                index = i
                 break
-            for r in pq_coul_reachable[p, q]:
-                if r > p:
-                    break
-                for s in exch_reachable[r]:
-                    if s > r:
-                        break
-                    result += 1
+        result.append(reachable_by_p[:index])
     return result
 
 
 @njit(parallel=True)
-def count_non_zero_2el_with_permutations(
+def count_non_zero_2el(
     exch_reachable: list[Vector[OrbitalIdx]],
-    pq_coul_reachable: Mapping[tuple[OrbitalIdx, OrbitalIdx], Vector[OrbitalIdx]],
     n_AO: int | None = None,
 ) -> int:
     n_AO = len(exch_reachable) if n_AO is None else n_AO
     result = 0
     for p in prange(n_AO):  # type: ignore[attr-defined]
         for q in exch_reachable[p]:
-            for r in pq_coul_reachable[p, q]:
+            for r in range(p + 1):
+                for s in exch_reachable[r]:
+                    result += 1
+    return result
+
+
+def py_count_non_zero_2el(
+    exch_reachable: list[Vector[OrbitalIdx]],
+    n_AO: int | None = None,
+) -> int:
+    n_AO = len(exch_reachable) if n_AO is None else n_AO
+    result = 0
+    for p in range(n_AO):  # type: ignore[attr-defined]
+        for q in exch_reachable[p]:
+            for r in range(p + 1):
                 for s in exch_reachable[r]:
                     result += 1
     return result
