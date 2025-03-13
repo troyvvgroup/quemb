@@ -5,10 +5,25 @@
 #
 
 import numpy as np
-from numpy import diag, where
+from numpy import allclose, diag, eye, where
 from numpy.linalg import eigh, matrix_power, norm
 
 from quemb.shared.typing import Matrix
+
+
+def remove_core_mo(Clo: Matrix, Ccore: Matrix, S: Matrix, thr: float = 0.5) -> Matrix:
+    """Remove core molecular orbitals from localized Clo"""
+    assert allclose(Clo.T @ S @ Clo, eye(Clo.shape[1]))
+    assert allclose(Ccore.T @ S @ Ccore, eye(Ccore.shape[1]))
+
+    n, nlo = Clo.shape
+    ncore = Ccore.shape[1]
+    Pcore = Ccore @ Ccore.T @ S
+    Clo1 = (eye(n) - Pcore) @ Clo
+    pop = diag(Clo1.T @ S @ Clo1)
+    idx_keep = where(pop > thr)[0]
+    assert len(idx_keep) == nlo - ncore
+    return symm_orth(Clo1[:, idx_keep], ovlp=S)
 
 
 def dot_gen(A: Matrix, B: Matrix, ovlp: Matrix | None = None) -> Matrix:
