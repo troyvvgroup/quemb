@@ -15,26 +15,12 @@ from pyscf.lo.pipek import PipekMezey
 from quemb.shared.external.lo_helper import (
     cano_orth,
     get_aoind_by_atom,
+    remove_core_mo,
     reorder_by_atom_,
     symm_orth,
 )
 from quemb.shared.helper import ncore_, unused
 from quemb.shared.typing import Matrix, Tensor3D
-
-
-def remove_core_mo(Clo: Matrix, Ccore: Matrix, S: Matrix, thr: float = 0.5) -> Matrix:
-    """Remove core molecular orbitals from localized Clo"""
-    assert allclose(Clo.T @ S @ Clo, eye(Clo.shape[1]))
-    assert allclose(Ccore.T @ S @ Ccore, eye(Ccore.shape[1]))
-
-    n, nlo = Clo.shape
-    ncore = Ccore.shape[1]
-    Pcore = Ccore @ Ccore.T @ S
-    Clo1 = (eye(n) - Pcore) @ Clo
-    pop = diag(Clo1.T @ S @ Clo1)
-    idx_keep = where(pop > thr)[0]
-    assert len(idx_keep) == nlo - ncore
-    return symm_orth(Clo1[:, idx_keep], ovlp=S)
 
 
 def get_xovlp(

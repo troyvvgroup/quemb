@@ -53,17 +53,16 @@ class BE(Mixin_k_Localize):
         mf: scf.khf.KRHF,
         fobj: fragpart,
         eri_file: PathLike = "eri_file.h5",
-        lo_method: str = "lowdin",
         compute_hf: bool = True,
         restart: bool = False,
         restart_file: PathLike = "storebe.pk",
         nproc: int = 1,
         ompnum: int = 4,
-        iao_val_core: bool = True,
+        lo_method: str = "lowdin",
+        iao_loc_method: str = "SO",
         exxdiv: str | None = "ewald",
         kpts: list[list[float]] | None = None,
         cderi: PathLike | None = None,
-        iao_wannier: bool = False,
         scratch_dir: WorkDir | None = None,
     ) -> None:
         """
@@ -79,10 +78,6 @@ class BE(Mixin_k_Localize):
             k-points in the reciprocal space for periodic computation
         eri_file :
             Path to the file storing two-electron integrals, by default 'eri_file.h5'.
-        lo_method :
-            Method for orbital localization, by default 'lowdin'.
-        iao_wannier :
-            Whether to perform Wannier localization on the IAO space, by default False.
         compute_hf :
             Whether to compute Hartree-Fock energy, by default True.
         restart :
@@ -94,6 +89,12 @@ class BE(Mixin_k_Localize):
             multi-threaded parallel computation is invoked.
         ompnum :
             Number of OpenMP threads, by default 4.
+        lo_method :
+            Method for orbital localization, by default 'lowdin'. Options include:
+            'lowdin', 'iao', and 'wannier'
+        iao_loc_method :
+            Method to localize the IAO (not PAO?) space, by default 'SO'.
+            Options include: 'so' and 'wannier'
         scratch_dir :
             Scratch directory.
         """
@@ -256,7 +257,7 @@ class BE(Mixin_k_Localize):
                     self.hcore[k] += self.core_veff[k]
 
         # Needed for Wannier localization
-        if lo_method == "wannier" or iao_wannier:
+        if lo_method.upper() == "WANNIER" or iao_loc_method.upper() == "WANNIER":
             self.FOCK = self.mf.get_fock(self.hcore, self.S, self.hf_veff, self.hf_dm)
 
         if not restart:
@@ -264,8 +265,10 @@ class BE(Mixin_k_Localize):
             self.localize(
                 lo_method,
                 iao_valence_basis=fobj.iao_valence_basis,
-                iao_wannier=iao_wannier,
-                iao_val_core=iao_val_core,
+                # iao_core_basis to be investigated:
+                # currently, same as iao_valence_basis
+                iao_core_basis=fobj.iao_valence_basis,
+                iao_loc_method=iao_loc_method,
             )
 
         if not restart:
