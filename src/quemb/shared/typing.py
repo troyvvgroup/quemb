@@ -86,6 +86,10 @@ MOIdx = NewType("MOIdx", OrbitalIdx)
 #: The global index of a molecular orbital, i.e. not per fragment.
 GlobalMOIdx = NewType("GlobalMOIdx", MOIdx)
 
+# TODO improve description of ShellIdx
+
+#: The shell index ...
+ShellIdx = NewType("ShellIdx", int)
 
 #: The index of a Fragment.
 FragmentIdx = NewType("FragmentIdx", np.integer)

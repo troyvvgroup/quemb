@@ -120,7 +120,7 @@ class Timer:
 
 @njit(cache=True)
 def gauss_sum(n: Integral) -> Integral:
-    """Return the sum :math:`\sum_{i=1}^n i`
+    r"""Return the sum :math:`\sum_{i=1}^n i`
 
     Parameters
     ----------

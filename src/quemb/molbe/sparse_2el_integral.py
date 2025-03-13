@@ -1,7 +1,7 @@
 from collections import defaultdict
 from collections.abc import Mapping, Sequence, Set
 from itertools import chain
-from typing import cast
+from typing import TypeVar, cast
 
 import numpy as np
 from chemcoord import Cartesian
@@ -16,8 +16,10 @@ from quemb.molbe.chemfrag import (
 )
 from quemb.shared.helper import symmetric_index
 from quemb.shared.typing import (
+    AOIdx,
     AtomIdx,
     OrbitalIdx,
+    ShellIdx,
     Vector,
 )
 
@@ -82,6 +84,10 @@ class TwoElIntegral:
         return symmetric_index(symmetric_index(a, b), symmetric_index(c, d))
 
 
+T_start_orb = TypeVar("T_start_orb", bound=OrbitalIdx)
+T_target_orb = TypeVar("T_target_orb", bound=OrbitalIdx)
+
+
 def get_orbs_per_atom(
     atom_per_orb: Mapping[OrbitalIdx, Set[AtomIdx]],
 ) -> dict[AtomIdx, set[OrbitalIdx]]:
@@ -103,12 +109,31 @@ def get_orbs_reachable_by_atom(
 
 
 def get_orbs_reachable_by_orb(
-    reachable_orb_per_atom: Mapping[AtomIdx, Mapping[AtomIdx, Set[OrbitalIdx]]],
-    atom_per_orb: Mapping[OrbitalIdx, Set[AtomIdx]],
-) -> dict[OrbitalIdx, dict[AtomIdx, Mapping[AtomIdx, Set[OrbitalIdx]]]]:
+    atom_per_orb: Mapping[T_start_orb, Set[AtomIdx]],
+    reachable_orb_per_atom: Mapping[AtomIdx, Mapping[AtomIdx, Set[T_target_orb]]],
+) -> dict[T_start_orb, dict[AtomIdx, Mapping[AtomIdx, Set[T_target_orb]]]]:
     return {
         i_AO: {atom: reachable_orb_per_atom[atom] for atom in atoms}
         for i_AO, atoms in atom_per_orb.items()
+    }
+
+
+def flatten(
+    orb_reachable_by_orb: Mapping[
+        T_start_orb, Mapping[AtomIdx, Mapping[AtomIdx, Set[T_target_orb]]]
+    ],
+) -> dict[T_start_orb, set[T_target_orb]]:
+    return {
+        i_orb: set(
+            chain(
+                *(
+                    start_atoms[start_atom][target_atom]
+                    for start_atom, target_atoms in start_atoms.items()
+                    for target_atom in target_atoms
+                )
+            )
+        )
+        for i_orb, start_atoms in orb_reachable_by_orb.items()
     }
 
 
@@ -130,32 +155,40 @@ def get_atom_per_AO(mol: Mole) -> dict[OrbitalIdx, set[AtomIdx]]:
     }
 
 
+def conversions_AO_shell(
+    mol: Mole,
+) -> tuple[dict[ShellIdx, list[AOIdx]], dict[AOIdx, ShellIdx]]:
+    """Return dictionaries that for a shell index return the corresponding AO indices
+    and for an AO index return the corresponding shell index."""
+    shell_id_to_AO = {
+        ShellIdx(shell_id): cast(
+            list[AOIdx], list(range(*mol.nao_nr_range(shell_id, shell_id + 1)))
+        )
+        for shell_id in range(mol.nbas)
+    }
+    AO_to_shell_id = {
+        cast(AOIdx, AO): shell_id
+        for (shell_id, AOs) in shell_id_to_AO.items()
+        for AO in AOs
+    }
+    return shell_id_to_AO, AO_to_shell_id
+
+
 def get_reachable(
     mol: Mole, atoms_per_orb: Mapping[OrbitalIdx, Set[AtomIdx]], scale_vdW: float
 ) -> dict[OrbitalIdx, set[OrbitalIdx]]:
-    orbs_per_atom = get_orbs_per_atom(atoms_per_orb)
     m = Cartesian.from_pyscf(mol)
 
     screen_conn = m.get_bonds(
         modify_element_data=lambda r: r * scale_vdW, self_bonding_allowed=True
     )
 
-    orb_reachable_by_orb = get_orbs_reachable_by_orb(
-        get_orbs_reachable_by_atom(orbs_per_atom, screen_conn), atoms_per_orb
-    )
-
-    return {
-        i_orb: set(
-            chain(
-                *(
-                    start_atoms[start_atom][target_atom]
-                    for start_atom, target_atoms in start_atoms.items()
-                    for target_atom in target_atoms
-                )
-            )
+    return flatten(
+        get_orbs_reachable_by_orb(
+            atoms_per_orb,
+            get_orbs_reachable_by_atom(get_orbs_per_atom(atoms_per_orb), screen_conn),
         )
-        for i_orb, start_atoms in orb_reachable_by_orb.items()
-    }
+    )
 
 
 def to_numba_input(
