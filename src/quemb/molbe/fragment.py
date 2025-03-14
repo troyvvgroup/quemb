@@ -2,10 +2,18 @@
 
 from typing import Literal, TypeAlias
 
+from attrs import define
 from pyscf.gto.mole import Mole
 from typing_extensions import assert_never
 
-from quemb.molbe.autofrag import ChemGenArgs, autogen, chemgen, graphgen
+from quemb.molbe.autofrag import (
+    AutogenArgs,
+    ChemGenArgs,
+    GraphGenArgs,
+    autogen,
+    chemgen,
+    graphgen,
+)
 from quemb.molbe.helper import get_core
 from quemb.molbe.lchain import chain as _ext_chain
 from quemb.shared.helper import copy_docstring
@@ -13,6 +21,22 @@ from quemb.shared.helper import copy_docstring
 FragType: TypeAlias = Literal[
     "chemgen", "graphgen", "autogen", "hchain_simple", "chain"
 ]
+
+
+@define
+class ChainArgs:
+    """Additional arguments for "chain" and "chain_simple"
+
+    Parameters
+    ----------
+    closed:
+        Closed chain with periodic boundary conditions, i.e. a ring.
+    """
+
+    closed: bool = False
+
+
+AdditionalArgs: TypeAlias = AutogenArgs | ChemGenArgs | GraphGenArgs | ChainArgs
 
 
 class fragpart:
@@ -40,10 +64,6 @@ class fragpart:
         :python:`"chemgen", "graphgen", "autogen"`
     iao_valence_basis:
         Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
-    iao_valence_only:
-        If this option is set to True, all calculation will be performed in
-        the valence basis in the IAO partitioning.
-        This is an experimental feature.
     frozen_core:
         Whether to invoke frozen core approximation. This is set to False by default
     print_frags:
@@ -74,19 +94,14 @@ class fragpart:
     def __init__(
         self,
         frag_type: FragType = "autogen",
-        closed: bool = False,
         iao_valence_basis: str | None = None,
-        iao_valence_only: bool = False,
         print_frags: bool = True,
         write_geom: bool = False,
         be_type: str = "be2",
         frag_prefix: str = "f",
-        connectivity: str = "euclidean",
         mol: Mole | None = None,
         frozen_core: bool = False,
-        cutoff: float = 20.0,
-        remove_nonnunique_frags: bool = True,
-        additional_args: ChemGenArgs | None = None,
+        additional_args: AdditionalArgs | None = None,
     ) -> None:
         self.mol = mol
         self.frag_type = frag_type
@@ -100,16 +115,13 @@ class fragpart:
         self.centerf_idx = []
         self.be_type = be_type
         self.frag_prefix = frag_prefix
-        self.connectivity = connectivity
         self.frozen_core = frozen_core
         self.iao_valence_basis = iao_valence_basis
-        self.iao_valence_only = iao_valence_only
-        self.cutoff = cutoff
-        self.remove_nonnunique_frags = remove_nonnunique_frags
         self.Frag_atom = []
         self.center_atom = []
         self.hlist_atom = []
         self.add_center_atom = []
+        self.iao_valence_only = False
 
         # Check for frozen core approximation
         if frozen_core:
@@ -125,19 +137,29 @@ class fragpart:
             self.hchain_simple()
 
         elif frag_type == "chain":
-            self.chain(self.mol, frozen_core=frozen_core, closed=closed)
+            if additional_args is None:
+                additional_args = ChainArgs()
+            else:
+                assert isinstance(additional_args, ChainArgs)
+            self.chain(self.mol, frozen_core=frozen_core, closed=additional_args.closed)
 
         elif frag_type == "graphgen":
             assert self.mol is not None
+            if additional_args is None:
+                additional_args = GraphGenArgs()
+            else:
+                assert isinstance(additional_args, GraphGenArgs)
+            if iao_valence_basis:
+                raise ValueError("iao_valence_basis not yet supported for 'graphgen'")
             fragment_map = graphgen(
                 mol=self.mol.copy(),
                 be_type=self.be_type,
                 frozen_core=self.frozen_core,
-                remove_nonunique_frags=self.remove_nonnunique_frags,
+                remove_nonunique_frags=additional_args.remove_nonnunique_frags,
                 frag_prefix=self.frag_prefix,
-                connectivity=self.connectivity,
+                connectivity=additional_args.connectivity,
                 iao_valence_basis=self.iao_valence_basis,
-                cutoff=self.cutoff,
+                cutoff=additional_args.cutoff,
             )
 
             self.fsites = fragment_map.fsites
@@ -150,14 +172,20 @@ class fragpart:
             self.Nfrag = len(self.fsites)
 
         elif frag_type == "autogen":
+            if additional_args is None:
+                additional_args = AutogenArgs()
+            else:
+                assert isinstance(additional_args, AutogenArgs)
+
+            self.iao_valence_only = additional_args.iao_valence_only
             fgs = autogen(
                 mol,
                 be_type=be_type,
                 frozen_core=frozen_core,
                 write_geom=write_geom,
                 iao_valence_basis=iao_valence_basis,
-                iao_valence_only=iao_valence_only,
                 print_frags=print_frags,
+                iao_valence_only=additional_args.iao_valence_only,
             )
 
             (
@@ -176,27 +204,25 @@ class fragpart:
             self.Nfrag = len(self.fsites)
 
         elif frag_type == "chemgen":
-            if iao_valence_basis is not None:
-                raise NotImplementedError(
-                    "iao_valence_basis is not implemented for chemgen"
-                )
-            if iao_valence_only:
-                raise NotImplementedError(
-                    "iao_valence_only is not implemented for chemgen"
-                )
-            assert isinstance(additional_args, (type(None), ChemGenArgs))
+            if additional_args is None:
+                additional_args = ChemGenArgs()
+            else:
+                assert isinstance(additional_args, ChemGenArgs)
             assert mol is not None
             fragments = chemgen(
                 mol,
                 n_BE=int(be_type[2:]),
                 frozen_core=frozen_core,
                 args=additional_args,
+                iao_valence_basis=iao_valence_basis,
             )
             if write_geom:
                 fragments.frag_structure.write_geom(prefix=frag_prefix)
             if print_frags:
                 print(fragments.frag_structure.get_string())
-            fgs = fragments.match_autogen_output()
+            fgs = fragments.match_autogen_output(
+                wrong_iao_indexing=additional_args._wrong_iao_indexing
+            )
             self.fsites = fgs.fsites
             self.edge_sites = fgs.edge_sites
             self.center = fgs.center

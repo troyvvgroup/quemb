@@ -6,6 +6,9 @@ from time import time
 from typing import Any, Callable, TypeVar
 
 from attr import define, field
+from numba import njit
+
+from quemb.shared.typing import Integral
 
 Function = TypeVar("Function", bound=Callable)
 
@@ -113,3 +116,104 @@ class Timer:
 
     def str_elapsed(self, message: str | None = None) -> str:
         return f"{self.message if message is None else message}: {self.elapsed():.5f}"
+
+
+@njit(cache=True)
+def gauss_sum(n: Integral) -> Integral:
+    r"""Return the sum :math:`\sum_{i=1}^n i`
+
+    Parameters
+    ----------
+    n :
+    """
+    return (n * (n + 1)) // 2
+
+
+@njit(cache=True)
+def ravel_symmetric(a: Integral, b: Integral) -> Integral:
+    """Flatten the index a, b assuming symmetry.
+
+    The resulting indexation for a matrix looks like this::
+
+        0
+        1   2
+        3   4   5
+        6   7   8   9
+
+    Parameters
+    ----------
+    a :
+    b :
+    """
+    return gauss_sum(a) + b if a > b else gauss_sum(b) + a
+
+
+@njit(cache=True)
+def ravel(a: Integral, b: Integral, n_cols: Integral) -> Integral:
+    """Flatten the index a, b assuming row-mayor/C indexing
+
+    The resulting indexation for a 3 by 4 matrix looks like this::
+
+        0   1   2   3
+        4   5   6   7
+        8   9  10  11
+
+
+    Parameters
+    ----------
+    a :
+    b :
+    n_rows :
+    """
+    assert b < n_cols
+    return (a * n_cols) + b
+
+
+@njit(cache=True)
+def symmetric_different_size(m: Integral, n: Integral) -> Integral:
+    r"""Return the number of unique elements in a symmetric matrix of different row
+    and column length
+
+    This is for example the situation for pairs :math:`\mu, i` where :math:`\mu`
+    is an AO and :math:`i` is a fragment orbital.
+
+    The assumed structure of the symmetric matrix is::
+
+        *   *   *   *
+        *   *   *   *
+        *   *   0   0
+        *   *   0   0
+
+    where the stars denote non-zero elements.
+
+    Parameters
+    ----------
+    m:
+    n:
+    """
+
+    m, n = min(m, n), max(m, n)  # type: ignore[type-var]
+    return gauss_sum(m) + m * (n - m)
+
+
+@njit(cache=True)
+def get_flexible_n_eri(
+    p_max: Integral, q_max: Integral, r_max: Integral, s_max: Integral
+) -> Integral:
+    r"""Return the number of unique ERIs but allowing different number of orbitals.
+
+    This is for example the situation for a tuple :math:`\mu, \nu, \kappa, i`,
+    where :math:`\mu, \nu, \kappa` are AOs and :math:`i` is a fragment orbital.
+    This function returns the number of unique ERIs :math:`g_{\mu, \nu, \kappa, i}`.
+
+    Parameters
+    ----------
+    p_max:
+    q_max:
+    r_max:
+    s_max:
+    """
+
+    return symmetric_different_size(
+        symmetric_different_size(p_max, q_max), symmetric_different_size(r_max, s_max)
+    )

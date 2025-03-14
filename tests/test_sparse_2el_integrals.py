@@ -1,8 +1,8 @@
-from quemb.molbe.sparse_2el_integral import TwoElIntegral
+from quemb.molbe.sparse_2el_integral import SparseInt2
 
 
 def test_basic_indexing() -> None:
-    g = TwoElIntegral()
+    g = SparseInt2()
     g[1, 2, 3, 4] = 3
 
     # test all possible permutations
