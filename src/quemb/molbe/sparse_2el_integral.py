@@ -9,6 +9,7 @@ from numba import njit, prange
 from numba.experimental import jitclass
 from numba.typed import Dict, List
 from numba.types import DictType, float64, int64, uint64  # type: ignore[attr-defined]
+from pyscf import df
 from pyscf.gto import Mole
 
 from quemb.molbe.chemfrag import (
@@ -332,6 +333,46 @@ def get_blocks(reachable: Sequence[int]) -> list[tuple[int, int]]:
         (reachable[start], reachable[stop - 1])
         for (start, stop) in identify_contiguous_blocks(reachable)
     ]
+
+
+def get_sparse_ints_3c2e(
+    mol: Mole,
+    auxmol: Mole,
+) -> SemiSparseInt3c2e:
+    """Return the 3-center 2-electron integrals in a sparse format." """
+    sparse_ints_3c2e = SemiSparseInt3c2e()
+
+    exch_reachable = get_reachable(mol, get_atom_per_AO(mol))
+    shell_id_to_AO, AO_to_shell_id = conversions_AO_shell(mol)
+    shell_reachable_by_shell = {
+        AO_to_shell_id[k]: sorted({AO_to_shell_id[orb] for orb in v})
+        for k, v in exch_reachable.items()
+    }
+
+    for i_shell, reachable in shell_reachable_by_shell.items():
+        for start_block, stop_block in get_blocks(reachable):
+            integrals = df.incore.aux_e2(
+                mol,
+                auxmol,
+                intor="int3c2e",
+                shls_slice=(
+                    i_shell,
+                    i_shell + 1,
+                    start_block,
+                    stop_block + 1,
+                    0,
+                    auxmol.nbas,
+                ),
+            )
+            for i, p in enumerate(shell_id_to_AO[i_shell]):
+                for j, q in enumerate(
+                    range(
+                        shell_id_to_AO[start_block][0],
+                        shell_id_to_AO[stop_block][-1] + 1,
+                    )
+                ):
+                    sparse_ints_3c2e[p, q] = integrals[i, j, :]
+    return sparse_ints_3c2e
 
 
 def _flatten(
