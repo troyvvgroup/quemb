@@ -130,7 +130,7 @@ def gauss_sum(n: Integral) -> Integral:
 
 
 @njit(cache=True)
-def symmetric_index(a: Integral, b: Integral) -> Integral:
+def ravel_symmetric(a: Integral, b: Integral) -> Integral:
     """Flatten the index a, b assuming symmetry.
 
     The resulting indexation for a matrix looks like this::
@@ -146,6 +146,27 @@ def symmetric_index(a: Integral, b: Integral) -> Integral:
     b :
     """
     return gauss_sum(a) + b if a > b else gauss_sum(b) + a
+
+
+@njit(cache=True)
+def ravel(a: Integral, b: Integral, n_cols: Integral) -> Integral:
+    """Flatten the index a, b assuming row-mayor/C indexing
+
+    The resulting indexation for a 3 by 4 matrix looks like this::
+
+        0   1   2   3
+        4   5   6   7
+        8   9  10  11
+
+
+    Parameters
+    ----------
+    a :
+    b :
+    n_rows :
+    """
+    assert b < n_cols
+    return (a * n_cols) + b
 
 
 @njit(cache=True)

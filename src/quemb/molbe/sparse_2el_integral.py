@@ -1,6 +1,6 @@
 from collections import defaultdict
-from collections.abc import Mapping, Sequence, Set
-from itertools import chain
+from collections.abc import Callable, Mapping, Sequence, Set
+from itertools import chain, takewhile
 from typing import TypeVar, cast
 
 import numpy as np
@@ -8,26 +8,25 @@ from chemcoord import Cartesian
 from numba import njit, prange
 from numba.experimental import jitclass
 from numba.typed import Dict, List
-from numba.types import DictType, float64, uint64  # type: ignore[attr-defined]
+from numba.types import DictType, float64, int64, uint64  # type: ignore[attr-defined]
 from pyscf.gto import Mole
 
 from quemb.molbe.chemfrag import (
     _get_AOidx_per_atom,
 )
-from quemb.shared.helper import symmetric_index
+from quemb.shared.helper import ravel_symmetric
 from quemb.shared.typing import (
     AOIdx,
     AtomIdx,
     OrbitalIdx,
+    Real,
     ShellIdx,
     Vector,
 )
 
-kv_ty = (uint64, float64)
 
-
-@jitclass([("_data", DictType(*kv_ty))])
-class TwoElIntegral:
+@jitclass([("_data", DictType(uint64, float64))])
+class SparseInt2:
     """Sparsely stores the 2-electron integrals using chemist's notation.
 
     This is a :python:`jitclass` which can be used with numba functions.
@@ -69,7 +68,7 @@ class TwoElIntegral:
     """  # noqa: E501
 
     def __init__(self) -> None:
-        self._data = Dict.empty(*kv_ty)
+        self._data = Dict.empty(uint64, float64)
 
     def __getitem__(self, key: tuple[int, int, int, int]) -> float:
         idx = self.compound(*key)
@@ -81,7 +80,56 @@ class TwoElIntegral:
     @staticmethod
     def compound(a: int, b: int, c: int, d: int) -> int:
         """Return compound index given four indices using Yoshimine sort"""
-        return symmetric_index(symmetric_index(a, b), symmetric_index(c, d))
+        return ravel_symmetric(ravel_symmetric(a, b), ravel_symmetric(c, d))
+
+
+@jitclass([("_data", DictType(int64, float64[:]))])
+class SemiSparseInt3c2e:
+    r"""Sparsely store the 2-electron integrals with the auxiliary basis
+
+    This class semi-sparsely stores the elements of the 3-indexed tensor
+    :math:`(\mu \nu | P)`.
+    Semi-sparsely, because it is assumed that there are many
+    exchange pairs :math:`\mu, \nu` which are zero, while the integral along
+    the auxiliary basis :math:`P` is stored densely as numpy array.
+
+    2-fold permutational symmetry for the :math:`\mu, \nu` pairs is assumed, i.e.
+
+    .. math::
+
+        (\mu \nu | P) == (\nu, \mu | P)
+
+    Examples
+    --------
+
+    >>> g = SemiSparseInt3c2e()
+    >>> g[1, 2] = np.array([3., 4., 5.])
+
+    We can test all possible permutations:
+
+    >>> assert g[1, 2] == np.array([3., 4., 5.])
+    >>> assert g[2, 1] == np.array([3., 4., 5.])
+
+    A non-existing index throws a :python:`KeyError`
+
+    The triple :math:`\mu, \nu, P` is accessed as
+
+    >>> g[mu, nu][P]
+    """
+
+    def __init__(self) -> None:
+        self._data = Dict.empty(int64, float64[:])
+
+    def __getitem__(self, key: tuple[int, int]) -> Vector[float64]:
+        return self._data[self.compound(*key)]
+
+    def __setitem__(self, key: tuple[int, int], value: Vector[float64]) -> None:
+        self._data[self.compound(*key)] = value
+
+    @staticmethod
+    def compound(a: int, b: int) -> int:
+        """Return compound index given four indices using Yoshimine sort"""
+        return ravel_symmetric(a, b)
 
 
 T_start_orb = TypeVar("T_start_orb", bound=OrbitalIdx)
@@ -118,25 +166,6 @@ def get_orbs_reachable_by_orb(
     }
 
 
-def flatten(
-    orb_reachable_by_orb: Mapping[
-        T_start_orb, Mapping[AtomIdx, Mapping[AtomIdx, Set[T_target_orb]]]
-    ],
-) -> dict[T_start_orb, set[T_target_orb]]:
-    return {
-        i_orb: set(
-            chain(
-                *(
-                    start_atoms[start_atom][target_atom]
-                    for start_atom, target_atoms in start_atoms.items()
-                    for target_atom in target_atoms
-                )
-            )
-        )
-        for i_orb, start_atoms in orb_reachable_by_orb.items()
-    }
-
-
 def get_atom_per_AO(mol: Mole) -> dict[OrbitalIdx, set[AtomIdx]]:
     AOs_per_atom = _get_AOidx_per_atom(mol, frozen_core=False)
     n_AO = AOs_per_atom[-1][-1] + 1
@@ -159,7 +188,13 @@ def conversions_AO_shell(
     mol: Mole,
 ) -> tuple[dict[ShellIdx, list[AOIdx]], dict[AOIdx, ShellIdx]]:
     """Return dictionaries that for a shell index return the corresponding AO indices
-    and for an AO index return the corresponding shell index."""
+    and for an AO index return the corresponding shell index.
+
+    Parameters
+    ----------
+    mol :
+        The molecule.
+    """
     shell_id_to_AO = {
         ShellIdx(shell_id): cast(
             list[AOIdx], list(range(*mol.nao_nr_range(shell_id, shell_id + 1)))
@@ -175,15 +210,37 @@ def conversions_AO_shell(
 
 
 def get_reachable(
-    mol: Mole, atoms_per_orb: Mapping[OrbitalIdx, Set[AtomIdx]], scale_vdW: float
+    mol: Mole,
+    atoms_per_orb: Mapping[OrbitalIdx, Set[AtomIdx]],
+    screening_cutoff: Real | Callable[[Real], Real] | Mapping[str, Real] = 5,
 ) -> dict[OrbitalIdx, set[OrbitalIdx]]:
+    """Return the orbitals that can by reached for each orbital after screening.
+
+    Parameters
+    ----------
+    mol :
+        The molecule.
+    atoms_per_orb :
+        The atoms per orbital. For AOs this is the atom the AO is centered on,
+        i.e. a set containing only one element,
+        but for delocalised MOs there can be more than one atom.
+    screening_cutoff :
+        The screening cutoff is given by the overlap of van der Waals radii.
+        By default, all radii are set to 5 Å, i.e. the screening distance is 10 Å.
+        Alternatively, a callable or a dictionary can be passed.
+        The callable is called with the tabulated van der Waals radius
+        of the atom as argument and can be used to scale it up.
+        The dictionary can be used to define different van der Waals radii
+        for different elements. Compare to the :python:`modify_element_data`
+        argument of :meth:`~chemcoord.Cartesian.get_bonds`.
+    """
     m = Cartesian.from_pyscf(mol)
 
     screen_conn = m.get_bonds(
-        modify_element_data=lambda r: r * scale_vdW, self_bonding_allowed=True
+        modify_element_data=screening_cutoff, self_bonding_allowed=True
     )
 
-    return flatten(
+    return _flatten(
         get_orbs_reachable_by_orb(
             atoms_per_orb,
             get_orbs_reachable_by_atom(get_orbs_per_atom(atoms_per_orb), screen_conn),
@@ -194,6 +251,10 @@ def get_reachable(
 def to_numba_input(
     exch_reachable: Mapping[OrbitalIdx, set[OrbitalIdx]],
 ) -> List[Vector[OrbitalIdx]]:
+    """Convert the reachable orbitals to a list of numpy arrays.
+
+    This contains the same information but is a far more efficient layout for numba.
+    """
     assert list(exch_reachable.keys()) == list(range(len(exch_reachable)))
     return List(
         [
@@ -203,8 +264,97 @@ def to_numba_input(
     )
 
 
+def account_for_symmetry(
+    reachable: Mapping[int, Sequence[int]],
+) -> dict[int, list[int]]:
+    """Account for permutational symmetry and remove all q that are larger than p.
+
+    Paramaters
+    ----------
+    reachable :
+
+    Example
+    -------
+    >>> account_for_symmetry({0: [0, 1, 2], 1: [0, 1, 2], 2: [0, 1, 2]})
+    >>> {0: [0], 1: [0, 1], 2: [0, 1, 2]}
+    """
+    return {p: list(takewhile(lambda q: p >= q, qs)) for (p, qs) in reachable.items()}
+
+
+def identify_contiguous_blocks(X: Sequence[int]) -> list[tuple[int, int]]:
+    """Identify the indices of contiguous blocks in the sequence X.
+
+    A block is defined as a sequence of consecutive integers.
+    Returns a list of tuples, where each tuple contains the
+    start and one-past-the-end indices of a block.
+    This means that the returned tuples can be used in slicing operations.
+
+    Parameters
+    ----------
+    X :
+
+    Example
+    --------
+    >>> X = [1, 2, 3, 5, 6, 7, 9, 10]
+    >>> blocks = identify_contiguous_blocks(X)
+    >>> assert blocks  == [(0, 3), (3, 6), (6, 8)]
+    >>> assert X[blocks[1][0] : blocks[1][1]] == [5, 6, 7]
+    """
+    if not X:
+        return []
+    result = []
+    start = 0  # Start index of a contiguous block
+    for i in range(1, len(X)):
+        if X[i] - X[i - 1] > 1:  # Gap detected
+            result.append((start, i))
+            start = i  # New block starts here
+    result.append((start, len(X)))  # Add the final block
+    return result
+
+
+def get_blocks(reachable: Sequence[int]) -> list[tuple[int, int]]:
+    """Return the value of the border elements of contiguous blocks in the sequence X."
+
+    A block is defined as a sequence of consecutive integers.
+    Returns a list of tuples, where each tuple contains the
+    value at the start and at the end of a block.
+
+    Parameters
+    ----------
+    X :
+
+    Example
+    --------
+    >>> X = [1, 2, 3, 5, 6, 7, 9, 10]
+    >>> get_blocks(X) == [(1, 3), (5, 7), (9, 10)]
+    """
+    return [
+        (reachable[start], reachable[stop - 1])
+        for (start, stop) in identify_contiguous_blocks(reachable)
+    ]
+
+
+def _flatten(
+    orb_reachable_by_orb: Mapping[
+        T_start_orb, Mapping[AtomIdx, Mapping[AtomIdx, Set[T_target_orb]]]
+    ],
+) -> dict[T_start_orb, set[T_target_orb]]:
+    return {
+        i_orb: set(
+            chain(
+                *(
+                    start_atoms[start_atom][target_atom]
+                    for start_atom, target_atoms in start_atoms.items()
+                    for target_atom in target_atoms
+                )
+            )
+        )
+        for i_orb, start_atoms in orb_reachable_by_orb.items()
+    }
+
+
 @njit
-def get_pq_reachable(
+def _get_pq_reachable(
     exch_reachable: Sequence[Vector[OrbitalIdx]],
     coul_reachable: Sequence[Vector[OrbitalIdx]],
 ) -> dict[tuple[OrbitalIdx, OrbitalIdx], Vector[OrbitalIdx]]:
@@ -222,23 +372,8 @@ def get_pq_reachable(
     }
 
 
-@njit
-def account_for_symmetry(
-    reachable: list[Vector[OrbitalIdx]],
-) -> list[Vector[OrbitalIdx]]:
-    result = []
-    for p, reachable_by_p in enumerate(reachable):
-        index = len(reachable_by_p)
-        for i, q in enumerate(reachable_by_p):
-            if q > p:
-                index = i
-                break
-        result.append(reachable_by_p[:index])
-    return result
-
-
 @njit(parallel=True)
-def count_non_zero_2el(
+def _count_non_zero_2el(
     exch_reachable: list[Vector[OrbitalIdx]],
     n_AO: int | None = None,
 ) -> int:
@@ -247,20 +382,8 @@ def count_non_zero_2el(
     for p in prange(n_AO):  # type: ignore[attr-defined]
         for q in exch_reachable[p]:
             for r in range(p + 1):
-                for s in exch_reachable[r]:
-                    result += 1
-    return result
-
-
-def py_count_non_zero_2el(
-    exch_reachable: list[Vector[OrbitalIdx]],
-    n_AO: int | None = None,
-) -> int:
-    n_AO = len(exch_reachable) if n_AO is None else n_AO
-    result = 0
-    for p in range(n_AO):  # type: ignore[attr-defined]
-        for q in exch_reachable[p]:
-            for r in range(p + 1):
+                # perhaps I should account for permutational symmetry here as well.
+                # for l in range(k + 1 if i > k else j + 1):
                 for s in exch_reachable[r]:
                     result += 1
     return result
