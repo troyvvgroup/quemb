@@ -8,7 +8,13 @@ from chemcoord import Cartesian
 from numba import njit, prange
 from numba.experimental import jitclass
 from numba.typed import Dict, List
-from numba.types import DictType, float64, int64, uint64  # type: ignore[attr-defined]
+from numba.types import (  # type: ignore[attr-defined]
+    DictType,
+    ListType,
+    float64,
+    int64,
+    uint64,
+)
 from pyscf import df
 from pyscf.gto import Mole
 
@@ -26,7 +32,7 @@ from quemb.shared.typing import (
 )
 
 
-@jitclass([("_data", DictType(uint64, float64))])
+@jitclass
 class SparseInt2:
     """Sparsely stores the 2-electron integrals using chemist's notation.
 
@@ -68,6 +74,8 @@ class SparseInt2:
     >>> assert g[1, 2, 3, 10] == 0
     """  # noqa: E501
 
+    _data: DictType(uint64, float64)  # type: ignore[valid-type]
+
     def __init__(self) -> None:
         self._data = Dict.empty(uint64, float64)
 
@@ -84,7 +92,8 @@ class SparseInt2:
         return ravel_symmetric(ravel_symmetric(a, b), ravel_symmetric(c, d))
 
 
-@jitclass([("_data", DictType(int64, float64[:]))])
+# @jitclass([("exch_reachable", ListType(float64[::1]))])
+@jitclass
 class SemiSparseInt3c2e:
     r"""Sparsely store the 2-electron integrals with the auxiliary basis
 
@@ -118,8 +127,18 @@ class SemiSparseInt3c2e:
     >>> g[mu, nu][P]
     """
 
-    def __init__(self) -> None:
+    _data: DictType(int64, float64[:])  # type: ignore[valid-type]
+    nao: int64
+    naux: int64
+    exch_reachable: ListType(int64[::1])  # type: ignore[valid-type]
+
+    def __init__(
+        self, nao: int, naux: int, exch_reachable: list[Vector[int64]]
+    ) -> None:
         self._data = Dict.empty(int64, float64[:])
+        self.nao = nao
+        self.naux = naux
+        self.exch_reachable = exch_reachable
 
     def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[float64]:
         # We have to ignore the type here, because tuples are invariant, i.e.
@@ -255,9 +274,12 @@ def get_reachable(
     )
 
 
+_T_orb_idx = TypeVar("_T_orb_idx", bound=OrbitalIdx)
+
+
 def to_numba_input(
-    exch_reachable: Mapping[OrbitalIdx, set[OrbitalIdx]],
-) -> List[Vector[OrbitalIdx]]:
+    exch_reachable: Mapping[_T_orb_idx, Set[_T_orb_idx]],
+) -> List[Vector[_T_orb_idx]]:
     """Convert the reachable orbitals to a list of numpy arrays.
 
     This contains the same information but is a far more efficient layout for numba.
@@ -265,7 +287,7 @@ def to_numba_input(
     assert list(exch_reachable.keys()) == list(range(len(exch_reachable)))
     return List(
         [
-            np.array(sorted(orbitals), dtype=np.uint64)  # type: ignore[type-var]
+            np.array(sorted(orbitals), dtype=np.int64)  # type: ignore[type-var]
             for orbitals in exch_reachable.values()
         ]
     )
@@ -349,10 +371,11 @@ def get_sparse_ints_3c2e(
     auxmol: Mole,
 ) -> SemiSparseInt3c2e:
     """Return the 3-center 2-electron integrals in a sparse format." """
-    sparse_ints_3c2e = SemiSparseInt3c2e()
-
     exch_reachable = cast(
-        dict[AOIdx, set[AOIdx]], get_reachable(mol, get_atom_per_AO(mol))
+        Mapping[AOIdx, Set[AOIdx]], get_reachable(mol, get_atom_per_AO(mol))
+    )
+    sparse_ints_3c2e = SemiSparseInt3c2e(
+        mol.nao, auxmol.nao, to_numba_input(exch_reachable)
     )
     shell_id_to_AO, AO_to_shell_id = conversions_AO_shell(mol)
     shell_reachable_by_shell = {
