@@ -121,11 +121,17 @@ class SemiSparseInt3c2e:
     def __init__(self) -> None:
         self._data = Dict.empty(int64, float64[:])
 
-    def __getitem__(self, key: tuple[int, int]) -> Vector[float64]:
-        return self._data[self.compound(*key)]
+    def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[float64]:
+        # We have to ignore the type here, because tuples are invariant, i.e.
+        # (OrbitalIdx, OrbitalIdx) is not a subtype of (int, int).
+        return self._data[self.compound(*key)]  # type: ignore[arg-type]
 
-    def __setitem__(self, key: tuple[int, int], value: Vector[float64]) -> None:
-        self._data[self.compound(*key)] = value
+    def __setitem__(
+        self, key: tuple[OrbitalIdx, OrbitalIdx], value: Vector[float64]
+    ) -> None:
+        # We have to ignore the type here, because tuples are invariant, i.e.
+        # (OrbitalIdx, OrbitalIdx) is not a subtype of (int, int).
+        self._data[self.compound(*key)] = value  # type: ignore[arg-type]
 
     @staticmethod
     def compound(a: int, b: int) -> int:
@@ -313,7 +319,10 @@ def identify_contiguous_blocks(X: Sequence[int]) -> list[tuple[int, int]]:
     return result
 
 
-def get_blocks(reachable: Sequence[int]) -> list[tuple[int, int]]:
+_T = TypeVar("_T", bound=int)
+
+
+def get_blocks(reachable: Sequence[_T]) -> list[tuple[_T, _T]]:
     """Return the value of the border elements of contiguous blocks in the sequence X."
 
     A block is defined as a sequence of consecutive integers.
@@ -342,7 +351,9 @@ def get_sparse_ints_3c2e(
     """Return the 3-center 2-electron integrals in a sparse format." """
     sparse_ints_3c2e = SemiSparseInt3c2e()
 
-    exch_reachable = get_reachable(mol, get_atom_per_AO(mol))
+    exch_reachable = cast(
+        dict[AOIdx, set[AOIdx]], get_reachable(mol, get_atom_per_AO(mol))
+    )
     shell_id_to_AO, AO_to_shell_id = conversions_AO_shell(mol)
     shell_reachable_by_shell = {
         AO_to_shell_id[k]: sorted({AO_to_shell_id[orb] for orb in v})
@@ -371,7 +382,9 @@ def get_sparse_ints_3c2e(
                         shell_id_to_AO[stop_block][-1] + 1,
                     )
                 ):
-                    sparse_ints_3c2e[p, q] = integrals[i, j, :]
+                    # We have to ignore the type here, because tuples are invariant,
+                    # i.e. (OrbitalIdx, OrbitalIdx) is not a subtype of (int, int).
+                    sparse_ints_3c2e[p, q] = integrals[i, j, :]  # type: ignore[index]
     return sparse_ints_3c2e
 
 
