@@ -59,10 +59,10 @@ from quemb.shared.typing import (
 
 # We would like to have a subtype of Sequence that also behaves generically
 # so that we could write
-# `SeqOverFrag[AOIdx]` for a sequence that contains all AO indices in a fragment
-# or `SeqOverAtom[AOIdx]` for a sequence that contains all AO indices in an atom,
-# where the Sequence types are different, i.e. a function that takes a `SeqOverFrag`
-# would neither accept a `SeqOverAtom` nor a generic `Sequence`.
+# `Sequence[AOIdx]` for a sequence that contains all AO indices in a fragment
+# or `Sequence[AOIdx]` for a sequence that contains all AO indices in an atom,
+# where the Sequence types are different, i.e. a function that takes a `Sequence`
+# would neither accept a `Sequence` nor a generic `Sequence`.
 # However, this is (currently) not possible in Python, see this issue:
 # https://github.com/python/mypy/issues/3331
 
@@ -484,7 +484,7 @@ class PurelyStructureFragmented:
     edges_per_frag: Final[Sequence[OrderedSet[EdgeIdx]]]
     #: The origins per frag. Note that for "normal" BE calculations
     #: there is exacctly one origin per fragment, i.e. the
-    #: `SeqOverFrag` has one element.
+    #: `Sequence` has one element.
     #: The order is guaranteed to be ascending.
     origin_per_frag: Final[Sequence[OrderedSet[OriginIdx]]]
 
