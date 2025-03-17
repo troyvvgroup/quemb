@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections import defaultdict
 from collections.abc import Callable, Mapping, Sequence, Set
 from itertools import chain, takewhile
@@ -17,6 +19,7 @@ from numba.types import (  # type: ignore[attr-defined]
 )
 from pyscf import df
 from pyscf.gto import Mole
+from scipy.linalg import solve
 
 from quemb.molbe.chemfrag import (
     _get_AOidx_per_atom,
@@ -91,6 +94,20 @@ class SparseInt2:
     def idx(a: int, b: int, c: int, d: int) -> int:
         """Return compound index given four indices using Yoshimine sort"""
         return ravel_symmetric(ravel_symmetric(a, b), ravel_symmetric(c, d))
+
+
+def get_DF_integrals(
+    mol: Mole, auxmol: Mole
+) -> tuple[SemiSparseSym3DTensor, SemiSparseSym3DTensor]:
+    ints_3c2e = get_sparse_ints_3c2e(mol, auxmol)
+    ints_2c2e = auxmol.intor("int2c2e")
+    df_coeffs_data = solve(ints_2c2e, ints_3c2e.dense_data.T).T
+
+    df_coef = SemiSparseSym3DTensor(
+        df_coeffs_data, ints_3c2e.nao, ints_3c2e.naux, ints_3c2e.exch_reachable
+    )
+
+    return ints_3c2e, df_coef
 
 
 @jitclass
