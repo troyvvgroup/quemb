@@ -107,6 +107,51 @@ def get_DF_integrals(
     return ints_3c2e, df_coef
 
 
+# We cannot use the normal abstract base class here, because we later want to jit.
+class _ABC_MutableSemiSparse3DTensor:
+    r"""Semi-Sparsely store the 2-electron integrals with the auxiliary basis
+
+    This class semi-sparsely stores the elements of the 3-indexed tensor
+    :math:`(\mu \nu | P)`.
+    Semi-sparsely, because it is assumed that there are many
+    exchange pairs :math:`\mu, \nu` which are zero, while the integral along
+    the auxiliary basis :math:`P` is stored densely as numpy array.
+
+    2-fold permutational symmetry for the :math:`\mu, \nu` pairs is assumed, i.e.
+
+    .. math::
+
+        (\mu \nu | P) == (\nu, \mu | P)
+    """
+
+    _data: dict[int64, Vector[float64]]
+    nao: int64
+    naux: int64
+    exch_reachable: list[Vector[OrbitalIdx]]
+    exch_reachable_unique: list[Vector[OrbitalIdx]]
+
+    def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[float64]:
+        # We have to ignore the type here, because tuples are invariant, i.e.
+        # (OrbitalIdx, OrbitalIdx) is not a subtype of (int, int).
+        return self._data[self.idx(*key)]  # type: ignore[arg-type]
+
+    def n_unique_nonzero(self) -> int:
+        return len(self._data)
+
+    def traverse_nonzero(
+        self, unique: bool = True
+    ) -> Iterator[tuple[OrbitalIdx, OrbitalIdx, Vector[float64]]]:
+        reachable = self.exch_reachable_unique if unique else self.exch_reachable
+        for p in range(self.nao):
+            for q in reachable[p]:
+                yield (p, q, self._data[self.idx(p, q)])  # type: ignore[misc]
+
+    @staticmethod
+    def idx(a: int, b: int) -> int:
+        """Return compound index"""
+        return ravel_symmetric(a, b)
+
+
 @jitclass(
     [
         ("_data", DictType(int64, float64[::1])),
@@ -115,7 +160,7 @@ def get_DF_integrals(
         ("exch_reachable_unique", ListType(int64[::1])),
     ]
 )
-class SemiSparseSym3DTensor:
+class SemiSparseSym3DTensor(_ABC_MutableSemiSparse3DTensor):
     r"""Special datastructure for semi-sparse and partially symmetric 3-indexed tensors.
 
     For a tensor, :math:`T_{ijk}`, to be stored in this datastructure we assume
@@ -146,12 +191,7 @@ class SemiSparseSym3DTensor:
     via :meth:`MutableSemiSparseInt3c2e.make_immutable`.
     """
 
-    _data: dict[int64, Vector[float64]]
     dense_data: Matrix[float64]
-    nao: int64
-    naux: int64
-    exch_reachable: list[Vector[OrbitalIdx]]
-    exch_reachable_unique: list[Vector[OrbitalIdx]]
 
     def __init__(
         self,
@@ -174,27 +214,6 @@ class SemiSparseSym3DTensor:
                 # array for storing the data.
                 self._data[self.idx(p, q)] = dense_data[self.idx(p, q), :]
 
-    def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[float64]:
-        # We have to ignore the type here, because tuples are invariant, i.e.
-        # (OrbitalIdx, OrbitalIdx) is not a subtype of (int, int).
-        return self._data[self.idx(*key)]  # type: ignore[arg-type]
-
-    def traverse_nonzero(
-        self, unique: bool = True
-    ) -> Iterator[tuple[OrbitalIdx, OrbitalIdx, Vector[float64]]]:
-        reachable = self.exch_reachable_unique if unique else self.exch_reachable
-        for p in range(self.nao):
-            for q in reachable[p]:
-                yield (p, q, self._data[self.idx(p, q)])  # type: ignore[misc]
-
-    def n_unique_nonzero(self) -> int:
-        return len(self._data)
-
-    @staticmethod
-    def idx(a: int, b: int) -> int:
-        """Return compound index"""
-        return ravel_symmetric(a, b)
-
 
 @jitclass(
     [
@@ -203,7 +222,7 @@ class SemiSparseSym3DTensor:
         ("exch_reachable_unique", ListType(int64[::1])),
     ]
 )
-class MutableSemiSparse3DTensor:
+class MutableSemiSparse3DTensor(_ABC_MutableSemiSparse3DTensor):
     r"""Semi-Sparsely store the 2-electron integrals with the auxiliary basis
 
     This class semi-sparsely stores the elements of the 3-indexed tensor
@@ -234,28 +253,12 @@ class MutableSemiSparse3DTensor:
         self.exch_reachable = exch_reachable
         self.exch_reachable_unique = _jit_account_for_symmetry(exch_reachable)
 
-    def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[float64]:
-        # We have to ignore the type here, because tuples are invariant, i.e.
-        # (OrbitalIdx, OrbitalIdx) is not a subtype of (int, int).
-        return self._data[self.idx(*key)]  # type: ignore[arg-type]
-
     def __setitem__(
         self, key: tuple[OrbitalIdx, OrbitalIdx], value: Vector[float64]
     ) -> None:
         # We have to ignore the type here, because tuples are invariant, i.e.
         # (OrbitalIdx, OrbitalIdx) is not a subtype of (int, int).
         self._data[self.idx(*key)] = value  # type: ignore[arg-type]
-
-    def n_unique_nonzero(self) -> int:
-        return len(self._data)
-
-    def traverse_nonzero(
-        self, unique: bool = True
-    ) -> Iterator[tuple[OrbitalIdx, OrbitalIdx, Vector[float64]]]:
-        reachable = self.exch_reachable_unique if unique else self.exch_reachable
-        for p in range(self.nao):
-            for q in reachable[p]:
-                yield (p, q, self._data[self.idx(p, q)])  # type: ignore[misc]
 
     def get_dense_data(self) -> Matrix[float64]:
         """Return dense data array"""
@@ -271,11 +274,6 @@ class MutableSemiSparse3DTensor:
         return SemiSparseSym3DTensor(
             self.get_dense_data(), self.nao, self.naux, self.exch_reachable
         )
-
-    @staticmethod
-    def idx(a: int, b: int) -> int:
-        """Return compound index"""
-        return ravel_symmetric(a, b)
 
 
 T_start_orb = TypeVar("T_start_orb", bound=OrbitalIdx)
