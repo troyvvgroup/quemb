@@ -81,24 +81,33 @@ class SparseInt2:
         self._data = Dict.empty(uint64, float64)
 
     def __getitem__(self, key: tuple[int, int, int, int]) -> float:
-        idx = self.compound(*key)
+        idx = self.idx(*key)
         return self._data.get(idx, 0.0)
 
     def __setitem__(self, key: tuple[int, int, int, int], value: float) -> None:
-        self._data[self.compound(*key)] = value
+        self._data[self.idx(*key)] = value
 
     @staticmethod
-    def compound(a: int, b: int, c: int, d: int) -> int:
+    def idx(a: int, b: int, c: int, d: int) -> int:
         """Return compound index given four indices using Yoshimine sort"""
         return ravel_symmetric(ravel_symmetric(a, b), ravel_symmetric(c, d))
 
 
 @jitclass
-class SemiSparseInt3c2e:
-    r"""Sparsely store the 2-electron integrals with the auxiliary basis
+class SemiSparseSym3DTensor:
+    r"""Special datastructure for semi-sparse and partially symmetric 3-indexed tensors.
 
-    This class semi-sparsely stores the elements of the 3-indexed tensor
-    :math:`(\mu \nu | P)`.
+    For a tensor, :math:`T_{ijk}`, to be stored in this datastructure we assume
+
+    - 2-fold permutational symmetry for the :math:`i, j` indices,
+      i.e. :math:`T_{ijk} = T_{jik}`
+    - sparsity along the :math:`i, j` indices, i.e. :math:`T_{ijk} = 0`
+      for many :math:`i, j`
+    - dense storage along the :math:`k` index
+
+    It can be used to store the 3-center, 2-electron integrals
+    :math:`(\mu \nu | P)`, with AOs :math:`\mu, \nu` and auxiliary basis indices
+    :math:`P`.
     Semi-sparsely, because it is assumed that there are many
     exchange pairs :math:`\mu, \nu` which are zero, while the integral along
     the auxiliary basis :math:`P` is stored densely as numpy array.
@@ -109,16 +118,24 @@ class SemiSparseInt3c2e:
 
         (\mu \nu | P) == (\nu, \mu | P)
 
+    Note that this class is immutable which enables to store the unique, non-zero data
+    in a dense manner, which has some performance benefits.
+    If you need a mutable version, use :class:`MutableSemiSparseInt3c2e`,
+    which can be always converted to an immutable version
+    via :meth:`MutableSemiSparseInt3c2e.make_immutable`.
+
     Examples
     --------
 
-    >>> g = SemiSparseInt3c2e()
+    >>> nao, naux = 5, 10
+    >>> g = MutableSemiSparseInt3c2e()
     >>> g[1, 2] = np.array([3., 4., 5.])
+    >>> const_g = g.make_immutable()
 
     We can test all possible permutations:
 
-    >>> assert g[1, 2] == np.array([3., 4., 5.])
-    >>> assert g[2, 1] == np.array([3., 4., 5.])
+    >>> assert const_g[1, 2] == np.array([3., 4., 5.])
+    >>> assert const_g[2, 1] == np.array([3., 4., 5.])
 
     A non-existing index throws a :python:`KeyError`
 
@@ -127,46 +144,131 @@ class SemiSparseInt3c2e:
     >>> g[mu, nu][P]
     """
 
-    _data: DictType(int64, float64[::1])  # type: ignore[valid-type]
+    _view_data: DictType(int64, float64[::1])  # type: ignore[valid-type]
+    dense_data: float64[:, ::1]
     nao: int64
     naux: int64
     exch_reachable: ListType(int64[::1])  # type: ignore[valid-type]
     exch_reachable_unique: ListType(int64[::1])  # type: ignore[valid-type]
 
     def __init__(
-        self, nao: int, naux: int, exch_reachable: list[Vector[int64]]
+        self,
+        dense_data: Matrix[float64],
+        nao: int,
+        naux: int,
+        exch_reachable: list[Vector[int64]],
     ) -> None:
-        self._data = Dict.empty(int64, float64[::1])
+        self._view_data = Dict.empty(int64, float64[::1])
         self.nao = nao
         self.naux = naux
         self.exch_reachable = exch_reachable
         self.exch_reachable_unique = _jit_account_for_symmetry(exch_reachable)
 
+        self.dense_data = dense_data
+        for p in range(self.nao):
+            for q in self.exch_reachable_unique[p]:
+                # Note that this assigns only a view into the dense data array.
+                # This is exactly where we use the non-mutability to have a contiguous
+                # array for storing the data.
+                self._view_data[self.idx(p, q)] = dense_data[self.idx(p, q), :]
+
     def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[float64]:
         # We have to ignore the type here, because tuples are invariant, i.e.
         # (OrbitalIdx, OrbitalIdx) is not a subtype of (int, int).
-        return self._data[self.compound(*key)]  # type: ignore[arg-type]
+        return self._view_data[self.idx(*key)]  # type: ignore[arg-type]
 
-    def __setitem__(
-        self, key: tuple[OrbitalIdx, OrbitalIdx], value: Vector[float64]
-    ) -> None:
-        # We have to ignore the type here, because tuples are invariant, i.e.
-        # (OrbitalIdx, OrbitalIdx) is not a subtype of (int, int).
-        self._data[self.compound(*key)] = value  # type: ignore[arg-type]
-
-    def get_dense_data(self) -> Matrix[float64]:
-        result = np.empty((self.naux, len(self._data)))
-        i = 0
-        for p in range(self.nao):
-            for q in self.exch_reachable_unique[p]:
-                result[:, i] = self[p, q]
-                i += 1
-        return result
+    # def n_unique_nonzero(self) -> int:
+    #     return len(self.dense_data)
 
     @staticmethod
-    def compound(a: int, b: int) -> int:
-        """Return compound index given four indices using Yoshimine sort"""
+    def idx(a: int, b: int) -> int:
+        """Return compound index"""
         return ravel_symmetric(a, b)
+
+
+# @jitclass
+# class MutableSemiSparse3DTensor:
+# r"""Semi-Sparsely store the 2-electron integrals with the auxiliary basis
+
+# This class semi-sparsely stores the elements of the 3-indexed tensor
+# :math:`(\mu \nu | P)`.
+# Semi-sparsely, because it is assumed that there are many
+# exchange pairs :math:`\mu, \nu` which are zero, while the integral along
+# the auxiliary basis :math:`P` is stored densely as numpy array.
+
+# 2-fold permutational symmetry for the :math:`\mu, \nu` pairs is assumed, i.e.
+
+# .. math::
+
+#     (\mu \nu | P) == (\nu, \mu | P)
+
+# Examples
+# --------
+
+# >>> g = SemiSparseInt3c2e()
+# >>> g[1, 2] = np.array([3., 4., 5.])
+
+# We can test all possible permutations:
+
+# >>> assert g[1, 2] == np.array([3., 4., 5.])
+# >>> assert g[2, 1] == np.array([3., 4., 5.])
+
+# A non-existing index throws a :python:`KeyError`
+
+# The triple :math:`\mu, \nu, P` is accessed as
+
+# >>> g[mu, nu][P]
+# """
+
+#     _data: DictType(int64, float64[::1])  # type: ignore[valid-type]
+#     nao: int64
+#     naux: int64
+#     exch_reachable: ListType(int64[::1])  # type: ignore[valid-type]
+#     exch_reachable_unique: ListType(int64[::1])  # type: ignore[valid-type]
+
+#     def __init__(
+#         self, nao: int, naux: int, exch_reachable: list[Vector[int64]]
+#     ) -> None:
+#         self._data = Dict.empty(int64, float64[::1])
+#         self.nao = nao
+#         self.naux = naux
+#         self.exch_reachable = exch_reachable
+#         self.exch_reachable_unique = _jit_account_for_symmetry(exch_reachable)
+
+#     def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[float64]:
+#         # We have to ignore the type here, because tuples are invariant, i.e.
+#         # (OrbitalIdx, OrbitalIdx) is not a subtype of (int, int).
+#         return self._data[self.idx(*key)]  # type: ignore[arg-type]
+
+#     def __setitem__(
+#         self, key: tuple[OrbitalIdx, OrbitalIdx], value: Vector[float64]
+#     ) -> None:
+#         # We have to ignore the type here, because tuples are invariant, i.e.
+#         # (OrbitalIdx, OrbitalIdx) is not a subtype of (int, int).
+#         self._data[self.idx(*key)] = value  # type: ignore[arg-type]
+
+#     def n_unique_nonzero(self) -> int:
+#         return len(self._data)
+
+#     def get_dense_data(self) -> Matrix[float64]:
+#         """Return dense data array"""
+#         result = np.empty((self.n_unique_nonzero(), self.naux), dtype=float64)
+#         i = 0
+#         for p in range(self.nao):
+#             for q in self.exch_reachable_unique[p]:
+#                 result[i, :] = self[p, q]
+#                 i += 1
+#         return result
+
+#     def make_immutable(self) -> SemiSparseSym3DTensor:
+#         return SemiSparseSym3DTensor(
+#             self.get_dense_data(), self.nao, self.naux, self.exch_reachable
+#         )
+
+#     @staticmethod
+#     def idx(a: int, b: int) -> int:
+#         """Return compound index"""
+#         return ravel_symmetric(a, b)
 
 
 T_start_orb = TypeVar("T_start_orb", bound=OrbitalIdx)
@@ -323,8 +425,8 @@ def account_for_symmetry(
 
 @njit(cache=True)
 def _jit_account_for_symmetry(
-    reachable: list[Vector[int]],
-) -> list[Vector[int]]:
+    reachable: list[Vector[int64]],
+) -> list[Vector[int64]]:
     """Account for permutational symmetry and remove all q that are larger than p.
 
     Paramaters
@@ -395,12 +497,12 @@ def get_blocks(reachable: Sequence[_T]) -> list[tuple[_T, _T]]:
 def get_sparse_ints_3c2e(
     mol: Mole,
     auxmol: Mole,
-) -> SemiSparseInt3c2e:
+) -> SemiSparseSym3DTensor:
     """Return the 3-center 2-electron integrals in a sparse format." """
     exch_reachable = cast(
         Mapping[AOIdx, Set[AOIdx]], get_reachable(mol, get_atom_per_AO(mol))
     )
-    sparse_ints_3c2e = SemiSparseInt3c2e(
+    sparse_ints_3c2e = MutableSemiSparse3DTensor(
         mol.nao, auxmol.nao, to_numba_input(exch_reachable)
     )
     shell_id_to_AO, AO_to_shell_id = conversions_AO_shell(mol)
@@ -437,7 +539,7 @@ def get_sparse_ints_3c2e(
                     # We have to ignore the type here, because tuples are invariant,
                     # i.e. (OrbitalIdx, OrbitalIdx) is not a subtype of (int, int).
                     sparse_ints_3c2e[p, q] = integrals[i, j, ::1]  # type: ignore[index]
-    return sparse_ints_3c2e
+    return sparse_ints_3c2e.make_immutable()
 
 
 def _flatten(
