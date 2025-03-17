@@ -25,6 +25,7 @@ from quemb.shared.helper import ravel_symmetric
 from quemb.shared.typing import (
     AOIdx,
     AtomIdx,
+    Matrix,
     OrbitalIdx,
     Real,
     ShellIdx,
@@ -92,7 +93,6 @@ class SparseInt2:
         return ravel_symmetric(ravel_symmetric(a, b), ravel_symmetric(c, d))
 
 
-# @jitclass([("exch_reachable", ListType(float64[::1]))])
 @jitclass
 class SemiSparseInt3c2e:
     r"""Sparsely store the 2-electron integrals with the auxiliary basis
@@ -127,18 +127,20 @@ class SemiSparseInt3c2e:
     >>> g[mu, nu][P]
     """
 
-    _data: DictType(int64, float64[:])  # type: ignore[valid-type]
+    _data: DictType(int64, float64[::1])  # type: ignore[valid-type]
     nao: int64
     naux: int64
     exch_reachable: ListType(int64[::1])  # type: ignore[valid-type]
+    exch_reachable_unique: ListType(int64[::1])  # type: ignore[valid-type]
 
     def __init__(
         self, nao: int, naux: int, exch_reachable: list[Vector[int64]]
     ) -> None:
-        self._data = Dict.empty(int64, float64[:])
+        self._data = Dict.empty(int64, float64[::1])
         self.nao = nao
         self.naux = naux
         self.exch_reachable = exch_reachable
+        self.exch_reachable_unique = _jit_account_for_symmetry(exch_reachable)
 
     def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[float64]:
         # We have to ignore the type here, because tuples are invariant, i.e.
@@ -151,6 +153,15 @@ class SemiSparseInt3c2e:
         # We have to ignore the type here, because tuples are invariant, i.e.
         # (OrbitalIdx, OrbitalIdx) is not a subtype of (int, int).
         self._data[self.compound(*key)] = value  # type: ignore[arg-type]
+
+    def get_dense_data(self) -> Matrix[float64]:
+        result = np.empty((self.naux, len(self._data)))
+        i = 0
+        for p in range(self.nao):
+            for q in self.exch_reachable_unique[p]:
+                result[:, i] = self[p, q]
+                i += 1
+        return result
 
     @staticmethod
     def compound(a: int, b: int) -> int:
@@ -310,6 +321,21 @@ def account_for_symmetry(
     return {p: list(takewhile(lambda q: p >= q, qs)) for (p, qs) in reachable.items()}
 
 
+@njit(cache=True)
+def _jit_account_for_symmetry(
+    reachable: list[Vector[int]],
+) -> list[Vector[int]]:
+    """Account for permutational symmetry and remove all q that are larger than p.
+
+    Paramaters
+    ----------
+    reachable :
+    """
+    return List(
+        [np.array([q for q in qs if p >= q]) for (p, qs) in enumerate(reachable)]
+    )
+
+
 def identify_contiguous_blocks(X: Sequence[int]) -> list[tuple[int, int]]:
     """Identify the indices of contiguous blocks in the sequence X.
 
@@ -385,18 +411,21 @@ def get_sparse_ints_3c2e(
 
     for i_shell, reachable in shell_reachable_by_shell.items():
         for start_block, stop_block in get_blocks(reachable):
-            integrals = df.incore.aux_e2(
-                mol,
-                auxmol,
-                intor="int3c2e",
-                shls_slice=(
-                    i_shell,
-                    i_shell + 1,
-                    start_block,
-                    stop_block + 1,
-                    0,
-                    auxmol.nbas,
+            integrals = np.asarray(
+                df.incore.aux_e2(
+                    mol,
+                    auxmol,
+                    intor="int3c2e",
+                    shls_slice=(
+                        i_shell,
+                        i_shell + 1,
+                        start_block,
+                        stop_block + 1,
+                        0,
+                        auxmol.nbas,
+                    ),
                 ),
+                order="C",
             )
             for i, p in enumerate(shell_id_to_AO[i_shell]):
                 for j, q in enumerate(
@@ -407,7 +436,7 @@ def get_sparse_ints_3c2e(
                 ):
                     # We have to ignore the type here, because tuples are invariant,
                     # i.e. (OrbitalIdx, OrbitalIdx) is not a subtype of (int, int).
-                    sparse_ints_3c2e[p, q] = integrals[i, j, :]  # type: ignore[index]
+                    sparse_ints_3c2e[p, q] = integrals[i, j, ::1]  # type: ignore[index]
     return sparse_ints_3c2e
 
 
