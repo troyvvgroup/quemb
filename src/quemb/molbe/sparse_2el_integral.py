@@ -188,7 +188,7 @@ class SemiSparseSym3DTensor:
                 yield (p, q, self._data[self.idx(p, q)])  # type: ignore[misc]
 
     def n_unique_nonzero(self) -> int:
-        return len(self.dense_data)
+        return len(self._data)
 
     @staticmethod
     def idx(a: int, b: int) -> int:
@@ -248,6 +248,14 @@ class MutableSemiSparse3DTensor:
 
     def n_unique_nonzero(self) -> int:
         return len(self._data)
+
+    def traverse_nonzero(
+        self, unique: bool = True
+    ) -> Iterator[tuple[OrbitalIdx, OrbitalIdx, Vector[float64]]]:
+        reachable = self.exch_reachable_unique if unique else self.exch_reachable
+        for p in range(self.nao):
+            for q in reachable[p]:
+                yield (p, q, self._data[self.idx(p, q)])  # type: ignore[misc]
 
     def get_dense_data(self) -> Matrix[float64]:
         """Return dense data array"""
