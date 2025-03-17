@@ -1,21 +1,18 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Callable, Mapping, Sequence, Set
+from collections.abc import Callable, Iterator, Mapping, Sequence, Set
 from itertools import chain, takewhile
 from typing import TypeVar, cast
 
 import numpy as np
 from chemcoord import Cartesian
-from numba import njit, prange
+from numba import float64, int64, njit, prange, uint64  # type: ignore[attr-defined]
 from numba.experimental import jitclass
 from numba.typed import Dict, List
 from numba.types import (  # type: ignore[attr-defined]
     DictType,
     ListType,
-    float64,
-    int64,
-    uint64,
 )
 from pyscf import df
 from pyscf.gto import Mole
@@ -110,7 +107,14 @@ def get_DF_integrals(
     return ints_3c2e, df_coef
 
 
-@jitclass
+@jitclass(
+    [
+        ("_data", DictType(int64, float64[::1])),
+        ("dense_data", float64[:, ::1]),
+        ("exch_reachable", ListType(int64[::1])),
+        ("exch_reachable_unique", ListType(int64[::1])),
+    ]
+)
 class SemiSparseSym3DTensor:
     r"""Special datastructure for semi-sparse and partially symmetric 3-indexed tensors.
 
@@ -142,12 +146,12 @@ class SemiSparseSym3DTensor:
     via :meth:`MutableSemiSparseInt3c2e.make_immutable`.
     """
 
-    _view_data: DictType(int64, float64[::1])  # type: ignore[valid-type]
-    dense_data: float64[:, ::1]
+    _data: dict[int64, Vector[float64]]
+    dense_data: Matrix[float64]
     nao: int64
     naux: int64
-    exch_reachable: ListType(int64[::1])  # type: ignore[valid-type]
-    exch_reachable_unique: ListType(int64[::1])  # type: ignore[valid-type]
+    exch_reachable: list[Vector[OrbitalIdx]]
+    exch_reachable_unique: list[Vector[OrbitalIdx]]
 
     def __init__(
         self,
@@ -156,7 +160,7 @@ class SemiSparseSym3DTensor:
         naux: int,
         exch_reachable: list[Vector[int64]],
     ) -> None:
-        self._view_data = Dict.empty(int64, float64[::1])
+        self._data = Dict.empty(int64, float64[::1])
         self.nao = nao
         self.naux = naux
         self.exch_reachable = exch_reachable
@@ -168,12 +172,20 @@ class SemiSparseSym3DTensor:
                 # Note that this assigns only a view into the dense data array.
                 # This is exactly where we use the non-mutability to have a contiguous
                 # array for storing the data.
-                self._view_data[self.idx(p, q)] = dense_data[self.idx(p, q), :]
+                self._data[self.idx(p, q)] = dense_data[self.idx(p, q), :]
 
     def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[float64]:
         # We have to ignore the type here, because tuples are invariant, i.e.
         # (OrbitalIdx, OrbitalIdx) is not a subtype of (int, int).
-        return self._view_data[self.idx(*key)]  # type: ignore[arg-type]
+        return self._data[self.idx(*key)]  # type: ignore[arg-type]
+
+    def traverse_nonzero(
+        self, unique: bool = True
+    ) -> Iterator[tuple[OrbitalIdx, OrbitalIdx, Vector[float64]]]:
+        reachable = self.exch_reachable_unique if unique else self.exch_reachable
+        for p in range(self.nao):
+            for q in reachable[p]:
+                yield (p, q, self._data[self.idx(p, q)])  # type: ignore[misc]
 
     def n_unique_nonzero(self) -> int:
         return len(self.dense_data)
@@ -184,7 +196,13 @@ class SemiSparseSym3DTensor:
         return ravel_symmetric(a, b)
 
 
-@jitclass
+@jitclass(
+    [
+        ("_data", DictType(int64, float64[::1])),
+        ("exch_reachable", ListType(int64[::1])),
+        ("exch_reachable_unique", ListType(int64[::1])),
+    ]
+)
 class MutableSemiSparse3DTensor:
     r"""Semi-Sparsely store the 2-electron integrals with the auxiliary basis
 
@@ -201,11 +219,11 @@ class MutableSemiSparse3DTensor:
         (\mu \nu | P) == (\nu, \mu | P)
     """
 
-    _data: DictType(int64, float64[::1])  # type: ignore[valid-type]
+    _data: dict[int64, Vector[float64]]
     nao: int64
     naux: int64
-    exch_reachable: ListType(int64[::1])  # type: ignore[valid-type]
-    exch_reachable_unique: ListType(int64[::1])  # type: ignore[valid-type]
+    exch_reachable: list[Vector[OrbitalIdx]]
+    exch_reachable_unique: list[Vector[OrbitalIdx]]
 
     def __init__(
         self, nao: int, naux: int, exch_reachable: list[Vector[int64]]
@@ -237,7 +255,7 @@ class MutableSemiSparse3DTensor:
         i = 0
         for p in range(self.nao):
             for q in self.exch_reachable_unique[p]:
-                result[i, :] = self[p, q]
+                result[i, :] = self[p, q]  # type: ignore[index]
                 i += 1
         return result
 
@@ -406,14 +424,15 @@ def account_for_symmetry(
 
 @njit(cache=True)
 def _jit_account_for_symmetry(
-    reachable: list[Vector[int64]],
-) -> list[Vector[int64]]:
+    reachable: list[Vector[_T_orb_idx]],
+) -> list[Vector[_T_orb_idx]]:
     """Account for permutational symmetry and remove all q that are larger than p.
 
     Paramaters
     ----------
     reachable :
     """
+    # TODO: make an early return for performance reasons
     return List(
         [np.array([q for q in qs if p >= q]) for (p, qs) in enumerate(reachable)]
     )
