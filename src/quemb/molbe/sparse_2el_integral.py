@@ -105,7 +105,7 @@ class SemiSparseSym3DTensor:
       for many :math:`i, j`
     - dense storage along the :math:`k` index
 
-    It can be used to store the 3-center, 2-electron integrals
+    It can be used for example to store the 3-center, 2-electron integrals
     :math:`(\mu \nu | P)`, with AOs :math:`\mu, \nu` and auxiliary basis indices
     :math:`P`.
     Semi-sparsely, because it is assumed that there are many
@@ -123,25 +123,6 @@ class SemiSparseSym3DTensor:
     If you need a mutable version, use :class:`MutableSemiSparseInt3c2e`,
     which can be always converted to an immutable version
     via :meth:`MutableSemiSparseInt3c2e.make_immutable`.
-
-    Examples
-    --------
-
-    >>> nao, naux = 5, 10
-    >>> g = MutableSemiSparseInt3c2e()
-    >>> g[1, 2] = np.array([3., 4., 5.])
-    >>> const_g = g.make_immutable()
-
-    We can test all possible permutations:
-
-    >>> assert const_g[1, 2] == np.array([3., 4., 5.])
-    >>> assert const_g[2, 1] == np.array([3., 4., 5.])
-
-    A non-existing index throws a :python:`KeyError`
-
-    The triple :math:`\mu, \nu, P` is accessed as
-
-    >>> g[mu, nu][P]
     """
 
     _view_data: DictType(int64, float64[::1])  # type: ignore[valid-type]
@@ -177,8 +158,8 @@ class SemiSparseSym3DTensor:
         # (OrbitalIdx, OrbitalIdx) is not a subtype of (int, int).
         return self._view_data[self.idx(*key)]  # type: ignore[arg-type]
 
-    # def n_unique_nonzero(self) -> int:
-    #     return len(self.dense_data)
+    def n_unique_nonzero(self) -> int:
+        return len(self.dense_data)
 
     @staticmethod
     def idx(a: int, b: int) -> int:
@@ -186,89 +167,72 @@ class SemiSparseSym3DTensor:
         return ravel_symmetric(a, b)
 
 
-# @jitclass
-# class MutableSemiSparse3DTensor:
-# r"""Semi-Sparsely store the 2-electron integrals with the auxiliary basis
+@jitclass
+class MutableSemiSparse3DTensor:
+    r"""Semi-Sparsely store the 2-electron integrals with the auxiliary basis
 
-# This class semi-sparsely stores the elements of the 3-indexed tensor
-# :math:`(\mu \nu | P)`.
-# Semi-sparsely, because it is assumed that there are many
-# exchange pairs :math:`\mu, \nu` which are zero, while the integral along
-# the auxiliary basis :math:`P` is stored densely as numpy array.
+    This class semi-sparsely stores the elements of the 3-indexed tensor
+    :math:`(\mu \nu | P)`.
+    Semi-sparsely, because it is assumed that there are many
+    exchange pairs :math:`\mu, \nu` which are zero, while the integral along
+    the auxiliary basis :math:`P` is stored densely as numpy array.
 
-# 2-fold permutational symmetry for the :math:`\mu, \nu` pairs is assumed, i.e.
+    2-fold permutational symmetry for the :math:`\mu, \nu` pairs is assumed, i.e.
 
-# .. math::
+    .. math::
 
-#     (\mu \nu | P) == (\nu, \mu | P)
+        (\mu \nu | P) == (\nu, \mu | P)
+    """
 
-# Examples
-# --------
+    _data: DictType(int64, float64[::1])  # type: ignore[valid-type]
+    nao: int64
+    naux: int64
+    exch_reachable: ListType(int64[::1])  # type: ignore[valid-type]
+    exch_reachable_unique: ListType(int64[::1])  # type: ignore[valid-type]
 
-# >>> g = SemiSparseInt3c2e()
-# >>> g[1, 2] = np.array([3., 4., 5.])
+    def __init__(
+        self, nao: int, naux: int, exch_reachable: list[Vector[int64]]
+    ) -> None:
+        self._data = Dict.empty(int64, float64[::1])
+        self.nao = nao
+        self.naux = naux
+        self.exch_reachable = exch_reachable
+        self.exch_reachable_unique = _jit_account_for_symmetry(exch_reachable)
 
-# We can test all possible permutations:
+    def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[float64]:
+        # We have to ignore the type here, because tuples are invariant, i.e.
+        # (OrbitalIdx, OrbitalIdx) is not a subtype of (int, int).
+        return self._data[self.idx(*key)]  # type: ignore[arg-type]
 
-# >>> assert g[1, 2] == np.array([3., 4., 5.])
-# >>> assert g[2, 1] == np.array([3., 4., 5.])
+    def __setitem__(
+        self, key: tuple[OrbitalIdx, OrbitalIdx], value: Vector[float64]
+    ) -> None:
+        # We have to ignore the type here, because tuples are invariant, i.e.
+        # (OrbitalIdx, OrbitalIdx) is not a subtype of (int, int).
+        self._data[self.idx(*key)] = value  # type: ignore[arg-type]
 
-# A non-existing index throws a :python:`KeyError`
+    def n_unique_nonzero(self) -> int:
+        return len(self._data)
 
-# The triple :math:`\mu, \nu, P` is accessed as
+    def get_dense_data(self) -> Matrix[float64]:
+        """Return dense data array"""
+        result = np.empty((self.n_unique_nonzero(), self.naux), dtype=float64)
+        i = 0
+        for p in range(self.nao):
+            for q in self.exch_reachable_unique[p]:
+                result[i, :] = self[p, q]
+                i += 1
+        return result
 
-# >>> g[mu, nu][P]
-# """
+    def make_immutable(self) -> SemiSparseSym3DTensor:
+        return SemiSparseSym3DTensor(
+            self.get_dense_data(), self.nao, self.naux, self.exch_reachable
+        )
 
-#     _data: DictType(int64, float64[::1])  # type: ignore[valid-type]
-#     nao: int64
-#     naux: int64
-#     exch_reachable: ListType(int64[::1])  # type: ignore[valid-type]
-#     exch_reachable_unique: ListType(int64[::1])  # type: ignore[valid-type]
-
-#     def __init__(
-#         self, nao: int, naux: int, exch_reachable: list[Vector[int64]]
-#     ) -> None:
-#         self._data = Dict.empty(int64, float64[::1])
-#         self.nao = nao
-#         self.naux = naux
-#         self.exch_reachable = exch_reachable
-#         self.exch_reachable_unique = _jit_account_for_symmetry(exch_reachable)
-
-#     def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[float64]:
-#         # We have to ignore the type here, because tuples are invariant, i.e.
-#         # (OrbitalIdx, OrbitalIdx) is not a subtype of (int, int).
-#         return self._data[self.idx(*key)]  # type: ignore[arg-type]
-
-#     def __setitem__(
-#         self, key: tuple[OrbitalIdx, OrbitalIdx], value: Vector[float64]
-#     ) -> None:
-#         # We have to ignore the type here, because tuples are invariant, i.e.
-#         # (OrbitalIdx, OrbitalIdx) is not a subtype of (int, int).
-#         self._data[self.idx(*key)] = value  # type: ignore[arg-type]
-
-#     def n_unique_nonzero(self) -> int:
-#         return len(self._data)
-
-#     def get_dense_data(self) -> Matrix[float64]:
-#         """Return dense data array"""
-#         result = np.empty((self.n_unique_nonzero(), self.naux), dtype=float64)
-#         i = 0
-#         for p in range(self.nao):
-#             for q in self.exch_reachable_unique[p]:
-#                 result[i, :] = self[p, q]
-#                 i += 1
-#         return result
-
-#     def make_immutable(self) -> SemiSparseSym3DTensor:
-#         return SemiSparseSym3DTensor(
-#             self.get_dense_data(), self.nao, self.naux, self.exch_reachable
-#         )
-
-#     @staticmethod
-#     def idx(a: int, b: int) -> int:
-#         """Return compound index"""
-#         return ravel_symmetric(a, b)
+    @staticmethod
+    def idx(a: int, b: int) -> int:
+        """Return compound index"""
+        return ravel_symmetric(a, b)
 
 
 T_start_orb = TypeVar("T_start_orb", bound=OrbitalIdx)
