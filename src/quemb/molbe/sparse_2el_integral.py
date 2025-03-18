@@ -515,7 +515,7 @@ def get_sparse_ints_3c2e(
     """Return the 3-center 2-electron integrals in a sparse format."""
 
     if screening_cutoff is None:
-        screening_cutoff = find_good_screening_radius(mol, auxmol)
+        screening_cutoff = find_screening_radius(mol, auxmol)
     exch_reachable = cast(
         Mapping[AOIdx, Set[AOIdx]],
         get_reachable(mol, get_atom_per_AO(mol), screening_cutoff),
@@ -596,7 +596,8 @@ def _count_non_zero_2el(
     return result
 
 
-def get_test_mol(atom1: str, atom2: str, r: float, basis: str) -> Mole:
+def _get_test_mol(atom1: str, atom2: str, r: float, basis: str) -> Mole:
+    """Return a PySCF Mole object with two atoms at a distance r."""
     m = Cartesian.set_atom_coords([atom1, atom2], np.array([[0, 0, 0], [0, 0, r]]))
     return m.to_pyscf(
         basis=basis,
@@ -604,7 +605,13 @@ def get_test_mol(atom1: str, atom2: str, r: float, basis: str) -> Mole:
     )
 
 
-def calc_residual(mol: Mole) -> dict[tuple[AOIdx, AOIdx], float]:
+def _calc_residual(mol: Mole) -> dict[tuple[AOIdx, AOIdx], float]:
+    """Return the residual of the 2-electron integrals that are sceened away.
+
+    This is only the diagonal elements of the type :math:`(\mu \nu | \mu \nu)` which
+    give upper bounds to the other 2-electron integrals, due to the
+    Schwarz inequality.
+    """
     screened_away = account_for_symmetry(
         get_complement(get_reachable(mol, get_atom_per_AO(mol), 0.0))
     )
@@ -614,9 +621,15 @@ def calc_residual(mol: Mole) -> dict[tuple[AOIdx, AOIdx], float]:
     }
 
 
-def calc_aux_residual(
+def _calc_aux_residual(
     mol: Mole, auxmol: Mole
 ) -> dict[tuple[AOIdx, AOIdx], Vector[float64]]:
+    """Return the residual of the :math:`(\mu,\nu | P) integrals that are sceened away.
+
+    Here :math:`\mu, \nu` are the AO indices and :math:`P` is the auxiliary basis.
+    For a screened AO pair :math:`(\mu, \nu)`, the whole vector along :math:`P`
+    is returned.
+    """
     screened_away = account_for_symmetry(
         get_complement(get_reachable(mol, get_atom_per_AO(mol), 0.0))
     )
@@ -628,48 +641,75 @@ def calc_aux_residual(
     }
 
 
-def determine_screening_cutoff_aux(
+def _find_screening_cutoff_distance_aux(
     atom1: str, atom2: str, basis: str, auxbasis: str, threshold: float = 1e-8
 ) -> float:
     def f(r: float) -> float:
-        mol = get_test_mol(atom1, atom2, r, basis=basis)
+        mol = _get_test_mol(atom1, atom2, r, basis=basis)
         auxmol = df.make_auxmol(mol, auxbasis)
-        residual = calc_aux_residual(mol, auxmol)
+        residual = _calc_aux_residual(mol, auxmol)
         return max(sum(abs(x)) for x in residual.values())
 
     return bisect(lambda x: (f(x) - threshold), 1, 50, xtol=1e-2)
 
 
-def determine_screening_cutoff(
+def _find_screening_cutoff_distance(
     atom1: str, atom2: str, basis: str, threshold: float = 1e-8
 ) -> float:
+    """Return the distance at which the exchange part of the 2-electron integrals
+    are lower than the threshold.
+    """
+
     def f(r: float) -> float:
-        mol = get_test_mol(atom1, atom2, r, basis=basis)
-        residual = calc_residual(mol)
+        mol = _get_test_mol(atom1, atom2, r, basis=basis)
+        residual = _calc_residual(mol)
         return max(abs(x) for x in residual.values())
 
     return bisect(lambda x: (f(x) - threshold), 1, 50, xtol=1e-2)
 
 
-def find_good_screening_radius(
+def find_screening_radius(
     mol: Mole,
     auxmol: Mole | None = None,
     threshold: float = 1e-8,
     scale_factor: float = 1.03,
 ) -> dict[str, float]:
+    """Return a dictionary with radii for each element in ``mol``
+    that can be used to screen the 2-electron integrals to be lower than threshold.
+
+    For a threshhold :math:`T` and for all screened pairs of
+    :math:`\mu, \nu` the screening radius is defined in the following way:
+    If ``auxmol`` is not given, the screening radius is calculated such that
+    :math:`(\mu \nu | \mu \nu) < T`.
+    If ``auxmol`` is given, the screening radius is calculated such that
+    :math:`\Sum_P |(\mu \nu | P)| < T`.
+
+    Parameters
+    ----------
+    mol :
+        The molecule for which the screening radii are calculated.
+    auxmol :
+        The molecule with the auxiliary basis.
+    threshold :
+        The threshold for the integral values.
+    scale_factor :
+        The scaling factor for the screening radius.
+    """
     basis = mol.basis
     auxbasis = auxmol.basis if auxmol is not None else None
     atoms = set(mol.elements)
     if auxbasis is None:
         return {
-            atom: determine_screening_cutoff(atom, atom, basis, threshold=threshold)
+            atom: _find_screening_cutoff_distance(
+                atom, atom, basis, threshold=threshold
+            )
             / 2
             * scale_factor
             for atom in atoms
         }
     else:
         return {
-            atom: determine_screening_cutoff_aux(
+            atom: _find_screening_cutoff_distance_aux(
                 atom, atom, basis, auxbasis, threshold=threshold
             )
             / 2
