@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Callable, Iterator, Mapping, Sequence, Set
+from collections.abc import Callable, Collection, Iterator, Mapping, Sequence, Set
 from itertools import chain, takewhile
-from typing import TypeVar, cast
+from typing import Final, TypeVar, cast
 
 import numpy as np
 from chemcoord import Cartesian
@@ -17,6 +17,7 @@ from numba.types import (  # type: ignore[attr-defined]
 from pyscf import df
 from pyscf.gto import Mole
 from scipy.linalg import solve
+from scipy.optimize import bisect
 
 from quemb.molbe.chemfrag import (
     _get_AOidx_per_atom,
@@ -388,6 +389,14 @@ def get_reachable(
     )
 
 
+def get_complement(
+    reachable: Mapping[_T_orb_idx, Set[_T_orb_idx]],
+) -> dict[_T_orb_idx, set[_T_orb_idx]]:
+    """Return the orbitals that cannot be reached by an orbital after screening."""
+    total: Final = cast(set[_T_orb_idx], set(range(len(reachable))))
+    return {i_AO: total - reachable[i_AO] for i_AO in reachable}
+
+
 def to_numba_input(
     exch_reachable: Mapping[_T_orb_idx, Set[_T_orb_idx]],
 ) -> List[Vector[_T_orb_idx]]:
@@ -405,8 +414,8 @@ def to_numba_input(
 
 
 def account_for_symmetry(
-    reachable: Mapping[int, Sequence[int]],
-) -> dict[int, list[int]]:
+    reachable: Mapping[_T_start_orb, Collection[_T_target_orb]],
+) -> dict[_T_start_orb, list[_T_target_orb]]:
     """Account for permutational symmetry and remove all q that are larger than p.
 
     Paramaters
@@ -418,7 +427,10 @@ def account_for_symmetry(
     >>> account_for_symmetry({0: [0, 1, 2], 1: [0, 1, 2], 2: [0, 1, 2]})
     >>> {0: [0], 1: [0, 1], 2: [0, 1, 2]}
     """
-    return {p: list(takewhile(lambda q: p >= q, qs)) for (p, qs) in reachable.items()}
+    return {
+        p: list(takewhile(lambda q: p >= q, sorted(qs)))  # type: ignore[type-var]
+        for (p, qs) in reachable.items()
+    }
 
 
 @njit(cache=True)
@@ -495,10 +507,18 @@ def get_blocks(reachable: Sequence[_T]) -> list[tuple[_T, _T]]:
     ]
 
 
-def get_sparse_ints_3c2e(mol: Mole, auxmol: Mole) -> SemiSparseSym3DTensor:
-    """Return the 3-center 2-electron integrals in a sparse format." """
+def get_sparse_ints_3c2e(
+    mol: Mole,
+    auxmol: Mole,
+    screening_cutoff: Real | Callable[[Real], Real] | Mapping[str, Real] | None = None,
+) -> SemiSparseSym3DTensor:
+    """Return the 3-center 2-electron integrals in a sparse format."""
+
+    if screening_cutoff is None:
+        screening_cutoff = find_good_screening_radius(mol, auxmol)
     exch_reachable = cast(
-        Mapping[AOIdx, Set[AOIdx]], get_reachable(mol, get_atom_per_AO(mol))
+        Mapping[AOIdx, Set[AOIdx]],
+        get_reachable(mol, get_atom_per_AO(mol), screening_cutoff),
     )
     sparse_ints_3c2e = MutableSemiSparse3DTensor(
         mol.nao, auxmol.nao, to_numba_input(exch_reachable)
@@ -574,3 +594,85 @@ def _count_non_zero_2el(
                 for s in exch_reachable[r]:
                     result += 1
     return result
+
+
+def get_test_mol(atom1: str, atom2: str, r: float, basis: str) -> Mole:
+    m = Cartesian.set_atom_coords([atom1, atom2], np.array([[0, 0, 0], [0, 0, r]]))
+    return m.to_pyscf(
+        basis=basis,
+        charge=m.add_data("atomic_number").loc[:, "atomic_number"].sum() % 2,
+    )
+
+
+def calc_residual(mol: Mole) -> dict[tuple[AOIdx, AOIdx], float]:
+    screened_away = account_for_symmetry(
+        get_complement(get_reachable(mol, get_atom_per_AO(mol), 0.0))
+    )
+    g = mol.intor("int2e")
+    return {
+        (p, q): g[p, q, p, q] for p in screened_away.keys() for q in screened_away[p]
+    }
+
+
+def calc_aux_residual(
+    mol: Mole, auxmol: Mole
+) -> dict[tuple[AOIdx, AOIdx], Vector[float64]]:
+    screened_away = account_for_symmetry(
+        get_complement(get_reachable(mol, get_atom_per_AO(mol), 0.0))
+    )
+    ints_3c2e = df.incore.aux_e2(mol, auxmol, intor="int3c2e")
+    return {
+        (p, q): ints_3c2e[p, q, :]
+        for p in screened_away.keys()
+        for q in screened_away[p]
+    }
+
+
+def determine_screening_cutoff_aux(
+    atom1: str, atom2: str, basis: str, auxbasis: str, threshold: float = 1e-8
+) -> float:
+    def f(r: float) -> float:
+        mol = get_test_mol(atom1, atom2, r, basis=basis)
+        auxmol = df.make_auxmol(mol, auxbasis)
+        residual = calc_aux_residual(mol, auxmol)
+        return max(sum(abs(x)) for x in residual.values())
+
+    return bisect(lambda x: (f(x) - threshold), 1, 50, xtol=1e-2)
+
+
+def determine_screening_cutoff(
+    atom1: str, atom2: str, basis: str, threshold: float = 1e-8
+) -> float:
+    def f(r: float) -> float:
+        mol = get_test_mol(atom1, atom2, r, basis=basis)
+        residual = calc_residual(mol)
+        return max(abs(x) for x in residual.values())
+
+    return bisect(lambda x: (f(x) - threshold), 1, 50, xtol=1e-2)
+
+
+def find_good_screening_radius(
+    mol: Mole,
+    auxmol: Mole | None = None,
+    threshold: float = 1e-8,
+    scale_factor: float = 1.03,
+) -> dict[str, float]:
+    basis = mol.basis
+    auxbasis = auxmol.basis if auxmol is not None else None
+    atoms = set(mol.elements)
+    if auxbasis is None:
+        return {
+            atom: determine_screening_cutoff(atom, atom, basis, threshold=threshold)
+            / 2
+            * scale_factor
+            for atom in atoms
+        }
+    else:
+        return {
+            atom: determine_screening_cutoff_aux(
+                atom, atom, basis, auxbasis, threshold=threshold
+            )
+            / 2
+            * scale_factor
+            for atom in atoms
+        }
