@@ -606,7 +606,7 @@ def _get_test_mol(atom1: str, atom2: str, r: float, basis: str) -> Mole:
 
 
 def _calc_residual(mol: Mole) -> dict[tuple[AOIdx, AOIdx], float]:
-    """Return the residual of the 2-electron integrals that are sceened away.
+    r"""Return the residual of the 2-electron integrals that are sceened away.
 
     This is only the diagonal elements of the type :math:`(\mu \nu | \mu \nu)` which
     give upper bounds to the other 2-electron integrals, due to the
@@ -624,7 +624,7 @@ def _calc_residual(mol: Mole) -> dict[tuple[AOIdx, AOIdx], float]:
 def _calc_aux_residual(
     mol: Mole, auxmol: Mole
 ) -> dict[tuple[AOIdx, AOIdx], Vector[float64]]:
-    """Return the residual of the :math:`(\mu,\nu | P) integrals that are sceened away.
+    r"""Return the residual of the :math:`(\mu,\nu | P) integrals that are sceened away.
 
     Here :math:`\mu, \nu` are the AO indices and :math:`P` is the auxiliary basis.
     For a screened AO pair :math:`(\mu, \nu)`, the whole vector along :math:`P`
@@ -674,7 +674,7 @@ def find_screening_radius(
     threshold: float = 1e-8,
     scale_factor: float = 1.03,
 ) -> dict[str, float]:
-    """Return a dictionary with radii for each element in ``mol``
+    r"""Return a dictionary with radii for each element in ``mol``
     that can be used to screen the 2-electron integrals to be lower than threshold.
 
     For a threshhold :math:`T` and for all screened pairs of
