@@ -32,6 +32,10 @@ from quemb.shared.typing import (
     Vector,
 )
 
+_T_orb_idx = TypeVar("_T_orb_idx", bound=OrbitalIdx)
+_T_start_orb = TypeVar("_T_start_orb", bound=OrbitalIdx)
+_T_target_orb = TypeVar("_T_target_orb", bound=OrbitalIdx)
+
 
 @jitclass
 class SparseInt2:
@@ -99,11 +103,9 @@ def get_DF_integrals(
     ints_3c2e = get_sparse_ints_3c2e(mol, auxmol)
     ints_2c2e = auxmol.intor("int2c2e")
     df_coeffs_data = solve(ints_2c2e, ints_3c2e.dense_data.T).T
-
     df_coef = SemiSparseSym3DTensor(
         df_coeffs_data, ints_3c2e.nao, ints_3c2e.naux, ints_3c2e.exch_reachable
     )
-
     return ints_3c2e, df_coef
 
 
@@ -276,13 +278,9 @@ class MutableSemiSparse3DTensor(_ABC_MutableSemiSparse3DTensor):
         )
 
 
-T_start_orb = TypeVar("T_start_orb", bound=OrbitalIdx)
-T_target_orb = TypeVar("T_target_orb", bound=OrbitalIdx)
-
-
 def get_orbs_per_atom(
-    atom_per_orb: Mapping[OrbitalIdx, Set[AtomIdx]],
-) -> dict[AtomIdx, set[OrbitalIdx]]:
+    atom_per_orb: Mapping[_T_orb_idx, Set[AtomIdx]],
+) -> dict[AtomIdx, set[_T_orb_idx]]:
     orb_per_atom = defaultdict(set)
     for i_AO, atoms in atom_per_orb.items():
         for i_atom in atoms:
@@ -291,9 +289,9 @@ def get_orbs_per_atom(
 
 
 def get_orbs_reachable_by_atom(
-    orb_per_atom: Mapping[AtomIdx, Set[OrbitalIdx]],
+    orb_per_atom: Mapping[AtomIdx, Set[_T_orb_idx]],
     screened: Mapping[AtomIdx, Set[AtomIdx]],
-) -> dict[AtomIdx, dict[AtomIdx, Set[OrbitalIdx]]]:
+) -> dict[AtomIdx, dict[AtomIdx, Set[_T_orb_idx]]]:
     return {
         i_atom: {j_atom: orb_per_atom[j_atom] for j_atom in sorted(connected)}
         for i_atom, connected in screened.items()
@@ -301,22 +299,20 @@ def get_orbs_reachable_by_atom(
 
 
 def get_orbs_reachable_by_orb(
-    atom_per_orb: Mapping[T_start_orb, Set[AtomIdx]],
-    reachable_orb_per_atom: Mapping[AtomIdx, Mapping[AtomIdx, Set[T_target_orb]]],
-) -> dict[T_start_orb, dict[AtomIdx, Mapping[AtomIdx, Set[T_target_orb]]]]:
+    atom_per_orb: Mapping[_T_start_orb, Set[AtomIdx]],
+    reachable_orb_per_atom: Mapping[AtomIdx, Mapping[AtomIdx, Set[_T_target_orb]]],
+) -> dict[_T_start_orb, dict[AtomIdx, Mapping[AtomIdx, Set[_T_target_orb]]]]:
     return {
         i_AO: {atom: reachable_orb_per_atom[atom] for atom in atoms}
         for i_AO, atoms in atom_per_orb.items()
     }
 
 
-def get_atom_per_AO(mol: Mole) -> dict[OrbitalIdx, set[AtomIdx]]:
+def get_atom_per_AO(mol: Mole) -> dict[AOIdx, set[AtomIdx]]:
     AOs_per_atom = _get_AOidx_per_atom(mol, frozen_core=False)
     n_AO = AOs_per_atom[-1][-1] + 1
 
-    def get_atom(
-        i_AO: OrbitalIdx, AO_per_atom: Sequence[Sequence[OrbitalIdx]]
-    ) -> AtomIdx:
+    def get_atom(i_AO: AOIdx, AO_per_atom: Sequence[Sequence[AOIdx]]) -> AtomIdx:
         for i_atom, AOs in enumerate(AO_per_atom):
             if i_AO in AOs:
                 return cast(AtomIdx, i_atom)
@@ -324,7 +320,7 @@ def get_atom_per_AO(mol: Mole) -> dict[OrbitalIdx, set[AtomIdx]]:
 
     return {
         i_AO: {get_atom(i_AO, AOs_per_atom)}
-        for i_AO in cast(Sequence[OrbitalIdx], range(n_AO))
+        for i_AO in cast(Sequence[AOIdx], range(n_AO))
     }
 
 
@@ -355,9 +351,9 @@ def conversions_AO_shell(
 
 def get_reachable(
     mol: Mole,
-    atoms_per_orb: Mapping[OrbitalIdx, Set[AtomIdx]],
+    atoms_per_orb: Mapping[_T_orb_idx, Set[AtomIdx]],
     screening_cutoff: Real | Callable[[Real], Real] | Mapping[str, Real] = 5,
-) -> dict[OrbitalIdx, set[OrbitalIdx]]:
+) -> dict[_T_orb_idx, set[_T_orb_idx]]:
     """Return the orbitals that can by reached for each orbital after screening.
 
     Parameters
@@ -390,9 +386,6 @@ def get_reachable(
             get_orbs_reachable_by_atom(get_orbs_per_atom(atoms_per_orb), screen_conn),
         )
     )
-
-
-_T_orb_idx = TypeVar("_T_orb_idx", bound=OrbitalIdx)
 
 
 def to_numba_input(
@@ -433,6 +426,8 @@ def _jit_account_for_symmetry(
     reachable: list[Vector[_T_orb_idx]],
 ) -> list[Vector[_T_orb_idx]]:
     """Account for permutational symmetry and remove all q that are larger than p.
+
+    This is a jitted version of :func:`account_for_symmetry`.
 
     Paramaters
     ----------
@@ -500,10 +495,7 @@ def get_blocks(reachable: Sequence[_T]) -> list[tuple[_T, _T]]:
     ]
 
 
-def get_sparse_ints_3c2e(
-    mol: Mole,
-    auxmol: Mole,
-) -> SemiSparseSym3DTensor:
+def get_sparse_ints_3c2e(mol: Mole, auxmol: Mole) -> SemiSparseSym3DTensor:
     """Return the 3-center 2-electron integrals in a sparse format." """
     exch_reachable = cast(
         Mapping[AOIdx, Set[AOIdx]], get_reachable(mol, get_atom_per_AO(mol))
@@ -550,9 +542,9 @@ def get_sparse_ints_3c2e(
 
 def _flatten(
     orb_reachable_by_orb: Mapping[
-        T_start_orb, Mapping[AtomIdx, Mapping[AtomIdx, Set[T_target_orb]]]
+        _T_start_orb, Mapping[AtomIdx, Mapping[AtomIdx, Set[_T_target_orb]]]
     ],
-) -> dict[T_start_orb, set[T_target_orb]]:
+) -> dict[_T_start_orb, set[_T_target_orb]]:
     return {
         i_orb: set(
             chain(
@@ -564,25 +556,6 @@ def _flatten(
             )
         )
         for i_orb, start_atoms in orb_reachable_by_orb.items()
-    }
-
-
-@njit
-def _get_pq_reachable(
-    exch_reachable: Sequence[Vector[OrbitalIdx]],
-    coul_reachable: Sequence[Vector[OrbitalIdx]],
-) -> dict[tuple[OrbitalIdx, OrbitalIdx], Vector[OrbitalIdx]]:
-    prepared_coul_reachable = [set(orbitals) for orbitals in coul_reachable]
-
-    return {
-        (np.uint64(p), q): np.sort(  # type: ignore[misc]
-            np.array(
-                list(prepared_coul_reachable[p] & prepared_coul_reachable[q]),
-                dtype=np.uint64,
-            )
-        )
-        for p in range(len(exch_reachable))
-        for q in exch_reachable[p]
     }
 
 
