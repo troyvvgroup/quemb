@@ -117,9 +117,9 @@ def get_dense_integrals(
 ) -> Tensor4D[float64]:
     g = np.zeros((ints_3c2e.nao, ints_3c2e.nao, ints_3c2e.nao, ints_3c2e.nao))
 
-    for mu in prange(ints_3c2e.nao):
+    for mu in prange(ints_3c2e.nao):  # type: ignore[attr-defined]
         for nu in ints_3c2e.exch_reachable_unique[mu]:
-            for rho in prange(ints_3c2e.nao):
+            for rho in prange(ints_3c2e.nao):  # type: ignore[attr-defined]
                 for sigma in ints_3c2e.exch_reachable_unique[rho]:
                     g[mu, nu, rho, sigma] = ints_3c2e[mu, nu] @ df_coef[rho, sigma]
                     g[mu, nu, sigma, rho] = g[mu, nu, rho, sigma]
