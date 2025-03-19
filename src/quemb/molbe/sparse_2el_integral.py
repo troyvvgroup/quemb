@@ -120,7 +120,14 @@ def get_dense_integrals(
     for mu in prange(ints_3c2e.nao):  # type: ignore[attr-defined]
         for nu in ints_3c2e.exch_reachable_unique[mu]:
             for rho in prange(ints_3c2e.nao):  # type: ignore[attr-defined]
-                for sigma in ints_3c2e.exch_reachable_unique[rho]:
+                # Ensure (mu nu, rho sigma) ordering
+                if mu > rho:
+                    idx = len(ints_3c2e.exch_reachable_unique[rho])
+                else:
+                    idx = np.searchsorted(
+                        ints_3c2e.exch_reachable_unique[rho], nu, side="right"
+                    )
+                for sigma in ints_3c2e.exch_reachable_unique[rho][:idx]:
                     g[mu, nu, rho, sigma] = ints_3c2e[mu, nu] @ df_coef[rho, sigma]
                     g[mu, nu, sigma, rho] = g[mu, nu, rho, sigma]
                     g[nu, mu, rho, sigma] = g[mu, nu, rho, sigma]
