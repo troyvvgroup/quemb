@@ -30,6 +30,7 @@ from quemb.shared.typing import (
     OrbitalIdx,
     Real,
     ShellIdx,
+    Tensor4D,
     Vector,
 )
 
@@ -108,6 +109,28 @@ def get_DF_integrals(
         df_coeffs_data, ints_3c2e.nao, ints_3c2e.naux, ints_3c2e.exch_reachable
     )
     return ints_3c2e, df_coef
+
+
+@njit(parallel=True)
+def get_dense_integrals(
+    ints_3c2e: SemiSparseSym3DTensor, df_coef: SemiSparseSym3DTensor
+) -> Tensor4D[float64]:
+    g = np.zeros((ints_3c2e.nao, ints_3c2e.nao, ints_3c2e.nao, ints_3c2e.nao))
+
+    for mu in range(ints_3c2e.nao):
+        for nu in ints_3c2e.exch_reachable_unique[mu]:
+            for rho in range(ints_3c2e.nao):
+                for sigma in ints_3c2e.exch_reachable_unique[rho]:
+                    value = ints_3c2e[mu, nu] @ df_coef[rho, sigma]
+                    g[mu, nu, rho, sigma] = value
+                    g[mu, nu, sigma, rho] = value
+                    g[nu, mu, rho, sigma] = value
+                    g[nu, mu, sigma, rho] = value
+                    g[rho, sigma, mu, nu] = value
+                    g[sigma, rho, mu, nu] = value
+                    g[rho, sigma, nu, mu] = value
+                    g[sigma, rho, nu, mu] = value
+    return g
 
 
 # We cannot use the normal abstract base class here, because we later want to jit.
