@@ -31,6 +31,7 @@ from quemb.shared.typing import (
     OrbitalIdx,
     Real,
     ShellIdx,
+    Tensor3D,
     Tensor4D,
     Vector,
 )
@@ -103,9 +104,9 @@ class SparseInt2:
 def get_DF_integrals(
     mol: Mole, auxmol: Mole
 ) -> tuple[SemiSparseSym3DTensor, SemiSparseSym3DTensor]:
-    ints_3c2e = get_sparse_ints_3c2e(mol, auxmol)
+    ints_3c2e = get_sparse_ints_3c2e(mol, auxmol).make_immutable()
     ints_2c2e = auxmol.intor("int2c2e")
-    df_coeffs_data = solve(ints_2c2e, ints_3c2e.dense_data.T).T
+    df_coeffs_data = solve(ints_2c2e, ints_3c2e.unique_dense_data.T).T
     df_coef = SemiSparseSym3DTensor(
         df_coeffs_data, ints_3c2e.nao, ints_3c2e.naux, ints_3c2e.exch_reachable
     )
@@ -167,22 +168,30 @@ class _ABC_MutableSemiSparse3DTensor:
 
     def traverse_nonzero(
         self, unique: bool = True
-    ) -> Iterator[tuple[OrbitalIdx, OrbitalIdx, Vector[float64]]]:
+    ) -> Iterator[tuple[OrbitalIdx, OrbitalIdx]]:
         reachable = self.exch_reachable_unique if unique else self.exch_reachable
         for p in range(self.nao):
             for q in reachable[p]:
-                yield (p, q, self._data[self.idx(p, q)])  # type: ignore[misc]
+                yield (p, q)  # type: ignore[misc]
+
+    def to_dense(self) -> Tensor3D[float64]:
+        """Return a dense representation of the tensor"""
+        g = np.zeros((self.nao, self.nao, self.naux))
+        for p, q in self.traverse_nonzero(unique=True):
+            g[p, q] = self[p, q]
+            g[q, p] = self[p, q]
+        return g
 
     @staticmethod
-    def idx(a: int, b: int) -> int:
+    def idx(a: OrbitalIdx, b: OrbitalIdx) -> int:
         """Return compound index"""
-        return ravel_symmetric(a, b)
+        return ravel_symmetric(a, b)  # type: ignore[return-value]
 
 
 @jitclass(
     [
         ("_data", DictType(int64, float64[::1])),
-        ("dense_data", float64[:, ::1]),
+        ("unique_dense_data", float64[:, ::1]),
         ("exch_reachable", ListType(int64[::1])),
         ("exch_reachable_unique", ListType(int64[::1])),
     ]
@@ -218,11 +227,11 @@ class SemiSparseSym3DTensor(_ABC_MutableSemiSparse3DTensor):
     via :meth:`~MutableSemiSparse3DTensor.make_immutable`.
     """
 
-    dense_data: Matrix[float64]
+    unique_dense_data: Matrix[float64]
 
     def __init__(
         self,
-        dense_data: Matrix[float64],
+        unique_dense_data: Matrix[float64],
         nao: int,
         naux: int,
         exch_reachable: list[Vector[int64]],
@@ -233,13 +242,9 @@ class SemiSparseSym3DTensor(_ABC_MutableSemiSparse3DTensor):
         self.exch_reachable = exch_reachable
         self.exch_reachable_unique = _jit_account_for_symmetry(exch_reachable)
 
-        self.dense_data = dense_data
-        for p in range(self.nao):
-            for q in self.exch_reachable_unique[p]:
-                # Note that this assigns only a view into the dense data array.
-                # This is exactly where we use the non-mutability to have a contiguous
-                # array for storing the data.
-                self._data[self.idx(p, q)] = dense_data[self.idx(p, q), :]
+        self.unique_dense_data = unique_dense_data
+        for i, (p, q) in enumerate(self.traverse_nonzero(unique=True)):
+            self._data[self.idx(p, q)] = self.unique_dense_data[i, :]
 
 
 @jitclass(
@@ -295,11 +300,8 @@ class MutableSemiSparse3DTensor(_ABC_MutableSemiSparse3DTensor):
     def get_dense_data(self):  # type: ignore[no-untyped-def]
         """Return dense data array"""
         result = np.empty((self.n_unique_nonzero(), self.naux), dtype=float64)
-        i = 0
-        for p in range(self.nao):
-            for q in self.exch_reachable_unique[p]:
-                result[i, :] = self[p, q]  # type: ignore[index]
-                i += 1
+        for i, (p, q) in enumerate(self.traverse_nonzero(unique=True)):
+            result[i, :] = self[p, q]  # type: ignore[index]
         return result
 
     def make_immutable(self):  # type: ignore[no-untyped-def]
@@ -540,7 +542,7 @@ def get_sparse_ints_3c2e(
     mol: Mole,
     auxmol: Mole,
     screening_cutoff: Real | Callable[[Real], Real] | Mapping[str, Real] | None = None,
-) -> SemiSparseSym3DTensor:
+) -> MutableSemiSparse3DTensor:
     """Return the 3-center 2-electron integrals in a sparse format."""
 
     if screening_cutoff is None:
@@ -586,7 +588,7 @@ def get_sparse_ints_3c2e(
                     # We have to ignore the type here, because tuples are invariant,
                     # i.e. (OrbitalIdx, OrbitalIdx) is not a subtype of (int, int).
                     sparse_ints_3c2e[p, q] = integrals[i, j, ::1]  # type: ignore[index]
-    return sparse_ints_3c2e.make_immutable()
+    return sparse_ints_3c2e
 
 
 def _flatten(
