@@ -7,9 +7,7 @@ from typing import Final, TypeVar, cast
 
 import numpy as np
 from chemcoord import Cartesian
-from numba import float64, int64, njit, prange, uint64  # type: ignore[attr-defined]
-
-# from numba.experimental import jitclass
+from numba import float64, int64, prange, uint64  # type: ignore[attr-defined]
 from numba.typed import Dict, List
 from numba.types import (  # type: ignore[attr-defined]
     DictType,
@@ -23,7 +21,7 @@ from scipy.optimize import bisect
 from quemb.molbe.chemfrag import (
     _get_AOidx_per_atom,
 )
-from quemb.shared.helper import jitclass, ravel_symmetric
+from quemb.shared.helper import jitclass, njit, ravel_symmetric
 from quemb.shared.typing import (
     AOIdx,
     AtomIdx,
@@ -119,19 +117,18 @@ def get_dense_integrals(
 ) -> Tensor4D[float64]:
     g = np.zeros((ints_3c2e.nao, ints_3c2e.nao, ints_3c2e.nao, ints_3c2e.nao))
 
-    for mu in range(ints_3c2e.nao):
+    for mu in prange(ints_3c2e.nao):
         for nu in ints_3c2e.exch_reachable_unique[mu]:
-            for rho in range(ints_3c2e.nao):
+            for rho in prange(ints_3c2e.nao):
                 for sigma in ints_3c2e.exch_reachable_unique[rho]:
-                    value = ints_3c2e[mu, nu] @ df_coef[rho, sigma]  # type: ignore[index]
-                    g[mu, nu, rho, sigma] = value
-                    g[mu, nu, sigma, rho] = value
-                    g[nu, mu, rho, sigma] = value
-                    g[nu, mu, sigma, rho] = value
-                    g[rho, sigma, mu, nu] = value
-                    g[sigma, rho, mu, nu] = value
-                    g[rho, sigma, nu, mu] = value
-                    g[sigma, rho, nu, mu] = value
+                    g[mu, nu, rho, sigma] = ints_3c2e[mu, nu] @ df_coef[rho, sigma]
+                    g[mu, nu, sigma, rho] = g[mu, nu, rho, sigma]
+                    g[nu, mu, rho, sigma] = g[mu, nu, rho, sigma]
+                    g[nu, mu, sigma, rho] = g[mu, nu, rho, sigma]
+                    g[rho, sigma, mu, nu] = g[mu, nu, rho, sigma]
+                    g[sigma, rho, mu, nu] = g[mu, nu, rho, sigma]
+                    g[rho, sigma, nu, mu] = g[mu, nu, rho, sigma]
+                    g[sigma, rho, nu, mu] = g[mu, nu, rho, sigma]
     return g
 
 
