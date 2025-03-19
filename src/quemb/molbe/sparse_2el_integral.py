@@ -8,7 +8,8 @@ from typing import Final, TypeVar, cast
 import numpy as np
 from chemcoord import Cartesian
 from numba import float64, int64, njit, prange, uint64  # type: ignore[attr-defined]
-from numba.experimental import jitclass
+
+# from numba.experimental import jitclass
 from numba.typed import Dict, List
 from numba.types import (  # type: ignore[attr-defined]
     DictType,
@@ -22,7 +23,7 @@ from scipy.optimize import bisect
 from quemb.molbe.chemfrag import (
     _get_AOidx_per_atom,
 )
-from quemb.shared.helper import ravel_symmetric
+from quemb.shared.helper import jitclass, ravel_symmetric
 from quemb.shared.typing import (
     AOIdx,
     AtomIdx,
@@ -121,7 +122,7 @@ def get_dense_integrals(
         for nu in ints_3c2e.exch_reachable_unique[mu]:
             for rho in range(ints_3c2e.nao):
                 for sigma in ints_3c2e.exch_reachable_unique[rho]:
-                    value = ints_3c2e[mu, nu] @ df_coef[rho, sigma]
+                    value = ints_3c2e[mu, nu] @ df_coef[rho, sigma]  # type: ignore[index]
                     g[mu, nu, rho, sigma] = value
                     g[mu, nu, sigma, rho] = value
                     g[nu, mu, rho, sigma] = value
@@ -212,9 +213,9 @@ class SemiSparseSym3DTensor(_ABC_MutableSemiSparse3DTensor):
 
     Note that this class is immutable which enables to store the unique, non-zero data
     in a dense manner, which has some performance benefits.
-    If you need a mutable version, use :class:`MutableSemiSparseInt3c2e`,
+    If you need a mutable version, use :class:`MutableSemiSparse3DTensor`,
     which can be always converted to an immutable version
-    via :meth:`MutableSemiSparseInt3c2e.make_immutable`.
+    via :meth:`~MutableSemiSparse3DTensor.make_immutable`.
     """
 
     dense_data: Matrix[float64]
@@ -286,7 +287,12 @@ class MutableSemiSparse3DTensor(_ABC_MutableSemiSparse3DTensor):
         # (OrbitalIdx, OrbitalIdx) is not a subtype of (int, int).
         self._data[self.idx(*key)] = value  # type: ignore[arg-type]
 
-    def get_dense_data(self) -> Matrix[float64]:
+    # There is a very strange bug in sphinx-autodoc-typehints,
+    #  https://github.com/tox-dev/sphinx-autodoc-typehints/issues/532
+    # to circumenvent this, we must not annotate the return type of
+    # ``get_dense_data`` and ``make_immutable``.
+
+    def get_dense_data(self):  # type: ignore[no-untyped-def]
         """Return dense data array"""
         result = np.empty((self.n_unique_nonzero(), self.naux), dtype=float64)
         i = 0
@@ -296,7 +302,7 @@ class MutableSemiSparse3DTensor(_ABC_MutableSemiSparse3DTensor):
                 i += 1
         return result
 
-    def make_immutable(self) -> SemiSparseSym3DTensor:
+    def make_immutable(self):  # type: ignore[no-untyped-def]
         return SemiSparseSym3DTensor(
             self.get_dense_data(), self.nao, self.naux, self.exch_reachable
         )
@@ -456,7 +462,7 @@ def account_for_symmetry(
     }
 
 
-@njit(cache=True)
+@njit
 def _jit_account_for_symmetry(
     reachable: list[Vector[_T_orb_idx]],
 ) -> list[Vector[_T_orb_idx]]:
