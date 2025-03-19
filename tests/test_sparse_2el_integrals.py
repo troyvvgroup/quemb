@@ -64,11 +64,10 @@ def test_sparse_density_fitting() -> None:
 
     ints_3c2e = df.incore.aux_e2(mol, auxmol, intor="int3c2e")
     ints_2c2e = auxmol.intor("int2c2e")
-    # # Compute the DF coefficients (df_coef) and the DF 2-electron (df_eri)
     df_coef = scipy.linalg.solve(ints_2c2e, ints_3c2e.reshape(nao * nao, naux).T)
     df_coef = df_coef.reshape((naux, nao, nao), order="F")
 
     df_eri = einsum("ijP,Pkl->ijkl", ints_3c2e, df_coef)
     df_eri_from_sparse = get_dense_integrals(sparse_ints_3c2e, sparse_df_coef)
 
-    assert (abs(df_eri_from_sparse - df_eri).max()) < 1e-10
+    assert np.abs(df_eri_from_sparse - df_eri).max() < 1e-10
