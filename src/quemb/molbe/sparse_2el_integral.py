@@ -13,8 +13,10 @@ from numba.types import (  # type: ignore[attr-defined]
     DictType,
     ListType,
 )
-from pyscf import df
+from pyscf import df, gto
+from pyscf.df import addons
 from pyscf.gto import Mole
+from pyscf.gto.moleintor import getints
 from scipy.linalg import solve
 from scipy.optimize import bisect
 
@@ -37,6 +39,51 @@ from quemb.shared.typing import (
 _T_orb_idx = TypeVar("_T_orb_idx", bound=OrbitalIdx)
 _T_start_orb = TypeVar("_T_start_orb", bound=OrbitalIdx)
 _T_target_orb = TypeVar("_T_target_orb", bound=OrbitalIdx)
+
+
+def _aux_e2(  # type: ignore[no-untyped-def]
+    mol: Mole,
+    auxmol_or_auxbasis: Mole | str,
+    intor: str = "int3c2e",
+    aosym: str = "s1",
+    comp: int | None = None,
+    out: Tensor4D[float64] | None = None,
+    cintopt=None,
+    shls_slice: tuple[int, int, int, int, int, int] | list[int] | None = None,
+) -> Tensor3D[float64]:
+    """3-center AO integrals (ij|L), where L is the auxiliary basis.
+
+    Fixes a bug in the original implementation :func:`pyscf.df.incore.aux_e2`
+    that does not accept all valid slices.
+    Replace with the original, as soon as https://github.com/pyscf/pyscf/pull/2734
+    is in the stable release.
+    """
+    if isinstance(auxmol_or_auxbasis, gto.MoleBase):
+        auxmol = auxmol_or_auxbasis
+    else:
+        auxbasis = auxmol_or_auxbasis
+        auxmol = addons.make_auxmol(mol, auxbasis)
+    if shls_slice is None:
+        shls_slice = (0, mol.nbas, 0, mol.nbas, mol.nbas, mol.nbas + auxmol.nbas)
+    else:
+        assert len(shls_slice) == 6
+        assert shls_slice[5] <= auxmol.nbas
+        shls_slice = list(shls_slice)
+        shls_slice[4] += mol.nbas
+        shls_slice[5] += mol.nbas
+
+    # Extract the call of the two lines below
+    #  pmol = gto.mole.conc_mol(mol, auxmol)
+    #  return pmol.intor(intor, comp, aosym=aosym, shls_slice=shls_slice, out=out)
+    intor = mol._add_suffix(intor)
+    hermi = 0
+    ao_loc = None
+    atm, bas, env = gto.mole.conc_env(
+        mol._atm, mol._bas, mol._env, auxmol._atm, auxmol._bas, auxmol._env
+    )
+    return getints(
+        intor, atm, bas, env, shls_slice, comp, hermi, aosym, ao_loc, cintopt, out
+    )
 
 
 @jitclass
@@ -567,7 +614,7 @@ def get_sparse_ints_3c2e(
     for i_shell, reachable in shell_reachable_by_shell.items():
         for start_block, stop_block in get_blocks(reachable):
             integrals = np.asarray(
-                df.incore.aux_e2(
+                _aux_e2(
                     mol,
                     auxmol,
                     intor="int3c2e",
@@ -659,7 +706,7 @@ def _calc_residual(mol: Mole) -> dict[tuple[AOIdx, AOIdx], float]:
 def _calc_aux_residual(
     mol: Mole, auxmol: Mole
 ) -> dict[tuple[AOIdx, AOIdx], Vector[float64]]:
-    r"""Return the residual of the :math:`(\mu,\nu | P) integrals that are sceened away.
+    r"""Return the residual of :math:`(\mu,\nu | P)` integrals that are sceened away.
 
     Here :math:`\mu, \nu` are the AO indices and :math:`P` is the auxiliary basis.
     For a screened AO pair :math:`(\mu, \nu)`, the whole vector along :math:`P`
