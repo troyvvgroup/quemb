@@ -586,7 +586,7 @@ def _get_sparse_ints_3c2e(
         (sum(len(v) for v in exch_reachable_unique.values()), auxmol.nao), order="C"
     )
 
-    idx_total_integral = 0
+    tmp_dict = {}
     for i_shell, reachable in shell_reachable_by_shell.items():
         for start_block, stop_block in get_blocks(reachable):
             integrals = np.asarray(
@@ -613,8 +613,13 @@ def _get_sparse_ints_3c2e(
                         min(shell_id_to_AO[stop_block][-1] + 1, p + 1),
                     )
                 ):
-                    total_integrals[idx_total_integral, :] = integrals[i, j, ::1]
-                    idx_total_integral += 1
+                    tmp_dict[ravel_symmetric(p, q)] = integrals[i, j, ::1]
+
+    idx_total_integral = 0
+    for p in range(mol.nao):
+        for q in exch_reachable_unique[p]:
+            total_integrals[idx_total_integral, :] = tmp_dict[ravel_symmetric(p, q)]
+            idx_total_integral += 1
 
     return SemiSparseSym3DTensor(
         total_integrals, mol.nao, auxmol.nao, to_numba_input(exch_reachable)

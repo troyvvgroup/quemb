@@ -58,7 +58,9 @@ def test_sparse_density_fitting() -> None:
     nao = mol.nao
     naux = auxmol.nao
 
-    sparse_ints_3c2e, sparse_df_coef = get_sparse_DF_integrals(mol, auxmol)
+    sparse_ints_3c2e, sparse_df_coef = get_sparse_DF_integrals(
+        mol, auxmol, find_screening_radius(mol, auxmol, threshold=1e-11)
+    )
 
     ints_3c2e = df.incore.aux_e2(mol, auxmol, intor="int3c2e")
     ints_2c2e = auxmol.intor("int2c2e")
@@ -73,11 +75,11 @@ def test_sparse_density_fitting() -> None:
 
 def test_find_screening_radius() -> None:
     mol = M("./data/octane.xyz", basis="cc-pvdz", charge=0)
-    auxmol = make_auxmol(mol, auxbasis="cc-pvtz-jkfit")
+    auxmol = make_auxmol(mol, auxbasis="cc-pvdz-jkfit")
 
     assert find_screening_radius(mol, auxmol) == {
-        "C": 4.8799896240234375,
-        "H": 4.923115844726563,
+        "H": 4.4548883056640625,
+        "C": 4.430244750976563,
     }
 
     assert find_screening_radius(mol) == {
