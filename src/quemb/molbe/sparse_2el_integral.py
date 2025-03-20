@@ -300,13 +300,25 @@ class SemiSparseSym3DTensor:
         return ravel_symmetric(a, b)  # type: ignore[return-value]
 
 
+def _traverse_reachable(
+    reachable: Mapping[_T_start_orb, Collection[_T_target_orb]],
+) -> Iterator[tuple[_T_start_orb, _T_target_orb]]:
+    """Traverse reachable p, q pairs"""
+    for p in reachable:
+        for q in reachable[p]:
+            yield p, q
+
+
 def traverse_nonzero(
     g: SemiSparseSym3DTensor,
 ) -> Iterator[tuple[OrbitalIdx, OrbitalIdx]]:
     """Traverse the non-zero elements of a semi-sparse 3-index tensor."""
-    # Note that this cannot be a jitted method, since generators sometimes
+    # NOTE that this cannot be a jitted method, since generators sometimes
     # introduce hard to debug memory-leaks
-    # https://github.com/numba/numba/issues/3451
+    # https://github.com/numba/numba/issues/5427
+    # https://github.com/numba/numba/issues/5350
+    # https://github.com/numba/numba/issues/6993
+    # https://github.com/numba/numba/issues/5350
     for p in range(g.nao):
         for q in g.exch_reachable_unique[p]:
             yield cast(tuple[OrbitalIdx, OrbitalIdx], (p, q))
@@ -548,7 +560,8 @@ def _get_sparse_ints_3c2e(
     """Return the 3-center 2-electron integrals in a sparse format."""
 
     if screening_cutoff is None:
-        screening_cutoff = find_screening_radius(mol, auxmol)
+        # screening_cutoff = find_screening_radius(mol, auxmol)
+        screening_cutoff = find_screening_radius(mol, threshold=1e-12)
     exch_reachable = cast(
         Mapping[AOIdx, Set[AOIdx]],
         get_reachable(mol, get_atom_per_AO(mol), screening_cutoff),
@@ -559,13 +572,15 @@ def _get_sparse_ints_3c2e(
         for k, v in exch_reachable.items()
     }
 
-    n_unique_nonzero = sum(len(v) for v in exch_reachable.values())
-    total_integrals = np.empty((n_unique_nonzero, auxmol.nao), order="C")
+    exch_reachable_unique = account_for_symmetry(exch_reachable)
+    total_integrals = np.empty(
+        (sum(len(v) for v in exch_reachable_unique.values()), auxmol.nao), order="C"
+    )
 
     idx_total_integral = 0
     for i_shell, reachable in shell_reachable_by_shell.items():
         for start_block, stop_block in get_blocks(reachable):
-            block_of_integrals = np.asarray(
+            integrals = np.asarray(
                 _aux_e2(
                     mol,
                     auxmol,
@@ -585,12 +600,11 @@ def _get_sparse_ints_3c2e(
                 for j, q in enumerate(
                     range(
                         shell_id_to_AO[start_block][0],
-                        shell_id_to_AO[stop_block][-1] + 1,
+                        # still ensure p <= q
+                        min(shell_id_to_AO[stop_block][-1] + 1, p + 1),
                     )
                 ):
-                    total_integrals[idx_total_integral, :] = block_of_integrals[
-                        i, j, ::1
-                    ]
+                    total_integrals[idx_total_integral, :] = integrals[i, j, ::1]
                     idx_total_integral += 1
 
     return SemiSparseSym3DTensor(
