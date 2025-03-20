@@ -89,7 +89,7 @@ GlobalMOIdx = NewType("GlobalMOIdx", MOIdx)
 # TODO improve description of ShellIdx
 
 #: The shell index ...
-ShellIdx = NewType("ShellIdx", int)
+ShellIdx = NewType("ShellIdx", np.integer)
 
 #: The index of a Fragment.
 FragmentIdx = NewType("FragmentIdx", np.integer)

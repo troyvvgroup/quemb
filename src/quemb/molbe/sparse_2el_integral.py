@@ -41,6 +41,10 @@ _T_orb_idx = TypeVar("_T_orb_idx", bound=OrbitalIdx)
 _T_start_orb = TypeVar("_T_start_orb", bound=OrbitalIdx)
 _T_target_orb = TypeVar("_T_target_orb", bound=OrbitalIdx)
 
+_T_start = TypeVar("_T_start", bound=np.integer)
+_T_target = TypeVar("_T_target", bound=np.integer)
+_T = TypeVar("_T", int, np.integer)
+
 
 def _aux_e2(  # type: ignore[no-untyped-def]
     mol: Mole,
@@ -280,15 +284,14 @@ class SemiSparseSym3DTensor:
 
         self.unique_dense_data = unique_dense_data
 
-        n_indices = sum([len(r) for r in self.exch_reachable_unique])
-
-        self._keys = np.empty(n_indices, dtype=int64)
-
-        i = 0
-        for p in range(self.nao):
-            for q in self.exch_reachable_unique[p]:
-                self._keys[i] = self.idx(p, q)  # type: ignore[arg-type]
-                i += 1
+        self._keys = np.array(
+            [
+                self.idx(p, q)  # type: ignore[arg-type]
+                for p in range(self.nao)
+                for q in self.exch_reachable_unique[p]
+            ],
+            dtype=int64,
+        )
 
     def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[float64]:
         look_up_idx = np.searchsorted(self._keys, self.idx(key[0], key[1]))
@@ -320,16 +323,26 @@ def _traverse_reachable(
 
 def traverse_nonzero(
     g: SemiSparseSym3DTensor,
+    unique: bool = True,
 ) -> Iterator[tuple[OrbitalIdx, OrbitalIdx]]:
-    """Traverse the non-zero elements of a semi-sparse 3-index tensor."""
+    """Traverse the non-zero elements of a semi-sparse 3-index tensor.
+
+    Parameters
+    ----------
+    g :
+    unique :
+        Whether to account for 2-fold permutational symmetry
+        and only return :python:`p >= q`.
+    """
     # NOTE that this cannot be a jitted method, since generators sometimes
     # introduce hard to debug memory-leaks
     # https://github.com/numba/numba/issues/5427
     # https://github.com/numba/numba/issues/5350
     # https://github.com/numba/numba/issues/6993
     # https://github.com/numba/numba/issues/5350
+    reachable = g.exch_reachable_unique if unique else g.exch_reachable
     for p in range(g.nao):
-        for q in g.exch_reachable_unique[p]:
+        for q in reachable[p]:
             yield cast(tuple[OrbitalIdx, OrbitalIdx], (p, q))
 
 
@@ -391,7 +404,7 @@ def conversions_AO_shell(
         The molecule.
     """
     shell_id_to_AO = {
-        ShellIdx(shell_id): cast(
+        cast(ShellIdx, shell_id): cast(
             list[AOIdx], list(range(*mol.nao_nr_range(shell_id, shell_id + 1)))
         )
         for shell_id in range(mol.nbas)
@@ -408,8 +421,8 @@ def get_reachable(
     mol: Mole,
     atoms_per_orb: Mapping[_T_orb_idx, Set[AtomIdx]],
     screening_cutoff: Real | Callable[[Real], Real] | Mapping[str, Real] = 5,
-) -> dict[_T_orb_idx, set[_T_orb_idx]]:
-    """Return the orbitals that can by reached for each orbital after screening.
+) -> dict[_T_orb_idx, list[_T_orb_idx]]:
+    """Return the sorted orbitals that can by reached for each orbital after screening.
 
     Parameters
     ----------
@@ -444,11 +457,11 @@ def get_reachable(
 
 
 def get_complement(
-    reachable: Mapping[_T_orb_idx, Set[_T_orb_idx]],
-) -> dict[_T_orb_idx, set[_T_orb_idx]]:
+    reachable: Mapping[_T_start, Sequence[_T_target]],
+) -> dict[_T_start, list[_T_target]]:
     """Return the orbitals that cannot be reached by an orbital after screening."""
-    total: Final = cast(set[_T_orb_idx], set(range(len(reachable))))
-    return {i_AO: total - reachable[i_AO] for i_AO in reachable}
+    total: Final = cast(set[_T_target], set(range(len(reachable))))
+    return {i_AO: sorted(total - set(reachable[i_AO])) for i_AO in reachable}  # type: ignore[type-var]
 
 
 def to_numba_input(
@@ -468,8 +481,8 @@ def to_numba_input(
 
 
 def account_for_symmetry(
-    reachable: Mapping[_T_start_orb, Collection[_T_target_orb]],
-) -> dict[_T_start_orb, list[_T_target_orb]]:
+    reachable: Mapping[_T_start, Collection[_T_target]],
+) -> dict[_T_start, list[_T_target]]:
     """Account for permutational symmetry and remove all q that are larger than p.
 
     Paramaters
@@ -505,7 +518,7 @@ def _jit_account_for_symmetry(
     )
 
 
-def identify_contiguous_blocks(X: Sequence[int]) -> list[tuple[int, int]]:
+def identify_contiguous_blocks(X: Sequence[_T]) -> list[tuple[int, int]]:
     """Identify the indices of contiguous blocks in the sequence X.
 
     A block is defined as a sequence of consecutive integers.
@@ -534,9 +547,6 @@ def identify_contiguous_blocks(X: Sequence[int]) -> list[tuple[int, int]]:
             start = i  # New block starts here
     result.append((start, len(X)))  # Add the final block
     return result
-
-
-_T = TypeVar("_T", bound=int)
 
 
 def get_blocks(reachable: Sequence[_T]) -> list[tuple[_T, _T]]:
@@ -569,32 +579,40 @@ def _get_sparse_ints_3c2e(
     """Return the 3-center 2-electron integrals in a sparse format."""
 
     if screening_cutoff is None:
-        # screening_cutoff = find_screening_radius(mol, auxmol)
-        screening_cutoff = find_screening_radius(mol, threshold=1e-12)
+        screening_cutoff = find_screening_radius(mol, auxmol)
     exch_reachable = cast(
         Mapping[AOIdx, Set[AOIdx]],
         get_reachable(mol, get_atom_per_AO(mol), screening_cutoff),
     )
-    shell_id_to_AO, AO_to_shell_id = conversions_AO_shell(mol)
-    shell_reachable_by_shell = {
-        AO_to_shell_id[k]: sorted({AO_to_shell_id[orb] for orb in v})
-        for k, v in exch_reachable.items()
-    }
-
     exch_reachable_unique = account_for_symmetry(exch_reachable)
-    total_integrals = np.empty(
+
+    screened_unique_integrals = np.empty(
         (sum(len(v) for v in exch_reachable_unique.values()), auxmol.nao), order="C"
     )
 
-    tmp_dict = {}
+    shell_id_to_AO, AO_to_shell_id = conversions_AO_shell(mol)
+    shell_reachable_by_shell = account_for_symmetry(
+        {
+            AO_to_shell_id[k]: sorted({AO_to_shell_id[orb] for orb in v})  # type: ignore[type-var]
+            for k, v in exch_reachable_unique.items()
+        }
+    )
+    keys = np.array(
+        [
+            ravel_symmetric(p, q)
+            for (p, q) in _traverse_reachable(exch_reachable_unique)
+        ],
+        dtype=np.int64,
+    )
+
     for i_shell, reachable in shell_reachable_by_shell.items():
         for start_block, stop_block in get_blocks(reachable):
-            integrals = np.asarray(
+            integrals = np.asarray(  # type: ignore[call-overload]
                 _aux_e2(
                     mol,
                     auxmol,
                     intor="int3c2e",
-                    shls_slice=(
+                    shls_slice=(  # type: ignore[arg-type]
                         i_shell,
                         i_shell + 1,
                         start_block,
@@ -608,21 +626,17 @@ def _get_sparse_ints_3c2e(
             for i, p in enumerate(shell_id_to_AO[i_shell]):
                 for j, q in enumerate(
                     range(
-                        shell_id_to_AO[start_block][0],
+                        shell_id_to_AO[start_block][0],  # type: ignore[index]
                         # still ensure p <= q
-                        min(shell_id_to_AO[stop_block][-1] + 1, p + 1),
+                        min(shell_id_to_AO[stop_block][-1] + 1, p + 1),  # type: ignore[index]
                     )
                 ):
-                    tmp_dict[ravel_symmetric(p, q)] = integrals[i, j, ::1]
-
-    idx_total_integral = 0
-    for p in range(mol.nao):
-        for q in exch_reachable_unique[p]:
-            total_integrals[idx_total_integral, :] = tmp_dict[ravel_symmetric(p, q)]
-            idx_total_integral += 1
+                    screened_unique_integrals[
+                        np.searchsorted(keys, ravel_symmetric(p, q)), :
+                    ] = integrals[i, j, ::1]
 
     return SemiSparseSym3DTensor(
-        total_integrals, mol.nao, auxmol.nao, to_numba_input(exch_reachable)
+        screened_unique_integrals, mol.nao, auxmol.nao, to_numba_input(exch_reachable)
     )
 
 
@@ -630,14 +644,16 @@ def _flatten(
     orb_reachable_by_orb: Mapping[
         _T_start_orb, Mapping[AtomIdx, Mapping[AtomIdx, Set[_T_target_orb]]]
     ],
-) -> dict[_T_start_orb, set[_T_target_orb]]:
+) -> dict[_T_start_orb, list[_T_target_orb]]:
     return {
-        i_orb: set(
-            chain(
-                *(
-                    start_atoms[start_atom][target_atom]
-                    for start_atom, target_atoms in start_atoms.items()
-                    for target_atom in target_atoms
+        i_orb: sorted(  # type: ignore[type-var]
+            set(
+                chain(
+                    *(
+                        start_atoms[start_atom][target_atom]
+                        for start_atom, target_atoms in start_atoms.items()
+                        for target_atom in target_atoms
+                    )
                 )
             )
         )
@@ -751,7 +767,7 @@ def _find_screening_cutoff_distance(
 def find_screening_radius(
     mol: Mole,
     auxmol: Mole | None = None,
-    threshold: float = 1e-8,
+    threshold: float = 1e-7,
     scale_factor: float = 1.03,
 ) -> dict[str, float]:
     r"""Return a dictionary with radii for each element in ``mol``
