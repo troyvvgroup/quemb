@@ -294,6 +294,15 @@ class SemiSparseSym3DTensor:
         look_up_idx = np.searchsorted(self._keys, self.idx(key[0], key[1]))
         return self.unique_dense_data[look_up_idx]
 
+    def to_dense(self) -> Tensor3D[float64]:
+        """Convert to dense 3D tensor"""
+        g = np.zeros((self.nao, self.nao, self.naux))
+        for p in range(self.nao):
+            for q in self.exch_reachable_unique[p]:
+                g[p, q] = self[p, q]  # type: ignore[index]
+                g[q, p] = self[p, q]  # type: ignore[index]
+        return g
+
     @staticmethod
     def idx(a: OrbitalIdx, b: OrbitalIdx) -> int:
         """Return compound index"""
