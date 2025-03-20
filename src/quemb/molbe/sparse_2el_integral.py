@@ -17,6 +17,7 @@ from pyscf import df, gto
 from pyscf.df import addons
 from pyscf.gto import Mole
 from pyscf.gto.moleintor import getints
+from pyscf.lib import einsum
 from scipy.linalg import solve
 from scipy.optimize import bisect
 
@@ -333,6 +334,7 @@ class SemiSparseSym3DTensor(_ABC_MutableSemiSparse3DTensor):
 
         self.unique_dense_data = unique_dense_data
         for i, (p, q) in enumerate(self.traverse_nonzero(unique=True)):
+            #  Avoid the circular reference here
             self._data[self.idx(p, q)] = self.unique_dense_data[i, :]
 
 
@@ -635,8 +637,7 @@ def _get_sparse_ints_3c2e(
     """Return the 3-center 2-electron integrals in a sparse format."""
 
     if screening_cutoff is None:
-        # screening_cutoff = find_screening_radius(mol, auxmol)
-        screening_cutoff = find_screening_radius(mol, threshold=1e-12)
+        screening_cutoff = find_screening_radius(mol, auxmol)
     exch_reachable = cast(
         Mapping[AOIdx, Set[AOIdx]],
         get_reachable(mol, get_atom_per_AO(mol), screening_cutoff),
@@ -768,8 +769,22 @@ def _find_screening_cutoff_distance_aux(
     def f(r: float) -> float:
         mol = _get_test_mol(atom1, atom2, r, basis=basis)
         auxmol = df.make_auxmol(mol, auxbasis)
-        residual = _calc_aux_residual(mol, auxmol)
-        return max(sum(abs(x)) for x in residual.values())
+        nao = mol.nao
+        naux = auxmol.nao
+
+        sparse_ints_3c2e, sparse_df_coef = get_sparse_DF_integrals(
+            mol, auxmol, screening_cutoff=0.01
+        )
+
+        ints_3c2e = df.incore.aux_e2(mol, auxmol, intor="int3c2e")
+        ints_2c2e = auxmol.intor("int2c2e")
+        df_coef = solve(ints_2c2e, ints_3c2e.reshape(nao * nao, naux).T)
+        df_coef = df_coef.reshape((naux, nao, nao), order="F")
+
+        df_eri = einsum("ijP,Pkl->ijkl", ints_3c2e, df_coef)
+        df_eri_from_sparse = get_dense_integrals(sparse_ints_3c2e, sparse_df_coef)
+
+        return np.abs(df_eri_from_sparse - df_eri).max()
 
     return bisect(lambda x: (f(x) - threshold), 1, 50, xtol=1e-2)
 
