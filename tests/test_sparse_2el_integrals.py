@@ -12,6 +12,7 @@ from quemb.molbe.sparse_2el_integral import (
     find_screening_radius,
     get_dense_integrals,
     get_sparse_DF_integrals,
+    traverse_nonzero,
 )
 
 
@@ -42,15 +43,9 @@ def test_semi_sparse_3d_tensor() -> None:
 
     ints_3c2e = df.incore.aux_e2(mol, auxmol, intor="int3c2e")
 
-    for p, q in sparse_ints_3c2e.traverse_nonzero():
+    for p, q in traverse_nonzero(sparse_ints_3c2e):
         assert np.allclose(
             ints_3c2e[p, q, :], sparse_ints_3c2e[p, q], atol=1e-10, rtol=0
-        ), (p, q)
-
-    const_sparse_ints_3c2e = sparse_ints_3c2e.make_immutable()
-    for p, q in sparse_ints_3c2e.traverse_nonzero():
-        assert np.allclose(
-            const_sparse_ints_3c2e[p, q], sparse_ints_3c2e[p, q], atol=1e-10, rtol=0
         ), (p, q)
 
 

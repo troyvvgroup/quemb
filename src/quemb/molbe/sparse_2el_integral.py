@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Callable, Collection, Mapping, Sequence, Set
+from collections.abc import Callable, Collection, Iterator, Mapping, Sequence, Set
 from itertools import chain, takewhile
 from typing import Final, TypeVar, cast
 
@@ -68,14 +68,12 @@ def _aux_e2(  # type: ignore[no-untyped-def]
         shls_slice = (0, mol.nbas, 0, mol.nbas, mol.nbas, mol.nbas + auxmol.nbas)
     else:
         assert len(shls_slice) == 6
+        # The following line is the difference to pyscf
         assert shls_slice[5] <= auxmol.nbas
         shls_slice = list(shls_slice)
         shls_slice[4] += mol.nbas
         shls_slice[5] += mol.nbas
 
-    # Extract the call of the two lines below
-    #  pmol = gto.mole.conc_mol(mol, auxmol)
-    #  return pmol.intor(intor, comp, aosym=aosym, shls_slice=shls_slice, out=out)
     intor = mol._add_suffix(intor)
     hermi = 0
     ao_loc = None
@@ -198,7 +196,7 @@ def get_dense_integrals(
         Sparse 3-center integrals in the form of a :class:`SemiSparseSym3DTensor`.
         :math:`(\mu \nu | P)` is given by :python:`ints_3c2e[mu, nu][P]`.
     df_coef :
-        DF coefficients in the form of a :class:`SemiSparseSym3DTensori`.
+        DF coefficients in the form of a :class:`SemiSparseSym3DTensor`.
         :math:`C^{P}_{\mu\nu}` is given by :python:`df_coef[mu, nu][P]`.
     """
     g = np.zeros((ints_3c2e.nao, ints_3c2e.nao, ints_3c2e.nao, ints_3c2e.nao))
@@ -259,9 +257,6 @@ class SemiSparseSym3DTensor:
 
     Note that this class is immutable which enables to store the unique, non-zero data
     in a dense manner, which has some performance benefits.
-    If you need a mutable version, use :class:`MutableSemiSparse3DTensor`,
-    which can be always converted to an immutable version
-    via :meth:`~MutableSemiSparse3DTensor.make_immutable`.
     """
 
     _keys: Vector[int64]
@@ -292,7 +287,7 @@ class SemiSparseSym3DTensor:
         i = 0
         for p in range(self.nao):
             for q in self.exch_reachable_unique[p]:
-                self._keys[i] = self.idx(p, q)
+                self._keys[i] = self.idx(p, q)  # type: ignore[arg-type]
                 i += 1
 
     def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[float64]:
@@ -304,8 +299,17 @@ class SemiSparseSym3DTensor:
         """Return compound index"""
         return ravel_symmetric(a, b)  # type: ignore[return-value]
 
-    def n_unique_nonzero(self) -> int:
-        return len(self._keys)
+
+def traverse_nonzero(
+    g: SemiSparseSym3DTensor,
+) -> Iterator[tuple[OrbitalIdx, OrbitalIdx]]:
+    """Traverse the non-zero elements of a semi-sparse 3-index tensor."""
+    # Note that this cannot be a jitted method, since generators sometimes
+    # introduce hard to debug memory-leaks
+    # https://github.com/numba/numba/issues/3451
+    for p in range(g.nao):
+        for q in g.exch_reachable_unique[p]:
+            yield cast(tuple[OrbitalIdx, OrbitalIdx], (p, q))
 
 
 def get_orbs_per_atom(
