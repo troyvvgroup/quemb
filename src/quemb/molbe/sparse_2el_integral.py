@@ -297,7 +297,10 @@ class SemiSparseSym3DTensor:
         look_up_idx = np.searchsorted(self._keys, self.idx(key[0], key[1]))
         return self.unique_dense_data[look_up_idx]
 
-    def to_dense(self) -> Tensor3D[float64]:
+    # We cannot annotate the return type of this function, because of a strange bug in
+    #  sphinx-autodoc-typehints.
+    #  https://github.com/tox-dev/sphinx-autodoc-typehints/issues/532
+    def to_dense(self):  # type: ignore[no-untyped-def]
         """Convert to dense 3D tensor"""
         g = np.zeros((self.nao, self.nao, self.naux))
         for p in range(self.nao):

@@ -19,6 +19,8 @@ There are three main classes:
     of which AO index belongs to which center and edge.
 """
 
+from __future__ import annotations
+
 from collections import defaultdict
 from collections.abc import Hashable, Iterable, Mapping, Sequence
 from itertools import chain
