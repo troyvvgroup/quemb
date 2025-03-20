@@ -77,12 +77,12 @@ def test_find_screening_radius() -> None:
     mol = M("./data/octane.xyz", basis="cc-pvdz", charge=0)
     auxmol = make_auxmol(mol, auxbasis="cc-pvdz-jkfit")
 
-    assert find_screening_radius(mol, auxmol) == {
+    assert find_screening_radius(mol, auxmol, threshold=1e-8) == {
         "H": 4.4548883056640625,
         "C": 4.430244750976563,
     }
 
-    assert find_screening_radius(mol) == {
+    assert find_screening_radius(mol, threshold=1e-8) == {
         "C": 3.4198590087890626,
         "H": 3.2658367919921876,
     }

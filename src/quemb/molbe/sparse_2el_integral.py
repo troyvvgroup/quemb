@@ -767,6 +767,7 @@ def _find_screening_cutoff_distance(
 def find_screening_radius(
     mol: Mole,
     auxmol: Mole | None = None,
+    *,
     threshold: float = 1e-7,
     scale_factor: float = 1.03,
 ) -> dict[str, float]:
