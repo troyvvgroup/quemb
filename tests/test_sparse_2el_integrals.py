@@ -2,13 +2,16 @@ import numpy as np
 import scipy
 from chemcoord import Cartesian
 from pyscf import df
+from pyscf.df import make_auxmol
+from pyscf.gto import M
 from pyscf.lib import einsum
 
 from quemb.molbe.sparse_2el_integral import (
     SparseInt2,
+    _get_sparse_ints_3c2e,
+    find_screening_radius,
     get_dense_integrals,
-    get_DF_integrals,
-    get_sparse_ints_3c2e,
+    get_sparse_DF_integrals,
 )
 
 
@@ -35,7 +38,7 @@ def test_semi_sparse_3d_tensor() -> None:
     auxbasis = "weigend"
     mol = m.to_pyscf(basis=basis, charge=0)
     auxmol = df.addons.make_auxmol(mol, auxbasis)
-    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol)
+    sparse_ints_3c2e = _get_sparse_ints_3c2e(mol, auxmol)
 
     ints_3c2e = df.incore.aux_e2(mol, auxmol, intor="int3c2e")
 
@@ -60,7 +63,7 @@ def test_sparse_density_fitting() -> None:
     nao = mol.nao
     naux = auxmol.nao
 
-    sparse_ints_3c2e, sparse_df_coef = get_DF_integrals(mol, auxmol)
+    sparse_ints_3c2e, sparse_df_coef = get_sparse_DF_integrals(mol, auxmol)
 
     ints_3c2e = df.incore.aux_e2(mol, auxmol, intor="int3c2e")
     ints_2c2e = auxmol.intor("int2c2e")
@@ -71,3 +74,18 @@ def test_sparse_density_fitting() -> None:
     df_eri_from_sparse = get_dense_integrals(sparse_ints_3c2e, sparse_df_coef)
 
     assert np.abs(df_eri_from_sparse - df_eri).max() < 1e-10
+
+
+def test_find_screening_radius() -> None:
+    mol = M("./data/octane.xyz", basis="cc-pvdz", charge=0)
+    auxmol = make_auxmol(mol, auxbasis="cc-pvtz-jkfit")
+
+    assert find_screening_radius(mol, auxmol) == {
+        "C": 4.8799896240234375,
+        "H": 4.923115844726563,
+    }
+
+    assert find_screening_radius(mol) == {
+        "C": 3.4198590087890626,
+        "H": 3.2658367919921876,
+    }

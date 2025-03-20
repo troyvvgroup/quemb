@@ -146,10 +146,30 @@ class SparseInt2:
         return ravel_symmetric(ravel_symmetric(a, b), ravel_symmetric(c, d))
 
 
-def get_DF_integrals(
-    mol: Mole, auxmol: Mole
+def get_sparse_DF_integrals(
+    mol: Mole,
+    auxmol: Mole,
+    screening_cutoff: Real | Callable[[Real], Real] | Mapping[str, Real] | None = None,
 ) -> tuple[SemiSparseSym3DTensor, SemiSparseSym3DTensor]:
-    ints_3c2e = get_sparse_ints_3c2e(mol, auxmol).make_immutable()
+    """Return the 3-center 2-electron integrals in a sparse format with density fitting
+
+    Parameters
+    ----------
+    mol :
+        The molecule.
+    auxmol :
+        The molecule with auxiliary basis functions.
+    screening_cutoff :
+        The screening cutoff is given by the overlap of van der Waals radii.
+        By default, the radii are determined by :func:`find_screening_radius`.
+        Alternatively, a fixed radius, callable or a dictionary can be passed.
+        The callable is called with the tabulated van der Waals radius
+        of the atom as argument and can be used to scale it up.
+        The dictionary can be used to define different van der Waals radii
+        for different elements. Compare to the :python:`modify_element_data`
+        argument of :meth:`~chemcoord.Cartesian.get_bonds`.
+    """
+    ints_3c2e = _get_sparse_ints_3c2e(mol, auxmol, screening_cutoff).make_immutable()
     ints_2c2e = auxmol.intor("int2c2e")
     df_coeffs_data = solve(ints_2c2e, ints_3c2e.unique_dense_data.T).T
     df_coef = SemiSparseSym3DTensor(
@@ -162,6 +182,24 @@ def get_DF_integrals(
 def get_dense_integrals(
     ints_3c2e: SemiSparseSym3DTensor, df_coef: SemiSparseSym3DTensor
 ) -> Tensor4D[float64]:
+    r"""Compute dense ERIs from sparse 3-center integrals and sparse DF coefficients.
+
+    We evaluate the integrals via
+
+    .. math::
+
+        (\mu, \nu | \rho \sigma) = \sum_{P} (\mu \nu | P) C^{P}_{\rho\sigma}
+
+
+    Parameters
+    ----------
+    ints_3c2e :
+        Sparse 3-center integrals in the form of a :class:`SemiSparseSym3DTensor`.
+        :math:`(\mu \nu | P)` is given by :python:`ints_3c2e[mu, nu][P]`.
+    df_coef :
+        DF coefficients in the form of a :class:`SemiSparseSym3DTensori`.
+        :math:`C^{P}_{\mu\nu}` is given by :python:`df_coef[mu, nu][P]`.
+    """
     g = np.zeros((ints_3c2e.nao, ints_3c2e.nao, ints_3c2e.nao, ints_3c2e.nao))
 
     for mu in prange(ints_3c2e.nao):  # type: ignore[attr-defined]
@@ -589,7 +627,7 @@ def get_blocks(reachable: Sequence[_T]) -> list[tuple[_T, _T]]:
     ]
 
 
-def get_sparse_ints_3c2e(
+def _get_sparse_ints_3c2e(
     mol: Mole,
     auxmol: Mole,
     screening_cutoff: Real | Callable[[Real], Real] | Mapping[str, Real] | None = None,
@@ -597,7 +635,8 @@ def get_sparse_ints_3c2e(
     """Return the 3-center 2-electron integrals in a sparse format."""
 
     if screening_cutoff is None:
-        screening_cutoff = find_screening_radius(mol, auxmol)
+        # screening_cutoff = find_screening_radius(mol, auxmol)
+        screening_cutoff = find_screening_radius(mol, threshold=1e-12)
     exch_reachable = cast(
         Mapping[AOIdx, Set[AOIdx]],
         get_reachable(mol, get_atom_per_AO(mol), screening_cutoff),
