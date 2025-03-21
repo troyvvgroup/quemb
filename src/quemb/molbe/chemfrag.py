@@ -65,6 +65,7 @@ from quemb.shared.typing import (
 # would neither accept a `SeqOverAtom` nor a generic `Sequence`.
 # However, this is (currently) not possible in Python, see this issue:
 # https://github.com/python/mypy/issues/3331
+# For now just stick to ``Sequence``.
 
 
 def union_of_seqs(*seqs: Sequence[T]) -> OrderedSet[T]:
@@ -473,7 +474,7 @@ class PurelyStructureFragmented:
     edges_per_frag: Final[Sequence[OrderedSet[EdgeIdx]]]
     #: The origins per frag. Note that for "normal" BE calculations
     #: there is exacctly one origin per fragment, i.e. the
-    #: `SeqOverFrag` has one element.
+    #: `Sequence` has one element.
     #: The order is guaranteed to be ascending.
     origin_per_frag: Final[Sequence[OrderedSet[OriginIdx]]]
 
