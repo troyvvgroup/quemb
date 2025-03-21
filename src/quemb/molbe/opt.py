@@ -208,9 +208,10 @@ class BEOPT:
                             )
                         print(flush=True)
                         break
-                print(
-                    "BE DID NOT CONVERGE IN " + str(self.max_space) + " STEPS",
-                    flush=True,
-                )
+                if self.err >= self.conv_tol:
+                    print(
+                        "BE DID NOT CONVERGE IN " + str(self.max_space) + " STEPS",
+                        flush=True,
+                    )
         else:
             raise ValueError("This optimization method for BE is not supported")
