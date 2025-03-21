@@ -59,12 +59,13 @@ from quemb.shared.typing import (
 
 # We would like to have a subtype of Sequence that also behaves generically
 # so that we could write
-# `Sequence[AOIdx]` for a sequence that contains all AO indices in a fragment
-# or `Sequence[AOIdx]` for a sequence that contains all AO indices in an atom,
-# where the Sequence types are different, i.e. a function that takes a `Sequence`
-# would neither accept a `Sequence` nor a generic `Sequence`.
+# `SeqOverFrag[AOIdx]` for a sequence that contains all AO indices in a fragment
+# or `SeqOverAtom[AOIdx]` for a sequence that contains all AO indices in an atom,
+# where the Sequence types are different, i.e. a function that takes a `SeqOverFrag`
+# would neither accept a `SeqOverAtom` nor a generic `Sequence`.
 # However, this is (currently) not possible in Python, see this issue:
 # https://github.com/python/mypy/issues/3331
+# For now just stick to ``Sequence``.
 
 
 def union_of_seqs(*seqs: Sequence[T]) -> OrderedSet[T]:
