@@ -159,7 +159,7 @@ class FrankQN:
     """Quasi Newton Optimization
 
     Performs quasi newton optimization. Interfaces many functionalities of the
-    frankestein code originaly written by Hong-Zhou Ye
+    frankestein code originally written by Hong-Zhou Ye
 
 
     """
@@ -171,8 +171,6 @@ class FrankQN:
         self.func = func
 
         self.B0 = pinv(J0)
-
-        self.iter_ = 0
 
         self.tol_gmres = 1.0e-6
         self.xnew = None  # new errvec
@@ -187,8 +185,8 @@ class FrankQN:
         self.B = None
         self.trust = trust
 
-    def next_step(self, trust_region=False):
-        if self.iter_ == 0:
+    def next_step(self, iter, trust_region=False):
+        if iter == 0:
             self.xnew = self.x0
             self.fnew = self.func(self.xnew) if self.f0 is None else self.f0
             self.fs[0] = self.fnew.copy()
@@ -196,14 +194,14 @@ class FrankQN:
             self.Binv = self.B0.copy()
 
         # Book keeping
-        if not self.iter_ == 0:
+        if not iter == 0:
             dx_i = self.xnew - self.xold
             df_i = self.fnew - self.fold
 
         self.xold = self.xnew.copy()
         self.fold = self.fnew.copy()
 
-        if not self.iter_ == 0:
+        if not iter == 0:
             tmp__ = outer(dx_i - self.Binv @ df_i, dx_i @ self.Binv) / (
                 dx_i @ self.Binv @ df_i
             )
@@ -214,18 +212,19 @@ class FrankQN:
                 self.func, self.xold, self.fold, self.Binv, c=self.trust
             )
         else:
-            self.us[self.iter_] = self.get_Bnfn(self.iter_)
+            self.us[iter] = self.get_Bnfn(iter)
 
             _, self.xnew, self.fnew = line_search_LF(
-                self.func, self.xold, self.fold, -self.us[self.iter_], self.iter_
+                self.func, self.xold, self.fold, -self.us[iter], iter
             )
 
             # udpate vs, dxs, and fs
-            self.vs[self.iter_] = self.B0 @ self.fnew
-        self.dxs[self.iter_] = self.xnew - self.xold
-        self.fs[self.iter_ + 1] = self.fnew.copy()
-
-        self.iter_ += 1
+            self.vs[iter] = self.B0 @ self.fnew
+        self.dxs[iter] = self.xnew - self.xold
+        if iter + 1 < self.max_subspace:
+            self.fs[iter + 1] = self.fnew.copy()
+        else:
+            print("Reached the maximum number of iterations:", self.max_subspace)
 
     def get_Bnfn(self, n):
         # self.us; self.dxs; self.vs
@@ -258,12 +257,14 @@ def get_be_error_jacobian(Nfrag, Fobjs, jac_solver="HF"):
     ys = [None] * Nfrag
     alphas = [None] * Nfrag
 
-    if jac_solver == "MP2":
+    if jac_solver.upper() == "MP2":
         res_func = mp2res_func
-    elif jac_solver == "CCSD":
+    elif jac_solver.upper() == "CCSD":
         res_func = ccsdres_func
-    elif jac_solver == "HF":
+    elif jac_solver.upper() == "HF":
         res_func = hfres_func
+    else:
+        raise NotImplementedError("Jacobian solver input not implemented")
 
     Ncout = [None] * Nfrag
     for A in range(Nfrag):
@@ -396,6 +397,8 @@ def get_be_error_jacobian_selffrag(self, jac_solver="HF"):
         res_func = ccsdres_func
     elif jac_solver == "HF":
         res_func = hfres_func
+    else:
+        raise NotImplementedError("Jacobian solver option not implemented.")
 
     Jes, _, xes, xcs, ys, alphas, Ncout = get_atbe_Jblock_frag(self.Fobjs[0], res_func)
 
