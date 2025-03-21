@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping, Sequence
 from copy import deepcopy
-from typing import Final
+from typing import Final, Literal
 
 import networkx as nx
 import numpy as np
@@ -16,6 +16,33 @@ from quemb.molbe.chemfrag import Fragmented, InVdWRadius
 from quemb.molbe.helper import get_core
 from quemb.shared.helper import unused
 from quemb.shared.typing import Vector
+
+
+@define(frozen=True, kw_only=True)
+class GraphGenArgs:
+    """Graphgen specific arguments.
+
+    Parameters
+    ----------
+
+    connectivity:
+        Keyword string specifying the distance metric to be used for edge
+        weights in the fragment adjacency graph. Currently supports "euclidean"
+        (which uses the square of the distance between atoms in real
+        space to determine connectivity within a fragment.)
+    cutoff:
+        Atoms with an edge weight beyond `cutoff` will be excluded from the
+        `shortest_path` calculation. This is crucial when handling very large
+        systems, where computing the shortest paths from all to all becomes
+        non-trivial. Defaults to 20.0.
+    remove_nonunique_frags:
+        Whether to remove fragments which are strict subsets of another
+        fragment in the system. True by default.
+    """
+
+    connectivity: Final[Literal["euclidean"]] = "euclidean"
+    cutoff: Final[float] = 20.0
+    remove_nonnunique_frags: Final[bool] = True
 
 
 @define
@@ -341,6 +368,21 @@ def graphgen(
     return fragment_map
 
 
+@define
+class AutogenArgs:
+    """Additional arguments for autogen
+
+    Parameters
+    ----------
+    iao_valence_only:
+        If this option is set to True, all calculation will be performed in
+        the valence basis in the IAO partitioning.
+        This is an experimental feature.
+    """
+
+    iao_valence_only: bool = False
+
+
 def autogen(
     mol,
     frozen_core=True,
@@ -414,10 +456,8 @@ def autogen(
         which are not centers in any other fragments
     """
 
-    if not iao_valence_only:
-        cell = mol.copy()
-    else:
-        cell = mol.copy()
+    cell = mol.copy()
+    if iao_valence_only:
         cell.basis = iao_valence_basis
         cell.build()
 
@@ -850,9 +890,18 @@ class ChemGenArgs:
     bonds_atoms: Mapping[int, set[int]] | None = None
     vdW_radius: InVdWRadius | None = None
 
+    #: This argument is not meant to be used by the user.
+    #: If it is true, then chemgen adheres to the old **wrong** indexing
+    #: of :python:`"autogen"``.
+    _wrong_iao_indexing: bool = False
+
 
 def chemgen(
-    mol: Mole, n_BE: int, args: ChemGenArgs | None = None, frozen_core: bool = False
+    mol: Mole,
+    n_BE: int,
+    args: ChemGenArgs | None,
+    frozen_core: bool,
+    iao_valence_basis: str | None,
 ) -> Fragmented:
     """Fragment a molecule based on chemical connectivity.
 
@@ -872,9 +921,7 @@ def chemgen(
     """
     if args is None:
         return Fragmented.from_mole(
-            mol,
-            n_BE=n_BE,
-            frozen_core=frozen_core,
+            mol, n_BE=n_BE, frozen_core=frozen_core, iao_valence_basis=iao_valence_basis
         )
     else:
         return Fragmented.from_mole(
@@ -884,4 +931,5 @@ def chemgen(
             treat_H_different=args.treat_H_different,
             bonds_atoms=args.bonds_atoms,
             vdW_radius=args.vdW_radius,
+            iao_valence_basis=iao_valence_basis,
         )
