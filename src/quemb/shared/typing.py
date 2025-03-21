@@ -10,12 +10,15 @@ i.e. the type is mostly useful to document intent to the developer.
 """
 
 import os
-from typing import Any, Dict, NewType, Tuple, TypeAlias, TypeVar
+from typing import Any, Dict, NewType, TypeAlias, TypeVar
 
 import numpy as np
 
 # We just reexpose the AtomIdx type from chemcoord here
 from chemcoord.typing import AtomIdx
+
+Real: TypeAlias = int | float | np.floating
+Integral: TypeAlias = int | np.integer
 
 # We want the dtype to behave covariant, i.e. if a
 #  Vector[float] is allowed, then the more specific
@@ -26,26 +29,26 @@ from chemcoord.typing import AtomIdx
 T_dtype_co = TypeVar("T_dtype_co", bound=np.generic, covariant=True)
 
 # Currently we can define :code:`Matrix` and higher order tensors
-# only with shape :code`Tuple[int, ...]` because of
+# only with shape :code`tuple[int, ...]` because of
 # https://github.com/numpy/numpy/issues/27957
 # make the typechecks more strict over time, when shape checking finally comes to numpy.
 
 #: Type annotation of a vector.
-Vector = np.ndarray[Tuple[int], np.dtype[T_dtype_co]]
+Vector = np.ndarray[tuple[int], np.dtype[T_dtype_co]]
 #: Type annotation of a matrix.
-Matrix = np.ndarray[Tuple[int, ...], np.dtype[T_dtype_co]]
+Matrix = np.ndarray[tuple[int, ...], np.dtype[T_dtype_co]]
 #: Type annotation of a tensor.
-Tensor3D = np.ndarray[Tuple[int, ...], np.dtype[T_dtype_co]]
+Tensor3D = np.ndarray[tuple[int, ...], np.dtype[T_dtype_co]]
 #: Type annotation of a tensor.
-Tensor4D = np.ndarray[Tuple[int, ...], np.dtype[T_dtype_co]]
+Tensor4D = np.ndarray[tuple[int, ...], np.dtype[T_dtype_co]]
 #: Type annotation of a tensor.
-Tensor5D = np.ndarray[Tuple[int, ...], np.dtype[T_dtype_co]]
+Tensor5D = np.ndarray[tuple[int, ...], np.dtype[T_dtype_co]]
 #: Type annotation of a tensor.
-Tensor6D = np.ndarray[Tuple[int, ...], np.dtype[T_dtype_co]]
+Tensor6D = np.ndarray[tuple[int, ...], np.dtype[T_dtype_co]]
 #: Type annotation of a tensor.
-Tensor7D = np.ndarray[Tuple[int, ...], np.dtype[T_dtype_co]]
+Tensor7D = np.ndarray[tuple[int, ...], np.dtype[T_dtype_co]]
 #: Type annotation of a tensor.
-Tensor = np.ndarray[Tuple[int, ...], np.dtype[T_dtype_co]]
+Tensor = np.ndarray[tuple[int, ...], np.dtype[T_dtype_co]]
 
 #: Type annotation for pathlike objects.
 PathLike: TypeAlias = str | os.PathLike
@@ -56,9 +59,11 @@ KwargDict: TypeAlias = Dict[str, Any]
 #: A generic type variable, without any constraints.
 T = TypeVar("T")
 
+#: The index of an orbital.
+OrbitalIdx = NewType("OrbitalIdx", np.integer)
 
-#: The index of an atomic orbital. This is the global index, i.e. not per fragment.
-AOIdx = NewType("AOIdx", int)
+#: The index of an atomic orbital.
+AOIdx = NewType("AOIdx", OrbitalIdx)
 
 #: The global index of an atomic orbital, i.e. not per fragment.
 #: This is basically the result of
@@ -74,8 +79,20 @@ OwnRelAOIdx = NewType("OwnRelAOIdx", AOIdx)
 #: interpreted as center in fragment 2.
 OtherRelAOIdx = NewType("OtherRelAOIdx", AOIdx)
 
+
+#: The index of a molecular orbital.
+MOIdx = NewType("MOIdx", OrbitalIdx)
+
+#: The global index of a molecular orbital, i.e. not per fragment.
+GlobalMOIdx = NewType("GlobalMOIdx", MOIdx)
+
+# TODO improve description of ShellIdx
+
+#: The shell index ...
+ShellIdx = NewType("ShellIdx", np.integer)
+
 #: The index of a Fragment.
-FragmentIdx = NewType("FragmentIdx", int)
+FragmentIdx = NewType("FragmentIdx", np.integer)
 
 #: The index of a heavy atom, i.e. of a motif.
 #: If hydrogen atoms are not treated differently, then every atom
