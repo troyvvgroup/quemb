@@ -3,7 +3,7 @@
 
 import os
 import tempfile
-from typing import Tuple, cast
+from typing import cast
 
 import numpy as np
 import pytest
@@ -74,18 +74,18 @@ def test_cubegen() -> None:
     # Write cube file to a temporary location
     with tempfile.TemporaryDirectory() as tmpdir:
         write_cube(mybe, tmpdir, fragment_idx=[3], cubegen_kwargs=dict(resolution=5))
-        with open(os.path.join(tmpdir, "frag_3_orb_2.cube"), "r") as f:
+        with open(os.path.join(tmpdir, "frag_3_orb_2.cube")) as f:
             cube_content = np.fromstring(
                 "".join(f.read().split("\n")[2:]), sep=" ", dtype=float
             )
-        with open("data/octane_frag_3_orb_2.cube", "r") as f:
+        with open("data/octane_frag_3_orb_2.cube") as f:
             reference_content = np.fromstring(
                 "".join(f.read().split("\n")[2:]), sep=" ", dtype=float
             )
         assert np.isclose(cube_content, reference_content).all()
 
 
-def prepare_octane() -> Tuple[gto.Mole, scf.hf.RHF]:
+def prepare_octane() -> tuple[gto.Mole, scf.hf.RHF]:
     mol = gto.M(
         atom="""
     C   0.4419364699  -0.6201930287   0.0000000000

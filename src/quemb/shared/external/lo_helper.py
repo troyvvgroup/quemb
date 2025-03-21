@@ -85,7 +85,7 @@ def get_aoind_by_atom(mol, atomind_by_motif=None):
         ]
     else:
         nmotif = len(atomind_by_motif)
-        assert set([ia for im in range(nmotif) for ia in atomind_by_motif[im]]) == set(
+        assert {ia for im in range(nmotif) for ia in atomind_by_motif[im]} == set(
             range(natom)
         )
         aoind_by_atom = [[] for im in range(nmotif)]

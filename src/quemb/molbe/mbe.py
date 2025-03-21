@@ -449,12 +449,12 @@ class BE(MixinLocalize):
 
             print("-----------------------------------------------------", flush=True)
 
-            print(" 1-elec E        : {:>15.8f} Ha".format(Eh1), flush=True)
-            print(" 2-elec E        : {:>15.8f} Ha".format(E2), flush=True)
+            print(f" 1-elec E        : {Eh1:>15.8f} Ha", flush=True)
+            print(f" 2-elec E        : {E2:>15.8f} Ha", flush=True)
             E_tot = Eh1 + E2 + self.E_core + self.enuc
-            print(" E_BE            : {:>15.8f} Ha".format(E_tot), flush=True)
+            print(f" E_BE            : {E_tot:>15.8f} Ha", flush=True)
             print(
-                " Ecorr BE        : {:>15.8f} Ha".format((E_tot) - self.ebe_hf),
+                f" Ecorr BE        : {(E_tot) - self.ebe_hf:>15.8f} Ha",
                 flush=True,
             )
             print("-----------------------------------------------------", flush=True)
@@ -584,21 +584,19 @@ class BE(MixinLocalize):
 
         print("-----------------------------------------------------", flush=True)
         print(" E_BE = E_HF + Tr(F del g) + Tr(V K_approx)", flush=True)
-        print(" E_HF            : {:>14.8f} Ha".format(self.ebe_hf), flush=True)
-        print(" Tr(F del g)     : {:>14.8f} Ha".format(Eh1_dg + Eveff_dg), flush=True)
-        print(" Tr(V K_aprrox)  : {:>14.8f} Ha".format(EKumul / 2.0), flush=True)
-        print(" E_BE            : {:>14.8f} Ha".format(EKapprox), flush=True)
-        print(
-            " Ecorr BE        : {:>14.8f} Ha".format(EKapprox - self.ebe_hf), flush=True
-        )
+        print(f" E_HF            : {self.ebe_hf:>14.8f} Ha", flush=True)
+        print(f" Tr(F del g)     : {Eh1_dg + Eveff_dg:>14.8f} Ha", flush=True)
+        print(f" Tr(V K_aprrox)  : {EKumul / 2.0:>14.8f} Ha", flush=True)
+        print(f" E_BE            : {EKapprox:>14.8f} Ha", flush=True)
+        print(f" Ecorr BE        : {EKapprox - self.ebe_hf:>14.8f} Ha", flush=True)
 
         if not approx_cumulant:
             print(flush=True)
             print(" E_BE = Tr(F[g] g) + Tr(V K_true)", flush=True)
-            print(" Tr(h1 g)        : {:>14.8f} Ha".format(Eh1), flush=True)
-            print(" Tr(Veff[g] g)   : {:>14.8f} Ha".format(EVeff / 2.0), flush=True)
-            print(" Tr(V K_true)    : {:>14.8f} Ha".format(EKumul_T / 2.0), flush=True)
-            print(" E_BE            : {:>14.8f} Ha".format(EKtrue), flush=True)
+            print(f" Tr(h1 g)        : {Eh1:>14.8f} Ha", flush=True)
+            print(f" Tr(Veff[g] g)   : {EVeff / 2.0:>14.8f} Ha", flush=True)
+            print(f" Tr(V K_true)    : {EKumul_T / 2.0:>14.8f} Ha", flush=True)
+            print(f" E_BE            : {EKtrue:>14.8f} Ha", flush=True)
             if use_full_rdm and return_rdm:
                 print(
                     " E(g+G)          : {:>14.8f} Ha".format(
@@ -607,11 +605,11 @@ class BE(MixinLocalize):
                     flush=True,
                 )
             print(
-                " Ecorr BE        : {:>14.8f} Ha".format(EKtrue - self.ebe_hf),
+                f" Ecorr BE        : {EKtrue - self.ebe_hf:>14.8f} Ha",
                 flush=True,
             )
             print(flush=True)
-            print(" True - approx   : {:>14.4e} Ha".format(EKtrue - EKapprox))
+            print(f" True - approx   : {EKtrue - EKapprox:>14.4e} Ha")
         print("-----------------------------------------------------", flush=True)
 
         print(flush=True)
@@ -885,7 +883,7 @@ class BE(MixinLocalize):
             self.ebe_hf = E_hf + self.enuc + self.E_core
             hf_err = self.hf_etot - self.ebe_hf
             print(
-                "HF-in-HF error                 :  {:>.4e} Ha".format(hf_err),
+                f"HF-in-HF error                 :  {hf_err:>.4e} Ha",
                 flush=True,
             )
             if abs(hf_err) > 1.0e-5:

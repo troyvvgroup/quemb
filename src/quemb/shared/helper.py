@@ -1,9 +1,9 @@
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from inspect import signature
 from itertools import islice
 from pathlib import Path
 from time import time
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 from attr import define, field
 
