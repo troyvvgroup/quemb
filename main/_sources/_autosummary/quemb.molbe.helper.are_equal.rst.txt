@@ -1,0 +1,6 @@
+quemb.molbe.helper.are\_equal
+=============================
+
+.. currentmodule:: quemb.molbe.helper
+
+.. autofunction:: are_equal

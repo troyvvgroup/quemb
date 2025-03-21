@@ -1,0 +1,6 @@
+quemb.molbe.fragment.ChainArgs.\_\_init\_\_
+===========================================
+
+.. currentmodule:: quemb.molbe.fragment
+
+.. automethod:: ChainArgs.__init__

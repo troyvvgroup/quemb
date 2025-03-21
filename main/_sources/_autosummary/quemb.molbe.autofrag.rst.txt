@@ -29,8 +29,10 @@ quemb.molbe.autofrag
       :toctree:
       :template: custom-class-template.rst
    
+      AutogenArgs
       ChemGenArgs
       FragmentMap
+      GraphGenArgs
    
    
 

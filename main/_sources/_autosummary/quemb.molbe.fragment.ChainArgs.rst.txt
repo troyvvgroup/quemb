@@ -1,0 +1,27 @@
+quemb.molbe.fragment.ChainArgs
+==============================
+
+.. currentmodule:: quemb.molbe.fragment
+
+.. autoclass:: ChainArgs
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: ChainArgs.closed
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~ChainArgs.__init__
+   
+   

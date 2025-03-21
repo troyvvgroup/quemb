@@ -24,6 +24,7 @@ quemb.molbe.chemfrag.Fragmented
    .. autoattribute:: Fragmented.rel_AO_per_origin_per_frag
    .. autoattribute:: Fragmented.other_rel_AO_per_edge_per_frag
    .. autoattribute:: Fragmented.frozen_core
+   .. autoattribute:: Fragmented.iao_valence_mol
    
    
 

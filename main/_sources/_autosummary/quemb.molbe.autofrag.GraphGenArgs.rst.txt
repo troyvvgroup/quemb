@@ -1,0 +1,29 @@
+quemb.molbe.autofrag.GraphGenArgs
+=================================
+
+.. currentmodule:: quemb.molbe.autofrag
+
+.. autoclass:: GraphGenArgs
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: GraphGenArgs.connectivity
+   .. autoattribute:: GraphGenArgs.cutoff
+   .. autoattribute:: GraphGenArgs.remove_nonnunique_frags
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~GraphGenArgs.__init__
+   
+   
