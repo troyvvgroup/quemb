@@ -6,13 +6,13 @@ from typing import Final, Literal, TypeAlias
 
 import networkx as nx
 import numpy as np
-from attrs import define, field
+from attrs import cmp_using, define, field
 from networkx import shortest_path
 from numpy.linalg import norm
 from pyscf import gto
 from pyscf.gto import Mole
 
-from quemb.molbe.helper import get_core
+from quemb.molbe.helper import are_equal, get_core
 from quemb.shared.helper import unused
 from quemb.shared.typing import (
     AtomIdx,
@@ -35,7 +35,7 @@ ListOverMotif: TypeAlias = list
 class FragPart:
     """Data structure to match explicitly the output of autogen."""
 
-    mol: Mole
+    mol: Mole = field(eq=cmp_using(are_equal))
     frag_type: str
     be_type: str
 
