@@ -45,7 +45,7 @@ def _write_settings(settings: Settings, path: Path) -> None:
 
 
 def _read_settings(path: Path) -> Settings:
-    with open(path, "r") as f:
+    with open(path) as f:
         return structure(yaml.safe_load(stream=f), Settings)
 
 

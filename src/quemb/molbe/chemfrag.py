@@ -20,11 +20,11 @@ There are three main classes:
 """
 
 from collections import defaultdict
-from collections.abc import Hashable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
 from itertools import chain
 from numbers import Real
 from pathlib import Path
-from typing import Callable, Final, TypeAlias, TypeVar, cast
+from typing import Final, TypeAlias, TypeVar, cast
 
 import chemcoord as cc
 import numpy as np
