@@ -34,7 +34,6 @@
    eri_onthefly
    fragment
    helper
-   lchain
    lo
    mbe
    misc

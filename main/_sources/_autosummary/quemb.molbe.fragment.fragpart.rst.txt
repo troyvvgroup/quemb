@@ -18,7 +18,5 @@ quemb.molbe.fragment.fragpart
       :toctree:
    
       ~fragpart.__init__
-      ~fragpart.chain
-      ~fragpart.hchain_simple
    
    

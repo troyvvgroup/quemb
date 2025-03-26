@@ -19,7 +19,6 @@ quemb.molbe.fragment
       :toctree:
       :template: custom-class-template.rst
    
-      ChainArgs
       fragpart
    
    
