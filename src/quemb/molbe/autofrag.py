@@ -152,14 +152,14 @@ class FragmentMap:
 
     fsites: list[Sequence[int]]
     fs: list[Sequence[Sequence[int]]]
-    edge: list[Sequence[Sequence[int]]]
+    edge_sites: list[Sequence[Sequence[int]]]
     center: list[Sequence[int]]
     centerf_idx: list[Sequence[int]]
-    ebe_weights: list[Sequence]
+    ebe_weight: list[Sequence]
     sites: list[Sequence]
     dnames: list[str]
-    fragment_atoms: list[Sequence[int]]
-    center_atoms: list[Sequence[int]]
+    Frag_atom: list[Sequence[int]]
+    center_atom: list[Sequence[int]]
     edge_atoms: list[Sequence[int]]
     adjacency_mat: np.ndarray
     adjacency_graph: nx.Graph
@@ -191,10 +191,10 @@ class FragmentMap:
                                 + list(deepcopy(self.center[bdx]))
                             )
                         )
-                        self.center_atoms[adx] = tuple(
+                        self.center_atom[adx] = tuple(
                             set(
-                                list(self.center_atoms[adx])
-                                + list(deepcopy(self.center_atoms[bdx]))
+                                list(self.center_atom[adx])
+                                + list(deepcopy(self.center_atom[bdx]))
                             )
                         )
             if subsets:
@@ -203,10 +203,32 @@ class FragmentMap:
                     del self.center[bdx]
                     del self.fsites[bdx]
                     del self.fs[bdx]
-                    del self.center_atoms[bdx]
-                    del self.fragment_atoms[bdx]
+                    del self.center_atom[bdx]
+                    del self.Frag_atom[bdx]
 
         return None
+
+    def to_FragPart(self, mol: Mole, be_type: str, frozen_core: bool) -> FragPart:
+        MISSING = []  # type: ignore[var-annotated]
+        return FragPart(
+            mol=mol,
+            frag_type="graphgen",
+            be_type=be_type,
+            edge_sites=self.edge_sites,  # type: ignore[arg-type]
+            edge_idx=MISSING,
+            center_idx=MISSING,
+            centerf_idx=self.centerf_idx,  # type: ignore[arg-type]
+            fsites=self.fsites,  # type: ignore[arg-type]
+            center=self.center,  # type: ignore[arg-type]
+            ebe_weight=self.ebe_weight,  # type: ignore[arg-type]
+            Frag_atom=self.Frag_atom,  # type: ignore[arg-type]
+            center_atom=self.center_atom,  # type: ignore[arg-type]
+            hlist_atom=MISSING,
+            add_center_atom=MISSING,
+            frozen_core=frozen_core,
+            iao_valence_basis=None,
+            iao_valence_only=False,
+        )
 
 
 def euclidean_distance(
@@ -295,14 +317,14 @@ def graphgen(
     fragment_map = FragmentMap(
         fsites=(list(tuple())),
         fs=list(tuple(tuple())),
-        edge=list(tuple(tuple())),
+        edge_sites=list(tuple(tuple())),
         center=list(tuple()),
         centerf_idx=list(tuple()),
-        ebe_weights=list(tuple()),
+        ebe_weight=list(tuple()),
         sites=list(tuple()),
         dnames=list(),
-        fragment_atoms=list(),
-        center_atoms=list(),
+        Frag_atom=list(),
+        center_atom=list(),
         edge_atoms=list(),
         adjacency_mat=np.zeros((natm, natm), np.float64),
         adjacency_graph=nx.Graph(),
@@ -346,7 +368,7 @@ def graphgen(
         # on that path gives the degree of separation of the
         # sites.
         for adx, map in adx_map.items():
-            fragment_map.center_atoms.append((adx,))
+            fragment_map.center_atom.append((adx,))
             fragment_map.center.append(deepcopy(fragment_map.sites[adx]))
             fsites_temp = deepcopy(list(fragment_map.sites[adx]))
             fatoms_temp = [adx]
@@ -380,7 +402,7 @@ def graphgen(
 
             fragment_map.fsites.append(tuple(fsites_temp))
             fragment_map.fs.append(tuple(fs_temp))
-            fragment_map.fragment_atoms.append(tuple(fatoms_temp))
+            fragment_map.Frag_atom.append(tuple(fatoms_temp))
 
     elif connectivity.lower() in ["resistance_distance", "resistance"]:
         raise NotImplementedError("Work in progress...")
@@ -406,20 +428,19 @@ def graphgen(
                 for f in fs:
                     overlap = set(f).intersection(set(center))
                     if overlap:
-                        f_temp = set(fragment_map.fragment_atoms[adx])
-                        c_temp = set(fragment_map.center_atoms[bdx])
+                        f_temp = set(fragment_map.Frag_atom[adx])
+                        c_temp = set(fragment_map.center_atom[bdx])
                         edge_temp.add(tuple(overlap))
                         eatoms_temp.add(tuple(i for i in f_temp.intersection(c_temp)))
-        fragment_map.edge.append(tuple(edge_temp))
+        fragment_map.edge_sites.append(tuple(edge_temp))
         fragment_map.edge_atoms.extend(tuple(eatoms_temp))
 
     # Update relative center site indices (centerf_idx) and weights
     # for center site contributions to the energy (ebe_weights):
     for adx, center in enumerate(fragment_map.center):
         centerf_idx = tuple(fragment_map.fsites[adx].index(cdx) for cdx in center)
-        ebe_weight = (1.0, tuple(centerf_idx))
         fragment_map.centerf_idx.append(centerf_idx)
-        fragment_map.ebe_weights.append(ebe_weight)
+        fragment_map.ebe_weight.append((1.0, tuple(centerf_idx)))
 
     # Finally, set fragment data names for scratch and bookkeeping:
     for adx, _ in enumerate(fragment_map.fs):
