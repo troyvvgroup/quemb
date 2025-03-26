@@ -7,12 +7,11 @@ from typing_extensions import assert_never
 
 from quemb.molbe.autofrag import (
     AutogenArgs,
-    ChemGenArgs,
     GraphGenArgs,
     autogen,
-    chemgen,
     graphgen,
 )
+from quemb.molbe.chemfrag import ChemGenArgs, chemgen
 from quemb.molbe.helper import get_core
 
 FragType: TypeAlias = Literal["chemgen", "graphgen", "autogen"]

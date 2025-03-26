@@ -1,21 +1,77 @@
 # Author: Oinam Romesh Meitei, Shaun Weatherly
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from copy import deepcopy
-from typing import Final, Literal
+from typing import Final, Literal, TypeAlias
 
 import networkx as nx
 import numpy as np
-from attrs import define
+from attrs import define, field
 from networkx import shortest_path
 from numpy.linalg import norm
 from pyscf import gto
 from pyscf.gto import Mole
 
-from quemb.molbe.chemfrag import Fragmented, InVdWRadius
 from quemb.molbe.helper import get_core
 from quemb.shared.helper import unused
-from quemb.shared.typing import Vector
+from quemb.shared.typing import (
+    AtomIdx,
+    CenterIdx,
+    FragmentIdx,
+    GlobalAOIdx,
+    MotifIdx,
+    OriginIdx,
+    OtherRelAOIdx,
+    OwnRelAOIdx,
+    Vector,
+)
+
+ListOverFrag: TypeAlias = list
+ListOverEdge: TypeAlias = list
+ListOverMotif: TypeAlias = list
+
+
+@define
+class FragPart:
+    """Data structure to match explicitly the output of autogen."""
+
+    mol: Mole
+    frag_type: str
+    n_BE: int
+
+    fsites: ListOverFrag[list[GlobalAOIdx]]
+    edge_sites: ListOverFrag[ListOverEdge[list[GlobalAOIdx]]]
+    center: ListOverFrag[ListOverEdge[FragmentIdx]]
+    edge_idx: ListOverFrag[ListOverEdge[list[OwnRelAOIdx]]]
+    center_idx: ListOverFrag[ListOverEdge[list[OtherRelAOIdx]]]
+    centerf_idx: ListOverFrag[list[OwnRelAOIdx]]
+    #: The first element is a float, the second is the list
+    ebe_weight: ListOverFrag[list[float | list[OwnRelAOIdx]]]
+    Frag_atom: ListOverFrag[ListOverMotif[MotifIdx]]
+    center_atom: ListOverFrag[OriginIdx]
+    hlist_atom: Sequence[list[AtomIdx]]
+    add_center_atom: ListOverFrag[list[CenterIdx]]
+    Nfrag: int
+
+    frozen_core: bool
+    iao_valence_basis: str
+    iao_valence_only: bool
+
+    ncore: int | None = field()
+    no_core_idx: list[int] = field()
+    core_list: list[int] = field()
+
+    @ncore.default
+    def _get_default_ncore(self) -> int | None:
+        return get_core(self.mol)[0] if self.frozen_core else None
+
+    @no_core_idx.default
+    def _get_default_no_core_idx(self) -> list[int] | None:
+        return get_core(self.mol)[1] if self.frozen_core else None
+
+    @core_list.default
+    def _get_default_core_list(self) -> list[int] | None:
+        return get_core(self.mol)[2] if self.frozen_core else None
 
 
 @define(frozen=True, kw_only=True)
@@ -875,61 +931,3 @@ def autogen(
         hlist_atom,
         add_center_atom,
     )
-
-
-@define(frozen=True, kw_only=True)
-class ChemGenArgs:
-    """Additional arguments for ChemGen fragmentation.
-
-    These are passed on to
-    :func:`quemb.molbe.chemfrag.PurelyStructureFragmented.from_mole`
-    and documented there.
-    """
-
-    treat_H_different: Final[bool] = True
-    bonds_atoms: Mapping[int, set[int]] | None = None
-    vdW_radius: InVdWRadius | None = None
-
-    #: This argument is not meant to be used by the user.
-    #: If it is true, then chemgen adheres to the old **wrong** indexing
-    #: of :python:`"autogen"``.
-    _wrong_iao_indexing: bool = False
-
-
-def chemgen(
-    mol: Mole,
-    n_BE: int,
-    args: ChemGenArgs | None,
-    frozen_core: bool,
-    iao_valence_basis: str | None,
-) -> Fragmented:
-    """Fragment a molecule based on chemical connectivity.
-
-    Parameters
-    ----------
-    mol :
-        Molecule to be fragmented.
-    n_BE :
-        BE fragmentation level.
-    args :
-        Additional arguments for ChemGen fragmentation.
-        These are passed on to
-        :func:`quemb.molbe.chemfrag.PurelyStructureFragmented.from_mole`
-        and documented there.
-    frozen_core :
-        Do we perform a frozen core calculation?
-    """
-    if args is None:
-        return Fragmented.from_mole(
-            mol, n_BE=n_BE, frozen_core=frozen_core, iao_valence_basis=iao_valence_basis
-        )
-    else:
-        return Fragmented.from_mole(
-            mol,
-            n_BE=n_BE,
-            frozen_core=frozen_core,
-            treat_H_different=args.treat_H_different,
-            bonds_atoms=args.bonds_atoms,
-            vdW_radius=args.vdW_radius,
-            iao_valence_basis=iao_valence_basis,
-        )

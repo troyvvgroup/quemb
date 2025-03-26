@@ -1198,3 +1198,61 @@ def _extract_values(
 ) -> list[list[list[Val]]]:
     """Extract the values of a mapping from a sequence of mappings"""
     return [[list(union_of_seqs(*v.values())) for v in D.values()] for D in nested]
+
+
+@define(frozen=True, kw_only=True)
+class ChemGenArgs:
+    """Additional arguments for ChemGen fragmentation.
+
+    These are passed on to
+    :func:`quemb.molbe.chemfrag.PurelyStructureFragmented.from_mole`
+    and documented there.
+    """
+
+    treat_H_different: Final[bool] = True
+    bonds_atoms: Mapping[int, set[int]] | None = None
+    vdW_radius: InVdWRadius | None = None
+
+    #: This argument is not meant to be used by the user.
+    #: If it is true, then chemgen adheres to the old **wrong** indexing
+    #: of :python:`"autogen"``.
+    _wrong_iao_indexing: bool = False
+
+
+def chemgen(
+    mol: Mole,
+    n_BE: int,
+    args: ChemGenArgs | None,
+    frozen_core: bool,
+    iao_valence_basis: str | None,
+) -> Fragmented:
+    """Fragment a molecule based on chemical connectivity.
+
+    Parameters
+    ----------
+    mol :
+        Molecule to be fragmented.
+    n_BE :
+        BE fragmentation level.
+    args :
+        Additional arguments for ChemGen fragmentation.
+        These are passed on to
+        :func:`quemb.molbe.chemfrag.PurelyStructureFragmented.from_mole`
+        and documented there.
+    frozen_core :
+        Do we perform a frozen core calculation?
+    """
+    if args is None:
+        return Fragmented.from_mole(
+            mol, n_BE=n_BE, frozen_core=frozen_core, iao_valence_basis=iao_valence_basis
+        )
+    else:
+        return Fragmented.from_mole(
+            mol,
+            n_BE=n_BE,
+            frozen_core=frozen_core,
+            treat_H_different=args.treat_H_different,
+            bonds_atoms=args.bonds_atoms,
+            vdW_radius=args.vdW_radius,
+            iao_valence_basis=iao_valence_basis,
+        )
