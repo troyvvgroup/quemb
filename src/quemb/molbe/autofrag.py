@@ -26,6 +26,9 @@ from quemb.shared.typing import (
     Vector,
 )
 
+FragType: TypeAlias = Literal["chemgen", "graphgen", "autogen"]
+
+
 ListOverFrag: TypeAlias = list
 ListOverEdge: TypeAlias = list
 ListOverMotif: TypeAlias = list
@@ -33,27 +36,76 @@ ListOverMotif: TypeAlias = list
 
 @define
 class FragPart:
-    """Data structure to match explicitly the output of autogen."""
+    """Data structure to hold the result of BE fragmentations."""
 
+    #: The full molecule.
     mol: Mole = field(eq=cmp_using(are_equal))
-    frag_type: str
+    #: The algorithm used for fragmenting.
+    frag_type: FragType
+    #: The level of BE fragmentation, i.e. "be1", "be2", ...
     be_type: str
 
+    #: This is a list over fragments  and gives the global orbital indices of all atoms
+    #: in the fragment. These are ordered by the atoms in the fragment.
     fsites: ListOverFrag[list[GlobalAOIdx]]
+
+    #: The global orbital indices, including hydrogens, per edge per fragment.
     edge_sites: ListOverFrag[ListOverEdge[list[GlobalAOIdx]]]
+
+    # A list over fragments: list of indices of the fragments in which an edge
+    # of the fragment is actually a center:
+    # For fragments A, B: the A’th element of :python:`.center`,
+    # if the edge of A is the center of B, will be B.
     center: ListOverFrag[ListOverEdge[FragmentIdx]]
+
+    #: The relative orbital indices, including hydrogens, per edge per fragment.
+    #: The index is relative to the own fragment.
     edge_idx: ListOverFrag[ListOverEdge[list[OwnRelAOIdx]]]
+
+    #: The relative atomic orbital indices per edge per fragment.
+    #: **Note** for this variable relative means that the AO indices
+    #: are relative to the other fragment where the edge is a center.
     center_idx: ListOverFrag[ListOverEdge[list[OtherRelAOIdx]]]
+
+    #: List whose entries are lists containing the relative orbital index of the
+    #: origin site within a fragment. Relative is to the own fragment.
+    #  Since the origin site is at the beginning
+    #: of the motif list for each fragment, this is always a ``list(range(0, n))``
     centerf_idx: ListOverFrag[list[OwnRelAOIdx]]
+
     #: The first element is a float, the second is the list
+    #: The float weight makes only sense for democratic matching and is currently 1.0
+    #: everywhere anyway. We concentrate only on the second part,
+    #: i.e. the list of indices.
+    #: This is a list whose entries are sequences containing the relative orbital index
+    #  of the center sites within a fragment. Relative is to the own fragment.
     ebe_weight: ListOverFrag[list[float | list[OwnRelAOIdx]]]
+
+    #: The heavy atoms in each fragment, in order.
+    #: Each are labeled based on the global atom index.
+    #: It is ordered by origin, centers, edges!
     Frag_atom: ListOverFrag[ListOverMotif[MotifIdx]]
+
+    #: The origin for each fragment.
+    #: (Note that for conventional BE there is just one origin per fragment)
     center_atom: ListOverFrag[OriginIdx]
+
+    #: A list over atoms (not over motifs!)
+    #: For each atom it contains a list of the attached hydrogens.
+    #: This means that there are a lot of empty sets for molecular systems,
+    # because hydrogens have no attached hydrogens (usually).
     hlist_atom: Sequence[list[AtomIdx]]
+
+    #: A list over fragments.
+    #: For each fragment a list of centers that are not the origin of that fragment.
     add_center_atom: ListOverFrag[list[CenterIdx]]
 
     frozen_core: bool
     iao_valence_basis: str | None
+
+    #: If this option is set to True, all calculation will be performed in
+    #: the valence basis in the IAO partitioning.
+    #: This is an experimental feature.
     iao_valence_only: bool
 
     Nfrag: int = field()
@@ -76,6 +128,9 @@ class FragPart:
     @core_list.default
     def _get_default_core_list(self) -> list[int] | None:
         return get_core(self.mol)[2] if self.frozen_core else None
+
+    def __len__(self) -> int:
+        return self.Nfrag
 
 
 @define(frozen=True, kw_only=True)
@@ -473,8 +528,7 @@ def autogen(
     iao_valence_only=False,
     print_frags=True,
 ):
-    """
-    Automatic molecular partitioning
+    """Automatic molecular partitioning
 
     Partitions a molecule into overlapping fragments as defined in BE atom-based
     fragmentations.  It automatically detects branched chemical chains and ring systems
@@ -506,35 +560,6 @@ def autogen(
         the IAO partitioning. This is an experimental feature. Defaults to False.
     print_frags : bool, optional
         Whether to print out the list of resulting fragments. Defaults to True.
-
-    Returns
-    -------
-    fsites : list of list of int
-        List of fragment sites where each fragment is a list of LO indices.
-    edge_sites : list of list of list of int
-        List of edge sites for each fragment where each edge is a list of LO indices.
-    center : list of list of int
-        List of the fragment index of each edge site for all fragments.
-    edge_idx : list of list of list of int
-        List of edge indices for each fragment where each edge index is a list of
-        LO indices.
-    center_idx : list of list of list of int
-        List of center indices for each fragment where each center index is a list of
-        LO indices.
-    centerf_idx : list of list of int
-        List of center fragment indices.
-    ebe_weight : list of list
-        Weights for each fragment. Each entry contains a weight and a list of
-        LO indices.
-    Frag_atom: list of lists
-        Heavy atom indices for each fragment, per fragment
-    center_atom: list
-        Atom indices of all centers
-    hlist_atom: list of lists
-        All hydrogen atom indices for each fragment, per fragment
-    add_center_atom: list of lists
-        "additional centers" for all fragments, per fragment: contains heavy atoms
-        which are not centers in any other fragments
     """
 
     cell = mol.copy()

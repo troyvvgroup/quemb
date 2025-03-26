@@ -1,6 +1,6 @@
 # Author: Oinam Romesh Meitei
 
-from typing import Literal, TypeAlias
+from typing import TypeAlias
 
 from pyscf.gto.mole import Mole
 from typing_extensions import assert_never
@@ -8,14 +8,12 @@ from typing_extensions import assert_never
 from quemb.molbe.autofrag import (
     AutogenArgs,
     FragPart,
+    FragType,
     GraphGenArgs,
     autogen,
     graphgen,
 )
 from quemb.molbe.chemfrag import ChemGenArgs, chemgen
-
-FragType: TypeAlias = Literal["chemgen", "graphgen", "autogen"]
-
 
 AdditionalArgs: TypeAlias = AutogenArgs | ChemGenArgs | GraphGenArgs
 
