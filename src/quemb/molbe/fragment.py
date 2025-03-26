@@ -2,7 +2,6 @@
 
 from typing import Literal, TypeAlias
 
-from attrs import define
 from pyscf.gto.mole import Mole
 from typing_extensions import assert_never
 
@@ -15,42 +14,25 @@ from quemb.molbe.autofrag import (
     graphgen,
 )
 from quemb.molbe.helper import get_core
-from quemb.molbe.lchain import chain as _ext_chain
-from quemb.shared.helper import copy_docstring
 
-FragType: TypeAlias = Literal[
-    "chemgen", "graphgen", "autogen", "hchain_simple", "chain"
-]
+FragType: TypeAlias = Literal["chemgen", "graphgen", "autogen"]
 
 
-@define
-class ChainArgs:
-    """Additional arguments for "chain" and "chain_simple"
-
-    Parameters
-    ----------
-    closed:
-        Closed chain with periodic boundary conditions, i.e. a ring.
-    """
-
-    closed: bool = False
-
-
-AdditionalArgs: TypeAlias = AutogenArgs | ChemGenArgs | GraphGenArgs | ChainArgs
+AdditionalArgs: TypeAlias = AutogenArgs | ChemGenArgs | GraphGenArgs
 
 
 class fragpart:
     """Fragment/partitioning definition
 
-    Interfaces two main fragmentation functions (autogen & chain) in MolBE. It defines
+    Interfaces the fragmentation functions in MolBE. It defines
     edge & center for density matching and energy estimation. It also forms the base
     for IAO/PAO partitioning for a large basis set bootstrap calculation.
 
     Parameters
     ----------
     frag_type :
-        Name of fragmentation function. 'chemgen', 'autogen', 'graphgen',
-        'hchain_simple', and 'chain' are supported. Defaults to 'autogen'.
+        Name of fragmentation function. 'chemgen', 'autogen', and 'graphgen'
+        are supported. Defaults to 'autogen'.
     be_type :
         Specifies order of bootsrap calculation in the atom-based fragmentation.
         'be1', 'be2', 'be3', & 'be4' are supported.
@@ -93,13 +75,14 @@ class fragpart:
 
     def __init__(
         self,
+        mol: Mole,
+        *,
         frag_type: FragType = "autogen",
         iao_valence_basis: str | None = None,
         print_frags: bool = True,
         write_geom: bool = False,
         be_type: str = "be2",
         frag_prefix: str = "f",
-        mol: Mole | None = None,
         frozen_core: bool = False,
         additional_args: AdditionalArgs | None = None,
     ) -> None:
@@ -125,26 +108,9 @@ class fragpart:
 
         # Check for frozen core approximation
         if frozen_core:
-            assert self.mol is not None
             self.ncore, self.no_core_idx, self.core_list = get_core(self.mol)
 
-        if frag_type != "hchain_simple" and self.mol is None:
-            raise ValueError("Provide pyscf gto.M object in fragpart() and restart!")
-
-        # Check type of fragmentation function
-        if frag_type == "hchain_simple":
-            # This is an experimental feature.
-            self.hchain_simple()
-
-        elif frag_type == "chain":
-            if additional_args is None:
-                additional_args = ChainArgs()
-            else:
-                assert isinstance(additional_args, ChainArgs)
-            self.chain(self.mol, frozen_core=frozen_core, closed=additional_args.closed)
-
-        elif frag_type == "graphgen":
-            assert self.mol is not None
+        if frag_type == "graphgen":
             if additional_args is None:
                 additional_args = GraphGenArgs()
             else:
@@ -208,7 +174,6 @@ class fragpart:
                 additional_args = ChemGenArgs()
             else:
                 assert isinstance(additional_args, ChemGenArgs)
-            assert mol is not None
             fragments = chemgen(
                 mol,
                 n_BE=int(be_type[2:]),
@@ -238,79 +203,3 @@ class fragpart:
 
         else:
             assert_never(f"Fragmentation type = {frag_type} not implemented!")
-
-    @copy_docstring(_ext_chain)
-    def chain(self, mol, frozen_core=False, closed=False):
-        return _ext_chain(self, mol, frozen_core=frozen_core, closed=closed)
-
-    def hchain_simple(self):
-        """Hard coded fragmentation feature"""
-        self.natom = self.mol.natm
-        if self.be_type == "be1":
-            for i in range(self.natom):
-                self.fsites.append([i])
-                self.edge_sites.append([])
-            self.Nfrag = len(self.fsites)
-
-        elif self.be_type == "be2":
-            for i in range(self.natom - 2):
-                self.fsites.append([i, i + 1, i + 2])
-                self.centerf_idx.append([1])
-            self.Nfrag = len(self.fsites)
-
-            self.edge_sites.append([[2]])
-            for i in self.fsites[1:-1]:
-                self.edge_sites.append([[i[0]], [i[-1]]])
-            self.edge_sites.append([[self.fsites[-1][0]]])
-
-            self.center.append([1])
-            for i in range(self.Nfrag - 2):
-                self.center.append([i, i + 2])
-            self.center.append([self.Nfrag - 2])
-
-        elif self.be_type == "be3":
-            for i in range(self.natom - 4):
-                self.fsites.append([i, i + 1, i + 2, i + 3, i + 4])
-                self.centerf_idx.append([2])
-            self.Nfrag = len(self.fsites)
-
-            self.edge_sites.append([[3], [4]])
-            for i in self.fsites[1:-1]:
-                self.edge_sites.append([[i[0]], [i[1]], [i[-2]], [i[-1]]])
-            self.edge_sites.append([[self.fsites[-1][0]], [self.fsites[-1][1]]])
-
-            self.center.append([1, 2])
-            self.center.append([0, 0, 2, 3])
-            for i in range(self.Nfrag - 4):
-                self.center.append([i, i + 1, i + 3, i + 4])
-
-            self.center.append(
-                [self.Nfrag - 4, self.Nfrag - 3, self.Nfrag - 1, self.Nfrag - 1]
-            )
-            self.center.append([self.Nfrag - 3, self.Nfrag - 2])
-
-        for ix, i in enumerate(self.fsites):
-            tmp_ = []
-            elist_ = [xx for yy in self.edge_sites[ix] for xx in yy]
-            for j in i:
-                if j not in elist_:
-                    tmp_.append(i.index(j))
-            self.ebe_weight.append([1.0, tmp_])
-
-        if not self.be_type == "be1":
-            for i in range(self.Nfrag):
-                idx = []
-                for j in self.edge_sites[i]:
-                    idx.append([self.fsites[i].index(k) for k in j])
-                self.edge_idx.append(idx)
-
-            for i in range(self.Nfrag):
-                idx = []
-                for j in range(len(self.center[i])):
-                    idx.append(
-                        [
-                            self.fsites[self.center[i][j]].index(k)
-                            for k in self.edge_sites[i][j]
-                        ]
-                    )
-                self.center_idx.append(idx)
