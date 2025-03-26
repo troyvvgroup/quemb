@@ -37,7 +37,7 @@ class FragPart:
 
     mol: Mole
     frag_type: str
-    n_BE: int
+    be_type: str
 
     fsites: ListOverFrag[list[GlobalAOIdx]]
     edge_sites: ListOverFrag[ListOverEdge[list[GlobalAOIdx]]]
@@ -51,15 +51,19 @@ class FragPart:
     center_atom: ListOverFrag[OriginIdx]
     hlist_atom: Sequence[list[AtomIdx]]
     add_center_atom: ListOverFrag[list[CenterIdx]]
-    Nfrag: int
 
     frozen_core: bool
-    iao_valence_basis: str
+    iao_valence_basis: str | None
     iao_valence_only: bool
 
+    Nfrag: int = field()
     ncore: int | None = field()
-    no_core_idx: list[int] = field()
-    core_list: list[int] = field()
+    no_core_idx: list[int] | None = field()
+    core_list: list[int] | None = field()
+
+    @Nfrag.default
+    def _get_default_Nfrag(self) -> int:
+        return len(self.fsites)
 
     @ncore.default
     def _get_default_ncore(self) -> int | None:
@@ -918,16 +922,22 @@ def autogen(
 
             center_idx.append(idx)
 
-    return (
-        fsites,
-        edge_sites,
-        center,
-        edge_idx,
-        center_idx,
-        centerf_idx,
-        ebe_weight,
-        Frag_atom,
-        center_atom,
-        hlist_atom,
-        add_center_atom,
+    return FragPart(
+        mol=mol,
+        frag_type="autogen",
+        be_type=be_type,
+        fsites=fsites,
+        edge_sites=edge_sites,
+        center=center,
+        edge_idx=edge_idx,
+        center_idx=center_idx,
+        centerf_idx=centerf_idx,
+        ebe_weight=ebe_weight,
+        Frag_atom=Frag_atom,
+        center_atom=center_atom,
+        hlist_atom=hlist_atom,
+        add_center_atom=add_center_atom,
+        frozen_core=frozen_core,
+        iao_valence_basis=iao_valence_basis,
+        iao_valence_only=iao_valence_only,
     )
