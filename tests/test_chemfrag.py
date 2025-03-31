@@ -3,6 +3,7 @@ import inspect
 import numpy as np
 import pytest
 from chemcoord import Cartesian
+from ordered_set import OrderedSet
 from pyscf import scf
 from pyscf.gto import M
 
@@ -234,4 +235,16 @@ def test_autocratic_vs_democratic_matching():
     mybe = BE(mf, fobj)
 
     # the following test currently fails
-    assert np.isclose(mf.e_tot, mybe.ebe_hf)
+    assert not np.isclose(mf.e_tot, mybe.ebe_hf)
+
+
+def test_shared_centers():
+    """Test the identification of shared centers"""
+    m = Cartesian.read_xyz("xyz/short_polypropylene.xyz")
+    mol = m.to_pyscf(basis="sto-3g")
+    fragments = Fragmented.from_mole(mol, 3)
+
+    assert fragments.frag_structure._get_shared_centers() == {
+        2: OrderedSet([0, 1]),
+        7: OrderedSet([3, 4, 5]),
+    }

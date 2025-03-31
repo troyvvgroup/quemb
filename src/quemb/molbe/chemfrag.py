@@ -675,6 +675,23 @@ class PurelyStructureFragmented:
         output += f"{separator_line}\n"
         return output
 
+    def _get_shared_centers(self) -> dict[CenterIdx, OrderedSet[FragmentIdx]]:
+        """Get a dictionary of centers which are shared among multiple fragments.
+
+        The returned dictionary contains the shared centers pointing to
+        the containing fragments.
+        """
+        result: dict[CenterIdx, OrderedSet[FragmentIdx]] = defaultdict(OrderedSet)
+        # We assume that every ``MotifIdx`` is a ``CenterIdx``
+        # at least once in at least one fragment, hence cast to ``Sequence[CenterIdx]```
+        for center in cast(Sequence[CenterIdx], self.conn_data.motifs):
+            # Find all fragments where ``center`` is a center
+            for i_frag, centers_in_frag in enumerate(self.centers_per_frag):
+                if center in centers_in_frag:
+                    result[center].add(cast(FragmentIdx, i_frag))
+        # Retain only those center indices which appear in more than one fragment
+        return {k: v for k, v in result.items() if len(v) > 1}
+
 
 ListOverFrag: TypeAlias = list
 ListOverEdge: TypeAlias = list
