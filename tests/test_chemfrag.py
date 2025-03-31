@@ -216,7 +216,11 @@ def test_conn_data_manipulation_of_vdW():
         assert {i_carbon} | conn_data.bonds_atoms[i_carbon] == set(m.index)
 
 
-def test_autocratic_vs_democratic_matching():
+def test_molecule_with_autocratic_matching():
+    """This test was introduced because of https://github.com/troyvvgroup/quemb/issues/132
+    and ensures that shared centers
+    are autocratically assigned to one fragment correctly.
+    """
     m = (
         Cartesian.read_xyz("xyz/short_polypropylene.xyz")
         .sort_values(by=["atom", "x", "y"])
@@ -234,17 +238,26 @@ def test_autocratic_vs_democratic_matching():
     fobj = fragpart(mol, be_type="be3", frag_type="chemgen", print_frags=False)
     mybe = BE(mf, fobj)
 
-    # the following test currently fails
-    assert not np.isclose(mf.e_tot, mybe.ebe_hf)
+    assert np.isclose(mf.e_tot, mybe.ebe_hf)
 
 
 def test_shared_centers():
-    """Test the identification of shared centers"""
+    """Test the identification of shared centers and if errors are correctly raised if
+    centers are unexpectedly shared."""
+
     m = Cartesian.read_xyz("xyz/short_polypropylene.xyz")
     mol = m.to_pyscf(basis="sto-3g")
-    fragments = Fragmented.from_mole(mol, 3)
+    fragments = PurelyStructureFragmented.from_mole(mol, 3, autocratic_matching=False)
 
-    assert fragments.frag_structure._get_shared_centers() == {
+    assert fragments._get_shared_centers() == {
         2: OrderedSet([0, 1]),
         7: OrderedSet([3, 4, 5]),
     }
+    assert fragments.shared_centers_exist()
+
+    assert not fragments.get_autocratically_matched().shared_centers_exist()
+    assert fragments.get_autocratically_matched()._get_shared_centers() == {}
+
+    Fragmented.from_mole(mol, 3, autocratic_matching=True)
+    with pytest.raises(ValueError):
+        Fragmented.from_mole(mol, 3, autocratic_matching=False)

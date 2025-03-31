@@ -20,13 +20,14 @@ There are three main classes:
 """
 
 from collections import defaultdict
-from collections.abc import Hashable, Iterable, Mapping, Sequence
+from collections.abc import Hashable, Iterable, Mapping, Sequence, Set
 from itertools import chain
 from numbers import Real
 from pathlib import Path
-from typing import Callable, Final, TypeAlias, TypeVar, cast
+from typing import Any, Callable, Final, TypeAlias, TypeVar, cast
 
 import chemcoord as cc
+import networkx as nx
 import numpy as np
 from attr import cmp_using, define, field
 from chemcoord import Cartesian
@@ -36,6 +37,7 @@ from pyscf.gto import Mole
 from typing_extensions import Self, assert_never
 
 from quemb.molbe.helper import are_equal, get_core
+from quemb.shared.helper import unused
 from quemb.shared.typing import (
     AOIdx,
     AtomIdx,
@@ -104,14 +106,14 @@ def _flatten(nested: Iterable[Iterable[T]]) -> list[T]:
 # is not possible, because one cannot bind a TypeVar
 # to another TypeVar, hence we form a union type of the subset key type
 # with its complement to obain the super type of the key.
-Key = TypeVar("Key", bound=Hashable)
-ComplementKey = TypeVar("ComplementKey", bound=Hashable)
-Val = TypeVar("Val")
+_T_Key = TypeVar("_T_Key", bound=Hashable)
+_T_ComplementKey = TypeVar("_T_ComplementKey", bound=Hashable)
+_T_Val = TypeVar("_T_Val")
 
 
 def restrict_keys(
-    D: Mapping[Key | ComplementKey, Val], keys: Sequence[Key]
-) -> Mapping[Key, Val]:
+    D: Mapping[_T_Key | _T_ComplementKey, _T_Val], keys: Sequence[_T_Key]
+) -> Mapping[_T_Key, _T_Val]:
     """Restrict the keys of a dictionary to a subset.
 
     The function has the interface declared in such a way that if the subset of
@@ -478,6 +480,8 @@ class PurelyStructureFragmented:
     #: The centers per fragment.
     #: Note that the set of centers is the complement of the edges.
     #: The order is guaranteed to be ascending.
+    #: Every motif is at least once a center, but a given motif can appear
+    #: multiple times as center in different fragments.d
     centers_per_frag: Final[Sequence[OrderedSet[CenterIdx]]]
     #: The edges per fragment.
     #: Note that the set of edges is the complement of the centers.
@@ -590,6 +594,7 @@ class PurelyStructureFragmented:
         treat_H_different: bool = True,
         bonds_atoms: Mapping[int, set[int]] | None = None,
         vdW_radius: InVdWRadius | None = None,
+        autocratic_matching: bool = True,
     ) -> Self:
         """Construct a :class:`PurelyStructureFragmented`
         from a :class:`pyscf.gto.mole.Mole`.
@@ -603,7 +608,7 @@ class PurelyStructureFragmented:
         treat_H_different :
             If True, we treat hydrogen atoms differently from heavy atoms.
         """
-        return cls.from_conn_data(
+        fragments = cls.from_conn_data(
             mol,
             BondConnectivity.from_mole(
                 mol,
@@ -613,6 +618,9 @@ class PurelyStructureFragmented:
             ),
             n_BE,
         )
+        if autocratic_matching:
+            return fragments.get_autocratically_matched()
+        return fragments
 
     def is_ordered(self) -> bool:
         """Return if :python:`self` is ordered.
@@ -692,6 +700,91 @@ class PurelyStructureFragmented:
         # Retain only those center indices which appear in more than one fragment
         return {k: v for k, v in result.items() if len(v) > 1}
 
+    def _best_repr_fragment(
+        self, center: CenterIdx, fragments: Set[FragmentIdx]
+    ) -> FragmentIdx:
+        """Assuming that :python:``center`` is shared across :python:``fragments``,
+        return the index of the fragment which represents it best.
+
+        This is done by finding the shortest path to each fragment's origin
+        and taking the fragment with the closest origin.
+        """
+        nx_graph = nx.Graph(self.conn_data.bonds_motifs)  # type: ignore[arg-type]
+
+        def distance_to_fragment(i_frag: FragmentIdx) -> int:
+            return max(
+                nx.shortest_path_length(nx_graph, source=center, target=i_origin)
+                for i_origin in self.origin_per_frag[i_frag]
+            )
+
+        return sorted(fragments, key=distance_to_fragment)[0]
+
+    def get_autocratically_matched(self) -> Self:
+        shared_centers = self._get_shared_centers()
+
+        best_fragment = {
+            center: self._best_repr_fragment(center, idx_fragments)
+            for center, idx_fragments in shared_centers.items()
+        }
+        bad_fragments = {
+            center: idx_fragments - {best_fragment[center]}
+            for center, idx_fragments in shared_centers.items()
+        }
+
+        def invert(
+            D: Mapping[CenterIdx, Set[FragmentIdx]],
+        ) -> defaultdict[FragmentIdx, set[CenterIdx]]:
+            result = defaultdict(set)
+            for k, values in D.items():
+                for v in values:
+                    result[v].add(k)
+            return result
+
+        becomes_an_edge = invert(bad_fragments)
+
+        return self.__class__(
+            mol=self.mol,
+            motifs_per_frag=self.motifs_per_frag,
+            origin_per_frag=self.origin_per_frag,
+            atoms_per_frag=self.atoms_per_frag,
+            conn_data=self.conn_data,
+            n_BE=self.n_BE,
+            centers_per_frag=[
+                centers.difference(becomes_an_edge[FragmentIdx(i_frag)])
+                for i_frag, centers in enumerate(self.centers_per_frag)
+            ],
+            # In the following we re-declare some of the centers as edges,
+            # hence we have to cast to ``EdgeIdx``.
+            edges_per_frag=[
+                OrderedSet(
+                    sorted(
+                        edges.union(
+                            cast(Set[EdgeIdx], becomes_an_edge[FragmentIdx(i_frag)])
+                        )
+                    )
+                )
+                for i_frag, edges in enumerate(self.edges_per_frag)
+            ],
+            frag_idx_per_edge=[
+                _sort_by_keys(
+                    dict(edges)
+                    | {
+                        cast(EdgeIdx, center): best_fragment[center]
+                        for center in becomes_an_edge.get(FragmentIdx(i_frag), set())
+                    }
+                )
+                for i_frag, edges in enumerate(self.frag_idx_per_edge)
+            ],
+        )
+
+    def shared_centers_exist(self) -> bool:
+        """Check if shared centers exist.
+
+        Using :meth:`get_autocratically_matched` it is possible to re-declare shared
+        centers as edges.
+        """
+        return len(self.conn_data.motifs) != sum(len(x) for x in self.centers_per_frag)
+
 
 ListOverFrag: TypeAlias = list
 ListOverEdge: TypeAlias = list
@@ -731,11 +824,22 @@ class Fragmented:
     #: The full molecule
     mol: Final[Mole] = field(eq=cmp_using(are_equal))
 
-    # yes, it is a bit redundant, because it is also contained in
-    # fragmented_structure, but it is very convenient to have it here
+    # yes, it is a bit redundant, because `conn_data` is also contained in
+    # `frag_structure`, but it is very convenient to have it here
     # as well. Due to the immutability the two views are also not a problem.
     conn_data: Final[BondConnectivity]
-    frag_structure: Final[PurelyStructureFragmented]
+
+    frag_structure: Final[PurelyStructureFragmented] = field()
+
+    @frag_structure.validator
+    def _ensure_no_shared_centers(
+        self, attribute: Any, value: PurelyStructureFragmented
+    ) -> None:
+        unused(attribute)
+        if value.shared_centers_exist():
+            raise ValueError(
+                "Shared centers not supported. Use autocratic matching instead."
+            )
 
     #: The atomic orbital indices per atom
     AO_per_atom: Final[Sequence[OrderedSet[GlobalAOIdx]]]
@@ -932,6 +1036,7 @@ class Fragmented:
         bonds_atoms: Mapping[int, set[int]] | None = None,
         vdW_radius: InVdWRadius | None = None,
         iao_valence_basis: str | None = None,
+        autocratic_matching: bool = True,
     ) -> Self:
         """Construct a :class:`Fragmented` from :class:`pyscf.gto.mole.Mole`.
 
@@ -972,6 +1077,7 @@ class Fragmented:
                 treat_H_different=treat_H_different,
                 bonds_atoms=bonds_atoms,
                 vdW_radius=vdW_radius,
+                autocratic_matching=autocratic_matching,
             ),
             frozen_core=frozen_core,
             iao_valence_basis=iao_valence_basis,
@@ -1207,11 +1313,18 @@ def _get_AOidx_per_atom(mol: Mole, frozen_core: bool) -> list[OrderedSet[GlobalA
         ]
 
 
-Key2 = TypeVar("Key2", bound=Hashable)
+_T_Key2 = TypeVar("_T_Key2", bound=Hashable)
 
 
 def _extract_values(
-    nested: Sequence[Mapping[Key, Mapping[Key2, Sequence[Val]]]],
-) -> list[list[list[Val]]]:
+    nested: Sequence[Mapping[_T_Key, Mapping[_T_Key2, Sequence[_T_Val]]]],
+) -> list[list[list[_T_Val]]]:
     """Extract the values of a mapping from a sequence of mappings"""
     return [[list(union_of_seqs(*v.values())) for v in D.values()] for D in nested]
+
+
+_T_int = TypeVar("_T_int", bound=int)
+
+
+def _sort_by_keys(D: Mapping[_T_int, T]) -> dict[_T_int, T]:
+    return {key: D[key] for key in sorted(D.keys())}
