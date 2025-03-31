@@ -1102,8 +1102,8 @@ class Fragmented:
             The keyword is mutually exclusive with :python:`bonds_atoms`.
         autocratic_matching :
             Assume autocratic matching for possibly shared centers.
-            Will call :meth:`get_autocratically_matched` upon construction.
-            Look there for more details.
+            Will call :meth:`PurelyStructureFragmented.get_autocratically_matched`
+            upon construction.  Look there for more details.
         """
         return cls.from_frag_structure(
             mol,
