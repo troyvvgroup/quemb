@@ -927,8 +927,9 @@ def chemgen(
         mol,
         n_BE=n_BE,
         frozen_core=frozen_core,
+        iao_valence_basis=iao_valence_basis,
         treat_H_different=args.treat_H_different,
         bonds_atoms=args.bonds_atoms,
         vdW_radius=args.vdW_radius,
-        iao_valence_basis=iao_valence_basis,
+        autocratic_matching=args.autocratic_matching,
     )
