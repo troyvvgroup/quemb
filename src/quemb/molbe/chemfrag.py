@@ -27,11 +27,12 @@ from pathlib import Path
 from typing import Any, Callable, Final, TypeAlias, TypeVar, cast
 
 import chemcoord as cc
-import networkx as nx
 import numpy as np
 from attr import cmp_using, define, field
 from chemcoord import Cartesian
 from chemcoord.constants import elements
+from networkx.algorithms.shortest_paths.generic import shortest_path_length
+from networkx.classes.graph import Graph
 from ordered_set import OrderedSet
 from pyscf.gto import Mole
 from typing_extensions import Self, assert_never
@@ -481,7 +482,7 @@ class PurelyStructureFragmented:
     #: Note that the set of centers is the complement of the edges.
     #: The order is guaranteed to be ascending.
     #: Every motif is at least once a center, but a given motif can appear
-    #: multiple times as center in different fragments.d
+    #: multiple times as center in different fragments.
     centers_per_frag: Final[Sequence[OrderedSet[CenterIdx]]]
     #: The edges per fragment.
     #: Note that the set of edges is the complement of the centers.
@@ -709,11 +710,11 @@ class PurelyStructureFragmented:
         This is done by finding the shortest path to each fragment's origin
         and taking the fragment with the closest origin.
         """
-        nx_graph = nx.Graph(self.conn_data.bonds_motifs)  # type: ignore[arg-type]
+        nx_graph: Graph = Graph(self.conn_data.bonds_motifs)  # type: ignore[arg-type]
 
         def distance_to_fragment(i_frag: FragmentIdx) -> int:
             return max(
-                nx.shortest_path_length(nx_graph, source=center, target=i_origin)
+                shortest_path_length(nx_graph, source=center, target=i_origin)
                 for i_origin in self.origin_per_frag[i_frag]
             )
 
