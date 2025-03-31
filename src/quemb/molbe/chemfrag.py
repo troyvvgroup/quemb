@@ -610,6 +610,10 @@ class PurelyStructureFragmented:
             The coordination sphere to consider.
         treat_H_different :
             If True, we treat hydrogen atoms differently from heavy atoms.
+        autocratic_matching :
+            Assume autocratic matching for possibly shared centers.
+            Will call :meth:`get_autocratically_matched` upon construction.
+            Look there for more details.
         """
         fragments = cls.from_conn_data(
             mol,
@@ -1096,6 +1100,10 @@ class Fragmented:
               to change the radius of individual elements, e.g. :python:`{"C": 1.5}`.
 
             The keyword is mutually exclusive with :python:`bonds_atoms`.
+        autocratic_matching :
+            Assume autocratic matching for possibly shared centers.
+            Will call :meth:`get_autocratically_matched` upon construction.
+            Look there for more details.
         """
         return cls.from_frag_structure(
             mol,
