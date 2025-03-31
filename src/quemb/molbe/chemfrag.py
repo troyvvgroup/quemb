@@ -483,6 +483,8 @@ class PurelyStructureFragmented:
     #: The order is guaranteed to be ascending.
     #: Every motif is at least once a center, but a given motif can appear
     #: multiple times as center in different fragments.
+    #: By using :meth:`get_autocratically_matched` we can ensure that a given center
+    #: appears exactly once as a center.
     centers_per_frag: Final[Sequence[OrderedSet[CenterIdx]]]
     #: The edges per fragment.
     #: Note that the set of edges is the complement of the centers.
@@ -721,6 +723,31 @@ class PurelyStructureFragmented:
         return sorted(fragments, key=distance_to_fragment)[0]
 
     def get_autocratically_matched(self) -> Self:
+        """Ensure that no centers exist, that are shared among fragments.
+
+        This is the same as using autocratic matching.
+        If there is a motif, which appears as center in multiple fragments,
+        we will choose a fragment whose origin is closest to the center.
+        In this fragment it will stay a center, while the same motif
+        will become an edge in the other fragments.
+
+        For example, if we have the following nested structure
+
+        .. code-block:: text
+
+            1 - 2 - 3 - 4 - 5
+                    |
+                    6
+                    |
+                    7
+
+        and assume BE(3) fragmentation then the atom 6 appears as center
+        in the BE(3)-fragments around atoms 2, 3, and 4.
+        Since atom 6 is closest to atom 3,
+        it will stay a center in the fragment around atom 3
+        and will be re-declared as edge in the fragments
+        around 2 and 4.
+        """
         shared_centers = self._get_shared_centers()
 
         best_fragment = {
