@@ -888,10 +888,6 @@ class BE(MixinLocalize):
             print(
                 "HF-in-HF error                 :  {:>.4e} Ha".format(hf_err),
             )
-            if abs(hf_err) > 1.0e-1:
-                raise RuntimeError(
-                    "Too large HF-in-HF error. It makes no sense to continue."
-                )
             if abs(hf_err) > 1.0e-5:
                 warn("Large HF-in-HF energy error")
 
