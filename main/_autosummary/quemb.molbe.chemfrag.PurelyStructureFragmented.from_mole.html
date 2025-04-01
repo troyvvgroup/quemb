@@ -3,7 +3,7 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="quemb.molbe.chemfrag.PurelyStructureFragmented.get_string" href="quemb.molbe.chemfrag.PurelyStructureFragmented.get_string.html" /><link rel="prev" title="quemb.molbe.chemfrag.PurelyStructureFragmented.from_conn_data" href="quemb.molbe.chemfrag.PurelyStructureFragmented.from_conn_data.html" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="quemb.molbe.chemfrag.PurelyStructureFragmented.get_autocratically_matched" href="quemb.molbe.chemfrag.PurelyStructureFragmented.get_autocratically_matched.html" /><link rel="prev" title="quemb.molbe.chemfrag.PurelyStructureFragmented.from_conn_data" href="quemb.molbe.chemfrag.PurelyStructureFragmented.from_conn_data.html" />
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2024.08.06 -->
         <title>quemb.molbe.chemfrag.PurelyStructureFragmented.from_mole - QuEmb documentation</title>
@@ -259,8 +259,10 @@
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.chemfrag.PurelyStructureFragmented.__init__.html">quemb.molbe.chemfrag.PurelyStructureFragmented.__init__</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.chemfrag.PurelyStructureFragmented.from_conn_data.html">quemb.molbe.chemfrag.PurelyStructureFragmented.from_conn_data</a></li>
 <li class="toctree-l5 current current-page"><a class="current reference internal" href="#">quemb.molbe.chemfrag.PurelyStructureFragmented.from_mole</a></li>
+<li class="toctree-l5"><a class="reference internal" href="quemb.molbe.chemfrag.PurelyStructureFragmented.get_autocratically_matched.html">quemb.molbe.chemfrag.PurelyStructureFragmented.get_autocratically_matched</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.chemfrag.PurelyStructureFragmented.get_string.html">quemb.molbe.chemfrag.PurelyStructureFragmented.get_string</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.chemfrag.PurelyStructureFragmented.is_ordered.html">quemb.molbe.chemfrag.PurelyStructureFragmented.is_ordered</a></li>
+<li class="toctree-l5"><a class="reference internal" href="quemb.molbe.chemfrag.PurelyStructureFragmented.shared_centers_exist.html">quemb.molbe.chemfrag.PurelyStructureFragmented.shared_centers_exist</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.chemfrag.PurelyStructureFragmented.write_geom.html">quemb.molbe.chemfrag.PurelyStructureFragmented.write_geom</a></li>
 </ul>
 </li>
@@ -724,7 +726,7 @@
 <h1>quemb.molbe.chemfrag.PurelyStructureFragmented.from_mole<a class="headerlink" href="#quemb-molbe-chemfrag-purelystructurefragmented-from-mole" title="Link to this heading">¶</a></h1>
 <dl class="py method">
 <dt class="sig sig-object py" id="quemb.molbe.chemfrag.PurelyStructureFragmented.from_mole">
-<em class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">PurelyStructureFragmented.</span></span><span class="sig-name descname"><span class="pre">from_mole</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mol</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_BE</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">treat_H_different</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bonds_atoms</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vdW_radius</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#quemb.molbe.chemfrag.PurelyStructureFragmented.from_mole" title="Link to this definition">¶</a></dt>
+<em class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">PurelyStructureFragmented.</span></span><span class="sig-name descname"><span class="pre">from_mole</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mol</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_BE</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">treat_H_different</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bonds_atoms</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vdW_radius</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">autocratic_matching</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#quemb.molbe.chemfrag.PurelyStructureFragmented.from_mole" title="Link to this definition">¶</a></dt>
 <dd><p>Construct a <a class="reference internal" href="quemb.molbe.chemfrag.PurelyStructureFragmented.html#quemb.molbe.chemfrag.PurelyStructureFragmented" title="quemb.molbe.chemfrag.PurelyStructureFragmented"><code class="xref py py-class docutils literal notranslate"><span class="pre">PurelyStructureFragmented</span></code></a>
 from a <a class="reference external" href="https://pyscf.org/pyscf_api_docs/pyscf.gto.html#pyscf.gto.mole.Mole" title="(in PySCF v2.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyscf.gto.mole.Mole</span></code></a>.</p>
 <dl class="field-list simple">
@@ -733,6 +735,9 @@ from a <a class="reference external" href="https://pyscf.org/pyscf_api_docs/pysc
 <li><p><strong>mol</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://pyscf.org/pyscf_api_docs/pyscf.gto.html#pyscf.gto.mole.Mole" title="(in PySCF v2.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mole</span></code></a></span>) – The Molecule to extract the connectivity data from.</p></li>
 <li><p><strong>n_BE</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a></span>) – The coordination sphere to consider.</p></li>
 <li><p><strong>treat_H_different</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span>) – If True, we treat hydrogen atoms differently from heavy atoms.</p></li>
+<li><p><strong>autocratic_matching</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span>) – Assume autocratic matching for possibly shared centers.
+Will call <a class="reference internal" href="quemb.molbe.chemfrag.PurelyStructureFragmented.get_autocratically_matched.html#quemb.molbe.chemfrag.PurelyStructureFragmented.get_autocratically_matched" title="quemb.molbe.chemfrag.PurelyStructureFragmented.get_autocratically_matched"><code class="xref py py-meth docutils literal notranslate"><span class="pre">get_autocratically_matched()</span></code></a> upon construction.
+Look there for more details.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -748,12 +753,12 @@ from a <a class="reference external" href="https://pyscf.org/pyscf_api_docs/pysc
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="quemb.molbe.chemfrag.PurelyStructureFragmented.get_string.html">
+          <a class="next-page" href="quemb.molbe.chemfrag.PurelyStructureFragmented.get_autocratically_matched.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">quemb.molbe.chemfrag.PurelyStructureFragmented.get_string</div>
+                <div class="title">quemb.molbe.chemfrag.PurelyStructureFragmented.get_autocratically_matched</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>

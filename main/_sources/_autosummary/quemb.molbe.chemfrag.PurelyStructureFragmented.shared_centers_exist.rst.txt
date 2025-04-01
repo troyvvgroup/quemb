@@ -1,0 +1,6 @@
+quemb.molbe.chemfrag.PurelyStructureFragmented.shared\_centers\_exist
+=====================================================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. automethod:: PurelyStructureFragmented.shared_centers_exist

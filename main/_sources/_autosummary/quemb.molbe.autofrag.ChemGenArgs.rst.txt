@@ -14,6 +14,7 @@ quemb.molbe.autofrag.ChemGenArgs
    .. autoattribute:: ChemGenArgs.treat_H_different
    .. autoattribute:: ChemGenArgs.bonds_atoms
    .. autoattribute:: ChemGenArgs.vdW_radius
+   .. autoattribute:: ChemGenArgs.autocratic_matching
    
    
 
