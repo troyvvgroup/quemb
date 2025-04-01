@@ -743,14 +743,15 @@ class PurelyStructureFragmented:
         will become an edge in the other fragments.
 
         For example, if we have the following nested structure
+        (part of a larger molecule that continues left and right)
 
         .. code-block:: text
 
-            1 - 2 - 3 - 4 - 5
-                    |
-                    6
-                    |
-                    7
+            --- 1 - 2 - 3 - 4 - 5 ---
+                        |
+                        6
+                        |
+                        7
 
         and assume BE(3) fragmentation then the atom 6 appears as center
         in the BE(3)-fragments around atoms 2, 3, and 4.
