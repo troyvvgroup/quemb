@@ -718,10 +718,17 @@ class PurelyStructureFragmented:
         """
         nx_graph: Graph = Graph(self.conn_data.bonds_motifs)  # type: ignore[arg-type]
 
-        def distance_to_fragment(i_frag: FragmentIdx) -> int:
-            return max(
-                shortest_path_length(nx_graph, source=center, target=i_origin)
-                for i_origin in self.origin_per_frag[i_frag]
+        def distance_to_fragment(i_frag: FragmentIdx) -> tuple[int, int]:
+            """Return the distance to the fragment with index ``i_frag``,
+            as measured by the edge-number of the shortest path to the closest origin.
+            Additionally return the index itsef to achieve unique ordering, if the
+            distance is degenerate."""
+            return (
+                min(
+                    shortest_path_length(nx_graph, source=center, target=i_origin)
+                    for i_origin in self.origin_per_frag[i_frag]
+                ),
+                i_frag,
             )
 
         return sorted(fragments, key=distance_to_fragment)[0]
