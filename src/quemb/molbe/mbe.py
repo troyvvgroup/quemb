@@ -1,6 +1,7 @@
 # Author(s): Oinam Romesh Meitei
 
 import pickle
+from warnings import warn
 
 import h5py
 import numpy
@@ -885,14 +886,9 @@ class BE(MixinLocalize):
         if compute_hf:
             self.ebe_hf = E_hf + self.enuc + self.E_core
             hf_err = self.hf_etot - self.ebe_hf
-            print(
-                f"HF-in-HF error                 :  {hf_err:>.4e} Ha",
-                flush=True,
-            )
+            print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
             if abs(hf_err) > 1.0e-5:
-                print("WARNING!!! Large HF-in-HF energy error")
-
-            print(flush=True)
+                warn("Large HF-in-HF energy error")
 
         couti = 0
         for fobj in self.Fobjs:
