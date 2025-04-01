@@ -1,7 +1,10 @@
 import inspect
 
+import numpy as np
 import pytest
 from chemcoord import Cartesian
+from ordered_set import OrderedSet
+from pyscf import scf
 from pyscf.gto import M
 
 from quemb.molbe.chemfrag import (
@@ -11,6 +14,7 @@ from quemb.molbe.chemfrag import (
     _cleanup_if_subset,
 )
 from quemb.molbe.fragment import fragpart
+from quemb.molbe.mbe import BE
 
 from ._expected_data_for_chemfrag import get_expected
 
@@ -210,3 +214,50 @@ def test_conn_data_manipulation_of_vdW():
     for i_carbon in m.loc[m.atom == "C"].index:
         # check if carbons are connected to everything
         assert {i_carbon} | conn_data.bonds_atoms[i_carbon] == set(m.index)
+
+
+def test_molecule_with_autocratic_matching():
+    """This test was introduced because of https://github.com/troyvvgroup/quemb/issues/132
+    and ensures that shared centers
+    are autocratically assigned to one fragment correctly.
+    """
+    m = (
+        Cartesian.read_xyz("xyz/short_polypropylene.xyz")
+        .sort_values(by=["atom", "x", "y"])
+        .reset_index()
+    )
+    mol = m.to_pyscf(basis="sto-3g")
+    mf = scf.RHF(mol)
+    mf.kernel()
+
+    fobj = fragpart(mol, be_type="be2", frag_type="chemgen", print_frags=False)
+    mybe = BE(mf, fobj)
+
+    assert np.isclose(mf.e_tot, mybe.ebe_hf)
+
+    fobj = fragpart(mol, be_type="be3", frag_type="chemgen", print_frags=False)
+    mybe = BE(mf, fobj)
+
+    assert np.isclose(mf.e_tot, mybe.ebe_hf)
+
+
+def test_shared_centers():
+    """Test the identification of shared centers and if errors are correctly raised if
+    centers are unexpectedly shared."""
+
+    m = Cartesian.read_xyz("xyz/short_polypropylene.xyz")
+    mol = m.to_pyscf(basis="sto-3g")
+    fragments = PurelyStructureFragmented.from_mole(mol, 3, autocratic_matching=False)
+
+    assert fragments._get_shared_centers() == {
+        2: OrderedSet([0, 1]),
+        7: OrderedSet([3, 4, 5]),
+    }
+    assert fragments.shared_centers_exist()
+
+    assert not fragments.get_autocratically_matched().shared_centers_exist()
+    assert fragments.get_autocratically_matched()._get_shared_centers() == {}
+
+    Fragmented.from_mole(mol, 3, autocratic_matching=True)
+    with pytest.raises(ValueError):
+        Fragmented.from_mole(mol, 3, autocratic_matching=False)

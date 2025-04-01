@@ -889,6 +889,7 @@ class ChemGenArgs:
     treat_H_different: Final[bool] = True
     bonds_atoms: Mapping[int, set[int]] | None = None
     vdW_radius: InVdWRadius | None = None
+    autocratic_matching: bool = True
 
     #: This argument is not meant to be used by the user.
     #: If it is true, then chemgen adheres to the old **wrong** indexing
@@ -920,16 +921,15 @@ def chemgen(
         Do we perform a frozen core calculation?
     """
     if args is None:
-        return Fragmented.from_mole(
-            mol, n_BE=n_BE, frozen_core=frozen_core, iao_valence_basis=iao_valence_basis
-        )
-    else:
-        return Fragmented.from_mole(
-            mol,
-            n_BE=n_BE,
-            frozen_core=frozen_core,
-            treat_H_different=args.treat_H_different,
-            bonds_atoms=args.bonds_atoms,
-            vdW_radius=args.vdW_radius,
-            iao_valence_basis=iao_valence_basis,
-        )
+        args = ChemGenArgs()
+
+    return Fragmented.from_mole(
+        mol,
+        n_BE=n_BE,
+        frozen_core=frozen_core,
+        iao_valence_basis=iao_valence_basis,
+        treat_H_different=args.treat_H_different,
+        bonds_atoms=args.bonds_atoms,
+        vdW_radius=args.vdW_radius,
+        autocratic_matching=args.autocratic_matching,
+    )

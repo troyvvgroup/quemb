@@ -8,6 +8,7 @@ import os
 import unittest
 
 from pyscf import gto, scf
+import numpy as np
 
 from quemb.molbe import BE, fragpart
 
@@ -1208,6 +1209,25 @@ class TestBE_Fragmentation(unittest.TestCase):
             target,
             delta=1e-2,
         )
+
+    @unittest.skipIf(
+        not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
+        "This test is known to fail.",
+    )
+    def test_shared_centers_autocratic_matching(self):
+        mol = gto.M("xyz/short_polypropylene.xyz", basis="sto-3g")
+        mf = scf.RHF(mol)
+        mf.kernel()
+
+        fobj = fragpart(mol, be_type="be2", frag_type="graphgen", print_frags=False)
+        mybe = BE(mf, fobj)
+
+        assert np.isclose(mf.e_tot, mybe.ebe_hf)
+
+        fobj = fragpart(mol, be_type="be3", frag_type="graphgen", print_frags=False)
+        mybe = BE(mf, fobj)
+
+        assert np.isclose(mf.e_tot, mybe.ebe_hf)
 
     def run_energies_test(
         self,

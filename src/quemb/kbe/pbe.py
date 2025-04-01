@@ -3,6 +3,7 @@
 import os
 import pickle
 from multiprocessing import Pool
+from warnings import warn
 
 import h5py
 import numpy as np
@@ -635,13 +636,9 @@ class BE(Mixin_k_Localize):
             hf_err = self.hf_etot - (E_hf + self.enuc + self.E_core)
 
             self.ebe_hf = E_hf + self.enuc + self.E_core - self.ek
-            print(
-                f"HF-in-HF error                 :  {hf_err:>.4e} Ha",
-                flush=True,
-            )
-
+            print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
             if abs(hf_err) > 1.0e-5:
-                print("WARNING!!! Large HF-in-HF energy error")
+                warn("Large HF-in-HF energy error")
 
         couti = 0
         for fobj in self.Fobjs:
