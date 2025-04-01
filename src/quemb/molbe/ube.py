@@ -375,7 +375,7 @@ class UBE(BE):  # 🍠
 
             self.ebe_hf = E_hf + self.enuc + self.E_core - self.ek
             print(
-                "HF-in-HF error                 :  {:>.4e} Ha".format(hf_err),
+                f"HF-in-HF error                 :  {hf_err:>.4e} Ha",
                 flush=True,
             )
             if abs(hf_err) > 1.0e-5:

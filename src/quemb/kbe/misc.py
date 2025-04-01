@@ -60,17 +60,17 @@ def print_energy(ecorr, e_V_Kapprox, e_F_dg, e_hf, unitcell_nkpt):
 
     print("-----------------------------------------------------", flush=True)
     print(" E_BE = E_HF + Tr(F del g) + Tr(V K_approx)", flush=True)
-    print(" E_HF            : {:>14.8f} Ha".format(e_hf / unitcell_nkpt), flush=True)
-    print(" Tr(F del g)     : {:>14.8f} Ha".format(e_F_dg / unitcell_nkpt), flush=True)
+    print(f" E_HF            : {e_hf / unitcell_nkpt:>14.8f} Ha", flush=True)
+    print(f" Tr(F del g)     : {e_F_dg / unitcell_nkpt:>14.8f} Ha", flush=True)
     print(
-        " Tr(V K_aprrox)  : {:>14.8f} Ha".format(e_V_Kapprox / unitcell_nkpt),
+        f" Tr(V K_aprrox)  : {e_V_Kapprox / unitcell_nkpt:>14.8f} Ha",
         flush=True,
     )
     print(
-        " E_BE            : {:>14.8f} Ha".format((ecorr + e_hf) / unitcell_nkpt),
+        f" E_BE            : {(ecorr + e_hf) / unitcell_nkpt:>14.8f} Ha",
         flush=True,
     )
-    print(" Ecorr BE        : {:>14.8f} Ha".format(ecorr / unitcell_nkpt), flush=True)
+    print(f" Ecorr BE        : {ecorr / unitcell_nkpt:>14.8f} Ha", flush=True)
     print("-----------------------------------------------------", flush=True)
 
     print(flush=True)
