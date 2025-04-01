@@ -374,8 +374,7 @@ class UBE(BE):  # 🍠
             hf_err = self.hf_etot - (E_hf + self.enuc + self.E_core)
 
             self.ebe_hf = E_hf + self.enuc + self.E_core - self.ek
-            print("HF-in-HF error                 :  {:>.4e} Ha".format(hf_err))
-
+            print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
             if abs(hf_err) > 1.0e-5:
                 warn("Large HF-in-HF energy error")
                 print("eh1 ", EH1)

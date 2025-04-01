@@ -167,7 +167,7 @@ class BEOPT:
             f0 = self.objfunc(self.pot)
 
             print(
-                "Error in density matching      :   {:>2.4e}".format(self.err),
+                f"Error in density matching      :   {self.err:>2.4e}",
                 flush=True,
             )
             print(flush=True)
@@ -191,7 +191,7 @@ class BEOPT:
                     optQN.next_step(self.iter, trust_region=trust_region)
                     self.iter += 1
                     print(
-                        "Error in density matching      :   {:>2.4e}".format(self.err),
+                        f"Error in density matching      :   {self.err:>2.4e}",
                         flush=True,
                     )
                     if settings.PRINT_LEVEL >= 10:

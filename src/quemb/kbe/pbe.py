@@ -636,9 +636,7 @@ class BE(Mixin_k_Localize):
             hf_err = self.hf_etot - (E_hf + self.enuc + self.E_core)
 
             self.ebe_hf = E_hf + self.enuc + self.E_core - self.ek
-            print(
-                "HF-in-HF error                 :  {:>.4e} Ha".format(hf_err),
-            )
+            print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
             if abs(hf_err) > 1.0e-5:
                 warn("Large HF-in-HF energy error")
 
@@ -716,11 +714,11 @@ class BE(Mixin_k_Localize):
             flush=True,
         )
         print(
-            "Final Tr(V K_approx) is      : {:>12.8f} Ha".format(rets[1][1]),
+            f"Final Tr(V K_approx) is      : {rets[1][1]:>12.8f} Ha",
             flush=True,
         )
         print(
-            "Final e_corr is              : {:>12.8f} Ha".format(rets[0]),
+            f"Final e_corr is              : {rets[0]:>12.8f} Ha",
             flush=True,
         )
 

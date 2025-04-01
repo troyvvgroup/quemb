@@ -136,7 +136,7 @@ def _convert_eri_gen(origsym, targetsym, eri, norb1, norb2):
     """
     libao2mo = lib.load_library("libao2mo")
 
-    fn = getattr(libao2mo, "AO2MOrestore_nr%sto%s_gen" % (origsym, targetsym))
+    fn = getattr(libao2mo, "AO2MOrestore_nr{}to{}_gen".format(origsym, targetsym))
 
     if targetsym == 1:
         eri_out = empty([norb1, norb1, norb2, norb2])
