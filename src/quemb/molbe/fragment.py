@@ -1,6 +1,7 @@
 # Author: Oinam Romesh Meitei
 
 from typing import TypeAlias
+from warnings import warn
 
 from pyscf.gto.mole import Mole
 from typing_extensions import assert_never
@@ -74,7 +75,7 @@ def fragpart(
             assert isinstance(additional_args, GraphGenArgs)
         if iao_valence_basis:
             raise ValueError("iao_valence_basis not yet supported for 'graphgen'")
-        return graphgen(
+        result = graphgen(
             mol=mol.copy(),
             be_type=be_type,
             frozen_core=frozen_core,
@@ -90,7 +91,7 @@ def fragpart(
         else:
             assert isinstance(additional_args, AutogenArgs)
 
-        return autogen(
+        result = autogen(
             mol,
             be_type=be_type,
             frozen_core=frozen_core,
@@ -116,8 +117,32 @@ def fragpart(
             fragments.frag_structure.write_geom(prefix=frag_prefix)
         if print_frags:
             print(fragments.frag_structure.get_string())
-        return fragments.match_autogen_output(
+        result = fragments.match_autogen_output(
             wrong_iao_indexing=additional_args._wrong_iao_indexing
         )
     else:
         assert_never(f"Fragmentation type = {frag_type} not implemented!")
+
+    if not _correct_number_of_centers(result) and frag_type != "graphgen":
+        warn(
+            "Strange number of centers detected. "
+            'It is advised to use "chemgen" instead.'
+        )
+    return result
+
+
+def _correct_number_of_centers(fragpart: FragPart) -> bool:
+    """By default we assume autocratic matching
+    and the same number of centers and motifs."""
+    if any(atom != "H" for atom in fragpart.mol.elements):
+        n_motifs = sum(atom != "H" for atom in fragpart.mol.elements)
+    else:
+        n_motifs = fragpart.mol.natm
+
+    n_centers = sum(
+        [
+            len(motifs) - len(edges)
+            for motifs, edges in zip(fragpart.Frag_atom, fragpart.center)
+        ]
+    )
+    return n_centers == n_motifs
