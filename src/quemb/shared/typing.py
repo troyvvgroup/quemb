@@ -10,7 +10,7 @@ i.e. the type is mostly useful to document intent to the developer.
 """
 
 import os
-from typing import Any, Dict, NewType, TypeAlias, TypeVar
+from typing import Any, NewType, TypeAlias, TypeVar
 
 import numpy as np
 
@@ -53,7 +53,7 @@ Tensor = np.ndarray[tuple[int, ...], np.dtype[T_dtype_co]]
 #: Type annotation for pathlike objects.
 PathLike: TypeAlias = str | os.PathLike
 #: Type annotation for dictionaries holding keyword arguments.
-KwargDict: TypeAlias = Dict[str, Any]
+KwargDict: TypeAlias = dict[str, Any]
 
 
 #: A generic type variable, without any constraints.

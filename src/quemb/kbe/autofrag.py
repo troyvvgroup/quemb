@@ -327,7 +327,7 @@ def autogen(
 
         print(flush=True)
         print(
-            "No. of cells used in building fragments : {:>3}".format(unitcell),
+            f"No. of cells used in building fragments : {unitcell:>3}",
             flush=True,
         )
 
@@ -1871,13 +1871,13 @@ def autogen(
                 if j == cen[idx]:
                     continue
                 print(
-                    " {:>5} ".format(cell.atom_pure_symbol(j) + str(j + 1)),
+                    f" {cell.atom_pure_symbol(j) + str(j + 1):>5} ",
                     end=" ",
                     flush=True,
                 )
                 for k in hlist[j]:
                     print(
-                        " {:>5} ".format(cell.atom_pure_symbol(k) + str(k + 1)),
+                        f" {cell.atom_pure_symbol(k) + str(k + 1):>5} ",
                         end=" ",
                         flush=True,
                     )

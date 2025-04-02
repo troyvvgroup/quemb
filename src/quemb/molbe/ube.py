@@ -13,6 +13,7 @@ TODO
 """
 
 from pathlib import Path
+from warnings import warn
 
 import h5py
 from numpy import array, einsum, zeros_like
@@ -373,16 +374,11 @@ class UBE(BE):  # 🍠
             hf_err = self.hf_etot - (E_hf + self.enuc + self.E_core)
 
             self.ebe_hf = E_hf + self.enuc + self.E_core - self.ek
-            print(
-                "HF-in-HF error                 :  {:>.4e} Ha".format(hf_err),
-                flush=True,
-            )
+            print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
             if abs(hf_err) > 1.0e-5:
-                print("WARNING!!! Large HF-in-HF energy error")
+                warn("Large HF-in-HF energy error")
                 print("eh1 ", EH1)
                 print("ecoul ", ECOUL)
-
-            print(flush=True)
 
         couti = 0
         for fobj in self.Fobjs_a:

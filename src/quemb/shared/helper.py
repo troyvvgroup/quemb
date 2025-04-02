@@ -1,9 +1,9 @@
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from inspect import signature
 from itertools import islice
 from pathlib import Path
 from time import time
-from typing import Any, Callable, TypeVar, overload
+from typing import Any, TypeVar, overload
 
 import numba as nb
 from attr import define, field
