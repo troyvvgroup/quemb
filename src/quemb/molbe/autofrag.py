@@ -999,6 +999,7 @@ def autogen(
         raise ValueError(
             'Strange number of centers detected. Use "chemgen" or "graphgen" instead'
         )
+    return fragpart
 
 
 def _correct_number_of_centers(fragpart: FragPart) -> bool:
