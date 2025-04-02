@@ -968,7 +968,7 @@ def autogen(
 
             center_idx.append(idx)
 
-    return FragPart(
+    fragpart = FragPart(
         mol=mol,
         frag_type="autogen",
         be_type=be_type,
@@ -987,3 +987,25 @@ def autogen(
         iao_valence_basis=iao_valence_basis,
         iao_valence_only=iao_valence_only,
     )
+
+    if not _correct_number_of_centers(fragpart):
+        raise ValueError(
+            'Strange number of centers detected. Use "chemgen" or "graphgen" instead'
+        )
+
+
+def _correct_number_of_centers(fragpart: FragPart) -> bool:
+    """By default we assume autocratic matching
+    and the same number of centers and motifs."""
+    if any(atom != "H" for atom in fragpart.mol.elements):
+        n_motifs = sum(atom != "H" for atom in fragpart.mol.elements)
+    else:
+        n_motifs = fragpart.mol.natm
+
+    n_centers = sum(
+        [
+            len(motifs) - len(edges)
+            for motifs, edges in zip(fragpart.Frag_atom, fragpart.center)
+        ]
+    )
+    return n_centers == n_motifs
