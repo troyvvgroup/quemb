@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 from copy import deepcopy
 from typing import Final, Literal, TypeAlias
+from warnings import warn
 
 import networkx as nx
 import numpy as np
@@ -561,6 +562,12 @@ def autogen(
     print_frags : bool, optional
         Whether to print out the list of resulting fragments. Defaults to True.
     """
+
+    if iao_valence_basis is not None:
+        warn(
+            'IAO indexing is not working correctly for "autogen". '
+            'It is recommended to use "chemgen" instead.'
+        )
 
     cell = mol.copy()
     if iao_valence_only:
