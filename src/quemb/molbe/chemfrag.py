@@ -1394,6 +1394,8 @@ def chemgen(
         and documented there.
     frozen_core :
         Do we perform a frozen core calculation?
+    iao_valuence_basis :
+        The minimal basis used for the IAO definition.
     """
     if args is None:
         return Fragmented.from_mole(
