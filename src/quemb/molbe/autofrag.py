@@ -97,7 +97,7 @@ class FragPart:
     #: For each atom it contains a list of the attached hydrogens.
     #: This means that there are a lot of empty sets for molecular systems,
     # because hydrogens have no attached hydrogens (usually).
-    hlist_atom: Sequence[list[AtomIdx]]
+    H_per_motif: Sequence[list[AtomIdx]]
 
     #: A list over fragments.
     #: For each fragment a list of centers that are not the origin of that fragment.
@@ -281,7 +281,7 @@ class FragmentMap:
             ebe_weight=self.ebe_weight,  # type: ignore[arg-type]
             motifs_per_frag=self.motifs_per_frag,  # type: ignore[arg-type]
             origin_per_frag=self.origin_per_frag,  # type: ignore[arg-type]
-            hlist_atom=MISSING,
+            H_per_motif=MISSING,
             add_center_atom=MISSING,
             frozen_core=frozen_core,
             iao_valence_basis=None,
@@ -675,7 +675,7 @@ def autogen(
             motifs_per_frag.append(flist)
             origin_per_frag.append(idx)
 
-    hlist_atom = [[] for i in coord]
+    H_per_motif = [[] for i in coord]
     if not hchain:
         for idx, i in enumerate(normlist):
             if cell.atom_pure_symbol(idx) == "H":
@@ -689,7 +689,7 @@ def autogen(
                 for jdx in clist:
                     dist = norm(coord[idx] - coord[jdx])
                     if dist <= hbond:
-                        hlist_atom[jdx].append(idx)
+                        H_per_motif[jdx].append(idx)
 
     # Print fragments if requested
     if print_frags:
@@ -709,7 +709,7 @@ def autogen(
                 end=" ",
                 flush=True,
             )
-            for j in hlist_atom[origin_per_frag[idx]]:
+            for j in H_per_motif[origin_per_frag[idx]]:
                 print(
                     " {:>5} ".format("*" + cell.atom_pure_symbol(j) + str(j + 1)),
                     end=" ",
@@ -723,7 +723,7 @@ def autogen(
                     end=" ",
                     flush=True,
                 )
-                for k in hlist_atom[j]:
+                for k in H_per_motif[j]:
                     print(
                         f" {cell.atom_pure_symbol(k) + str(k + 1):>5} ",
                         end=" ",
@@ -740,11 +740,15 @@ def autogen(
         w = open("fragments.xyz", "w")
         for idx, i in enumerate(motifs_per_frag):
             w.write(
-                str(len(i) + len(hlist_atom[origin_per_frag[idx]]) + len(hlist_atom[j]))
+                str(
+                    len(i)
+                    + len(H_per_motif[origin_per_frag[idx]])
+                    + len(H_per_motif[j])
+                )
                 + "\n"
             )
             w.write("Fragment - " + str(idx) + "\n")
-            for j in hlist_atom[origin_per_frag[idx]]:
+            for j in H_per_motif[origin_per_frag[idx]]:
                 w.write(
                     " {:>3}   {:>10.7f}   {:>10.7f}   {:>10.7f} \n".format(
                         cell.atom_pure_symbol(j),
@@ -762,7 +766,7 @@ def autogen(
                         coord[j][2] / ang2bohr,
                     )
                 )
-                for k in hlist_atom[j]:
+                for k in H_per_motif[j]:
                     w.write(
                         " {:>3}   {:>10.7f}   {:>10.7f}   {:>10.7f} \n".format(
                             cell.atom_pure_symbol(k),
@@ -825,7 +829,7 @@ def autogen(
 
     hsites = [[] for i in coord]
     nbas2H = [0 for i in coord]
-    for hdx, h in enumerate(hlist_atom):
+    for hdx, h in enumerate(H_per_motif):
         for hidx in h:
             basH = baslist[hidx]
             startH = basH[2]
@@ -1003,7 +1007,7 @@ def autogen(
         ebe_weight=ebe_weight,
         motifs_per_frag=motifs_per_frag,
         origin_per_frag=origin_per_frag,
-        hlist_atom=hlist_atom,
+        H_per_motif=H_per_motif,
         add_center_atom=add_center_atom,
         frozen_core=frozen_core,
         iao_valence_basis=iao_valence_basis,

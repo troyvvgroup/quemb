@@ -1156,7 +1156,7 @@ class Fragmented:
                 list(motifs) for motifs in self.frag_structure.motifs_per_frag
             ],
             origin_per_frag=origin_per_frag,
-            hlist_atom=[
+            H_per_motif=[
                 list(self.conn_data.H_per_motif.get(MotifIdx(atom), []))
                 for atom in self.conn_data.bonds_atoms
             ],
@@ -1298,7 +1298,7 @@ class Fragmented:
             ebe_weight=matched_output_no_iao.ebe_weight,
             motifs_per_frag=matched_output_no_iao.motifs_per_frag,
             origin_per_frag=matched_output_no_iao.origin_per_frag,
-            hlist_atom=matched_output_no_iao.hlist_atom,
+            H_per_motif=matched_output_no_iao.H_per_motif,
             add_center_atom=matched_output_no_iao.add_center_atom,
             n_frag=matched_output_no_iao.n_frag,
             frozen_core=self.frozen_core,
