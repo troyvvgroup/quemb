@@ -13,7 +13,7 @@ class FragPart:
     unitcell: int
     mol: Cell
     frag_type: str
-    fsites: list
+    AO_per_frag: list
     edge_sites: list
     center: list
     ebe_weight: list
@@ -28,14 +28,14 @@ class FragPart:
     iao_valence_basis: str
     kpt: list[int] | tuple[int, int, int]
 
-    Nfrag: int = field(init=False)
+    n_frag: int = field(init=False)
     ncore: int | None = field(init=False)
     no_core_idx: list[int] | None = field(init=False)
     core_list: list[int] | None = field(init=False)
 
-    @Nfrag.default
-    def _get_default_Nfrag(self) -> int:
-        return len(self.fsites)
+    @n_frag.default
+    def _get_default_n_frag(self) -> int:
+        return len(self.AO_per_frag)
 
     @ncore.default
     def _get_default_ncore(self) -> int | None:
@@ -50,7 +50,7 @@ class FragPart:
         return get_core(self.mol)[2] if self.frozen_core else None
 
     def __len__(self) -> int:
-        return self.Nfrag
+        return self.n_frag
 
 
 def fragmentate(
@@ -122,7 +122,7 @@ def fragmentate(
             raise ValueError("Provide kpt mesh in fragmentate() and restart!")
 
         (
-            fsites,
+            AO_per_frag,
             edge_sites,
             center,
             edge_idx,
@@ -151,7 +151,7 @@ def fragmentate(
             unitcell=unitcell,
             mol=mol,
             frag_type=frag_type,
-            fsites=fsites,
+            AO_per_frag=AO_per_frag,
             edge_sites=edge_sites,
             center=center,
             ebe_weight=ebe_weight,

@@ -34,7 +34,7 @@ class Frags:
 
     def __init__(
         self,
-        fsites,
+        AO_per_frag,
         ifrag,
         edge=None,
         center=None,
@@ -51,10 +51,11 @@ class Frags:
 
         Parameters
         ----------
-        fsites : list
-            list of AOs in the fragment (i.e. pbe.fsites[i] or fragpart.fsites[i])
+        AO_per_frag: list
+            list of AOs in the fragment (i.e. pbe.AO_per_frag[i]
+            or FragPart.AO_per_frag[i])
         ifrag : int
-            fragment index (∈ [0, pbe.Nfrag])
+            fragment index (∈ [0, pbe.n_frag - 1])
         edge : list, optional
             list of lists of edge site AOs for each atom in the fragment,
             by default None
@@ -76,10 +77,10 @@ class Frags:
             indices of the center site atoms in the fragment, by default None
         """
 
-        self.fsites = fsites
+        self.AO_per_frag = AO_per_frag
         self.unitcell = unitcell
         self.unitcell_nkpt = unitcell_nkpt
-        self.nfsites = len(fsites)
+        self.n_frag = len(AO_per_frag)
         self.TA = None
         self.TA_lo_eo = None
         self.h1 = None
@@ -167,7 +168,7 @@ class Frags:
         else:
             raise ValueError(f"Imaginary density in Full SD {max_val}")
 
-        Sites = [i + (nlo * 0) for i in self.fsites]
+        Sites = [i + (nlo * 0) for i in self.AO_per_frag]
         if not frag_type == "autogen":
             Sites.sort()
 
@@ -196,7 +197,7 @@ class Frags:
         for k in range(nk):
             h1_eo += multi_dot((self.TA[k].conj().T, h1[k], self.TA[k]))
         h1_eo /= float(nk)
-        e1 = 2.0 * einsum("ij,ij->i", h1_eo[: self.nfsites], rdm1_eo[: self.nfsites])
+        e1 = 2.0 * einsum("ij,ij->i", h1_eo[: self.n_frag], rdm1_eo[: self.n_frag])
         e_h1 = 0.0
         for i in self.efac[1]:
             e_h1 += self.efac[0] * e1[i]
@@ -365,7 +366,7 @@ class Frags:
             cout = self.udim
 
         if do_chempot:
-            for i, fi in enumerate(self.fsites):
+            for i, fi in enumerate(self.AO_per_frag):
                 if not any(i in sublist for sublist in self.edge_idx):
                     heff_[i, i] -= u[-1]
 
@@ -404,13 +405,13 @@ class Frags:
         unrestricted = 1.0 if unrestricted else 2.0
 
         e1 = unrestricted * einsum(
-            "ij,ij->i", self.h1[: self.nfsites], rdm_hf[: self.nfsites]
+            "ij,ij->i", self.h1[: self.n_frag], rdm_hf[: self.n_frag]
         )
 
         ec = (
             0.5
             * unrestricted
-            * einsum("ij,ij->i", self.veff[: self.nfsites], rdm_hf[: self.nfsites])
+            * einsum("ij,ij->i", self.veff[: self.n_frag], rdm_hf[: self.n_frag])
         )
 
         if self.TA.ndim == 3:
@@ -422,7 +423,7 @@ class Frags:
                 eri = r[self.dname][()]
 
         e2 = zeros_like(e1)
-        for i in range(self.nfsites):
+        for i in range(self.n_frag):
             for j in range(jmax):
                 ij = i * (i + 1) // 2 + j if i > j else j * (j + 1) // 2 + i
                 Gij = (2.0 * rdm_hf[i, j] * rdm_hf - outer(rdm_hf[i], rdm_hf[j]))[

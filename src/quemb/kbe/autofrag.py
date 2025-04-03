@@ -292,7 +292,7 @@ def autogen(
 
     Returns
     -------
-    fsites : list of list of int
+    AO_per_frag : list of list of int
         List of fragment sites where each fragment is a list of LO indices.
     edgsites : list of list of list of int
         List of edge sites for each fragment where each edge is a list of LO indices.
@@ -2349,7 +2349,7 @@ def autogen(
             cen_.append(cen.index(jx))
         center.append(cen_)
 
-    Nfrag = len(fsites)
+    n_frag = len(fsites)
     ebe_weight = []
     # Use IAO+PAO for computing energy
     for ix, i in enumerate(fsites):
@@ -2361,7 +2361,7 @@ def autogen(
     # center[[idx,jdx]] defines fragments idx,jdx who's cen[idx],cen[jdx] \\
     # centers are matched to the edges.
     center_idx = []
-    for i in range(Nfrag):
+    for i in range(n_frag):
         idx = []
         for j in center[i]:
             if not pao:
