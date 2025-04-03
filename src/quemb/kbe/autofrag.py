@@ -2337,7 +2337,8 @@ def autogen(
         ebe_weight.append([1.0, tmp_])
 
     # Center of a fragment are defined in cen[idx]
-    # center[[idx,jdx]] defines fragments idx,jdx who's cen[idx],cen[jdx] \\
+    # ref_frag_idx_per_edge[[idx,jdx]] defines
+    # fragments idx,jdx who's cen[idx],cen[jdx] \\
     # centers are matched to the edges.
     center_idx = []
     for i in range(n_frag):

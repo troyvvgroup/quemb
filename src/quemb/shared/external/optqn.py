@@ -9,6 +9,7 @@
 from numpy import array, empty, float64, outer, zeros
 from numpy.linalg import inv, norm, pinv
 
+from quemb.kbe.pfrag import Frags as pFrags
 from quemb.molbe.helper import get_eri, get_scfObj
 from quemb.molbe.pfrag import Frags
 from quemb.shared.config import settings
@@ -251,7 +252,7 @@ class FrankQN:
         return vs[0]
 
 
-def get_be_error_jacobian(n_frag, Fobjs: list[Frags], jac_solver="HF"):
+def get_be_error_jacobian(n_frag, Fobjs, jac_solver="HF"):
     Jes = [None] * n_frag
     Jcs = [None] * n_frag
     xes = [None] * n_frag
@@ -316,7 +317,7 @@ def get_be_error_jacobian(n_frag, Fobjs: list[Frags], jac_solver="HF"):
 
 
 def get_atbe_Jblock_frag(
-    fobj: Frags, res_func
+    fobj: Frags | pFrags, res_func
 ) -> tuple[Matrix[float64], Matrix[float64], list, list, list, float, int]:
     vpots = get_vpots_frag(fobj.nao, fobj.edge_idx, fobj.AO_per_frag)
     eri_ = get_eri(fobj.dname, fobj.nao, eri_file=fobj.eri_file)

@@ -573,7 +573,7 @@ class PurelyStructureFragmented:
             for i_fragment in motifs_per_frag
         ]
 
-        frag_idx_per_edge = [
+        ref_frag_idx_per_edge = [
             {edge: frag_idx(edge) for edge in edges} for edges in edges_per_frag
         ]
 
@@ -584,7 +584,7 @@ class PurelyStructureFragmented:
             centers_per_frag=list(centers_per_frag.values()),
             edges_per_frag=edges_per_frag,
             origin_per_frag=origin_per_frag,
-            frag_idx_per_edge=frag_idx_per_edge,
+            ref_frag_idx_per_edge=ref_frag_idx_per_edge,
             conn_data=conn_data,
             n_BE=n_BE,
         )
@@ -806,7 +806,7 @@ class PurelyStructureFragmented:
                 )
                 for i_frag, edges in enumerate(self.edges_per_frag)
             ],
-            frag_idx_per_edge=[
+            ref_frag_idx_per_edge=[
                 _sort_by_keys(
                     dict(edges)
                     | {
