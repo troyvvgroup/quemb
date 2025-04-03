@@ -48,7 +48,7 @@ class Frags:
         fsites : list
             list of AOs in the fragment (i.e. BE.fsites[i] or FragPart.fsites[i])
         ifrag : int
-            fragment index (∈ [0, BE.Nfrag])
+            fragment index (∈ [0, BE.Nfrag - 1])
         edge : list, optional
             list of lists of edge site AOs for each atom in the fragment,
             by default None
