@@ -57,11 +57,11 @@ pip install .
 
 ```bash
 # Molecular
-from quemb.molbe import fragpart
+from quemb.molbe import fragmentate
 from quemb.molbe import BE
 
 # Periodic
-#from quemb.kbe import fragpart
+#from quemb.kbe import fragmentate
 #from quemb.kbe import BE
 
 # Perform pyscf HF/KHF calculations

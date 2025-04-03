@@ -117,7 +117,7 @@ def fragmentate(
             fragments.frag_structure.write_geom(prefix=frag_prefix)
         if print_frags:
             print(fragments.frag_structure.get_string())
-        result = fragments.get_fragpart(
+        result = fragments.get_FragPart(
             wrong_iao_indexing=additional_args._wrong_iao_indexing
         )
     else:

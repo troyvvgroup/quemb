@@ -1108,7 +1108,7 @@ class Fragmented:
         """The number of fragments."""
         return len(self.AO_per_frag)
 
-    def _get_fragpart_no_iao(self) -> FragPart:
+    def _get_FragPart_no_iao(self) -> FragPart:
         """Transform into a :class:`quemb.molbe.autofrag.FragPart`
         for further use in quemb.
 
@@ -1169,7 +1169,7 @@ class Fragmented:
             iao_valence_only=False,
         )
 
-    def _get_fragpart_with_iao(self, wrong_iao_indexing: bool) -> FragPart:
+    def _get_FragPart_with_iao(self, wrong_iao_indexing: bool) -> FragPart:
         """Transform into a :class:`quemb.molbe.autofrag.FragPart`
         for further use in quemb.
 
@@ -1279,7 +1279,7 @@ class Fragmented:
             )
         ]
 
-        matched_output_no_iao = self._get_fragpart_no_iao()
+        matched_output_no_iao = self._get_FragPart_no_iao()
 
         # Only edge_sites, edge_idx, center_idx, and centerf_idx are actually different
         # when doing IAOs
@@ -1304,13 +1304,13 @@ class Fragmented:
             iao_valence_only=False,
         )
 
-    def get_fragpart(self, wrong_iao_indexing: bool | None = None) -> FragPart:
+    def get_FragPart(self, wrong_iao_indexing: bool | None = None) -> FragPart:
         """Match the output of :func:`quemb.molbe.autofrag.autogen`."""
         if self.iao_valence_mol is None:
-            return self._get_fragpart_no_iao()
+            return self._get_FragPart_no_iao()
         else:
             assert wrong_iao_indexing is not None
-            return self._get_fragpart_with_iao(wrong_iao_indexing)
+            return self._get_FragPart_with_iao(wrong_iao_indexing)
 
 
 def _get_AOidx_per_atom(mol: Mole, frozen_core: bool) -> list[OrderedSet[GlobalAOIdx]]:

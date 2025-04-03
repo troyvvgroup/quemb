@@ -473,9 +473,11 @@ def be2puffin(
     fobj = fragmentate(
         be_type=be_type, frag_type="autogen", mol=mol, frozen_core=frozen_core
     )
-    time_post_fragpart = time.time()
+    time_post_fragmentate = time.time()
     print(
-        "Time for fragmentation to run: ", time_post_fragpart - time_post_mf, flush=True
+        "Time for fragmentation to run: ",
+        time_post_fragmentate - time_post_mf,
+        flush=True,
     )
 
     # Run embedding setup
