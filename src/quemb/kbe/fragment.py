@@ -16,7 +16,7 @@ class FragPart:
     AO_per_frag: list
     AO_per_edge_per_frag: list
     ref_frag_idx_per_edge: list
-    ebe_weight: list
+    rel_AO_per_center_per_frag: list
     rel_AO_per_edge_per_frag: list
     other_rel_AO_per_edge_per_frag: list
     centerf_idx: list
@@ -154,7 +154,7 @@ def fragmentate(
             AO_per_frag=AO_per_frag,
             AO_per_edge_per_frag=AO_per_edge_per_frag,
             ref_frag_idx_per_edge=ref_frag_idx_per_edge,
-            ebe_weight=ebe_weight,
+            rel_AO_per_center_per_frag=ebe_weight,
             rel_AO_per_edge_per_frag=rel_AO_per_edge_per_frag,
             other_rel_AO_per_edge_per_frag=other_rel_AO_per_edge_per_frag,
             centerf_idx=centerf_idx,

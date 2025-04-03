@@ -794,7 +794,7 @@ class BE(MixinLocalize):
                     other_rel_AO_per_edge_per_frag=self.fobj.other_rel_AO_per_edge_per_frag[
                         I
                     ],
-                    efac=self.fobj.ebe_weight[I],
+                    efac=self.fobj.rel_AO_per_center_per_frag[I],
                     centerf_idx=self.fobj.centerf_idx[I],
                 )
             else:
@@ -807,7 +807,7 @@ class BE(MixinLocalize):
                     rel_AO_per_edge_per_frag=[],
                     other_rel_AO_per_edge_per_frag=[],
                     centerf_idx=[],
-                    efac=self.fobj.ebe_weight[I],
+                    efac=self.fobj.rel_AO_per_center_per_frag[I],
                 )
             fobjs_.sd(self.W, self.lmo_coeff, self.Nocc)
 

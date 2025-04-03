@@ -890,12 +890,12 @@ class Fragmented:
         Sequence[Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[OwnRelAOIdx]]]]
     ]
 
-    #: Is the complement of :attr:`rel_AO_per_edge_per_frag`.
-    #: This variable was formerly known as :python:`ebe_weight`.
-    #: Note that :python:`ebe_weight` also contained the weight
-    #: for democratic matching. This was always 1.0 in
-    #: :func:`quemb.molbe.autofrag.autogen`
-    #: so it did actually not matter.
+    #: The relative atomic orbital indices per edge per fragment.
+    #: Relative means that the AO indices are relative to
+    #: the **own** fragment.
+    #: This variable is a subset of :attr:`rel_AO_per_motif_per_frag`,
+    #: in the sense that the motif indices, the keys in the Mapping,
+    #: are restricted to the centers of the fragment.
     rel_AO_per_center_per_frag: Final[
         Sequence[Mapping[CenterIdx, Mapping[AtomIdx, OrderedSet[OwnRelAOIdx]]]]
     ]
@@ -1114,7 +1114,7 @@ class Fragmented:
 
         # We cannot use the `extract_values(self.rel_AO_per_origin_per_frag)`
         # alone, because the structure in `self.rel_AO_per_origin_per_frag`
-        # is more flexible and allows multiple origins per fragment.
+        # is more flexible than in FragPart and allows multiple origins per fragment.
         # extracting the values from this structure would give one nesting
         # level too much. We therefore need to merge over all origins,
         # (which there is usually only one per fragment).
@@ -1122,9 +1122,9 @@ class Fragmented:
             union_of_seqs(*idx_per_origin)
             for idx_per_origin in _extract_values(self.rel_AO_per_origin_per_frag)
         ]
-        # A similar issue occurs for ebe_weight, where the output
+        # A similar issue occurs for rel_AO_per_center_per_frag, where the output
         # of autogen is a union over all centers.
-        ebe_weight = [
+        rel_AO_per_center_per_frag = [
             cast(
                 list[float | list[OwnRelAOIdx]],
                 [1.0, list(union_of_seqs(*idx_per_center))],
@@ -1151,7 +1151,7 @@ class Fragmented:
                 self.other_rel_AO_per_edge_per_frag
             ),
             centerf_idx=[list(seq) for seq in centerf_idx],
-            ebe_weight=ebe_weight,
+            rel_AO_per_center_per_frag=rel_AO_per_center_per_frag,
             motifs_per_frag=[
                 list(motifs) for motifs in self.frag_structure.motifs_per_frag
             ],
@@ -1295,7 +1295,7 @@ class Fragmented:
             centerf_idx=centerf_idx,
             AO_per_frag=matched_output_no_iao.AO_per_frag,
             ref_frag_idx_per_edge=matched_output_no_iao.ref_frag_idx_per_edge,
-            ebe_weight=matched_output_no_iao.ebe_weight,
+            rel_AO_per_center_per_frag=matched_output_no_iao.rel_AO_per_center_per_frag,
             motifs_per_frag=matched_output_no_iao.motifs_per_frag,
             origin_per_frag=matched_output_no_iao.origin_per_frag,
             H_per_motif=matched_output_no_iao.H_per_motif,

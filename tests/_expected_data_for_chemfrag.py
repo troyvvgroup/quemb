@@ -26215,7 +26215,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [1.0, [0, 1, 2, 3, 4, 5]],
                 [1.0, [0, 1, 2, 3, 4, 5]],
                 [1.0, [0, 1, 2, 3, 4, 5]],
@@ -26370,7 +26370,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [1.0, [0, 1, 2, 3, 4, 5]],
                 [1.0, [0, 1, 2, 3, 4, 5]],
                 [1.0, [0, 1, 2, 3, 4, 5]],
@@ -26525,7 +26525,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 5, 6, 7],
                 [0, 1, 2, 3, 4, 5, 6, 7],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [1.0, [0, 1, 2, 3, 4, 5, 6]],
                 [1.0, [0, 1, 2, 3, 4, 5, 6]],
                 [1.0, [0, 1, 2, 3, 4, 5, 6]],
@@ -26602,7 +26602,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 5, 6, 7],
                 [0, 1, 2, 3, 4, 5, 6, 7],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [1.0, [0, 1, 2, 3, 4, 5, 6]],
                 [1.0, [0, 1, 2, 3, 4, 5, 6]],
                 [1.0, [0, 1, 2, 3, 4, 5, 6]],
@@ -27083,7 +27083,7 @@ def get_expected():
                     27,
                 ],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -28012,7 +28012,7 @@ def get_expected():
                     27,
                 ],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -28957,7 +28957,7 @@ def get_expected():
                     28,
                 ],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -29688,7 +29688,7 @@ def get_expected():
                     28,
                 ],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -30201,7 +30201,7 @@ def get_expected():
                 [0, 1, 2, 3, 13, 14, 15],
                 [0, 1, 2, 3, 13, 14, 15],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -30928,7 +30928,7 @@ def get_expected():
                 [0, 1, 2, 3, 13, 18, 23],
                 [0, 1, 2, 3, 13, 18, 23],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -31663,7 +31663,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 14, 15, 16],
                 [0, 1, 2, 3, 4, 14, 15, 16],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -32184,7 +32184,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 14, 19, 24],
                 [0, 1, 2, 3, 4, 14, 19, 24],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -32552,7 +32552,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 5],
                 [0, 1, 2, 3, 4, 5],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [1.0, [0, 1, 2, 3, 4, 5]],
                 [1.0, [0, 1, 2, 3, 4, 5]],
                 [1.0, [0, 1, 2, 3, 4, 5]],
@@ -32769,7 +32769,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 5],
                 [0, 1, 2, 3, 4, 5],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [1.0, [0, 1, 2, 3, 4, 5]],
                 [1.0, [0, 1, 2, 3, 4, 5]],
                 [1.0, [0, 1, 2, 3, 4, 5]],
@@ -33080,7 +33080,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [1.0, [0, 1, 2, 3, 4, 5, 6]],
                 [1.0, [0, 1, 2, 3, 4, 5, 6]],
                 [1.0, [0, 1, 2, 3, 4, 5, 6]],
@@ -33313,7 +33313,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [1.0, [0, 1, 2, 3, 4, 5, 6]],
                 [1.0, [0, 1, 2, 3, 4, 5, 6]],
                 [1.0, [0, 1, 2, 3, 4, 5, 6]],
@@ -34754,7 +34754,7 @@ def get_expected():
                     22,
                 ],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -36635,7 +36635,7 @@ def get_expected():
                     22,
                 ],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -38570,7 +38570,7 @@ def get_expected():
                     23,
                 ],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -40291,7 +40291,7 @@ def get_expected():
                     23,
                 ],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -41046,7 +41046,7 @@ def get_expected():
                 [0, 1, 2, 3, 13, 14],
                 [0, 1, 2, 3, 13, 14],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -42015,7 +42015,7 @@ def get_expected():
                 [0, 1, 2, 3, 13, 18],
                 [0, 1, 2, 3, 13, 18],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -43002,7 +43002,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 14, 15],
                 [0, 1, 2, 3, 4, 14, 15],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -43775,7 +43775,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 14, 19],
                 [0, 1, 2, 3, 4, 14, 19],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -44246,7 +44246,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 5],
                 [0, 1, 2, 3, 4, 5],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [1.0, [0, 1, 2, 3, 4, 5]],
                 [1.0, [0, 1, 2, 3, 4, 5]],
                 [
@@ -44571,7 +44571,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 5],
                 [0, 1, 2, 3, 4, 5],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [1.0, [0, 1, 2, 3, 4, 5]],
                 [1.0, [0, 1, 2, 3, 4, 5]],
                 [
@@ -44916,7 +44916,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [1.0, [0, 1, 2, 3, 4, 5, 6]],
                 [1.0, [0, 1, 2, 3, 4, 5, 6]],
                 [
@@ -45229,7 +45229,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [1.0, [0, 1, 2, 3, 4, 5, 6]],
                 [1.0, [0, 1, 2, 3, 4, 5, 6]],
                 [
@@ -46848,7 +46848,7 @@ def get_expected():
                     22,
                 ],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -48847,7 +48847,7 @@ def get_expected():
                     22,
                 ],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -50906,7 +50906,7 @@ def get_expected():
                     23,
                 ],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -52751,7 +52751,7 @@ def get_expected():
                     23,
                 ],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -53558,7 +53558,7 @@ def get_expected():
                 [0, 1, 2, 3, 13, 14],
                 [0, 1, 2, 3, 13, 14],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -54579,7 +54579,7 @@ def get_expected():
                 [0, 1, 2, 3, 13, 18],
                 [0, 1, 2, 3, 13, 18],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -55620,7 +55620,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 14, 15],
                 [0, 1, 2, 3, 4, 14, 15],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -56447,7 +56447,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 14, 19],
                 [0, 1, 2, 3, 4, 14, 19],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -56841,7 +56841,7 @@ def get_expected():
                 [[0, 1, 2, 3, 4, 5], [6, 7, 8, 9, 10, 11], [12, 13, 14, 15, 16, 17]],
             ],
             centerf_idx=[[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -57146,7 +57146,7 @@ def get_expected():
                 [[0, 1, 2, 3, 4, 5], [6, 7, 8, 9, 10, 11], [12, 13, 14, 15, 16, 17]],
             ],
             centerf_idx=[[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -57473,7 +57473,7 @@ def get_expected():
                 ],
             ],
             centerf_idx=[[0, 1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5, 6]],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -57730,7 +57730,7 @@ def get_expected():
                 ],
             ],
             centerf_idx=[[0, 1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5, 6]],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -58702,7 +58702,7 @@ def get_expected():
                     22,
                 ],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -60032,7 +60032,7 @@ def get_expected():
                     22,
                 ],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -61396,7 +61396,7 @@ def get_expected():
                     23,
                 ],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -62546,7 +62546,7 @@ def get_expected():
                     23,
                 ],
             ],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -63179,7 +63179,7 @@ def get_expected():
                 ],
             ],
             centerf_idx=[[0, 1, 2, 3, 13, 14], [0, 1, 2, 3, 13, 14]],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -64026,7 +64026,7 @@ def get_expected():
                 ],
             ],
             centerf_idx=[[0, 1, 2, 3, 13, 18], [0, 1, 2, 3, 13, 18]],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -64887,7 +64887,7 @@ def get_expected():
                 ],
             ],
             centerf_idx=[[0, 1, 2, 3, 4, 14, 15], [0, 1, 2, 3, 4, 14, 15]],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
@@ -65534,7 +65534,7 @@ def get_expected():
                 ],
             ],
             centerf_idx=[[0, 1, 2, 3, 4, 14, 19], [0, 1, 2, 3, 4, 14, 19]],
-            ebe_weight=[
+            rel_AO_per_center_per_frag=[
                 [
                     1.0,
                     [
