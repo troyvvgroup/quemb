@@ -167,42 +167,42 @@ class FragmentMap:
 
     Parameters
     ----------
-    fsites:
+    fsites :
         List whose entries are sequences (tuple or list) containing
         all AO indices for a fragment.
-    fs:
+    fs :
         List whose entries are sequences of sequences, containing AO indices per atom
         per fragment.
-    edge:
+    edge_sites :
         List whose entries are sequences of sequences, containing edge AO
         indices per atom (inner tuple) per fragment (outer tuple).
-    center:
+    center :
         List whose entries are sequences of sequences, containing all fragment AO
         indices per atom (inner tuple) and per fragment (outer tuple).
-    centerf_idx:
+    centerf_idx :
         List whose entries are sequences containing the relative AO index of the
         origin site within a fragment.
         Relative is to the own fragment; since the origin site is at the beginning
         of the motif list for each fragment, this is always a Sequence
         :python:`range(0, n)`.
-    ebe_weights:
+    ebe_weight :
         Weights determining the energy contributions from each center site
         (ie, with respect to centerf_idx).
-    sites:
+    sites :
         List whose entries are sequences containing all AO indices per atom
         (excluding frozen core indices, if applicable).
-    dnames:
+    dnames :
         List of strings giving fragment data names. Useful for bookkeeping and
         for constructing fragment scratch directories.
-    fragment_atoms:
+    Frag_atom :
         List whose entries are sequences containing all atom indices for a fragment.
-    center_atoms:
+    center_atom :
         List whose entries are sequences giving the center atom indices per fragment.
-    edge_atoms:
+    edge_atoms :
         List whose entries are sequences giving the edge atom indices per fragment.
-    adjacency_mat:
+    adjacency_mat :
         The adjacency matrix for all sites (atoms) in the system.
-    adjacency_graph:
+    adjacency_graph :
         The adjacency graph corresponding to `adjacency_mat`.
     """
 
