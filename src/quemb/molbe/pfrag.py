@@ -30,7 +30,7 @@ class Frags:
 
     def __init__(
         self,
-        fsites,
+        AO_per_frag,
         ifrag,
         edge=None,
         center=None,
@@ -45,10 +45,11 @@ class Frags:
 
         Parameters
         ----------
-        fsites : list
-            list of AOs in the fragment (i.e. BE.fsites[i] or FragPart.fsites[i])
+        AO_per_frag : list
+            list of AOs in the fragment (i.e. ``BE.AO_per_frag[i]``
+            or ``FragPart.AO_per_frag[i]``)
         ifrag : int
-            fragment index (∈ [0, BE.Nfrag - 1])
+            fragment index (∈ [0, BE.n_frag - 1])
         edge : list, optional
             list of lists of edge site AOs for each atom in the fragment,
             by default None
@@ -71,8 +72,8 @@ class Frags:
             unrestricted calculation, by default False
         """
 
-        self.fsites = fsites
-        self.nfsites = len(fsites)
+        self.AO_per_frag = AO_per_frag
+        self.n_frag = len(AO_per_frag)
         self.TA = None
         self.TA_lo_eo = None
         self.h1 = None
@@ -143,10 +144,14 @@ class Frags:
 
         if return_orb_count:
             TA, n_f, n_b = schmidt_decomposition(
-                lmo, nocc, self.fsites, norb=norb, return_orb_count=return_orb_count
+                lmo,
+                nocc,
+                self.AO_per_frag,
+                norb=norb,
+                return_orb_count=return_orb_count,
             )
         else:
-            TA = schmidt_decomposition(lmo, nocc, self.fsites)
+            TA = schmidt_decomposition(lmo, nocc, self.AO_per_frag)
         self.C_lo_eo = TA
         TA = lao @ TA
         self.nao = TA.shape[1]
@@ -283,7 +288,7 @@ class Frags:
         if cout is None:
             cout = self.udim
 
-        for i, fi in enumerate(self.fsites):
+        for i, fi in enumerate(self.AO_per_frag):
             if not any(i in sublist for sublist in self.edge_idx):
                 heff_[i, i] -= u[-1]
 
@@ -331,13 +336,13 @@ class Frags:
         unrestricted_fac = 1.0 if unrestricted else 2.0
 
         e1 = unrestricted_fac * einsum(
-            "ij,ij->i", self.h1[: self.nfsites], rdm_hf[: self.nfsites]
+            "ij,ij->i", self.h1[: self.n_frag], rdm_hf[: self.n_frag]
         )
 
         ec = (
             0.5
             * unrestricted_fac
-            * einsum("ij,ij->i", self.veff[: self.nfsites], rdm_hf[: self.nfsites])
+            * einsum("ij,ij->i", self.veff[: self.n_frag], rdm_hf[: self.n_frag])
         )
 
         if self.TA.ndim == 3:
@@ -352,7 +357,7 @@ class Frags:
                     eri = r[self.dname][()]
 
         e2 = zeros_like(e1)
-        for i in range(self.nfsites):
+        for i in range(self.n_frag):
             for j in range(jmax):
                 ij = i * (i + 1) // 2 + j if i > j else j * (j + 1) // 2 + i
                 Gij = (2.0 * rdm_hf[i, j] * rdm_hf - outer(rdm_hf[i], rdm_hf[j]))[

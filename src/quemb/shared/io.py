@@ -32,7 +32,7 @@ def write_cube(
     if not isinstance(be_object, molbe.BE):
         raise NotImplementedError("Support for Periodic BE not implemented yet.")
     if fragment_idx is None:
-        fragment_idx = range(be_object.fobj.Nfrag)
+        fragment_idx = range(be_object.fobj.n_frag)
     for idx in fragment_idx:
         for emb_orb_idx in range(be_object.Fobjs[idx].TA.shape[1]):
             orbital(

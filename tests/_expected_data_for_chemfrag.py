@@ -26191,7 +26191,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
             n_BE=1,
-            fsites=[
+            AO_per_frag=[
                 [0, 1, 2, 3, 9, 11],
                 [4, 5, 6, 7, 8, 10],
                 [12, 13, 14, 15, 20, 22],
@@ -26259,7 +26259,7 @@ def get_expected():
             frozen_core=True,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=8,
+            n_frag=8,
             ncore=8,
             no_core_idx=[
                 1,
@@ -26346,7 +26346,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
             n_BE=1,
-            fsites=[
+            AO_per_frag=[
                 [0, 1, 2, 3, 9, 11],
                 [4, 5, 6, 7, 8, 10],
                 [12, 13, 14, 15, 20, 22],
@@ -26414,7 +26414,7 @@ def get_expected():
             frozen_core=True,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=8,
+            n_frag=8,
             ncore=8,
             no_core_idx=[
                 1,
@@ -26501,7 +26501,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
             n_BE=1,
-            fsites=[
+            AO_per_frag=[
                 [0, 1, 2, 3, 4, 11, 13],
                 [5, 6, 7, 8, 9, 10, 12],
                 [14, 15, 16, 17, 18, 24, 26],
@@ -26569,7 +26569,7 @@ def get_expected():
             frozen_core=False,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=8,
+            n_frag=8,
             ncore=None,
             no_core_idx=None,
             core_list=None,
@@ -26578,7 +26578,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
             n_BE=1,
-            fsites=[
+            AO_per_frag=[
                 [0, 1, 2, 3, 4, 11, 13],
                 [5, 6, 7, 8, 9, 10, 12],
                 [14, 15, 16, 17, 18, 24, 26],
@@ -26646,7 +26646,7 @@ def get_expected():
             frozen_core=False,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=8,
+            n_frag=8,
             ncore=None,
             no_core_idx=None,
             core_list=None,
@@ -26655,7 +26655,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=1,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -27353,7 +27353,7 @@ def get_expected():
             frozen_core=True,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=8,
+            n_frag=8,
             ncore=8,
             no_core_idx=[
                 1,
@@ -27584,7 +27584,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=1,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -28282,7 +28282,7 @@ def get_expected():
             frozen_core=True,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=8,
+            n_frag=8,
             ncore=8,
             no_core_idx=[
                 1,
@@ -28513,7 +28513,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=1,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -29235,7 +29235,7 @@ def get_expected():
             frozen_core=False,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=8,
+            n_frag=8,
             ncore=None,
             no_core_idx=None,
             core_list=None,
@@ -29244,7 +29244,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=1,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -29966,7 +29966,7 @@ def get_expected():
             frozen_core=False,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=8,
+            n_frag=8,
             ncore=None,
             no_core_idx=None,
             core_list=None,
@@ -29975,7 +29975,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=1,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -30471,7 +30471,7 @@ def get_expected():
             frozen_core=True,
             iao_valence_basis="sto-3g",
             iao_valence_only=False,
-            Nfrag=8,
+            n_frag=8,
             ncore=8,
             no_core_idx=[
                 1,
@@ -30702,7 +30702,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=1,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -31198,7 +31198,7 @@ def get_expected():
             frozen_core=True,
             iao_valence_basis="sto-3g",
             iao_valence_only=False,
-            Nfrag=8,
+            n_frag=8,
             ncore=8,
             no_core_idx=[
                 1,
@@ -31429,7 +31429,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=1,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -31941,7 +31941,7 @@ def get_expected():
             frozen_core=False,
             iao_valence_basis="sto-3g",
             iao_valence_only=False,
-            Nfrag=8,
+            n_frag=8,
             ncore=None,
             no_core_idx=None,
             core_list=None,
@@ -31950,7 +31950,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=1,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -32462,7 +32462,7 @@ def get_expected():
             frozen_core=False,
             iao_valence_basis="sto-3g",
             iao_valence_only=False,
-            Nfrag=8,
+            n_frag=8,
             ncore=None,
             no_core_idx=None,
             core_list=None,
@@ -32471,7 +32471,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
             n_BE=2,
-            fsites=[
+            AO_per_frag=[
                 [0, 1, 2, 3, 9, 11, 4, 5, 6, 7, 8, 10, 16, 17, 18, 19, 21, 23],
                 [4, 5, 6, 7, 8, 10, 0, 1, 2, 3, 9, 11, 12, 13, 14, 15, 20, 22],
                 [12, 13, 14, 15, 20, 22, 4, 5, 6, 7, 8, 10, 24, 25, 26, 27, 32, 34],
@@ -32601,7 +32601,7 @@ def get_expected():
             frozen_core=True,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=6,
+            n_frag=6,
             ncore=8,
             no_core_idx=[
                 1,
@@ -32688,7 +32688,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
             n_BE=2,
-            fsites=[
+            AO_per_frag=[
                 [0, 1, 2, 3, 9, 11, 4, 5, 6, 7, 8, 10, 16, 17, 18, 19, 21, 23],
                 [4, 5, 6, 7, 8, 10, 0, 1, 2, 3, 9, 11, 12, 13, 14, 15, 20, 22],
                 [12, 13, 14, 15, 20, 22, 4, 5, 6, 7, 8, 10, 24, 25, 26, 27, 32, 34],
@@ -32818,7 +32818,7 @@ def get_expected():
             frozen_core=True,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=6,
+            n_frag=6,
             ncore=8,
             no_core_idx=[
                 1,
@@ -32905,7 +32905,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
             n_BE=2,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -33129,7 +33129,7 @@ def get_expected():
             frozen_core=False,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=6,
+            n_frag=6,
             ncore=None,
             no_core_idx=None,
             core_list=None,
@@ -33138,7 +33138,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
             n_BE=2,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -33362,7 +33362,7 @@ def get_expected():
             frozen_core=False,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=6,
+            n_frag=6,
             ncore=None,
             no_core_idx=None,
             core_list=None,
@@ -33371,7 +33371,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=2,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -35021,7 +35021,7 @@ def get_expected():
             frozen_core=True,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=6,
+            n_frag=6,
             ncore=8,
             no_core_idx=[
                 1,
@@ -35252,7 +35252,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=2,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -36902,7 +36902,7 @@ def get_expected():
             frozen_core=True,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=6,
+            n_frag=6,
             ncore=8,
             no_core_idx=[
                 1,
@@ -37133,7 +37133,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=2,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -38845,7 +38845,7 @@ def get_expected():
             frozen_core=False,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=6,
+            n_frag=6,
             ncore=None,
             no_core_idx=None,
             core_list=None,
@@ -38854,7 +38854,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=2,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -40566,7 +40566,7 @@ def get_expected():
             frozen_core=False,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=6,
+            n_frag=6,
             ncore=None,
             no_core_idx=None,
             core_list=None,
@@ -40575,7 +40575,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=2,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -41313,7 +41313,7 @@ def get_expected():
             frozen_core=True,
             iao_valence_basis="sto-3g",
             iao_valence_only=False,
-            Nfrag=6,
+            n_frag=6,
             ncore=8,
             no_core_idx=[
                 1,
@@ -41544,7 +41544,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=2,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -42282,7 +42282,7 @@ def get_expected():
             frozen_core=True,
             iao_valence_basis="sto-3g",
             iao_valence_only=False,
-            Nfrag=6,
+            n_frag=6,
             ncore=8,
             no_core_idx=[
                 1,
@@ -42513,7 +42513,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=2,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -43277,7 +43277,7 @@ def get_expected():
             frozen_core=False,
             iao_valence_basis="sto-3g",
             iao_valence_only=False,
-            Nfrag=6,
+            n_frag=6,
             ncore=None,
             no_core_idx=None,
             core_list=None,
@@ -43286,7 +43286,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=2,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -44050,7 +44050,7 @@ def get_expected():
             frozen_core=False,
             iao_valence_basis="sto-3g",
             iao_valence_only=False,
-            Nfrag=6,
+            n_frag=6,
             ncore=None,
             no_core_idx=None,
             core_list=None,
@@ -44059,7 +44059,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
             n_BE=3,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -44297,7 +44297,7 @@ def get_expected():
             frozen_core=True,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=4,
+            n_frag=4,
             ncore=8,
             no_core_idx=[
                 1,
@@ -44384,7 +44384,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
             n_BE=3,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -44622,7 +44622,7 @@ def get_expected():
             frozen_core=True,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=4,
+            n_frag=4,
             ncore=8,
             no_core_idx=[
                 1,
@@ -44709,7 +44709,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
             n_BE=3,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -45013,7 +45013,7 @@ def get_expected():
             frozen_core=False,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=4,
+            n_frag=4,
             ncore=None,
             no_core_idx=None,
             core_list=None,
@@ -45022,7 +45022,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
             n_BE=3,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -45326,7 +45326,7 @@ def get_expected():
             frozen_core=False,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=4,
+            n_frag=4,
             ncore=None,
             no_core_idx=None,
             core_list=None,
@@ -45335,7 +45335,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=3,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -47103,7 +47103,7 @@ def get_expected():
             frozen_core=True,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=4,
+            n_frag=4,
             ncore=8,
             no_core_idx=[
                 1,
@@ -47334,7 +47334,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=3,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -49102,7 +49102,7 @@ def get_expected():
             frozen_core=True,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=4,
+            n_frag=4,
             ncore=8,
             no_core_idx=[
                 1,
@@ -49333,7 +49333,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=3,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -51169,7 +51169,7 @@ def get_expected():
             frozen_core=False,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=4,
+            n_frag=4,
             ncore=None,
             no_core_idx=None,
             core_list=None,
@@ -51178,7 +51178,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=3,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -53014,7 +53014,7 @@ def get_expected():
             frozen_core=False,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=4,
+            n_frag=4,
             ncore=None,
             no_core_idx=None,
             core_list=None,
@@ -53023,7 +53023,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=3,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -53813,7 +53813,7 @@ def get_expected():
             frozen_core=True,
             iao_valence_basis="sto-3g",
             iao_valence_only=False,
-            Nfrag=4,
+            n_frag=4,
             ncore=8,
             no_core_idx=[
                 1,
@@ -54044,7 +54044,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=3,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -54834,7 +54834,7 @@ def get_expected():
             frozen_core=True,
             iao_valence_basis="sto-3g",
             iao_valence_only=False,
-            Nfrag=4,
+            n_frag=4,
             ncore=8,
             no_core_idx=[
                 1,
@@ -55065,7 +55065,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=3,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -55883,7 +55883,7 @@ def get_expected():
             frozen_core=False,
             iao_valence_basis="sto-3g",
             iao_valence_only=False,
-            Nfrag=4,
+            n_frag=4,
             ncore=None,
             no_core_idx=None,
             core_list=None,
@@ -55892,7 +55892,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=3,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -56710,7 +56710,7 @@ def get_expected():
             frozen_core=False,
             iao_valence_basis="sto-3g",
             iao_valence_only=False,
-            Nfrag=4,
+            n_frag=4,
             ncore=None,
             no_core_idx=None,
             core_list=None,
@@ -56719,7 +56719,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
             n_BE=4,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -56937,7 +56937,7 @@ def get_expected():
             frozen_core=True,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=2,
+            n_frag=2,
             ncore=8,
             no_core_idx=[
                 1,
@@ -57024,7 +57024,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
             n_BE=4,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -57242,7 +57242,7 @@ def get_expected():
             frozen_core=True,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=2,
+            n_frag=2,
             ncore=8,
             no_core_idx=[
                 1,
@@ -57329,7 +57329,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
             n_BE=4,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -57577,7 +57577,7 @@ def get_expected():
             frozen_core=False,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=2,
+            n_frag=2,
             ncore=None,
             no_core_idx=None,
             core_list=None,
@@ -57586,7 +57586,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
             n_BE=4,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -57834,7 +57834,7 @@ def get_expected():
             frozen_core=False,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=2,
+            n_frag=2,
             ncore=None,
             no_core_idx=None,
             core_list=None,
@@ -57843,7 +57843,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=4,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -58942,7 +58942,7 @@ def get_expected():
             frozen_core=True,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=2,
+            n_frag=2,
             ncore=8,
             no_core_idx=[
                 1,
@@ -59173,7 +59173,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=4,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -60272,7 +60272,7 @@ def get_expected():
             frozen_core=True,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=2,
+            n_frag=2,
             ncore=8,
             no_core_idx=[
                 1,
@@ -60503,7 +60503,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=4,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -61644,7 +61644,7 @@ def get_expected():
             frozen_core=False,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=2,
+            n_frag=2,
             ncore=None,
             no_core_idx=None,
             core_list=None,
@@ -61653,7 +61653,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=4,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -62794,7 +62794,7 @@ def get_expected():
             frozen_core=False,
             iao_valence_basis=None,
             iao_valence_only=False,
-            Nfrag=2,
+            n_frag=2,
             ncore=None,
             no_core_idx=None,
             core_list=None,
@@ -62803,7 +62803,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=4,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -63419,7 +63419,7 @@ def get_expected():
             frozen_core=True,
             iao_valence_basis="sto-3g",
             iao_valence_only=False,
-            Nfrag=2,
+            n_frag=2,
             ncore=8,
             no_core_idx=[
                 1,
@@ -63650,7 +63650,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=4,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -64266,7 +64266,7 @@ def get_expected():
             frozen_core=True,
             iao_valence_basis="sto-3g",
             iao_valence_only=False,
-            Nfrag=2,
+            n_frag=2,
             ncore=8,
             no_core_idx=[
                 1,
@@ -64497,7 +64497,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=4,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -65135,7 +65135,7 @@ def get_expected():
             frozen_core=False,
             iao_valence_basis="sto-3g",
             iao_valence_only=False,
-            Nfrag=2,
+            n_frag=2,
             ncore=None,
             no_core_idx=None,
             core_list=None,
@@ -65144,7 +65144,7 @@ def get_expected():
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
             n_BE=4,
-            fsites=[
+            AO_per_frag=[
                 [
                     0,
                     1,
@@ -65782,7 +65782,7 @@ def get_expected():
             frozen_core=False,
             iao_valence_basis="sto-3g",
             iao_valence_only=False,
-            Nfrag=2,
+            n_frag=2,
             ncore=None,
             no_core_idx=None,
             core_list=None,

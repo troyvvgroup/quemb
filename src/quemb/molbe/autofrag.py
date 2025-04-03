@@ -48,7 +48,7 @@ class FragPart:
 
     #: This is a list over fragments  and gives the global orbital indices of all atoms
     #: in the fragment. These are ordered by the atoms in the fragment.
-    fsites: ListOverFrag[list[GlobalAOIdx]]
+    AO_per_frag: ListOverFrag[list[GlobalAOIdx]]
 
     #: The global orbital indices, including hydrogens, per edge per fragment.
     edge_sites: ListOverFrag[ListOverEdge[list[GlobalAOIdx]]]
@@ -109,14 +109,14 @@ class FragPart:
     #: This is an experimental feature.
     iao_valence_only: bool
 
-    Nfrag: int = field()
+    n_frag: int = field()
     ncore: int | None = field()
     no_core_idx: list[int] | None = field()
     core_list: list[int] | None = field()
 
-    @Nfrag.default
-    def _get_default_Nfrag(self) -> int:
-        return len(self.fsites)
+    @n_frag.default
+    def _get_default_n_frag(self) -> int:
+        return len(self.AO_per_frag)
 
     @ncore.default
     def _get_default_ncore(self) -> int | None:
@@ -131,7 +131,7 @@ class FragPart:
         return get_core(self.mol)[2] if self.frozen_core else None
 
     def __len__(self) -> int:
-        return self.Nfrag
+        return self.n_frag
 
 
 @define(frozen=True, kw_only=True)
@@ -167,7 +167,7 @@ class FragmentMap:
 
     Parameters
     ----------
-    fsites :
+    AO_per_frag:
         List whose entries are sequences (tuple or list) containing
         all AO indices for a fragment.
     fs :
@@ -206,7 +206,7 @@ class FragmentMap:
         The adjacency graph corresponding to `adjacency_mat`.
     """
 
-    fsites: list[Sequence[int]]
+    AO_per_frag: list[Sequence[int]]
     fs: list[Sequence[Sequence[int]]]
     edge_sites: list[Sequence[Sequence[int]]]
     center: list[Sequence[int]]
@@ -235,8 +235,8 @@ class FragmentMap:
         """
         for _ in range(0, natm):
             subsets = set()
-            for adx, basa in enumerate(self.fsites):
-                for bdx, basb in enumerate(self.fsites):
+            for adx, basa in enumerate(self.AO_per_frag):
+                for bdx, basb in enumerate(self.AO_per_frag):
                     if adx == bdx:
                         pass
                     elif set(basb).issubset(set(basa)):
@@ -257,7 +257,7 @@ class FragmentMap:
                 sorted_subsets = sorted(subsets, reverse=True)
                 for bdx in sorted_subsets:
                     del self.center[bdx]
-                    del self.fsites[bdx]
+                    del self.AO_per_frag[bdx]
                     del self.fs[bdx]
                     del self.center_atom[bdx]
                     del self.Frag_atom[bdx]
@@ -274,7 +274,7 @@ class FragmentMap:
             edge_idx=MISSING,
             center_idx=MISSING,
             centerf_idx=self.centerf_idx,  # type: ignore[arg-type]
-            fsites=self.fsites,  # type: ignore[arg-type]
+            AO_per_frag=self.AO_per_frag,  # type: ignore[arg-type]
             center=self.center,  # type: ignore[arg-type]
             ebe_weight=self.ebe_weight,  # type: ignore[arg-type]
             Frag_atom=self.Frag_atom,  # type: ignore[arg-type]
@@ -370,7 +370,7 @@ def graphgen(
     }
 
     fragment_map = FragmentMap(
-        fsites=(list(tuple())),
+        AO_per_frag=(list(tuple())),
         fs=list(tuple(tuple())),
         edge_sites=list(tuple(tuple())),
         center=list(tuple()),
@@ -425,7 +425,7 @@ def graphgen(
         for adx, map in adx_map.items():
             fragment_map.center_atom.append((adx,))
             fragment_map.center.append(deepcopy(fragment_map.sites[adx]))
-            fsites_temp = deepcopy(list(fragment_map.sites[adx]))
+            AO_per_frag_tmp = deepcopy(list(fragment_map.sites[adx]))
             fatoms_temp = [adx]
             fs_temp = []
             fs_temp.append(deepcopy(fragment_map.sites[adx]))
@@ -451,11 +451,13 @@ def graphgen(
             # the set of fragment sites for adx.
             for bdx, path in map["shortest_paths"].items():
                 if 0 < (len(path) - 1) < n_BE:
-                    fsites_temp = fsites_temp + deepcopy(list(fragment_map.sites[bdx]))
+                    AO_per_frag_tmp = AO_per_frag_tmp + deepcopy(
+                        list(fragment_map.sites[bdx])
+                    )
                     fs_temp.append(deepcopy(fragment_map.sites[bdx]))
                     fatoms_temp.append(bdx)
 
-            fragment_map.fsites.append(tuple(fsites_temp))
+            fragment_map.AO_per_frag.append(tuple(AO_per_frag_tmp))
             fragment_map.fs.append(tuple(fs_temp))
             fragment_map.Frag_atom.append(tuple(fatoms_temp))
 
@@ -493,7 +495,7 @@ def graphgen(
     # Update relative center site indices (centerf_idx) and weights
     # for center site contributions to the energy (ebe_weights):
     for adx, center in enumerate(fragment_map.center):
-        centerf_idx = tuple(fragment_map.fsites[adx].index(cdx) for cdx in center)
+        centerf_idx = tuple(fragment_map.AO_per_frag[adx].index(cdx) for cdx in center)
         fragment_map.centerf_idx.append(centerf_idx)
         fragment_map.ebe_weight.append((1.0, tuple(centerf_idx)))
 
@@ -837,7 +839,7 @@ def autogen(
             b1list = [i for i in range(startH, stopH)]
             hsites[hdx].extend(b1list)
 
-    fsites = []
+    AO_per_frag = []
     edge_sites = []
     edge_idx = []
     centerf_idx = []
@@ -904,7 +906,7 @@ def autogen(
             edge.append(edg)
             edge_sites.append(ftmpe)
             edge_idx.append(edind)
-        fsites.append(ftmp)
+        AO_per_frag.append(ftmp)
     center = []
     for ix in edge:
         cen_ = []
@@ -918,13 +920,13 @@ def autogen(
 
         center.append(cen_)
 
-    Nfrag = len(fsites)
+    n_frag = len(AO_per_frag)
 
-    add_center_atom = [[] for x in range(Nfrag)]  # additional centers for mixed-basis
+    add_center_atom = [[] for x in range(n_frag)]  # additional centers for mixed-basis
     ebe_weight = []
 
     # Compute weights for each fragment
-    for ix, i in enumerate(fsites):
+    for ix, i in enumerate(AO_per_frag):
         tmp_ = [i.index(pq) for pq in sites__[center_atom[ix]]]
         tmp_.extend([i.index(pq) for pq in hsites[center_atom[ix]]])
         if ix in open_frag:
@@ -937,7 +939,7 @@ def autogen(
 
     center_idx = []
     if n_BE != 1:
-        for i in range(Nfrag):
+        for i in range(n_frag):
             idx = []
             for jdx, j in enumerate(center[i]):
                 jdx_continue = False
@@ -948,7 +950,9 @@ def autogen(
                                 if not pao:
                                     cntlist = sites__[open_frag_cen[kdx]].copy()
                                     cntlist.extend(hsites[open_frag_cen[kdx]])
-                                    idx.append([fsites[j].index(k) for k in cntlist])
+                                    idx.append(
+                                        [AO_per_frag[j].index(k) for k in cntlist]
+                                    )
                                 else:
                                     cntlist = sites__[open_frag_cen[kdx]].copy()[
                                         : nbas2[center_atom[j]]
@@ -958,7 +962,9 @@ def autogen(
                                             : nbas2H[center_atom[j]]
                                         ]
                                     )
-                                    idx.append([fsites[j].index(k) for k in cntlist])
+                                    idx.append(
+                                        [AO_per_frag[j].index(k) for k in cntlist]
+                                    )
                                 jdx_continue = True
                                 break
 
@@ -967,11 +973,11 @@ def autogen(
                 if not pao:
                     cntlist = sites__[center_atom[j]].copy()
                     cntlist.extend(hsites[center_atom[j]])
-                    idx.append([fsites[j].index(k) for k in cntlist])
+                    idx.append([AO_per_frag[j].index(k) for k in cntlist])
                 else:
                     cntlist = sites__[center_atom[j]].copy()[: nbas2[center_atom[j]]]
                     cntlist.extend(hsites[center_atom[j]][: nbas2H[center_atom[j]]])
-                    idx.append([fsites[j].index(k) for k in cntlist])
+                    idx.append([AO_per_frag[j].index(k) for k in cntlist])
 
             center_idx.append(idx)
 
@@ -979,7 +985,7 @@ def autogen(
         mol=mol,
         frag_type="autogen",
         n_BE=n_BE,
-        fsites=fsites,
+        AO_per_frag=AO_per_frag,
         edge_sites=edge_sites,
         center=center,
         edge_idx=edge_idx,

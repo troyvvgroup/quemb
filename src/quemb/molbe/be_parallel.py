@@ -40,7 +40,7 @@ def run_solver(
     dname: str,
     nao: int,
     nocc: int,
-    nfsites: int,
+    n_frag: int,
     efac: float,
     TA: Matrix[float64],
     h1_e: Matrix[float64],
@@ -77,7 +77,7 @@ def run_solver(
         Number of atomic orbitals.
     nocc :
         Number of occupied orbitals.
-    nfsites :
+    n_frag :
         Number of fragment sites.
     efac :
         Scaling factor for the electronic energy.
@@ -253,7 +253,7 @@ def run_solver(
         e_f = get_frag_energy(
             mf_.mo_coeff,
             nocc,
-            nfsites,
+            n_frag,
             efac,
             TA,
             h1_e,
@@ -311,7 +311,6 @@ def run_solver_u(
     float
         As implemented, only returns the UCCSD fragment energy
     """
-    print("obj type", type(fobj_a))
     # Run SCF for alpha and beta spins
     fobj_a.scf(unrestricted=True, spin_ind=0)
     fobj_b.scf(unrestricted=True, spin_ind=1)
@@ -367,7 +366,7 @@ def run_solver_u(
         e_f = get_frag_energy_u(
             (fobj_a._mo_coeffs, fobj_b._mo_coeffs),
             (fobj_a.nsocc, fobj_b.nsocc),
-            (fobj_a.nfsites, fobj_b.nfsites),
+            (fobj_a.n_frag, fobj_b.n_frag),
             (fobj_a.efac, fobj_b.efac),
             (fobj_a.TA, fobj_b.TA),
             h1_ab,
@@ -469,7 +468,7 @@ def be_func_parallel(
                     fobj.dname,
                     fobj.nao,
                     fobj.nsocc,
-                    fobj.nfsites,
+                    fobj.n_frag,
                     fobj.efac,
                     fobj.TA,
                     fobj.h1,

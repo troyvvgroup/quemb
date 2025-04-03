@@ -175,7 +175,7 @@ class BE(MixinLocalize):
 
         self.print_ini()
         self.Fobjs: list[Frags] = []
-        self.pot = initialize_pot(self.fobj.Nfrag, self.fobj.edge_idx)
+        self.pot = initialize_pot(self.fobj.n_frag, self.fobj.edge_idx)
 
         if scratch_dir is None:
             self.scratch_dir = WorkDir.from_environment()
@@ -343,7 +343,7 @@ class BE(MixinLocalize):
                 fobjs.rdm2__ -= dm_nc
 
             # Generate the projection matrix
-            cind = [fobjs.fsites[i] for i in fobjs.efac[1]]
+            cind = [fobjs.AO_per_frag[i] for i in fobjs.efac[1]]
             Pc_ = (
                 fobjs.TA.T
                 @ self.S
@@ -740,7 +740,7 @@ class BE(MixinLocalize):
 
     @copy_docstring(_ext_get_be_error_jacobian)
     def get_be_error_jacobian(self, jac_solver: str = "HF") -> Matrix[floating]:
-        return _ext_get_be_error_jacobian(self.fobj.Nfrag, self.Fobjs, jac_solver)
+        return _ext_get_be_error_jacobian(self.fobj.n_frag, self.Fobjs, jac_solver)
 
     def print_ini(self):
         """
@@ -782,10 +782,10 @@ class BE(MixinLocalize):
         if not restart:
             file_eri = h5py.File(self.eri_file, "w")
         lentmp = len(self.fobj.edge_idx)
-        for I in range(self.fobj.Nfrag):
+        for I in range(self.fobj.n_frag):
             if lentmp:
                 fobjs_ = Frags(
-                    self.fobj.fsites[I],
+                    self.fobj.AO_per_frag[I],
                     I,
                     edge=self.fobj.edge_sites[I],
                     eri_file=self.eri_file,
@@ -797,7 +797,7 @@ class BE(MixinLocalize):
                 )
             else:
                 fobjs_ = Frags(
-                    self.fobj.fsites[I],
+                    self.fobj.AO_per_frag[I],
                     I,
                     edge=[],
                     center=[],
@@ -830,13 +830,13 @@ class BE(MixinLocalize):
             if (
                 eri_ is not None
             ):  # incore ao2mo using saved eri from mean-field calculation
-                for I in range(self.fobj.Nfrag):
+                for I in range(self.fobj.n_frag):
                     eri = ao2mo.incore.full(eri_, self.Fobjs[I].TA, compact=True)
                     file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
             elif hasattr(self.mf, "with_df") and self.mf.with_df is not None:
                 # pyscf.ao2mo uses DF object in an outcore fashion using (ij|P)
                 #   in pyscf temp directory
-                for I in range(self.fobj.Nfrag):
+                for I in range(self.fobj.n_frag):
                     eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)
                     file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
             else:
@@ -1012,19 +1012,19 @@ class BE(MixinLocalize):
                 fobj.heff = filepot.get(fobj.dname)
 
 
-def initialize_pot(Nfrag, edge_idx):
+def initialize_pot(n_frag, edge_idx):
     """
     Initialize the potential array for bootstrap embedding.
 
     This function initializes a potential array for a given number of fragments
-    (:python:`Nfrag`) and their corresponding edge indices (:python:`edge_idx`).
+    (:python:`n_frag`) and their corresponding edge indices (:python:`edge_idx`).
     The potential array is initialized with zeros for each pair of edge site indices
     within each fragment, followed by an
     additional zero for the global chemical potential.
 
     Parameters
     ----------
-    Nfrag : int
+    n_frag: int
         Number of fragments.
     edge_idx : list of list of list of int
         List of edge indices for each fragment. Each element is a list of lists,
@@ -1038,7 +1038,7 @@ def initialize_pot(Nfrag, edge_idx):
     pot_ = []
 
     if not len(edge_idx) == 0:
-        for I in range(Nfrag):
+        for I in range(n_frag):
             for i in edge_idx[I]:
                 for j in range(len(i)):
                     for k in range(len(i)):

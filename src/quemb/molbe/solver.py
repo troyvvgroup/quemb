@@ -481,7 +481,7 @@ def be_func(
             e_f = get_frag_energy(
                 mo_coeffs=fobj.mo_coeffs,
                 nsocc=fobj.nsocc,
-                nfsites=fobj.nfsites,
+                n_frag=fobj.n_frag,
                 efac=fobj.efac,
                 TA=fobj.TA,
                 h1=fobj.h1,
@@ -615,7 +615,7 @@ def be_func_u(
             e_f = get_frag_energy_u(
                 (fobj_a._mo_coeffs, fobj_b._mo_coeffs),
                 (fobj_a.nsocc, fobj_b.nsocc),
-                (fobj_a.nfsites, fobj_b.nfsites),
+                (fobj_a.n_frag, fobj_b.n_frag),
                 (fobj_a.efac, fobj_b.efac),
                 (fobj_a.TA, fobj_b.TA),
                 h1_ab,

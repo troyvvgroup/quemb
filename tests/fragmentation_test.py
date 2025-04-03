@@ -1267,7 +1267,7 @@ class TestBE_Fragmentation(unittest.TestCase):
     ):
         fobj = fragmentate(frag_type=frag_type, n_BE=n_BE, mol=mf.mol)
         try:
-            assert fobj.fsites == target["fsites"]
+            assert fobj.AO_per_frag == target["fsites"]
             assert fobj.edge_sites == target["edge"]
             assert fobj.center == target["center"]
             assert fobj.centerf_idx == target["centerf_idx"]

@@ -94,7 +94,7 @@ class UBE(BE):  # 🍠
         self.Fobjs_a: list[Frags] = []
         self.Fobjs_b: list[Frags] = []
 
-        self.pot = initialize_pot(self.fobj.Nfrag, self.fobj.edge_idx)
+        self.pot = initialize_pot(self.fobj.n_frag, self.fobj.edge_idx)
 
         self.eri_file = Path(eri_file)
         self.ek = 0.0
@@ -171,10 +171,10 @@ class UBE(BE):  # 🍠
         lentmp = len(self.fobj.edge_idx)
 
         # alpha orbitals
-        for I in range(self.fobj.Nfrag):
+        for I in range(self.fobj.n_frag):
             if lentmp:
                 fobjs_a = Frags(
-                    self.fobj.fsites[I],
+                    self.fobj.AO_per_frag[I],
                     I,
                     edge=self.fobj.edge_sites[I],
                     eri_file=self.eri_file,
@@ -187,7 +187,7 @@ class UBE(BE):  # 🍠
                 )
             else:
                 fobjs_a = Frags(
-                    self.fobj.fsites[I],
+                    self.fobj.AO_per_frag[I],
                     I,
                     edge=[],
                     center=[],
@@ -200,10 +200,10 @@ class UBE(BE):  # 🍠
                 )
             self.Fobjs_a.append(fobjs_a)
         # beta
-        for I in range(self.fobj.Nfrag):
+        for I in range(self.fobj.n_frag):
             if lentmp:
                 fobjs_b = Frags(
-                    self.fobj.fsites[I],
+                    self.fobj.AO_per_frag[I],
                     I,
                     edge=self.fobj.edge_sites[I],
                     eri_file=self.eri_file,
@@ -216,7 +216,7 @@ class UBE(BE):  # 🍠
                 )
             else:
                 fobjs_b = Frags(
-                    self.fobj.fsites[I],
+                    self.fobj.AO_per_frag[I],
                     I,
                     edge=[],
                     center=[],
@@ -234,7 +234,7 @@ class UBE(BE):  # 🍠
 
         all_noccs = []
 
-        for I in range(self.fobj.Nfrag):
+        for I in range(self.fobj.n_frag):
             fobj_a = self.Fobjs_a[I]
             fobj_b = self.Fobjs_b[I]
 
@@ -352,7 +352,7 @@ class UBE(BE):  # 🍠
             "____________________________________________________________________",
             flush=True,
         )
-        for I in range(self.fobj.Nfrag):
+        for I in range(self.fobj.n_frag):
             print(
                 "|    {:>2}    | ({:>3},{:>3}) |   ({:>3},{:>3})   | ({:>3},{:>3}) |   ({:>3},{:>3})   |".format(  # noqa: E501
                     I,
@@ -437,11 +437,11 @@ class UBE(BE):  # 🍠
         )
 
 
-def initialize_pot(Nfrag, edge_idx):
+def initialize_pot(n_frag, edge_idx):
     pot_ = []
 
     if not len(edge_idx) == 0:
-        for I in range(Nfrag):
+        for I in range(n_frag):
             for i in edge_idx[I]:
                 for j in range(len(i)):
                     for k in range(len(i)):
