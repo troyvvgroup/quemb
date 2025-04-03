@@ -175,7 +175,7 @@ def test_match_autogen_output():
             iao_valence_basis=iao_valence_basis,
             n_BE=n_BE,
             frozen_core=frozen_core,
-        ).match_autogen_output(wrong_iao_indexing=wrong_iao_indexing)
+        ).get_fragpart(wrong_iao_indexing=wrong_iao_indexing)
         for n_BE in range(1, 5)
         for basis, iao_valence_basis in bases
         for frozen_core in [True, False]
