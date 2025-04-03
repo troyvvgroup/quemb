@@ -41,7 +41,7 @@ def run_solver(
     nao: int,
     nocc: int,
     n_frag: int,
-    efac: float,
+    rel_AO_per_center_per_frag,
     TA: Matrix[float64],
     h1_e: Matrix[float64],
     solver: str = "MP2",
@@ -79,8 +79,9 @@ def run_solver(
         Number of occupied orbitals.
     n_frag :
         Number of fragment sites.
-    efac :
-        Scaling factor for the electronic energy.
+    rel_AO_per_center_per_frag :
+        Scaling factor for the electronic energy **and**
+        the relative AO indices per center per frag
     TA :
         Transformation matrix for embedding orbitals.
     h1_e :
@@ -254,7 +255,7 @@ def run_solver(
             mf_.mo_coeff,
             nocc,
             n_frag,
-            efac,
+            rel_AO_per_center_per_frag,
             TA,
             h1_e,
             rdm1_tmp,
@@ -367,7 +368,7 @@ def run_solver_u(
             (fobj_a._mo_coeffs, fobj_b._mo_coeffs),
             (fobj_a.nsocc, fobj_b.nsocc),
             (fobj_a.n_frag, fobj_b.n_frag),
-            (fobj_a.efac, fobj_b.efac),
+            (fobj_a.rel_AO_per_center_per_frag, fobj_b.rel_AO_per_center_per_frag),
             (fobj_a.TA, fobj_b.TA),
             h1_ab,
             hf_veff,
@@ -469,7 +470,7 @@ def be_func_parallel(
                     fobj.nao,
                     fobj.nsocc,
                     fobj.n_frag,
-                    fobj.efac,
+                    fobj.rel_AO_per_center_per_frag,
                     fobj.TA,
                     fobj.h1,
                     solver,

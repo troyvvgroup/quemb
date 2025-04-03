@@ -218,7 +218,7 @@ def get_frag_energy(
     mo_coeffs,
     nsocc,
     n_frag,
-    efac,
+    rel_AO_per_center_per_frag,
     TA,
     h1,
     rdm1,
@@ -244,7 +244,7 @@ def get_frag_energy(
         Number of occupied orbitals.
     n_frag : int
         Number of fragment sites.
-    efac : list
+    rel_AO_per_center_per_frag : list
         List containing energy scaling factors and indices.
     TA : numpy.ndarray
         Transformation matrix.
@@ -327,11 +327,11 @@ def get_frag_energy(
     ec_tmp = 0.0
 
     # Calculate the total energy contribution for the specified fragment indices
-    for i in efac[1]:
-        etmp += efac[0] * e_[i]
-        e1_tmp += efac[0] * e1[i]
-        e2_tmp += efac[0] * e2[i]
-        ec_tmp += efac[0] * ec[i]
+    for i in rel_AO_per_center_per_frag[1]:
+        etmp += rel_AO_per_center_per_frag[0] * e_[i]
+        e1_tmp += rel_AO_per_center_per_frag[0] * e1[i]
+        e2_tmp += rel_AO_per_center_per_frag[0] * e2[i]
+        ec_tmp += rel_AO_per_center_per_frag[0] * ec[i]
 
     return [e1_tmp, e2_tmp, ec_tmp]
 
@@ -340,7 +340,7 @@ def get_frag_energy_u(
     mo_coeffs,
     nsocc,
     n_frag,
-    efac,
+    rel_AO_per_center_per_frag,
     TA,
     h1,
     hf_veff,
@@ -367,7 +367,7 @@ def get_frag_energy_u(
         Number of occupied orbitals.
     n_frag : tuple of int
         Number of fragment sites.
-    efac : tuple of list
+    rel_AO_per_center_per_frag : tuple of list
         List containing energy scaling factors and indices.
     TA : tuple of numpy.ndarray
         Transformation matrix.
@@ -493,12 +493,12 @@ def get_frag_energy_u(
     ec_tmp = 0.0
 
     # Calculate the total energy contribution for the specified fragment indices
-    for i in efac[0][1]:
-        e2_tmp += efac[0][0] * e2[i]
+    for i in rel_AO_per_center_per_frag[0][1]:
+        e2_tmp += rel_AO_per_center_per_frag[0][0] * e2[i]
         for s in [0, 1]:
-            etmp += efac[s][0] * e_[s][i]
-            e1_tmp += efac[s][0] * e1[s][i]
-            ec_tmp += efac[s][0] * ec[s][i]
+            etmp += rel_AO_per_center_per_frag[s][0] * e_[s][i]
+            e1_tmp += rel_AO_per_center_per_frag[s][0] * e1[s][i]
+            ec_tmp += rel_AO_per_center_per_frag[s][0] * ec[s][i]
 
     return [e1_tmp, e2_tmp, ec_tmp]
 
