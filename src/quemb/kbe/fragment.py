@@ -24,7 +24,7 @@ class fragpart:
         nz=False,
         kpt=None,
         iao_valence_basis=None,
-        be_type="be2",
+        n_BE=2,
         mol=None,
         frozen_core=False,
         self_match=False,
@@ -45,14 +45,11 @@ class fragpart:
             supported. Defaults to 'autogen'
             For systems with only hydrogen, use 'chain';
             everything else should use 'autogen'
-        be_type : str
-            Specifies order of bootsrap calculation in the atom-based fragmentation.
-            'be1', 'be2', 'be3', & 'be4' are supported.
-            Defaults to 'be2'
-            For a simple linear system A-B-C-D,
-            be1 only has fragments [A], [B], [C], [D]
-            be2 has [A, B, C], [B, C, D]
-            ben ...
+        n_BE: int, optional
+            Specifies the order of bootstrap calculation in the atom-based
+            fragmentation, i.e. BE(n).
+            Supported values are 1, 2, 3, and 4
+            Defaults to 2.
         mol : pyscf.pbc.gto.cell.Cell
             pyscf.pbc.gto.cell.Cell object. This is required for the options, 'autogen',
             and 'chain' as frag_type.
@@ -85,7 +82,7 @@ class fragpart:
         self.edge_idx = []
         self.center_idx = []
         self.centerf_idx = []
-        self.be_type = be_type
+        self.n_BE = n_BE
         self.natom = natom
         self.frozen_core = frozen_core
         self.self_match = self_match
@@ -115,7 +112,7 @@ class fragpart:
             fgs = autogen(
                 mol,
                 kpt,
-                be_type=be_type,
+                n_BE=n_BE,
                 frozen_core=frozen_core,
                 iao_valence_basis=iao_valence_basis,
                 unitcell=unitcell,

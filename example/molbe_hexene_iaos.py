@@ -47,7 +47,7 @@ print(f"*** CCSD Correlation Energy: {ccsd_ecorr:>14.8f} Ha", flush=True)
 # the full, working basis. We recommend minao or sto-3g
 # Note: iao_valence_only=True is currently not supported
 fobj = fragpart(
-    be_type="be2",
+    n_BE=2,
     mol=mol,
     frozen_core=True,
     iao_valence_basis="sto-3g",

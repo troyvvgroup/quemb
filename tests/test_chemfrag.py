@@ -119,7 +119,7 @@ def test_structure_agreement_with_autogen():
 
     for n_BE in range(1, 4):
         chem_frags = PurelyStructureFragmented.from_mole(mol, n_BE)
-        auto_frags = fragpart(mol=mol, frag_type="autogen", be_type=f"be{n_BE}")
+        auto_frags = fragpart(mol=mol, frag_type="autogen", n_BE=f"be{n_BE}")
 
         for chem_fragment, auto_fragment in zip(
             chem_frags.motifs_per_frag, auto_frags.Frag_atom
@@ -230,12 +230,12 @@ def test_molecule_with_autocratic_matching():
     mf = scf.RHF(mol)
     mf.kernel()
 
-    fobj = fragpart(mol, be_type="be2", frag_type="chemgen", print_frags=False)
+    fobj = fragpart(mol, n_BE=2, frag_type="chemgen", print_frags=False)
     mybe = BE(mf, fobj)
 
     assert np.isclose(mf.e_tot, mybe.ebe_hf)
 
-    fobj = fragpart(mol, be_type="be3", frag_type="chemgen", print_frags=False)
+    fobj = fragpart(mol, n_BE=3, frag_type="chemgen", print_frags=False)
     mybe = BE(mf, fobj)
 
     assert np.isclose(mf.e_tot, mybe.ebe_hf)

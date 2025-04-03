@@ -43,7 +43,7 @@ class TestBE_Fragmentation(unittest.TestCase):
 
         self.run_indices_test(
             mf,
-            "be1",
+            1,
             "autogen_h_linear_be1",
             "autogen",
             target,
@@ -83,7 +83,7 @@ class TestBE_Fragmentation(unittest.TestCase):
 
         self.run_indices_test(
             mf,
-            "be2",
+            2,
             "autogen_h_linear_be2",
             "autogen",
             target,
@@ -119,7 +119,7 @@ class TestBE_Fragmentation(unittest.TestCase):
 
         self.run_indices_test(
             mf,
-            "be3",
+            3,
             "autogen_h_linear_be3",
             "autogen",
             target,
@@ -172,7 +172,7 @@ class TestBE_Fragmentation(unittest.TestCase):
 
         self.run_indices_test(
             mf,
-            "be1",
+            1,
             "autogen_octane_be1",
             "autogen",
             target,
@@ -360,7 +360,7 @@ class TestBE_Fragmentation(unittest.TestCase):
 
         self.run_indices_test(
             mf,
-            "be2",
+            2,
             "autogen_octane_be2",
             "autogen",
             target,
@@ -614,7 +614,7 @@ class TestBE_Fragmentation(unittest.TestCase):
 
         self.run_indices_test(
             mf,
-            "be3",
+            3,
             "autogen_octane_be3",
             "autogen",
             target,
@@ -649,7 +649,7 @@ class TestBE_Fragmentation(unittest.TestCase):
 
         self.run_indices_test(
             mf,
-            "be1",
+            1,
             "graphgen_h_linear_be1",
             "graphgen",
             target,
@@ -696,7 +696,7 @@ class TestBE_Fragmentation(unittest.TestCase):
 
         self.run_indices_test(
             mf,
-            "be2",
+            2,
             "graphgen_h_linear_be2",
             "graphgen",
             target,
@@ -737,7 +737,7 @@ class TestBE_Fragmentation(unittest.TestCase):
 
         self.run_indices_test(
             mf,
-            "be3",
+            3,
             "graphgen_h_linear_be3",
             "graphgen",
             target,
@@ -898,7 +898,7 @@ class TestBE_Fragmentation(unittest.TestCase):
 
         self.run_indices_test(
             mf,
-            "be1",
+            1,
             "graphgen_octane_be1",
             "graphgen",
             target,
@@ -969,7 +969,7 @@ class TestBE_Fragmentation(unittest.TestCase):
 
         self.run_indices_test(
             mf,
-            "be2",
+            2,
             "graphgen_octane_be2",
             "graphgen",
             target,
@@ -1164,7 +1164,7 @@ class TestBE_Fragmentation(unittest.TestCase):
 
         self.run_indices_test(
             mf,
-            "be3",
+            3,
             "graphgen_octane_be3",
             "graphgen",
             target,
@@ -1184,7 +1184,7 @@ class TestBE_Fragmentation(unittest.TestCase):
 
         self.run_energies_test(
             mf,
-            "be2",
+            2,
             "energy_graphgen_autogen_h_linear_be2",
             target,
             delta=1e-2,
@@ -1204,7 +1204,7 @@ class TestBE_Fragmentation(unittest.TestCase):
 
         self.run_energies_test(
             mf,
-            "be2",
+            2,
             "energy_graphgen_autogen_octane_be2",
             target,
             delta=1e-2,
@@ -1219,12 +1219,12 @@ class TestBE_Fragmentation(unittest.TestCase):
         mf = scf.RHF(mol)
         mf.kernel()
 
-        fobj = fragpart(mol, be_type="be2", frag_type="graphgen", print_frags=False)
+        fobj = fragpart(mol, n_BE=2, frag_type="graphgen", print_frags=False)
         mybe = BE(mf, fobj)
 
         assert np.isclose(mf.e_tot, mybe.ebe_hf)
 
-        fobj = fragpart(mol, be_type="be3", frag_type="graphgen", print_frags=False)
+        fobj = fragpart(mol, n_BE=3, frag_type="graphgen", print_frags=False)
         mybe = BE(mf, fobj)
 
         assert np.isclose(mf.e_tot, mybe.ebe_hf)
@@ -1232,14 +1232,14 @@ class TestBE_Fragmentation(unittest.TestCase):
     def run_energies_test(
         self,
         mf,
-        be_type,
+        n_BE,
         test_name,
         target,
         delta,
     ):
         Es = {"target": target}
         for frag_type in ["autogen", "graphgen"]:
-            fobj = fragpart(frag_type=frag_type, be_type=be_type, mol=mf.mol)
+            fobj = fragpart(frag_type=frag_type, n_BE=n_BE, mol=mf.mol)
             mbe = BE(mf, fobj)
             mbe.oneshot(solver="CCSD")
             Es.update({frag_type: mbe.ebe_tot - mbe.ebe_hf})
@@ -1260,12 +1260,12 @@ class TestBE_Fragmentation(unittest.TestCase):
     def run_indices_test(
         self,
         mf,
-        be_type,
+        n_BE,
         test_name,
         frag_type,
         target,
     ):
-        fobj = fragpart(frag_type=frag_type, be_type=be_type, mol=mf.mol)
+        fobj = fragpart(frag_type=frag_type, n_BE=n_BE, mol=mf.mol)
         try:
             assert fobj.fsites == target["fsites"]
             assert fobj.edge_sites == target["edge"]

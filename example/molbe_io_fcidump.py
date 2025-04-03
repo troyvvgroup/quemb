@@ -15,7 +15,7 @@ mol, mf = libint2pyscf(
 mf.kernel()
 
 # Construct fragments for BE
-fobj = fragpart(be_type="be2", mol=mol)
+fobj = fragpart(n_BE=2, mol=mol)
 oct_be = BE(mf, fobj)
 
 # Write out fcidump file for each fragment

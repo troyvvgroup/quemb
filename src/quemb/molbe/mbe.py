@@ -677,7 +677,7 @@ class BE(MixinLocalize):
         # Check if only chemical potential optimization is required
         if not only_chem:
             pot = self.pot
-            if self.fobj.be_type == "be1":
+            if self.fobj.n_BE == 1:
                 raise ValueError(
                     "BE1 only works with chemical potential optimization. "
                     "Set only_chem=True"
@@ -758,7 +758,7 @@ class BE(MixinLocalize):
 
         print(flush=True)
         print("            MOLECULAR BOOTSTRAP EMBEDDING", flush=True)
-        print("            BEn = ", self.fobj.be_type, flush=True)
+        print("            BEn = ", self.fobj.n_BE, flush=True)
         print("-----------------------------------------------------------", flush=True)
         print(flush=True)
 

@@ -73,7 +73,7 @@ def test_QM_MM_BE():
         spin=0,  # spin of QM region
         nproc=4,  # number of processors to parallize across
         ompnum=2,
-        be_type="be2",  # BE type: this sets the fragment size.
+        n_BE=2,  # BE type: this sets the fragment size.
         frozen_core=True,  # Frozen core
         unrestricted=False,  # specify restricted calculation
         from_chk=False,  # can save the RHF as PySCF checkpoint.

@@ -32,7 +32,7 @@ mf.conv_tol = 1e-12
 mf.kernel()
 
 # Define fragments; use IAO scheme with 'sto-3g' as the minimal basis set
-fobj = fragpart(be_type="be2", mol=mol, iao_valence_basis="sto-3g", frozen_core=True)
+fobj = fragpart(n_BE=2, mol=mol, iao_valence_basis="sto-3g", frozen_core=True)
 
 # Initialize BE
 mybe = BE(mf, fobj, lo_method="iao")

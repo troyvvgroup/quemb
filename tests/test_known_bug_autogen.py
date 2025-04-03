@@ -22,7 +22,7 @@ def test_matching_order():
         mf.conv_tol = 1e-12
         mf.kernel()
 
-        fobj = fragpart(mol=mol, frag_type="autogen", be_type="be3")
+        fobj = fragpart(mol=mol, frag_type="autogen", n_BE=3)
 
         # fobj.center_idx[0][0][0] = 200
 

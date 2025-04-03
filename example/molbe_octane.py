@@ -50,7 +50,7 @@ ccsd_ecorr = mc.kernel()[0]
 print(f"*** CCSD Correlation Energy: {ccsd_ecorr:>14.8f} Ha", flush=True)
 
 # initialize fragments (use frozen core approximation)
-fobj = fragpart(be_type="be2", mol=mol, frozen_core=True)
+fobj = fragpart(n_BE=2, mol=mol, frozen_core=True)
 # Initialize BE
 mybe = BE(mf, fobj)
 

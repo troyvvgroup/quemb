@@ -1139,7 +1139,7 @@ class Fragmented:
         return FragPart(
             mol=self.mol,
             frag_type="chemgen",
-            be_type=f"be{self.frag_structure.n_BE}",
+            n_BE=f"be{self.frag_structure.n_BE}",
             fsites=[list(AO_indices) for AO_indices in self.AO_per_frag],
             edge_sites=_extract_values(self.AO_per_edge_per_frag),
             center=[list(D.values()) for D in self.frag_structure.frag_idx_per_edge],
@@ -1279,7 +1279,7 @@ class Fragmented:
         return FragPart(
             mol=self.mol,
             frag_type="chemgen",
-            be_type=f"be{self.frag_structure.n_BE}",
+            n_BE=f"be{self.frag_structure.n_BE}",
             edge_sites=edge_sites,
             edge_idx=edge_idx,
             center_idx=center_idx,

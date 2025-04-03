@@ -136,7 +136,7 @@ def polychain(self, mol, frozen_core=False, unitcell=1):
     else:
         sites = sites__
 
-    if self.be_type == "be2":
+    if self.n_BE == 2:
         fs = []
         if not self.self_match and not self.allcen:
             for i in range(len(sites) - 2):
@@ -229,7 +229,7 @@ def polychain(self, mol, frozen_core=False, unitcell=1):
             self.centerf_idx.append([self.fsites[i].index(j) for j in fs[i][1]])
         print(self.fsites)
 
-    elif self.be_type == "be3":
+    elif self.n_BE == 3:
         fs = []
         if not self.self_match and not self.allcen:
             # change back to i,i+1,i+2
@@ -367,7 +367,7 @@ def polychain(self, mol, frozen_core=False, unitcell=1):
     print("  No. of fragments : ", self.Nfrag, flush=True)
     print(flush=True)
 
-    if not self.be_type == "be1":
+    if self.n_BE != 1:
         for i in range(self.Nfrag):
             idx = []
             for j in self.edge[i]:

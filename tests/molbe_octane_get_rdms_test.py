@@ -52,7 +52,7 @@ def test_rdm():
 
     # initialize fragments (use frozen core approximation)
     for frag_type in ["chemgen", "autogen"]:
-        fobj = fragpart(be_type="be2", frag_type=frag_type, mol=mol, frozen_core=True)
+        fobj = fragpart(n_BE=2, frag_type=frag_type, mol=mol, frozen_core=True)
         # Initialize BE
         mybe = BE(mf, fobj)
 

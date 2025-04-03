@@ -69,7 +69,7 @@ from quemb.molbe import BE
 # get mf: pyscf.scf.RHF or pyscf.pbc.KRHF
 
 # Define fragments
-myFrag = fragpart(be_type='be2', mol=mol)
+myFrag = fragpart(n_BE=2, mol=mol)
 
 # Initialize BE
 mybe = BE(mf, myFrag)
