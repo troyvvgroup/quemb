@@ -19,7 +19,7 @@ from quemb.molbe.chemfrag import ChemGenArgs, chemgen
 AdditionalArgs: TypeAlias = AutogenArgs | ChemGenArgs | GraphGenArgs
 
 
-def fragpart(
+def fragmentate(
     mol: Mole,
     *,
     frag_type: FragType = "autogen",

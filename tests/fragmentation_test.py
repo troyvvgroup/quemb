@@ -10,7 +10,7 @@ import unittest
 from pyscf import gto, scf
 import numpy as np
 
-from quemb.molbe import BE, fragpart
+from quemb.molbe import BE, fragmentate
 
 
 class TestBE_Fragmentation(unittest.TestCase):
@@ -1219,12 +1219,12 @@ class TestBE_Fragmentation(unittest.TestCase):
         mf = scf.RHF(mol)
         mf.kernel()
 
-        fobj = fragpart(mol, be_type="be2", frag_type="graphgen", print_frags=False)
+        fobj = fragmentate(mol, be_type="be2", frag_type="graphgen", print_frags=False)
         mybe = BE(mf, fobj)
 
         assert np.isclose(mf.e_tot, mybe.ebe_hf)
 
-        fobj = fragpart(mol, be_type="be3", frag_type="graphgen", print_frags=False)
+        fobj = fragmentate(mol, be_type="be3", frag_type="graphgen", print_frags=False)
         mybe = BE(mf, fobj)
 
         assert np.isclose(mf.e_tot, mybe.ebe_hf)
@@ -1239,7 +1239,7 @@ class TestBE_Fragmentation(unittest.TestCase):
     ):
         Es = {"target": target}
         for frag_type in ["autogen", "graphgen"]:
-            fobj = fragpart(frag_type=frag_type, be_type=be_type, mol=mf.mol)
+            fobj = fragmentate(frag_type=frag_type, be_type=be_type, mol=mf.mol)
             mbe = BE(mf, fobj)
             mbe.oneshot(solver="CCSD")
             Es.update({frag_type: mbe.ebe_tot - mbe.ebe_hf})
@@ -1265,7 +1265,7 @@ class TestBE_Fragmentation(unittest.TestCase):
         frag_type,
         target,
     ):
-        fobj = fragpart(frag_type=frag_type, be_type=be_type, mol=mf.mol)
+        fobj = fragmentate(frag_type=frag_type, be_type=be_type, mol=mf.mol)
         try:
             assert fobj.fsites == target["fsites"]
             assert fobj.edge_sites == target["edge"]

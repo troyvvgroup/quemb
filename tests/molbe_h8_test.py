@@ -5,7 +5,7 @@
 import numpy as np
 from pyscf import gto, scf
 
-from quemb.molbe import BE, fragpart
+from quemb.molbe import BE, fragmentate
 from quemb.molbe.fragment import ChemGenArgs
 
 
@@ -33,7 +33,7 @@ def prepare_system():
 
 
 def do_BE(mol, mf, be_type: str, only_chem: bool):
-    fobj = fragpart(
+    fobj = fragmentate(
         be_type=be_type,
         frag_type="chemgen",
         mol=mol,

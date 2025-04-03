@@ -7,7 +7,7 @@ from quemb.molbe.helper import get_core
 from quemb.shared.helper import copy_docstring
 
 
-class fragpart:
+class fragmentate:
     def __init__(
         self,
         natom=0,
@@ -101,16 +101,16 @@ class fragpart:
         if frag_type == "polychain":
             if mol is None:
                 raise ValueError(
-                    "Provide pyscf gto.Cell object in fragpart() and restart!"
+                    "Provide pyscf gto.Cell object in fragmentate() and restart!"
                 )
             self.polychain(mol, frozen_core=frozen_core, unitcell=unitcell)
         elif frag_type == "autogen":
             if mol is None:
                 raise ValueError(
-                    "Provide pyscf gto.Cell object in fragpart() and restart!"
+                    "Provide pyscf gto.Cell object in fragmentate() and restart!"
                 )
             if kpt is None:
-                raise ValueError("Provide kpt mesh in fragpart() and restart!")
+                raise ValueError("Provide kpt mesh in fragmentate() and restart!")
 
             fgs = autogen(
                 mol,

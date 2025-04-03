@@ -13,7 +13,7 @@ from pyscf import ao2mo
 from pyscf.pbc import df, gto, scf
 from pyscf.pbc.df.df_jk import _ewald_exxdiv_for_G0
 
-from quemb.kbe.fragment import fragpart
+from quemb.kbe.fragment import fragmentate
 from quemb.kbe.lo import Mixin_k_Localize
 from quemb.kbe.misc import print_energy, storePBE
 from quemb.kbe.pfrag import Frags
@@ -52,7 +52,7 @@ class BE(Mixin_k_Localize):
     def __init__(
         self,
         mf: scf.khf.KRHF,
-        fobj: fragpart,
+        fobj: fragmentate,
         eri_file: PathLike = "eri_file.h5",
         lo_method: str = "lowdin",
         compute_hf: bool = True,
