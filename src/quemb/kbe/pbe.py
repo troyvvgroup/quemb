@@ -474,7 +474,7 @@ class BE(Mixin_k_Localize):
                 fobjs_ = Frags(
                     self.fobj.fsites[fidx],
                     fidx,
-                    edge=self.fobj.edge[fidx],
+                    edge=self.fobj.edge_sites[fidx],
                     eri_file=self.eri_file,
                     center=self.fobj.center[fidx],
                     edge_idx=self.fobj.edge_idx[fidx],
