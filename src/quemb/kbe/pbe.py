@@ -41,11 +41,11 @@ class BE(Mixin_k_Localize):
     ----------
     mf :
         PySCF mean-field object.
-    fobj : quemb.kbe.fragment.fragpart
+    fobj :
         Fragment object containing sites, centers, edges, and indices.
-    eri_file : str
+    eri_file :
         Path to the file storing two-electron integrals.
-    lo_method : str
+    lo_method :
         Method for orbital localization, default is 'lowdin'.
     """
 
