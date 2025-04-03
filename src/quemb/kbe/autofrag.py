@@ -1984,7 +1984,7 @@ def autogen(
         maxH = max([j for i in hsites for j in i])
         max_site = max(max_site, maxH)
 
-    fsites = []
+    AO_per_frag = []
     edge_sites = []
     edge_idx = []
     centerf_idx = []
@@ -2338,7 +2338,7 @@ def autogen(
             indix += ls
 
         edge.append(edg)
-        fsites.append(ftmp)
+        AO_per_frag.append(ftmp)
         edge_sites.append(ftmpe)
         edge_idx.append(edind)
 
@@ -2349,10 +2349,10 @@ def autogen(
             cen_.append(cen.index(jx))
         center.append(cen_)
 
-    n_frag = len(fsites)
+    n_frag = len(AO_per_frag)
     ebe_weight = []
     # Use IAO+PAO for computing energy
-    for ix, i in enumerate(fsites):
+    for ix, i in enumerate(AO_per_frag):
         tmp_ = [i.index(pq) for pq in sites__[cen[ix]]]
         tmp_.extend([i.index(pq) for pq in hsites[cen[ix]]])
         ebe_weight.append([1.0, tmp_])
@@ -2367,12 +2367,20 @@ def autogen(
             if not pao:
                 cntlist = sites__[cen[j]].copy()
                 cntlist.extend(hsites[cen[j]])
-                idx.append([fsites[j].index(k) for k in cntlist])
+                idx.append([AO_per_frag[j].index(k) for k in cntlist])
             else:
                 cntlist = sites__[cen[j]].copy()[: nbas2[cen[j]]]
                 cntlist.extend(hsites[cen[j]][: nbas2H[cen[j]]])
-                idx.append([fsites[j].index(k) for k in cntlist])
+                idx.append([AO_per_frag[j].index(k) for k in cntlist])
 
         center_idx.append(idx)
 
-    return (fsites, edge_sites, center, edge_idx, center_idx, centerf_idx, ebe_weight)
+    return (
+        AO_per_frag,
+        edge_sites,
+        center,
+        edge_idx,
+        center_idx,
+        centerf_idx,
+        ebe_weight,
+    )
