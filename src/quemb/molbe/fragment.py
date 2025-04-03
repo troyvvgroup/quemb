@@ -141,7 +141,9 @@ def _correct_number_of_centers(fragpart: FragPart) -> bool:
     n_centers = sum(
         [
             len(motifs) - len(edges)
-            for motifs, edges in zip(fragpart.Frag_atom, fragpart.ref_frag_idx_per_edge)
+            for motifs, edges in zip(
+                fragpart.motifs_per_frag, fragpart.ref_frag_idx_per_edge
+            )
         ]
     )
     return n_centers == n_motifs

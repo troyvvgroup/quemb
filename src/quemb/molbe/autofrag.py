@@ -84,10 +84,10 @@ class FragPart:
     #  of the center sites within a fragment. Relative is to the own fragment.
     ebe_weight: ListOverFrag[list[float | list[OwnRelAOIdx]]]
 
-    #: The heavy atoms in each fragment, in order.
+    #: The motifs/heavy atoms in each fragment, in order.
     #: Each are labeled based on the global atom index.
     #: It is ordered by origin, centers, edges!
-    Frag_atom: ListOverFrag[ListOverMotif[MotifIdx]]
+    motifs_per_frag: ListOverFrag[ListOverMotif[MotifIdx]]
 
     #: The origin for each fragment.
     #: (Note that for conventional BE there is just one origin per fragment)
@@ -196,7 +196,7 @@ class FragmentMap:
     dnames :
         List of strings giving fragment data names. Useful for bookkeeping and
         for constructing fragment scratch directories.
-    Frag_atom :
+    motifs_per_frag :
         List whose entries are sequences containing all atom indices for a fragment.
     origin_per_frag :
         List whose entries are sequences giving the center atom indices per fragment.
@@ -216,7 +216,7 @@ class FragmentMap:
     ebe_weight: list[Sequence]
     sites: list[Sequence]
     dnames: list[str]
-    Frag_atom: list[Sequence[int]]
+    motifs_per_frag: list[Sequence[int]]
     origin_per_frag: list[Sequence[int]]
     edge_atoms: list[Sequence[int]]
     adjacency_mat: np.ndarray
@@ -262,7 +262,7 @@ class FragmentMap:
                     del self.AO_per_frag[bdx]
                     del self.fs[bdx]
                     del self.origin_per_frag[bdx]
-                    del self.Frag_atom[bdx]
+                    del self.motifs_per_frag[bdx]
 
         return None
 
@@ -279,7 +279,7 @@ class FragmentMap:
             AO_per_frag=self.AO_per_frag,  # type: ignore[arg-type]
             ref_frag_idx_per_edge=self.ref_frag_idx_per_edge,  # type: ignore[arg-type]
             ebe_weight=self.ebe_weight,  # type: ignore[arg-type]
-            Frag_atom=self.Frag_atom,  # type: ignore[arg-type]
+            motifs_per_frag=self.motifs_per_frag,  # type: ignore[arg-type]
             origin_per_frag=self.origin_per_frag,  # type: ignore[arg-type]
             hlist_atom=MISSING,
             add_center_atom=MISSING,
@@ -380,7 +380,7 @@ def graphgen(
         ebe_weight=list(tuple()),
         sites=list(tuple()),
         dnames=list(),
-        Frag_atom=list(),
+        motifs_per_frag=list(),
         origin_per_frag=list(),
         edge_atoms=list(),
         adjacency_mat=np.zeros((natm, natm), np.float64),
@@ -461,7 +461,7 @@ def graphgen(
 
             fragment_map.AO_per_frag.append(tuple(AO_per_frag_tmp))
             fragment_map.fs.append(tuple(fs_temp))
-            fragment_map.Frag_atom.append(tuple(fatoms_temp))
+            fragment_map.motifs_per_frag.append(tuple(fatoms_temp))
 
     elif connectivity.lower() in ["resistance_distance", "resistance"]:
         raise NotImplementedError("Work in progress...")
@@ -487,7 +487,7 @@ def graphgen(
                 for f in fs:
                     overlap = set(f).intersection(set(center))
                     if overlap:
-                        f_temp = set(fragment_map.Frag_atom[adx])
+                        f_temp = set(fragment_map.motifs_per_frag[adx])
                         c_temp = set(fragment_map.origin_per_frag[bdx])
                         edge_temp.add(tuple(overlap))
                         eatoms_temp.add(tuple(i for i in f_temp.intersection(c_temp)))
@@ -590,7 +590,7 @@ def autogen(
     normlist = []
     for i in coord:
         normlist.append(norm(i))
-    Frag_atom = []
+    motifs_per_frag = []
     pedge = []
     origin_per_frag = []
 
@@ -653,7 +653,7 @@ def autogen(
                                                 pedg.append(ldx)
 
             # Update fragment and edge lists based on current partitioning
-            for pidx, frag_ in enumerate(Frag_atom):
+            for pidx, frag_ in enumerate(motifs_per_frag):
                 if set(flist).issubset(frag_):
                     open_frag.append(pidx)
                     open_frag_cen.append(idx)
@@ -662,17 +662,17 @@ def autogen(
                     open_frag = [
                         oidx - 1 if oidx > pidx else oidx for oidx in open_frag
                     ]
-                    open_frag.append(len(Frag_atom) - 1)
+                    open_frag.append(len(motifs_per_frag) - 1)
                     open_frag_cen.append(origin_per_frag[pidx])
                     del origin_per_frag[pidx]
-                    del Frag_atom[pidx]
+                    del motifs_per_frag[pidx]
                     del pedge[pidx]
             else:
-                Frag_atom.append(flist)
+                motifs_per_frag.append(flist)
                 pedge.append(pedg)
                 origin_per_frag.append(idx)
         else:
-            Frag_atom.append(flist)
+            motifs_per_frag.append(flist)
             origin_per_frag.append(idx)
 
     hlist_atom = [[] for i in coord]
@@ -699,7 +699,7 @@ def autogen(
         print("Fragment |   Origin | Atoms ", flush=True)
         print("--------------------------", flush=True)
 
-        for idx, i in enumerate(Frag_atom):
+        for idx, i in enumerate(motifs_per_frag):
             print(
                 "   {:>4}  |   {:>5}  |".format(
                     idx,
@@ -731,14 +731,14 @@ def autogen(
                     )
             print(flush=True)
         print("--------------------------", flush=True)
-        print(" No. of fragments : ", len(Frag_atom), flush=True)
+        print(" No. of fragments : ", len(motifs_per_frag), flush=True)
         print("*H : Center H atoms (printed as Edges above.)", flush=True)
         print(flush=True)
 
     # Write fragment geometry to a file if requested
     if write_geom:
         w = open("fragments.xyz", "w")
-        for idx, i in enumerate(Frag_atom):
+        for idx, i in enumerate(motifs_per_frag):
             w.write(
                 str(len(i) + len(hlist_atom[origin_per_frag[idx]]) + len(hlist_atom[j]))
                 + "\n"
@@ -849,7 +849,7 @@ def autogen(
     edge = []
 
     # Create fragments and edges based on partitioning
-    for idx, i in enumerate(Frag_atom):
+    for idx, i in enumerate(motifs_per_frag):
         ftmp = []
         ftmpe = []
         indix = 0
@@ -1001,7 +1001,7 @@ def autogen(
         other_rel_AO_per_edge_per_frag=other_rel_AO_per_edge_per_frag,
         centerf_idx=centerf_idx,
         ebe_weight=ebe_weight,
-        Frag_atom=Frag_atom,
+        motifs_per_frag=motifs_per_frag,
         origin_per_frag=origin_per_frag,
         hlist_atom=hlist_atom,
         add_center_atom=add_center_atom,
