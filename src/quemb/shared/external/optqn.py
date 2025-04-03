@@ -319,7 +319,7 @@ def get_be_error_jacobian(n_frag, Fobjs, jac_solver="HF"):
 def get_atbe_Jblock_frag(
     fobj: Frags | pFrags, res_func
 ) -> tuple[Matrix[float64], Matrix[float64], list, list, list, float, int]:
-    vpots = get_vpots_frag(fobj.nao, fobj.edge_idx, fobj.AO_per_frag)
+    vpots = get_vpots_frag(fobj.nao, fobj.rel_AO_per_edge_per_frag, fobj.AO_per_frag)
     eri_ = get_eri(fobj.dname, fobj.nao, eri_file=fobj.eri_file)
     dm0 = 2.0 * (fobj._mo_coeffs[:, : fobj.nsocc] @ fobj._mo_coeffs[:, : fobj.nsocc].T)
     mf_ = get_scfObj(fobj.fock + fobj.heff, eri_, fobj.nsocc, dm0=dm0)
@@ -333,7 +333,7 @@ def get_atbe_Jblock_frag(
     xc = []
     cout = 0
 
-    for edge in fobj.edge_idx:
+    for edge in fobj.rel_AO_per_edge_per_frag:
         for j_ in range(len(edge)):
             for k_ in range(len(edge)):
                 if j_ > k_:
@@ -342,7 +342,7 @@ def get_atbe_Jblock_frag(
                 # edges
                 tmpje_ = []
 
-                for edge_ in fobj.edge_idx:
+                for edge_ in fobj.rel_AO_per_edge_per_frag:
                     lene = len(edge_)
 
                     for j__ in range(lene):
@@ -353,7 +353,9 @@ def get_atbe_Jblock_frag(
                             tmpje_.append(dPs[cout][edge_[j__], edge_[k__]])
                 y_ = 0.0
                 for fidx, fval in enumerate(fobj.AO_per_frag):
-                    if not any(fidx in sublist for sublist in fobj.edge_idx):
+                    if not any(
+                        fidx in sublist for sublist in fobj.rel_AO_per_edge_per_frag
+                    ):
                         y_ += dPs[cout][fidx, fidx]
 
                 y.append(y_)
@@ -378,7 +380,7 @@ def get_atbe_Jblock_frag(
 
     alpha = 0.0
     for fidx, _ in enumerate(fobj.AO_per_frag):
-        if not any(fidx in sublist for sublist in fobj.edge_idx):
+        if not any(fidx in sublist for sublist in fobj.rel_AO_per_edge_per_frag):
             alpha += dP_mu[fidx, fidx]
 
     for j__ in fobj.centerf_idx:
@@ -460,11 +462,11 @@ def ccsdres_func(mf, vpots, eri, nsocc):
 
 
 def get_vpots_frag(
-    nao: int, edge_idx: list[list[int]], AO_per_frag: list[list[int]]
+    nao: int, rel_AO_per_edge_per_frag: list[list[int]], AO_per_frag: list[list[int]]
 ) -> list[Matrix[float64]]:
     vpots = []
 
-    for edge_ in edge_idx:
+    for edge_ in rel_AO_per_edge_per_frag:
         lene = len(edge_)
         for j__ in range(lene):
             for k__ in range(lene):
@@ -479,7 +481,7 @@ def get_vpots_frag(
     # outer edges not included
     tmppot = zeros((nao, nao))
     for fidx, fval in enumerate(AO_per_frag):
-        if not any(fidx in sublist for sublist in edge_idx):
+        if not any(fidx in sublist for sublist in rel_AO_per_edge_per_frag):
             tmppot[fidx, fidx] = -1
 
     vpots.append(tmppot)

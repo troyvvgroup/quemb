@@ -34,7 +34,7 @@ class Frags:
         ifrag,
         edge=None,
         ref_frag_idx_per_edge=None,
-        edge_idx=None,
+        rel_AO_per_edge_per_frag=None,
         center_idx=None,
         efac=None,
         eri_file="eri_file.h5",
@@ -56,7 +56,7 @@ class Frags:
         ref_frag_idx_per_edge : list, optional
             list of fragment indices where edge site AOs are center site,
             by default None
-        edge_idx : list, optional
+        rel_AO_per_edge_per_frag: list, optional
             list of lists of indices for edge site AOs within the fragment,
             by default None
         center_idx : list, optional
@@ -100,7 +100,7 @@ class Frags:
         self.heff = None
         self.edge = edge
         self.ref_frag_idx_per_edge = ref_frag_idx_per_edge
-        self.edge_idx = edge_idx
+        self.rel_AO_per_edge_per_frag = rel_AO_per_edge_per_frag
         self.center_idx = center_idx
         self.centerf_idx = centerf_idx
         self.udim = None
@@ -289,14 +289,14 @@ class Frags:
             cout = self.udim
 
         for i, fi in enumerate(self.AO_per_frag):
-            if not any(i in sublist for sublist in self.edge_idx):
+            if not any(i in sublist for sublist in self.rel_AO_per_edge_per_frag):
                 heff_[i, i] -= u[-1]
 
         if only_chem:
             self.heff = heff_
             return
         else:
-            for i in self.edge_idx:
+            for i in self.rel_AO_per_edge_per_frag:
                 for j in range(len(i)):
                     for k in range(len(i)):
                         if j > k:  # or j==k:
@@ -310,7 +310,7 @@ class Frags:
             self.heff = heff_
 
     def set_udim(self, cout):
-        for i in self.edge_idx:
+        for i in self.rel_AO_per_edge_per_frag:
             for j in range(len(i)):
                 for k in range(len(i)):
                     if j > k:

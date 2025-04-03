@@ -175,7 +175,7 @@ class BE(MixinLocalize):
 
         self.print_ini()
         self.Fobjs: list[Frags] = []
-        self.pot = initialize_pot(self.fobj.n_frag, self.fobj.edge_idx)
+        self.pot = initialize_pot(self.fobj.n_frag, self.fobj.rel_AO_per_edge_per_frag)
 
         if scratch_dir is None:
             self.scratch_dir = WorkDir.from_environment()
@@ -781,7 +781,7 @@ class BE(MixinLocalize):
         # Create a file to store ERIs
         if not restart:
             file_eri = h5py.File(self.eri_file, "w")
-        lentmp = len(self.fobj.edge_idx)
+        lentmp = len(self.fobj.rel_AO_per_edge_per_frag)
         for I in range(self.fobj.n_frag):
             if lentmp:
                 fobjs_ = Frags(
@@ -790,7 +790,7 @@ class BE(MixinLocalize):
                     edge=self.fobj.AO_per_edge_per_frag[I],
                     eri_file=self.eri_file,
                     ref_frag_idx_per_edge=self.fobj.ref_frag_idx_per_edge[I],
-                    edge_idx=self.fobj.edge_idx[I],
+                    rel_AO_per_edge_per_frag=self.fobj.rel_AO_per_edge_per_frag[I],
                     center_idx=self.fobj.center_idx[I],
                     efac=self.fobj.ebe_weight[I],
                     centerf_idx=self.fobj.centerf_idx[I],
@@ -802,7 +802,7 @@ class BE(MixinLocalize):
                     edge=[],
                     ref_frag_idx_per_edge=[],
                     eri_file=self.eri_file,
-                    edge_idx=[],
+                    rel_AO_per_edge_per_frag=[],
                     center_idx=[],
                     centerf_idx=[],
                     efac=self.fobj.ebe_weight[I],
@@ -1012,12 +1012,13 @@ class BE(MixinLocalize):
                 fobj.heff = filepot.get(fobj.dname)
 
 
-def initialize_pot(n_frag, edge_idx):
+def initialize_pot(n_frag, rel_AO_per_edge_per_frag):
     """
     Initialize the potential array for bootstrap embedding.
 
     This function initializes a potential array for a given number of fragments
-    (:python:`n_frag`) and their corresponding edge indices (:python:`edge_idx`).
+    (:python:`n_frag`) and their corresponding edge indices
+    (:python:`rel_AO_per_edge_per_frag`).
     The potential array is initialized with zeros for each pair of edge site indices
     within each fragment, followed by an
     additional zero for the global chemical potential.
@@ -1026,7 +1027,7 @@ def initialize_pot(n_frag, edge_idx):
     ----------
     n_frag: int
         Number of fragments.
-    edge_idx : list of list of list of int
+    rel_AO_per_edge_per_frag: list of list of list of int
         List of edge indices for each fragment. Each element is a list of lists,
         where each sublist contains the indices of edge sites for a particular fragment.
 
@@ -1037,9 +1038,9 @@ def initialize_pot(n_frag, edge_idx):
     """
     pot_ = []
 
-    if not len(edge_idx) == 0:
+    if not len(rel_AO_per_edge_per_frag) == 0:
         for I in range(n_frag):
-            for i in edge_idx[I]:
+            for i in rel_AO_per_edge_per_frag[I]:
                 for j in range(len(i)):
                     for k in range(len(i)):
                         if j > k:

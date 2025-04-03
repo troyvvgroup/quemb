@@ -886,7 +886,6 @@ class Fragmented:
     #: This variable is a strict subset of :attr:`rel_AO_per_motif_per_frag`,
     #: in the sense that the motif indices, the keys in the Mapping,
     #: are restricted to the edges of the fragment.
-    #: This variable was formerly known as :python:`edge_idx`.
     rel_AO_per_edge_per_frag: Final[
         Sequence[Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[OwnRelAOIdx]]]]
     ]
@@ -1148,7 +1147,7 @@ class Fragmented:
             ref_frag_idx_per_edge=[
                 list(D.values()) for D in self.frag_structure.ref_frag_idx_per_edge
             ],
-            edge_idx=_extract_values(self.rel_AO_per_edge_per_frag),
+            rel_AO_per_edge_per_frag=_extract_values(self.rel_AO_per_edge_per_frag),
             center_idx=_extract_values(self.other_rel_AO_per_edge_per_frag),
             centerf_idx=[list(seq) for seq in centerf_idx],
             ebe_weight=ebe_weight,
@@ -1263,7 +1262,7 @@ class Fragmented:
             self.AO_per_edge_per_frag,
             wrong_iao_indexing=wrong_iao_indexing,
         )
-        edge_idx: Final = _extract_with_iao_offset(
+        rel_AO_per_edge_per_frag: Final = _extract_with_iao_offset(
             valence_frags.rel_AO_per_edge_per_frag,
             self.rel_AO_per_edge_per_frag,
             wrong_iao_indexing=wrong_iao_indexing,
@@ -1288,7 +1287,7 @@ class Fragmented:
             frag_type="chemgen",
             n_BE=self.frag_structure.n_BE,
             AO_per_edge_per_frag=AO_per_edge_per_frag,
-            edge_idx=edge_idx,
+            rel_AO_per_edge_per_frag=rel_AO_per_edge_per_frag,
             center_idx=center_idx,
             centerf_idx=centerf_idx,
             AO_per_frag=matched_output_no_iao.AO_per_frag,

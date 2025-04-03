@@ -672,7 +672,7 @@ def solve_error(Fobjs, Nocc, only_chem=False):
     # Compute edge and chemical potential errors
     for fobj in Fobjs:
         # match rdm-edge
-        for edge in fobj.edge_idx:
+        for edge in fobj.rel_AO_per_edge_per_frag:
             for j_ in range(len(edge)):
                 for k_ in range(len(edge)):
                     if j_ > k_:

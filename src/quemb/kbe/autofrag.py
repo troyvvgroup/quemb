@@ -1965,7 +1965,7 @@ def autogen(
 
     AO_per_frag = []
     AO_per_edge_per_frag = []
-    edge_idx = []
+    rel_AO_per_edge_per_frag = []
     centerf_idx = []
     edge = []
 
@@ -2319,7 +2319,7 @@ def autogen(
         edge.append(edg)
         AO_per_frag.append(ftmp)
         AO_per_edge_per_frag.append(ftmpe)
-        edge_idx.append(edind)
+        rel_AO_per_edge_per_frag.append(edind)
 
     ref_frag_idx_per_edge = []
     for ix in edge:
@@ -2359,7 +2359,7 @@ def autogen(
         AO_per_frag,
         AO_per_edge_per_frag,
         ref_frag_idx_per_edge,
-        edge_idx,
+        rel_AO_per_edge_per_frag,
         center_idx,
         centerf_idx,
         ebe_weight,

@@ -63,7 +63,7 @@ class FragPart:
 
     #: The relative orbital indices, including hydrogens, per edge per fragment.
     #: The index is relative to the own fragment.
-    edge_idx: ListOverFrag[ListOverEdge[list[OwnRelAOIdx]]]
+    rel_AO_per_edge_per_frag: ListOverFrag[ListOverEdge[list[OwnRelAOIdx]]]
 
     #: The relative atomic orbital indices per edge per fragment.
     #: **Note** for this variable relative means that the AO indices
@@ -273,7 +273,7 @@ class FragmentMap:
             frag_type="graphgen",
             n_BE=n_BE,
             AO_per_edge_per_frag=self.AO_per_edge_per_frag,  # type: ignore[arg-type]
-            edge_idx=MISSING,
+            rel_AO_per_edge_per_frag=MISSING,
             center_idx=MISSING,
             centerf_idx=self.centerf_idx,  # type: ignore[arg-type]
             AO_per_frag=self.AO_per_frag,  # type: ignore[arg-type]
@@ -843,7 +843,7 @@ def autogen(
 
     AO_per_frag = []
     AO_per_edge_per_frag = []
-    edge_idx = []
+    rel_AO_per_edge_per_frag = []
     centerf_idx = []
     edge = []
 
@@ -907,7 +907,7 @@ def autogen(
                 indix += ls
             edge.append(edg)
             AO_per_edge_per_frag.append(ftmpe)
-            edge_idx.append(edind)
+            rel_AO_per_edge_per_frag.append(edind)
         AO_per_frag.append(ftmp)
     ref_frag_idx_per_edge = []
     for ix in edge:
@@ -990,7 +990,7 @@ def autogen(
         AO_per_frag=AO_per_frag,
         AO_per_edge_per_frag=AO_per_edge_per_frag,
         ref_frag_idx_per_edge=ref_frag_idx_per_edge,
-        edge_idx=edge_idx,
+        rel_AO_per_edge_per_frag=rel_AO_per_edge_per_frag,
         center_idx=center_idx,
         centerf_idx=centerf_idx,
         ebe_weight=ebe_weight,
