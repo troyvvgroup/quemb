@@ -288,27 +288,6 @@ def autogen(
     long_bond : bool
         For systems with longer than 1.8 Angstrom covalent bond,
         set this to True otherwise the fragmentation might fail.
-
-
-    Returns
-    -------
-    AO_per_frag : list of list of int
-        List of fragment sites where each fragment is a list of LO indices.
-    edgsites : list of list of list of int
-        List of edge sites for each fragment where each edge is a list of LO indices.
-    center : list of list of int
-        List of center indices for each edge.
-    edge_idx : list of list of list of int
-        List of edge indices for each fragment where each edge index is a list of
-        LO indices.
-    center_idx : list of list of list of int
-        List of center indices for each fragment where each center index is a list of
-        LO indices.
-    centerf_idx : list of list of int
-        List of center fragment indices.
-    ebe_weight : list of list
-        Weights for each fragment. Each entry contains a weight and a list of LO
-        indices.
     """
     if not float(unitcell).is_integer():
         raise ValueError("Fractional unitcell is not supported!")
@@ -2342,12 +2321,12 @@ def autogen(
         AO_per_edge_per_frag.append(ftmpe)
         edge_idx.append(edind)
 
-    center = []
+    ref_frag_idx_per_edge = []
     for ix in edge:
         cen_ = []
         for jx in ix:
             cen_.append(cen.index(jx))
-        center.append(cen_)
+        ref_frag_idx_per_edge.append(cen_)
 
     n_frag = len(AO_per_frag)
     ebe_weight = []
@@ -2363,7 +2342,7 @@ def autogen(
     center_idx = []
     for i in range(n_frag):
         idx = []
-        for j in center[i]:
+        for j in ref_frag_idx_per_edge[i]:
             if not pao:
                 cntlist = sites__[cen[j]].copy()
                 cntlist.extend(hsites[cen[j]])
@@ -2378,7 +2357,7 @@ def autogen(
     return (
         AO_per_frag,
         AO_per_edge_per_frag,
-        center,
+        ref_frag_idx_per_edge,
         edge_idx,
         center_idx,
         centerf_idx,

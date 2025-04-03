@@ -352,7 +352,7 @@ def get_expected():
                 OrderedSet([18, 20, 22, 25]),
                 OrderedSet([19, 21, 23, 24]),
             ],
-            frag_idx_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
+            ref_frag_idx_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
             conn_data=BondConnectivity(
                 bonds_atoms={
                     0: OrderedSet([1, 3, 5, 7]),
@@ -462,7 +462,7 @@ def get_expected():
                 OrderedSet([12, 14, 16, 18, 20, 22, 25, 6, 8, 10]),
                 OrderedSet([13, 15, 17, 19, 21, 23, 24, 7, 9, 11]),
             ],
-            frag_idx_per_edge=[
+            ref_frag_idx_per_edge=[
                 {1: 1, 7: 3},
                 {0: 0, 6: 2},
                 {1: 1, 12: 4},
@@ -569,7 +569,7 @@ def get_expected():
                 OrderedSet([6, 8, 10, 12, 14, 16, 18, 20, 22, 25, 0, 3, 5, 1, 2, 4]),
                 OrderedSet([7, 9, 11, 13, 15, 17, 19, 21, 23, 24, 0, 3, 5, 1, 2, 4]),
             ],
-            frag_idx_per_edge=[
+            ref_frag_idx_per_edge=[
                 {1: 1, 6: 2, 7: 3, 13: 3},
                 {0: 0, 6: 2, 7: 3, 12: 2},
                 {0: 0, 1: 1},
@@ -705,7 +705,7 @@ def get_expected():
                     ]
                 ),
             ],
-            frag_idx_per_edge=[{1: 1, 6: 1, 12: 1}, {0: 0, 7: 0, 13: 0}],
+            ref_frag_idx_per_edge=[{1: 1, 6: 1, 12: 1}, {0: 0, 7: 0, 13: 0}],
             conn_data=BondConnectivity(
                 bonds_atoms={
                     0: OrderedSet([1, 3, 5, 7]),
@@ -811,7 +811,7 @@ def get_expected():
                     ]
                 )
             ],
-            frag_idx_per_edge=[{}],
+            ref_frag_idx_per_edge=[{}],
             conn_data=BondConnectivity(
                 bonds_atoms={
                     0: OrderedSet([1, 3, 5, 7]),
@@ -917,7 +917,7 @@ def get_expected():
                     ]
                 )
             ],
-            frag_idx_per_edge=[{}],
+            ref_frag_idx_per_edge=[{}],
             conn_data=BondConnectivity(
                 bonds_atoms={
                     0: OrderedSet([1, 3, 5, 7]),
@@ -1023,7 +1023,7 @@ def get_expected():
                     ]
                 )
             ],
-            frag_idx_per_edge=[{}],
+            ref_frag_idx_per_edge=[{}],
             conn_data=BondConnectivity(
                 bonds_atoms={
                     0: OrderedSet([1, 3, 5, 7]),
@@ -1147,7 +1147,7 @@ def get_expected():
                 OrderedSet([6]),
                 OrderedSet([7]),
             ],
-            frag_idx_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
+            ref_frag_idx_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
             conn_data=BondConnectivity(
                 bonds_atoms={
                     0: OrderedSet([1]),
@@ -1237,7 +1237,7 @@ def get_expected():
                 OrderedSet([5, 4, 6]),
                 OrderedSet([6, 7, 5]),
             ],
-            frag_idx_per_edge=[
+            ref_frag_idx_per_edge=[
                 {2: 1},
                 {1: 0, 3: 2},
                 {2: 1, 4: 3},
@@ -1324,7 +1324,7 @@ def get_expected():
                 OrderedSet([4, 2, 3, 5, 6]),
                 OrderedSet([5, 6, 7, 3, 4]),
             ],
-            frag_idx_per_edge=[
+            ref_frag_idx_per_edge=[
                 {3: 1, 4: 2},
                 {1: 0, 2: 0, 4: 2, 5: 3},
                 {2: 0, 3: 1, 5: 3, 6: 3},
@@ -1390,7 +1390,7 @@ def get_expected():
                 OrderedSet([3, 0, 1, 2, 4, 5, 6]),
                 OrderedSet([4, 5, 6, 7, 1, 2, 3]),
             ],
-            frag_idx_per_edge=[{4: 1, 5: 1, 6: 1}, {1: 0, 2: 0, 3: 0}],
+            ref_frag_idx_per_edge=[{4: 1, 5: 1, 6: 1}, {1: 0, 2: 0, 3: 0}],
             conn_data=BondConnectivity(
                 bonds_atoms={
                     0: OrderedSet([1]),
@@ -1445,7 +1445,7 @@ def get_expected():
             edges_per_frag=[OrderedSet()],
             origin_per_frag=[OrderedSet([3])],
             atoms_per_frag=[OrderedSet([3, 0, 1, 2, 4, 5, 6, 7])],
-            frag_idx_per_edge=[{}],
+            ref_frag_idx_per_edge=[{}],
             conn_data=BondConnectivity(
                 bonds_atoms={
                     0: OrderedSet([1]),
@@ -1616,7 +1616,7 @@ def get_expected():
                     OrderedSet([18, 20, 22, 25]),
                     OrderedSet([19, 21, 23, 24]),
                 ],
-                frag_idx_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
+                ref_frag_idx_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
                 conn_data=BondConnectivity(
                     bonds_atoms={
                         0: OrderedSet([1, 3, 5, 7]),
@@ -2090,7 +2090,7 @@ def get_expected():
                     OrderedSet([18, 20, 22, 25]),
                     OrderedSet([19, 21, 23, 24]),
                 ],
-                frag_idx_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
+                ref_frag_idx_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
                 conn_data=BondConnectivity(
                     bonds_atoms={
                         0: OrderedSet([1, 3, 5, 7]),
@@ -2554,7 +2554,7 @@ def get_expected():
                     OrderedSet([12, 14, 16, 18, 20, 22, 25, 6, 8, 10]),
                     OrderedSet([13, 15, 17, 19, 21, 23, 24, 7, 9, 11]),
                 ],
-                frag_idx_per_edge=[
+                ref_frag_idx_per_edge=[
                     {1: 1, 7: 3},
                     {0: 0, 6: 2},
                     {1: 1, 12: 4},
@@ -3290,7 +3290,7 @@ def get_expected():
                     OrderedSet([12, 14, 16, 18, 20, 22, 25, 6, 8, 10]),
                     OrderedSet([13, 15, 17, 19, 21, 23, 24, 7, 9, 11]),
                 ],
-                frag_idx_per_edge=[
+                ref_frag_idx_per_edge=[
                     {1: 1, 7: 3},
                     {0: 0, 6: 2},
                     {1: 1, 12: 4},
@@ -4114,7 +4114,7 @@ def get_expected():
                         [7, 9, 11, 13, 15, 17, 19, 21, 23, 24, 0, 3, 5, 1, 2, 4]
                     ),
                 ],
-                frag_idx_per_edge=[
+                ref_frag_idx_per_edge=[
                     {1: 1, 6: 2, 7: 3, 13: 3},
                     {0: 0, 6: 2, 7: 3, 12: 2},
                     {0: 0, 1: 1},
@@ -4928,7 +4928,7 @@ def get_expected():
                         [7, 9, 11, 13, 15, 17, 19, 21, 23, 24, 0, 3, 5, 1, 2, 4]
                     ),
                 ],
-                frag_idx_per_edge=[
+                ref_frag_idx_per_edge=[
                     {1: 1, 6: 2, 7: 3, 13: 3},
                     {0: 0, 6: 2, 7: 3, 12: 2},
                     {0: 0, 1: 1},
@@ -5792,7 +5792,7 @@ def get_expected():
                         ]
                     ),
                 ],
-                frag_idx_per_edge=[{1: 1, 6: 1, 12: 1}, {0: 0, 7: 0, 13: 0}],
+                ref_frag_idx_per_edge=[{1: 1, 6: 1, 12: 1}, {0: 0, 7: 0, 13: 0}],
                 conn_data=BondConnectivity(
                     bonds_atoms={
                         0: OrderedSet([1, 3, 5, 7]),
@@ -6433,7 +6433,7 @@ def get_expected():
                         ]
                     ),
                 ],
-                frag_idx_per_edge=[{1: 1, 6: 1, 12: 1}, {0: 0, 7: 0, 13: 0}],
+                ref_frag_idx_per_edge=[{1: 1, 6: 1, 12: 1}, {0: 0, 7: 0, 13: 0}],
                 conn_data=BondConnectivity(
                     bonds_atoms={
                         0: OrderedSet([1, 3, 5, 7]),
@@ -7074,7 +7074,7 @@ def get_expected():
                     OrderedSet([18, 20, 22, 25]),
                     OrderedSet([19, 21, 23, 24]),
                 ],
-                frag_idx_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
+                ref_frag_idx_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
                 conn_data=BondConnectivity(
                     bonds_atoms={
                         0: OrderedSet([1, 3, 5, 7]),
@@ -7822,7 +7822,7 @@ def get_expected():
                     OrderedSet([18, 20, 22, 25]),
                     OrderedSet([19, 21, 23, 24]),
                 ],
-                frag_idx_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
+                ref_frag_idx_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
                 conn_data=BondConnectivity(
                     bonds_atoms={
                         0: OrderedSet([1, 3, 5, 7]),
@@ -8639,7 +8639,7 @@ def get_expected():
                     OrderedSet([12, 14, 16, 18, 20, 22, 25, 6, 8, 10]),
                     OrderedSet([13, 15, 17, 19, 21, 23, 24, 7, 9, 11]),
                 ],
-                frag_idx_per_edge=[
+                ref_frag_idx_per_edge=[
                     {1: 1, 7: 3},
                     {0: 0, 6: 2},
                     {1: 1, 12: 4},
@@ -9899,7 +9899,7 @@ def get_expected():
                     OrderedSet([12, 14, 16, 18, 20, 22, 25, 6, 8, 10]),
                     OrderedSet([13, 15, 17, 19, 21, 23, 24, 7, 9, 11]),
                 ],
-                frag_idx_per_edge=[
+                ref_frag_idx_per_edge=[
                     {1: 1, 7: 3},
                     {0: 0, 6: 2},
                     {1: 1, 12: 4},
@@ -11258,7 +11258,7 @@ def get_expected():
                         [7, 9, 11, 13, 15, 17, 19, 21, 23, 24, 0, 3, 5, 1, 2, 4]
                     ),
                 ],
-                frag_idx_per_edge=[
+                ref_frag_idx_per_edge=[
                     {1: 1, 6: 2, 7: 3, 13: 3},
                     {0: 0, 6: 2, 7: 3, 12: 2},
                     {0: 0, 1: 1},
@@ -12632,7 +12632,7 @@ def get_expected():
                         [7, 9, 11, 13, 15, 17, 19, 21, 23, 24, 0, 3, 5, 1, 2, 4]
                     ),
                 ],
-                frag_idx_per_edge=[
+                ref_frag_idx_per_edge=[
                     {1: 1, 6: 2, 7: 3, 13: 3},
                     {0: 0, 6: 2, 7: 3, 12: 2},
                     {0: 0, 1: 1},
@@ -14207,7 +14207,7 @@ def get_expected():
                         ]
                     ),
                 ],
-                frag_idx_per_edge=[{1: 1, 6: 1, 12: 1}, {0: 0, 7: 0, 13: 0}],
+                ref_frag_idx_per_edge=[{1: 1, 6: 1, 12: 1}, {0: 0, 7: 0, 13: 0}],
                 conn_data=BondConnectivity(
                     bonds_atoms={
                         0: OrderedSet([1, 3, 5, 7]),
@@ -15398,7 +15398,7 @@ def get_expected():
                         ]
                     ),
                 ],
-                frag_idx_per_edge=[{1: 1, 6: 1, 12: 1}, {0: 0, 7: 0, 13: 0}],
+                ref_frag_idx_per_edge=[{1: 1, 6: 1, 12: 1}, {0: 0, 7: 0, 13: 0}],
                 conn_data=BondConnectivity(
                     bonds_atoms={
                         0: OrderedSet([1, 3, 5, 7]),
@@ -16688,7 +16688,7 @@ def get_expected():
                     OrderedSet([18, 20, 22, 25]),
                     OrderedSet([19, 21, 23, 24]),
                 ],
-                frag_idx_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
+                ref_frag_idx_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
                 conn_data=BondConnectivity(
                     bonds_atoms={
                         0: OrderedSet([1, 3, 5, 7]),
@@ -17436,7 +17436,7 @@ def get_expected():
                     OrderedSet([18, 20, 22, 25]),
                     OrderedSet([19, 21, 23, 24]),
                 ],
-                frag_idx_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
+                ref_frag_idx_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
                 conn_data=BondConnectivity(
                     bonds_atoms={
                         0: OrderedSet([1, 3, 5, 7]),
@@ -18253,7 +18253,7 @@ def get_expected():
                     OrderedSet([12, 14, 16, 18, 20, 22, 25, 6, 8, 10]),
                     OrderedSet([13, 15, 17, 19, 21, 23, 24, 7, 9, 11]),
                 ],
-                frag_idx_per_edge=[
+                ref_frag_idx_per_edge=[
                     {1: 1, 7: 3},
                     {0: 0, 6: 2},
                     {1: 1, 12: 4},
@@ -19513,7 +19513,7 @@ def get_expected():
                     OrderedSet([12, 14, 16, 18, 20, 22, 25, 6, 8, 10]),
                     OrderedSet([13, 15, 17, 19, 21, 23, 24, 7, 9, 11]),
                 ],
-                frag_idx_per_edge=[
+                ref_frag_idx_per_edge=[
                     {1: 1, 7: 3},
                     {0: 0, 6: 2},
                     {1: 1, 12: 4},
@@ -20872,7 +20872,7 @@ def get_expected():
                         [7, 9, 11, 13, 15, 17, 19, 21, 23, 24, 0, 3, 5, 1, 2, 4]
                     ),
                 ],
-                frag_idx_per_edge=[
+                ref_frag_idx_per_edge=[
                     {1: 1, 6: 2, 7: 3, 13: 3},
                     {0: 0, 6: 2, 7: 3, 12: 2},
                     {0: 0, 1: 1},
@@ -22246,7 +22246,7 @@ def get_expected():
                         [7, 9, 11, 13, 15, 17, 19, 21, 23, 24, 0, 3, 5, 1, 2, 4]
                     ),
                 ],
-                frag_idx_per_edge=[
+                ref_frag_idx_per_edge=[
                     {1: 1, 6: 2, 7: 3, 13: 3},
                     {0: 0, 6: 2, 7: 3, 12: 2},
                     {0: 0, 1: 1},
@@ -23821,7 +23821,7 @@ def get_expected():
                         ]
                     ),
                 ],
-                frag_idx_per_edge=[{1: 1, 6: 1, 12: 1}, {0: 0, 7: 0, 13: 0}],
+                ref_frag_idx_per_edge=[{1: 1, 6: 1, 12: 1}, {0: 0, 7: 0, 13: 0}],
                 conn_data=BondConnectivity(
                     bonds_atoms={
                         0: OrderedSet([1, 3, 5, 7]),
@@ -25012,7 +25012,7 @@ def get_expected():
                         ]
                     ),
                 ],
-                frag_idx_per_edge=[{1: 1, 6: 1, 12: 1}, {0: 0, 7: 0, 13: 0}],
+                ref_frag_idx_per_edge=[{1: 1, 6: 1, 12: 1}, {0: 0, 7: 0, 13: 0}],
                 conn_data=BondConnectivity(
                     bonds_atoms={
                         0: OrderedSet([1, 3, 5, 7]),
@@ -26202,7 +26202,7 @@ def get_expected():
                 [40, 41, 42, 43, 45, 47, 48],
             ],
             AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
-            center=[[], [], [], [], [], [], [], []],
+            ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
             edge_idx=[[], [], [], [], [], [], [], []],
             center_idx=[[], [], [], [], [], [], [], []],
             centerf_idx=[
@@ -26357,7 +26357,7 @@ def get_expected():
                 [40, 41, 42, 43, 45, 47, 48],
             ],
             AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
-            center=[[], [], [], [], [], [], [], []],
+            ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
             edge_idx=[[], [], [], [], [], [], [], []],
             center_idx=[[], [], [], [], [], [], [], []],
             centerf_idx=[
@@ -26512,7 +26512,7 @@ def get_expected():
                 [47, 48, 49, 50, 51, 53, 55, 56],
             ],
             AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
-            center=[[], [], [], [], [], [], [], []],
+            ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
             edge_idx=[[], [], [], [], [], [], [], []],
             center_idx=[[], [], [], [], [], [], [], []],
             centerf_idx=[
@@ -26589,7 +26589,7 @@ def get_expected():
                 [47, 48, 49, 50, 51, 53, 55, 56],
             ],
             AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
-            center=[[], [], [], [], [], [], [], []],
+            ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
             edge_idx=[[], [], [], [], [], [], [], []],
             center_idx=[[], [], [], [], [], [], [], []],
             centerf_idx=[
@@ -26868,7 +26868,7 @@ def get_expected():
                 ],
             ],
             AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
-            center=[[], [], [], [], [], [], [], []],
+            ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
             edge_idx=[[], [], [], [], [], [], [], []],
             center_idx=[[], [], [], [], [], [], [], []],
             centerf_idx=[
@@ -27797,7 +27797,7 @@ def get_expected():
                 ],
             ],
             AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
-            center=[[], [], [], [], [], [], [], []],
+            ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
             edge_idx=[[], [], [], [], [], [], [], []],
             center_idx=[[], [], [], [], [], [], [], []],
             centerf_idx=[
@@ -28734,7 +28734,7 @@ def get_expected():
                 ],
             ],
             AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
-            center=[[], [], [], [], [], [], [], []],
+            ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
             edge_idx=[[], [], [], [], [], [], [], []],
             center_idx=[[], [], [], [], [], [], [], []],
             centerf_idx=[
@@ -29465,7 +29465,7 @@ def get_expected():
                 ],
             ],
             AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
-            center=[[], [], [], [], [], [], [], []],
+            ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
             edge_idx=[[], [], [], [], [], [], [], []],
             center_idx=[[], [], [], [], [], [], [], []],
             centerf_idx=[
@@ -30188,7 +30188,7 @@ def get_expected():
                 ],
             ],
             AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
-            center=[[], [], [], [], [], [], [], []],
+            ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
             edge_idx=[[], [], [], [], [], [], [], []],
             center_idx=[[], [], [], [], [], [], [], []],
             centerf_idx=[
@@ -30915,7 +30915,7 @@ def get_expected():
                 ],
             ],
             AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
-            center=[[], [], [], [], [], [], [], []],
+            ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
             edge_idx=[[], [], [], [], [], [], [], []],
             center_idx=[[], [], [], [], [], [], [], []],
             centerf_idx=[
@@ -31650,7 +31650,7 @@ def get_expected():
                 ],
             ],
             AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
-            center=[[], [], [], [], [], [], [], []],
+            ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
             edge_idx=[[], [], [], [], [], [], [], []],
             center_idx=[[], [], [], [], [], [], [], []],
             centerf_idx=[
@@ -32171,7 +32171,7 @@ def get_expected():
                 ],
             ],
             AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
-            center=[[], [], [], [], [], [], [], []],
+            ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
             edge_idx=[[], [], [], [], [], [], [], []],
             center_idx=[[], [], [], [], [], [], [], []],
             centerf_idx=[
@@ -32527,7 +32527,7 @@ def get_expected():
                 [[12, 13, 14, 15, 20, 22]],
                 [[16, 17, 18, 19, 21, 23]],
             ],
-            center=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
+            ref_frag_idx_per_edge=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
             edge_idx=[
                 [[6, 7, 8, 9, 10, 11], [12, 13, 14, 15, 16, 17]],
                 [[6, 7, 8, 9, 10, 11], [12, 13, 14, 15, 16, 17]],
@@ -32744,7 +32744,7 @@ def get_expected():
                 [[12, 13, 14, 15, 20, 22]],
                 [[16, 17, 18, 19, 21, 23]],
             ],
-            center=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
+            ref_frag_idx_per_edge=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
             edge_idx=[
                 [[6, 7, 8, 9, 10, 11], [12, 13, 14, 15, 16, 17]],
                 [[6, 7, 8, 9, 10, 11], [12, 13, 14, 15, 16, 17]],
@@ -33055,7 +33055,7 @@ def get_expected():
                 [[14, 15, 16, 17, 18, 24, 26]],
                 [[19, 20, 21, 22, 23, 25, 27]],
             ],
-            center=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
+            ref_frag_idx_per_edge=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
             edge_idx=[
                 [[7, 8, 9, 10, 11, 12, 13], [14, 15, 16, 17, 18, 19, 20]],
                 [[7, 8, 9, 10, 11, 12, 13], [14, 15, 16, 17, 18, 19, 20]],
@@ -33288,7 +33288,7 @@ def get_expected():
                 [[14, 15, 16, 17, 18, 24, 26]],
                 [[19, 20, 21, 22, 23, 25, 27]],
             ],
-            center=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
+            ref_frag_idx_per_edge=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
             edge_idx=[
                 [[7, 8, 9, 10, 11, 12, 13], [14, 15, 16, 17, 18, 19, 20]],
                 [[7, 8, 9, 10, 11, 12, 13], [14, 15, 16, 17, 18, 19, 20]],
@@ -34073,7 +34073,7 @@ def get_expected():
                     ]
                 ],
             ],
-            center=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
+            ref_frag_idx_per_edge=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
             edge_idx=[
                 [
                     [
@@ -35954,7 +35954,7 @@ def get_expected():
                     ]
                 ],
             ],
-            center=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
+            ref_frag_idx_per_edge=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
             edge_idx=[
                 [
                     [
@@ -37863,7 +37863,7 @@ def get_expected():
                     ]
                 ],
             ],
-            center=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
+            ref_frag_idx_per_edge=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
             edge_idx=[
                 [
                     [
@@ -39584,7 +39584,7 @@ def get_expected():
                     ]
                 ],
             ],
-            center=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
+            ref_frag_idx_per_edge=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
             edge_idx=[
                 [
                     [
@@ -41021,7 +41021,7 @@ def get_expected():
                 [[46, 47, 48, 49, 72, 73]],
                 [[59, 60, 61, 62, 77, 78]],
             ],
-            center=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
+            ref_frag_idx_per_edge=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
             edge_idx=[
                 [[23, 24, 25, 26, 36, 37], [46, 47, 48, 49, 59, 60]],
                 [[23, 24, 25, 26, 36, 37], [46, 47, 48, 49, 59, 60]],
@@ -41990,7 +41990,7 @@ def get_expected():
                 [[46, 47, 48, 49, 72, 82]],
                 [[59, 60, 61, 62, 77, 87]],
             ],
-            center=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
+            ref_frag_idx_per_edge=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
             edge_idx=[
                 [[23, 24, 25, 26, 36, 41], [46, 47, 48, 49, 59, 64]],
                 [[23, 24, 25, 26, 36, 41], [46, 47, 48, 49, 59, 64]],
@@ -42977,7 +42977,7 @@ def get_expected():
                 [[48, 49, 50, 51, 52, 76, 77]],
                 [[62, 63, 64, 65, 66, 81, 82]],
             ],
-            center=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
+            ref_frag_idx_per_edge=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
             edge_idx=[
                 [[24, 25, 26, 27, 28, 38, 39], [48, 49, 50, 51, 52, 62, 63]],
                 [[24, 25, 26, 27, 28, 38, 39], [48, 49, 50, 51, 52, 62, 63]],
@@ -43750,7 +43750,7 @@ def get_expected():
                 [[48, 49, 50, 51, 52, 76, 86]],
                 [[62, 63, 64, 65, 66, 81, 91]],
             ],
-            center=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
+            ref_frag_idx_per_edge=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
             edge_idx=[
                 [[24, 25, 26, 27, 28, 38, 43], [48, 49, 50, 51, 52, 62, 67]],
                 [[24, 25, 26, 27, 28, 38, 43], [48, 49, 50, 51, 52, 62, 67]],
@@ -44207,7 +44207,7 @@ def get_expected():
                 [[0, 1, 2, 3, 9, 11], [4, 5, 6, 7, 8, 10]],
                 [[0, 1, 2, 3, 9, 11], [4, 5, 6, 7, 8, 10]],
             ],
-            center=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
+            ref_frag_idx_per_edge=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
             edge_idx=[
                 [
                     [6, 7, 8, 9, 10, 11],
@@ -44532,7 +44532,7 @@ def get_expected():
                 [[0, 1, 2, 3, 9, 11], [4, 5, 6, 7, 8, 10]],
                 [[0, 1, 2, 3, 9, 11], [4, 5, 6, 7, 8, 10]],
             ],
-            center=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
+            ref_frag_idx_per_edge=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
             edge_idx=[
                 [
                     [6, 7, 8, 9, 10, 11],
@@ -44877,7 +44877,7 @@ def get_expected():
                 [[0, 1, 2, 3, 4, 11, 13], [5, 6, 7, 8, 9, 10, 12]],
                 [[0, 1, 2, 3, 4, 11, 13], [5, 6, 7, 8, 9, 10, 12]],
             ],
-            center=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
+            ref_frag_idx_per_edge=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
             edge_idx=[
                 [
                     [7, 8, 9, 10, 11, 12, 13],
@@ -45190,7 +45190,7 @@ def get_expected():
                 [[0, 1, 2, 3, 4, 11, 13], [5, 6, 7, 8, 9, 10, 12]],
                 [[0, 1, 2, 3, 4, 11, 13], [5, 6, 7, 8, 9, 10, 12]],
             ],
-            center=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
+            ref_frag_idx_per_edge=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
             edge_idx=[
                 [
                     [7, 8, 9, 10, 11, 12, 13],
@@ -46125,7 +46125,7 @@ def get_expected():
                     ],
                 ],
             ],
-            center=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
+            ref_frag_idx_per_edge=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
             edge_idx=[
                 [
                     [
@@ -48124,7 +48124,7 @@ def get_expected():
                     ],
                 ],
             ],
-            center=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
+            ref_frag_idx_per_edge=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
             edge_idx=[
                 [
                     [
@@ -50155,7 +50155,7 @@ def get_expected():
                     ],
                 ],
             ],
-            center=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
+            ref_frag_idx_per_edge=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
             edge_idx=[
                 [
                     [
@@ -52000,7 +52000,7 @@ def get_expected():
                     ],
                 ],
             ],
-            center=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
+            ref_frag_idx_per_edge=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
             edge_idx=[
                 [
                     [
@@ -53519,7 +53519,7 @@ def get_expected():
                 [[0, 1, 2, 3, 31, 32], [13, 14, 15, 16, 26, 27]],
                 [[0, 1, 2, 3, 31, 32], [13, 14, 15, 16, 26, 27]],
             ],
-            center=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
+            ref_frag_idx_per_edge=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
             edge_idx=[
                 [
                     [23, 24, 25, 26, 36, 37],
@@ -54540,7 +54540,7 @@ def get_expected():
                 [[0, 1, 2, 3, 31, 41], [13, 14, 15, 16, 26, 36]],
                 [[0, 1, 2, 3, 31, 41], [13, 14, 15, 16, 26, 36]],
             ],
-            center=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
+            ref_frag_idx_per_edge=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
             edge_idx=[
                 [
                     [23, 24, 25, 26, 36, 41],
@@ -55581,7 +55581,7 @@ def get_expected():
                 [[0, 1, 2, 3, 4, 33, 34], [14, 15, 16, 17, 18, 28, 29]],
                 [[0, 1, 2, 3, 4, 33, 34], [14, 15, 16, 17, 18, 28, 29]],
             ],
-            center=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
+            ref_frag_idx_per_edge=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
             edge_idx=[
                 [
                     [24, 25, 26, 27, 28, 38, 39],
@@ -56408,7 +56408,7 @@ def get_expected():
                 [[0, 1, 2, 3, 4, 33, 43], [14, 15, 16, 17, 18, 28, 38]],
                 [[0, 1, 2, 3, 4, 33, 43], [14, 15, 16, 17, 18, 28, 38]],
             ],
-            center=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
+            ref_frag_idx_per_edge=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
             edge_idx=[
                 [
                     [24, 25, 26, 27, 28, 38, 43],
@@ -56823,7 +56823,7 @@ def get_expected():
                     [28, 29, 30, 31, 33, 35],
                 ],
             ],
-            center=[[1, 1, 1], [0, 0, 0]],
+            ref_frag_idx_per_edge=[[1, 1, 1], [0, 0, 0]],
             edge_idx=[
                 [
                     [25, 26, 27, 28, 29, 30],
@@ -57128,7 +57128,7 @@ def get_expected():
                     [28, 29, 30, 31, 33, 35],
                 ],
             ],
-            center=[[1, 1, 1], [0, 0, 0]],
+            ref_frag_idx_per_edge=[[1, 1, 1], [0, 0, 0]],
             edge_idx=[
                 [
                     [25, 26, 27, 28, 29, 30],
@@ -57447,7 +57447,7 @@ def get_expected():
                     [33, 34, 35, 36, 37, 39, 41],
                 ],
             ],
-            center=[[1, 1, 1], [0, 0, 0]],
+            ref_frag_idx_per_edge=[[1, 1, 1], [0, 0, 0]],
             edge_idx=[
                 [
                     [29, 30, 31, 32, 33, 34, 35],
@@ -57704,7 +57704,7 @@ def get_expected():
                     [33, 34, 35, 36, 37, 39, 41],
                 ],
             ],
-            center=[[1, 1, 1], [0, 0, 0]],
+            ref_frag_idx_per_edge=[[1, 1, 1], [0, 0, 0]],
             edge_idx=[
                 [
                     [29, 30, 31, 32, 33, 34, 35],
@@ -58337,7 +58337,7 @@ def get_expected():
                     ],
                 ],
             ],
-            center=[[1, 1, 1], [0, 0, 0]],
+            ref_frag_idx_per_edge=[[1, 1, 1], [0, 0, 0]],
             edge_idx=[
                 [
                     [
@@ -59667,7 +59667,7 @@ def get_expected():
                     ],
                 ],
             ],
-            center=[[1, 1, 1], [0, 0, 0]],
+            ref_frag_idx_per_edge=[[1, 1, 1], [0, 0, 0]],
             edge_idx=[
                 [
                     [
@@ -61017,7 +61017,7 @@ def get_expected():
                     ],
                 ],
             ],
-            center=[[1, 1, 1], [0, 0, 0]],
+            ref_frag_idx_per_edge=[[1, 1, 1], [0, 0, 0]],
             edge_idx=[
                 [
                     [
@@ -62167,7 +62167,7 @@ def get_expected():
                     ],
                 ],
             ],
-            center=[[1, 1, 1], [0, 0, 0]],
+            ref_frag_idx_per_edge=[[1, 1, 1], [0, 0, 0]],
             edge_idx=[
                 [
                     [
@@ -63153,7 +63153,7 @@ def get_expected():
                     [105, 106, 107, 108, 123, 124],
                 ],
             ],
-            center=[[1, 1, 1], [0, 0, 0]],
+            ref_frag_idx_per_edge=[[1, 1, 1], [0, 0, 0]],
             edge_idx=[
                 [
                     [97, 98, 99, 100, 110, 111],
@@ -64000,7 +64000,7 @@ def get_expected():
                     [105, 106, 107, 108, 123, 133],
                 ],
             ],
-            center=[[1, 1, 1], [0, 0, 0]],
+            ref_frag_idx_per_edge=[[1, 1, 1], [0, 0, 0]],
             edge_idx=[
                 [
                     [97, 98, 99, 100, 110, 115],
@@ -64861,7 +64861,7 @@ def get_expected():
                     [110, 111, 112, 113, 114, 129, 130],
                 ],
             ],
-            center=[[1, 1, 1], [0, 0, 0]],
+            ref_frag_idx_per_edge=[[1, 1, 1], [0, 0, 0]],
             edge_idx=[
                 [
                     [101, 102, 103, 104, 105, 115, 116],
@@ -65508,7 +65508,7 @@ def get_expected():
                     [110, 111, 112, 113, 114, 129, 139],
                 ],
             ],
-            center=[[1, 1, 1], [0, 0, 0]],
+            ref_frag_idx_per_edge=[[1, 1, 1], [0, 0, 0]],
             edge_idx=[
                 [
                     [101, 102, 103, 104, 105, 115, 120],

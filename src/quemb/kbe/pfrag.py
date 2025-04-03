@@ -37,7 +37,7 @@ class Frags:
         AO_per_frag,
         ifrag,
         edge=None,
-        center=None,
+        ref_frag_idx_per_edge=None,
         edge_idx=None,
         center_idx=None,
         efac=None,
@@ -54,21 +54,26 @@ class Frags:
         AO_per_frag: list
             list of AOs in the fragment (i.e. pbe.AO_per_frag[i]
             or FragPart.AO_per_frag[i])
+            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
         ifrag : int
             fragment index (∈ [0, pbe.n_frag - 1])
         edge : list, optional
             list of lists of edge site AOs for each atom in the fragment,
             by default None
-        center : list, optional
+            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
+        ref_frag_idx_per_edge: list, optional
             list of fragment indices where edge site AOs are center site,
-            by default None
+            by default None.
+            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
         edge_idx : list, optional
             list of lists of indices for edge site AOs within the fragment,
             by default None
+            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
         center_idx : list, optional
             list of lists of indices within the fragment specified
             in :python:`center` that points to the edge site AOs,
             by default :python:`None`
+            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
         efac : list, optional
             weight used for energy contributions, by default None
         eri_file : str, optional
@@ -99,7 +104,7 @@ class Frags:
 
         self.heff = None
         self.edge = edge
-        self.center = center
+        self.ref_frag_idx_per_edge = ref_frag_idx_per_edge
         self.edge_idx = edge_idx
         self.center_idx = center_idx
         self.centerf_idx = centerf_idx

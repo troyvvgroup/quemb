@@ -33,7 +33,7 @@ class Frags:
         AO_per_frag,
         ifrag,
         edge=None,
-        center=None,
+        ref_frag_idx_per_edge=None,
         edge_idx=None,
         center_idx=None,
         efac=None,
@@ -53,7 +53,7 @@ class Frags:
         edge : list, optional
             list of lists of edge site AOs for each atom in the fragment,
             by default None
-        center : list, optional
+        ref_frag_idx_per_edge : list, optional
             list of fragment indices where edge site AOs are center site,
             by default None
         edge_idx : list, optional
@@ -99,7 +99,7 @@ class Frags:
 
         self.heff = None
         self.edge = edge
-        self.center = center
+        self.ref_frag_idx_per_edge = ref_frag_idx_per_edge
         self.edge_idx = edge_idx
         self.center_idx = center_idx
         self.centerf_idx = centerf_idx

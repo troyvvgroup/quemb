@@ -251,13 +251,13 @@ class FrankQN:
         return vs[0]
 
 
-def get_be_error_jacobian(Nfrag, Fobjs, jac_solver="HF"):
-    Jes = [None] * Nfrag
-    Jcs = [None] * Nfrag
-    xes = [None] * Nfrag
-    xcs = [None] * Nfrag
-    ys = [None] * Nfrag
-    alphas = [None] * Nfrag
+def get_be_error_jacobian(n_frag, Fobjs: list[Frags], jac_solver="HF"):
+    Jes = [None] * n_frag
+    Jcs = [None] * n_frag
+    xes = [None] * n_frag
+    xcs = [None] * n_frag
+    ys = [None] * n_frag
+    alphas = [None] * n_frag
 
     if jac_solver.upper() == "MP2":
         res_func = mp2res_func
@@ -268,8 +268,8 @@ def get_be_error_jacobian(Nfrag, Fobjs, jac_solver="HF"):
     else:
         raise NotImplementedError("Jacobian solver input not implemented")
 
-    Ncout = [None] * Nfrag
-    for A in range(Nfrag):
+    Ncout = [None] * n_frag
+    for A in range(n_frag):
         Jes[A], Jcs[A], xes[A], xcs[A], ys[A], alphas[A], Ncout[A] = (
             get_atbe_Jblock_frag(Fobjs[A], res_func)
         )
@@ -299,12 +299,14 @@ def get_be_error_jacobian(Nfrag, Fobjs, jac_solver="HF"):
         coutc = 0
         coutc_ = 0
         for cindx, cens in enumerate(fobj.center_idx):
-            coutc += Jcs[fobj.center[cindx]].shape[0]
-            start_ = sum(Ncout[: fobj.center[cindx]])
-            end_ = start_ + Ncout[fobj.center[cindx]]
-            J[cout + coutc_ : cout + coutc, start_:end_] += Jcs[fobj.center[cindx]]
+            coutc += Jcs[fobj.ref_frag_idx_per_edge[cindx]].shape[0]
+            start_ = sum(Ncout[: fobj.ref_frag_idx_per_edge[cindx]])
+            end_ = start_ + Ncout[fobj.ref_frag_idx_per_edge[cindx]]
+            J[cout + coutc_ : cout + coutc, start_:end_] += Jcs[
+                fobj.ref_frag_idx_per_edge[cindx]
+            ]
             J[cout + coutc_ : cout + coutc, N_:] += array(
-                xcs[fobj.center[cindx]]
+                xcs[fobj.ref_frag_idx_per_edge[cindx]]
             ).reshape(-1, 1)
             coutc_ = coutc
         cout += Ncout[findx]

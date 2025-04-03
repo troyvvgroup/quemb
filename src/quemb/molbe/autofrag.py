@@ -53,11 +53,13 @@ class FragPart:
     #: The global orbital indices, including hydrogens, per edge per fragment.
     AO_per_edge_per_frag: ListOverFrag[ListOverEdge[list[GlobalAOIdx]]]
 
-    # A list over fragments: list of indices of the fragments in which an edge
-    # of the fragment is actually a center:
-    # For fragments A, B: the A’th element of :python:`.center`,
-    # if the edge of A is the center of B, will be B.
-    center: ListOverFrag[ListOverEdge[FragmentIdx]]
+    #: Reference fragment index per edge:
+    #: A list over fragments: list of indices of the fragments in which an edge
+    #: of the fragment is actually a center.
+    #: The edge will be matched against this center.
+    #: For fragments A, B: the A’th element of :python:`.center`,
+    #: if the edge of A is the center of B, will be B.
+    ref_frag_idx_per_edge: ListOverFrag[ListOverEdge[FragmentIdx]]
 
     #: The relative orbital indices, including hydrogens, per edge per fragment.
     #: The index is relative to the own fragment.
@@ -209,7 +211,7 @@ class FragmentMap:
     AO_per_frag: list[Sequence[int]]
     fs: list[Sequence[Sequence[int]]]
     AO_per_edge_per_frag: list[Sequence[Sequence[int]]]
-    center: list[Sequence[int]]
+    ref_frag_idx_per_edge: list[Sequence[int]]
     centerf_idx: list[Sequence[int]]
     ebe_weight: list[Sequence]
     sites: list[Sequence]
@@ -241,10 +243,10 @@ class FragmentMap:
                         pass
                     elif set(basb).issubset(set(basa)):
                         subsets.add(bdx)
-                        self.center[adx] = tuple(
+                        self.ref_frag_idx_per_edge[adx] = tuple(
                             set(
-                                list(self.center[adx])
-                                + list(deepcopy(self.center[bdx]))
+                                list(self.ref_frag_idx_per_edge[adx])
+                                + list(deepcopy(self.ref_frag_idx_per_edge[bdx]))
                             )
                         )
                         self.center_atom[adx] = tuple(
@@ -256,7 +258,7 @@ class FragmentMap:
             if subsets:
                 sorted_subsets = sorted(subsets, reverse=True)
                 for bdx in sorted_subsets:
-                    del self.center[bdx]
+                    del self.ref_frag_idx_per_edge[bdx]
                     del self.AO_per_frag[bdx]
                     del self.fs[bdx]
                     del self.center_atom[bdx]
@@ -275,7 +277,7 @@ class FragmentMap:
             center_idx=MISSING,
             centerf_idx=self.centerf_idx,  # type: ignore[arg-type]
             AO_per_frag=self.AO_per_frag,  # type: ignore[arg-type]
-            center=self.center,  # type: ignore[arg-type]
+            ref_frag_idx_per_edge=self.ref_frag_idx_per_edge,  # type: ignore[arg-type]
             ebe_weight=self.ebe_weight,  # type: ignore[arg-type]
             Frag_atom=self.Frag_atom,  # type: ignore[arg-type]
             center_atom=self.center_atom,  # type: ignore[arg-type]
@@ -373,7 +375,7 @@ def graphgen(
         AO_per_frag=(list(tuple())),
         fs=list(tuple(tuple())),
         AO_per_edge_per_frag=list(tuple(tuple())),
-        center=list(tuple()),
+        ref_frag_idx_per_edge=list(tuple()),
         centerf_idx=list(tuple()),
         ebe_weight=list(tuple()),
         sites=list(tuple()),
@@ -424,7 +426,7 @@ def graphgen(
         # sites.
         for adx, map in adx_map.items():
             fragment_map.center_atom.append((adx,))
-            fragment_map.center.append(deepcopy(fragment_map.sites[adx]))
+            fragment_map.ref_frag_idx_per_edge.append(deepcopy(fragment_map.sites[adx]))
             AO_per_frag_tmp = deepcopy(list(fragment_map.sites[adx]))
             fatoms_temp = [adx]
             fs_temp = []
@@ -478,7 +480,7 @@ def graphgen(
     for adx, fs in enumerate(fragment_map.fs):
         edge_temp: set[tuple] = set()
         eatoms_temp: set[tuple[int, ...]] = set()
-        for bdx, center in enumerate(fragment_map.center):
+        for bdx, center in enumerate(fragment_map.ref_frag_idx_per_edge):
             if adx == bdx:
                 pass
             else:
@@ -494,7 +496,7 @@ def graphgen(
 
     # Update relative center site indices (centerf_idx) and weights
     # for center site contributions to the energy (ebe_weights):
-    for adx, center in enumerate(fragment_map.center):
+    for adx, center in enumerate(fragment_map.ref_frag_idx_per_edge):
         centerf_idx = tuple(fragment_map.AO_per_frag[adx].index(cdx) for cdx in center)
         fragment_map.centerf_idx.append(centerf_idx)
         fragment_map.ebe_weight.append((1.0, tuple(centerf_idx)))
@@ -907,7 +909,7 @@ def autogen(
             AO_per_edge_per_frag.append(ftmpe)
             edge_idx.append(edind)
         AO_per_frag.append(ftmp)
-    center = []
+    ref_frag_idx_per_edge = []
     for ix in edge:
         cen_ = []
         for jx in ix:
@@ -918,7 +920,7 @@ def autogen(
             else:
                 raise ValueError("This is more complicated than I can handle.")
 
-        center.append(cen_)
+        ref_frag_idx_per_edge.append(cen_)
 
     n_frag = len(AO_per_frag)
 
@@ -941,7 +943,7 @@ def autogen(
     if n_BE != 1:
         for i in range(n_frag):
             idx = []
-            for jdx, j in enumerate(center[i]):
+            for jdx, j in enumerate(ref_frag_idx_per_edge[i]):
                 jdx_continue = False
                 if j in open_frag:
                     for kdx, k in enumerate(open_frag):
@@ -987,7 +989,7 @@ def autogen(
         n_BE=n_BE,
         AO_per_frag=AO_per_frag,
         AO_per_edge_per_frag=AO_per_edge_per_frag,
-        center=center,
+        ref_frag_idx_per_edge=ref_frag_idx_per_edge,
         edge_idx=edge_idx,
         center_idx=center_idx,
         centerf_idx=centerf_idx,

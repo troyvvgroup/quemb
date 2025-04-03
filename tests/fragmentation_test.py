@@ -1269,7 +1269,7 @@ class TestBE_Fragmentation(unittest.TestCase):
         try:
             assert fobj.AO_per_frag == target["AO_per_frag"]
             assert fobj.AO_per_edge_per_frag == target["edge"]
-            assert fobj.center == target["center"]
+            assert fobj.ref_frag_idx_per_edge == target["center"]
             assert fobj.centerf_idx == target["centerf_idx"]
             assert fobj.ebe_weight == target["ebe_weight"]
         except AssertionError as e:

@@ -511,7 +511,7 @@ class PurelyStructureFragmented:
     #: of the fragment where this fragment is a center, i.e.
     #: where this edge is correctly described and should be matched against.
     #: Variable was formerly known as `center`.
-    frag_idx_per_edge: Final[Sequence[Mapping[EdgeIdx, FragmentIdx]]]
+    ref_frag_idx_per_edge: Final[Sequence[Mapping[EdgeIdx, FragmentIdx]]]
 
     #: Connectivity data of the molecule.
     conn_data: Final[BondConnectivity]
@@ -814,7 +814,7 @@ class PurelyStructureFragmented:
                         for center in becomes_an_edge.get(FragmentIdx(i_frag), set())
                     }
                 )
-                for i_frag, edges in enumerate(self.frag_idx_per_edge)
+                for i_frag, edges in enumerate(self.ref_frag_idx_per_edge)
             ],
         )
 
@@ -1013,7 +1013,7 @@ class Fragmented:
                 for i_edge in edges
             }
             for edges, frag_per_edge in zip(
-                frag_structure.edges_per_frag, frag_structure.frag_idx_per_edge
+                frag_structure.edges_per_frag, frag_structure.ref_frag_idx_per_edge
             )
         ]
 
@@ -1145,7 +1145,9 @@ class Fragmented:
             n_BE=self.frag_structure.n_BE,
             AO_per_frag=[list(AO_indices) for AO_indices in self.AO_per_frag],
             AO_per_edge_per_frag=_extract_values(self.AO_per_edge_per_frag),
-            center=[list(D.values()) for D in self.frag_structure.frag_idx_per_edge],
+            ref_frag_idx_per_edge=[
+                list(D.values()) for D in self.frag_structure.ref_frag_idx_per_edge
+            ],
             edge_idx=_extract_values(self.rel_AO_per_edge_per_frag),
             center_idx=_extract_values(self.other_rel_AO_per_edge_per_frag),
             centerf_idx=[list(seq) for seq in centerf_idx],
@@ -1290,7 +1292,7 @@ class Fragmented:
             center_idx=center_idx,
             centerf_idx=centerf_idx,
             AO_per_frag=matched_output_no_iao.AO_per_frag,
-            center=matched_output_no_iao.center,
+            ref_frag_idx_per_edge=matched_output_no_iao.ref_frag_idx_per_edge,
             ebe_weight=matched_output_no_iao.ebe_weight,
             Frag_atom=matched_output_no_iao.Frag_atom,
             center_atom=matched_output_no_iao.center_atom,

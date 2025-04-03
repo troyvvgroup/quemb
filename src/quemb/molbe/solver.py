@@ -695,7 +695,11 @@ def solve_error(Fobjs, Nocc, only_chem=False):
                 for k_ in range(lenc):
                     if j_ > k_:
                         continue
-                    err_cen.append(Fobjs[fobj.center[cindx]]._rdm1[cens[j_], cens[k_]])
+                    err_cen.append(
+                        Fobjs[fobj.ref_frag_idx_per_edge[cindx]]._rdm1[
+                            cens[j_], cens[k_]
+                        ]
+                    )
 
     err_cen.append(Nocc)
     err_edge = array(err_edge)
