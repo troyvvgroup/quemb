@@ -35,7 +35,7 @@ class Frags:
         edge=None,
         ref_frag_idx_per_edge=None,
         rel_AO_per_edge_per_frag=None,
-        center_idx=None,
+        other_rel_AO_per_edge_per_frag=None,
         efac=None,
         eri_file="eri_file.h5",
         centerf_idx=None,
@@ -59,7 +59,7 @@ class Frags:
         rel_AO_per_edge_per_frag: list, optional
             list of lists of indices for edge site AOs within the fragment,
             by default None
-        center_idx : list, optional
+        other_rel_AO_per_edge_per_frag : list, optional
             list of lists of indices within the fragment specified in :python:`center`
             that points to the edge site AOs , by default None
         efac : list, optional
@@ -101,7 +101,7 @@ class Frags:
         self.edge = edge
         self.ref_frag_idx_per_edge = ref_frag_idx_per_edge
         self.rel_AO_per_edge_per_frag = rel_AO_per_edge_per_frag
-        self.center_idx = center_idx
+        self.other_rel_AO_per_edge_per_frag = other_rel_AO_per_edge_per_frag
         self.centerf_idx = centerf_idx
         self.udim = None
 

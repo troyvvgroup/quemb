@@ -689,7 +689,7 @@ def solve_error(Fobjs, Nocc, only_chem=False):
     err_cen = []
     for findx, fobj in enumerate(Fobjs):
         # Match RDM for centers
-        for cindx, cens in enumerate(fobj.center_idx):
+        for cindx, cens in enumerate(fobj.other_rel_AO_per_edge_per_frag):
             lenc = len(cens)
             for j_ in range(lenc):
                 for k_ in range(lenc):

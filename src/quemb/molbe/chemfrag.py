@@ -914,7 +914,6 @@ class Fragmented:
     #: The relative atomic orbital indices per edge per fragment.
     #: Relative means that the AO indices are relative to the **other**
     #: fragment where the edge is a center.
-    #: This variable was formerly known as :python:`center_idx`.
     other_rel_AO_per_edge_per_frag: Final[
         Sequence[Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[OtherRelAOIdx]]]]
     ]
@@ -1148,7 +1147,9 @@ class Fragmented:
                 list(D.values()) for D in self.frag_structure.ref_frag_idx_per_edge
             ],
             rel_AO_per_edge_per_frag=_extract_values(self.rel_AO_per_edge_per_frag),
-            center_idx=_extract_values(self.other_rel_AO_per_edge_per_frag),
+            other_rel_AO_per_edge_per_frag=_extract_values(
+                self.other_rel_AO_per_edge_per_frag
+            ),
             centerf_idx=[list(seq) for seq in centerf_idx],
             ebe_weight=ebe_weight,
             Frag_atom=[list(motifs) for motifs in self.frag_structure.motifs_per_frag],
@@ -1252,7 +1253,7 @@ class Fragmented:
                 result.append(tmp)
             return result
 
-        center_idx: Final = _extract_with_iao_offset(
+        other_rel_AO_per_edge_per_frag: Final = _extract_with_iao_offset(
             valence_frags.other_rel_AO_per_edge_per_frag,
             self.other_rel_AO_per_edge_per_frag,
             wrong_iao_indexing=wrong_iao_indexing,
@@ -1288,7 +1289,7 @@ class Fragmented:
             n_BE=self.frag_structure.n_BE,
             AO_per_edge_per_frag=AO_per_edge_per_frag,
             rel_AO_per_edge_per_frag=rel_AO_per_edge_per_frag,
-            center_idx=center_idx,
+            other_rel_AO_per_edge_per_frag=other_rel_AO_per_edge_per_frag,
             centerf_idx=centerf_idx,
             AO_per_frag=matched_output_no_iao.AO_per_frag,
             ref_frag_idx_per_edge=matched_output_no_iao.ref_frag_idx_per_edge,

@@ -2336,11 +2336,7 @@ def autogen(
         tmp_.extend([i.index(pq) for pq in hsites[cen[ix]]])
         ebe_weight.append([1.0, tmp_])
 
-    # Center of a fragment are defined in cen[idx]
-    # ref_frag_idx_per_edge[[idx,jdx]] defines
-    # fragments idx,jdx who's cen[idx],cen[jdx] \\
-    # centers are matched to the edges.
-    center_idx = []
+    other_rel_AO_per_edge_per_frag = []
     for i in range(n_frag):
         idx = []
         for j in ref_frag_idx_per_edge[i]:
@@ -2353,14 +2349,14 @@ def autogen(
                 cntlist.extend(hsites[cen[j]][: nbas2H[cen[j]]])
                 idx.append([AO_per_frag[j].index(k) for k in cntlist])
 
-        center_idx.append(idx)
+        other_rel_AO_per_edge_per_frag.append(idx)
 
     return (
         AO_per_frag,
         AO_per_edge_per_frag,
         ref_frag_idx_per_edge,
         rel_AO_per_edge_per_frag,
-        center_idx,
+        other_rel_AO_per_edge_per_frag,
         centerf_idx,
         ebe_weight,
     )

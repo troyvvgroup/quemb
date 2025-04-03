@@ -481,7 +481,9 @@ class BE(Mixin_k_Localize):
                     eri_file=self.eri_file,
                     ref_frag_idx_per_edge=self.fobj.ref_frag_idx_per_edge[fidx],
                     rel_AO_per_edge_per_frag=self.fobj.rel_AO_per_edge_per_frag[fidx],
-                    center_idx=self.fobj.center_idx[fidx],
+                    other_rel_AO_per_edge_per_frag=self.fobj.other_rel_AO_per_edge_per_frag[
+                        fidx
+                    ],
                     efac=self.fobj.ebe_weight[fidx],
                     centerf_idx=self.fobj.centerf_idx[fidx],
                     unitcell=self.fobj.unitcell,
@@ -495,7 +497,7 @@ class BE(Mixin_k_Localize):
                     ref_frag_idx_per_edge=[],
                     eri_file=self.eri_file,
                     rel_AO_per_edge_per_frag=[],
-                    center_idx=[],
+                    other_rel_AO_per_edge_per_frag=[],
                     centerf_idx=[],
                     efac=self.fobj.ebe_weight[fidx],
                     unitcell=self.fobj.unitcell,

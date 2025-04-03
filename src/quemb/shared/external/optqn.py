@@ -299,7 +299,7 @@ def get_be_error_jacobian(n_frag, Fobjs, jac_solver="HF"):
 
         coutc = 0
         coutc_ = 0
-        for cindx, cens in enumerate(fobj.center_idx):
+        for cindx, cens in enumerate(fobj.other_rel_AO_per_edge_per_frag):
             coutc += Jcs[fobj.ref_frag_idx_per_edge[cindx]].shape[0]
             start_ = sum(Ncout[: fobj.ref_frag_idx_per_edge[cindx]])
             end_ = start_ + Ncout[fobj.ref_frag_idx_per_edge[cindx]]

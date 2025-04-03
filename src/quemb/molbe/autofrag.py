@@ -68,7 +68,7 @@ class FragPart:
     #: The relative atomic orbital indices per edge per fragment.
     #: **Note** for this variable relative means that the AO indices
     #: are relative to the other fragment where the edge is a center.
-    center_idx: ListOverFrag[ListOverEdge[list[OtherRelAOIdx]]]
+    other_rel_AO_per_edge_per_frag: ListOverFrag[ListOverEdge[list[OtherRelAOIdx]]]
 
     #: List whose entries are lists containing the relative orbital index of the
     #: origin site within a fragment. Relative is to the own fragment.
@@ -274,7 +274,7 @@ class FragmentMap:
             n_BE=n_BE,
             AO_per_edge_per_frag=self.AO_per_edge_per_frag,  # type: ignore[arg-type]
             rel_AO_per_edge_per_frag=MISSING,
-            center_idx=MISSING,
+            other_rel_AO_per_edge_per_frag=MISSING,
             centerf_idx=self.centerf_idx,  # type: ignore[arg-type]
             AO_per_frag=self.AO_per_frag,  # type: ignore[arg-type]
             ref_frag_idx_per_edge=self.ref_frag_idx_per_edge,  # type: ignore[arg-type]
@@ -939,7 +939,7 @@ def autogen(
                     tmp_.extend([i.index(pq) for pq in hsites[open_frag_cen[pidx__]]])
         ebe_weight.append([1.0, tmp_])
 
-    center_idx = []
+    other_rel_AO_per_edge_per_frag = []
     if n_BE != 1:
         for i in range(n_frag):
             idx = []
@@ -981,7 +981,7 @@ def autogen(
                     cntlist.extend(hsites[center_atom[j]][: nbas2H[center_atom[j]]])
                     idx.append([AO_per_frag[j].index(k) for k in cntlist])
 
-            center_idx.append(idx)
+            other_rel_AO_per_edge_per_frag.append(idx)
 
     return FragPart(
         mol=mol,
@@ -991,7 +991,7 @@ def autogen(
         AO_per_edge_per_frag=AO_per_edge_per_frag,
         ref_frag_idx_per_edge=ref_frag_idx_per_edge,
         rel_AO_per_edge_per_frag=rel_AO_per_edge_per_frag,
-        center_idx=center_idx,
+        other_rel_AO_per_edge_per_frag=other_rel_AO_per_edge_per_frag,
         centerf_idx=centerf_idx,
         ebe_weight=ebe_weight,
         Frag_atom=Frag_atom,

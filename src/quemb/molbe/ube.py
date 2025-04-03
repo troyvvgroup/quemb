@@ -180,7 +180,9 @@ class UBE(BE):  # 🍠
                     eri_file=self.eri_file,
                     ref_frag_idx_per_edge=self.fobj.ref_frag_idx_per_edge[I],
                     rel_AO_per_edge_per_frag=self.fobj.rel_AO_per_edge_per_frag[I],
-                    center_idx=self.fobj.center_idx[I],
+                    other_rel_AO_per_edge_per_frag=self.fobj.other_rel_AO_per_edge_per_frag[
+                        I
+                    ],
                     efac=self.fobj.ebe_weight[I],
                     centerf_idx=self.fobj.centerf_idx[I],
                     unrestricted=True,
@@ -193,7 +195,7 @@ class UBE(BE):  # 🍠
                     ref_frag_idx_per_edge=[],
                     eri_file=self.eri_file,
                     rel_AO_per_edge_per_frag=[],
-                    center_idx=[],
+                    other_rel_AO_per_edge_per_frag=[],
                     centerf_idx=[],
                     efac=self.fobj.ebe_weight[I],
                     unrestricted=True,
@@ -209,7 +211,9 @@ class UBE(BE):  # 🍠
                     eri_file=self.eri_file,
                     ref_frag_idx_per_edge=self.fobj.ref_frag_idx_per_edge[I],
                     rel_AO_per_edge_per_frag=self.fobj.rel_AO_per_edge_per_frag[I],
-                    center_idx=self.fobj.center_idx[I],
+                    other_rel_AO_per_edge_per_frag=self.fobj.other_rel_AO_per_edge_per_frag[
+                        I
+                    ],
                     efac=self.fobj.ebe_weight[I],
                     centerf_idx=self.fobj.centerf_idx[I],
                     unrestricted=True,
@@ -222,7 +226,7 @@ class UBE(BE):  # 🍠
                     ref_frag_idx_per_edge=[],
                     eri_file=self.eri_file,
                     rel_AO_per_edge_per_frag=[],
-                    center_idx=[],
+                    other_rel_AO_per_edge_per_frag=[],
                     centerf_idx=[],
                     efac=self.fobj.ebe_weight[I],
                     unrestricted=True,

@@ -18,7 +18,7 @@ class FragPart:
     ref_frag_idx_per_edge: list
     ebe_weight: list
     rel_AO_per_edge_per_frag: list
-    center_idx: list
+    other_rel_AO_per_edge_per_frag: list
     centerf_idx: list
     n_BE: int
     natom: int
@@ -126,7 +126,7 @@ def fragmentate(
             AO_per_edge_per_frag,
             ref_frag_idx_per_edge,
             rel_AO_per_edge_per_frag,
-            center_idx,
+            other_rel_AO_per_edge_per_frag,
             centerf_idx,
             ebe_weight,
         ) = autogen(
@@ -156,7 +156,7 @@ def fragmentate(
             ref_frag_idx_per_edge=ref_frag_idx_per_edge,
             ebe_weight=ebe_weight,
             rel_AO_per_edge_per_frag=rel_AO_per_edge_per_frag,
-            center_idx=center_idx,
+            other_rel_AO_per_edge_per_frag=other_rel_AO_per_edge_per_frag,
             centerf_idx=centerf_idx,
             n_BE=n_BE,
             natom=natom,
