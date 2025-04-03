@@ -869,7 +869,6 @@ class Fragmented:
 
     #: The atomic orbital indices per edge per fragment.
     #: The AO index is global.
-    #: This variable was formerly known as :python:`edgesites`.
     AO_per_edge_per_frag: Final[
         Sequence[Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[GlobalAOIdx]]]]
     ]
@@ -1145,7 +1144,7 @@ class Fragmented:
             frag_type="chemgen",
             n_BE=self.frag_structure.n_BE,
             AO_per_frag=[list(AO_indices) for AO_indices in self.AO_per_frag],
-            edge_sites=_extract_values(self.AO_per_edge_per_frag),
+            AO_per_edge_per_frag=_extract_values(self.AO_per_edge_per_frag),
             center=[list(D.values()) for D in self.frag_structure.frag_idx_per_edge],
             edge_idx=_extract_values(self.rel_AO_per_edge_per_frag),
             center_idx=_extract_values(self.other_rel_AO_per_edge_per_frag),
@@ -1257,7 +1256,7 @@ class Fragmented:
             self.other_rel_AO_per_edge_per_frag,
             wrong_iao_indexing=wrong_iao_indexing,
         )
-        edge_sites: Final = _extract_with_iao_offset(
+        AO_per_edge_per_frag: Final = _extract_with_iao_offset(
             valence_frags.AO_per_edge_per_frag,
             self.AO_per_edge_per_frag,
             wrong_iao_indexing=wrong_iao_indexing,
@@ -1281,13 +1280,12 @@ class Fragmented:
 
         matched_output_no_iao = self._get_FragPart_no_iao()
 
-        # Only edge_sites, edge_idx, center_idx, and centerf_idx are actually different
-        # when doing IAOs
+        # Only are actually different when doing IAOs
         return FragPart(
             mol=self.mol,
             frag_type="chemgen",
             n_BE=self.frag_structure.n_BE,
-            edge_sites=edge_sites,
+            AO_per_edge_per_frag=AO_per_edge_per_frag,
             edge_idx=edge_idx,
             center_idx=center_idx,
             centerf_idx=centerf_idx,

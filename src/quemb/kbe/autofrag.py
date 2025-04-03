@@ -1985,7 +1985,7 @@ def autogen(
         max_site = max(max_site, maxH)
 
     AO_per_frag = []
-    edge_sites = []
+    AO_per_edge_per_frag = []
     edge_idx = []
     centerf_idx = []
     edge = []
@@ -2339,7 +2339,7 @@ def autogen(
 
         edge.append(edg)
         AO_per_frag.append(ftmp)
-        edge_sites.append(ftmpe)
+        AO_per_edge_per_frag.append(ftmpe)
         edge_idx.append(edind)
 
     center = []
@@ -2377,7 +2377,7 @@ def autogen(
 
     return (
         AO_per_frag,
-        edge_sites,
+        AO_per_edge_per_frag,
         center,
         edge_idx,
         center_idx,

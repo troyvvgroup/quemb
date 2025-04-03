@@ -14,7 +14,7 @@ class FragPart:
     mol: Cell
     frag_type: str
     AO_per_frag: list
-    edge_sites: list
+    AO_per_edge_per_frag: list
     center: list
     ebe_weight: list
     edge_idx: list
@@ -123,7 +123,7 @@ def fragmentate(
 
         (
             AO_per_frag,
-            edge_sites,
+            AO_per_edge_per_frag,
             center,
             edge_idx,
             center_idx,
@@ -152,7 +152,7 @@ def fragmentate(
             mol=mol,
             frag_type=frag_type,
             AO_per_frag=AO_per_frag,
-            edge_sites=edge_sites,
+            AO_per_edge_per_frag=AO_per_edge_per_frag,
             center=center,
             ebe_weight=ebe_weight,
             edge_idx=edge_idx,

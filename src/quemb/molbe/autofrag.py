@@ -51,7 +51,7 @@ class FragPart:
     AO_per_frag: ListOverFrag[list[GlobalAOIdx]]
 
     #: The global orbital indices, including hydrogens, per edge per fragment.
-    edge_sites: ListOverFrag[ListOverEdge[list[GlobalAOIdx]]]
+    AO_per_edge_per_frag: ListOverFrag[ListOverEdge[list[GlobalAOIdx]]]
 
     # A list over fragments: list of indices of the fragments in which an edge
     # of the fragment is actually a center:
@@ -173,7 +173,7 @@ class FragmentMap:
     fs :
         List whose entries are sequences of sequences, containing AO indices per atom
         per fragment.
-    edge_sites :
+    AO_per_edge_per_frag :
         List whose entries are sequences of sequences, containing edge AO
         indices per atom (inner tuple) per fragment (outer tuple).
     center :
@@ -208,7 +208,7 @@ class FragmentMap:
 
     AO_per_frag: list[Sequence[int]]
     fs: list[Sequence[Sequence[int]]]
-    edge_sites: list[Sequence[Sequence[int]]]
+    AO_per_edge_per_frag: list[Sequence[Sequence[int]]]
     center: list[Sequence[int]]
     centerf_idx: list[Sequence[int]]
     ebe_weight: list[Sequence]
@@ -270,7 +270,7 @@ class FragmentMap:
             mol=mol,
             frag_type="graphgen",
             n_BE=n_BE,
-            edge_sites=self.edge_sites,  # type: ignore[arg-type]
+            AO_per_edge_per_frag=self.AO_per_edge_per_frag,  # type: ignore[arg-type]
             edge_idx=MISSING,
             center_idx=MISSING,
             centerf_idx=self.centerf_idx,  # type: ignore[arg-type]
@@ -372,7 +372,7 @@ def graphgen(
     fragment_map = FragmentMap(
         AO_per_frag=(list(tuple())),
         fs=list(tuple(tuple())),
-        edge_sites=list(tuple(tuple())),
+        AO_per_edge_per_frag=list(tuple(tuple())),
         center=list(tuple()),
         centerf_idx=list(tuple()),
         ebe_weight=list(tuple()),
@@ -489,7 +489,7 @@ def graphgen(
                         c_temp = set(fragment_map.center_atom[bdx])
                         edge_temp.add(tuple(overlap))
                         eatoms_temp.add(tuple(i for i in f_temp.intersection(c_temp)))
-        fragment_map.edge_sites.append(tuple(edge_temp))
+        fragment_map.AO_per_edge_per_frag.append(tuple(edge_temp))
         fragment_map.edge_atoms.extend(tuple(eatoms_temp))
 
     # Update relative center site indices (centerf_idx) and weights
@@ -840,7 +840,7 @@ def autogen(
             hsites[hdx].extend(b1list)
 
     AO_per_frag = []
-    edge_sites = []
+    AO_per_edge_per_frag = []
     edge_idx = []
     centerf_idx = []
     edge = []
@@ -904,7 +904,7 @@ def autogen(
                     edind.append(ind__)
                 indix += ls
             edge.append(edg)
-            edge_sites.append(ftmpe)
+            AO_per_edge_per_frag.append(ftmpe)
             edge_idx.append(edind)
         AO_per_frag.append(ftmp)
     center = []
@@ -986,7 +986,7 @@ def autogen(
         frag_type="autogen",
         n_BE=n_BE,
         AO_per_frag=AO_per_frag,
-        edge_sites=edge_sites,
+        AO_per_edge_per_frag=AO_per_edge_per_frag,
         center=center,
         edge_idx=edge_idx,
         center_idx=center_idx,
