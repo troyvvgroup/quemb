@@ -152,7 +152,7 @@ def surround(
     n_BE_ = be_reduce(n_BE)
     if not rlist == [] and n_BE_ == 3:
         n_BE_ = 2
-    sublist_ = []
+    sublist_ = []  # type: ignore[var-annotated]
     if not n_BE_ == 0:
         sidefunc(
             cell,

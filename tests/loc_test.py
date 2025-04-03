@@ -16,7 +16,7 @@ def test_hexene_loc_be1_froz_pm(hexene) -> None:
     be1_f_pm = ret_ecorr(
         hexene[0],
         hexene[1],
-        be=1,
+        n_BE=1,
         frozen=True,
         iao_valence_basis=None,
         lo_method="pipek-mezey",
@@ -35,7 +35,7 @@ def test_hexene_loc_be2_unfroz_lowdin(hexene) -> None:
     be2_nf_lo = ret_ecorr(
         hexene[0],
         hexene[1],
-        be=2,
+        n_BE=2,
         frozen=False,
         iao_valence_basis=None,
         lo_method="lowdin",
@@ -50,7 +50,7 @@ def test_hexene_loc_be1_unfroz_iao_minao_so(hexene) -> None:
     be1_nf_iao_so = ret_ecorr(
         hexene[0],
         hexene[1],
-        be=1,
+        n_BE=1,
         frozen=False,
         iao_valence_basis="minao",
         lo_method="iao",
@@ -69,7 +69,7 @@ def test_hexene_loc_be2_froz_iao_sto3g_boys(hexene) -> None:
     be2_f_iao_fb = ret_ecorr(
         hexene[0],
         hexene[1],
-        be=2,
+        n_BE=2,
         frozen=True,
         iao_valence_basis="sto-3g",
         lo_method="iao",
@@ -91,7 +91,7 @@ def test_chem_gen_hexene_loc_be2_froz_iao_sto3g_boys(hexene) -> None:
     be2_f_iao_fb = ret_ecorr(
         hexene[0],
         hexene[1],
-        be=2,
+        n_BE=2,
         frozen=True,
         iao_valence_basis="sto-3g",
         lo_method="iao",
@@ -113,7 +113,7 @@ def test_chem_gen_hexene_loc_be2_froz_iao_sto3g_boys_fixed_AOs(hexene) -> None:
     be2_f_iao_fb = ret_ecorr(
         hexene[0],
         hexene[1],
-        be=2,
+        n_BE=2,
         frozen=True,
         iao_valence_basis="sto-3g",
         lo_method="iao",

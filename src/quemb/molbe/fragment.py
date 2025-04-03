@@ -107,7 +107,7 @@ def fragmentate(
             assert isinstance(additional_args, ChemGenArgs)
         fragments = chemgen(
             mol,
-            n_BE=int(n_BE[2:]),
+            n_BE=n_BE,
             frozen_core=frozen_core,
             args=additional_args,
             iao_valence_basis=iao_valence_basis,
