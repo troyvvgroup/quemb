@@ -313,7 +313,9 @@ def get_be_error_jacobian(Nfrag, Fobjs, jac_solver="HF"):
     return J
 
 
-def get_atbe_Jblock_frag(fobj: Frags, res_func):
+def get_atbe_Jblock_frag(
+    fobj: Frags, res_func
+) -> tuple[Matrix[float64], Matrix[float64], list, list, list, float, int]:
     vpots = get_vpots_frag(fobj.nao, fobj.edge_idx, fobj.AO_per_frag)
     eri_ = get_eri(fobj.dname, fobj.nao, eri_file=fobj.eri_file)
     dm0 = 2.0 * (fobj._mo_coeffs[:, : fobj.nsocc] @ fobj._mo_coeffs[:, : fobj.nsocc].T)
@@ -415,7 +417,7 @@ def get_be_error_jacobian_selffrag(self, jac_solver="HF"):
     return J
 
 
-def hfres_func(mf, vpots, eri, nsocc):
+def hfres_func(mf, vpots, eri, nsocc) -> tuple[list[Matrix[float64]], Matrix[float64]]:
     C = mf.mo_coeff
     moe = mf.mo_energy
     eri = mf._eri
