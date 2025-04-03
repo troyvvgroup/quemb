@@ -54,6 +54,9 @@ class FragPart:
 
 
 def fragmentate(
+    mol: Cell,
+    kpt: list[int] | tuple[int, int, int],
+    *,
     natom=0,
     frag_type="autogen",
     unitcell=1,
@@ -66,10 +69,8 @@ def fragmentate(
     nx=False,
     ny=False,
     nz=False,
-    kpt=None,
     iao_valence_basis=None,
     be_type="be2",
-    mol=None,
     frozen_core=False,
     self_match=False,
     allcen=True,
@@ -118,10 +119,6 @@ def fragmentate(
         otherwise the fragmentation might fail.
     """
     if frag_type == "autogen":
-        if mol is None:
-            raise ValueError(
-                "Provide pyscf gto.Cell object in fragmentate() and restart!"
-            )
         if kpt is None:
             raise ValueError("Provide kpt mesh in fragmentate() and restart!")
 

@@ -13,7 +13,7 @@ from pyscf import ao2mo
 from pyscf.pbc import df, gto, scf
 from pyscf.pbc.df.df_jk import _ewald_exxdiv_for_G0
 
-from quemb.kbe.fragment import fragmentate
+from quemb.kbe.fragment import FragPart
 from quemb.kbe.lo import Mixin_k_Localize
 from quemb.kbe.misc import print_energy, storePBE
 from quemb.kbe.pfrag import Frags
@@ -52,7 +52,7 @@ class BE(Mixin_k_Localize):
     def __init__(
         self,
         mf: scf.khf.KRHF,
-        fobj: fragmentate,
+        fobj: FragPart,
         eri_file: PathLike = "eri_file.h5",
         lo_method: str = "lowdin",
         compute_hf: bool = True,
@@ -201,6 +201,9 @@ class BE(Mixin_k_Localize):
 
         if self.frozen_core:
             # Handle frozen core orbitals
+            assert not (
+                fobj.ncore is None or fobj.no_core_idx is None or fobj.core_list is None
+            )
             self.ncore = fobj.ncore
             self.no_core_idx = fobj.no_core_idx
             self.core_list = fobj.core_list
