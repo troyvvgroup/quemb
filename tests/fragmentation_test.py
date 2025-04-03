@@ -25,7 +25,7 @@ class TestBE_Fragmentation(unittest.TestCase):
         mf = scf.RHF(mol)
 
         target = {
-            "fsites": [[0], [1], [2], [3], [4], [5], [6], [7]],
+            "AO_per_frag": [[0], [1], [2], [3], [4], [5], [6], [7]],
             "edge": [],
             "center": [],
             "centerf_idx": [[0], [0], [0], [0], [0], [0], [0], [0]],
@@ -60,7 +60,7 @@ class TestBE_Fragmentation(unittest.TestCase):
         mf = scf.RHF(mol)
 
         target = {
-            "fsites": [
+            "AO_per_frag": [
                 [1, 0, 2],
                 [2, 1, 3],
                 [3, 2, 4],
@@ -100,7 +100,7 @@ class TestBE_Fragmentation(unittest.TestCase):
         mf = scf.RHF(mol)
 
         target = {
-            "fsites": [
+            "AO_per_frag": [
                 [2, 0, 1, 3, 4],
                 [3, 2, 1, 4, 5],
                 [4, 3, 2, 5, 6],
@@ -136,7 +136,7 @@ class TestBE_Fragmentation(unittest.TestCase):
         mf = scf.RHF(mol)
 
         target = {
-            "fsites": [
+            "AO_per_frag": [
                 [0, 1, 2, 3, 4, 11, 13],
                 [5, 6, 7, 8, 9, 10, 12],
                 [14, 15, 16, 17, 18, 24, 26],
@@ -189,7 +189,7 @@ class TestBE_Fragmentation(unittest.TestCase):
         mf = scf.RHF(mol)
 
         target = {
-            "fsites": [
+            "AO_per_frag": [
                 [
                     0,
                     1,
@@ -377,7 +377,7 @@ class TestBE_Fragmentation(unittest.TestCase):
         mf = scf.RHF(mol)
 
         target = {
-            "fsites": [
+            "AO_per_frag": [
                 [
                     0,
                     1,
@@ -631,7 +631,7 @@ class TestBE_Fragmentation(unittest.TestCase):
         mf = scf.RHF(mol)
 
         target = {
-            "fsites": [(0,), (1,), (2,), (3,), (4,), (5,), (6,), (7,)],
+            "AO_per_frag": [(0,), (1,), (2,), (3,), (4,), (5,), (6,), (7,)],
             "edge": [(), (), (), (), (), (), (), ()],
             "center": [(0,), (1,), (2,), (3,), (4,), (5,), (6,), (7,)],
             "centerf_idx": [(0,), (0,), (0,), (0,), (0,), (0,), (0,), (0,)],
@@ -666,7 +666,7 @@ class TestBE_Fragmentation(unittest.TestCase):
         mf = scf.RHF(mol)
 
         target = {
-            "fsites": [
+            "AO_per_frag": [
                 (1, 0, 2),
                 (2, 1, 3),
                 (3, 2, 4),
@@ -713,7 +713,7 @@ class TestBE_Fragmentation(unittest.TestCase):
         mf = scf.RHF(mol)
 
         target = {
-            "fsites": [
+            "AO_per_frag": [
                 (2, 0, 1, 3, 4),
                 (3, 1, 2, 4, 5),
                 (4, 2, 3, 5, 6),
@@ -754,7 +754,7 @@ class TestBE_Fragmentation(unittest.TestCase):
         mf = scf.RHF(mol)
 
         target = {
-            "fsites": [
+            "AO_per_frag": [
                 (0, 1, 2, 3, 4),
                 (5, 6, 7, 8, 9),
                 (10,),
@@ -915,7 +915,7 @@ class TestBE_Fragmentation(unittest.TestCase):
         mf = scf.RHF(mol)
 
         target = {
-            "fsites": [
+            "AO_per_frag": [
                 (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 13, 19, 20, 21, 22, 23),
                 (5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 10, 12, 14, 15, 16, 17, 18),
                 (14, 15, 16, 17, 18, 5, 6, 7, 8, 9, 24, 26, 28, 29, 30, 31, 32),
@@ -986,7 +986,7 @@ class TestBE_Fragmentation(unittest.TestCase):
         mf = scf.RHF(mol)
 
         target = {
-            "fsites": [
+            "AO_per_frag": [
                 (
                     0,
                     1,
@@ -1267,7 +1267,7 @@ class TestBE_Fragmentation(unittest.TestCase):
     ):
         fobj = fragmentate(frag_type=frag_type, n_BE=n_BE, mol=mf.mol)
         try:
-            assert fobj.AO_per_frag == target["fsites"]
+            assert fobj.AO_per_frag == target["AO_per_frag"]
             assert fobj.AO_per_edge_per_frag == target["edge"]
             assert fobj.center == target["center"]
             assert fobj.centerf_idx == target["centerf_idx"]
