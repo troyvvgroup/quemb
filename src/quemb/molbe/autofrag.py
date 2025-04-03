@@ -91,7 +91,7 @@ class FragPart:
 
     #: The origin for each fragment.
     #: (Note that for conventional BE there is just one origin per fragment)
-    center_atom: ListOverFrag[OriginIdx]
+    origin_per_frag: ListOverFrag[OriginIdx]
 
     #: A list over atoms (not over motifs!)
     #: For each atom it contains a list of the attached hydrogens.
@@ -198,7 +198,7 @@ class FragmentMap:
         for constructing fragment scratch directories.
     Frag_atom :
         List whose entries are sequences containing all atom indices for a fragment.
-    center_atom :
+    origin_per_frag :
         List whose entries are sequences giving the center atom indices per fragment.
     edge_atoms :
         List whose entries are sequences giving the edge atom indices per fragment.
@@ -217,7 +217,7 @@ class FragmentMap:
     sites: list[Sequence]
     dnames: list[str]
     Frag_atom: list[Sequence[int]]
-    center_atom: list[Sequence[int]]
+    origin_per_frag: list[Sequence[int]]
     edge_atoms: list[Sequence[int]]
     adjacency_mat: np.ndarray
     adjacency_graph: nx.Graph
@@ -249,10 +249,10 @@ class FragmentMap:
                                 + list(deepcopy(self.ref_frag_idx_per_edge[bdx]))
                             )
                         )
-                        self.center_atom[adx] = tuple(
+                        self.origin_per_frag[adx] = tuple(
                             set(
-                                list(self.center_atom[adx])
-                                + list(deepcopy(self.center_atom[bdx]))
+                                list(self.origin_per_frag[adx])
+                                + list(deepcopy(self.origin_per_frag[bdx]))
                             )
                         )
             if subsets:
@@ -261,7 +261,7 @@ class FragmentMap:
                     del self.ref_frag_idx_per_edge[bdx]
                     del self.AO_per_frag[bdx]
                     del self.fs[bdx]
-                    del self.center_atom[bdx]
+                    del self.origin_per_frag[bdx]
                     del self.Frag_atom[bdx]
 
         return None
@@ -280,7 +280,7 @@ class FragmentMap:
             ref_frag_idx_per_edge=self.ref_frag_idx_per_edge,  # type: ignore[arg-type]
             ebe_weight=self.ebe_weight,  # type: ignore[arg-type]
             Frag_atom=self.Frag_atom,  # type: ignore[arg-type]
-            center_atom=self.center_atom,  # type: ignore[arg-type]
+            origin_per_frag=self.origin_per_frag,  # type: ignore[arg-type]
             hlist_atom=MISSING,
             add_center_atom=MISSING,
             frozen_core=frozen_core,
@@ -381,7 +381,7 @@ def graphgen(
         sites=list(tuple()),
         dnames=list(),
         Frag_atom=list(),
-        center_atom=list(),
+        origin_per_frag=list(),
         edge_atoms=list(),
         adjacency_mat=np.zeros((natm, natm), np.float64),
         adjacency_graph=nx.Graph(),
@@ -425,7 +425,7 @@ def graphgen(
         # on that path gives the degree of separation of the
         # sites.
         for adx, map in adx_map.items():
-            fragment_map.center_atom.append((adx,))
+            fragment_map.origin_per_frag.append((adx,))
             fragment_map.ref_frag_idx_per_edge.append(deepcopy(fragment_map.sites[adx]))
             AO_per_frag_tmp = deepcopy(list(fragment_map.sites[adx]))
             fatoms_temp = [adx]
@@ -488,7 +488,7 @@ def graphgen(
                     overlap = set(f).intersection(set(center))
                     if overlap:
                         f_temp = set(fragment_map.Frag_atom[adx])
-                        c_temp = set(fragment_map.center_atom[bdx])
+                        c_temp = set(fragment_map.origin_per_frag[bdx])
                         edge_temp.add(tuple(overlap))
                         eatoms_temp.add(tuple(i for i in f_temp.intersection(c_temp)))
         fragment_map.AO_per_edge_per_frag.append(tuple(edge_temp))
@@ -592,7 +592,7 @@ def autogen(
         normlist.append(norm(i))
     Frag_atom = []
     pedge = []
-    center_atom = []
+    origin_per_frag = []
 
     # Check if the molecule is a hydrogen chain
     hchain = True
@@ -663,17 +663,17 @@ def autogen(
                         oidx - 1 if oidx > pidx else oidx for oidx in open_frag
                     ]
                     open_frag.append(len(Frag_atom) - 1)
-                    open_frag_cen.append(center_atom[pidx])
-                    del center_atom[pidx]
+                    open_frag_cen.append(origin_per_frag[pidx])
+                    del origin_per_frag[pidx]
                     del Frag_atom[pidx]
                     del pedge[pidx]
             else:
                 Frag_atom.append(flist)
                 pedge.append(pedg)
-                center_atom.append(idx)
+                origin_per_frag.append(idx)
         else:
             Frag_atom.append(flist)
-            center_atom.append(idx)
+            origin_per_frag.append(idx)
 
     hlist_atom = [[] for i in coord]
     if not hchain:
@@ -703,19 +703,20 @@ def autogen(
             print(
                 "   {:>4}  |   {:>5}  |".format(
                     idx,
-                    cell.atom_pure_symbol(center_atom[idx]) + str(center_atom[idx] + 1),
+                    cell.atom_pure_symbol(origin_per_frag[idx])
+                    + str(origin_per_frag[idx] + 1),
                 ),
                 end=" ",
                 flush=True,
             )
-            for j in hlist_atom[center_atom[idx]]:
+            for j in hlist_atom[origin_per_frag[idx]]:
                 print(
                     " {:>5} ".format("*" + cell.atom_pure_symbol(j) + str(j + 1)),
                     end=" ",
                     flush=True,
                 )
             for j in i:
-                if j == center_atom[idx]:
+                if j == origin_per_frag[idx]:
                     continue
                 print(
                     f" {cell.atom_pure_symbol(j) + str(j + 1):>5} ",
@@ -739,11 +740,11 @@ def autogen(
         w = open("fragments.xyz", "w")
         for idx, i in enumerate(Frag_atom):
             w.write(
-                str(len(i) + len(hlist_atom[center_atom[idx]]) + len(hlist_atom[j]))
+                str(len(i) + len(hlist_atom[origin_per_frag[idx]]) + len(hlist_atom[j]))
                 + "\n"
             )
             w.write("Fragment - " + str(idx) + "\n")
-            for j in hlist_atom[center_atom[idx]]:
+            for j in hlist_atom[origin_per_frag[idx]]:
                 w.write(
                     " {:>3}   {:>10.7f}   {:>10.7f}   {:>10.7f} \n".format(
                         cell.atom_pure_symbol(j),
@@ -855,10 +856,10 @@ def autogen(
         edind = []
         edg = []
 
-        frglist = sites__[center_atom[idx]].copy()
-        frglist.extend(hsites[center_atom[idx]])
+        frglist = sites__[origin_per_frag[idx]].copy()
+        frglist.extend(hsites[origin_per_frag[idx]])
 
-        ls = len(sites__[center_atom[idx]]) + len(hsites[center_atom[idx]])
+        ls = len(sites__[origin_per_frag[idx]]) + len(hsites[origin_per_frag[idx]])
         if idx in open_frag:
             for pidx__, pid__ in enumerate(open_frag):
                 if idx == pid__:
@@ -870,11 +871,13 @@ def autogen(
 
         ftmp.extend(frglist)
         if not pao:
-            ls_ = len(sites__[center_atom[idx]]) + len(hsites[center_atom[idx]])
+            ls_ = len(sites__[origin_per_frag[idx]]) + len(hsites[origin_per_frag[idx]])
             centerf_idx.append([pq for pq in range(indix, indix + ls_)])
         else:
-            cntlist = sites__[center_atom[idx]].copy()[: nbas2[center_atom[idx]]]
-            cntlist.extend(hsites[center_atom[idx]][: nbas2H[center_atom[idx]]])
+            cntlist = sites__[origin_per_frag[idx]].copy()[
+                : nbas2[origin_per_frag[idx]]
+            ]
+            cntlist.extend(hsites[origin_per_frag[idx]][: nbas2H[origin_per_frag[idx]]])
             ind__ = [indix + frglist.index(pq) for pq in cntlist]
             centerf_idx.append(ind__)
         indix += ls
@@ -913,8 +916,8 @@ def autogen(
     for ix in edge:
         cen_ = []
         for jx in ix:
-            if jx in center_atom:
-                cen_.append(center_atom.index(jx))
+            if jx in origin_per_frag:
+                cen_.append(origin_per_frag.index(jx))
             elif jx in open_frag_cen:
                 cen_.append(open_frag[open_frag_cen.index(jx)])
             else:
@@ -929,8 +932,8 @@ def autogen(
 
     # Compute weights for each fragment
     for ix, i in enumerate(AO_per_frag):
-        tmp_ = [i.index(pq) for pq in sites__[center_atom[ix]]]
-        tmp_.extend([i.index(pq) for pq in hsites[center_atom[ix]]])
+        tmp_ = [i.index(pq) for pq in sites__[origin_per_frag[ix]]]
+        tmp_.extend([i.index(pq) for pq in hsites[origin_per_frag[ix]]])
         if ix in open_frag:
             for pidx__, pid__ in enumerate(open_frag):
                 if ix == pid__:
@@ -957,11 +960,11 @@ def autogen(
                                     )
                                 else:
                                     cntlist = sites__[open_frag_cen[kdx]].copy()[
-                                        : nbas2[center_atom[j]]
+                                        : nbas2[origin_per_frag[j]]
                                     ]
                                     cntlist.extend(
                                         hsites[open_frag_cen[kdx]][
-                                            : nbas2H[center_atom[j]]
+                                            : nbas2H[origin_per_frag[j]]
                                         ]
                                     )
                                     idx.append(
@@ -973,12 +976,16 @@ def autogen(
                 if jdx_continue:
                     continue
                 if not pao:
-                    cntlist = sites__[center_atom[j]].copy()
-                    cntlist.extend(hsites[center_atom[j]])
+                    cntlist = sites__[origin_per_frag[j]].copy()
+                    cntlist.extend(hsites[origin_per_frag[j]])
                     idx.append([AO_per_frag[j].index(k) for k in cntlist])
                 else:
-                    cntlist = sites__[center_atom[j]].copy()[: nbas2[center_atom[j]]]
-                    cntlist.extend(hsites[center_atom[j]][: nbas2H[center_atom[j]]])
+                    cntlist = sites__[origin_per_frag[j]].copy()[
+                        : nbas2[origin_per_frag[j]]
+                    ]
+                    cntlist.extend(
+                        hsites[origin_per_frag[j]][: nbas2H[origin_per_frag[j]]]
+                    )
                     idx.append([AO_per_frag[j].index(k) for k in cntlist])
 
             other_rel_AO_per_edge_per_frag.append(idx)
@@ -995,7 +1002,7 @@ def autogen(
         centerf_idx=centerf_idx,
         ebe_weight=ebe_weight,
         Frag_atom=Frag_atom,
-        center_atom=center_atom,
+        origin_per_frag=origin_per_frag,
         hlist_atom=hlist_atom,
         add_center_atom=add_center_atom,
         frozen_core=frozen_core,

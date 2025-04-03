@@ -1134,8 +1134,8 @@ class Fragmented:
         # Again, we have to account for the fact that
         # autogen assumes a single origin per fragment.
         # Check with an assert as well
-        center_atom = list(union_of_seqs(*self.frag_structure.origin_per_frag))
-        assert len(center_atom) == len(self)
+        origin_per_frag = list(union_of_seqs(*self.frag_structure.origin_per_frag))
+        assert len(origin_per_frag) == len(self)
 
         return FragPart(
             mol=self.mol,
@@ -1153,7 +1153,7 @@ class Fragmented:
             centerf_idx=[list(seq) for seq in centerf_idx],
             ebe_weight=ebe_weight,
             Frag_atom=[list(motifs) for motifs in self.frag_structure.motifs_per_frag],
-            center_atom=center_atom,
+            origin_per_frag=origin_per_frag,
             hlist_atom=[
                 list(self.conn_data.H_per_motif.get(MotifIdx(atom), []))
                 for atom in self.conn_data.bonds_atoms
@@ -1295,7 +1295,7 @@ class Fragmented:
             ref_frag_idx_per_edge=matched_output_no_iao.ref_frag_idx_per_edge,
             ebe_weight=matched_output_no_iao.ebe_weight,
             Frag_atom=matched_output_no_iao.Frag_atom,
-            center_atom=matched_output_no_iao.center_atom,
+            origin_per_frag=matched_output_no_iao.origin_per_frag,
             hlist_atom=matched_output_no_iao.hlist_atom,
             add_center_atom=matched_output_no_iao.add_center_atom,
             n_frag=matched_output_no_iao.n_frag,
