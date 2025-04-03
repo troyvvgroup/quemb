@@ -128,7 +128,7 @@ def fragmentate(
             rel_AO_per_edge_per_frag,
             other_rel_AO_per_edge_per_frag,
             centerf_idx,
-            ebe_weight,
+            rel_AO_per_center_per_frag,
         ) = autogen(
             mol,
             kpt,
@@ -154,7 +154,7 @@ def fragmentate(
             AO_per_frag=AO_per_frag,
             AO_per_edge_per_frag=AO_per_edge_per_frag,
             ref_frag_idx_per_edge=ref_frag_idx_per_edge,
-            rel_AO_per_center_per_frag=ebe_weight,
+            rel_AO_per_center_per_frag=rel_AO_per_center_per_frag,
             rel_AO_per_edge_per_frag=rel_AO_per_edge_per_frag,
             other_rel_AO_per_edge_per_frag=other_rel_AO_per_edge_per_frag,
             centerf_idx=centerf_idx,
