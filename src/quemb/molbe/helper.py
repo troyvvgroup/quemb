@@ -16,6 +16,8 @@ from numpy import (
 )
 from numpy.linalg import multi_dot
 from pyscf import ao2mo, gto, lib, scf
+from pyscf.gto.mole import Mole
+from pyscf.pbc.gto.cell import Cell
 
 from quemb.shared.helper import ncore_
 
@@ -186,14 +188,14 @@ def get_eri(i_frag, Nao, symm=8, ignore_symm=False, eri_file="eri_file.h5"):
     return eri__
 
 
-def get_core(mol: gto.Mole) -> tuple[int, list[int], list[int]]:
+def get_core(mol: Mole | Cell) -> tuple[int, list[int], list[int]]:
     """
     Calculate the number of cores for each atom in the molecule.
 
     Parameters
     ----------
-    mol : pyscf.gto.mole.Mole
-        Molecule object from PySCF.
+    mol :
+        Molecule or cell object from PySCF.
 
     Returns
     -------
@@ -501,7 +503,7 @@ def get_frag_energy_u(
     return [e1_tmp, e2_tmp, ec_tmp]
 
 
-def are_equal(m1: gto.Mole, m2: gto.Mole) -> bool:
+def are_equal(m1: Mole, m2: Mole) -> bool:
     return (
         m1.atom == m2.atom
         and m1.basis == m2.basis

@@ -10,7 +10,7 @@ import unittest
 
 from pyscf import gto, scf
 
-from quemb.molbe import BE, fragpart
+from quemb.molbe import BE, fragmentate
 
 
 class TestHFinHF_restricted(unittest.TestCase):
@@ -53,7 +53,7 @@ class TestHFinHF_restricted(unittest.TestCase):
     def molecular_restricted_test(self, mol, n_BE, test_name, delta=1e-5):
         mf = scf.RHF(mol)
         mf.kernel()
-        fobj = fragpart(frag_type="autogen", n_BE=n_BE, mol=mol)
+        fobj = fragmentate(frag_type="autogen", n_BE=n_BE, mol=mol)
         mybe = BE(mf, fobj)
         self.assertAlmostEqual(
             mybe.ebe_hf,

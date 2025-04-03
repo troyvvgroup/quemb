@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 from pyscf import gto, scf
 
-from quemb.molbe import BE, fragpart
+from quemb.molbe import BE, fragmentate
 from quemb.molbe.fragment import ChemGenArgs
 
 
@@ -130,7 +130,7 @@ def test_chem_gen_hexene_loc_be2_froz_iao_sto3g_boys_fixed_AOs(hexene) -> None:
 def ret_ecorr(
     mol: gto.Mole,
     mf: scf.hf.RHF,
-    be: str,
+    n_BE: int,
     frozen: bool,
     iao_valence_basis: str | None,
     lo_method: str,
@@ -142,8 +142,8 @@ def ret_ecorr(
 ) -> float:
     # Fragment molecule
 
-    fobj = fragpart(
-        n_BE=be,
+    fobj = fragmentate(
+        n_BE=n_BE,
         mol=mol,
         frozen_core=frozen,
         iao_valence_basis=iao_valence_basis,

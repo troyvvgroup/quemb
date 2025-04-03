@@ -5,7 +5,7 @@ from chemcoord import Cartesian
 from numpy import isclose
 from pyscf import scf
 
-from quemb.molbe.fragment import fragpart
+from quemb.molbe.fragment import fragmentate
 from quemb.molbe.mbe import BE
 
 
@@ -22,7 +22,7 @@ def test_matching_order():
         mf.conv_tol = 1e-12
         mf.kernel()
 
-        fobj = fragpart(mol=mol, frag_type="autogen", n_BE=3)
+        fobj = fragmentate(mol=mol, frag_type="autogen", n_BE=3)
 
         # fobj.center_idx[0][0][0] = 200
 

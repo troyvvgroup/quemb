@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pyscf import cc, fci, gto, scf
 
-from quemb.molbe import BE, fragpart
+from quemb.molbe import BE, fragmentate
 from quemb.molbe.solver import DMRG_ArgsUser
 
 # We'll consider the dissociation curve for a 1D chain of 8 H-atoms:
@@ -42,7 +42,7 @@ for a in seps:
     # any clear advantage to using any one scheme over another,
     # the Pipek-Mezey scheme continues to be the most popular. With
     # BE-DMRG, localization takes place prior to fragmentation:
-    fobj = fragpart(n_BE=1, mol=mol)
+    fobj = fragmentate(n_BE=1, mol=mol)
     mybe = BE(
         mf,
         fobj,
@@ -88,7 +88,7 @@ mol.basis = "sto-3g"
 mol.charge = 0
 mol.spin = 0
 mol.build()
-fobj = fragpart(n_BE=2, mol=mol)
+fobj = fragmentate(n_BE=2, mol=mol)
 mybe = BE(mf, fobj, lo_method="pipek-mezey", pop_method="lowdin")
 
 # We automatically construct the fragment DMRG schedules based on user keywords.

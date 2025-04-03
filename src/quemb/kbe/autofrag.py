@@ -1985,7 +1985,7 @@ def autogen(
         max_site = max(max_site, maxH)
 
     fsites = []
-    edgsites = []
+    edge_sites = []
     edge_idx = []
     centerf_idx = []
     edge = []
@@ -2339,7 +2339,7 @@ def autogen(
 
         edge.append(edg)
         fsites.append(ftmp)
-        edgsites.append(ftmpe)
+        edge_sites.append(ftmpe)
         edge_idx.append(edind)
 
     center = []
@@ -2375,4 +2375,4 @@ def autogen(
 
         center_idx.append(idx)
 
-    return (fsites, edgsites, center, edge_idx, center_idx, centerf_idx, ebe_weight)
+    return (fsites, edge_sites, center, edge_idx, center_idx, centerf_idx, ebe_weight)

@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 from pyscf import gto, scf
 
-from quemb.molbe import BE, fragpart
+from quemb.molbe import BE, fragmentate
 from quemb.molbe.fragment import FragType
 from quemb.shared.io import write_cube
 
@@ -20,7 +20,7 @@ def test_BE2_octane_molbe() -> None:
 
     # initialize fragments (without using frozen core approximation)
     for frag_type in cast(list[FragType], ["autogen", "chemgen"]):
-        fobj = fragpart(n_BE=2, frag_type=frag_type, mol=mol, frozen_core=False)
+        fobj = fragmentate(n_BE=2, frag_type=frag_type, mol=mol, frozen_core=False)
         # Initialize BE
         mybe = BE(mf, fobj)
 
@@ -46,7 +46,7 @@ def test_BE3_octane_molbe() -> None:
 
     # initialize fragments (without using frozen core approximation)
     for frag_type in cast(list[FragType], ["autogen", "chemgen"]):
-        fobj = fragpart(n_BE=3, frag_type=frag_type, mol=mol, frozen_core=False)
+        fobj = fragmentate(n_BE=3, frag_type=frag_type, mol=mol, frozen_core=False)
         # Initialize BE
         mybe = BE(mf, fobj)
 
@@ -67,7 +67,7 @@ def test_cubegen() -> None:
     # Prepare octane molecule
     mol, mf = prepare_octane()
     # Build fragments
-    fobj = fragpart(n_BE=2, frag_type="autogen", mol=mol, frozen_core=True)
+    fobj = fragmentate(n_BE=2, frag_type="autogen", mol=mol, frozen_core=True)
     # Run BE2
     mybe = BE(mf, fobj)
     mybe.optimize(solver="CCSD", nproc=1, ompnum=1)

@@ -10,7 +10,7 @@ import unittest
 
 from pyscf import gto, scf
 
-from quemb.molbe import BE, fragpart
+from quemb.molbe import BE, fragmentate
 from quemb.molbe.fragment import ChemGenArgs
 
 
@@ -78,7 +78,7 @@ class TestBE_restricted(unittest.TestCase):
         only_chem=True,
         additional_args=None,
     ):
-        fobj = fragpart(
+        fobj = fragmentate(
             frag_type=frag_type,
             n_BE=n_BE,
             mol=mol,
