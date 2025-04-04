@@ -107,7 +107,7 @@ class Frags:
         self.ref_frag_idx_per_edge = ref_frag_idx_per_edge
         self.rel_AO_per_edge_per_frag = rel_AO_per_edge_per_frag
         self.other_rel_AO_per_edge_per_frag = other_rel_AO_per_edge_per_frag
-        self.centerf_idx = rel_AO_per_origin_per_frag
+        self.rel_AO_per_origin_per_frag = rel_AO_per_origin_per_frag
         self.udim = None
 
         self._rdm1 = None
