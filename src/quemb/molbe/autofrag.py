@@ -82,7 +82,7 @@ class FragPart:
     #: i.e. the list of indices.
     #: This is a list whose entries are sequences containing the relative orbital index
     #  of the center sites within a fragment. Relative is to the own fragment.
-    rel_AO_per_center_per_frag: ListOverFrag[list[float | list[OwnRelAOIdx]]]
+    rel_AO_per_center_per_frag: ListOverFrag[tuple[float, list[OwnRelAOIdx]]]
 
     #: The motifs/heavy atoms in each fragment, in order.
     #: Each are labeled based on the global atom index.

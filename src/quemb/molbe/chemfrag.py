@@ -1125,10 +1125,7 @@ class Fragmented:
         # A similar issue occurs for rel_AO_per_center_per_frag, where the output
         # of autogen is a union over all centers.
         rel_AO_per_center_per_frag = [
-            cast(
-                list[float | list[OwnRelAOIdx]],
-                [1.0, list(union_of_seqs(*idx_per_center))],
-            )
+            (1.0, list(union_of_seqs(*idx_per_center)))
             for idx_per_center in _extract_values(self.rel_AO_per_center_per_frag)
         ]
         # Again, we have to account for the fact that
