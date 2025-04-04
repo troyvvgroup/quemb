@@ -292,18 +292,18 @@ def be_func(
 
     # Loop over each fragment and solve using the specified solver
     for fobj in Fobjs:
-        assert fobj.fock is not None and fobj.heff is not None and fobj._mf is not None
-
         # Update the effective Hamiltonian
         if pot is not None:
             fobj.update_heff(pot, only_chem=only_chem)
 
+        assert fobj.fock is not None and fobj.heff is not None
         # Compute the one-electron Hamiltonian
         h1_ = fobj.fock + fobj.heff
         # Perform SCF calculation
         fobj.scf()
 
         # Solve using the specified solver
+        assert fobj._mf is not None
         if solver == "MP2":
             fobj._mc = solve_mp2(fobj._mf, mo_energy=fobj._mf.mo_energy)
         elif solver == "CCSD":
@@ -442,11 +442,12 @@ def be_func(
         else:
             raise ValueError("Solver not implemented")
 
-        assert fobj._mc is not None and fobj.mo_coeffs is not None
         if solver == "MP2":
+            assert fobj._mc is not None
             rdm1_tmp = fobj._mc.make_rdm1()
         fobj.rdm1__ = rdm1_tmp.copy()
 
+        assert fobj.mo_coeffs is not None
         fobj._rdm1 = (
             multi_dot(
                 (
@@ -463,6 +464,7 @@ def be_func(
             if solver == "CCSD" and not relax_density:
                 rdm2s = make_rdm2_urlx(fobj.t1, fobj.t2, with_dm1=not use_cumulant)
             elif solver == "MP2":
+                assert fobj._mc is not None
                 rdm2s = fobj._mc.make_rdm2()
             elif solver == "FCI":
                 rdm2s = mc.make_rdm2(civec, mc.norb, mc.nelec)
