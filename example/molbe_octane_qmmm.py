@@ -66,7 +66,7 @@ ccsd_ecorr = mc.kernel()[0]
 print(f"*** CCSD Correlation Energy: {ccsd_ecorr:>14.8f} Ha", flush=True)
 
 # Initialize fragments
-fobj = fragmentate(be_type="be2", mol=mol, frozen_core=False)
+fobj = fragmentate(n_BE=2, mol=mol, frozen_core=False)
 
 # Initialize BE
 mybe = BE(mf, fobj)

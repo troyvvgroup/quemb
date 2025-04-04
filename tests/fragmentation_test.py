@@ -25,25 +25,25 @@ class TestBE_Fragmentation(unittest.TestCase):
         mf = scf.RHF(mol)
 
         target = {
-            "fsites": [[0], [1], [2], [3], [4], [5], [6], [7]],
+            "AO_per_frag": [[0], [1], [2], [3], [4], [5], [6], [7]],
             "edge": [],
             "center": [],
             "centerf_idx": [[0], [0], [0], [0], [0], [0], [0], [0]],
-            "ebe_weight": [
-                [1.0, [0]],
-                [1.0, [0]],
-                [1.0, [0]],
-                [1.0, [0]],
-                [1.0, [0]],
-                [1.0, [0]],
-                [1.0, [0]],
-                [1.0, [0]],
+            "rel_AO_per_center_per_frag": [
+                (1.0, [0]),
+                (1.0, [0]),
+                (1.0, [0]),
+                (1.0, [0]),
+                (1.0, [0]),
+                (1.0, [0]),
+                (1.0, [0]),
+                (1.0, [0]),
             ],
         }
 
         self.run_indices_test(
             mf,
-            "be1",
+            1,
             "autogen_h_linear_be1",
             "autogen",
             target,
@@ -60,7 +60,7 @@ class TestBE_Fragmentation(unittest.TestCase):
         mf = scf.RHF(mol)
 
         target = {
-            "fsites": [
+            "AO_per_frag": [
                 [1, 0, 2],
                 [2, 1, 3],
                 [3, 2, 4],
@@ -71,19 +71,19 @@ class TestBE_Fragmentation(unittest.TestCase):
             "edge": [[[2]], [[1], [3]], [[2], [4]], [[3], [5]], [[4], [6]], [[5]]],
             "center": [[1], [0, 2], [1, 3], [2, 4], [3, 5], [4]],
             "centerf_idx": [[0], [0], [0], [0], [0], [0]],
-            "ebe_weight": [
-                [1.0, [0, 1]],
-                [1.0, [0]],
-                [1.0, [0]],
-                [1.0, [0]],
-                [1.0, [0]],
-                [1.0, [0, 1]],
+            "rel_AO_per_center_per_frag": [
+                (1.0, [0, 1]),
+                (1.0, [0]),
+                (1.0, [0]),
+                (1.0, [0]),
+                (1.0, [0]),
+                (1.0, [0, 1]),
             ],
         }
 
         self.run_indices_test(
             mf,
-            "be2",
+            2,
             "autogen_h_linear_be2",
             "autogen",
             target,
@@ -100,7 +100,7 @@ class TestBE_Fragmentation(unittest.TestCase):
         mf = scf.RHF(mol)
 
         target = {
-            "fsites": [
+            "AO_per_frag": [
                 [2, 0, 1, 3, 4],
                 [3, 2, 1, 4, 5],
                 [4, 3, 2, 5, 6],
@@ -114,12 +114,17 @@ class TestBE_Fragmentation(unittest.TestCase):
             ],
             "center": [[1, 2], [0, 0, 2, 3], [1, 0, 3, 3], [2, 1]],
             "centerf_idx": [[0], [0], [0], [0]],
-            "ebe_weight": [[1.0, [0, 1, 2]], [1.0, [0]], [1.0, [0]], [1.0, [0, 1, 2]]],
+            "rel_AO_per_center_per_frag": [
+                (1.0, [0, 1, 2]),
+                (1.0, [0]),
+                (1.0, [0]),
+                (1.0, [0, 1, 2]),
+            ],
         }
 
         self.run_indices_test(
             mf,
-            "be3",
+            3,
             "autogen_h_linear_be3",
             "autogen",
             target,
@@ -136,7 +141,7 @@ class TestBE_Fragmentation(unittest.TestCase):
         mf = scf.RHF(mol)
 
         target = {
-            "fsites": [
+            "AO_per_frag": [
                 [0, 1, 2, 3, 4, 11, 13],
                 [5, 6, 7, 8, 9, 10, 12],
                 [14, 15, 16, 17, 18, 24, 26],
@@ -158,21 +163,21 @@ class TestBE_Fragmentation(unittest.TestCase):
                 [0, 1, 2, 3, 4, 5, 6, 7],
                 [0, 1, 2, 3, 4, 5, 6, 7],
             ],
-            "ebe_weight": [
-                [1.0, [0, 1, 2, 3, 4, 5, 6]],
-                [1.0, [0, 1, 2, 3, 4, 5, 6]],
-                [1.0, [0, 1, 2, 3, 4, 5, 6]],
-                [1.0, [0, 1, 2, 3, 4, 5, 6]],
-                [1.0, [0, 1, 2, 3, 4, 5, 6]],
-                [1.0, [0, 1, 2, 3, 4, 5, 6]],
-                [1.0, [0, 1, 2, 3, 4, 5, 6, 7]],
-                [1.0, [0, 1, 2, 3, 4, 5, 6, 7]],
+            "rel_AO_per_center_per_frag": [
+                (1.0, [0, 1, 2, 3, 4, 5, 6]),
+                (1.0, [0, 1, 2, 3, 4, 5, 6]),
+                (1.0, [0, 1, 2, 3, 4, 5, 6]),
+                (1.0, [0, 1, 2, 3, 4, 5, 6]),
+                (1.0, [0, 1, 2, 3, 4, 5, 6]),
+                (1.0, [0, 1, 2, 3, 4, 5, 6]),
+                (1.0, [0, 1, 2, 3, 4, 5, 6, 7]),
+                (1.0, [0, 1, 2, 3, 4, 5, 6, 7]),
             ],
         }
 
         self.run_indices_test(
             mf,
-            "be1",
+            1,
             "autogen_octane_be1",
             "autogen",
             target,
@@ -189,7 +194,7 @@ class TestBE_Fragmentation(unittest.TestCase):
         mf = scf.RHF(mol)
 
         target = {
-            "fsites": [
+            "AO_per_frag": [
                 [
                     0,
                     1,
@@ -348,19 +353,19 @@ class TestBE_Fragmentation(unittest.TestCase):
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
             ],
-            "ebe_weight": [
-                [1.0, [0, 1, 2, 3, 4, 5, 6]],
-                [1.0, [0, 1, 2, 3, 4, 5, 6]],
-                [1.0, [0, 1, 2, 3, 4, 5, 6]],
-                [1.0, [0, 1, 2, 3, 4, 5, 6]],
-                [1.0, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]],
-                [1.0, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]],
+            "rel_AO_per_center_per_frag": [
+                (1.0, [0, 1, 2, 3, 4, 5, 6]),
+                (1.0, [0, 1, 2, 3, 4, 5, 6]),
+                (1.0, [0, 1, 2, 3, 4, 5, 6]),
+                (1.0, [0, 1, 2, 3, 4, 5, 6]),
+                (1.0, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]),
+                (1.0, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]),
             ],
         }
 
         self.run_indices_test(
             mf,
-            "be2",
+            2,
             "autogen_octane_be2",
             "autogen",
             target,
@@ -377,7 +382,7 @@ class TestBE_Fragmentation(unittest.TestCase):
         mf = scf.RHF(mol)
 
         target = {
-            "fsites": [
+            "AO_per_frag": [
                 [
                     0,
                     1,
@@ -552,10 +557,10 @@ class TestBE_Fragmentation(unittest.TestCase):
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
             ],
-            "ebe_weight": [
-                [1.0, [0, 1, 2, 3, 4, 5, 6]],
-                [1.0, [0, 1, 2, 3, 4, 5, 6]],
-                [
+            "rel_AO_per_center_per_frag": [
+                (1.0, [0, 1, 2, 3, 4, 5, 6]),
+                (1.0, [0, 1, 2, 3, 4, 5, 6]),
+                (
                     1.0,
                     [
                         0,
@@ -581,8 +586,8 @@ class TestBE_Fragmentation(unittest.TestCase):
                         20,
                         21,
                     ],
-                ],
-                [
+                ),
+                (
                     1.0,
                     [
                         0,
@@ -608,13 +613,13 @@ class TestBE_Fragmentation(unittest.TestCase):
                         20,
                         21,
                     ],
-                ],
+                ),
             ],
         }
 
         self.run_indices_test(
             mf,
-            "be3",
+            3,
             "autogen_octane_be3",
             "autogen",
             target,
@@ -631,11 +636,11 @@ class TestBE_Fragmentation(unittest.TestCase):
         mf = scf.RHF(mol)
 
         target = {
-            "fsites": [(0,), (1,), (2,), (3,), (4,), (5,), (6,), (7,)],
+            "AO_per_frag": [(0,), (1,), (2,), (3,), (4,), (5,), (6,), (7,)],
             "edge": [(), (), (), (), (), (), (), ()],
             "center": [(0,), (1,), (2,), (3,), (4,), (5,), (6,), (7,)],
             "centerf_idx": [(0,), (0,), (0,), (0,), (0,), (0,), (0,), (0,)],
-            "ebe_weight": [
+            "rel_AO_per_center_per_frag": [
                 (1.0, (0,)),
                 (1.0, (0,)),
                 (1.0, (0,)),
@@ -649,7 +654,7 @@ class TestBE_Fragmentation(unittest.TestCase):
 
         self.run_indices_test(
             mf,
-            "be1",
+            1,
             "graphgen_h_linear_be1",
             "graphgen",
             target,
@@ -666,7 +671,7 @@ class TestBE_Fragmentation(unittest.TestCase):
         mf = scf.RHF(mol)
 
         target = {
-            "fsites": [
+            "AO_per_frag": [
                 (1, 0, 2),
                 (2, 1, 3),
                 (3, 2, 4),
@@ -684,7 +689,7 @@ class TestBE_Fragmentation(unittest.TestCase):
             ],
             "center": [(0, 1), (2,), (3,), (4,), (5,), (6, 7)],
             "centerf_idx": [(1, 0), (0,), (0,), (0,), (0,), (0, 2)],
-            "ebe_weight": [
+            "rel_AO_per_center_per_frag": [
                 (1.0, (1, 0)),
                 (1.0, (0,)),
                 (1.0, (0,)),
@@ -696,7 +701,7 @@ class TestBE_Fragmentation(unittest.TestCase):
 
         self.run_indices_test(
             mf,
-            "be2",
+            2,
             "graphgen_h_linear_be2",
             "graphgen",
             target,
@@ -713,7 +718,7 @@ class TestBE_Fragmentation(unittest.TestCase):
         mf = scf.RHF(mol)
 
         target = {
-            "fsites": [
+            "AO_per_frag": [
                 (2, 0, 1, 3, 4),
                 (3, 1, 2, 4, 5),
                 (4, 2, 3, 5, 6),
@@ -727,7 +732,7 @@ class TestBE_Fragmentation(unittest.TestCase):
             ],
             "center": [(0, 1, 2), (3,), (4,), (5, 6, 7)],
             "centerf_idx": [(1, 2, 0), (0,), (0,), (0, 3, 4)],
-            "ebe_weight": [
+            "rel_AO_per_center_per_frag": [
                 (1.0, (1, 2, 0)),
                 (1.0, (0,)),
                 (1.0, (0,)),
@@ -737,7 +742,7 @@ class TestBE_Fragmentation(unittest.TestCase):
 
         self.run_indices_test(
             mf,
-            "be3",
+            3,
             "graphgen_h_linear_be3",
             "graphgen",
             target,
@@ -754,7 +759,7 @@ class TestBE_Fragmentation(unittest.TestCase):
         mf = scf.RHF(mol)
 
         target = {
-            "fsites": [
+            "AO_per_frag": [
                 (0, 1, 2, 3, 4),
                 (5, 6, 7, 8, 9),
                 (10,),
@@ -866,7 +871,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 (0,),
                 (0,),
             ],
-            "ebe_weight": [
+            "rel_AO_per_center_per_frag": [
                 (1.0, (0, 1, 2, 3, 4)),
                 (1.0, (0, 1, 2, 3, 4)),
                 (1.0, (0,)),
@@ -898,7 +903,7 @@ class TestBE_Fragmentation(unittest.TestCase):
 
         self.run_indices_test(
             mf,
-            "be1",
+            1,
             "graphgen_octane_be1",
             "graphgen",
             target,
@@ -915,7 +920,7 @@ class TestBE_Fragmentation(unittest.TestCase):
         mf = scf.RHF(mol)
 
         target = {
-            "fsites": [
+            "AO_per_frag": [
                 (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 13, 19, 20, 21, 22, 23),
                 (5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 10, 12, 14, 15, 16, 17, 18),
                 (14, 15, 16, 17, 18, 5, 6, 7, 8, 9, 24, 26, 28, 29, 30, 31, 32),
@@ -955,7 +960,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 (0, 1, 2, 3, 4, 10, 11, 12),
                 (0, 1, 2, 3, 4, 10, 11, 12),
             ],
-            "ebe_weight": [
+            "rel_AO_per_center_per_frag": [
                 (1.0, (0, 1, 2, 3, 4, 10, 11)),
                 (1.0, (0, 1, 2, 3, 4, 10, 11)),
                 (1.0, (0, 1, 2, 3, 4, 10, 11)),
@@ -969,7 +974,7 @@ class TestBE_Fragmentation(unittest.TestCase):
 
         self.run_indices_test(
             mf,
-            "be2",
+            2,
             "graphgen_octane_be2",
             "graphgen",
             target,
@@ -986,7 +991,7 @@ class TestBE_Fragmentation(unittest.TestCase):
         mf = scf.RHF(mol)
 
         target = {
-            "fsites": [
+            "AO_per_frag": [
                 (
                     0,
                     1,
@@ -1152,7 +1157,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 (4, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 0, 1, 2, 3),
                 (0, 1, 2, 3, 4, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21),
             ],
-            "ebe_weight": [
+            "rel_AO_per_center_per_frag": [
                 (1.0, (0, 1, 2, 3, 4, 11, 13)),
                 (1.0, (0, 1, 2, 3, 4, 10, 12)),
                 (1.0, (0, 1, 2, 3, 4, 12, 13)),
@@ -1164,7 +1169,7 @@ class TestBE_Fragmentation(unittest.TestCase):
 
         self.run_indices_test(
             mf,
-            "be3",
+            3,
             "graphgen_octane_be3",
             "graphgen",
             target,
@@ -1184,7 +1189,7 @@ class TestBE_Fragmentation(unittest.TestCase):
 
         self.run_energies_test(
             mf,
-            "be2",
+            2,
             "energy_graphgen_autogen_h_linear_be2",
             target,
             delta=1e-2,
@@ -1204,7 +1209,7 @@ class TestBE_Fragmentation(unittest.TestCase):
 
         self.run_energies_test(
             mf,
-            "be2",
+            2,
             "energy_graphgen_autogen_octane_be2",
             target,
             delta=1e-2,
@@ -1219,12 +1224,12 @@ class TestBE_Fragmentation(unittest.TestCase):
         mf = scf.RHF(mol)
         mf.kernel()
 
-        fobj = fragmentate(mol, be_type="be2", frag_type="graphgen", print_frags=False)
+        fobj = fragmentate(mol, n_BE=2, frag_type="graphgen", print_frags=False)
         mybe = BE(mf, fobj)
 
         assert np.isclose(mf.e_tot, mybe.ebe_hf)
 
-        fobj = fragmentate(mol, be_type="be3", frag_type="graphgen", print_frags=False)
+        fobj = fragmentate(mol, n_BE=3, frag_type="graphgen", print_frags=False)
         mybe = BE(mf, fobj)
 
         assert np.isclose(mf.e_tot, mybe.ebe_hf)
@@ -1232,14 +1237,14 @@ class TestBE_Fragmentation(unittest.TestCase):
     def run_energies_test(
         self,
         mf,
-        be_type,
+        n_BE,
         test_name,
         target,
         delta,
     ):
         Es = {"target": target}
         for frag_type in ["autogen", "graphgen"]:
-            fobj = fragmentate(frag_type=frag_type, be_type=be_type, mol=mf.mol)
+            fobj = fragmentate(frag_type=frag_type, n_BE=n_BE, mol=mf.mol)
             mbe = BE(mf, fobj)
             mbe.oneshot(solver="CCSD")
             Es.update({frag_type: mbe.ebe_tot - mbe.ebe_hf})
@@ -1260,18 +1265,21 @@ class TestBE_Fragmentation(unittest.TestCase):
     def run_indices_test(
         self,
         mf,
-        be_type,
+        n_BE,
         test_name,
         frag_type,
         target,
     ):
-        fobj = fragmentate(frag_type=frag_type, be_type=be_type, mol=mf.mol)
+        fobj = fragmentate(frag_type=frag_type, n_BE=n_BE, mol=mf.mol)
         try:
-            assert fobj.fsites == target["fsites"]
-            assert fobj.edge_sites == target["edge"]
-            assert fobj.center == target["center"]
+            assert fobj.AO_per_frag == target["AO_per_frag"]
+            assert fobj.AO_per_edge_per_frag == target["edge"]
+            assert fobj.ref_frag_idx_per_edge == target["center"]
             assert fobj.centerf_idx == target["centerf_idx"]
-            assert fobj.ebe_weight == target["ebe_weight"]
+            assert (
+                fobj.scale_rel_AO_per_center_per_frag
+                == target["rel_AO_per_center_per_frag"]
+            )
         except AssertionError as e:
             print(f"Fragmentation test failed at {test_name} \n")
             raise e

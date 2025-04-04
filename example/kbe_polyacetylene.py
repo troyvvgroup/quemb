@@ -48,7 +48,7 @@ kmf.conv_tol = 1e-12
 kpoint_energy = kmf.kernel()
 
 # Define fragment in the supercell
-kfrag = fragmentate(be_type="be2", mol=cell, kpt=kpt, frozen_core=True)
+kfrag = fragmentate(n_BE=2, mol=cell, kpt=kpt, frozen_core=True)
 # Initialize BE
 mykbe = BE(kmf, kfrag, kpts=kpts)
 

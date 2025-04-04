@@ -118,3 +118,9 @@ EdgeIdx = NewType("EdgeIdx", MotifIdx)
 #:    |        |        |        |
 #:
 OriginIdx = NewType("OriginIdx", CenterIdx)
+
+
+ListOverFrag: TypeAlias = list
+ListOverEdge: TypeAlias = list
+ListOverCenter: TypeAlias = list
+ListOverMotif: TypeAlias = list

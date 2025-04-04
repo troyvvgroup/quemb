@@ -119,10 +119,10 @@ def test_structure_agreement_with_autogen():
 
     for n_BE in range(1, 4):
         chem_frags = PurelyStructureFragmented.from_mole(mol, n_BE)
-        auto_frags = fragmentate(mol=mol, frag_type="autogen", be_type=f"be{n_BE}")
+        auto_frags = fragmentate(mol=mol, frag_type="autogen", n_BE=n_BE)
 
         for chem_fragment, auto_fragment in zip(
-            chem_frags.motifs_per_frag, auto_frags.Frag_atom
+            chem_frags.motifs_per_frag, auto_frags.motifs_per_frag
         ):
             # We assert that the first atom, i.e. the origin, is the same for both
             # chemfrag and autogen
@@ -230,12 +230,12 @@ def test_molecule_with_autocratic_matching():
     mf = scf.RHF(mol)
     mf.kernel()
 
-    fobj = fragmentate(mol, be_type="be2", frag_type="chemgen", print_frags=False)
+    fobj = fragmentate(mol, n_BE=2, frag_type="chemgen", print_frags=False)
     mybe = BE(mf, fobj)
 
     assert np.isclose(mf.e_tot, mybe.ebe_hf)
 
-    fobj = fragmentate(mol, be_type="be3", frag_type="chemgen", print_frags=False)
+    fobj = fragmentate(mol, n_BE=3, frag_type="chemgen", print_frags=False)
     mybe = BE(mf, fobj)
 
     assert np.isclose(mf.e_tot, mybe.ebe_hf)

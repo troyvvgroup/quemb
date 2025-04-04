@@ -22,9 +22,7 @@ def test_matching_order():
         mf.conv_tol = 1e-12
         mf.kernel()
 
-        fobj = fragmentate(mol=mol, frag_type="autogen", be_type="be3")
-
-        # fobj.center_idx[0][0][0] = 200
+        fobj = fragmentate(mol=mol, frag_type="autogen", n_BE=3)
 
         mybe = BE(mf, fobj)
 
