@@ -944,7 +944,7 @@ def autogen(
                     add_center_atom[pid__].append(open_frag_cen[pidx__])
                     tmp_.extend([i.index(pq) for pq in sites__[open_frag_cen[pidx__]]])
                     tmp_.extend([i.index(pq) for pq in hsites[open_frag_cen[pidx__]]])
-        rel_AO_per_center_per_frag.append([1.0, tmp_])
+        rel_AO_per_center_per_frag.append((1.0, tmp_))
 
     other_rel_AO_per_edge_per_frag = []
     if n_BE != 1:
