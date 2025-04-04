@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 from pyscf import gto, scf
 
-from quemb.molbe import BE, fragpart
+from quemb.molbe import BE, fragmentate
 from quemb.molbe.fragment import ChemGenArgs
 
 
@@ -142,7 +142,7 @@ def ret_ecorr(
 ) -> float:
     # Fragment molecule
 
-    fobj = fragpart(
+    fobj = fragmentate(
         be_type=be,
         mol=mol,
         frozen_core=frozen,

@@ -2,7 +2,7 @@
 
 from pyscf import gto, scf
 
-from quemb.molbe import BE, fragpart
+from quemb.molbe import BE, fragmentate
 
 # Perform pyscf HF calculation to get mol & mf objects
 mol = gto.M(
@@ -44,7 +44,7 @@ mf.conv_tol = 1e-12
 mf.kernel()
 
 # initialize fragments (use frozen core approximation)
-fobj = fragpart(be_type="be2", mol=mol, frozen_core=True)
+fobj = fragmentate(be_type="be2", mol=mol, frozen_core=True)
 # Initialize BE
 mybe = BE(mf, fobj)
 

@@ -3,7 +3,7 @@
 
 from pyscf import cc, gto, scf
 
-from quemb.molbe import BE, fragpart
+from quemb.molbe import BE, fragmentate
 
 # Perform pyscf HF calculation to get mol & mf objects
 mol = gto.M(
@@ -46,7 +46,7 @@ print(f"*** CCSD Correlation Energy: {ccsd_ecorr:>14.8f} Ha", flush=True)
 # iao_valence_basis is the minimal-like basis upon which you project
 # the full, working basis. We recommend minao or sto-3g
 # Note: iao_valence_only=True is currently not supported
-fobj = fragpart(
+fobj = fragmentate(
     be_type="be2",
     mol=mol,
     frozen_core=True,

@@ -12,7 +12,7 @@ import unittest
 from numpy import eye
 from pyscf.pbc import df, gto, scf
 
-from quemb.kbe import BE, fragpart
+from quemb.kbe import BE, fragmentate
 
 
 class Test_kBE_Full(unittest.TestCase):
@@ -132,7 +132,7 @@ class Test_kBE_Full(unittest.TestCase):
         kmf.conv_tol = 1e-12
         kmf.kernel()
 
-        kfrag = fragpart(
+        kfrag = fragmentate(
             be_type=be_type,
             mol=cell,
             frag_type=frag_type,
