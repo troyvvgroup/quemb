@@ -72,7 +72,7 @@ class FragPart:
     #: origin site within a fragment. Relative is to the own fragment.
     #  Since the origin site is at the beginning
     #: of the motif list for each fragment, this is always a ``list(range(0, n))``
-    centerf_idx: ListOverFrag[list[OwnRelAOIdx]]
+    rel_AO_per_origin_per_frag: ListOverFrag[list[OwnRelAOIdx]]
 
     #: The first element is a float, the second is the list
     #: The float weight makes only sense for democratic matching and is currently 1.0
@@ -179,15 +179,13 @@ class FragmentMap:
     center :
         List whose entries are sequences of sequences, containing all fragment AO
         indices per atom (inner tuple) and per fragment (outer tuple).
-    centerf_idx :
+    rel_AO_per_origin_per_frag :
         List whose entries are sequences containing the relative AO index of the
         origin site within a fragment.
         Relative is to the own fragment; since the origin site is at the beginning
         of the motif list for each fragment, this is always a Sequence
         :python:`range(0, n)`.
     scale_rel_AO_per_center_per_frag :
-        Weights determining the energy contributions from each center site
-        (ie, with respect to centerf_idx).
     sites :
         List whose entries are sequences containing all AO indices per atom
         (excluding frozen core indices, if applicable).
@@ -210,7 +208,7 @@ class FragmentMap:
     fs: list[Sequence[Sequence[int]]]
     AO_per_edge_per_frag: list[Sequence[Sequence[int]]]
     ref_frag_idx_per_edge: list[Sequence[int]]
-    centerf_idx: list[Sequence[int]]
+    rel_AO_per_origin_per_frag: list[Sequence[int]]
     scale_rel_AO_per_center_per_frag: list[Sequence]
     sites: list[Sequence]
     dnames: list[str]
@@ -273,7 +271,7 @@ class FragmentMap:
             AO_per_edge_per_frag=self.AO_per_edge_per_frag,  # type: ignore[arg-type]
             rel_AO_per_edge_per_frag=MISSING,
             other_rel_AO_per_edge_per_frag=MISSING,
-            centerf_idx=self.centerf_idx,  # type: ignore[arg-type]
+            rel_AO_per_origin_per_frag=self.rel_AO_per_origin_per_frag,  # type: ignore[arg-type]
             AO_per_frag=self.AO_per_frag,  # type: ignore[arg-type]
             ref_frag_idx_per_edge=self.ref_frag_idx_per_edge,  # type: ignore[arg-type]
             scale_rel_AO_per_center_per_frag=self.scale_rel_AO_per_center_per_frag,  # type: ignore[arg-type]
@@ -374,7 +372,7 @@ def graphgen(
         fs=list(tuple(tuple())),
         AO_per_edge_per_frag=list(tuple(tuple())),
         ref_frag_idx_per_edge=list(tuple()),
-        centerf_idx=list(tuple()),
+        rel_AO_per_origin_per_frag=list(tuple()),
         scale_rel_AO_per_center_per_frag=list(tuple()),
         sites=list(tuple()),
         dnames=list(),
@@ -495,9 +493,13 @@ def graphgen(
     # Update relative center site indices (centerf_idx) and weights
     # for center site contributions to the energy ():
     for adx, center in enumerate(fragment_map.ref_frag_idx_per_edge):
-        centerf_idx = tuple(fragment_map.AO_per_frag[adx].index(cdx) for cdx in center)
-        fragment_map.centerf_idx.append(centerf_idx)
-        fragment_map.scale_rel_AO_per_center_per_frag.append((1.0, tuple(centerf_idx)))
+        rel_AO_per_origin_per_frag = tuple(
+            fragment_map.AO_per_frag[adx].index(cdx) for cdx in center
+        )
+        fragment_map.rel_AO_per_origin_per_frag.append(rel_AO_per_origin_per_frag)
+        fragment_map.scale_rel_AO_per_center_per_frag.append(
+            (1.0, tuple(rel_AO_per_origin_per_frag))
+        )
 
     # Finally, set fragment data names for scratch and bookkeeping:
     for adx, _ in enumerate(fragment_map.fs):
@@ -847,7 +849,7 @@ def autogen(
     AO_per_frag = []
     AO_per_edge_per_frag = []
     rel_AO_per_edge_per_frag = []
-    centerf_idx = []
+    rel_AO_per_origin_per_frag = []
     edge = []
 
     # Create fragments and edges based on partitioning
@@ -874,14 +876,14 @@ def autogen(
         ftmp.extend(frglist)
         if not pao:
             ls_ = len(sites__[origin_per_frag[idx]]) + len(hsites[origin_per_frag[idx]])
-            centerf_idx.append([pq for pq in range(indix, indix + ls_)])
+            rel_AO_per_origin_per_frag.append([pq for pq in range(indix, indix + ls_)])
         else:
             cntlist = sites__[origin_per_frag[idx]].copy()[
                 : nbas2[origin_per_frag[idx]]
             ]
             cntlist.extend(hsites[origin_per_frag[idx]][: nbas2H[origin_per_frag[idx]]])
             ind__ = [indix + frglist.index(pq) for pq in cntlist]
-            centerf_idx.append(ind__)
+            rel_AO_per_origin_per_frag.append(ind__)
         indix += ls
 
         if n_BE != 1:
@@ -1001,7 +1003,7 @@ def autogen(
         ref_frag_idx_per_edge=ref_frag_idx_per_edge,
         rel_AO_per_edge_per_frag=rel_AO_per_edge_per_frag,
         other_rel_AO_per_edge_per_frag=other_rel_AO_per_edge_per_frag,
-        centerf_idx=centerf_idx,
+        rel_AO_per_origin_per_frag=rel_AO_per_origin_per_frag,
         scale_rel_AO_per_center_per_frag=scale_rel_AO_per_center_per_frag,
         motifs_per_frag=motifs_per_frag,
         origin_per_frag=origin_per_frag,

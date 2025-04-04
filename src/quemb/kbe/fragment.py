@@ -57,7 +57,7 @@ class FragPart:
     #: origin site within a fragment. Relative is to the own fragment.
     #  Since the origin site is at the beginning
     #: of the motif list for each fragment, this is always a ``list(range(0, n))``
-    centerf_idx: ListOverFrag[list[OwnRelAOIdx]]
+    rel_AO_per_origin_per_frag: ListOverFrag[list[OwnRelAOIdx]]
 
     n_BE: int
     natom: int
@@ -166,8 +166,8 @@ def fragmentate(
             ref_frag_idx_per_edge,
             rel_AO_per_edge_per_frag,
             other_rel_AO_per_edge_per_frag,
-            centerf_idx,
-            rel_AO_per_center_per_frag,
+            rel_AO_per_origin_per_frag,
+            scale_rel_AO_per_center_per_frag,
         ) = autogen(
             mol,
             kpt,
@@ -193,10 +193,10 @@ def fragmentate(
             AO_per_frag=AO_per_frag,
             AO_per_edge_per_frag=AO_per_edge_per_frag,
             ref_frag_idx_per_edge=ref_frag_idx_per_edge,
-            rel_AO_per_center_per_frag=rel_AO_per_center_per_frag,
+            rel_AO_per_center_per_frag=scale_rel_AO_per_center_per_frag,
             rel_AO_per_edge_per_frag=rel_AO_per_edge_per_frag,
             other_rel_AO_per_edge_per_frag=other_rel_AO_per_edge_per_frag,
-            centerf_idx=centerf_idx,
+            rel_AO_per_origin_per_frag=rel_AO_per_origin_per_frag,
             n_BE=n_BE,
             natom=natom,
             frozen_core=frozen_core,

@@ -1966,7 +1966,7 @@ def autogen(
     AO_per_frag = []
     AO_per_edge_per_frag = []
     rel_AO_per_edge_per_frag = []
-    centerf_idx = []
+    rel_AO_per_origin_per_frag = []
     edge = []
 
     nkcon = True
@@ -2143,12 +2143,12 @@ def autogen(
 
         ls = len(sites__[cen[idx]]) + len(hsites[cen[idx]])
         if not pao:
-            centerf_idx.append([pq for pq in range(indix, indix + ls)])
+            rel_AO_per_origin_per_frag.append([pq for pq in range(indix, indix + ls)])
         else:
             cntlist = sites__[cen[idx]].copy()[: nbas2[cen[idx]]]
             cntlist.extend(hsites[cen[idx]][: nbas2H[cen[idx]]])
             ind__ = [indix + frglist.index(pq) for pq in cntlist]
-            centerf_idx.append(ind__)
+            rel_AO_per_origin_per_frag.append(ind__)
         indix += ls
 
         for jdx in pedge[idx]:
@@ -2329,12 +2329,12 @@ def autogen(
         ref_frag_idx_per_edge.append(cen_)
 
     n_frag = len(AO_per_frag)
-    rel_AO_per_center_per_frag = []
+    scale_rel_AO_per_center_per_frag = []
     # Use IAO+PAO for computing energy
     for ix, i in enumerate(AO_per_frag):
         tmp_ = [i.index(pq) for pq in sites__[cen[ix]]]
         tmp_.extend([i.index(pq) for pq in hsites[cen[ix]]])
-        rel_AO_per_center_per_frag.append([1.0, tmp_])
+        scale_rel_AO_per_center_per_frag.append((1.0, tmp_))
 
     other_rel_AO_per_edge_per_frag = []
     for i in range(n_frag):
@@ -2357,6 +2357,6 @@ def autogen(
         ref_frag_idx_per_edge,
         rel_AO_per_edge_per_frag,
         other_rel_AO_per_edge_per_frag,
-        centerf_idx,
-        rel_AO_per_center_per_frag,
+        rel_AO_per_origin_per_frag,
+        scale_rel_AO_per_center_per_frag,
     )

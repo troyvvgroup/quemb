@@ -799,7 +799,7 @@ class BE(MixinLocalize):
                     scale_rel_AO_per_center_per_frag=self.fobj.scale_rel_AO_per_center_per_frag[
                         I
                     ],
-                    centerf_idx=self.fobj.centerf_idx[I],
+                    rel_AO_per_origin_per_frag=self.fobj.rel_AO_per_origin_per_frag[I],
                 )
             else:
                 fobjs_ = Frags(
@@ -810,7 +810,7 @@ class BE(MixinLocalize):
                     eri_file=self.eri_file,
                     rel_AO_per_edge_per_frag=[],
                     other_rel_AO_per_edge_per_frag=[],
-                    centerf_idx=[],
+                    rel_AO_per_origin_per_frag=[],
                     scale_rel_AO_per_center_per_frag=self.fobj.scale_rel_AO_per_center_per_frag[
                         I
                     ],
