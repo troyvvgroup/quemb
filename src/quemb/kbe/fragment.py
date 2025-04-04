@@ -1,31 +1,72 @@
 # Author(s): Oinam Romesh Meitei
 
+from typing import Literal, TypeAlias
 
 from attrs import define, field
 from pyscf.pbc.gto.cell import Cell
 
 from quemb.kbe.autofrag import autogen
 from quemb.molbe.helper import get_core
+from quemb.shared.typing import (
+    FragmentIdx,
+    GlobalAOIdx,
+    OtherRelAOIdx,
+    OwnRelAOIdx,
+)
+
+ListOverFrag: TypeAlias = list
+ListOverEdge: TypeAlias = list
+ListOverMotif: TypeAlias = list
 
 
-@define
+@define(kw_only=True)
 class FragPart:
     unitcell: int
     mol: Cell
     frag_type: str
-    AO_per_frag: list
-    AO_per_edge_per_frag: list
-    ref_frag_idx_per_edge: list
-    rel_AO_per_center_per_frag: list
-    rel_AO_per_edge_per_frag: list
-    other_rel_AO_per_edge_per_frag: list
-    centerf_idx: list
+    #: This is a list over fragments  and gives the global orbital indices of all atoms
+    #: in the fragment. These are ordered by the atoms in the fragment.
+    AO_per_frag: ListOverFrag[list[GlobalAOIdx]]
+
+    #: The global orbital indices, including hydrogens, per edge per fragment.
+    AO_per_edge_per_frag: ListOverFrag[ListOverEdge[list[GlobalAOIdx]]]
+
+    #: Reference fragment index per edge:
+    #: A list over fragments: list of indices of the fragments in which an edge
+    #: of the fragment is actually a center.
+    #: The edge will be matched against this center.
+    #: For fragments A, B: the A’th element of :python:`.center`,
+    #: if the edge of A is the center of B, will be B.
+    ref_frag_idx_per_edge: ListOverFrag[ListOverEdge[FragmentIdx]]
+
+    #: The first element is a float, the second is the list
+    #: The float weight makes only sense for democratic matching and is currently 1.0
+    #: everywhere anyway. We concentrate only on the second part,
+    #: i.e. the list of indices.
+    #: This is a list whose entries are sequences containing the relative orbital index
+    #  of the center sites within a fragment. Relative is to the own fragment.
+    rel_AO_per_center_per_frag: ListOverFrag[list[float | list[OwnRelAOIdx]]]
+
+    #: The relative orbital indices, including hydrogens, per edge per fragment.
+    #: The index is relative to the own fragment.
+    rel_AO_per_edge_per_frag: ListOverFrag[ListOverEdge[list[OwnRelAOIdx]]]
+    #: The relative atomic orbital indices per edge per fragment.
+    #: **Note** for this variable relative means that the AO indices
+    #: are relative to the other fragment where the edge is a center.
+    other_rel_AO_per_edge_per_frag: ListOverFrag[ListOverEdge[list[OtherRelAOIdx]]]
+
+    #: List whose entries are lists containing the relative orbital index of the
+    #: origin site within a fragment. Relative is to the own fragment.
+    #  Since the origin site is at the beginning
+    #: of the motif list for each fragment, this is always a ``list(range(0, n))``
+    centerf_idx: ListOverFrag[list[OwnRelAOIdx]]
+
     n_BE: int
     natom: int
     frozen_core: bool
     self_match: bool
     allcen: bool
-    iao_valence_basis: str
+    iao_valence_basis: str | None
     kpt: list[int] | tuple[int, int, int]
 
     n_frag: int = field(init=False)
@@ -57,24 +98,24 @@ def fragmentate(
     mol: Cell,
     kpt: list[int] | tuple[int, int, int],
     *,
-    natom=0,
-    frag_type="autogen",
-    unitcell=1,
-    gamma_2d=False,
-    gamma_1d=False,
-    interlayer=False,
-    long_bond=False,
-    perpend_dist=4.0,
-    perpend_dist_tol=1e-3,
-    nx=False,
-    ny=False,
-    nz=False,
-    iao_valence_basis=None,
+    natom: int = 0,
+    frag_type: Literal["autogen"] = "autogen",
+    unitcell: int = 1,
+    gamma_2d: bool = False,
+    gamma_1d: bool = False,
+    interlayer: bool = False,
+    long_bond: bool = False,
+    perpend_dist: float = 4.0,
+    perpend_dist_tol: float = 1e-3,
+    nx: bool = False,
+    ny: bool = False,
+    nz: bool = False,
+    iao_valence_basis: str | None = None,
     n_BE: int = 2,
-    frozen_core=False,
-    self_match=False,
-    allcen=True,
-):
+    frozen_core: bool = False,
+    self_match: bool = False,
+    allcen: bool = True,
+) -> FragPart:
     """Fragment/partitioning definition
 
     Interfaces the main fragmentation function (autogen) in MolBE.

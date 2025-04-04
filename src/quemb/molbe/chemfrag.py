@@ -1300,7 +1300,6 @@ class Fragmented:
             origin_per_frag=matched_output_no_iao.origin_per_frag,
             H_per_motif=matched_output_no_iao.H_per_motif,
             add_center_atom=matched_output_no_iao.add_center_atom,
-            n_frag=matched_output_no_iao.n_frag,
             frozen_core=self.frozen_core,
             iao_valence_basis=self.iao_valence_mol.basis,
             iao_valence_only=False,

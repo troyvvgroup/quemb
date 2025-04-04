@@ -35,7 +35,7 @@ ListOverEdge: TypeAlias = list
 ListOverMotif: TypeAlias = list
 
 
-@define
+@define(kw_only=True)
 class FragPart:
     """Data structure to hold the result of BE fragmentations."""
 
@@ -111,10 +111,10 @@ class FragPart:
     #: This is an experimental feature.
     iao_valence_only: bool
 
-    n_frag: int = field()
-    ncore: int | None = field()
-    no_core_idx: list[int] | None = field()
-    core_list: list[int] | None = field()
+    n_frag: int = field(init=False)
+    ncore: int | None = field(init=False)
+    no_core_idx: list[int] | None = field(init=False)
+    core_list: list[int] | None = field(init=False)
 
     @n_frag.default
     def _get_default_n_frag(self) -> int:
