@@ -319,6 +319,13 @@ def get_be_error_jacobian(n_frag, Fobjs, jac_solver="HF"):
 def get_atbe_Jblock_frag(
     fobj: Frags | pFrags, res_func
 ) -> tuple[Matrix[float64], Matrix[float64], list, list, list, float, int]:
+    assert (
+        fobj._mo_coeffs is not None
+        and fobj.nsocc is not None
+        and fobj.fock is not None
+        and fobj.heff is not None
+        and fobj.nao is not None
+    )
     vpots = get_vpots_frag(fobj.nao, fobj.rel_AO_per_edge_per_frag, fobj.AO_per_frag)
     eri_ = get_eri(fobj.dname, fobj.nao, eri_file=fobj.eri_file)
     dm0 = 2.0 * (fobj._mo_coeffs[:, : fobj.nsocc] @ fobj._mo_coeffs[:, : fobj.nsocc].T)

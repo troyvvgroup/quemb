@@ -460,6 +460,10 @@ def be_func_parallel(
         results = []
         # Run solver in parallel for each fragment
         for fobj in Fobjs:
+            assert (
+                fobj.fock is not None and fobj.heff is not None and fobj.dm0 is not None
+            )
+
             result = pool_.apply_async(
                 run_solver,
                 [

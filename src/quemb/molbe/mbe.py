@@ -859,6 +859,7 @@ class BE(MixinLocalize):
             print(eritransform_timer.str_elapsed())
 
         for fobjs_ in self.Fobjs:
+            assert fobjs_.h1 is not None and fobjs_.nsocc is not None
             # Process each fragment
             eri = array(file_eri.get(fobjs_.dname))
             _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
@@ -981,9 +982,11 @@ class BE(MixinLocalize):
         """
         if heff is None:
             for fobj in self.Fobjs:
+                assert fobj.fock is not None and fobj.heff is not None
                 fobj.fock += fobj.heff
         else:
             for idx, fobj in enumerate(self.Fobjs):
+                assert fobj.fock is not None
                 fobj.fock += heff[idx]
 
     def write_heff(self, heff_file: str = "bepotfile.h5") -> None:
@@ -997,6 +1000,7 @@ class BE(MixinLocalize):
         """
         with h5py.File(heff_file, "w") as filepot:
             for fobj in self.Fobjs:
+                assert fobj.heff is not None
                 print(fobj.heff.shape, fobj.dname, flush=True)
                 filepot.create_dataset(fobj.dname, data=fobj.heff)
 

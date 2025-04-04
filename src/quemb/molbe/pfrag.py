@@ -9,6 +9,7 @@ from numpy import (
     diag_indices,
     einsum,
     eye,
+    float64,
     outer,
     trace,
     tril_indices,
@@ -18,6 +19,7 @@ from numpy import (
 from numpy.linalg import eigh, multi_dot
 
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
+from quemb.shared.typing import Matrix
 
 
 class Frags:
@@ -31,7 +33,7 @@ class Frags:
     def __init__(
         self,
         AO_per_frag,
-        ifrag,
+        ifrag: int,
         AO_per_edge_per_frag=None,
         ref_frag_idx_per_edge=None,
         rel_AO_per_edge_per_frag=None,
@@ -74,12 +76,12 @@ class Frags:
 
         self.AO_per_frag = AO_per_frag
         self.n_frag = len(AO_per_frag)
-        self.TA = None
-        self.TA_lo_eo = None
+        self.TA: Matrix[float64] | None = None
+        self.TA_lo_eo: Matrix[float64] | None = None
         self.h1 = None
         self.ifrag = ifrag
         if unrestricted:
-            self.dname = [
+            self.dname: str | list[str] = [
                 "f" + str(ifrag) + "/aa",
                 "f" + str(ifrag) + "/bb",
                 "f" + str(ifrag) + "/ab",
@@ -97,13 +99,13 @@ class Frags:
         self.t1 = None
         self.t2 = None
 
-        self.heff = None
+        self.heff: Matrix[float64] | None = None
         self.AO_per_edge_per_frag = AO_per_edge_per_frag
         self.ref_frag_idx_per_edge = ref_frag_idx_per_edge
         self.rel_AO_per_edge_per_frag = rel_AO_per_edge_per_frag
         self.other_rel_AO_per_edge_per_frag = other_rel_AO_per_edge_per_frag
         self.centerf_idx = centerf_idx
-        self.udim = None
+        self.udim: int | None = None
 
         self._rdm1 = None
         self.rdm1__ = None

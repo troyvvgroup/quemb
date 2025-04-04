@@ -292,6 +292,8 @@ def be_func(
 
     # Loop over each fragment and solve using the specified solver
     for fobj in Fobjs:
+        assert fobj.fock is not None and fobj.heff is not None and fobj._mf is not None
+
         # Update the effective Hamiltonian
         if pot is not None:
             fobj.update_heff(pot, only_chem=only_chem)
@@ -365,6 +367,7 @@ def be_func(
             assert isinstance(solver_args, SHCI_ArgsUser)
             SHCI_args = _SHCI_Args.from_user_input(solver_args)
 
+            assert isinstance(fobj.dname, str)
             frag_scratch = WorkDir(scratch_dir / fobj.dname)
 
             nmo = fobj._mf.mo_coeff.shape[1]
@@ -411,11 +414,13 @@ def be_func(
             rdm1_tmp, rdm2s = ci.make_rdm12(0, nmo, nelec)
 
         elif solver in ["block2", "DMRG", "DMRGCI", "DMRGSCF"]:
+            assert isinstance(fobj.dname, str)
             frag_scratch = WorkDir(scratch_dir / fobj.dname)
 
             assert isinstance(solver_args, DMRG_ArgsUser)
             DMRG_args = _DMRG_Args.from_user_input(solver_args, fobj._mf)
 
+            assert fobj.nsocc is not None
             try:
                 rdm1_tmp, rdm2s = solve_block2(
                     fobj._mf,
@@ -437,9 +442,11 @@ def be_func(
         else:
             raise ValueError("Solver not implemented")
 
+        assert fobj._mc is not None and fobj.mo_coeffs is not None
         if solver == "MP2":
             rdm1_tmp = fobj._mc.make_rdm1()
         fobj.rdm1__ = rdm1_tmp.copy()
+
         fobj._rdm1 = (
             multi_dot(
                 (
@@ -460,6 +467,7 @@ def be_func(
             elif solver == "FCI":
                 rdm2s = mc.make_rdm2(civec, mc.norb, mc.nelec)
                 if use_cumulant:
+                    assert fobj.nsocc is not None
                     hf_dm = zeros_like(rdm1_tmp)
                     hf_dm[diag_indices(fobj.nsocc)] += 2.0
                     del_rdm1 = rdm1_tmp.copy()
