@@ -31,7 +31,7 @@ def prepare_system() -> BE:
         mf.kernel()
 
     # Construct fragments for BE
-    fobj = fragmentate(be_type="be2", mol=mol)
+    fobj = fragmentate(n_BE=2, mol=mol)
     oct_be = BE(mf, fobj)
     return oct_be
 

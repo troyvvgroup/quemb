@@ -30,7 +30,7 @@ class TestBE_restricted(unittest.TestCase):
         self.molecular_restricted_test(
             mol,
             mf,
-            "be2",
+            2,
             "H8 (BE2)",
             "chemgen",
             -4.30628355,
@@ -40,7 +40,7 @@ class TestBE_restricted(unittest.TestCase):
         self.molecular_restricted_test(
             mol,
             mf,
-            "be3",
+            3,
             "H8 (BE3)",
             "chemgen",
             -4.30649890,
@@ -60,17 +60,17 @@ class TestBE_restricted(unittest.TestCase):
         mf = scf.RHF(mol)
         mf.kernel()
         self.molecular_restricted_test(
-            mol, mf, "be2", "Octane (BE2)", "autogen", -310.33471581, only_chem=True
+            mol, mf, 2, "Octane (BE2)", "autogen", -310.33471581, only_chem=True
         )
         self.molecular_restricted_test(
-            mol, mf, "be3", "Octane (BE3)", "autogen", -310.33447096, only_chem=True
+            mol, mf, 3, "Octane (BE3)", "autogen", -310.33447096, only_chem=True
         )
 
     def molecular_restricted_test(
         self,
         mol,
         mf,
-        be_type,
+        n_BE,
         test_name,
         frag_type,
         target,
@@ -80,7 +80,7 @@ class TestBE_restricted(unittest.TestCase):
     ):
         fobj = fragmentate(
             frag_type=frag_type,
-            be_type=be_type,
+            n_BE=n_BE,
             mol=mol,
             additional_args=additional_args,
         )

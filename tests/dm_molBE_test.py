@@ -26,7 +26,7 @@ class TestBE_restricted(unittest.TestCase):
         mol.build()
         self.molecular_QN_test(
             mol,
-            "be2",
+            2,
             "H8 (BE2)",
             "chemgen",
             only_chem=False,
@@ -36,7 +36,7 @@ class TestBE_restricted(unittest.TestCase):
     def molecular_QN_test(
         self,
         mol,
-        be_type,
+        n_BE,
         test_name,
         frag_type,
         delta=1e-6,
@@ -48,7 +48,7 @@ class TestBE_restricted(unittest.TestCase):
         mf.kernel()
         fobj = fragmentate(
             frag_type=frag_type,
-            be_type=be_type,
+            n_BE=n_BE,
             mol=mol,
             additional_args=additional_args,
         )

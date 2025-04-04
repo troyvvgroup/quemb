@@ -33,7 +33,7 @@ print(f"*** FCI Correlation Energy: {fci_ecorr:>14.8f} Ha", flush=True)
 # Perform BE calculations with different fragment schemes:
 
 # Define BE2 fragments
-fobj = fragmentate(be_type="be2", mol=mol)
+fobj = fragmentate(n_BE=2, mol=mol)
 mybe = BE(mf, fobj)
 mybe.optimize(solver="FCI")
 
@@ -43,7 +43,7 @@ err_ = (fci_ecorr - be_ecorr) * 100.0 / fci_ecorr
 print(f"*** BE2 Correlation Energy Error (%) : {err_:>8.4f} %")
 
 # Define BE3 fragments
-fobj = fragmentate(be_type="be3", mol=mol)
+fobj = fragmentate(n_BE=3, mol=mol)
 mybe = BE(mf, fobj)
 mybe.optimize(solver="FCI")
 

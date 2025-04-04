@@ -26190,7 +26190,7 @@ def get_expected():
         (1, "sto-3g", None, True, True): FragPart(
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
-            be_type="be1",
+            n_BE=1,
             fsites=[
                 [0, 1, 2, 3, 9, 11],
                 [4, 5, 6, 7, 8, 10],
@@ -26345,7 +26345,7 @@ def get_expected():
         (1, "sto-3g", None, True, False): FragPart(
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
-            be_type="be1",
+            n_BE=1,
             fsites=[
                 [0, 1, 2, 3, 9, 11],
                 [4, 5, 6, 7, 8, 10],
@@ -26500,7 +26500,7 @@ def get_expected():
         (1, "sto-3g", None, False, True): FragPart(
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
-            be_type="be1",
+            n_BE=1,
             fsites=[
                 [0, 1, 2, 3, 4, 11, 13],
                 [5, 6, 7, 8, 9, 10, 12],
@@ -26577,7 +26577,7 @@ def get_expected():
         (1, "sto-3g", None, False, False): FragPart(
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
-            be_type="be1",
+            n_BE=1,
             fsites=[
                 [0, 1, 2, 3, 4, 11, 13],
                 [5, 6, 7, 8, 9, 10, 12],
@@ -26654,7 +26654,7 @@ def get_expected():
         (1, "cc-pvdz", None, True, True): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be1",
+            n_BE=1,
             fsites=[
                 [
                     0,
@@ -27583,7 +27583,7 @@ def get_expected():
         (1, "cc-pvdz", None, True, False): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be1",
+            n_BE=1,
             fsites=[
                 [
                     0,
@@ -28512,7 +28512,7 @@ def get_expected():
         (1, "cc-pvdz", None, False, True): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be1",
+            n_BE=1,
             fsites=[
                 [
                     0,
@@ -29243,7 +29243,7 @@ def get_expected():
         (1, "cc-pvdz", None, False, False): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be1",
+            n_BE=1,
             fsites=[
                 [
                     0,
@@ -29974,7 +29974,7 @@ def get_expected():
         (1, "cc-pvdz", "sto-3g", True, True): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be1",
+            n_BE=1,
             fsites=[
                 [
                     0,
@@ -30701,7 +30701,7 @@ def get_expected():
         (1, "cc-pvdz", "sto-3g", True, False): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be1",
+            n_BE=1,
             fsites=[
                 [
                     0,
@@ -31428,7 +31428,7 @@ def get_expected():
         (1, "cc-pvdz", "sto-3g", False, True): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be1",
+            n_BE=1,
             fsites=[
                 [
                     0,
@@ -31949,7 +31949,7 @@ def get_expected():
         (1, "cc-pvdz", "sto-3g", False, False): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be1",
+            n_BE=1,
             fsites=[
                 [
                     0,
@@ -32470,7 +32470,7 @@ def get_expected():
         (2, "sto-3g", None, True, True): FragPart(
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
-            be_type="be2",
+            n_BE=2,
             fsites=[
                 [0, 1, 2, 3, 9, 11, 4, 5, 6, 7, 8, 10, 16, 17, 18, 19, 21, 23],
                 [4, 5, 6, 7, 8, 10, 0, 1, 2, 3, 9, 11, 12, 13, 14, 15, 20, 22],
@@ -32687,7 +32687,7 @@ def get_expected():
         (2, "sto-3g", None, True, False): FragPart(
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
-            be_type="be2",
+            n_BE=2,
             fsites=[
                 [0, 1, 2, 3, 9, 11, 4, 5, 6, 7, 8, 10, 16, 17, 18, 19, 21, 23],
                 [4, 5, 6, 7, 8, 10, 0, 1, 2, 3, 9, 11, 12, 13, 14, 15, 20, 22],
@@ -32904,7 +32904,7 @@ def get_expected():
         (2, "sto-3g", None, False, True): FragPart(
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
-            be_type="be2",
+            n_BE=2,
             fsites=[
                 [
                     0,
@@ -33137,7 +33137,7 @@ def get_expected():
         (2, "sto-3g", None, False, False): FragPart(
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
-            be_type="be2",
+            n_BE=2,
             fsites=[
                 [
                     0,
@@ -33370,7 +33370,7 @@ def get_expected():
         (2, "cc-pvdz", None, True, True): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be2",
+            n_BE=2,
             fsites=[
                 [
                     0,
@@ -35251,7 +35251,7 @@ def get_expected():
         (2, "cc-pvdz", None, True, False): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be2",
+            n_BE=2,
             fsites=[
                 [
                     0,
@@ -37132,7 +37132,7 @@ def get_expected():
         (2, "cc-pvdz", None, False, True): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be2",
+            n_BE=2,
             fsites=[
                 [
                     0,
@@ -38853,7 +38853,7 @@ def get_expected():
         (2, "cc-pvdz", None, False, False): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be2",
+            n_BE=2,
             fsites=[
                 [
                     0,
@@ -40574,7 +40574,7 @@ def get_expected():
         (2, "cc-pvdz", "sto-3g", True, True): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be2",
+            n_BE=2,
             fsites=[
                 [
                     0,
@@ -41543,7 +41543,7 @@ def get_expected():
         (2, "cc-pvdz", "sto-3g", True, False): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be2",
+            n_BE=2,
             fsites=[
                 [
                     0,
@@ -42512,7 +42512,7 @@ def get_expected():
         (2, "cc-pvdz", "sto-3g", False, True): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be2",
+            n_BE=2,
             fsites=[
                 [
                     0,
@@ -43285,7 +43285,7 @@ def get_expected():
         (2, "cc-pvdz", "sto-3g", False, False): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be2",
+            n_BE=2,
             fsites=[
                 [
                     0,
@@ -44058,7 +44058,7 @@ def get_expected():
         (3, "sto-3g", None, True, True): FragPart(
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
-            be_type="be3",
+            n_BE=3,
             fsites=[
                 [
                     0,
@@ -44383,7 +44383,7 @@ def get_expected():
         (3, "sto-3g", None, True, False): FragPart(
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
-            be_type="be3",
+            n_BE=3,
             fsites=[
                 [
                     0,
@@ -44708,7 +44708,7 @@ def get_expected():
         (3, "sto-3g", None, False, True): FragPart(
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
-            be_type="be3",
+            n_BE=3,
             fsites=[
                 [
                     0,
@@ -45021,7 +45021,7 @@ def get_expected():
         (3, "sto-3g", None, False, False): FragPart(
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
-            be_type="be3",
+            n_BE=3,
             fsites=[
                 [
                     0,
@@ -45334,7 +45334,7 @@ def get_expected():
         (3, "cc-pvdz", None, True, True): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be3",
+            n_BE=3,
             fsites=[
                 [
                     0,
@@ -47333,7 +47333,7 @@ def get_expected():
         (3, "cc-pvdz", None, True, False): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be3",
+            n_BE=3,
             fsites=[
                 [
                     0,
@@ -49332,7 +49332,7 @@ def get_expected():
         (3, "cc-pvdz", None, False, True): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be3",
+            n_BE=3,
             fsites=[
                 [
                     0,
@@ -51177,7 +51177,7 @@ def get_expected():
         (3, "cc-pvdz", None, False, False): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be3",
+            n_BE=3,
             fsites=[
                 [
                     0,
@@ -53022,7 +53022,7 @@ def get_expected():
         (3, "cc-pvdz", "sto-3g", True, True): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be3",
+            n_BE=3,
             fsites=[
                 [
                     0,
@@ -54043,7 +54043,7 @@ def get_expected():
         (3, "cc-pvdz", "sto-3g", True, False): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be3",
+            n_BE=3,
             fsites=[
                 [
                     0,
@@ -55064,7 +55064,7 @@ def get_expected():
         (3, "cc-pvdz", "sto-3g", False, True): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be3",
+            n_BE=3,
             fsites=[
                 [
                     0,
@@ -55891,7 +55891,7 @@ def get_expected():
         (3, "cc-pvdz", "sto-3g", False, False): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be3",
+            n_BE=3,
             fsites=[
                 [
                     0,
@@ -56718,7 +56718,7 @@ def get_expected():
         (4, "sto-3g", None, True, True): FragPart(
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
-            be_type="be4",
+            n_BE=4,
             fsites=[
                 [
                     0,
@@ -57023,7 +57023,7 @@ def get_expected():
         (4, "sto-3g", None, True, False): FragPart(
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
-            be_type="be4",
+            n_BE=4,
             fsites=[
                 [
                     0,
@@ -57328,7 +57328,7 @@ def get_expected():
         (4, "sto-3g", None, False, True): FragPart(
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
-            be_type="be4",
+            n_BE=4,
             fsites=[
                 [
                     0,
@@ -57585,7 +57585,7 @@ def get_expected():
         (4, "sto-3g", None, False, False): FragPart(
             mol=octane_cart.to_pyscf(basis="sto-3g"),
             frag_type="chemgen",
-            be_type="be4",
+            n_BE=4,
             fsites=[
                 [
                     0,
@@ -57842,7 +57842,7 @@ def get_expected():
         (4, "cc-pvdz", None, True, True): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be4",
+            n_BE=4,
             fsites=[
                 [
                     0,
@@ -59172,7 +59172,7 @@ def get_expected():
         (4, "cc-pvdz", None, True, False): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be4",
+            n_BE=4,
             fsites=[
                 [
                     0,
@@ -60502,7 +60502,7 @@ def get_expected():
         (4, "cc-pvdz", None, False, True): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be4",
+            n_BE=4,
             fsites=[
                 [
                     0,
@@ -61652,7 +61652,7 @@ def get_expected():
         (4, "cc-pvdz", None, False, False): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be4",
+            n_BE=4,
             fsites=[
                 [
                     0,
@@ -62802,7 +62802,7 @@ def get_expected():
         (4, "cc-pvdz", "sto-3g", True, True): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be4",
+            n_BE=4,
             fsites=[
                 [
                     0,
@@ -63649,7 +63649,7 @@ def get_expected():
         (4, "cc-pvdz", "sto-3g", True, False): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be4",
+            n_BE=4,
             fsites=[
                 [
                     0,
@@ -64496,7 +64496,7 @@ def get_expected():
         (4, "cc-pvdz", "sto-3g", False, True): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be4",
+            n_BE=4,
             fsites=[
                 [
                     0,
@@ -65143,7 +65143,7 @@ def get_expected():
         (4, "cc-pvdz", "sto-3g", False, False): FragPart(
             mol=octane_cart.to_pyscf(basis="cc-pvdz"),
             frag_type="chemgen",
-            be_type="be4",
+            n_BE=4,
             fsites=[
                 [
                     0,

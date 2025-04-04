@@ -43,8 +43,8 @@ class FragPart:
     mol: Mole = field(eq=cmp_using(are_equal))
     #: The algorithm used for fragmenting.
     frag_type: FragType
-    #: The level of BE fragmentation, i.e. "be1", "be2", ...
-    be_type: str
+    #: The level of BE fragmentation, i.e. 1, 2, ...
+    n_BE: int
 
     #: This is a list over fragments  and gives the global orbital indices of all atoms
     #: in the fragment. These are ordered by the atoms in the fragment.
@@ -264,12 +264,12 @@ class FragmentMap:
 
         return None
 
-    def to_FragPart(self, mol: Mole, be_type: str, frozen_core: bool) -> FragPart:
+    def to_FragPart(self, mol: Mole, n_BE: int, frozen_core: bool) -> FragPart:
         MISSING = []  # type: ignore[var-annotated]
         return FragPart(
             mol=mol,
             frag_type="graphgen",
-            be_type=be_type,
+            n_BE=n_BE,
             edge_sites=self.edge_sites,  # type: ignore[arg-type]
             edge_idx=MISSING,
             center_idx=MISSING,
@@ -296,7 +296,7 @@ def euclidean_distance(
 
 def graphgen(
     mol: gto.Mole,
-    be_type: str = "BE2",
+    n_BE: int = 2,
     frozen_core: bool = True,
     remove_nonunique_frags: bool = True,
     frag_prefix: str = "f",
@@ -323,10 +323,10 @@ def graphgen(
     ----------
     mol :
         The molecule object.
-    be_type :
+    n_BE:
         The order of nearest neighbors (with respect to the center atom)
-        included in a fragment. Supports all 'BEn', with 'n' in -
-        [1, 2, 3, 4, 5, 6, 7, 8, 9] having been tested.
+        included in a fragment. Supports all ``n_BE``, with ``n_BE`` in
+        ``[1, 2, 3, 4, 5, 6, 7, 8, 9]`` having been tested.
     frozen_core:
         Whether to exclude core AO indices from the fragmentation process.
         True by default.
@@ -357,7 +357,6 @@ def graphgen(
     if iao_valence_basis is not None:
         raise NotImplementedError("IAOs not yet implemented for graphgen.")
 
-    fragment_type_order = int(be_type[-1])
     natm = mol.natm
 
     adx_map = {
@@ -451,7 +450,7 @@ def graphgen(
             # in your fragment type, BE*n*, then that site is appended to
             # the set of fragment sites for adx.
             for bdx, path in map["shortest_paths"].items():
-                if 0 < (len(path) - 1) < fragment_type_order:
+                if 0 < (len(path) - 1) < n_BE:
                     fsites_temp = fsites_temp + deepcopy(list(fragment_map.sites[bdx]))
                     fs_temp.append(deepcopy(fragment_map.sites[bdx]))
                     fatoms_temp.append(bdx)
@@ -523,7 +522,7 @@ class AutogenArgs:
 def autogen(
     mol,
     frozen_core=True,
-    be_type="be2",
+    n_BE=2,
     write_geom=False,
     iao_valence_basis=None,
     iao_valence_only=False,
@@ -546,10 +545,11 @@ def autogen(
         and 'chain' as frag_type.
     frozen_core : bool, optional
         Whether to invoke frozen core approximation. Defaults to True.
-    be_type : str, optional
-        Specifies the order of bootstrap calculation in the atom-based fragmentation.
-        Supported values are 'be1', 'be2', 'be3', and 'be4'.
-        Defaults to 'be2'.
+    n_BE: int, optional
+        Specifies the order of bootstrap calculation in the atom-based fragmentation,
+        i.e. BE(n).
+        Supported values are 1, 2, 3, and 4
+        Defaults to 2.
     write_geom : bool, optional
         Whether to write a 'fragment.xyz' file which contains all the fragments in
         Cartesian coordinates. Defaults to False.
@@ -617,13 +617,13 @@ def autogen(
         flist = []
         flist.append(idx)
 
-        if not be_type == "be1":
+        if n_BE != 1:
             for jdx in clist:
                 dist = norm(coord[idx] - coord[jdx])
                 if dist <= bond:
                     flist.append(jdx)
                     pedg.append(jdx)
-                    if be_type == "be3" or be_type == "be4":
+                    if 3 <= n_BE <= 4:
                         for kdx in clist:
                             if not kdx == jdx:
                                 dist = norm(coord[jdx] - coord[kdx])
@@ -631,7 +631,7 @@ def autogen(
                                     if kdx not in pedg:
                                         flist.append(kdx)
                                         pedg.append(kdx)
-                                    if be_type == "be4":
+                                    if n_BE == 4:
                                         for ldx, l in enumerate(coord):
                                             if (
                                                 ldx == kdx
@@ -875,7 +875,7 @@ def autogen(
             centerf_idx.append(ind__)
         indix += ls
 
-        if not be_type == "be1":
+        if n_BE != 1:
             for jdx in pedge[idx]:
                 if idx in open_frag:
                     if jdx == open_frag_cen[open_frag.index(idx)]:
@@ -936,7 +936,7 @@ def autogen(
         ebe_weight.append([1.0, tmp_])
 
     center_idx = []
-    if not be_type == "be1":
+    if n_BE != 1:
         for i in range(Nfrag):
             idx = []
             for jdx, j in enumerate(center[i]):
@@ -978,7 +978,7 @@ def autogen(
     return FragPart(
         mol=mol,
         frag_type="autogen",
-        be_type=be_type,
+        n_BE=n_BE,
         fsites=fsites,
         edge_sites=edge_sites,
         center=center,

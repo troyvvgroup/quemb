@@ -20,7 +20,7 @@ class FragPart:
     edge_idx: list
     center_idx: list
     centerf_idx: list
-    be_type: str
+    n_BE: int
     natom: int
     frozen_core: bool
     self_match: bool
@@ -70,7 +70,7 @@ def fragmentate(
     ny=False,
     nz=False,
     iao_valence_basis=None,
-    be_type="be2",
+    n_BE: int = 2,
     frozen_core=False,
     self_match=False,
     allcen=True,
@@ -90,13 +90,12 @@ def fragmentate(
         supported. Defaults to 'autogen'
         For systems with only hydrogen, use 'chain';
         everything else should use 'autogen'
-    be_type : str
-        Specifies order of bootsrap calculation in the atom-based fragmentation.
-        'be1', 'be2', 'be3', & 'be4' are supported.
-        Defaults to 'be2'
+    n_BE: int, optional
+        Specifies the order of bootstrap calculation in the atom-based fragmentation,
+        i.e. BE(n).
         For a simple linear system A-B-C-D,
-        be1 only has fragments [A], [B], [C], [D]
-        be2 has [A, B, C], [B, C, D]
+        BE(1) only has fragments [A], [B], [C], [D]
+        BE(2) has [A, B, C], [B, C, D]
         ben ...
     mol : pyscf.pbc.gto.cell.Cell
         pyscf.pbc.gto.cell.Cell object. This is required for the options, 'autogen',
@@ -133,7 +132,7 @@ def fragmentate(
         ) = autogen(
             mol,
             kpt,
-            be_type=be_type,
+            n_BE=n_BE,
             frozen_core=frozen_core,
             iao_valence_basis=iao_valence_basis,
             unitcell=unitcell,
@@ -159,7 +158,7 @@ def fragmentate(
             edge_idx=edge_idx,
             center_idx=center_idx,
             centerf_idx=centerf_idx,
-            be_type=be_type,
+            n_BE=n_BE,
             natom=natom,
             frozen_core=frozen_core,
             self_match=self_match,
