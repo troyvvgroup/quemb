@@ -1,0 +1,6 @@
+quemb.kbe.fragment.FragPart.\_\_init\_\_
+========================================
+
+.. currentmodule:: quemb.kbe.fragment
+
+.. automethod:: FragPart.__init__

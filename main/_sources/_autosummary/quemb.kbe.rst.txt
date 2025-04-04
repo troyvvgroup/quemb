@@ -29,7 +29,6 @@
    :recursive:
 
    autofrag
-   chain
    fragment
    helper
    lo

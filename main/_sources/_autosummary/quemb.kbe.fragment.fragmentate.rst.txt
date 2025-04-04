@@ -1,0 +1,6 @@
+quemb.kbe.fragment.fragmentate
+==============================
+
+.. currentmodule:: quemb.kbe.fragment
+
+.. autofunction:: fragmentate

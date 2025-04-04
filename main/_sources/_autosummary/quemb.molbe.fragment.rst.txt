@@ -9,17 +9,16 @@ quemb.molbe.fragment
 
    
    
-   
-
-   
-   
-   .. rubric:: Classes
+   .. rubric:: Functions
 
    .. autosummary::
       :toctree:
-      :template: custom-class-template.rst
    
-      fragpart
+      fragmentate
+   
+   
+
+   
    
    
 

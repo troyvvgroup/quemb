@@ -13,14 +13,14 @@ quemb.molbe.autofrag.FragmentMap
    
    .. autoattribute:: FragmentMap.fsites
    .. autoattribute:: FragmentMap.fs
-   .. autoattribute:: FragmentMap.edge
+   .. autoattribute:: FragmentMap.edge_sites
    .. autoattribute:: FragmentMap.center
    .. autoattribute:: FragmentMap.centerf_idx
-   .. autoattribute:: FragmentMap.ebe_weights
+   .. autoattribute:: FragmentMap.ebe_weight
    .. autoattribute:: FragmentMap.sites
    .. autoattribute:: FragmentMap.dnames
-   .. autoattribute:: FragmentMap.fragment_atoms
-   .. autoattribute:: FragmentMap.center_atoms
+   .. autoattribute:: FragmentMap.Frag_atom
+   .. autoattribute:: FragmentMap.center_atom
    .. autoattribute:: FragmentMap.edge_atoms
    .. autoattribute:: FragmentMap.adjacency_mat
    .. autoattribute:: FragmentMap.adjacency_graph
@@ -36,5 +36,6 @@ quemb.molbe.autofrag.FragmentMap
    
       ~FragmentMap.__init__
       ~FragmentMap.remove_nonnunique_frags
+      ~FragmentMap.to_FragPart
    
    

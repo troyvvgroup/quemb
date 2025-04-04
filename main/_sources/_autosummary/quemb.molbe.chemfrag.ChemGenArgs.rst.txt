@@ -1,0 +1,29 @@
+quemb.molbe.chemfrag.ChemGenArgs
+================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. autoclass:: ChemGenArgs
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: ChemGenArgs.treat_H_different
+   .. autoattribute:: ChemGenArgs.bonds_atoms
+   .. autoattribute:: ChemGenArgs.vdW_radius
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~ChemGenArgs.__init__
+   
+   

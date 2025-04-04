@@ -9,6 +9,13 @@ quemb.kbe.fragment
 
    
    
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      fragmentate
+   
    
 
    
@@ -19,7 +26,7 @@ quemb.kbe.fragment
       :toctree:
       :template: custom-class-template.rst
    
-      fragpart
+      FragPart
    
    
 

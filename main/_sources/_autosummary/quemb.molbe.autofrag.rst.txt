@@ -15,7 +15,6 @@ quemb.molbe.autofrag
       :toctree:
    
       autogen
-      chemgen
       euclidean_distance
       graphgen
    
@@ -30,7 +29,7 @@ quemb.molbe.autofrag
       :template: custom-class-template.rst
    
       AutogenArgs
-      ChemGenArgs
+      FragPart
       FragmentMap
       GraphGenArgs
    

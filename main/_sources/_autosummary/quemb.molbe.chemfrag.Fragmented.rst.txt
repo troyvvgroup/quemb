@@ -38,6 +38,6 @@ quemb.molbe.chemfrag.Fragmented
       ~Fragmented.__init__
       ~Fragmented.from_frag_structure
       ~Fragmented.from_mole
-      ~Fragmented.match_autogen_output
+      ~Fragmented.get_FragPart
    
    
