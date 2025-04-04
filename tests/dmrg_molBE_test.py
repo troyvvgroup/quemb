@@ -29,17 +29,15 @@ class TestBE_DMRG(unittest.TestCase):
         mol.charge = 0
         mol.spin = 0
         mol.build()
-        self.molecular_DMRG_test(
-            mol, "be1", 100, "H8 (BE1)", "hchain_simple", -4.20236532
-        )
+        self.molecular_DMRG_test(mol, 1, 100, "H8 (BE1)", "hchain_simple", -4.20236532)
 
     def molecular_DMRG_test(
-        self, mol, be_type, maxM, test_name, frag_type, target, delta=1e-4
+        self, mol, n_BE, maxM, test_name, frag_type, target, delta=1e-4
     ):
         with tempfile.TemporaryDirectory() as tmp:
             mf = scf.RHF(mol)
             mf.kernel()
-            fobj = fragmentate(frag_type=frag_type, be_type=be_type, mol=mol)
+            fobj = fragmentate(frag_type=frag_type, n_BE=n_BE, mol=mol)
             mybe = BE(mf, fobj, lo_method="pipek", pop_method="lowdin")
             mybe.oneshot(
                 solver="block2",

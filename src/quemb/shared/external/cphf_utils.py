@@ -3,7 +3,10 @@
 #         The code has been slightly modified.
 #
 import numpy as np
+from numpy import float64
 from pyscf import ao2mo
+
+from quemb.shared.typing import Matrix
 
 
 def get_cphf_A(C, moe, eri, no):
@@ -69,7 +72,7 @@ def cphf_kernel_batch(C, moe, eri, no, vs):
     return us
 
 
-def get_rhf_dP_from_u(C, no, u):
+def get_rhf_dP_from_u(C, no, u) -> Matrix[float64]:
     n = C.shape[0]
     nv = n - no
     dP = -C[:, :no] @ u.reshape(no, nv) @ C[:, no:].T
