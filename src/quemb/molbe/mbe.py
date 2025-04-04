@@ -343,7 +343,9 @@ class BE(MixinLocalize):
                 fobjs.rdm2__ -= dm_nc
 
             # Generate the projection matrix
-            cind = [fobjs.AO_per_frag[i] for i in fobjs.rel_AO_per_center_per_frag[1]]
+            cind = [
+                fobjs.AO_per_frag[i] for i in fobjs.scale_rel_AO_per_center_per_frag[1]
+            ]
             Pc_ = (
                 fobjs.TA.T
                 @ self.S
@@ -794,7 +796,7 @@ class BE(MixinLocalize):
                     other_rel_AO_per_edge_per_frag=self.fobj.other_rel_AO_per_edge_per_frag[
                         I
                     ],
-                    rel_AO_per_center_per_frag=self.fobj.scale_rel_AO_per_center_per_frag[
+                    scale_rel_AO_per_center_per_frag=self.fobj.scale_rel_AO_per_center_per_frag[
                         I
                     ],
                     centerf_idx=self.fobj.centerf_idx[I],
@@ -809,7 +811,7 @@ class BE(MixinLocalize):
                     rel_AO_per_edge_per_frag=[],
                     other_rel_AO_per_edge_per_frag=[],
                     centerf_idx=[],
-                    rel_AO_per_center_per_frag=self.fobj.scale_rel_AO_per_center_per_frag[
+                    scale_rel_AO_per_center_per_frag=self.fobj.scale_rel_AO_per_center_per_frag[
                         I
                     ],
                 )

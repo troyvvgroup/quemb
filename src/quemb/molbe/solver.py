@@ -490,7 +490,7 @@ def be_func(
                 mo_coeffs=fobj.mo_coeffs,
                 nsocc=fobj.nsocc,
                 n_frag=fobj.n_frag,
-                rel_AO_per_center_per_frag=fobj.rel_AO_per_center_per_frag,
+                scale_rel_AO_per_center_per_frag=fobj.scale_rel_AO_per_center_per_frag,
                 TA=fobj.TA,
                 h1=fobj.h1,
                 rdm1=rdm1_tmp,
@@ -519,7 +519,7 @@ def be_func(
 
 def be_func_u(
     pot,  # noqa: ARG001
-    Fobjs,
+    Fobjs: list[tuple[Frags, Frags]],
     solver,
     enuc,  # noqa: ARG001
     hf_veff=None,
@@ -596,6 +596,7 @@ def be_func_u(
         else:
             raise ValueError("Solver not implemented")
 
+        assert fobj_a._mf is not None and fobj_b._mf is not None
         fobj_a.rdm1__ = rdm1_tmp[0].copy()
         fobj_b._rdm1 = (
             multi_dot((fobj_a._mf.mo_coeff, rdm1_tmp[0], fobj_a._mf.mo_coeff.T)) * 0.5
@@ -624,7 +625,10 @@ def be_func_u(
                 (fobj_a._mo_coeffs, fobj_b._mo_coeffs),
                 (fobj_a.nsocc, fobj_b.nsocc),
                 (fobj_a.n_frag, fobj_b.n_frag),
-                (fobj_a.rel_AO_per_center_per_frag, fobj_b.rel_AO_per_center_per_frag),
+                (
+                    fobj_a.scale_rel_AO_per_center_per_frag,
+                    fobj_b.scale_rel_AO_per_center_per_frag,
+                ),
                 (fobj_a.TA, fobj_b.TA),
                 h1_ab,
                 hf_veff,
@@ -670,7 +674,7 @@ def solve_error(Fobjs, Nocc, only_chem=False):
     if only_chem:
         for fobj in Fobjs:
             # Compute chemical potential error for each fragment
-            for i in fobj.rel_AO_per_center_per_frag[1]:
+            for i in fobj.scale_rel_AO_per_center_per_frag[1]:
                 err_chempot += fobj._rdm1[i, i]
         err_chempot /= Fobjs[0].unitcell_nkpt
         err = err_chempot - Nocc
@@ -687,7 +691,7 @@ def solve_error(Fobjs, Nocc, only_chem=False):
                         continue
                     err_edge.append(fobj._rdm1[edge[j_], edge[k_]])
         # chem potential
-        for i in fobj.rel_AO_per_center_per_frag[1]:
+        for i in fobj.scale_rel_AO_per_center_per_frag[1]:
             err_chempot += fobj._rdm1[i, i]
 
     err_chempot /= Fobjs[0].unitcell_nkpt

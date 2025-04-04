@@ -30,7 +30,11 @@ from quemb.shared.external.ccsd_rdm import make_rdm1_uccsd, make_rdm2_uccsd
 from quemb.shared.external.unrestricted_utils import make_uhf_obj
 from quemb.shared.helper import unused
 from quemb.shared.manage_scratch import WorkDir
-from quemb.shared.typing import Matrix
+from quemb.shared.typing import (
+    ListOverFrag,
+    Matrix,
+    OwnRelAOIdx,
+)
 
 
 def run_solver(
@@ -41,7 +45,7 @@ def run_solver(
     nao: int,
     nocc: int,
     n_frag: int,
-    rel_AO_per_center_per_frag,
+    scale_rel_AO_per_center_per_frag: ListOverFrag[tuple[float, list[OwnRelAOIdx]]],
     TA: Matrix[float64],
     h1_e: Matrix[float64],
     solver: str = "MP2",
@@ -79,7 +83,7 @@ def run_solver(
         Number of occupied orbitals.
     n_frag :
         Number of fragment sites.
-    rel_AO_per_center_per_frag :
+    scale_rel_AO_per_center_per_frag :
         Scaling factor for the electronic energy **and**
         the relative AO indices per center per frag
     TA :
@@ -255,7 +259,7 @@ def run_solver(
             mf_.mo_coeff,
             nocc,
             n_frag,
-            rel_AO_per_center_per_frag,
+            scale_rel_AO_per_center_per_frag,
             TA,
             h1_e,
             rdm1_tmp,
@@ -273,8 +277,8 @@ def run_solver(
 
 
 def run_solver_u(
-    fobj_a,
-    fobj_b,
+    fobj_a: Frags,
+    fobj_b: Frags,
     solver,
     enuc,  # noqa: ARG001
     hf_veff,
@@ -339,6 +343,7 @@ def run_solver_u(
 
     # Compute RDM1
     fobj_a.rdm1__ = rdm1_tmp[0].copy()
+    assert fobj_a._mf is not None and fobj_b._mf is not None
     fobj_a._rdm1 = (
         multi_dot((fobj_a._mf.mo_coeff, rdm1_tmp[0], fobj_a._mf.mo_coeff.T)) * 0.5
     )
@@ -368,7 +373,10 @@ def run_solver_u(
             (fobj_a._mo_coeffs, fobj_b._mo_coeffs),
             (fobj_a.nsocc, fobj_b.nsocc),
             (fobj_a.n_frag, fobj_b.n_frag),
-            (fobj_a.rel_AO_per_center_per_frag, fobj_b.rel_AO_per_center_per_frag),
+            (
+                fobj_a.scale_rel_AO_per_center_per_frag,
+                fobj_b.scale_rel_AO_per_center_per_frag,
+            ),
             (fobj_a.TA, fobj_b.TA),
             h1_ab,
             hf_veff,
@@ -474,7 +482,7 @@ def be_func_parallel(
                     fobj.nao,
                     fobj.nsocc,
                     fobj.n_frag,
-                    fobj.rel_AO_per_center_per_frag,
+                    fobj.scale_rel_AO_per_center_per_frag,
                     fobj.TA,
                     fobj.h1,
                     solver,

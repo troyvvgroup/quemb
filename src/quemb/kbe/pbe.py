@@ -484,7 +484,7 @@ class BE(Mixin_k_Localize):
                     other_rel_AO_per_edge_per_frag=self.fobj.other_rel_AO_per_edge_per_frag[
                         fidx
                     ],
-                    rel_AO_per_center_per_frag=self.fobj.rel_AO_per_center_per_frag[
+                    scale_rel_AO_per_center_per_frag=self.fobj.rel_AO_per_center_per_frag[
                         fidx
                     ],
                     centerf_idx=self.fobj.centerf_idx[fidx],
@@ -501,7 +501,7 @@ class BE(Mixin_k_Localize):
                     rel_AO_per_edge_per_frag=[],
                     other_rel_AO_per_edge_per_frag=[],
                     centerf_idx=[],
-                    rel_AO_per_center_per_frag=self.fobj.rel_AO_per_center_per_frag[
+                    scale_rel_AO_per_center_per_frag=self.fobj.rel_AO_per_center_per_frag[
                         fidx
                     ],
                     unitcell=self.fobj.unitcell,

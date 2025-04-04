@@ -1,6 +1,6 @@
 # Author(s): Oinam Romesh Meitei
 
-from typing import Literal, TypeAlias
+from typing import Literal
 
 from attrs import define, field
 from pyscf.pbc.gto.cell import Cell
@@ -10,13 +10,11 @@ from quemb.molbe.helper import get_core
 from quemb.shared.typing import (
     FragmentIdx,
     GlobalAOIdx,
+    ListOverEdge,
+    ListOverFrag,
     OtherRelAOIdx,
     OwnRelAOIdx,
 )
-
-ListOverFrag: TypeAlias = list
-ListOverEdge: TypeAlias = list
-ListOverMotif: TypeAlias = list
 
 
 @define(kw_only=True)

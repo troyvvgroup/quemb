@@ -40,7 +40,7 @@ class Frags:
         ref_frag_idx_per_edge=None,
         rel_AO_per_edge_per_frag=None,
         other_rel_AO_per_edge_per_frag=None,
-        rel_AO_per_center_per_frag=None,
+        scale_rel_AO_per_center_per_frag=None,
         eri_file="eri_file.h5",
         unitcell_nkpt=1,
         ewald_ek=None,
@@ -118,7 +118,7 @@ class Frags:
         self.genvs = None
         self.ebe = 0.0
         self.ebe_hf = 0.0
-        self.rel_AO_per_center_per_frag = rel_AO_per_center_per_frag
+        self.scale_rel_AO_per_center_per_frag = scale_rel_AO_per_center_per_frag
         self.ewald_ek = ewald_ek
         self.fock = None
         self.veff = None
@@ -204,8 +204,8 @@ class Frags:
         h1_eo /= float(nk)
         e1 = 2.0 * einsum("ij,ij->i", h1_eo[: self.n_frag], rdm1_eo[: self.n_frag])
         e_h1 = 0.0
-        for i in self.rel_AO_per_center_per_frag[1]:
-            e_h1 += self.rel_AO_per_center_per_frag[0] * e1[i]
+        for i in self.scale_rel_AO_per_center_per_frag[1]:
+            e_h1 += self.scale_rel_AO_per_center_per_frag[0] * e1[i]
 
     def cons_h1(self, h1):
         """
@@ -443,19 +443,19 @@ class Frags:
         e1_ = 0.0
         e2_ = 0.0
         ec_ = 0.0
-        for i in self.rel_AO_per_center_per_frag[1]:
-            etmp += self.rel_AO_per_center_per_frag[0] * e_[i]
-            e1_ += self.rel_AO_per_center_per_frag[0] * e1[i]
-            e2_ += self.rel_AO_per_center_per_frag[0] * e2[i]
-            ec_ += self.rel_AO_per_center_per_frag[0] * ec[i]
+        for i in self.scale_rel_AO_per_center_per_frag[1]:
+            etmp += self.scale_rel_AO_per_center_per_frag[0] * e_[i]
+            e1_ += self.scale_rel_AO_per_center_per_frag[0] * e1[i]
+            e2_ += self.scale_rel_AO_per_center_per_frag[0] * e2[i]
+            ec_ += self.scale_rel_AO_per_center_per_frag[0] * ec[i]
 
         self.ebe_hf = etmp
         if return_e1:
             e_h1 = 0.0
             e_coul = 0.0
-            for i in self.rel_AO_per_center_per_frag[1]:
-                e_h1 += self.rel_AO_per_center_per_frag[0] * e1[i]
-                e_coul += self.rel_AO_per_center_per_frag[0] * (e2[i] + ec[i])
+            for i in self.scale_rel_AO_per_center_per_frag[1]:
+                e_h1 += self.scale_rel_AO_per_center_per_frag[0] * e1[i]
+                e_coul += self.scale_rel_AO_per_center_per_frag[0] * (e2[i] + ec[i])
             return (e_h1, e_coul, e1 + e2 + ec)
 
         return e1 + e2 + ec

@@ -20,6 +20,9 @@ from quemb.shared.typing import (
     CenterIdx,
     FragmentIdx,
     GlobalAOIdx,
+    ListOverEdge,
+    ListOverFrag,
+    ListOverMotif,
     MotifIdx,
     OriginIdx,
     OtherRelAOIdx,
@@ -28,11 +31,6 @@ from quemb.shared.typing import (
 )
 
 FragType: TypeAlias = Literal["chemgen", "graphgen", "autogen"]
-
-
-ListOverFrag: TypeAlias = list
-ListOverEdge: TypeAlias = list
-ListOverMotif: TypeAlias = list
 
 
 @define(kw_only=True)
@@ -187,7 +185,7 @@ class FragmentMap:
         Relative is to the own fragment; since the origin site is at the beginning
         of the motif list for each fragment, this is always a Sequence
         :python:`range(0, n)`.
-    rel_AO_per_center_per_frag :
+    scale_rel_AO_per_center_per_frag :
         Weights determining the energy contributions from each center site
         (ie, with respect to centerf_idx).
     sites :
@@ -213,7 +211,7 @@ class FragmentMap:
     AO_per_edge_per_frag: list[Sequence[Sequence[int]]]
     ref_frag_idx_per_edge: list[Sequence[int]]
     centerf_idx: list[Sequence[int]]
-    rel_AO_per_center_per_frag: list[Sequence]
+    scale_rel_AO_per_center_per_frag: list[Sequence]
     sites: list[Sequence]
     dnames: list[str]
     motifs_per_frag: list[Sequence[int]]
@@ -278,7 +276,7 @@ class FragmentMap:
             centerf_idx=self.centerf_idx,  # type: ignore[arg-type]
             AO_per_frag=self.AO_per_frag,  # type: ignore[arg-type]
             ref_frag_idx_per_edge=self.ref_frag_idx_per_edge,  # type: ignore[arg-type]
-            scale_rel_AO_per_center_per_frag=self.rel_AO_per_center_per_frag,  # type: ignore[arg-type]
+            scale_rel_AO_per_center_per_frag=self.scale_rel_AO_per_center_per_frag,  # type: ignore[arg-type]
             motifs_per_frag=self.motifs_per_frag,  # type: ignore[arg-type]
             origin_per_frag=self.origin_per_frag,  # type: ignore[arg-type]
             H_per_motif=MISSING,
@@ -377,7 +375,7 @@ def graphgen(
         AO_per_edge_per_frag=list(tuple(tuple())),
         ref_frag_idx_per_edge=list(tuple()),
         centerf_idx=list(tuple()),
-        rel_AO_per_center_per_frag=list(tuple()),
+        scale_rel_AO_per_center_per_frag=list(tuple()),
         sites=list(tuple()),
         dnames=list(),
         motifs_per_frag=list(),
@@ -499,7 +497,7 @@ def graphgen(
     for adx, center in enumerate(fragment_map.ref_frag_idx_per_edge):
         centerf_idx = tuple(fragment_map.AO_per_frag[adx].index(cdx) for cdx in center)
         fragment_map.centerf_idx.append(centerf_idx)
-        fragment_map.rel_AO_per_center_per_frag.append((1.0, tuple(centerf_idx)))
+        fragment_map.scale_rel_AO_per_center_per_frag.append((1.0, tuple(centerf_idx)))
 
     # Finally, set fragment data names for scratch and bookkeeping:
     for adx, _ in enumerate(fragment_map.fs):
@@ -932,7 +930,7 @@ def autogen(
     n_frag = len(AO_per_frag)
 
     add_center_atom = [[] for x in range(n_frag)]  # additional centers for mixed-basis
-    rel_AO_per_center_per_frag = []
+    scale_rel_AO_per_center_per_frag = []
 
     # Compute weights for each fragment
     for ix, i in enumerate(AO_per_frag):
@@ -944,7 +942,7 @@ def autogen(
                     add_center_atom[pid__].append(open_frag_cen[pidx__])
                     tmp_.extend([i.index(pq) for pq in sites__[open_frag_cen[pidx__]]])
                     tmp_.extend([i.index(pq) for pq in hsites[open_frag_cen[pidx__]]])
-        rel_AO_per_center_per_frag.append((1.0, tmp_))
+        scale_rel_AO_per_center_per_frag.append((1.0, tmp_))
 
     other_rel_AO_per_edge_per_frag = []
     if n_BE != 1:
@@ -1004,7 +1002,7 @@ def autogen(
         rel_AO_per_edge_per_frag=rel_AO_per_edge_per_frag,
         other_rel_AO_per_edge_per_frag=other_rel_AO_per_edge_per_frag,
         centerf_idx=centerf_idx,
-        scale_rel_AO_per_center_per_frag=rel_AO_per_center_per_frag,
+        scale_rel_AO_per_center_per_frag=scale_rel_AO_per_center_per_frag,
         motifs_per_frag=motifs_per_frag,
         origin_per_frag=origin_per_frag,
         H_per_motif=H_per_motif,

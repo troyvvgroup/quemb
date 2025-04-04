@@ -38,7 +38,7 @@ class Frags:
         ref_frag_idx_per_edge=None,
         rel_AO_per_edge_per_frag=None,
         other_rel_AO_per_edge_per_frag=None,
-        rel_AO_per_center_per_frag=None,
+        scale_rel_AO_per_center_per_frag=None,
         eri_file="eri_file.h5",
         centerf_idx=None,
         unrestricted=False,
@@ -64,7 +64,7 @@ class Frags:
         other_rel_AO_per_edge_per_frag : list, optional
             list of lists of indices within the fragment specified in :python:`center`
             that points to the edge site AOs , by default None
-        rel_AO_per_center_per_frag : list, optional
+        scale_rel_AO_per_center_per_frag : list, optional
             weight used for energy contributions and the indices, by default None
         eri_file : str, optional
             two-electron integrals stored as h5py file, by default 'eri_file.h5'
@@ -114,7 +114,7 @@ class Frags:
         self.genvs = None
         self.ebe = 0.0
         self.ebe_hf = 0.0
-        self.rel_AO_per_center_per_frag = rel_AO_per_center_per_frag
+        self.scale_rel_AO_per_center_per_frag = scale_rel_AO_per_center_per_frag
         self.fock = None
         self.veff = None
         self.veff0 = None
@@ -381,17 +381,17 @@ class Frags:
 
         e_ = e1 + e2 + ec
         etmp = 0.0
-        for i in self.rel_AO_per_center_per_frag[1]:
-            etmp += self.rel_AO_per_center_per_frag[0] * e_[i]
+        for i in self.scale_rel_AO_per_center_per_frag[1]:
+            etmp += self.scale_rel_AO_per_center_per_frag[0] * e_[i]
 
         self.ebe_hf = etmp
 
         if return_e:
             e_h1 = 0.0
             e_coul = 0.0
-            for i in self.rel_AO_per_center_per_frag[1]:
-                e_h1 += self.rel_AO_per_center_per_frag[0] * e1[i]
-                e_coul += self.rel_AO_per_center_per_frag[0] * (e2[i] + ec[i])
+            for i in self.scale_rel_AO_per_center_per_frag[1]:
+                e_h1 += self.scale_rel_AO_per_center_per_frag[0] * e1[i]
+                e_coul += self.scale_rel_AO_per_center_per_frag[0] * (e2[i] + ec[i])
             return (e_h1, e_coul, e1 + e2 + ec)
         else:
             return None
