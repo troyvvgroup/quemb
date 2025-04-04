@@ -183,7 +183,9 @@ class UBE(BE):  # 🍠
                     other_rel_AO_per_edge_per_frag=self.fobj.other_rel_AO_per_edge_per_frag[
                         I
                     ],
-                    rel_AO_per_center_per_frag=self.fobj.rel_AO_per_center_per_frag[I],
+                    rel_AO_per_center_per_frag=self.fobj.scale_rel_AO_per_center_per_frag[
+                        I
+                    ],
                     centerf_idx=self.fobj.centerf_idx[I],
                     unrestricted=True,
                 )
@@ -197,7 +199,9 @@ class UBE(BE):  # 🍠
                     rel_AO_per_edge_per_frag=[],
                     other_rel_AO_per_edge_per_frag=[],
                     centerf_idx=[],
-                    rel_AO_per_center_per_frag=self.fobj.rel_AO_per_center_per_frag[I],
+                    rel_AO_per_center_per_frag=self.fobj.scale_rel_AO_per_center_per_frag[
+                        I
+                    ],
                     unrestricted=True,
                 )
             self.Fobjs_a.append(fobjs_a)
@@ -214,7 +218,9 @@ class UBE(BE):  # 🍠
                     other_rel_AO_per_edge_per_frag=self.fobj.other_rel_AO_per_edge_per_frag[
                         I
                     ],
-                    rel_AO_per_center_per_frag=self.fobj.rel_AO_per_center_per_frag[I],
+                    rel_AO_per_center_per_frag=self.fobj.scale_rel_AO_per_center_per_frag[
+                        I
+                    ],
                     centerf_idx=self.fobj.centerf_idx[I],
                     unrestricted=True,
                 )
@@ -228,7 +234,9 @@ class UBE(BE):  # 🍠
                     rel_AO_per_edge_per_frag=[],
                     other_rel_AO_per_edge_per_frag=[],
                     centerf_idx=[],
-                    rel_AO_per_center_per_frag=self.fobj.rel_AO_per_center_per_frag[I],
+                    rel_AO_per_center_per_frag=self.fobj.scale_rel_AO_per_center_per_frag[
+                        I
+                    ],
                     unrestricted=True,
                 )
             self.Fobjs_b.append(fobjs_b)

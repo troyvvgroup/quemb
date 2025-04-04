@@ -1148,7 +1148,7 @@ class Fragmented:
                 self.other_rel_AO_per_edge_per_frag
             ),
             centerf_idx=[list(seq) for seq in centerf_idx],
-            rel_AO_per_center_per_frag=rel_AO_per_center_per_frag,
+            scale_rel_AO_per_center_per_frag=rel_AO_per_center_per_frag,
             motifs_per_frag=[
                 list(motifs) for motifs in self.frag_structure.motifs_per_frag
             ],
@@ -1292,7 +1292,7 @@ class Fragmented:
             centerf_idx=centerf_idx,
             AO_per_frag=matched_output_no_iao.AO_per_frag,
             ref_frag_idx_per_edge=matched_output_no_iao.ref_frag_idx_per_edge,
-            rel_AO_per_center_per_frag=matched_output_no_iao.rel_AO_per_center_per_frag,
+            scale_rel_AO_per_center_per_frag=matched_output_no_iao.scale_rel_AO_per_center_per_frag,
             motifs_per_frag=matched_output_no_iao.motifs_per_frag,
             origin_per_frag=matched_output_no_iao.origin_per_frag,
             H_per_motif=matched_output_no_iao.H_per_motif,

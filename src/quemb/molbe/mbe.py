@@ -794,7 +794,9 @@ class BE(MixinLocalize):
                     other_rel_AO_per_edge_per_frag=self.fobj.other_rel_AO_per_edge_per_frag[
                         I
                     ],
-                    rel_AO_per_center_per_frag=self.fobj.rel_AO_per_center_per_frag[I],
+                    rel_AO_per_center_per_frag=self.fobj.scale_rel_AO_per_center_per_frag[
+                        I
+                    ],
                     centerf_idx=self.fobj.centerf_idx[I],
                 )
             else:
@@ -807,7 +809,9 @@ class BE(MixinLocalize):
                     rel_AO_per_edge_per_frag=[],
                     other_rel_AO_per_edge_per_frag=[],
                     centerf_idx=[],
-                    rel_AO_per_center_per_frag=self.fobj.rel_AO_per_center_per_frag[I],
+                    rel_AO_per_center_per_frag=self.fobj.scale_rel_AO_per_center_per_frag[
+                        I
+                    ],
                 )
             fobjs_.sd(self.W, self.lmo_coeff, self.Nocc)
 
@@ -859,7 +863,6 @@ class BE(MixinLocalize):
             print(eritransform_timer.str_elapsed())
 
         for fobjs_ in self.Fobjs:
-            assert fobjs_.h1 is not None and fobjs_.nsocc is not None
             # Process each fragment
             eri = array(file_eri.get(fobjs_.dname))
             _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
@@ -874,6 +877,7 @@ class BE(MixinLocalize):
             fobjs_.heff = zeros_like(fobjs_.h1)
             fobjs_.scf(fs=True, eri=eri)
 
+            assert fobjs_.h1 is not None and fobjs_.nsocc is not None
             fobjs_.dm0 = 2.0 * (
                 fobjs_._mo_coeffs[:, : fobjs_.nsocc]
                 @ fobjs_._mo_coeffs[:, : fobjs_.nsocc].conj().T

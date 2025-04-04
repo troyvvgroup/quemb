@@ -82,7 +82,7 @@ class FragPart:
     #: i.e. the list of indices.
     #: This is a list whose entries are sequences containing the relative orbital index
     #  of the center sites within a fragment. Relative is to the own fragment.
-    rel_AO_per_center_per_frag: ListOverFrag[tuple[float, list[OwnRelAOIdx]]]
+    scale_rel_AO_per_center_per_frag: ListOverFrag[tuple[float, list[OwnRelAOIdx]]]
 
     #: The motifs/heavy atoms in each fragment, in order.
     #: Each are labeled based on the global atom index.
@@ -278,7 +278,7 @@ class FragmentMap:
             centerf_idx=self.centerf_idx,  # type: ignore[arg-type]
             AO_per_frag=self.AO_per_frag,  # type: ignore[arg-type]
             ref_frag_idx_per_edge=self.ref_frag_idx_per_edge,  # type: ignore[arg-type]
-            rel_AO_per_center_per_frag=self.rel_AO_per_center_per_frag,  # type: ignore[arg-type]
+            scale_rel_AO_per_center_per_frag=self.rel_AO_per_center_per_frag,  # type: ignore[arg-type]
             motifs_per_frag=self.motifs_per_frag,  # type: ignore[arg-type]
             origin_per_frag=self.origin_per_frag,  # type: ignore[arg-type]
             H_per_motif=MISSING,
@@ -1004,7 +1004,7 @@ def autogen(
         rel_AO_per_edge_per_frag=rel_AO_per_edge_per_frag,
         other_rel_AO_per_edge_per_frag=other_rel_AO_per_edge_per_frag,
         centerf_idx=centerf_idx,
-        rel_AO_per_center_per_frag=rel_AO_per_center_per_frag,
+        scale_rel_AO_per_center_per_frag=rel_AO_per_center_per_frag,
         motifs_per_frag=motifs_per_frag,
         origin_per_frag=origin_per_frag,
         H_per_motif=H_per_motif,

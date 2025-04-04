@@ -1277,7 +1277,8 @@ class TestBE_Fragmentation(unittest.TestCase):
             assert fobj.ref_frag_idx_per_edge == target["center"]
             assert fobj.centerf_idx == target["centerf_idx"]
             assert (
-                fobj.rel_AO_per_center_per_frag == target["rel_AO_per_center_per_frag"]
+                fobj.scale_rel_AO_per_center_per_frag
+                == target["rel_AO_per_center_per_frag"]
             )
         except AssertionError as e:
             print(f"Fragmentation test failed at {test_name} \n")
