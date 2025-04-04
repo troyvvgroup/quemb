@@ -506,9 +506,9 @@ def autogen(
     # Assumes - minimum atom in a ring is 5
     if n_BE == 4:
         if twoD:
-            warn("*********************")
-            warn("USE BE4  WITH CAUTION")
-            warn("*********************")
+            warn("*********************\n"
+                 "USE BE4  WITH CAUTION\n"
+                 "*********************")  # fmt: skip
 
     for idx, i in enumerate(normlist):
         if cell.atom_pure_symbol(idx) == "H":
