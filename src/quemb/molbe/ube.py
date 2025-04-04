@@ -176,7 +176,7 @@ class UBE(BE):  # 🍠
                 fobjs_a = Frags(
                     self.fobj.AO_per_frag[I],
                     I,
-                    edge=self.fobj.AO_per_edge_per_frag[I],
+                    AO_per_edge_per_frag=self.fobj.AO_per_edge_per_frag[I],
                     eri_file=self.eri_file,
                     ref_frag_idx_per_edge=self.fobj.ref_frag_idx_per_edge[I],
                     rel_AO_per_edge_per_frag=self.fobj.rel_AO_per_edge_per_frag[I],
@@ -191,7 +191,7 @@ class UBE(BE):  # 🍠
                 fobjs_a = Frags(
                     self.fobj.AO_per_frag[I],
                     I,
-                    edge=[],
+                    AO_per_edge_per_frag=[],
                     ref_frag_idx_per_edge=[],
                     eri_file=self.eri_file,
                     rel_AO_per_edge_per_frag=[],
@@ -207,7 +207,7 @@ class UBE(BE):  # 🍠
                 fobjs_b = Frags(
                     self.fobj.AO_per_frag[I],
                     I,
-                    edge=self.fobj.AO_per_edge_per_frag[I],
+                    AO_per_edge_per_frag=self.fobj.AO_per_edge_per_frag[I],
                     eri_file=self.eri_file,
                     ref_frag_idx_per_edge=self.fobj.ref_frag_idx_per_edge[I],
                     rel_AO_per_edge_per_frag=self.fobj.rel_AO_per_edge_per_frag[I],
@@ -222,7 +222,7 @@ class UBE(BE):  # 🍠
                 fobjs_b = Frags(
                     self.fobj.AO_per_frag[I],
                     I,
-                    edge=[],
+                    AO_per_edge_per_frag=[],
                     ref_frag_idx_per_edge=[],
                     eri_file=self.eri_file,
                     rel_AO_per_edge_per_frag=[],

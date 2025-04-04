@@ -32,7 +32,7 @@ class Frags:
         self,
         AO_per_frag,
         ifrag,
-        edge=None,
+        AO_per_edge_per_frag=None,
         ref_frag_idx_per_edge=None,
         rel_AO_per_edge_per_frag=None,
         other_rel_AO_per_edge_per_frag=None,
@@ -98,7 +98,7 @@ class Frags:
         self.t2 = None
 
         self.heff = None
-        self.edge = edge
+        self.AO_per_edge_per_frag = AO_per_edge_per_frag
         self.ref_frag_idx_per_edge = ref_frag_idx_per_edge
         self.rel_AO_per_edge_per_frag = rel_AO_per_edge_per_frag
         self.other_rel_AO_per_edge_per_frag = other_rel_AO_per_edge_per_frag
