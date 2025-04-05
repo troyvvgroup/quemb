@@ -317,7 +317,7 @@ class FragmentMap:
                     map["coord"][0] + (map["coord"][2] / F),
                     map["coord"][1] + (map["coord"][2] / F),
                 )
-                for _, map in self.adx_map.items()
+                for map in self.adx_map.values()
             ]
         elif node_position in ["spring"]:
             pos = nx.spring_layout(G, seed=3068)
@@ -569,7 +569,7 @@ def graphgen(
             fragment_map.center.append(deepcopy(fragment_map.sites[adx]))
             fsites_temp = deepcopy(list(fragment_map.sites[adx]))
             fatoms_temp = [adx]
-            edges_temp = []  # type: ignore[var-annotated]
+            edges_temp: list[tuple[int, int]] = []
             fs_temp = []
             fs_temp.append(deepcopy(fragment_map.sites[adx]))
 
@@ -644,7 +644,7 @@ def graphgen(
 
     # Finally, set fragment data names for scratch and bookkeeping:
     for adx, _ in enumerate(fragment_map.fs):
-        fragment_map.dnames.append(str(frag_prefix) + str(adx))
+        fragment_map.dnames.append(frag_prefix + str(adx))
 
     if export_graph_to:
         fragment_map.export_graph(
