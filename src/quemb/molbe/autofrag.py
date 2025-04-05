@@ -38,7 +38,6 @@ ListOverEdge: TypeAlias = list
 ListOverMotif: TypeAlias = list
 
 
-@staticmethod
 def euclidean_distance(
     i_coord: Vector,
     j_coord: Vector,
@@ -46,7 +45,6 @@ def euclidean_distance(
     return norm(i_coord - j_coord)
 
 
-@staticmethod
 def graph_to_string(
     graph: nx.Graph,
     options: dict = {"with_labels": True},
@@ -391,7 +389,7 @@ class FragmentMap:
         self,
         fdx: int | None = None,
         options: dict = {},
-    ) -> dict | nx.Graph:
+    ) -> dict:
         """
         Return the subgraph for a fragment indexed by `fdx`.
 
@@ -402,7 +400,7 @@ class FragmentMap:
 
         if fdx is not None:
             f_labels = []
-            subgraph = nx.Graph(**options)
+            subgraph: nx.Graph = nx.Graph(**options)
             nodelist = self.Frag_atom[fdx]
             edgelist = self.edge_list[fdx]
             for adx in nodelist:
@@ -413,7 +411,7 @@ class FragmentMap:
             subgraph.add_nodes_from(f_labels)
             subgraph.add_edges_from(edgelist)
 
-            return subgraph
+            return {fdx: subgraph}
         else:
             subgraph_dict = {}
             for fdx, edge in enumerate(self.edge_list):
