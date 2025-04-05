@@ -1,10 +1,10 @@
 # Author: Oinam Romesh Meitei, Shaun Weatherly
 
 import re
-from pathlib import Path
 from collections.abc import Sequence
 from copy import deepcopy
-from typing import Final, Literal, TypeAlias
+from pathlib import Path
+from typing import Final, Generator, Literal, TypeAlias
 from warnings import warn
 
 import matplotlib.patches as mpatches
@@ -37,6 +37,7 @@ ListOverFrag: TypeAlias = list
 ListOverEdge: TypeAlias = list
 ListOverMotif: TypeAlias = list
 
+
 @staticmethod
 def euclidean_distance(
     i_coord: Vector,
@@ -49,9 +50,10 @@ def euclidean_distance(
 def graph_to_string(
     graph: nx.Graph,
     options: dict = {"with_labels": True},
-) -> str:
+) -> Generator:
     for element in nx.generate_network_text(graph, **options):
         yield element
+
 
 @define
 class FragPart:
@@ -288,14 +290,14 @@ class FragmentMap:
                         del self.center[bdx]
                         del self.fsites[bdx]
                         del self.fs[bdx]
-                        del self.center_atoms[bdx]
-                        del self.fragment_atoms[bdx]
+                        del self.center_atom[bdx]
+                        del self.Frag_atom[bdx]
                         del self.edge_list[bdx]
         return None
 
     def export_graph(
         self,
-        outdir: PathLike,
+        outdir: Path,
         outname: str = "AdjGraph",
         cmap: str = "cubehelix",
         node_position: str = "coordinates",
@@ -330,8 +332,8 @@ class FragmentMap:
             nx.draw_networkx_nodes(
                 G,
                 pos,
-                nodelist=self.center_atoms[fdx],
-                node_color=[color for _ in self.center_atoms[fdx]],  # type: ignore[arg-type]
+                nodelist=self.center_atom[fdx],
+                node_color=[color for _ in self.center_atom[fdx]],  # type: ignore[arg-type]
                 edgecolors="tab:gray",
                 node_size=850,
                 alpha=1.0,
@@ -339,7 +341,7 @@ class FragmentMap:
             nx.draw_networkx_nodes(
                 G,
                 pos,
-                nodelist=self.center_atoms[fdx],
+                nodelist=self.center_atom[fdx],
                 node_color="whitesmoke",  # type: ignore[arg-type]
                 edgecolors=color,
                 node_size=700,
@@ -401,10 +403,10 @@ class FragmentMap:
         if fdx is not None:
             f_labels = []
             subgraph = nx.Graph(**options)
-            nodelist = self.fragment_atoms[fdx]
+            nodelist = self.Frag_atom[fdx]
             edgelist = self.edge_list[fdx]
             for adx in nodelist:
-                if adx in self.center_atoms[fdx]:
+                if adx in self.center_atom[fdx]:
                     f_labels.append((adx, {"label": f"[{labels[adx]}]"}))
                 else:
                     f_labels.append((adx, {"label": labels[adx]}))
@@ -417,9 +419,9 @@ class FragmentMap:
             for fdx, edge in enumerate(self.edge_list):
                 f_labels = []
                 subgraph_dict[fdx] = nx.Graph(**options)
-                nodelist = self.fragment_atoms[fdx]
+                nodelist = self.Frag_atom[fdx]
                 for adx in nodelist:
-                    if adx in self.center_atoms[fdx]:
+                    if adx in self.center_atom[fdx]:
                         f_labels.append((adx, {"label": f"[{labels[adx]}]"}))
                     else:
                         f_labels.append((adx, {"label": labels[adx]}))
@@ -438,7 +440,7 @@ def graphgen(
     connectivity: str = "euclidean",
     iao_valence_basis: str | None = None,
     cutoff: float | None = None,
-    export_graph_to: PathLike | None = None,
+    export_graph_to: Path | None = None,
     print_frags: bool = True,
 ) -> FragmentMap:
     """Generate fragments via adjacency graph.
@@ -648,7 +650,7 @@ def graphgen(
 
     if export_graph_to:
         fragment_map.export_graph(
-            outdir=str(export_graph_to),
+            outdir=export_graph_to,
             outname=f"AdjGraph_{be_type}",
         )
 
