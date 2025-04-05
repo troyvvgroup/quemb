@@ -1,10 +1,14 @@
 # Author: Oinam Romesh Meitei, Shaun Weatherly
 
+import re
 from collections.abc import Sequence
 from copy import deepcopy
-from typing import Final, Literal, TypeAlias
+from pathlib import Path
+from typing import Final, Generator, Literal, TypeAlias
 from warnings import warn
 
+import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 from attrs import cmp_using, define, field
@@ -29,10 +33,24 @@ from quemb.shared.typing import (
 
 FragType: TypeAlias = Literal["chemgen", "graphgen", "autogen"]
 
-
 ListOverFrag: TypeAlias = list
 ListOverEdge: TypeAlias = list
 ListOverMotif: TypeAlias = list
+
+
+def euclidean_distance(
+    i_coord: Vector,
+    j_coord: Vector,
+) -> np.floating:
+    return norm(i_coord - j_coord)
+
+
+def graph_to_string(
+    graph: nx.Graph,
+    options: dict = {"with_labels": True},
+) -> Generator:
+    for element in nx.generate_network_text(graph, **options):
+        yield element
 
 
 @define
@@ -204,6 +222,9 @@ class FragmentMap:
         The adjacency matrix for all sites (atoms) in the system.
     adjacency_graph :
         The adjacency graph corresponding to `adjacency_mat`.
+    edge_list:
+        Sequences of edge pairs per fragment (these correspond to edges in
+        `adjacency_graph`).
     """
 
     fsites: list[Sequence[int]]
@@ -219,6 +240,8 @@ class FragmentMap:
     edge_atoms: list[Sequence[int]]
     adjacency_mat: np.ndarray
     adjacency_graph: nx.Graph
+    edge_list: list[Sequence]
+    adx_map: dict
 
     def remove_nonnunique_frags(self, natm: int) -> None:
         """Remove all fragments which are strict subsets of another.
@@ -256,13 +279,89 @@ class FragmentMap:
             if subsets:
                 sorted_subsets = sorted(subsets, reverse=True)
                 for bdx in sorted_subsets:
-                    del self.center[bdx]
-                    del self.fsites[bdx]
-                    del self.fs[bdx]
-                    del self.center_atom[bdx]
-                    del self.Frag_atom[bdx]
-
+                    if len(self.fsites) == 1:
+                        # If all fragments are identified as subsets,
+                        # this stops the loop from deleting the final fragment.
+                        break
+                    else:
+                        # Otherwise, delete the subset fragment.
+                        del self.center[bdx]
+                        del self.fsites[bdx]
+                        del self.fs[bdx]
+                        del self.center_atom[bdx]
+                        del self.Frag_atom[bdx]
+                        del self.edge_list[bdx]
         return None
+
+    def export_graph(
+        self,
+        outdir: Path,
+        outname: str = "AdjGraph",
+        cmap: str = "cubehelix",
+        node_position: str = "coordinates",
+    ) -> None:
+        outdir = Path(outdir)
+        F = 2
+        c_ = plt.cm.get_cmap(cmap)
+        c = [
+            c_(fdx / len(self.edge_list))[0:3] for fdx in range(0, len(self.edge_list))
+        ]
+        patches = [mpatches.Patch(color=color, alpha=0.9) for color in c]
+        labels = {adx: (map["label"] + str(adx)) for adx, map in self.adx_map.items()}
+
+        G = self.adjacency_graph
+
+        if node_position in ["coordinates"]:
+            pos = [
+                (
+                    map["coord"][0] + (map["coord"][2] / F),
+                    map["coord"][1] + (map["coord"][2] / F),
+                )
+                for map in self.adx_map.values()
+            ]
+        elif node_position in ["spring"]:
+            pos = nx.spring_layout(G, seed=3068)
+
+        __, _ = plt.subplots()
+        arc_rads = np.arange(-0.3, 0.3, 0.6 / len(c), dtype=float)
+
+        for fdx, color in enumerate(c):
+            edges = self.edge_list[fdx]
+            nx.draw_networkx_nodes(
+                G,
+                pos,
+                nodelist=self.center_atom[fdx],
+                node_color=[color for _ in self.center_atom[fdx]],  # type: ignore[arg-type]
+                edgecolors="tab:gray",
+                node_size=850,
+                alpha=1.0,
+            )
+            nx.draw_networkx_nodes(
+                G,
+                pos,
+                nodelist=self.center_atom[fdx],
+                node_color="whitesmoke",  # type: ignore[arg-type]
+                edgecolors=color,
+                node_size=700,
+                alpha=0.6,
+            )
+            nx.draw_networkx_edges(
+                G,
+                pos,
+                arrows=True,
+                edgelist=edges,
+                width=5,
+                alpha=0.8,
+                edge_color=color,  # type: ignore[arg-type]
+                connectionstyle=f"arc3,rad={arc_rads[fdx]}",
+            )
+        nx.draw_networkx_labels(
+            G, pos, labels, font_size=10, font_color="black", alpha=1
+        )
+        plt.tight_layout()
+        plt.legend(patches, self.dnames, loc="upper left", fontsize=8)
+        plt.axis("off")
+        plt.savefig(outdir / f"{outname}.png", dpi=1500)
 
     def to_FragPart(self, mol: Mole, be_type: str, frozen_core: bool) -> FragPart:
         MISSING = []  # type: ignore[var-annotated]
@@ -286,12 +385,48 @@ class FragmentMap:
             iao_valence_only=False,
         )
 
+    def get_subgraphs(
+        self,
+        fdx: int | None = None,
+        options: dict = {},
+    ) -> dict:
+        """
+        Return the subgraph for a fragment indexed by `fdx`.
 
-def euclidean_distance(
-    i_coord: Vector,
-    j_coord: Vector,
-) -> np.floating:
-    return norm(i_coord - j_coord)
+        If `fdx=None`, returns subgraphs for all fragments as a dictionary keyed
+        by each fragment index (`fdx`).
+        """
+        labels = {adx: (map["label"] + str(adx)) for adx, map in self.adx_map.items()}
+
+        if fdx is not None:
+            f_labels = []
+            subgraph: nx.Graph = nx.Graph(**options)
+            nodelist = self.Frag_atom[fdx]
+            edgelist = self.edge_list[fdx]
+            for adx in nodelist:
+                if adx in self.center_atom[fdx]:
+                    f_labels.append((adx, {"label": f"[{labels[adx]}]"}))
+                else:
+                    f_labels.append((adx, {"label": labels[adx]}))
+            subgraph.add_nodes_from(f_labels)
+            subgraph.add_edges_from(edgelist)
+
+            return {fdx: subgraph}
+        else:
+            subgraph_dict: dict[int, nx.Graph] = {}
+            for fdx, edge in enumerate(self.edge_list):
+                f_labels = []
+                subgraph_dict[fdx] = nx.Graph(**options)
+                nodelist = self.Frag_atom[fdx]
+                for adx in nodelist:
+                    if adx in self.center_atom[fdx]:
+                        f_labels.append((adx, {"label": f"[{labels[adx]}]"}))
+                    else:
+                        f_labels.append((adx, {"label": labels[adx]}))
+                subgraph_dict[fdx].add_nodes_from(f_labels)
+                subgraph_dict[fdx].add_edges_from(edge)
+
+            return subgraph_dict
 
 
 def graphgen(
@@ -302,7 +437,9 @@ def graphgen(
     frag_prefix: str = "f",
     connectivity: str = "euclidean",
     iao_valence_basis: str | None = None,
-    cutoff: float = 20.0,
+    cutoff: float | None = None,
+    export_graph_to: Path | None = None,
+    print_frags: bool = True,
 ) -> FragmentMap:
     """Generate fragments via adjacency graph.
 
@@ -357,7 +494,12 @@ def graphgen(
     if iao_valence_basis is not None:
         raise NotImplementedError("IAOs not yet implemented for graphgen.")
 
-    fragment_type_order = int(be_type[-1])
+    fragment_type_order = int(re.findall(r"\d+", str(be_type))[0])
+    if cutoff is None and fragment_type_order <= 3:
+        cutoff = 4.5
+    elif cutoff is None:
+        cutoff = 4.5 * fragment_type_order
+
     natm = mol.natm
 
     adx_map = {
@@ -384,6 +526,8 @@ def graphgen(
         edge_atoms=list(),
         adjacency_mat=np.zeros((natm, natm), np.float64),
         adjacency_graph=nx.Graph(),
+        edge_list=list(),
+        adx_map=adx_map,
     )
     fragment_map.adjacency_graph.add_nodes_from(adx_map)
 
@@ -408,16 +552,13 @@ def graphgen(
         # their distance in real space.
         for adx in range(natm):
             for bdx in range(adx + 1, natm):
-                dr = (
-                    euclidean_distance(
-                        adx_map[adx]["coord"],
-                        adx_map[bdx]["coord"],
-                    )
-                    ** 2
+                dr = euclidean_distance(
+                    adx_map[adx]["coord"],
+                    adx_map[bdx]["coord"],
                 )
-                fragment_map.adjacency_mat[adx, bdx] = dr
+                fragment_map.adjacency_mat[adx, bdx] = dr**2
                 if dr <= cutoff:
-                    fragment_map.adjacency_graph.add_edge(adx, bdx, weight=dr)
+                    fragment_map.adjacency_graph.add_edge(adx, bdx, weight=dr**2)
 
         # For a given center site (adx), find the set of shortest
         # paths to all other sites. The number of nodes visited
@@ -428,6 +569,7 @@ def graphgen(
             fragment_map.center.append(deepcopy(fragment_map.sites[adx]))
             fsites_temp = deepcopy(list(fragment_map.sites[adx]))
             fatoms_temp = [adx]
+            edges_temp: list[tuple[int, int]] = []
             fs_temp = []
             fs_temp.append(deepcopy(fragment_map.sites[adx]))
 
@@ -455,9 +597,11 @@ def graphgen(
                     fsites_temp = fsites_temp + deepcopy(list(fragment_map.sites[bdx]))
                     fs_temp.append(deepcopy(fragment_map.sites[bdx]))
                     fatoms_temp.append(bdx)
+                    edges_temp = edges_temp + list(nx.utils.pairwise(path))
 
             fragment_map.fsites.append(tuple(fsites_temp))
             fragment_map.fs.append(tuple(fs_temp))
+            fragment_map.edge_list.append(edges_temp)
             fragment_map.Frag_atom.append(tuple(fatoms_temp))
 
     elif connectivity.lower() in ["resistance_distance", "resistance"]:
@@ -500,7 +644,25 @@ def graphgen(
 
     # Finally, set fragment data names for scratch and bookkeeping:
     for adx, _ in enumerate(fragment_map.fs):
-        fragment_map.dnames.append(str(frag_prefix) + str(adx))
+        fragment_map.dnames.append(frag_prefix + str(adx))
+
+    if export_graph_to:
+        fragment_map.export_graph(
+            outdir=export_graph_to,
+            outname=f"AdjGraph_{be_type}",
+        )
+
+    if print_frags:
+        title = "VERBOSE: Fragment Connectivity Graphs"
+        print(title, "-" * (80 - len(title)))
+        print("(Center sites within a fragment are [bracketed])")
+        subgraphs = fragment_map.get_subgraphs()
+        for fdx, sg in subgraphs.items():
+            print(
+                f"Frag `{fragment_map.dnames[fdx]}`:",
+            )
+            for st in graph_to_string(sg):
+                print(st, flush=True)
 
     return fragment_map
 
