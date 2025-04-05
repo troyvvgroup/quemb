@@ -1,6 +1,7 @@
 # Author(s): Oinam Romesh Meitei
 
 import pickle
+from warnings import warn
 
 import h5py
 import numpy
@@ -10,16 +11,17 @@ from pyscf import ao2mo, scf
 
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
-from quemb.molbe.fragment import fragpart
+from quemb.molbe.fragment import FragPart
 from quemb.molbe.lo import MixinLocalize
 from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
 from quemb.molbe.opt import BEOPT
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import UserSolverArgs, be_func
+from quemb.shared.config import settings
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
-from quemb.shared.helper import copy_docstring
+from quemb.shared.helper import Timer, copy_docstring
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix, PathLike
 
@@ -56,7 +58,7 @@ class BE(MixinLocalize):
     ----------
     mf : pyscf.scf.hf.SCF
         PySCF mean-field object.
-    fobj : quemb.molbe.fragment.fragpart
+    fobj : quemb.molbe.autofrag.FragPart
         Fragment object containing sites, centers, edges, and indices.
     eri_file : str
         Path to the file storing two-electron integrals.
@@ -67,9 +69,10 @@ class BE(MixinLocalize):
     def __init__(
         self,
         mf: scf.hf.SCF,
-        fobj: fragpart,
+        fobj: FragPart,
         eri_file: PathLike = "eri_file.h5",
         lo_method: str = "lowdin",
+        iao_loc_method: str | None = "SO",
         pop_method: str | None = None,
         compute_hf: bool = True,
         restart: bool = False,
@@ -93,6 +96,8 @@ class BE(MixinLocalize):
             Path to the file storing two-electron integrals.
         lo_method :
             Method for orbital localization, by default 'lowdin'.
+        iao_loc_method :
+            Method for IAO localization, by default "SO"
         pop_method :
             Method for calculating orbital population, by default 'meta-lowdin'
             See pyscf.lo for more details and options
@@ -117,6 +122,7 @@ class BE(MixinLocalize):
             Auxiliary basis for density fitting, by default None
             (uses default auxiliary basis defined in PySCF).
         """
+        init_timer = Timer("Time to initialize BE object")
         if restart:
             # Load previous calculation data from restart file
             with open(restart_file, "rb") as rfile:
@@ -187,6 +193,9 @@ class BE(MixinLocalize):
 
         if self.frozen_core:
             # Handle frozen core orbitals
+            assert not (
+                fobj.ncore is None or fobj.no_core_idx is None or fobj.core_list is None
+            )
             self.ncore = fobj.ncore
             self.no_core_idx = fobj.no_core_idx
             self.core_list = fobj.core_list
@@ -210,18 +219,20 @@ class BE(MixinLocalize):
             # Localize orbitals
             self.localize(
                 lo_method,
-                pop_method=pop_method,
                 iao_valence_basis=fobj.iao_valence_basis,
-                valence_only=fobj.valence_only,
+                iao_loc_method=iao_loc_method,
+                iao_valence_only=fobj.iao_valence_only,
+                pop_method=pop_method,
             )
 
-            if fobj.valence_only and lo_method == "iao":
+            if fobj.iao_valence_only and lo_method.upper() == "IAO":
                 self.Ciao_pao = self.localize(
                     lo_method,
-                    pop_method=pop_method,
                     iao_valence_basis=fobj.iao_valence_basis,
+                    iao_loc_method=iao_loc_method,
+                    iao_valence_only=False,
+                    pop_method=pop_method,
                     hstack=True,
-                    valence_only=False,
                     nosave=True,
                 )
 
@@ -230,6 +241,8 @@ class BE(MixinLocalize):
             self.initialize(mf._eri, compute_hf)
         else:
             self.initialize(None, compute_hf, restart=True)
+        if settings.PRINT_LEVEL >= 10:
+            print(init_timer.str_elapsed())
 
     def save(self, save_file: PathLike = "storebe.pk") -> None:
         """
@@ -440,12 +453,12 @@ class BE(MixinLocalize):
 
             print("-----------------------------------------------------", flush=True)
 
-            print(" 1-elec E        : {:>15.8f} Ha".format(Eh1), flush=True)
-            print(" 2-elec E        : {:>15.8f} Ha".format(E2), flush=True)
+            print(f" 1-elec E        : {Eh1:>15.8f} Ha", flush=True)
+            print(f" 2-elec E        : {E2:>15.8f} Ha", flush=True)
             E_tot = Eh1 + E2 + self.E_core + self.enuc
-            print(" E_BE            : {:>15.8f} Ha".format(E_tot), flush=True)
+            print(f" E_BE            : {E_tot:>15.8f} Ha", flush=True)
             print(
-                " Ecorr BE        : {:>15.8f} Ha".format((E_tot) - self.ebe_hf),
+                f" Ecorr BE        : {(E_tot) - self.ebe_hf:>15.8f} Ha",
                 flush=True,
             )
             print("-----------------------------------------------------", flush=True)
@@ -575,21 +588,19 @@ class BE(MixinLocalize):
 
         print("-----------------------------------------------------", flush=True)
         print(" E_BE = E_HF + Tr(F del g) + Tr(V K_approx)", flush=True)
-        print(" E_HF            : {:>14.8f} Ha".format(self.ebe_hf), flush=True)
-        print(" Tr(F del g)     : {:>14.8f} Ha".format(Eh1_dg + Eveff_dg), flush=True)
-        print(" Tr(V K_aprrox)  : {:>14.8f} Ha".format(EKumul / 2.0), flush=True)
-        print(" E_BE            : {:>14.8f} Ha".format(EKapprox), flush=True)
-        print(
-            " Ecorr BE        : {:>14.8f} Ha".format(EKapprox - self.ebe_hf), flush=True
-        )
+        print(f" E_HF            : {self.ebe_hf:>14.8f} Ha", flush=True)
+        print(f" Tr(F del g)     : {Eh1_dg + Eveff_dg:>14.8f} Ha", flush=True)
+        print(f" Tr(V K_aprrox)  : {EKumul / 2.0:>14.8f} Ha", flush=True)
+        print(f" E_BE            : {EKapprox:>14.8f} Ha", flush=True)
+        print(f" Ecorr BE        : {EKapprox - self.ebe_hf:>14.8f} Ha", flush=True)
 
         if not approx_cumulant:
             print(flush=True)
             print(" E_BE = Tr(F[g] g) + Tr(V K_true)", flush=True)
-            print(" Tr(h1 g)        : {:>14.8f} Ha".format(Eh1), flush=True)
-            print(" Tr(Veff[g] g)   : {:>14.8f} Ha".format(EVeff / 2.0), flush=True)
-            print(" Tr(V K_true)    : {:>14.8f} Ha".format(EKumul_T / 2.0), flush=True)
-            print(" E_BE            : {:>14.8f} Ha".format(EKtrue), flush=True)
+            print(f" Tr(h1 g)        : {Eh1:>14.8f} Ha", flush=True)
+            print(f" Tr(Veff[g] g)   : {EVeff / 2.0:>14.8f} Ha", flush=True)
+            print(f" Tr(V K_true)    : {EKumul_T / 2.0:>14.8f} Ha", flush=True)
+            print(f" E_BE            : {EKtrue:>14.8f} Ha", flush=True)
             if use_full_rdm and return_rdm:
                 print(
                     " E(g+G)          : {:>14.8f} Ha".format(
@@ -598,11 +609,11 @@ class BE(MixinLocalize):
                     flush=True,
                 )
             print(
-                " Ecorr BE        : {:>14.8f} Ha".format(EKtrue - self.ebe_hf),
+                f" Ecorr BE        : {EKtrue - self.ebe_hf:>14.8f} Ha",
                 flush=True,
             )
             print(flush=True)
-            print(" True - approx   : {:>14.4e} Ha".format(EKtrue - EKapprox))
+            print(f" True - approx   : {EKtrue - EKapprox:>14.4e} Ha")
         print("-----------------------------------------------------", flush=True)
 
         print(flush=True)
@@ -619,7 +630,7 @@ class BE(MixinLocalize):
         use_cumulant: bool = True,
         conv_tol: float = 1.0e-6,
         relax_density: bool = False,
-        J0: Matrix[floating] | None = None,
+        jac_solver: str = "HF",
         nproc: int = 1,
         ompnum: int = 4,
         max_iter: int = 500,
@@ -657,8 +668,9 @@ class BE(MixinLocalize):
         ompnum :
             If nproc > 1, ompnum sets the number of cores for OpenMP parallelization.
             Defaults to 4
-        J0 :
-            Initial Jacobian.
+        jac_solver :
+            Method to form Jacobian used in optimization routine, by default HF.
+            Options include HF, MP2, CCSD
         trust_region :
             Use trust-region based QN optimization, by default False
         """
@@ -696,10 +708,10 @@ class BE(MixinLocalize):
             # Prepare the initial Jacobian matrix
             if only_chem:
                 J0 = array([[0.0]])
-                J0 = self.get_be_error_jacobian(jac_solver="HF")
+                J0 = self.get_be_error_jacobian(jac_solver=jac_solver)
                 J0 = J0[-1:, -1:]
             else:
-                J0 = self.get_be_error_jacobian(jac_solver="HF")
+                J0 = self.get_be_error_jacobian(jac_solver=jac_solver)
 
             # Perform the optimization
             be_.optimize(method, J0=J0, trust_region=trust_region)
@@ -799,6 +811,7 @@ class BE(MixinLocalize):
 
             self.Fobjs.append(fobjs_)
 
+        eritransform_timer = Timer("Time to transform ERIs")
         if not restart:
             # Transform ERIs for each fragment and store in the file
             # ERI Transform Decision Tree
@@ -840,6 +853,8 @@ class BE(MixinLocalize):
                     raise NotImplementedError
         else:
             eri = None
+        if settings.PRINT_LEVEL >= 10:
+            print(eritransform_timer.str_elapsed())
 
         for fobjs_ in self.Fobjs:
             # Process each fragment
@@ -871,14 +886,9 @@ class BE(MixinLocalize):
         if compute_hf:
             self.ebe_hf = E_hf + self.enuc + self.E_core
             hf_err = self.hf_etot - self.ebe_hf
-            print(
-                "HF-in-HF error                 :  {:>.4e} Ha".format(hf_err),
-                flush=True,
-            )
+            print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
             if abs(hf_err) > 1.0e-5:
-                print("WARNING!!! Large HF-in-HF energy error")
-
-            print(flush=True)
+                warn("Large HF-in-HF energy error")
 
         couti = 0
         for fobj in self.Fobjs:
@@ -909,6 +919,7 @@ class BE(MixinLocalize):
         ompnum :
             Number of OpenMP threads, by default 4.
         """
+        oneshot_timer = Timer("Time to perform one-shot BE")
         if nproc == 1:
             rets = be_func(
                 None,
@@ -948,12 +959,14 @@ class BE(MixinLocalize):
             print_energy_cumulant(
                 rets[0], rets[1][1], rets[1][0] + rets[1][2], self.ebe_hf
             )
-            self.ebe_tot = rets[0]
+            self.ebe_tot = rets[0] + self.ebe_hf
         else:
             print_energy_noncumulant(
                 rets[0], rets[1][0], rets[1][2], rets[1][1], self.ebe_hf, self.enuc
             )
-            self.ebe_tot = rets[0] + self.enuc
+            self.ebe_tot = rets[0] + self.enuc + self.ebe_hf
+        if settings.PRINT_LEVEL >= 10:
+            print(oneshot_timer.str_elapsed())
 
     def update_fock(self, heff: list[Matrix[floating]] | None = None) -> None:
         """

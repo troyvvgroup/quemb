@@ -8,8 +8,9 @@ import os
 import unittest
 
 from pyscf import gto, scf
+import numpy as np
 
-from quemb.molbe import BE, fragpart
+from quemb.molbe import BE, fragmentate
 
 
 class TestBE_Fragmentation(unittest.TestCase):
@@ -1209,6 +1210,25 @@ class TestBE_Fragmentation(unittest.TestCase):
             delta=1e-2,
         )
 
+    @unittest.skipIf(
+        not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
+        "This test is known to fail.",
+    )
+    def test_shared_centers_autocratic_matching(self):
+        mol = gto.M("xyz/short_polypropylene.xyz", basis="sto-3g")
+        mf = scf.RHF(mol)
+        mf.kernel()
+
+        fobj = fragmentate(mol, be_type="be2", frag_type="graphgen", print_frags=False)
+        mybe = BE(mf, fobj)
+
+        assert np.isclose(mf.e_tot, mybe.ebe_hf)
+
+        fobj = fragmentate(mol, be_type="be3", frag_type="graphgen", print_frags=False)
+        mybe = BE(mf, fobj)
+
+        assert np.isclose(mf.e_tot, mybe.ebe_hf)
+
     def run_energies_test(
         self,
         mf,
@@ -1219,10 +1239,10 @@ class TestBE_Fragmentation(unittest.TestCase):
     ):
         Es = {"target": target}
         for frag_type in ["autogen", "graphgen"]:
-            fobj = fragpart(frag_type=frag_type, be_type=be_type, mol=mf.mol)
+            fobj = fragmentate(frag_type=frag_type, be_type=be_type, mol=mf.mol)
             mbe = BE(mf, fobj)
             mbe.oneshot(solver="CCSD")
-            Es.update({frag_type: mbe.ebe_tot})
+            Es.update({frag_type: mbe.ebe_tot - mbe.ebe_hf})
 
         for frag_type_A, E_A in Es.items():
             for frag_type_B, E_B in Es.items():
@@ -1245,7 +1265,7 @@ class TestBE_Fragmentation(unittest.TestCase):
         frag_type,
         target,
     ):
-        fobj = fragpart(frag_type=frag_type, be_type=be_type, mol=mf.mol)
+        fobj = fragmentate(frag_type=frag_type, be_type=be_type, mol=mf.mol)
         try:
             assert fobj.fsites == target["fsites"]
             assert fobj.edge_sites == target["edge"]

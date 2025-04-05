@@ -151,8 +151,16 @@ class _DMRG_Args:
 
     @classmethod
     def from_user_input(cls, user_args: DMRG_ArgsUser, mf: RHF):
-        norb = mf.mo_coeff.shape[1] if user_args.norb is None else user_args.norb
-        nelec = mf.mo_coeff.shape[1] if user_args.nelec is None else user_args.nelec
+        if user_args.norb is None:
+            assert mf.mo_coeff is not None
+            norb = mf.mo_coeff.shape[1]
+        else:
+            norb = user_args.norb
+        if user_args.nelec is None:
+            assert mf.mo_coeff is not None
+            nelec = mf.mo_coeff.shape[1]
+        else:
+            nelec = user_args.nelec
         if norb <= 2:
             block_extra_keyword = [
                 "noreorder"
@@ -245,7 +253,7 @@ def be_func(
     ----------
     pot :
         List of potentials.
-    Fobjs : list of quemb.molbe.fragment.fragpart
+    Fobjs : list of quemb.molbe.autofrag.FragPart
         List of fragment objects.
     Nocc :
         Number of occupied orbitals.
@@ -319,7 +327,7 @@ def be_func(
 
         elif solver == "HCI":
             # pylint: disable-next=E0611
-            from pyscf import hci  # noqa: PLC0415    # optional module
+            from pyscf import hci  # type: ignore[attr-defined]  # noqa: PLC0415
 
             assert isinstance(solver_args, SHCI_ArgsUser)
             SHCI_args = _SHCI_Args.from_user_input(solver_args)
@@ -350,7 +358,9 @@ def be_func(
 
         elif solver == "SHCI":
             # pylint: disable-next=E0611,E0401
-            from pyscf.shciscf import shci  # noqa: PLC0415    # shci is optional
+            from pyscf.shciscf import (  # type: ignore[attr-defined]  # noqa: PLC0415
+                shci,
+            )
 
             assert isinstance(solver_args, SHCI_ArgsUser)
             SHCI_args = _SHCI_Args.from_user_input(solver_args)
@@ -521,7 +531,7 @@ def be_func_u(
     pot : list
         List of potentials.
     Fobjs : list
-        zip list of class:`quemb.molbe.fragment.fragpart`, alpha and beta
+        zip list of :class:`quemb.molbe.autofrag.FragPart`, alpha and beta
         List of fragment objects. Each element is a tuple with the alpha and
         beta components
     solver : str
@@ -633,7 +643,7 @@ def solve_error(Fobjs, Nocc, only_chem=False):
 
     Parameters
     ----------
-    Fobjs : list of quemb.molbe.fragment.fragpart
+    Fobjs : list of quemb.molbe.autofrag.FragPart
         List of fragment objects.
     Nocc : int
         Number of occupied orbitals.
@@ -891,7 +901,7 @@ def solve_block2(
             2-Particle reduced density matrix for fragment.
     """
     # pylint: disable-next=E0611
-    from pyscf import dmrgscf  # noqa: PLC0415   # optional module
+    from pyscf import dmrgscf  # type: ignore[attr-defined]  # noqa: PLC0415
 
     orbs = mf.mo_coeff
 

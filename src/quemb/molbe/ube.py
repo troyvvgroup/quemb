@@ -13,6 +13,7 @@ TODO
 """
 
 from pathlib import Path
+from warnings import warn
 
 import h5py
 from numpy import array, einsum, zeros_like
@@ -20,7 +21,7 @@ from pyscf import ao2mo
 from pyscf.scf.uhf import UHF
 
 from quemb.molbe.be_parallel import be_func_parallel_u
-from quemb.molbe.fragment import fragpart
+from quemb.molbe.fragment import FragPart
 from quemb.molbe.mbe import BE
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import be_func_u
@@ -33,10 +34,11 @@ class UBE(BE):  # 🍠
     def __init__(
         self,
         mf: UHF,
-        fobj: fragpart,
+        fobj: FragPart,
         scratch_dir: WorkDir | None = None,
         eri_file: PathLike = "eri_file.h5",
         lo_method: PathLike = "lowdin",
+        pop_method: str | None = None,
         compute_hf: bool = True,
     ) -> None:
         """Initialize Unrestricted BE Object (ube🍠)
@@ -49,15 +51,18 @@ class UBE(BE):  # 🍠
 
         Parameters
         ----------
-        mf : pyscf.scf.uhf.UHF
+        mf :
             pyscf meanfield UHF object
-        fobj : quemb.molbe.fragment.fragpart
+        fobj :
             object that contains fragment information
-        eri_file : str, optional
+        eri_file :
             h5py file with ERIs
-        lo_method : str, optional
+        lo_method :
             Method for orbital localization. Supports 'lowdin', 'boys', and 'wannier',
             by default "lowdin"
+        pop_method :
+            Method for calculating orbital population, by default 'meta-lowdin'
+            See pyscf.lo for more details and options
         """
         self.unrestricted = True
 
@@ -69,6 +74,7 @@ class UBE(BE):  # 🍠
         self.mo_energy = mf.mo_energy
 
         self.mf = mf
+        assert mf.mo_coeff is not None
         self.Nocc = [mf.mol.nelec[0], mf.mol.nelec[1]]
         self.enuc = mf.energy_nuc()
 
@@ -102,10 +108,11 @@ class UBE(BE):  # 🍠
         self.uhf_full_e = mf.e_tot
 
         if self.frozen_core:
+            assert not (
+                fobj.ncore is None or fobj.no_core_idx is None or fobj.core_list is None
+            )
             self.ncore = fobj.ncore
-
             self.no_core_idx = fobj.no_core_idx
-
             self.core_list = fobj.core_list
 
             self.Nocc[0] -= self.ncore
@@ -142,7 +149,8 @@ class UBE(BE):  # 🍠
         self.localize(
             lo_method,
             iao_valence_basis=fobj.iao_valence_basis,
-            valence_only=fobj.valence_only,
+            iao_valence_only=fobj.iao_valence_only,
+            pop_method=pop_method,
         )
 
         if scratch_dir is None:
@@ -367,16 +375,11 @@ class UBE(BE):  # 🍠
             hf_err = self.hf_etot - (E_hf + self.enuc + self.E_core)
 
             self.ebe_hf = E_hf + self.enuc + self.E_core - self.ek
-            print(
-                "HF-in-HF error                 :  {:>.4e} Ha".format(hf_err),
-                flush=True,
-            )
+            print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
             if abs(hf_err) > 1.0e-5:
-                print("WARNING!!! Large HF-in-HF energy error")
+                warn("Large HF-in-HF energy error")
                 print("eh1 ", EH1)
                 print("ecoul ", ECOUL)
-
-            print(flush=True)
 
         couti = 0
         for fobj in self.Fobjs_a:

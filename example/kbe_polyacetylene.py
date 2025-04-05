@@ -5,7 +5,7 @@
 import numpy as np
 from pyscf.pbc import df, gto, scf
 
-from quemb.kbe import BE, fragpart
+from quemb.kbe import BE, fragmentate
 
 kpt = [1, 1, 3]
 cell = gto.Cell()
@@ -30,7 +30,7 @@ H      1.4285621630072645    0.0     1.868826577512681
 C      0.3415633681566205    0.0     1.867007885398875
 H     -1.4285621630072645    0.0     3.041173422487319
 C     -0.3415633681566205    0.0     3.0429921146011254
-"""
+"""  # type: ignore[assignment]
 
 cell.unit = "Angstrom"
 cell.basis = "sto-3g"
@@ -48,7 +48,7 @@ kmf.conv_tol = 1e-12
 kpoint_energy = kmf.kernel()
 
 # Define fragment in the supercell
-kfrag = fragpart(be_type="be2", mol=cell, kpt=kpt, frozen_core=True)
+kfrag = fragmentate(be_type="be2", mol=cell, kpt=kpt, frozen_core=True)
 # Initialize BE
 mykbe = BE(kmf, kfrag, kpts=kpts)
 

@@ -277,7 +277,7 @@ def autogen(
     iao_valence_basis : str, optional
         Name of minimal basis set for IAO scheme. 'sto-3g' is sufficient for most cases.
         Defaults to None.
-    valence_only : bool, optional
+    iao_valence_only : bool, optional
         If True, all calculations will be performed in the valence basis in
         the IAO partitioning. This is an experimental feature. Defaults to False.
     print_frags : bool, optional
@@ -327,7 +327,7 @@ def autogen(
 
         print(flush=True)
         print(
-            "No. of cells used in building fragments : {:>3}".format(unitcell),
+            f"No. of cells used in building fragments : {unitcell:>3}",
             flush=True,
         )
 
@@ -1871,13 +1871,13 @@ def autogen(
                 if j == cen[idx]:
                     continue
                 print(
-                    " {:>5} ".format(cell.atom_pure_symbol(j) + str(j + 1)),
+                    f" {cell.atom_pure_symbol(j) + str(j + 1):>5} ",
                     end=" ",
                     flush=True,
                 )
                 for k in hlist[j]:
                     print(
-                        " {:>5} ".format(cell.atom_pure_symbol(k) + str(k + 1)),
+                        f" {cell.atom_pure_symbol(k) + str(k + 1):>5} ",
                         end=" ",
                         flush=True,
                     )
@@ -1984,7 +1984,7 @@ def autogen(
         max_site = max(max_site, maxH)
 
     fsites = []
-    edgsites = []
+    edge_sites = []
     edge_idx = []
     centerf_idx = []
     edge = []
@@ -2338,7 +2338,7 @@ def autogen(
 
         edge.append(edg)
         fsites.append(ftmp)
-        edgsites.append(ftmpe)
+        edge_sites.append(ftmpe)
         edge_idx.append(edind)
 
     center = []
@@ -2374,4 +2374,4 @@ def autogen(
 
         center_idx.append(idx)
 
-    return (fsites, edgsites, center, edge_idx, center_idx, centerf_idx, ebe_weight)
+    return (fsites, edge_sites, center, edge_idx, center_idx, centerf_idx, ebe_weight)

@@ -9,10 +9,10 @@ import unittest
 
 from pyscf import gto, scf
 
-from quemb.molbe import BE, fragpart
+from quemb.molbe import BE, fragmentate
 
 try:
-    from pyscf import dmrgscf
+    from pyscf import dmrgscf  # type: ignore[attr-defined]
 except ImportError:
     dmrgscf = None
 
@@ -39,7 +39,7 @@ class TestBE_DMRG(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             mf = scf.RHF(mol)
             mf.kernel()
-            fobj = fragpart(frag_type=frag_type, be_type=be_type, mol=mol)
+            fobj = fragmentate(frag_type=frag_type, be_type=be_type, mol=mol)
             mybe = BE(mf, fobj, lo_method="pipek", pop_method="lowdin")
             mybe.oneshot(
                 solver="block2",
@@ -51,9 +51,9 @@ class TestBE_DMRG(unittest.TestCase):
             self.assertAlmostEqual(
                 mybe.ebe_tot,
                 target,
-                msg="BE Correlation Energy (Chem. Pot. Optimization) for "
+                msg="BE Total Energy (Chem. Pot. Optimization) for "
                 + test_name
-                + " does not match the expected correlation energy!",
+                + " does not match the expected total energy!",
                 delta=delta,
             )
             tmpfiles = []

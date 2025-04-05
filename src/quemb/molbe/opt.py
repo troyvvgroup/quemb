@@ -8,7 +8,9 @@ from quemb.kbe.pfrag import Frags as pFrags
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import UserSolverArgs, be_func
+from quemb.shared.config import settings
 from quemb.shared.external.optqn import FrankQN
+from quemb.shared.helper import Timer
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix, Vector
 
@@ -158,13 +160,14 @@ class BEOPT:
         print("-----------------------------------------------------", flush=True)
         print(flush=True)
         if method == "QN":
-            print("-- In iter ", self.iter, flush=True)
+            step0_timer = Timer("Time to complete Iteration 0")
+            print("-- Beginning optimization iteration ", self.iter, flush=True)
 
             # Initial step
             f0 = self.objfunc(self.pot)
 
             print(
-                "Error in density matching      :   {:>2.4e}".format(self.err),
+                f"Error in density matching      :   {self.err:>2.4e}",
                 flush=True,
             )
             print(flush=True)
@@ -174,6 +177,8 @@ class BEOPT:
                 self.objfunc, array(self.pot), f0, J0, max_space=self.max_space
             )
 
+            if settings.PRINT_LEVEL >= 10:
+                print(step0_timer.str_elapsed())
             if self.err < self.conv_tol:
                 print(flush=True)
                 print("CONVERGED w/o Optimization Steps", flush=True)
@@ -181,18 +186,32 @@ class BEOPT:
             else:
                 # Perform optimization steps
                 for iter_ in range(self.max_space):
+                    iter_timer = Timer("Time to complete Iteration " + str(self.iter))
                     print("-- In iter ", self.iter, flush=True)
-                    optQN.next_step(trust_region=trust_region)
+                    optQN.next_step(self.iter, trust_region=trust_region)
                     self.iter += 1
                     print(
-                        "Error in density matching      :   {:>2.4e}".format(self.err),
+                        f"Error in density matching      :   {self.err:>2.4e}",
                         flush=True,
                     )
+                    if settings.PRINT_LEVEL >= 10:
+                        print(iter_timer.str_elapsed())
                     print(flush=True)
                     if self.err < self.conv_tol:
                         print(flush=True)
                         print("CONVERGED", flush=True)
+                        if settings.PRINT_LEVEL >= 10:
+                            print(
+                                step0_timer.str_elapsed(
+                                    "Total time to complete BE optimization"
+                                )
+                            )
                         print(flush=True)
                         break
+                if self.err >= self.conv_tol:
+                    print(
+                        "BE DID NOT CONVERGE IN " + str(self.max_space) + " STEPS",
+                        flush=True,
+                    )
         else:
             raise ValueError("This optimization method for BE is not supported")

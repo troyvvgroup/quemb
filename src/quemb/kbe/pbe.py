@@ -3,16 +3,17 @@
 import os
 import pickle
 from multiprocessing import Pool
+from warnings import warn
 
 import h5py
 import numpy as np
 from libdmet.basis_transform.eri_transform import get_emb_eri_fast_gdf
 from numpy import array, einsum, floating, result_type, zeros, zeros_like
-from pyscf import ao2mo, pbc
-from pyscf.pbc import df, gto
+from pyscf import ao2mo
+from pyscf.pbc import df, gto, scf
 from pyscf.pbc.df.df_jk import _ewald_exxdiv_for_G0
 
-from quemb.kbe.fragment import fragpart
+from quemb.kbe.fragment import FragPart
 from quemb.kbe.lo import Mixin_k_Localize
 from quemb.kbe.misc import print_energy, storePBE
 from quemb.kbe.pfrag import Frags
@@ -38,20 +39,20 @@ class BE(Mixin_k_Localize):
 
     Attributes
     ----------
-    mf : pyscf.scf.hf.SCF
+    mf :
         PySCF mean-field object.
-    fobj : quemb.kbe.fragment.fragpart
+    fobj :
         Fragment object containing sites, centers, edges, and indices.
-    eri_file : str
+    eri_file :
         Path to the file storing two-electron integrals.
-    lo_method : str
+    lo_method :
         Method for orbital localization, default is 'lowdin'.
     """
 
     def __init__(
         self,
-        mf: pbc.scf.hf.SCF,
-        fobj: fragpart,
+        mf: scf.khf.KRHF,
+        fobj: FragPart,
         eri_file: PathLike = "eri_file.h5",
         lo_method: str = "lowdin",
         compute_hf: bool = True,
@@ -200,6 +201,9 @@ class BE(Mixin_k_Localize):
 
         if self.frozen_core:
             # Handle frozen core orbitals
+            assert not (
+                fobj.ncore is None or fobj.no_core_idx is None or fobj.core_list is None
+            )
             self.ncore = fobj.ncore
             self.no_core_idx = fobj.no_core_idx
             self.core_list = fobj.core_list
@@ -473,7 +477,7 @@ class BE(Mixin_k_Localize):
                 fobjs_ = Frags(
                     self.fobj.fsites[fidx],
                     fidx,
-                    edge=self.fobj.edge[fidx],
+                    edge=self.fobj.edge_sites[fidx],
                     eri_file=self.eri_file,
                     center=self.fobj.center[fidx],
                     edge_idx=self.fobj.edge_idx[fidx],
@@ -635,13 +639,9 @@ class BE(Mixin_k_Localize):
             hf_err = self.hf_etot - (E_hf + self.enuc + self.E_core)
 
             self.ebe_hf = E_hf + self.enuc + self.E_core - self.ek
-            print(
-                "HF-in-HF error                 :  {:>.4e} Ha".format(hf_err),
-                flush=True,
-            )
-
+            print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
             if abs(hf_err) > 1.0e-5:
-                print("WARNING!!! Large HF-in-HF energy error")
+                warn("Large HF-in-HF energy error")
 
         couti = 0
         for fobj in self.Fobjs:
@@ -717,11 +717,11 @@ class BE(Mixin_k_Localize):
             flush=True,
         )
         print(
-            "Final Tr(V K_approx) is      : {:>12.8f} Ha".format(rets[1][1]),
+            f"Final Tr(V K_approx) is      : {rets[1][1]:>12.8f} Ha",
             flush=True,
         )
         print(
-            "Final e_corr is              : {:>12.8f} Ha".format(rets[0]),
+            f"Final e_corr is              : {rets[0]:>12.8f} Ha",
             flush=True,
         )
 

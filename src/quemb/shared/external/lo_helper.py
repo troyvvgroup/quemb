@@ -8,6 +8,51 @@ import numpy as np
 from numpy import diag, where
 from numpy.linalg import eigh, matrix_power, norm
 
+from quemb.shared.typing import Matrix
+
+
+def dot_gen(A: Matrix, B: Matrix, ovlp: Matrix | None = None) -> Matrix:
+    """Return product A.T @ B or A.T @ ovlp @ B"""
+    return A.T @ B if ovlp is None else A.T @ ovlp @ B
+
+
+def get_cano_orth_mat(
+    A: Matrix, thr: float = 1.0e-6, ovlp: Matrix | None = None
+) -> Matrix:
+    """Perform canonical orthogonalization of A"""
+    S = dot_gen(A, A, ovlp)
+    e, u = eigh(S)
+    if thr > 0:
+        idx_keep = e / e[-1] > thr
+    else:
+        idx_keep = slice(0, e.shape[0])
+    return u[:, idx_keep] * e[idx_keep] ** -0.5
+
+
+def cano_orth(A: Matrix, thr: float = 1.0e-6, ovlp: Matrix | None = None) -> Matrix:
+    """Canonically orthogonalize columns of A"""
+    return A @ get_cano_orth_mat(A, thr, ovlp)
+
+
+def get_symm_orth_mat(
+    A: Matrix, thr: float = 1.0e-6, ovlp: Matrix | None = None
+) -> Matrix:
+    """Perform symmetric orthogonalization of A"""
+    S = dot_gen(A, A, ovlp)
+    e, u = eigh(S)
+    if (e < thr).any():
+        raise ValueError(
+            "Linear dependence is detected in the column space of A: "
+            "smallest eigenvalue (%.3E) is less than thr (%.3E). "
+            "Please use 'cano_orth' instead." % (np.min(e), thr)
+        )
+    return u @ diag(e**-0.5) @ u.T
+
+
+def symm_orth(A: Matrix, thr: float = 1.0e-6, ovlp: Matrix | None = None) -> Matrix:
+    """Symmetrically orthogonalize columns of A"""
+    return A @ get_symm_orth_mat(A, thr, ovlp)
+
 
 def get_symm_mat_pow(A, p, check_symm=True, thresh=1.0e-8):
     """A ** p where A is symmetric
@@ -28,6 +73,8 @@ def get_symm_mat_pow(A, p, check_symm=True, thresh=1.0e-8):
 
 
 def get_aoind_by_atom(mol, atomind_by_motif=None):
+    """Return a list across all atoms (motifs). Each element contains a list of
+    AO indices for that atom (or motif, if atomind_by_motif True)"""
     natom = mol.natm
     aoslice_by_atom = mol.aoslice_by_atom()
     aoshift_by_atom = [0] + [aoslice_by_atom[ia][-1] for ia in range(natom)]
@@ -38,7 +85,7 @@ def get_aoind_by_atom(mol, atomind_by_motif=None):
         ]
     else:
         nmotif = len(atomind_by_motif)
-        assert set([ia for im in range(nmotif) for ia in atomind_by_motif[im]]) == set(
+        assert {ia for im in range(nmotif) for ia in atomind_by_motif[im]} == set(
             range(natom)
         )
         aoind_by_atom = [[] for im in range(nmotif)]
@@ -50,6 +97,7 @@ def get_aoind_by_atom(mol, atomind_by_motif=None):
 
 
 def reorder_by_atom_(Clo, aoind_by_atom, S, thr=0.5):
+    """Reorder the ~LOCALIZED~ Clo orbitals by atom"""
     natom = len(aoind_by_atom)
     nlo = Clo.shape[1]
     X = get_symm_mat_pow(S, 0.5)
@@ -68,7 +116,6 @@ def reorder_by_atom_(Clo, aoind_by_atom, S, thr=0.5):
         loind_by_atom[ia] = list(range(loshift, loshift + nlo_a))
         loshift += nlo_a
     if loind_reorder != list(range(nlo)):
-        print("REORDERD")
         Clo_new = Clo[:, loind_reorder]
     else:
         Clo_new = Clo

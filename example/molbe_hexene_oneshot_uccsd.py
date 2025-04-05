@@ -4,7 +4,7 @@
 
 from pyscf import gto, scf
 
-from quemb.molbe import UBE, fragpart
+from quemb.molbe import UBE, fragmentate
 
 # Give path to structure xyz file
 structure = "data/hexene.xyz"
@@ -25,7 +25,7 @@ mf.kernel()
 nproc = 1
 
 # Initialize fragments without frozen core approximation at BE2 level
-fobj = fragpart(frag_type="autogen", be_type="be2", mol=mol, frozen_core=False)
+fobj = fragmentate(frag_type="autogen", be_type="be2", mol=mol, frozen_core=False)
 # Initialize UBE
 mybe = UBE(mf, fobj)
 
