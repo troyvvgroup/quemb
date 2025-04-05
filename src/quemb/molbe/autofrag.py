@@ -413,7 +413,7 @@ class FragmentMap:
 
             return {fdx: subgraph}
         else:
-            subgraph_dict = {}
+            subgraph_dict: dict[int, nx.Graph] = {}
             for fdx, edge in enumerate(self.edge_list):
                 f_labels = []
                 subgraph_dict[fdx] = nx.Graph(**options)
