@@ -19,23 +19,22 @@ There are three main classes:
     of which AO index belongs to which center and edge.
 """
 
+from __future__ import annotations
+
 from collections import defaultdict
 from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence, Set
 from itertools import chain
-from numbers import Real
 from pathlib import Path
 from typing import Any, Final, TypeAlias, TypeVar, cast
 
-import chemcoord as cc
 import numpy as np
 from attr import cmp_using, define, field
 from chemcoord import Cartesian
-from chemcoord.constants import elements
 from networkx.algorithms.shortest_paths.generic import shortest_path_length
 from networkx.classes.graph import Graph
 from ordered_set import OrderedSet
 from pyscf.gto import Mole
-from typing_extensions import Self, assert_never
+from typing_extensions import Self
 
 from quemb.molbe.autofrag import FragPart
 from quemb.molbe.helper import are_equal, get_core
@@ -51,6 +50,7 @@ from quemb.shared.typing import (
     OriginIdx,
     OtherRelAOIdx,
     OwnRelAOIdx,
+    Real,
     T,
 )
 
@@ -223,28 +223,17 @@ class BondConnectivity:
                 for k, v in bonds_atoms.items()
             }
         else:
-            with cc.constants.RestoreElementData():
-                used_vdW_r = elements.loc[:, "atomic_radius_cc"]
-                if isinstance(vdW_radius, Real):
-                    elements.loc[:, "atomic_radius_cc"] = used_vdW_r.map(
-                        lambda _: float(vdW_radius)
-                    )
-                elif callable(vdW_radius):
-                    elements.loc[:, "atomic_radius_cc"] = used_vdW_r.map(vdW_radius)  # type: ignore[arg-type]
-                elif isinstance(vdW_radius, Mapping):
-                    elements.loc[:, "atomic_radius_cc"].update(vdW_radius)  # type: ignore[arg-type]
-                elif vdW_radius is None:
-                    # To avoid false-negatives we set all vdW radii to
-                    # at least 0.55 Å
-                    # or 20 % larger than the tabulated value.
-                    elements.loc[:, "atomic_radius_cc"] = np.maximum(
-                        0.55, used_vdW_r * 1.20
-                    )
-                else:
-                    assert_never(vdW_radius)
-                processed_bonds_atoms = {
-                    k: OrderedSet(sorted(v)) for k, v in m.get_bonds().items()
-                }
+            # To avoid false-negatives we set all vdW radii to
+            # at least 0.55 Å
+            # or 20 % larger than the tabulated value.
+            processed_bonds_atoms = {
+                k: OrderedSet(sorted(v))
+                for k, v in m.get_bonds(
+                    modify_element_data=(lambda r: np.maximum(0.55, 1.2 * r))
+                    if vdW_radius is None
+                    else vdW_radius
+                ).items()
+            }
 
         if treat_H_different:
             motifs = OrderedSet(m.loc[m.atom != "H", :].index)
@@ -551,7 +540,7 @@ class PurelyStructureFragmented:
         def frag_idx(edge: EdgeIdx) -> FragmentIdx:
             for i_frag, centers in enumerate(centers_per_frag.values()):
                 if edge in centers:
-                    return FragmentIdx(i_frag)
+                    return cast(FragmentIdx, i_frag)
             raise ValueError(f"Edge {edge} not found in any fragment.")
 
         origin_per_frag = [
@@ -983,7 +972,7 @@ class Fragmented:
                         (previous := previous + len(AO_per_motif[motif][atom])),
                     )
                     rel_AO_per_motif[motif][atom] = OrderedSet(
-                        OwnRelAOIdx(AOIdx(i)) for i in indices
+                        cast(OwnRelAOIdx, i) for i in indices
                     )
             rel_AO_per_motif_per_frag.append(rel_AO_per_motif)
 
@@ -1334,17 +1323,19 @@ def _get_AOidx_per_atom(mol: Mole, frozen_core: bool) -> list[OrderedSet[GlobalA
         core_list = get_core(mol)[2]
         for n_core, (_, _, start, stop) in zip(core_list, mol.aoslice_by_atom()):
             result.append(
-                OrderedSet(
-                    GlobalAOIdx(AOIdx(i))
-                    for i in range(start - core_offset, stop - (core_offset + n_core))
+                cast(
+                    OrderedSet[GlobalAOIdx],
+                    OrderedSet(
+                        range(start - core_offset, stop - (core_offset + n_core))
+                    ),
                 )
             )
             core_offset += n_core
         return result
     else:
         return [
-            OrderedSet(
-                GlobalAOIdx(AOIdx(i)) for i in range(AO_offsets[2], AO_offsets[3])
+            cast(
+                OrderedSet[GlobalAOIdx], OrderedSet(range(AO_offsets[2], AO_offsets[3]))
             )
             for AO_offsets in mol.aoslice_by_atom()
         ]
