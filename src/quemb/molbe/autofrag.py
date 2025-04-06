@@ -175,7 +175,7 @@ class GraphGenArgs:
     """
 
     connectivity: Final[Literal["euclidean"]] = "euclidean"
-    cutoff: Final[float] = 20.0
+    cutoff: Final[float] = 0.0
     remove_nonnunique_frags: Final[bool] = True
 
 
@@ -301,7 +301,7 @@ class FragmentMap:
         node_position: str = "coordinates",
     ) -> None:
         outdir = Path(outdir)
-        F = 2
+        z_offset = 0.5
         c_ = plt.cm.get_cmap(cmap)
         c = [
             c_(fdx / len(self.edge_list))[0:3] for fdx in range(0, len(self.edge_list))
@@ -314,8 +314,8 @@ class FragmentMap:
         if node_position in ["coordinates"]:
             pos = [
                 (
-                    map["coord"][0] + (map["coord"][2] / F),
-                    map["coord"][1] + (map["coord"][2] / F),
+                    map["coord"][0] + (map["coord"][2] * z_offset),
+                    map["coord"][1] + (map["coord"][2] * z_offset),
                 )
                 for map in self.adx_map.values()
             ]
@@ -437,7 +437,7 @@ def graphgen(
     frag_prefix: str = "f",
     connectivity: str = "euclidean",
     iao_valence_basis: str | None = None,
-    cutoff: float | None = None,
+    cutoff: float = 0.0,
     export_graph_to: Path | None = None,
     print_frags: bool = True,
 ) -> FragmentMap:
@@ -495,9 +495,9 @@ def graphgen(
         raise NotImplementedError("IAOs not yet implemented for graphgen.")
 
     fragment_type_order = int(re.findall(r"\d+", str(be_type))[0])
-    if cutoff is None and fragment_type_order <= 3:
+    if cutoff == 0.0 and fragment_type_order <= 3:
         cutoff = 4.5
-    elif cutoff is None:
+    elif cutoff == 0.0:
         cutoff = 4.5 * fragment_type_order
 
     natm = mol.natm
