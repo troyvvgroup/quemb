@@ -127,8 +127,8 @@ class FragPart:
     #: This is an experimental feature.
     iao_valence_only: bool
 
-    #: Contains the same information as `fsites`, except AO indices are 
-    #: further organized by motif (atom) within each fragment. 
+    #: Contains the same information as `fsites`, except AO indices are
+    #: further organized by motif (atom) within each fragment.
     fsites_by_atom: ListOverFrag[ListOverMotif[list[GlobalAOIdx]]] = field()
 
     Nfrag: int = field()
@@ -139,7 +139,7 @@ class FragPart:
     @Nfrag.default
     def _get_default_Nfrag(self) -> int:
         return len(self.fsites)
-    
+
     @fsites_by_atom.default
     def _get_default_fsites_by_atom(self) -> list:
         MISSING = []  # type: ignore[var-annotated]
