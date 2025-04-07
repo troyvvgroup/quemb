@@ -719,8 +719,8 @@
 <h1>quemb.kbe.solver.schmidt_decomp_svd<a class="headerlink" href="#quemb-kbe-solver-schmidt-decomp-svd" title="Link to this heading">¶</a></h1>
 <dl class="py function">
 <dt class="sig sig-object py" id="quemb.kbe.solver.schmidt_decomp_svd">
-<span class="sig-prename descclassname"><span class="pre">quemb.kbe.solver.</span></span><span class="sig-name descname"><span class="pre">schmidt_decomp_svd</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rdm</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Frag_sites</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#quemb.kbe.solver.schmidt_decomp_svd" title="Link to this definition">¶</a></dt>
-<dd><p>Perform Schmidt decomposition on the orbital coefficients in the real space.</p>
+<span class="sig-prename descclassname"><span class="pre">quemb.kbe.solver.</span></span><span class="sig-name descname"><span class="pre">schmidt_decomp_svd</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rdm</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Frag_sites</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">thr_bath</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-10</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#quemb.kbe.solver.schmidt_decomp_svd" title="Link to this definition">¶</a></dt>
+<dd><p>Perform  decomposition on the orbital coefficients in the real space.</p>
 <p>This function decomposes the molecular orbitals into fragment and environment parts
 using the Schmidt decomposition method. It computes the transformation matrix (TA)
 which includes both the fragment orbitals and the entangled bath.</p>
@@ -729,6 +729,7 @@ which includes both the fragment orbitals and the entangled bath.</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>rdm</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.2)"><em>ndarray</em></a>) – Density matrix (HF) in the real space.</p></li>
 <li><p><strong>Frag_sites</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.13)"><em>list</em></a><em> of </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a>) – List of fragment sites (indices).</p></li>
+<li><p><strong>thr_bath</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.13)"><em>float</em></a><em>,</em>) – Threshold for bath orbitals in Schmidt decomposition</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
