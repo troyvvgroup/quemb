@@ -129,6 +129,7 @@ class Frags:
         lao,
         lmo,
         nocc,
+        thr_bath,
         frag_type="autogen",
         cell=None,
         kpts=None,
@@ -171,7 +172,7 @@ class Frags:
         if not frag_type == "autogen":
             Sites.sort()
 
-        TA_R = schmidt_decomp_svd(supcell_rdm, Sites)
+        TA_R = schmidt_decomp_svd(supcell_rdm, Sites, thr_bath=thr_bath)
         teo = TA_R.shape[-1]
         TA_R = TA_R.reshape(nk, nlo, teo)
 
