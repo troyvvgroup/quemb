@@ -68,6 +68,10 @@ class FragPart:
     #: in the fragment. These are ordered by the atoms in the fragment.
     fsites: ListOverFrag[list[GlobalAOIdx]]
 
+    #: Contains the same information as `fsites`, except AO indices are 
+    #: further organized by motif (atom) within each fragment. 
+    fsites_by_atom: ListOverFrag[ListOverMotif[list[GlobalAOIdx]]]
+
     #: The global orbital indices, including hydrogens, per edge per fragment.
     edge_sites: ListOverFrag[ListOverEdge[list[GlobalAOIdx]]]
 
@@ -188,7 +192,7 @@ class FragmentMap:
     fsites :
         List whose entries are sequences (tuple or list) containing
         all AO indices for a fragment.
-    fs :
+    fsites_by_atom :
         List whose entries are sequences of sequences, containing AO indices per atom
         per fragment.
     edge_sites :
@@ -228,7 +232,7 @@ class FragmentMap:
     """
 
     fsites: list[Sequence[int]]
-    fs: list[Sequence[Sequence[int]]]
+    fsites_by_atom: list[Sequence[Sequence[int]]]
     edge_sites: list[Sequence[Sequence[int]]]
     center: list[Sequence[int]]
     centerf_idx: list[Sequence[int]]
@@ -287,7 +291,7 @@ class FragmentMap:
                         # Otherwise, delete the subset fragment.
                         del self.center[bdx]
                         del self.fsites[bdx]
-                        del self.fs[bdx]
+                        del self.fsites_by_atom[bdx]
                         del self.center_atom[bdx]
                         del self.Frag_atom[bdx]
                         del self.edge_list[bdx]
@@ -374,6 +378,7 @@ class FragmentMap:
             center_idx=MISSING,
             centerf_idx=self.centerf_idx,  # type: ignore[arg-type]
             fsites=self.fsites,  # type: ignore[arg-type]
+            fsites_by_atom=self.fsites_by_atom,  # type: ignore[arg-type]
             center=self.center,  # type: ignore[arg-type]
             ebe_weight=self.ebe_weight,  # type: ignore[arg-type]
             Frag_atom=self.Frag_atom,  # type: ignore[arg-type]
@@ -514,7 +519,7 @@ def graphgen(
 
     fragment_map = FragmentMap(
         fsites=(list(tuple())),
-        fs=list(tuple(tuple())),
+        fsites_by_atom=list(tuple(tuple())),
         edge_sites=list(tuple(tuple())),
         center=list(tuple()),
         centerf_idx=list(tuple()),
@@ -600,7 +605,7 @@ def graphgen(
                     edges_temp = edges_temp + list(nx.utils.pairwise(path))
 
             fragment_map.fsites.append(tuple(fsites_temp))
-            fragment_map.fs.append(tuple(fs_temp))
+            fragment_map.fsites_by_atom.append(tuple(fs_temp))
             fragment_map.edge_list.append(edges_temp)
             fragment_map.Frag_atom.append(tuple(fatoms_temp))
 
@@ -618,7 +623,7 @@ def graphgen(
 
     # Define the 'edges' for fragment A as the intersect of its sites
     # with the set of all center sites outside of A:
-    for adx, fs in enumerate(fragment_map.fs):
+    for adx, fs in enumerate(fragment_map.fsites_by_atom):
         edge_temp: set[tuple] = set()
         eatoms_temp: set[tuple[int, ...]] = set()
         for bdx, center in enumerate(fragment_map.center):
@@ -643,7 +648,7 @@ def graphgen(
         fragment_map.ebe_weight.append((1.0, tuple(centerf_idx)))
 
     # Finally, set fragment data names for scratch and bookkeeping:
-    for adx, _ in enumerate(fragment_map.fs):
+    for adx, _ in enumerate(fragment_map.fsites_by_atom):
         fragment_map.dnames.append(frag_prefix + str(adx))
 
     if export_graph_to:
