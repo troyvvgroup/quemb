@@ -68,10 +68,6 @@ class FragPart:
     #: in the fragment. These are ordered by the atoms in the fragment.
     fsites: ListOverFrag[list[GlobalAOIdx]]
 
-    #: Contains the same information as `fsites`, except AO indices are 
-    #: further organized by motif (atom) within each fragment. 
-    fsites_by_atom: ListOverFrag[ListOverMotif[list[GlobalAOIdx]]]
-
     #: The global orbital indices, including hydrogens, per edge per fragment.
     edge_sites: ListOverFrag[ListOverEdge[list[GlobalAOIdx]]]
 
@@ -131,6 +127,10 @@ class FragPart:
     #: This is an experimental feature.
     iao_valence_only: bool
 
+    #: Contains the same information as `fsites`, except AO indices are 
+    #: further organized by motif (atom) within each fragment. 
+    fsites_by_atom: ListOverFrag[ListOverMotif[list[GlobalAOIdx]]] = field()
+
     Nfrag: int = field()
     ncore: int | None = field()
     no_core_idx: list[int] | None = field()
@@ -139,6 +139,11 @@ class FragPart:
     @Nfrag.default
     def _get_default_Nfrag(self) -> int:
         return len(self.fsites)
+    
+    @fsites_by_atom.default
+    def _get_default_fsites_by_atom(self) -> list:
+        MISSING = []  # type: ignore[var-annotated]
+        return MISSING
 
     @ncore.default
     def _get_default_ncore(self) -> int | None:
