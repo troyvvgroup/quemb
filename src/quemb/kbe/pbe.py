@@ -291,6 +291,8 @@ class BE(Mixin_k_Localize):
         nproc: int = 1,
         ompnum: int = 4,
         max_iter: int = 500,
+        jac_solver: str = "HF",
+        trust_region: bool = False,
     ) -> None:
         """BE optimization function
 
@@ -358,13 +360,13 @@ class BE(Mixin_k_Localize):
             # Prepare the initial Jacobian matrix
             if only_chem:
                 J0 = array([[0.0]])
-                J0 = self.get_be_error_jacobian(jac_solver="HF")
+                J0 = self.get_be_error_jacobian(jac_solver=jac_solver)
                 J0 = J0[-1:, -1:]
             else:
-                J0 = self.get_be_error_jacobian(jac_solver="HF")
+                J0 = self.get_be_error_jacobian(jac_solver=jac_solver)
 
             # Perform the optimization
-            be_.optimize(method, J0=J0)
+            be_.optimize(method, J0=J0, trust_region=trust_region)
             self.ebe_tot = self.ebe_hf + be_.Ebe[0]
             # Print the energy components
             if use_cumulant:
