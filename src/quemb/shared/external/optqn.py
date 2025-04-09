@@ -471,7 +471,7 @@ def ccsdres_func(mf, vpots, eri, nsocc):
 def get_vpots_frag(
     nao: int, rel_AO_per_edge_per_frag: list[list[int]], AO_per_frag: list[list[int]]
 ) -> list[Matrix[float64]]:
-    vpots = []
+    vpots: list[Matrix[float64]] = []
 
     for edge_ in rel_AO_per_edge_per_frag:
         lene = len(edge_)
