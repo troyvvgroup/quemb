@@ -3,6 +3,7 @@
 import os
 import pickle
 from multiprocessing import Pool
+from typing import Literal
 from warnings import warn
 
 import h5py
@@ -287,10 +288,11 @@ class BE(Mixin_k_Localize):
         use_cumulant: bool = True,
         conv_tol: float = 1.0e-6,
         relax_density: bool = False,
-        J0: Matrix[floating] | None = None,
         nproc: int = 1,
         ompnum: int = 4,
         max_iter: int = 500,
+        jac_solver: Literal["HF", "MP2", "CCSD"] = "HF",
+        trust_region: bool = False,
     ) -> None:
         """BE optimization function
 
@@ -323,8 +325,12 @@ class BE(Mixin_k_Localize):
         ompnum : int
             If nproc > 1, ompnum sets the number of cores for OpenMP parallelization.
             Defaults to 4
-        J0 : list of list of float
-            Initial Jacobian.
+        jac_solver :
+            Method to form Jacobian used in optimization routine, by default HF.
+            Options include HF, MP2, CCSD
+        trust_region :
+            Use trust-region based QN optimization, by default False
+
         """
         # Check if only chemical potential optimization is required
         if not only_chem:
@@ -358,13 +364,13 @@ class BE(Mixin_k_Localize):
             # Prepare the initial Jacobian matrix
             if only_chem:
                 J0 = array([[0.0]])
-                J0 = self.get_be_error_jacobian(jac_solver="HF")
+                J0 = self.get_be_error_jacobian(jac_solver=jac_solver)
                 J0 = J0[-1:, -1:]
             else:
-                J0 = self.get_be_error_jacobian(jac_solver="HF")
+                J0 = self.get_be_error_jacobian(jac_solver=jac_solver)
 
             # Perform the optimization
-            be_.optimize(method, J0=J0)
+            be_.optimize(method, J0=J0, trust_region=trust_region)
             self.ebe_tot = self.ebe_hf + be_.Ebe[0]
             # Print the energy components
             if use_cumulant:
