@@ -34,7 +34,9 @@ from chemcoord.constants import elements
 from networkx.algorithms.shortest_paths.generic import shortest_path_length
 from networkx.classes.graph import Graph
 from ordered_set import OrderedSet
-from pyscf.gto import Mole
+from pyscf.gto import Mole, is_au
+from pyscf.lib import param
+from pyscf.pbc.gto import Cell
 from typing_extensions import Self, assert_never
 
 from quemb.molbe.autofrag import FragPart
@@ -336,6 +338,98 @@ class BondConnectivity:
             treat_H_different=treat_H_different,
         )
 
+    @classmethod
+    def from_cell(
+        cls,
+        cell: Cell,
+        *,
+        bonds_atoms: Mapping[int, set[int]] | None = None,
+        vdW_radius: InVdWRadius | None = None,
+        treat_H_different: bool = True,
+    ) -> Self:
+        """Create a :class:`BondConnectivity` from a :class:`pyscf.pbc.gto.Cell`.
+
+        Parameters
+        ----------
+        cell :
+            The :class:`pyscf.pbc.gto.Mole` to extract the connectivity data from.
+        bonds_atoms : Mapping[int, OrderedSet[int]]
+            Can be used to specify the connectivity graph of the molecule.
+            Has exactly the same format as the output of
+            :meth:`chemcoord.Cartesian.get_bonds`,
+            which is called internally if this argument is not specified.
+            Allows it to manually change the connectivity by modifying the output of
+            :meth:`chemcoord.Cartesian.get_bonds`.
+            The keyword is mutually exclusive with :python:`vdW_radius`.
+        vdW_radius :
+            If :python:`bonds_atoms` is :class:`None`, then the connectivity graph is
+            determined by the van der Waals radius of the atoms.
+            It is possible to pass:
+
+            * a single number which is used as radius for all atoms,
+            * a callable which is applied to all radii
+              and can be used to e.g. scale via :python:`lambda r: r * 1.1`,
+            * a dictionary which maps the element symbol to the van der Waals radius,
+              to change the radius of individual elements, e.g. :python:`{"C": 1.5}`.
+
+            The keyword is mutually exclusive with :python:`bonds_atoms`.
+        treat_H_different :
+            If True, we treat hydrogen atoms differently from heavy atoms.
+        """
+        # If bonds_atoms was given, use the information.
+        # Otherwise, use chemcoord to get the connectivity graph.
+        if bonds_atoms is None:
+            # Add periodic copies to a fake mol object
+            # [a1, a2, a3] = ([0,0,0], [0,0,1], [0,1,0], [0,1,1],
+            #                 [1,0,0], [1,0,1], [1,1,0], [1,1,1])
+            # Eight copies of the original cell to account for periodicity
+            mol = Mole()
+            mol.unit = "Bohr"
+            lattice_vectors = cell.a if is_au(cell.unit) else cell.a * param.BOHR
+            offsets = np.array(
+                [
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                    ],
+                    lattice_vectors[0],
+                    lattice_vectors[1],
+                    lattice_vectors[2],
+                    lattice_vectors[0] + lattice_vectors[1],
+                    lattice_vectors[0] + lattice_vectors[2],
+                    lattice_vectors[1] + lattice_vectors[2],
+                    lattice_vectors[0] + lattice_vectors[1] + lattice_vectors[2],
+                ]
+            )
+            mol.atom = [
+                (symbol, (coord + offset).tolist())
+                for symbol, coord in cell._atom
+                for offset in offsets
+            ]
+            mol.basis = cell.basis
+            mol.build()
+            # Reuse molecular code with periodic copies
+            connectivity = cls.from_cartesian(
+                Cartesian.from_pyscf(mol),
+                bonds_atoms=bonds_atoms,
+                vdW_radius=vdW_radius,
+                treat_H_different=treat_H_different,
+            )
+            # Choose unique pairs
+            bonds_atoms = {
+                idx: OrderedSet(
+                    [bonded % cell.natm for bonded in connectivity.bonds_atoms[idx]]
+                )
+                for idx in range(cell.natm)
+            }
+        return cls.from_cartesian(
+            Cartesian.from_pyscf(cell.to_mol()),
+            bonds_atoms=bonds_atoms,  # always set (from input or molecular code)
+            vdW_radius=None,
+            treat_H_different=treat_H_different,
+        )
+
     def get_BE_fragment(self, i_center: MotifIdx, n_BE: int) -> OrderedSet[MotifIdx]:
         """Return the BE fragment around atom :code:`i_center`.
 
@@ -592,7 +686,7 @@ class PurelyStructureFragmented:
     @classmethod
     def from_mole(
         cls,
-        mol: Mole,
+        mol: Mole | Cell,
         n_BE: int,
         *,
         treat_H_different: bool = True,
@@ -616,16 +710,28 @@ class PurelyStructureFragmented:
             Will call :meth:`get_autocratically_matched` upon construction.
             Look there for more details.
         """
-        fragments = cls.from_conn_data(
-            mol,
-            BondConnectivity.from_mole(
+        if type(mol) is Mole:
+            fragments = cls.from_conn_data(
                 mol,
-                treat_H_different=treat_H_different,
-                bonds_atoms=bonds_atoms,
-                vdW_radius=vdW_radius,
-            ),
-            n_BE,
-        )
+                BondConnectivity.from_mole(
+                    mol,
+                    treat_H_different=treat_H_different,
+                    bonds_atoms=bonds_atoms,
+                    vdW_radius=vdW_radius,
+                ),
+                n_BE,
+            )
+        elif type(mol) is Cell:
+            fragments = cls.from_conn_data(
+                mol.to_mol(),
+                BondConnectivity.from_cell(
+                    mol,
+                    treat_H_different=treat_H_different,
+                    bonds_atoms=bonds_atoms,
+                    vdW_radius=vdW_radius,
+                ),
+                n_BE,
+            )
         if autocratic_matching:
             return fragments.get_autocratically_matched()
         return fragments
@@ -1045,7 +1151,7 @@ class Fragmented:
     @classmethod
     def from_mole(
         cls,
-        mol: Mole,
+        mol: Mole | Cell,
         n_BE: int,
         *,
         frozen_core: bool = False,
@@ -1055,12 +1161,14 @@ class Fragmented:
         iao_valence_basis: str | None = None,
         autocratic_matching: bool = True,
     ) -> Self:
-        """Construct a :class:`Fragmented` from :class:`pyscf.gto.mole.Mole`.
+        """Construct a :class:`Fragmented` from :class:`pyscf.gto.mole.Mole`
+         or :class:`pyscf.pbc.gto.cell.Cell`.
 
         Parameters
         ----------
         mol :
-            The :class:`pyscf.gto.mole.Mole` to extract the connectivity data from.
+            The :class:`pyscf.gto.mole.Mole` or :class:`pyscf.pbc.gto.cell.Cell`
+            to extract the connectivity data from.
         n_BE :
             The BE fragmentation level.
         treat_H_different :
@@ -1380,7 +1488,7 @@ class ChemGenArgs:
 
 
 def chemgen(
-    mol: Mole,
+    mol: Mole | Cell,
     n_BE: int,
     args: ChemGenArgs | None,
     frozen_core: bool,
@@ -1391,7 +1499,7 @@ def chemgen(
     Parameters
     ----------
     mol :
-        Molecule to be fragmented.
+        Molecule or Cell to be fragmented.
     n_BE :
         BE fragmentation level.
     args :
