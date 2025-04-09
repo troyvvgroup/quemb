@@ -287,7 +287,6 @@ class BE(Mixin_k_Localize):
         use_cumulant: bool = True,
         conv_tol: float = 1.0e-6,
         relax_density: bool = False,
-        J0: Matrix[floating] | None = None,
         nproc: int = 1,
         ompnum: int = 4,
         max_iter: int = 500,
@@ -325,8 +324,12 @@ class BE(Mixin_k_Localize):
         ompnum : int
             If nproc > 1, ompnum sets the number of cores for OpenMP parallelization.
             Defaults to 4
-        J0 : list of list of float
-            Initial Jacobian.
+        jac_solver :
+            Method to form Jacobian used in optimization routine, by default HF.
+            Options include HF, MP2, CCSD
+        trust_region :
+            Use trust-region based QN optimization, by default False
+
         """
         # Check if only chemical potential optimization is required
         if not only_chem:
