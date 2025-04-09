@@ -40,6 +40,9 @@ class Test_kBE_Full(unittest.TestCase):
         self.periodic_test(
             cell, kpt, 1, "C2 (kBE1)", "autogen", -102.16547952, only_chem=True
         )
+        self.periodic_test(
+            cell, kpt, "be1", "C2 (kBE1)", "chemgen", -102.16547952, only_chem=True
+        )
 
     @unittest.skipIf(
         os.getenv("QUEMB_SKIP_EXPENSIVE_TESTS") == "true",

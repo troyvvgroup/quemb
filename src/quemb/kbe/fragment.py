@@ -1,10 +1,13 @@
 # Author(s): Oinam Romesh Meitei
 
 
+from warnings import warn
+
 from attrs import define, field
 from pyscf.pbc.gto.cell import Cell
 
 from quemb.kbe.autofrag import autogen
+from quemb.molbe.chemfrag import ChemGenArgs, chemgen
 from quemb.molbe.helper import get_core
 
 
@@ -74,6 +77,7 @@ def fragmentate(
     frozen_core=False,
     self_match=False,
     allcen=True,
+    print_frags=True,
 ):
     """Fragment/partitioning definition
 
@@ -145,6 +149,7 @@ def fragmentate(
             gamma_2d=gamma_2d,
             gamma_1d=gamma_1d,
             interlayer=interlayer,
+            print_frags=print_frags,
         )
 
         return FragPart(
@@ -166,6 +171,41 @@ def fragmentate(
             iao_valence_basis=iao_valence_basis,
             kpt=kpt,
         )
-
+    elif frag_type == "chemgen":
+        if kpt is None:
+            raise ValueError("Provide kpt mesh in fragmentate() and restart!")
+        if be_type != "be1":
+            raise ValueError("Only be_type='be1' is supported for periodic chemgen!")
+        else:
+            warn("Periodic BE1 with chemgen is a temporary solution.")
+        fragments = chemgen(
+            mol.to_mol(),
+            n_BE=int(be_type[2:]),
+            frozen_core=frozen_core,
+            args=ChemGenArgs(),
+            iao_valence_basis=iao_valence_basis,
+        )
+        molecular_FragPart = fragments.get_FragPart()
+        if print_frags:
+            print(fragments.frag_structure.get_string())
+        return FragPart(
+            unitcell=unitcell,
+            mol=mol,
+            frag_type=frag_type,
+            fsites=molecular_FragPart.fsites,
+            edge_sites=molecular_FragPart.edge_sites,
+            center=molecular_FragPart.center,
+            ebe_weight=molecular_FragPart.ebe_weight,
+            edge_idx=molecular_FragPart.edge_idx,
+            center_idx=molecular_FragPart.center_idx,
+            centerf_idx=molecular_FragPart.centerf_idx,
+            be_type=molecular_FragPart.be_type,
+            natom=natom,
+            frozen_core=frozen_core,
+            iao_valence_basis=iao_valence_basis,
+            kpt=kpt,
+            self_match=self_match,
+            allcen=allcen,
+        )
     else:
         raise ValueError(f"Fragmentation type = {frag_type} not implemented!")
