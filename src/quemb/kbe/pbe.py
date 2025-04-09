@@ -3,6 +3,7 @@
 import os
 import pickle
 from multiprocessing import Pool
+from typing import Literal
 from warnings import warn
 
 import h5py
@@ -290,7 +291,7 @@ class BE(Mixin_k_Localize):
         nproc: int = 1,
         ompnum: int = 4,
         max_iter: int = 500,
-        jac_solver: str = "HF",
+        jac_solver: Literal["HF", "MP2", "CCSD"] = "HF",
         trust_region: bool = False,
     ) -> None:
         """BE optimization function
