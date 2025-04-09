@@ -123,7 +123,7 @@ class Frags:
         self.eri_file = eri_file
         self.unitcell_nkpt = 1.0
 
-    def sd(self, lao, lmo, nocc, norb=None, return_orb_count=False):
+    def sd(self, lao, lmo, nocc, thr_bath, norb=None, return_orb_count=False):
         """
         Perform Schmidt decomposition for the fragment.
 
@@ -135,6 +135,8 @@ class Frags:
             Local molecular orbital coefficients.
         nocc : int
             Number of occupied orbitals.
+        thr_bath : float,
+            Threshold for bath orbitals in Schmidt decomposition
         norb : int, optional
             Specify number of bath orbitals.
             Used for UBE, where different number of alpha and beta orbitals
@@ -149,11 +151,12 @@ class Frags:
                 lmo,
                 nocc,
                 self.AO_per_frag,
+                thr_bath=thr_bath,
                 norb=norb,
                 return_orb_count=return_orb_count,
             )
         else:
-            TA = schmidt_decomposition(lmo, nocc, self.AO_per_frag)
+            TA = schmidt_decomposition(lmo, nocc, self.AO_per_frag, thr_bath=thr_bath)
         self.C_lo_eo = TA
         TA = lao @ TA
         self.nao = TA.shape[1]
@@ -398,7 +401,14 @@ class Frags:
 
 
 def schmidt_decomposition(
-    mo_coeff, nocc, Frag_sites, cinv=None, rdm=None, norb=None, return_orb_count=False
+    mo_coeff,
+    nocc,
+    Frag_sites,
+    thr_bath=1.0e-10,
+    cinv=None,
+    rdm=None,
+    norb=None,
+    return_orb_count=False,
 ):
     """
     Perform Schmidt decomposition on the molecular orbital coefficients.
@@ -415,6 +425,8 @@ def schmidt_decomposition(
         Number of occupied orbitals.
     Frag_sites : list of int
         List of fragment sites (indices).
+    thr_bath : float,
+        Threshold for bath orbitals in Schmidt decomposition
     cinv : numpy.ndarray, optional
         Inverse of the transformation matrix. Defaults to None.
     rdm : numpy.ndarray, optional
@@ -436,8 +448,6 @@ def schmidt_decomposition(
         returns TA (above), number of orbitals in the fragment space, and number of
         orbitals in bath space
     """
-    # Threshold for eigenvalue significance
-    thres = 1.0e-10
 
     # Compute the reduced density matrix (RDM) if not provided
     if mo_coeff is not None:
@@ -472,13 +482,13 @@ def schmidt_decomposition(
         n_frag_ind = len(Frag_sites1)
         n_bath_ind = norb - n_frag_ind
         ind_sort = argsort(np.abs(Eval))
-        first_el = [x for x in ind_sort if x < 1.0 - thres][-1 * n_bath_ind]
+        first_el = [x for x in ind_sort if x < 1.0 - thr_bath][-1 * n_bath_ind]
         for i in range(len(Eval)):
             if np.abs(Eval[i]) >= first_el:
                 Bidx.append(i)
     else:
         for i in range(len(Eval)):
-            if thres < np.abs(Eval[i]) < 1.0 - thres:
+            if thr_bath < np.abs(Eval[i]) < 1.0 - thr_bath:
                 Bidx.append(i)
 
     # Initialize the transformation matrix (TA)

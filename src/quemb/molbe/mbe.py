@@ -79,6 +79,7 @@ class BE(MixinLocalize):
         restart_file: PathLike = "storebe.pk",
         nproc: int = 1,
         ompnum: int = 4,
+        thr_bath: float = 1.0e-10,
         scratch_dir: WorkDir | None = None,
         integral_direct_DF: bool = False,
         auxbasis: str | None = None,
@@ -112,6 +113,8 @@ class BE(MixinLocalize):
             threaded parallel computation is invoked.
         ompnum :
             Number of OpenMP threads, by default 4.
+        thr_bath : float,
+            Threshold for bath orbitals in Schmidt decomposition
         scratch_dir :
             Scratch directory.
         integral_direct_DF:
@@ -148,6 +151,7 @@ class BE(MixinLocalize):
         self.ompnum = ompnum
         self.integral_direct_DF = integral_direct_DF
         self.auxbasis = auxbasis
+        self.thr_bath = thr_bath
 
         # Fragment information from fobj
         self.fobj = fobj
@@ -815,7 +819,7 @@ class BE(MixinLocalize):
                         I
                     ],
                 )
-            fobjs_.sd(self.W, self.lmo_coeff, self.Nocc)
+            fobjs_.sd(self.W, self.lmo_coeff, self.Nocc, thr_bath=self.thr_bath)
 
             self.Fobjs.append(fobjs_)
 

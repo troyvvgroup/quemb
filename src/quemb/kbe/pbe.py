@@ -65,6 +65,7 @@ class BE(Mixin_k_Localize):
         kpts: list[list[float]] | None = None,
         cderi: PathLike | None = None,
         iao_wannier: bool = False,
+        thr_bath: float = 1.0e-10,
         scratch_dir: WorkDir | None = None,
     ) -> None:
         """
@@ -95,6 +96,8 @@ class BE(Mixin_k_Localize):
             multi-threaded parallel computation is invoked.
         ompnum :
             Number of OpenMP threads, by default 4.
+        thr_bath : float,
+            Threshold for bath orbitals in Schmidt decomposition
         scratch_dir :
             Scratch directory.
         """
@@ -120,6 +123,7 @@ class BE(Mixin_k_Localize):
 
         self.nproc = nproc
         self.ompnum = ompnum
+        self.thr_bath = thr_bath
 
         # Fragment information from fobj
         self.fobj = fobj
@@ -517,6 +521,7 @@ class BE(Mixin_k_Localize):
                 frag_type=self.fobj.frag_type,
                 kpts=self.kpts,
                 h1=self.hcore,
+                thr_bath=self.thr_bath,
             )
 
             fobjs_.cons_h1(self.hcore)
