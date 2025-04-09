@@ -174,13 +174,15 @@ def fragmentate(
     elif frag_type == "chemgen":
         if kpt is None:
             raise ValueError("Provide kpt mesh in fragmentate() and restart!")
-        if be_type != "be1":
-            raise ValueError("Only be_type='be1' is supported for periodic chemgen!")
+        if n_BE != 1:
+            raise ValueError(
+                "Only be_type=='be1' is currently supported for periodic chemgen!"
+            )
         else:
             warn("Periodic BE1 with chemgen is a temporary solution.")
         fragments = chemgen(
             mol.to_mol(),
-            n_BE=int(be_type[2:]),
+            n_BE=n_BE,
             frozen_core=frozen_core,
             args=ChemGenArgs(),
             iao_valence_basis=iao_valence_basis,
@@ -199,7 +201,7 @@ def fragmentate(
             edge_idx=molecular_FragPart.edge_idx,
             center_idx=molecular_FragPart.center_idx,
             centerf_idx=molecular_FragPart.centerf_idx,
-            be_type=molecular_FragPart.be_type,
+            n_BE=molecular_FragPart.n_BE,
             natom=natom,
             frozen_core=frozen_core,
             iao_valence_basis=iao_valence_basis,
