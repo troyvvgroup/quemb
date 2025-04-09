@@ -1,6 +1,7 @@
 # Author(s): Oinam Romesh Meitei
 
 import pickle
+from typing import Literal
 from warnings import warn
 
 import h5py
@@ -634,7 +635,7 @@ class BE(MixinLocalize):
         use_cumulant: bool = True,
         conv_tol: float = 1.0e-6,
         relax_density: bool = False,
-        jac_solver: str = "HF",
+        jac_solver: Literal["HF", "MP2", "CCSD"] = "HF",
         nproc: int = 1,
         ompnum: int = 4,
         max_iter: int = 500,
