@@ -45,7 +45,7 @@ class FragPart:
     #: i.e. the list of indices.
     #: This is a list whose entries are sequences containing the relative orbital index
     #  of the center sites within a fragment. Relative is to the own fragment.
-    rel_AO_per_center_per_frag: ListOverFrag[tuple[float, list[OwnRelAOIdx]]]
+    scale_rel_AO_per_center_per_frag: ListOverFrag[tuple[float, list[OwnRelAOIdx]]]
 
     #: The relative orbital indices, including hydrogens, per edge per fragment.
     #: The index is relative to the own fragment.
@@ -170,7 +170,7 @@ def fragmentate(
             rel_AO_per_edge_per_frag,
             other_rel_AO_per_edge_per_frag,
             centerf_idx,
-            rel_AO_per_center_per_frag,
+            scale_rel_AO_per_center_per_frag,
         ) = autogen(
             mol,
             kpt,
@@ -197,7 +197,7 @@ def fragmentate(
             AO_per_frag=AO_per_frag,
             AO_per_edge_per_frag=AO_per_edge_per_frag,
             ref_frag_idx_per_edge=ref_frag_idx_per_edge,
-            rel_AO_per_center_per_frag=rel_AO_per_center_per_frag,
+            scale_rel_AO_per_center_per_frag=scale_rel_AO_per_center_per_frag,
             rel_AO_per_edge_per_frag=rel_AO_per_edge_per_frag,
             other_rel_AO_per_edge_per_frag=other_rel_AO_per_edge_per_frag,
             centerf_idx=centerf_idx,
@@ -232,12 +232,12 @@ def fragmentate(
             unitcell=unitcell,
             mol=mol,
             frag_type=frag_type,
-            fsites=molecular_FragPart.fsites,
-            edge_sites=molecular_FragPart.edge_sites,
-            center=molecular_FragPart.center,
-            ebe_weight=molecular_FragPart.ebe_weight,
-            edge_idx=molecular_FragPart.edge_idx,
-            center_idx=molecular_FragPart.center_idx,
+            AO_per_frag=molecular_FragPart.AO_per_frag,
+            AO_per_edge_per_frag=molecular_FragPart.AO_per_edge_per_frag,
+            ref_frag_idx_per_edge=molecular_FragPart.ref_frag_idx_per_edge,
+            scale_rel_AO_per_center_per_frag=molecular_FragPart.scale_rel_AO_per_center_per_frag,
+            rel_AO_per_edge_per_frag=molecular_FragPart.rel_AO_per_edge_per_frag,
+            other_rel_AO_per_edge_per_frag=molecular_FragPart.other_rel_AO_per_edge_per_frag,
             centerf_idx=molecular_FragPart.centerf_idx,
             n_BE=molecular_FragPart.n_BE,
             natom=natom,

@@ -896,7 +896,7 @@ class Fragmented:
     #: This variable is a subset of :attr:`rel_AO_per_motif_per_frag`,
     #: in the sense that the motif indices, the keys in the Mapping,
     #: are restricted to the centers of the fragment.
-    rel_AO_per_center_per_frag: Final[
+    scale_rel_AO_per_center_per_frag: Final[
         Sequence[Mapping[CenterIdx, Mapping[AtomIdx, OrderedSet[OwnRelAOIdx]]]]
     ]
 
@@ -988,7 +988,7 @@ class Fragmented:
             rel_AO_per_motif_per_frag, frag_structure.edges_per_frag
         )
 
-        rel_AO_per_center_per_frag: Final = _restrict(
+        scale_rel_AO_per_center_per_frag: Final = _restrict(
             rel_AO_per_motif_per_frag, frag_structure.centers_per_frag
         )
 
@@ -1032,7 +1032,7 @@ class Fragmented:
             AO_per_edge_per_frag=AO_per_edge_per_frag,
             rel_AO_per_motif_per_frag=rel_AO_per_motif_per_frag,
             rel_AO_per_edge_per_frag=rel_AO_per_edge_per_frag,
-            rel_AO_per_center_per_frag=rel_AO_per_center_per_frag,
+            scale_rel_AO_per_center_per_frag=scale_rel_AO_per_center_per_frag,
             rel_AO_per_origin_per_frag=rel_AO_per_origin_per_frag,
             other_rel_AO_per_edge_per_frag=other_rel_AO_per_edge_per_frag,
             frozen_core=frozen_core,
@@ -1122,11 +1122,11 @@ class Fragmented:
             union_of_seqs(*idx_per_origin)
             for idx_per_origin in _extract_values(self.rel_AO_per_origin_per_frag)
         ]
-        # A similar issue occurs for rel_AO_per_center_per_frag, where the output
+        # A similar issue occurs for scale_rel_AO_per_center_per_frag, where the output
         # of autogen is a union over all centers.
-        rel_AO_per_center_per_frag = [
+        scale_rel_AO_per_center_per_frag = [
             (1.0, list(union_of_seqs(*idx_per_center)))
-            for idx_per_center in _extract_values(self.rel_AO_per_center_per_frag)
+            for idx_per_center in _extract_values(self.scale_rel_AO_per_center_per_frag)
         ]
         # Again, we have to account for the fact that
         # autogen assumes a single origin per fragment.
@@ -1148,7 +1148,7 @@ class Fragmented:
                 self.other_rel_AO_per_edge_per_frag
             ),
             centerf_idx=[list(seq) for seq in centerf_idx],
-            scale_rel_AO_per_center_per_frag=rel_AO_per_center_per_frag,
+            scale_rel_AO_per_center_per_frag=scale_rel_AO_per_center_per_frag,
             motifs_per_frag=[
                 list(motifs) for motifs in self.frag_structure.motifs_per_frag
             ],

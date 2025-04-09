@@ -74,7 +74,7 @@ class Frags:
             in :python:`center` that points to the edge site AOs,
             by default :python:`None`
             Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
-        rel_AO_per_center_per_frag : list, optional
+        scale_rel_AO_per_center_per_frag : list, optional
             weight used for energy contributions, by default None
         eri_file : str, optional
             two-electron integrals stored as h5py file, by default 'eri_file.h5'

@@ -1847,7 +1847,7 @@ def get_expected():
                 },
             ],
             rel_AO_per_edge_per_frag=[{}, {}, {}, {}, {}, {}, {}, {}],
-            rel_AO_per_center_per_frag=[
+            scale_rel_AO_per_center_per_frag=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3]),
@@ -2321,7 +2321,7 @@ def get_expected():
                 },
             ],
             rel_AO_per_edge_per_frag=[{}, {}, {}, {}, {}, {}, {}, {}],
-            rel_AO_per_center_per_frag=[
+            scale_rel_AO_per_center_per_frag=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4]),
@@ -3014,7 +3014,7 @@ def get_expected():
                     }
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            scale_rel_AO_per_center_per_frag=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3]),
@@ -3844,7 +3844,7 @@ def get_expected():
                     }
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            scale_rel_AO_per_center_per_frag=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4]),
@@ -4670,7 +4670,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            scale_rel_AO_per_center_per_frag=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3]),
@@ -5504,7 +5504,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            scale_rel_AO_per_center_per_frag=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4]),
@@ -6197,7 +6197,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            scale_rel_AO_per_center_per_frag=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3]),
@@ -6852,7 +6852,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            scale_rel_AO_per_center_per_frag=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4]),
@@ -7579,7 +7579,7 @@ def get_expected():
                 },
             ],
             rel_AO_per_edge_per_frag=[{}, {}, {}, {}, {}, {}, {}, {}],
-            rel_AO_per_center_per_frag=[
+            scale_rel_AO_per_center_per_frag=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -8406,7 +8406,7 @@ def get_expected():
                 },
             ],
             rel_AO_per_edge_per_frag=[{}, {}, {}, {}, {}, {}, {}, {}],
-            rel_AO_per_center_per_frag=[
+            scale_rel_AO_per_center_per_frag=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -9619,7 +9619,7 @@ def get_expected():
                     }
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            scale_rel_AO_per_center_per_frag=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -10984,7 +10984,7 @@ def get_expected():
                     }
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            scale_rel_AO_per_center_per_frag=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -12362,7 +12362,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            scale_rel_AO_per_center_per_frag=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -13907,7 +13907,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            scale_rel_AO_per_center_per_frag=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -15142,7 +15142,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            scale_rel_AO_per_center_per_frag=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -16446,7 +16446,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            scale_rel_AO_per_center_per_frag=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -17193,7 +17193,7 @@ def get_expected():
                 },
             ],
             rel_AO_per_edge_per_frag=[{}, {}, {}, {}, {}, {}, {}, {}],
-            rel_AO_per_center_per_frag=[
+            scale_rel_AO_per_center_per_frag=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -18020,7 +18020,7 @@ def get_expected():
                 },
             ],
             rel_AO_per_edge_per_frag=[{}, {}, {}, {}, {}, {}, {}, {}],
-            rel_AO_per_center_per_frag=[
+            scale_rel_AO_per_center_per_frag=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -19233,7 +19233,7 @@ def get_expected():
                     }
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            scale_rel_AO_per_center_per_frag=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -20598,7 +20598,7 @@ def get_expected():
                     }
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            scale_rel_AO_per_center_per_frag=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -21976,7 +21976,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            scale_rel_AO_per_center_per_frag=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -23521,7 +23521,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            scale_rel_AO_per_center_per_frag=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -24756,7 +24756,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            scale_rel_AO_per_center_per_frag=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -26060,7 +26060,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            scale_rel_AO_per_center_per_frag=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),

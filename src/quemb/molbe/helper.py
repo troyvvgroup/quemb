@@ -367,7 +367,7 @@ def get_frag_energy_u(
         Number of occupied orbitals.
     n_frag : tuple of int
         Number of fragment sites.
-    rel_AO_per_center_per_frag : tuple of list
+    scale_rel_AO_per_center_per_frag : tuple of list
         List containing energy scaling factors and indices.
     TA : tuple of numpy.ndarray
         Transformation matrix.
