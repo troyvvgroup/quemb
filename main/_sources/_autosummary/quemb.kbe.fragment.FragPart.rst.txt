@@ -21,7 +21,7 @@ quemb.kbe.fragment.FragPart
    .. autoattribute:: FragPart.edge_idx
    .. autoattribute:: FragPart.center_idx
    .. autoattribute:: FragPart.centerf_idx
-   .. autoattribute:: FragPart.be_type
+   .. autoattribute:: FragPart.n_BE
    .. autoattribute:: FragPart.natom
    .. autoattribute:: FragPart.frozen_core
    .. autoattribute:: FragPart.self_match

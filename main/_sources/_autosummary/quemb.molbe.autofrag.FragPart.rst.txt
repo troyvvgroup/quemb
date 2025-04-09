@@ -13,7 +13,7 @@ quemb.molbe.autofrag.FragPart
    
    .. autoattribute:: FragPart.mol
    .. autoattribute:: FragPart.frag_type
-   .. autoattribute:: FragPart.be_type
+   .. autoattribute:: FragPart.n_BE
    .. autoattribute:: FragPart.fsites
    .. autoattribute:: FragPart.edge_sites
    .. autoattribute:: FragPart.center
