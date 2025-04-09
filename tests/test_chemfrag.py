@@ -122,7 +122,7 @@ def test_structure_agreement_with_autogen():
         auto_frags = fragmentate(mol=mol, frag_type="autogen", n_BE=n_BE)
 
         for chem_fragment, auto_fragment in zip(
-            chem_frags.motifs_per_frag, auto_frags.Frag_atom
+            chem_frags.motifs_per_frag, auto_frags.motifs_per_frag
         ):
             # We assert that the first atom, i.e. the origin, is the same for both
             # chemfrag and autogen
