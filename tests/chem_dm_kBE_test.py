@@ -41,7 +41,7 @@ class Test_kBE_Full(unittest.TestCase):
             cell, kpt, 1, "C2 (kBE1)", "autogen", -102.16547952, only_chem=True
         )
         self.periodic_test(
-            cell, kpt, "be1", "C2 (kBE1)", "chemgen", -102.16547952, only_chem=True
+            cell, kpt, 1, "C2 (kBE1)", "chemgen", -102.16547952, only_chem=True
         )
 
     @unittest.skipIf(

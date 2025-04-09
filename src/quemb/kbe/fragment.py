@@ -239,7 +239,7 @@ def fragmentate(
             edge_idx=molecular_FragPart.edge_idx,
             center_idx=molecular_FragPart.center_idx,
             centerf_idx=molecular_FragPart.centerf_idx,
-            be_type=molecular_FragPart.be_type,
+            n_BE=molecular_FragPart.n_BE,
             natom=natom,
             frozen_core=frozen_core,
             iao_valence_basis=iao_valence_basis,
