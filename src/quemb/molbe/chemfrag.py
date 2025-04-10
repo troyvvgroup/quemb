@@ -347,12 +347,12 @@ class BondConnectivity:
         vdW_radius: InVdWRadius | None = None,
         treat_H_different: bool = True,
     ) -> Self:
-        """Create a :class:`BondConnectivity` from a :class:`pyscf.pbc.gto.Cell`.
+        """Create a :class:`BondConnectivity` from a :class:`pyscf.pbc.gto.cell.Cell`.
 
         Parameters
         ----------
         cell :
-            The :class:`pyscf.pbc.gto.Mole` to extract the connectivity data from.
+            The :class:`pyscf.pbc.gto.cell.Cell` to extract the connectivity data from.
         bonds_atoms : Mapping[int, OrderedSet[int]]
             Can be used to specify the connectivity graph of the molecule.
             Has exactly the same format as the output of
