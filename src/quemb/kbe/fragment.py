@@ -1,8 +1,6 @@
 # Author(s): Oinam Romesh Meitei
 
 
-from warnings import warn
-
 from attrs import define, field
 from pyscf.pbc.gto.cell import Cell
 
@@ -93,10 +91,8 @@ def fragmentate(
     Parameters
     ----------
     frag_type : str
-        Name of fragmentation function. 'autogen', 'hchain_simple', and 'chain' are
-        supported. Defaults to 'autogen'
-        For systems with only hydrogen, use 'chain';
-        everything else should use 'autogen'
+        Name of fragmentation function. 'autogen' and 'chemgen' are supported.
+        Defaults to 'autogen'
     n_BE: int, optional
         Specifies the order of bootstrap calculation in the atom-based fragmentation,
         i.e. BE(n).
@@ -178,18 +174,12 @@ def fragmentate(
     elif frag_type == "chemgen":
         if kpt is None:
             raise ValueError("Provide kpt mesh in fragmentate() and restart!")
-        if n_BE != 1:
-            raise ValueError(
-                "Only be_type=='be1' is currently supported for periodic chemgen!"
-            )
-        else:
-            warn("Periodic BE1 with chemgen is a temporary solution.")
         if additional_args is None:
             additional_args = ChemGenArgs()
         else:
             assert isinstance(additional_args, ChemGenArgs)
         fragments = chemgen(
-            mol.to_mol(),
+            mol,
             n_BE=n_BE,
             frozen_core=frozen_core,
             args=additional_args,
@@ -215,7 +205,7 @@ def fragmentate(
             edge_idx=mol_fragments.edge_idx,
             center_idx=mol_fragments.center_idx,
             centerf_idx=mol_fragments.centerf_idx,
-            be_type=mol_fragments.be_type,
+            n_BE=mol_fragments.n_BE,
             natom=natom,
             frozen_core=frozen_core,
             iao_valence_basis=iao_valence_basis,

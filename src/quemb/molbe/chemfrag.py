@@ -380,12 +380,12 @@ class BondConnectivity:
         # Otherwise, use chemcoord to get the connectivity graph.
         if bonds_atoms is None:
             # Add periodic copies to a fake mol object
-            # [a1, a2, a3] = ([0,0,0], [0,0,1], [0,1,0], [0,1,1],
-            #                 [1,0,0], [1,0,1], [1,1,0], [1,1,1])
             # Eight copies of the original cell to account for periodicity
             mol = Mole()
             mol.unit = "Bohr"
-            lattice_vectors = cell.a if is_au(cell.unit) else cell.a * param.BOHR
+            lattice_vectors = (
+                np.array(cell.a) if is_au(cell.unit) else np.array(cell.a) / param.BOHR
+            )
             offsets = np.array(
                 [
                     [
@@ -402,11 +402,12 @@ class BondConnectivity:
                     lattice_vectors[0] + lattice_vectors[1] + lattice_vectors[2],
                 ]
             )
-            mol.atom = [
-                (symbol, (coord + offset).tolist())
-                for symbol, coord in cell._atom
-                for offset in offsets
-            ]
+            mol.atom = []
+            for offset in offsets:
+                for element, coords in zip(
+                    cell.elements, cell.atom_coords(unit="Bohr")
+                ):
+                    mol.atom.append((element, (coords + offset).tolist()))
             mol.basis = cell.basis
             mol.build()
             # Reuse molecular code with periodic copies
@@ -417,15 +418,16 @@ class BondConnectivity:
                 treat_H_different=treat_H_different,
             )
             # Choose unique pairs
-            bonds_atoms = {
-                idx: set(
-                    [
-                        bonded % cell.natm
-                        for bonded in connectivity.bonds_atoms[AtomIdx(idx)]
-                    ]
+            bonds_atoms = {}
+            for idx, bond in connectivity.bonds_atoms.items():
+                bonds_atoms.update(
+                    {
+                        idx % cell.natm: set(
+                            [bonded % cell.natm for bonded in bond]
+                            + list(bonds_atoms.get(idx % cell.natm, set()))
+                        )
+                    }
                 )
-                for idx in range(cell.natm)
-            }
         return cls.from_cartesian(
             Cartesian.from_pyscf(cell.to_mol()),
             bonds_atoms=bonds_atoms,  # always set (from input or molecular code)

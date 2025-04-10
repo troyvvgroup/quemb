@@ -130,7 +130,6 @@ class Frags:
         lmo,
         nocc,
         thr_bath,
-        frag_type="autogen",
         cell=None,
         kpts=None,
         kmesh=None,
@@ -169,8 +168,6 @@ class Frags:
             raise ValueError(f"Imaginary density in Full SD {max_val}")
 
         Sites = [i + (nlo * 0) for i in self.fsites]
-        if not frag_type == "autogen":
-            Sites.sort()
 
         TA_R = schmidt_decomp_svd(supcell_rdm, Sites, thr_bath=thr_bath)
         teo = TA_R.shape[-1]
