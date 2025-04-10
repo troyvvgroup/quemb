@@ -1,8 +1,6 @@
 # Author(s): Oinam Romesh Meitei
 
 
-from warnings import warn
-
 from attrs import define, field
 from pyscf.pbc.gto.cell import Cell
 
@@ -78,6 +76,9 @@ def fragmentate(
     self_match=False,
     allcen=True,
     print_frags=True,
+    write_geom=False,
+    frag_prefix="f",
+    additional_args=None,
 ):
     """Fragment/partitioning definition
 
@@ -90,10 +91,8 @@ def fragmentate(
     Parameters
     ----------
     frag_type : str
-        Name of fragmentation function. 'autogen', 'hchain_simple', and 'chain' are
-        supported. Defaults to 'autogen'
-        For systems with only hydrogen, use 'chain';
-        everything else should use 'autogen'
+        Name of fragmentation function. 'autogen' and 'chemgen' are supported.
+        Defaults to 'autogen'
     n_BE: int, optional
         Specifies the order of bootstrap calculation in the atom-based fragmentation,
         i.e. BE(n).
@@ -150,6 +149,7 @@ def fragmentate(
             gamma_1d=gamma_1d,
             interlayer=interlayer,
             print_frags=print_frags,
+            write_geom=write_geom,
         )
 
         return FragPart(
@@ -174,34 +174,38 @@ def fragmentate(
     elif frag_type == "chemgen":
         if kpt is None:
             raise ValueError("Provide kpt mesh in fragmentate() and restart!")
-        if n_BE != 1:
-            raise ValueError(
-                "Only be_type=='be1' is currently supported for periodic chemgen!"
-            )
+        if additional_args is None:
+            additional_args = ChemGenArgs()
         else:
-            warn("Periodic BE1 with chemgen is a temporary solution.")
+            assert isinstance(additional_args, ChemGenArgs)
         fragments = chemgen(
-            mol.to_mol(),
+            mol,
             n_BE=n_BE,
             frozen_core=frozen_core,
-            args=ChemGenArgs(),
+            args=additional_args,
             iao_valence_basis=iao_valence_basis,
         )
-        molecular_FragPart = fragments.get_FragPart()
+        if write_geom:
+            fragments.frag_structure.write_geom(prefix=frag_prefix)
         if print_frags:
             print(fragments.frag_structure.get_string())
+        # Once periodic FragPart API is fixed,
+        # add _get_FragPart_no_iao equivalent in quemb.molbe.chemgen
+        mol_fragments = fragments.get_FragPart(
+            wrong_iao_indexing=additional_args._wrong_iao_indexing
+        )
         return FragPart(
             unitcell=unitcell,
             mol=mol,
             frag_type=frag_type,
-            fsites=molecular_FragPart.fsites,
-            edge_sites=molecular_FragPart.edge_sites,
-            center=molecular_FragPart.center,
-            ebe_weight=molecular_FragPart.ebe_weight,
-            edge_idx=molecular_FragPart.edge_idx,
-            center_idx=molecular_FragPart.center_idx,
-            centerf_idx=molecular_FragPart.centerf_idx,
-            n_BE=molecular_FragPart.n_BE,
+            fsites=mol_fragments.fsites,
+            edge_sites=mol_fragments.edge_sites,
+            center=mol_fragments.center,
+            ebe_weight=mol_fragments.ebe_weight,
+            edge_idx=mol_fragments.edge_idx,
+            center_idx=mol_fragments.center_idx,
+            centerf_idx=mol_fragments.centerf_idx,
+            n_BE=mol_fragments.n_BE,
             natom=natom,
             frozen_core=frozen_core,
             iao_valence_basis=iao_valence_basis,
