@@ -418,8 +418,11 @@ class BondConnectivity:
             )
             # Choose unique pairs
             bonds_atoms = {
-                idx: OrderedSet(
-                    [bonded % cell.natm for bonded in connectivity.bonds_atoms[idx]]
+                idx: set(
+                    [
+                        bonded % cell.natm
+                        for bonded in connectivity.bonds_atoms[AtomIdx(idx)]
+                    ]
                 )
                 for idx in range(cell.natm)
             }
@@ -945,7 +948,7 @@ class Fragmented:
     """
 
     #: The full molecule
-    mol: Final[Mole] = field(eq=cmp_using(are_equal))
+    mol: Final[Mole | Cell] = field(eq=cmp_using(are_equal))
 
     # yes, it is a bit redundant, because `conn_data` is also contained in
     # `frag_structure`, but it is very convenient to have it here
@@ -1041,7 +1044,7 @@ class Fragmented:
     @classmethod
     def from_frag_structure(
         cls,
-        mol: Mole,
+        mol: Mole | Cell,
         frag_structure: PurelyStructureFragmented,
         frozen_core: bool,
         iao_valence_basis: str | None = None,
@@ -1421,7 +1424,9 @@ class Fragmented:
             return self._get_FragPart_with_iao(wrong_iao_indexing)
 
 
-def _get_AOidx_per_atom(mol: Mole, frozen_core: bool) -> list[OrderedSet[GlobalAOIdx]]:
+def _get_AOidx_per_atom(
+    mol: Mole | Cell, frozen_core: bool
+) -> list[OrderedSet[GlobalAOIdx]]:
     """Get the range of atomic orbital indices per atom.
 
     Parameters
