@@ -188,8 +188,8 @@ class _DMRG_Args:
 class SHCI_ArgsUser(UserSolverArgs):
     hci_cutoff: Final[float] = 0.001
     hci_pt: Final[bool] = False
-    ci_coeff_cutoff: Final[float | None] = None # TODO SOLVER
-    select_cutoff: Final[float | None] = None # TODO SOLVER
+    ci_coeff_cutoff: Final[float | None] = None  # TODO SOLVER
+    select_cutoff: Final[float | None] = None  # TODO SOLVER
     return_rdm1_csv: Final[bool] = False
     return_rdm2_csv: Final[bool] = False
 
@@ -205,8 +205,8 @@ class _SHCI_Args:
 
     hci_cutoff: Final[float]
     hci_pt: Final[bool]
-    ci_coeff_cutoff: Final[float] # TODO SOLVER
-    select_cutoff: Final[float] # TODO SOLVER
+    ci_coeff_cutoff: Final[float]  # TODO SOLVER
+    select_cutoff: Final[float]  # TODO SOLVER
     return_rdm1_csv: Final[bool]
     return_rdm2_csv: Final[bool]
 
@@ -330,16 +330,12 @@ def be_func(
             _, civec = mc.kernel()
             rdm1_tmp = mc.make_rdm1(civec, mc.norb, mc.nelec)
 
-        elif solver == "HCI": # TODO
+        elif solver == "HCI":  # TODO
             # pylint: disable-next=E0611
             from pyscf import hci  # type: ignore[attr-defined]  # noqa: PLC0415
 
             assert isinstance(solver_args, SHCI_ArgsUser)
             SHCI_args = _SHCI_Args.from_user_input(solver_args)
-            print("SHCI_args", SHCI_args)
-            print("SHCI_args", SHCI_args.hci_pt)
-            print("SHCI_args", SHCI_args.hci_cutoff)
-            print("SHCI_args", SHCI_args.return_rdm1_csv)
             nmo = fobj._mf.mo_coeff.shape[1]
 
             eri = ao2mo.kernel(
@@ -364,7 +360,7 @@ def be_func(
             rdm1_tmp = rdm1a_ + rdm1b_
             rdm2s = rdm2aa + rdm2ab + rdm2ab.transpose(2, 3, 0, 1) + rdm2bb
 
-        elif solver == "SHCI": # TODO
+        elif solver == "SHCI":  # TODO
             # pylint: disable-next=E0611,E0401
             from pyscf.shciscf import (  # type: ignore[attr-defined]  # noqa: PLC0415
                 shci,
