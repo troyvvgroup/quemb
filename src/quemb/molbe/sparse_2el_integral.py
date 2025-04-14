@@ -12,6 +12,7 @@ from numba.typed import Dict, List
 from numba.types import (  # type: ignore[attr-defined]
     DictType,
     ListType,
+    UniTuple,
 )
 from pyscf import df, gto
 from pyscf.df import addons
@@ -24,7 +25,7 @@ from scipy.optimize import bisect
 from quemb.molbe.chemfrag import (
     _get_AOidx_per_atom,
 )
-from quemb.shared.helper import jitclass, njit, ravel_symmetric
+from quemb.shared.helper import jitclass, njit, ravel, ravel_symmetric
 from quemb.shared.typing import (
     AOIdx,
     AtomIdx,
@@ -155,6 +156,8 @@ def get_sparse_DF_integrals(
     screening_cutoff: Real | Callable[[Real], Real] | Mapping[str, Real] | None = None,
 ) -> tuple[SemiSparseSym3DTensor, SemiSparseSym3DTensor]:
     """Return the 3-center 2-electron integrals in a sparse format with density fitting
+
+    One can obtain :python:`g[p, q, r, s] == ints_3c2e[p, q, :] @ df_coef[r, s, :]`.
 
     Parameters
     ----------
@@ -313,6 +316,89 @@ class SemiSparseSym3DTensor:
     def idx(a: OrbitalIdx, b: OrbitalIdx) -> int:
         """Return compound index"""
         return ravel_symmetric(a, b)  # type: ignore[return-value]
+
+
+@jitclass(
+    [
+        ("_keys", int64[::1]),
+        ("unique_dense_data", float64[:, ::1]),
+        ("shape", UniTuple(int64, 3)),
+        ("exch_reachable", ListType(int64[::1])),
+    ]
+)
+class SemiSparse3DTensor:
+    r"""Special datastructure for semi-sparse and partially symmetric 3-indexed tensors.
+
+    For a tensor, :math:`T_{ijk}`, to be stored in this datastructure we assume
+
+    - 2-fold permutational symmetry for the :math:`i, j` indices,
+      i.e. :math:`T_{ijk} = T_{jik}`
+    - sparsity along the :math:`i, j` indices, i.e. :math:`T_{ijk} = 0`
+      for many :math:`i, j`
+    - dense storage along the :math:`k` index
+
+    It can be used for example to store the 3-center, 2-electron integrals
+    :math:`(\mu \nu | P)`, with AOs :math:`\mu, \nu` and auxiliary basis indices
+    :math:`P`.
+    Semi-sparsely, because it is assumed that there are many
+    exchange pairs :math:`\mu, \nu` which are zero, while the integral along
+    the auxiliary basis :math:`P` is stored densely as numpy array.
+
+    2-fold permutational symmetry for the :math:`\mu, \nu` pairs is assumed, i.e.
+
+    .. math::
+
+        (\mu \nu | P) == (\nu, \mu | P)
+
+    Note that this class is immutable which enables to store the unique, non-zero data
+    in a dense manner, which has some performance benefits.
+    """
+
+    _keys: Vector[int64]
+    unique_dense_data: Matrix[float64]
+    shape: tuple[int64, int64, int64]
+    naux: int64
+    exch_reachable: list[Vector[OrbitalIdx]]
+
+    def __init__(
+        self,
+        unique_dense_data: Matrix[float64],
+        shape: tuple[int64, int64, int64],
+        exch_reachable: list[Vector[int64]],
+    ) -> None:
+        self.shape = shape
+        self.naux = shape[-1]
+        self.exch_reachable = exch_reachable
+
+        self.unique_dense_data = unique_dense_data
+
+        self._keys = np.array(
+            [
+                self.idx(p, q)  # type: ignore[arg-type]
+                for p in range(self.shape[0])
+                for q in self.exch_reachable[p]
+            ],
+            dtype=int64,
+        )
+
+    def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[float64]:
+        look_up_idx = np.searchsorted(self._keys, self.idx(key[0], key[1]))
+        return self.unique_dense_data[look_up_idx]
+
+    # We cannot annotate the return type of this function, because of a strange bug in
+    #  sphinx-autodoc-typehints.
+    #  https://github.com/tox-dev/sphinx-autodoc-typehints/issues/532
+    def to_dense(self):  # type: ignore[no-untyped-def]
+        """Convert to dense 3D tensor"""
+        g = np.zeros(self.shape)
+        for p in range(self.shape[0]):
+            for q in self.exch_reachable[p]:
+                g[p, q] = self[p, q]  # type: ignore[index]
+        return g
+
+    def idx(self, a: OrbitalIdx, b: OrbitalIdx) -> int:
+        """Return compound index"""
+        return ravel(a, b, n_cols=self.shape[1])  # type: ignore[return-value]
 
 
 def _traverse_reachable(
