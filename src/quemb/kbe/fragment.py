@@ -187,27 +187,10 @@ def fragmentate(
             args=ChemGenArgs(),
             iao_valence_basis=iao_valence_basis,
         )
-        molecular_FragPart = fragments.get_FragPart()
+        chemgen_output = fragments.get_FragPart()
         if print_frags:
             print(fragments.frag_structure.get_string())
-        return FragPart(
-            unitcell=unitcell,
-            mol=mol,
-            frag_type=frag_type,
-            fsites=molecular_FragPart.fsites,
-            edge_sites=molecular_FragPart.edge_sites,
-            center=molecular_FragPart.center,
-            ebe_weight=molecular_FragPart.ebe_weight,
-            edge_idx=molecular_FragPart.edge_idx,
-            center_idx=molecular_FragPart.center_idx,
-            centerf_idx=molecular_FragPart.centerf_idx,
-            n_BE=molecular_FragPart.n_BE,
-            natom=natom,
-            frozen_core=frozen_core,
-            iao_valence_basis=iao_valence_basis,
-            kpt=kpt,
-            self_match=self_match,
-            allcen=allcen,
-        )
+        return FragPart(**chemgen_output)
+
     else:
         raise ValueError(f"Fragmentation type = {frag_type} not implemented!")

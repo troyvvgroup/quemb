@@ -247,7 +247,7 @@ class GraphGenUtility:
 
 def graphgen(
     mol: gto.Mole,
-    be_type: str = "BE2",
+    n_BE: str | int = "BE2",
     frozen_core: bool = True,
     remove_nonunique_frags: bool = True,
     frag_prefix: str = "f",
@@ -276,7 +276,7 @@ def graphgen(
     ----------
     mol :
         The molecule object.
-    be_type :
+    n_BE :
         The order of nearest neighbors (with respect to the center atom)
         included in a fragment. Supports all 'BEn', with 'n' in -
         [1, 2, 3, 4, 5, 6, 7, 8, 9] having been tested.
@@ -353,8 +353,10 @@ def graphgen(
     assert mol is not None
     if iao_valence_basis is not None:
         raise NotImplementedError("IAOs not yet implemented for graphgen.")
-
-    fragment_type_order = int(re.findall(r"\d+", str(be_type))[0])
+    if isinstance(n_BE, str):
+        fragment_type_order = int(re.findall(r"\d+", str(n_BE))[0])
+    else:
+        fragment_type_order = n_BE
     if cutoff == 0.0 and fragment_type_order <= 3:
         cutoff = 4.5
     elif cutoff == 0.0:
@@ -518,7 +520,7 @@ def graphgen(
             adjacency_graph=adjacency_graph,
             center_atom=center_atom,
             dnames=dnames,
-            outname=f"AdjGraph_{be_type}",
+            outname=f"AdjGraph_BE{fragment_type_order}",
         )
 
     if print_frags:
@@ -542,7 +544,7 @@ def graphgen(
     return {
         "mol": mol,
         "frag_type": "graphgen",
-        "be_type": be_type,
+        "n_BE": fragment_type_order,
         "fsites": fsites,
         "edge_sites": edge_sites,
         "center": center,

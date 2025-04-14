@@ -41,7 +41,7 @@ class FragPart:
     #: The algorithm used for fragmenting.
     frag_type: FragType
     #: The level of BE fragmentation, i.e. "be1", "be2", ...
-    be_type: str
+    n_BE: int
 
     #: This is a list over fragments  and gives the global orbital indices of all atoms
     #: in the fragment. These are ordered by the atoms in the fragment.
