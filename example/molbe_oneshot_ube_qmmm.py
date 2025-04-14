@@ -27,7 +27,7 @@ be_energy = be2puffin(
     spin=1,  # spin of QM region
     nproc=1,  # number of processors to parallize across
     ompnum=2,  # number of nodes to parallelize across
-    be_type="be2",  # BE type: this sets the fragment size.
+    n_BE=2,  # n_BE: this sets the fragment size.
     frozen_core=False,  # keep this to False for non-minimal basis: localization and
     # numerical problems for ruthenium systems in non-minimal basis
     unrestricted=True,  # specify unrestricted calculation

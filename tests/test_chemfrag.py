@@ -13,7 +13,7 @@ from quemb.molbe.chemfrag import (
     PurelyStructureFragmented,
     _cleanup_if_subset,
 )
-from quemb.molbe.fragment import fragpart
+from quemb.molbe.fragment import fragmentate
 from quemb.molbe.mbe import BE
 
 from ._expected_data_for_chemfrag import get_expected
@@ -119,7 +119,7 @@ def test_structure_agreement_with_autogen():
 
     for n_BE in range(1, 4):
         chem_frags = PurelyStructureFragmented.from_mole(mol, n_BE)
-        auto_frags = fragpart(mol=mol, frag_type="autogen", be_type=f"be{n_BE}")
+        auto_frags = fragmentate(mol=mol, frag_type="autogen", n_BE=n_BE)
 
         for chem_fragment, auto_fragment in zip(
             chem_frags.motifs_per_frag, auto_frags.Frag_atom
@@ -175,7 +175,7 @@ def test_match_autogen_output():
             iao_valence_basis=iao_valence_basis,
             n_BE=n_BE,
             frozen_core=frozen_core,
-        ).match_autogen_output(wrong_iao_indexing=wrong_iao_indexing)
+        ).get_FragPart(wrong_iao_indexing=wrong_iao_indexing)
         for n_BE in range(1, 5)
         for basis, iao_valence_basis in bases
         for frozen_core in [True, False]
@@ -230,12 +230,12 @@ def test_molecule_with_autocratic_matching():
     mf = scf.RHF(mol)
     mf.kernel()
 
-    fobj = fragpart(mol, be_type="be2", frag_type="chemgen", print_frags=False)
+    fobj = fragmentate(mol, n_BE=2, frag_type="chemgen", print_frags=False)
     mybe = BE(mf, fobj)
 
     assert np.isclose(mf.e_tot, mybe.ebe_hf)
 
-    fobj = fragpart(mol, be_type="be3", frag_type="chemgen", print_frags=False)
+    fobj = fragmentate(mol, n_BE=3, frag_type="chemgen", print_frags=False)
     mybe = BE(mf, fobj)
 
     assert np.isclose(mf.e_tot, mybe.ebe_hf)

@@ -1,21 +1,137 @@
 # Author: Oinam Romesh Meitei, Shaun Weatherly
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from copy import deepcopy
-from typing import Final, Literal
+from typing import Final, Literal, TypeAlias
+from warnings import warn
 
 import networkx as nx
 import numpy as np
-from attrs import define
+from attrs import cmp_using, define, field
 from networkx import shortest_path
 from numpy.linalg import norm
 from pyscf import gto
 from pyscf.gto import Mole
 
-from quemb.molbe.chemfrag import Fragmented, InVdWRadius
-from quemb.molbe.helper import get_core
+from quemb.molbe.helper import are_equal, get_core
 from quemb.shared.helper import unused
-from quemb.shared.typing import Vector
+from quemb.shared.typing import (
+    AtomIdx,
+    CenterIdx,
+    FragmentIdx,
+    GlobalAOIdx,
+    MotifIdx,
+    OriginIdx,
+    OtherRelAOIdx,
+    OwnRelAOIdx,
+    Vector,
+)
+
+FragType: TypeAlias = Literal["chemgen", "graphgen", "autogen"]
+
+
+ListOverFrag: TypeAlias = list
+ListOverEdge: TypeAlias = list
+ListOverMotif: TypeAlias = list
+
+
+@define
+class FragPart:
+    """Data structure to hold the result of BE fragmentations."""
+
+    #: The full molecule.
+    mol: Mole = field(eq=cmp_using(are_equal))
+    #: The algorithm used for fragmenting.
+    frag_type: FragType
+    #: The level of BE fragmentation, i.e. 1, 2, ...
+    n_BE: int
+
+    #: This is a list over fragments  and gives the global orbital indices of all atoms
+    #: in the fragment. These are ordered by the atoms in the fragment.
+    fsites: ListOverFrag[list[GlobalAOIdx]]
+
+    #: The global orbital indices, including hydrogens, per edge per fragment.
+    edge_sites: ListOverFrag[ListOverEdge[list[GlobalAOIdx]]]
+
+    # A list over fragments: list of indices of the fragments in which an edge
+    # of the fragment is actually a center:
+    # For fragments A, B: the A’th element of :python:`.center`,
+    # if the edge of A is the center of B, will be B.
+    center: ListOverFrag[ListOverEdge[FragmentIdx]]
+
+    #: The relative orbital indices, including hydrogens, per edge per fragment.
+    #: The index is relative to the own fragment.
+    edge_idx: ListOverFrag[ListOverEdge[list[OwnRelAOIdx]]]
+
+    #: The relative atomic orbital indices per edge per fragment.
+    #: **Note** for this variable relative means that the AO indices
+    #: are relative to the other fragment where the edge is a center.
+    center_idx: ListOverFrag[ListOverEdge[list[OtherRelAOIdx]]]
+
+    #: List whose entries are lists containing the relative orbital index of the
+    #: origin site within a fragment. Relative is to the own fragment.
+    #  Since the origin site is at the beginning
+    #: of the motif list for each fragment, this is always a ``list(range(0, n))``
+    centerf_idx: ListOverFrag[list[OwnRelAOIdx]]
+
+    #: The first element is a float, the second is the list
+    #: The float weight makes only sense for democratic matching and is currently 1.0
+    #: everywhere anyway. We concentrate only on the second part,
+    #: i.e. the list of indices.
+    #: This is a list whose entries are sequences containing the relative orbital index
+    #  of the center sites within a fragment. Relative is to the own fragment.
+    ebe_weight: ListOverFrag[list[float | list[OwnRelAOIdx]]]
+
+    #: The heavy atoms in each fragment, in order.
+    #: Each are labeled based on the global atom index.
+    #: It is ordered by origin, centers, edges!
+    Frag_atom: ListOverFrag[ListOverMotif[MotifIdx]]
+
+    #: The origin for each fragment.
+    #: (Note that for conventional BE there is just one origin per fragment)
+    center_atom: ListOverFrag[OriginIdx]
+
+    #: A list over atoms (not over motifs!)
+    #: For each atom it contains a list of the attached hydrogens.
+    #: This means that there are a lot of empty sets for molecular systems,
+    # because hydrogens have no attached hydrogens (usually).
+    hlist_atom: Sequence[list[AtomIdx]]
+
+    #: A list over fragments.
+    #: For each fragment a list of centers that are not the origin of that fragment.
+    add_center_atom: ListOverFrag[list[CenterIdx]]
+
+    frozen_core: bool
+    iao_valence_basis: str | None
+
+    #: If this option is set to True, all calculation will be performed in
+    #: the valence basis in the IAO partitioning.
+    #: This is an experimental feature.
+    iao_valence_only: bool
+
+    Nfrag: int = field()
+    ncore: int | None = field()
+    no_core_idx: list[int] | None = field()
+    core_list: list[int] | None = field()
+
+    @Nfrag.default
+    def _get_default_Nfrag(self) -> int:
+        return len(self.fsites)
+
+    @ncore.default
+    def _get_default_ncore(self) -> int | None:
+        return get_core(self.mol)[0] if self.frozen_core else None
+
+    @no_core_idx.default
+    def _get_default_no_core_idx(self) -> list[int] | None:
+        return get_core(self.mol)[1] if self.frozen_core else None
+
+    @core_list.default
+    def _get_default_core_list(self) -> list[int] | None:
+        return get_core(self.mol)[2] if self.frozen_core else None
+
+    def __len__(self) -> int:
+        return self.Nfrag
 
 
 @define(frozen=True, kw_only=True)
@@ -51,55 +167,55 @@ class FragmentMap:
 
     Parameters
     ----------
-    fsites:
+    fsites :
         List whose entries are sequences (tuple or list) containing
         all AO indices for a fragment.
-    fs:
+    fs :
         List whose entries are sequences of sequences, containing AO indices per atom
         per fragment.
-    edge:
+    edge_sites :
         List whose entries are sequences of sequences, containing edge AO
         indices per atom (inner tuple) per fragment (outer tuple).
-    center:
+    center :
         List whose entries are sequences of sequences, containing all fragment AO
         indices per atom (inner tuple) and per fragment (outer tuple).
-    centerf_idx:
+    centerf_idx :
         List whose entries are sequences containing the relative AO index of the
         origin site within a fragment.
         Relative is to the own fragment; since the origin site is at the beginning
         of the motif list for each fragment, this is always a Sequence
         :python:`range(0, n)`.
-    ebe_weights:
+    ebe_weight :
         Weights determining the energy contributions from each center site
         (ie, with respect to centerf_idx).
-    sites:
+    sites :
         List whose entries are sequences containing all AO indices per atom
         (excluding frozen core indices, if applicable).
-    dnames:
+    dnames :
         List of strings giving fragment data names. Useful for bookkeeping and
         for constructing fragment scratch directories.
-    fragment_atoms:
+    Frag_atom :
         List whose entries are sequences containing all atom indices for a fragment.
-    center_atoms:
+    center_atom :
         List whose entries are sequences giving the center atom indices per fragment.
-    edge_atoms:
+    edge_atoms :
         List whose entries are sequences giving the edge atom indices per fragment.
-    adjacency_mat:
+    adjacency_mat :
         The adjacency matrix for all sites (atoms) in the system.
-    adjacency_graph:
+    adjacency_graph :
         The adjacency graph corresponding to `adjacency_mat`.
     """
 
     fsites: list[Sequence[int]]
     fs: list[Sequence[Sequence[int]]]
-    edge: list[Sequence[Sequence[int]]]
+    edge_sites: list[Sequence[Sequence[int]]]
     center: list[Sequence[int]]
     centerf_idx: list[Sequence[int]]
-    ebe_weights: list[Sequence]
+    ebe_weight: list[Sequence]
     sites: list[Sequence]
     dnames: list[str]
-    fragment_atoms: list[Sequence[int]]
-    center_atoms: list[Sequence[int]]
+    Frag_atom: list[Sequence[int]]
+    center_atom: list[Sequence[int]]
     edge_atoms: list[Sequence[int]]
     adjacency_mat: np.ndarray
     adjacency_graph: nx.Graph
@@ -131,10 +247,10 @@ class FragmentMap:
                                 + list(deepcopy(self.center[bdx]))
                             )
                         )
-                        self.center_atoms[adx] = tuple(
+                        self.center_atom[adx] = tuple(
                             set(
-                                list(self.center_atoms[adx])
-                                + list(deepcopy(self.center_atoms[bdx]))
+                                list(self.center_atom[adx])
+                                + list(deepcopy(self.center_atom[bdx]))
                             )
                         )
             if subsets:
@@ -143,10 +259,32 @@ class FragmentMap:
                     del self.center[bdx]
                     del self.fsites[bdx]
                     del self.fs[bdx]
-                    del self.center_atoms[bdx]
-                    del self.fragment_atoms[bdx]
+                    del self.center_atom[bdx]
+                    del self.Frag_atom[bdx]
 
         return None
+
+    def to_FragPart(self, mol: Mole, n_BE: int, frozen_core: bool) -> FragPart:
+        MISSING = []  # type: ignore[var-annotated]
+        return FragPart(
+            mol=mol,
+            frag_type="graphgen",
+            n_BE=n_BE,
+            edge_sites=self.edge_sites,  # type: ignore[arg-type]
+            edge_idx=MISSING,
+            center_idx=MISSING,
+            centerf_idx=self.centerf_idx,  # type: ignore[arg-type]
+            fsites=self.fsites,  # type: ignore[arg-type]
+            center=self.center,  # type: ignore[arg-type]
+            ebe_weight=self.ebe_weight,  # type: ignore[arg-type]
+            Frag_atom=self.Frag_atom,  # type: ignore[arg-type]
+            center_atom=self.center_atom,  # type: ignore[arg-type]
+            hlist_atom=MISSING,
+            add_center_atom=MISSING,
+            frozen_core=frozen_core,
+            iao_valence_basis=None,
+            iao_valence_only=False,
+        )
 
 
 def euclidean_distance(
@@ -158,7 +296,7 @@ def euclidean_distance(
 
 def graphgen(
     mol: gto.Mole,
-    be_type: str = "BE2",
+    n_BE: int = 2,
     frozen_core: bool = True,
     remove_nonunique_frags: bool = True,
     frag_prefix: str = "f",
@@ -185,10 +323,10 @@ def graphgen(
     ----------
     mol :
         The molecule object.
-    be_type :
+    n_BE:
         The order of nearest neighbors (with respect to the center atom)
-        included in a fragment. Supports all 'BEn', with 'n' in -
-        [1, 2, 3, 4, 5, 6, 7, 8, 9] having been tested.
+        included in a fragment. Supports all ``n_BE``, with ``n_BE`` in
+        ``[1, 2, 3, 4, 5, 6, 7, 8, 9]`` having been tested.
     frozen_core:
         Whether to exclude core AO indices from the fragmentation process.
         True by default.
@@ -219,7 +357,6 @@ def graphgen(
     if iao_valence_basis is not None:
         raise NotImplementedError("IAOs not yet implemented for graphgen.")
 
-    fragment_type_order = int(be_type[-1])
     natm = mol.natm
 
     adx_map = {
@@ -235,14 +372,14 @@ def graphgen(
     fragment_map = FragmentMap(
         fsites=(list(tuple())),
         fs=list(tuple(tuple())),
-        edge=list(tuple(tuple())),
+        edge_sites=list(tuple(tuple())),
         center=list(tuple()),
         centerf_idx=list(tuple()),
-        ebe_weights=list(tuple()),
+        ebe_weight=list(tuple()),
         sites=list(tuple()),
         dnames=list(),
-        fragment_atoms=list(),
-        center_atoms=list(),
+        Frag_atom=list(),
+        center_atom=list(),
         edge_atoms=list(),
         adjacency_mat=np.zeros((natm, natm), np.float64),
         adjacency_graph=nx.Graph(),
@@ -286,7 +423,7 @@ def graphgen(
         # on that path gives the degree of separation of the
         # sites.
         for adx, map in adx_map.items():
-            fragment_map.center_atoms.append((adx,))
+            fragment_map.center_atom.append((adx,))
             fragment_map.center.append(deepcopy(fragment_map.sites[adx]))
             fsites_temp = deepcopy(list(fragment_map.sites[adx]))
             fatoms_temp = [adx]
@@ -313,14 +450,14 @@ def graphgen(
             # in your fragment type, BE*n*, then that site is appended to
             # the set of fragment sites for adx.
             for bdx, path in map["shortest_paths"].items():
-                if 0 < (len(path) - 1) < fragment_type_order:
+                if 0 < (len(path) - 1) < n_BE:
                     fsites_temp = fsites_temp + deepcopy(list(fragment_map.sites[bdx]))
                     fs_temp.append(deepcopy(fragment_map.sites[bdx]))
                     fatoms_temp.append(bdx)
 
             fragment_map.fsites.append(tuple(fsites_temp))
             fragment_map.fs.append(tuple(fs_temp))
-            fragment_map.fragment_atoms.append(tuple(fatoms_temp))
+            fragment_map.Frag_atom.append(tuple(fatoms_temp))
 
     elif connectivity.lower() in ["resistance_distance", "resistance"]:
         raise NotImplementedError("Work in progress...")
@@ -346,20 +483,19 @@ def graphgen(
                 for f in fs:
                     overlap = set(f).intersection(set(center))
                     if overlap:
-                        f_temp = set(fragment_map.fragment_atoms[adx])
-                        c_temp = set(fragment_map.center_atoms[bdx])
+                        f_temp = set(fragment_map.Frag_atom[adx])
+                        c_temp = set(fragment_map.center_atom[bdx])
                         edge_temp.add(tuple(overlap))
                         eatoms_temp.add(tuple(i for i in f_temp.intersection(c_temp)))
-        fragment_map.edge.append(tuple(edge_temp))
+        fragment_map.edge_sites.append(tuple(edge_temp))
         fragment_map.edge_atoms.extend(tuple(eatoms_temp))
 
     # Update relative center site indices (centerf_idx) and weights
     # for center site contributions to the energy (ebe_weights):
     for adx, center in enumerate(fragment_map.center):
         centerf_idx = tuple(fragment_map.fsites[adx].index(cdx) for cdx in center)
-        ebe_weight = (1.0, tuple(centerf_idx))
         fragment_map.centerf_idx.append(centerf_idx)
-        fragment_map.ebe_weights.append(ebe_weight)
+        fragment_map.ebe_weight.append((1.0, tuple(centerf_idx)))
 
     # Finally, set fragment data names for scratch and bookkeeping:
     for adx, _ in enumerate(fragment_map.fs):
@@ -386,14 +522,13 @@ class AutogenArgs:
 def autogen(
     mol,
     frozen_core=True,
-    be_type="be2",
+    n_BE=2,
     write_geom=False,
     iao_valence_basis=None,
     iao_valence_only=False,
     print_frags=True,
 ):
-    """
-    Automatic molecular partitioning
+    """Automatic molecular partitioning
 
     Partitions a molecule into overlapping fragments as defined in BE atom-based
     fragmentations.  It automatically detects branched chemical chains and ring systems
@@ -410,10 +545,11 @@ def autogen(
         and 'chain' as frag_type.
     frozen_core : bool, optional
         Whether to invoke frozen core approximation. Defaults to True.
-    be_type : str, optional
-        Specifies the order of bootstrap calculation in the atom-based fragmentation.
-        Supported values are 'be1', 'be2', 'be3', and 'be4'.
-        Defaults to 'be2'.
+    n_BE: int, optional
+        Specifies the order of bootstrap calculation in the atom-based fragmentation,
+        i.e. BE(n).
+        Supported values are 1, 2, 3, and 4
+        Defaults to 2.
     write_geom : bool, optional
         Whether to write a 'fragment.xyz' file which contains all the fragments in
         Cartesian coordinates. Defaults to False.
@@ -425,36 +561,13 @@ def autogen(
         the IAO partitioning. This is an experimental feature. Defaults to False.
     print_frags : bool, optional
         Whether to print out the list of resulting fragments. Defaults to True.
-
-    Returns
-    -------
-    fsites : list of list of int
-        List of fragment sites where each fragment is a list of LO indices.
-    edge_sites : list of list of list of int
-        List of edge sites for each fragment where each edge is a list of LO indices.
-    center : list of list of int
-        List of the fragment index of each edge site for all fragments.
-    edge_idx : list of list of list of int
-        List of edge indices for each fragment where each edge index is a list of
-        LO indices.
-    center_idx : list of list of list of int
-        List of center indices for each fragment where each center index is a list of
-        LO indices.
-    centerf_idx : list of list of int
-        List of center fragment indices.
-    ebe_weight : list of list
-        Weights for each fragment. Each entry contains a weight and a list of
-        LO indices.
-    Frag_atom: list of lists
-        Heavy atom indices for each fragment, per fragment
-    center_atom: list
-        Atom indices of all centers
-    hlist_atom: list of lists
-        All hydrogen atom indices for each fragment, per fragment
-    add_center_atom: list of lists
-        "additional centers" for all fragments, per fragment: contains heavy atoms
-        which are not centers in any other fragments
     """
+
+    if iao_valence_basis is not None:
+        warn(
+            'IAO indexing is not working correctly for "autogen". '
+            'It is recommended to use "chemgen" instead.'
+        )
 
     cell = mol.copy()
     if iao_valence_only:
@@ -504,13 +617,13 @@ def autogen(
         flist = []
         flist.append(idx)
 
-        if not be_type == "be1":
+        if n_BE != 1:
             for jdx in clist:
                 dist = norm(coord[idx] - coord[jdx])
                 if dist <= bond:
                     flist.append(jdx)
                     pedg.append(jdx)
-                    if be_type == "be3" or be_type == "be4":
+                    if 3 <= n_BE <= 4:
                         for kdx in clist:
                             if not kdx == jdx:
                                 dist = norm(coord[jdx] - coord[kdx])
@@ -518,7 +631,7 @@ def autogen(
                                     if kdx not in pedg:
                                         flist.append(kdx)
                                         pedg.append(kdx)
-                                    if be_type == "be4":
+                                    if n_BE == 4:
                                         for ldx, l in enumerate(coord):
                                             if (
                                                 ldx == kdx
@@ -762,7 +875,7 @@ def autogen(
             centerf_idx.append(ind__)
         indix += ls
 
-        if not be_type == "be1":
+        if n_BE != 1:
             for jdx in pedge[idx]:
                 if idx in open_frag:
                     if jdx == open_frag_cen[open_frag.index(idx)]:
@@ -823,7 +936,7 @@ def autogen(
         ebe_weight.append([1.0, tmp_])
 
     center_idx = []
-    if not be_type == "be1":
+    if n_BE != 1:
         for i in range(Nfrag):
             idx = []
             for jdx, j in enumerate(center[i]):
@@ -862,74 +975,22 @@ def autogen(
 
             center_idx.append(idx)
 
-    return (
-        fsites,
-        edge_sites,
-        center,
-        edge_idx,
-        center_idx,
-        centerf_idx,
-        ebe_weight,
-        Frag_atom,
-        center_atom,
-        hlist_atom,
-        add_center_atom,
-    )
-
-
-@define(frozen=True, kw_only=True)
-class ChemGenArgs:
-    """Additional arguments for ChemGen fragmentation.
-
-    These are passed on to
-    :func:`quemb.molbe.chemfrag.PurelyStructureFragmented.from_mole`
-    and documented there.
-    """
-
-    treat_H_different: Final[bool] = True
-    bonds_atoms: Mapping[int, set[int]] | None = None
-    vdW_radius: InVdWRadius | None = None
-    autocratic_matching: bool = True
-
-    #: This argument is not meant to be used by the user.
-    #: If it is true, then chemgen adheres to the old **wrong** indexing
-    #: of :python:`"autogen"``.
-    _wrong_iao_indexing: bool = False
-
-
-def chemgen(
-    mol: Mole,
-    n_BE: int,
-    args: ChemGenArgs | None,
-    frozen_core: bool,
-    iao_valence_basis: str | None,
-) -> Fragmented:
-    """Fragment a molecule based on chemical connectivity.
-
-    Parameters
-    ----------
-    mol :
-        Molecule to be fragmented.
-    n_BE :
-        BE fragmentation level.
-    args :
-        Additional arguments for ChemGen fragmentation.
-        These are passed on to
-        :func:`quemb.molbe.chemfrag.PurelyStructureFragmented.from_mole`
-        and documented there.
-    frozen_core :
-        Do we perform a frozen core calculation?
-    """
-    if args is None:
-        args = ChemGenArgs()
-
-    return Fragmented.from_mole(
-        mol,
+    return FragPart(
+        mol=mol,
+        frag_type="autogen",
         n_BE=n_BE,
+        fsites=fsites,
+        edge_sites=edge_sites,
+        center=center,
+        edge_idx=edge_idx,
+        center_idx=center_idx,
+        centerf_idx=centerf_idx,
+        ebe_weight=ebe_weight,
+        Frag_atom=Frag_atom,
+        center_atom=center_atom,
+        hlist_atom=hlist_atom,
+        add_center_atom=add_center_atom,
         frozen_core=frozen_core,
         iao_valence_basis=iao_valence_basis,
-        treat_H_different=args.treat_H_different,
-        bonds_atoms=args.bonds_atoms,
-        vdW_radius=args.vdW_radius,
-        autocratic_matching=args.autocratic_matching,
+        iao_valence_only=iao_valence_only,
     )

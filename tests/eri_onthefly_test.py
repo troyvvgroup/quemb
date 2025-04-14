@@ -10,7 +10,7 @@ import unittest
 
 from pyscf import gto, scf
 
-from quemb.molbe import BE, fragpart
+from quemb.molbe import BE, fragmentate
 
 
 class TestDF_ontheflyERI(unittest.TestCase):
@@ -29,7 +29,7 @@ class TestDF_ontheflyERI(unittest.TestCase):
         mf = scf.RHF(mol)
         mf.direct_scf = True
         mf.kernel()
-        fobj = fragpart(frag_type="autogen", be_type="be2", mol=mol)
+        fobj = fragmentate(frag_type="autogen", n_BE=2, mol=mol)
         mybe = BE(mf, fobj, integral_direct_DF=True)
         self.assertAlmostEqual(
             mybe.ebe_hf,

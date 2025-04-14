@@ -9,7 +9,7 @@ from pyscf import ao2mo, df, gto, qmmm, scf
 from pyscf.lib import chkfile
 from pyscf.tools import fcidump
 
-from quemb.molbe.fragment import fragpart
+from quemb.molbe.fragment import fragmentate
 
 
 def libint2pyscf(
@@ -251,7 +251,7 @@ def be2puffin(
     spin=0,
     nproc=1,
     ompnum=1,
-    be_type="be1",
+    n_BE=1,
     df_aux_basis=None,
     frozen_core=True,
     localization_method="lowdin",
@@ -470,12 +470,12 @@ def be2puffin(
 
     # Finished initial reference HF: now, fragmentation step
 
-    fobj = fragpart(
-        be_type=be_type, frag_type="autogen", mol=mol, frozen_core=frozen_core
-    )
-    time_post_fragpart = time.time()
+    fobj = fragmentate(n_BE=n_BE, frag_type="autogen", mol=mol, frozen_core=frozen_core)
+    time_post_fragmentate = time.time()
     print(
-        "Time for fragmentation to run: ", time_post_fragpart - time_post_mf, flush=True
+        "Time for fragmentation to run: ",
+        time_post_fragmentate - time_post_mf,
+        flush=True,
     )
 
     # Run embedding setup

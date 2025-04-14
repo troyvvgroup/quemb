@@ -21,7 +21,7 @@ from pyscf import ao2mo
 from pyscf.scf.uhf import UHF
 
 from quemb.molbe.be_parallel import be_func_parallel_u
-from quemb.molbe.fragment import fragpart
+from quemb.molbe.fragment import FragPart
 from quemb.molbe.mbe import BE
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import be_func_u
@@ -34,7 +34,7 @@ class UBE(BE):  # 🍠
     def __init__(
         self,
         mf: UHF,
-        fobj: fragpart,
+        fobj: FragPart,
         scratch_dir: WorkDir | None = None,
         eri_file: PathLike = "eri_file.h5",
         lo_method: PathLike = "lowdin",
@@ -51,13 +51,13 @@ class UBE(BE):  # 🍠
 
         Parameters
         ----------
-        mf : pyscf.scf.uhf.UHF
+        mf :
             pyscf meanfield UHF object
-        fobj : quemb.molbe.fragment.fragpart
+        fobj :
             object that contains fragment information
-        eri_file : str, optional
+        eri_file :
             h5py file with ERIs
-        lo_method : str, optional
+        lo_method :
             Method for orbital localization. Supports 'lowdin', 'boys', and 'wannier',
             by default "lowdin"
         pop_method :
@@ -108,10 +108,11 @@ class UBE(BE):  # 🍠
         self.uhf_full_e = mf.e_tot
 
         if self.frozen_core:
+            assert not (
+                fobj.ncore is None or fobj.no_core_idx is None or fobj.core_list is None
+            )
             self.ncore = fobj.ncore
-
             self.no_core_idx = fobj.no_core_idx
-
             self.core_list = fobj.core_list
 
             self.Nocc[0] -= self.ncore

@@ -36,6 +36,7 @@ from ordered_set import OrderedSet
 from pyscf.gto import Mole
 from typing_extensions import Self
 
+from quemb.molbe.autofrag import FragPart
 from quemb.molbe.helper import are_equal, get_core
 from quemb.shared.helper import unused
 from quemb.shared.typing import (
@@ -815,30 +816,6 @@ class PurelyStructureFragmented:
         return len(self.conn_data.motifs) != sum(len(x) for x in self.centers_per_frag)
 
 
-ListOverFrag: TypeAlias = list
-ListOverEdge: TypeAlias = list
-ListOverMotif: TypeAlias = list
-
-
-@define(frozen=True, kw_only=True)
-class AutogenOutput:
-    """Data structure to match explicitly the output of autogen."""
-
-    fsites: Final[ListOverFrag[list[GlobalAOIdx]]]
-    edge_sites: Final[ListOverFrag[ListOverEdge[list[GlobalAOIdx]]]]
-    center: Final[ListOverFrag[ListOverEdge[FragmentIdx]]]
-    edge_idx: Final[ListOverFrag[ListOverEdge[list[OwnRelAOIdx]]]]
-    center_idx: Final[ListOverFrag[ListOverEdge[list[OtherRelAOIdx]]]]
-    centerf_idx: Final[ListOverFrag[list[OwnRelAOIdx]]]
-    #: The first element is a float, the second is the list
-    ebe_weight: Final[ListOverFrag[list[float | list[OwnRelAOIdx]]]]
-    Frag_atom: Final[ListOverFrag[ListOverMotif[MotifIdx]]]
-    center_atom: Final[ListOverFrag[OriginIdx]]
-    hlist_atom: Final[Sequence[list[AtomIdx]]]
-    add_center_atom: Final[ListOverFrag[list[CenterIdx]]]
-    Nfrag: Final[int]
-
-
 @define(frozen=True, kw_only=True)
 class Fragmented:
     """Contains the whole BE fragmentation information, including AO indices.
@@ -1120,8 +1097,12 @@ class Fragmented:
         """The number of fragments."""
         return len(self.AO_per_frag)
 
-    def _match_autogen_output_no_iao(self) -> AutogenOutput:
-        """Match the output of :func:`quemb.molbe.autofrag.autogen`."""
+    def _get_FragPart_no_iao(self) -> FragPart:
+        """Transform into a :class:`quemb.molbe.autofrag.FragPart`
+        for further use in quemb.
+
+        Matches the output of :func:`quemb.molbe.autofrag.autogen`.
+        """
 
         # We cannot use the `extract_values(self.rel_AO_per_origin_per_frag)`
         # alone, because the structure in `self.rel_AO_per_origin_per_frag`
@@ -1148,7 +1129,10 @@ class Fragmented:
         center_atom = list(union_of_seqs(*self.frag_structure.origin_per_frag))
         assert len(center_atom) == len(self)
 
-        return AutogenOutput(
+        return FragPart(
+            mol=self.mol,
+            frag_type="chemgen",
+            n_BE=self.frag_structure.n_BE,
             fsites=[list(AO_indices) for AO_indices in self.AO_per_frag],
             edge_sites=_extract_values(self.AO_per_edge_per_frag),
             center=[list(D.values()) for D in self.frag_structure.frag_idx_per_edge],
@@ -1169,11 +1153,16 @@ class Fragmented:
                     self.frag_structure.origin_per_frag,
                 )
             ],
-            Nfrag=len(self),
+            frozen_core=self.frozen_core,
+            iao_valence_basis=None,
+            iao_valence_only=False,
         )
 
-    def _match_autogen_output_with_iao(self, wrong_iao_indexing: bool) -> AutogenOutput:
-        """Match the output of :func:`quemb.molbe.autofrag.autogen`.
+    def _get_FragPart_with_iao(self, wrong_iao_indexing: bool) -> FragPart:
+        """Transform into a :class:`quemb.molbe.autofrag.FragPart`
+        for further use in quemb.
+
+        Matches the output of :func:`quemb.molbe.autofrag.autogen`.
 
         Parameters
         ----------
@@ -1279,11 +1268,14 @@ class Fragmented:
             )
         ]
 
-        matched_output_no_iao = self._match_autogen_output_no_iao()
+        matched_output_no_iao = self._get_FragPart_no_iao()
 
         # Only edge_sites, edge_idx, center_idx, and centerf_idx are actually different
         # when doing IAOs
-        return AutogenOutput(
+        return FragPart(
+            mol=self.mol,
+            frag_type="chemgen",
+            n_BE=self.frag_structure.n_BE,
             edge_sites=edge_sites,
             edge_idx=edge_idx,
             center_idx=center_idx,
@@ -1296,17 +1288,18 @@ class Fragmented:
             hlist_atom=matched_output_no_iao.hlist_atom,
             add_center_atom=matched_output_no_iao.add_center_atom,
             Nfrag=matched_output_no_iao.Nfrag,
+            frozen_core=self.frozen_core,
+            iao_valence_basis=self.iao_valence_mol.basis,
+            iao_valence_only=False,
         )
 
-    def match_autogen_output(
-        self, wrong_iao_indexing: bool | None = None
-    ) -> AutogenOutput:
+    def get_FragPart(self, wrong_iao_indexing: bool | None = None) -> FragPart:
         """Match the output of :func:`quemb.molbe.autofrag.autogen`."""
         if self.iao_valence_mol is None:
-            return self._match_autogen_output_no_iao()
+            return self._get_FragPart_no_iao()
         else:
             assert wrong_iao_indexing is not None
-            return self._match_autogen_output_with_iao(wrong_iao_indexing)
+            return self._get_FragPart_with_iao(wrong_iao_indexing)
 
 
 def _get_AOidx_per_atom(mol: Mole, frozen_core: bool) -> list[OrderedSet[GlobalAOIdx]]:
@@ -1356,6 +1349,66 @@ def _extract_values(
 ) -> list[list[list[_T_Val]]]:
     """Extract the values of a mapping from a sequence of mappings"""
     return [[list(union_of_seqs(*v.values())) for v in D.values()] for D in nested]
+
+
+@define(frozen=True, kw_only=True)
+class ChemGenArgs:
+    """Additional arguments for ChemGen fragmentation.
+
+    These are passed on to
+    :func:`quemb.molbe.chemfrag.PurelyStructureFragmented.from_mole`
+    and documented there.
+    """
+
+    treat_H_different: Final[bool] = True
+    bonds_atoms: Mapping[int, set[int]] | None = None
+    vdW_radius: InVdWRadius | None = None
+
+    #: This argument is not meant to be used by the user.
+    #: If it is true, then chemgen adheres to the old **wrong** indexing
+    #: of :python:`"autogen"``.
+    _wrong_iao_indexing: bool = False
+
+
+def chemgen(
+    mol: Mole,
+    n_BE: int,
+    args: ChemGenArgs | None,
+    frozen_core: bool,
+    iao_valence_basis: str | None,
+) -> Fragmented:
+    """Fragment a molecule based on chemical connectivity.
+
+    Parameters
+    ----------
+    mol :
+        Molecule to be fragmented.
+    n_BE :
+        BE fragmentation level.
+    args :
+        Additional arguments for ChemGen fragmentation.
+        These are passed on to
+        :func:`quemb.molbe.chemfrag.PurelyStructureFragmented.from_mole`
+        and documented there.
+    frozen_core :
+        Do we perform a frozen core calculation?
+    iao_valuence_basis :
+        The minimal basis used for the IAO definition.
+    """
+    if args is None:
+        return Fragmented.from_mole(
+            mol, n_BE=n_BE, frozen_core=frozen_core, iao_valence_basis=iao_valence_basis
+        )
+    else:
+        return Fragmented.from_mole(
+            mol,
+            n_BE=n_BE,
+            frozen_core=frozen_core,
+            treat_H_different=args.treat_H_different,
+            bonds_atoms=args.bonds_atoms,
+            vdW_radius=args.vdW_radius,
+            iao_valence_basis=iao_valence_basis,
+        )
 
 
 _T_int = TypeVar("_T_int", bound=int)

@@ -1,6 +1,7 @@
 # Author(s): Oinam Romesh Meitei
 
 import pickle
+from typing import Literal
 from warnings import warn
 
 import h5py
@@ -11,7 +12,7 @@ from pyscf import ao2mo, scf
 
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
-from quemb.molbe.fragment import fragpart
+from quemb.molbe.fragment import FragPart
 from quemb.molbe.lo import MixinLocalize
 from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
 from quemb.molbe.opt import BEOPT
@@ -58,7 +59,7 @@ class BE(MixinLocalize):
     ----------
     mf : pyscf.scf.hf.SCF
         PySCF mean-field object.
-    fobj : quemb.molbe.fragment.fragpart
+    fobj : quemb.molbe.autofrag.FragPart
         Fragment object containing sites, centers, edges, and indices.
     eri_file : str
         Path to the file storing two-electron integrals.
@@ -69,7 +70,7 @@ class BE(MixinLocalize):
     def __init__(
         self,
         mf: scf.hf.SCF,
-        fobj: fragpart,
+        fobj: FragPart,
         eri_file: PathLike = "eri_file.h5",
         lo_method: str = "lowdin",
         iao_loc_method: str | None = "SO",
@@ -79,6 +80,7 @@ class BE(MixinLocalize):
         restart_file: PathLike = "storebe.pk",
         nproc: int = 1,
         ompnum: int = 4,
+        thr_bath: float = 1.0e-10,
         scratch_dir: WorkDir | None = None,
         integral_direct_DF: bool = False,
         auxbasis: str | None = None,
@@ -112,6 +114,8 @@ class BE(MixinLocalize):
             threaded parallel computation is invoked.
         ompnum :
             Number of OpenMP threads, by default 4.
+        thr_bath : float,
+            Threshold for bath orbitals in Schmidt decomposition
         scratch_dir :
             Scratch directory.
         integral_direct_DF:
@@ -148,6 +152,7 @@ class BE(MixinLocalize):
         self.ompnum = ompnum
         self.integral_direct_DF = integral_direct_DF
         self.auxbasis = auxbasis
+        self.thr_bath = thr_bath
 
         # Fragment information from fobj
         self.fobj = fobj
@@ -193,6 +198,9 @@ class BE(MixinLocalize):
 
         if self.frozen_core:
             # Handle frozen core orbitals
+            assert not (
+                fobj.ncore is None or fobj.no_core_idx is None or fobj.core_list is None
+            )
             self.ncore = fobj.ncore
             self.no_core_idx = fobj.no_core_idx
             self.core_list = fobj.core_list
@@ -627,7 +635,7 @@ class BE(MixinLocalize):
         use_cumulant: bool = True,
         conv_tol: float = 1.0e-6,
         relax_density: bool = False,
-        jac_solver: str = "HF",
+        jac_solver: Literal["HF", "MP2", "CCSD"] = "HF",
         nproc: int = 1,
         ompnum: int = 4,
         max_iter: int = 500,
@@ -674,7 +682,7 @@ class BE(MixinLocalize):
         # Check if only chemical potential optimization is required
         if not only_chem:
             pot = self.pot
-            if self.fobj.be_type == "be1":
+            if self.fobj.n_BE == 1:
                 raise ValueError(
                     "BE1 only works with chemical potential optimization. "
                     "Set only_chem=True"
@@ -755,7 +763,7 @@ class BE(MixinLocalize):
 
         print(flush=True)
         print("            MOLECULAR BOOTSTRAP EMBEDDING", flush=True)
-        print("            BEn = ", self.fobj.be_type, flush=True)
+        print("            BEn = ", self.fobj.n_BE, flush=True)
         print("-----------------------------------------------------------", flush=True)
         print(flush=True)
 
@@ -804,7 +812,7 @@ class BE(MixinLocalize):
                     centerf_idx=[],
                     efac=self.fobj.ebe_weight[I],
                 )
-            fobjs_.sd(self.W, self.lmo_coeff, self.Nocc)
+            fobjs_.sd(self.W, self.lmo_coeff, self.Nocc, thr_bath=self.thr_bath)
 
             self.Fobjs.append(fobjs_)
 
