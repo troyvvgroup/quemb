@@ -2,6 +2,7 @@
 
 
 from warnings import warn
+from copy import deepcopy
 
 from attrs import define, field
 from pyscf.pbc.gto.cell import Cell
@@ -191,14 +192,18 @@ def fragmentate(
             )
         else:
             warn("Periodic BE1 with chemgen is a temporary solution.")
+        _mol = deepcopy(mol)
         fragments = chemgen(
-            mol,
+            _mol.to_mol(),
             n_BE=n_BE,
             frozen_core=frozen_core,
             args=ChemGenArgs(),
             iao_valence_basis=iao_valence_basis,
         )
         chemgen_output = fragments.get_FragPart()
+        # The `mol` object returned by chemgen deletes the lattice vectors, so needs
+        # to be replaced.
+        chemgen_output["mol"] = mol
         if print_frags:
             print(fragments.frag_structure.get_string())
         return FragPart(
