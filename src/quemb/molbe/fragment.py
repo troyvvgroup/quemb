@@ -138,7 +138,7 @@ def fragmentate(
     iao_valence_basis: str | None = None,
     print_frags: bool = True,
     write_geom: bool = False,
-    be_type: str = "be2",
+    n_BE: int = 2,
     frag_prefix: str = "f",
     frozen_core: bool = False,
     additional_args: AdditionalArgs | None = None,
@@ -154,13 +154,12 @@ def fragmentate(
     frag_type :
         Name of fragmentation function. 'chemgen', 'autogen', and 'graphgen'
         are supported. Defaults to 'autogen'.
-    be_type :
-        Specifies order of bootsrap calculation in the atom-based fragmentation.
-        'be1', 'be2', 'be3', & 'be4' are supported.
-        Defaults to 'be2'
+    n_BE: int, optional
+        Specifies the order of bootstrap calculation in the atom-based fragmentation,
+        i.e. BE(n).
         For a simple linear system A-B-C-D,
-        be1 only has fragments [A], [B], [C], [D]
-        be2 has [A, B, C], [B, C, D]
+        BE(1) only has fragments [A], [B], [C], [D]
+        BE(2) has [A, B, C], [B, C, D]
         ben ...
     mol :
         This is required for the following :python:`frag_type` options:
@@ -190,7 +189,7 @@ def fragmentate(
             raise ValueError("iao_valence_basis not yet supported for 'graphgen'")
         graphgen_output = graphgen(
             mol=mol.copy(),
-            be_type=be_type,
+            n_BE=n_BE,
             frozen_core=frozen_core,
             remove_nonunique_frags=additional_args.remove_nonnunique_frags,
             frag_prefix=frag_prefix,
@@ -208,7 +207,7 @@ def fragmentate(
 
         autogen_output = autogen(
             mol,
-            be_type=be_type,
+            n_BE=n_BE,
             frozen_core=frozen_core,
             write_geom=write_geom,
             iao_valence_basis=iao_valence_basis,
@@ -224,7 +223,7 @@ def fragmentate(
             assert isinstance(additional_args, ChemGenArgs)
         fragments = chemgen(
             mol,
-            n_BE=int(be_type[2:]),
+            n_BE=n_BE,
             frozen_core=frozen_core,
             args=additional_args,
             iao_valence_basis=iao_valence_basis,

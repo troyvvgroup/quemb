@@ -3,6 +3,7 @@
 import os
 import pickle
 from multiprocessing import Pool
+from typing import Literal
 from warnings import warn
 
 import h5py
@@ -65,6 +66,7 @@ class BE(Mixin_k_Localize):
         kpts: list[list[float]] | None = None,
         cderi: PathLike | None = None,
         iao_wannier: bool = False,
+        thr_bath: float = 1.0e-10,
         scratch_dir: WorkDir | None = None,
     ) -> None:
         """
@@ -95,6 +97,8 @@ class BE(Mixin_k_Localize):
             multi-threaded parallel computation is invoked.
         ompnum :
             Number of OpenMP threads, by default 4.
+        thr_bath : float,
+            Threshold for bath orbitals in Schmidt decomposition
         scratch_dir :
             Scratch directory.
         """
@@ -120,6 +124,7 @@ class BE(Mixin_k_Localize):
 
         self.nproc = nproc
         self.ompnum = ompnum
+        self.thr_bath = thr_bath
 
         # Fragment information from fobj
         self.fobj = fobj
@@ -283,10 +288,11 @@ class BE(Mixin_k_Localize):
         use_cumulant: bool = True,
         conv_tol: float = 1.0e-6,
         relax_density: bool = False,
-        J0: Matrix[floating] | None = None,
         nproc: int = 1,
         ompnum: int = 4,
         max_iter: int = 500,
+        jac_solver: Literal["HF", "MP2", "CCSD"] = "HF",
+        trust_region: bool = False,
     ) -> None:
         """BE optimization function
 
@@ -319,13 +325,17 @@ class BE(Mixin_k_Localize):
         ompnum : int
             If nproc > 1, ompnum sets the number of cores for OpenMP parallelization.
             Defaults to 4
-        J0 : list of list of float
-            Initial Jacobian.
+        jac_solver :
+            Method to form Jacobian used in optimization routine, by default HF.
+            Options include HF, MP2, CCSD
+        trust_region :
+            Use trust-region based QN optimization, by default False
+
         """
         # Check if only chemical potential optimization is required
         if not only_chem:
             pot = self.pot
-            if self.fobj.be_type == "be1":
+            if self.fobj.n_BE == 1:
                 raise ValueError(
                     "BE1 only works with chemical potential optimization. "
                     "Set only_chem=True"
@@ -354,13 +364,13 @@ class BE(Mixin_k_Localize):
             # Prepare the initial Jacobian matrix
             if only_chem:
                 J0 = array([[0.0]])
-                J0 = self.get_be_error_jacobian(jac_solver="HF")
+                J0 = self.get_be_error_jacobian(jac_solver=jac_solver)
                 J0 = J0[-1:, -1:]
             else:
-                J0 = self.get_be_error_jacobian(jac_solver="HF")
+                J0 = self.get_be_error_jacobian(jac_solver=jac_solver)
 
             # Perform the optimization
-            be_.optimize(method, J0=J0)
+            be_.optimize(method, J0=J0, trust_region=trust_region)
             self.ebe_tot = self.ebe_hf + be_.Ebe[0]
             # Print the energy components
             if use_cumulant:
@@ -429,7 +439,7 @@ class BE(Mixin_k_Localize):
         print(flush=True)
 
         print("            PERIODIC BOOTSTRAP EMBEDDING", flush=True)
-        print("           BEn = ", self.fobj.be_type, flush=True)
+        print("           BEn = ", self.fobj.n_BE, flush=True)
         print(
             "-----------------------------------------------------------",
             flush=True,
@@ -511,6 +521,7 @@ class BE(Mixin_k_Localize):
                 frag_type=self.fobj.frag_type,
                 kpts=self.kpts,
                 h1=self.hcore,
+                thr_bath=self.thr_bath,
             )
 
             fobjs_.cons_h1(self.hcore)
