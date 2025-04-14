@@ -484,7 +484,7 @@ def autogen(
     return {
         "mol": mol,
         "frag_type": "autogen",
-        "be_type": be_type,
+        "be_type": n_BE,
         "fsites": fsites,
         "edge_sites": edge_sites,
         "center": center,
