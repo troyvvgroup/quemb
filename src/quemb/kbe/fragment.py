@@ -1,8 +1,8 @@
 # Author(s): Oinam Romesh Meitei
 
 
-from warnings import warn
 from copy import deepcopy
+from warnings import warn
 
 from attrs import define, field
 from pyscf.pbc.gto.cell import Cell
