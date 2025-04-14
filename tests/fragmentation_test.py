@@ -1212,7 +1212,9 @@ class TestBE_Fragmentation(unittest.TestCase):
 
     def test_shared_centers_autocratic_matching(self):
         mol = gto.M()
-        mol.atom = os.path.join(os.path.dirname(__file__), "xyz/short_polypropylene.xyz")
+        mol.atom = os.path.join(
+            os.path.dirname(__file__), "xyz/short_polypropylene.xyz"
+        )
         mol.basis = "sto-3g"
         mol.build()
         mf = scf.RHF(mol)
