@@ -97,16 +97,19 @@ class GraphGenUtility:
                     if adx == bdx:
                         pass
                     elif set(basb).issubset(set(basa)):
-                        subsets.add(bdx)
-                        center[adx] = tuple(
-                            set(list(center[adx]) + list(deepcopy(center[bdx])))
-                        )
-                        center_atom[adx] = tuple(
-                            set(
-                                list(center_atom[adx])
-                                + list(deepcopy(center_atom[bdx]))
+                        if bdx in subsets:
+                            pass
+                        else:
+                            subsets.add(bdx)
+                            center[adx] = tuple(
+                                set(list(center[adx]) + list(deepcopy(center[bdx])))
                             )
-                        )
+                            center_atom[adx] = tuple(
+                                set(
+                                    list(center_atom[adx])
+                                    + list(deepcopy(center_atom[bdx]))
+                                )
+                            )
             if subsets:
                 sorted_subsets = sorted(subsets, reverse=True)
                 for bdx in sorted_subsets:
