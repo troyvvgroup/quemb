@@ -35,6 +35,7 @@ from networkx.algorithms.shortest_paths.generic import shortest_path_length
 from networkx.classes.graph import Graph
 from ordered_set import OrderedSet
 from pyscf.gto import Mole
+from pyscf.pbc.gto.cell import Cell
 from typing_extensions import Self, assert_never
 
 from quemb.molbe.helper import are_equal, get_core
@@ -293,7 +294,7 @@ class BondConnectivity:
     @classmethod
     def from_mole(
         cls,
-        mol: Mole,
+        mol: Mole | Cell,
         *,
         bonds_atoms: Mapping[int, set[int]] | None = None,
         vdW_radius: InVdWRadius | None = None,
@@ -469,7 +470,7 @@ class PurelyStructureFragmented:
     """
 
     #: The full molecule
-    mol: Final[Mole] = field(eq=cmp_using(are_equal))
+    mol: Final[Mole | Cell] = field(eq=cmp_using(are_equal))
 
     #: The motifs per fragment.
     #: Note that the full set of motifs for a fragment is the union of all center motifs
@@ -517,7 +518,12 @@ class PurelyStructureFragmented:
     n_BE: Final[int]
 
     @classmethod
-    def from_conn_data(cls, mol: Mole, conn_data: BondConnectivity, n_BE: int) -> Self:
+    def from_conn_data(
+        cls,
+        mol: Mole | Cell,
+        conn_data: BondConnectivity,
+        n_BE: int,
+    ) -> Self:
         fragments = _cleanup_if_subset(
             {
                 i_center: conn_data.get_BE_fragment(i_center, n_BE)
@@ -591,7 +597,7 @@ class PurelyStructureFragmented:
     @classmethod
     def from_mole(
         cls,
-        mol: Mole,
+        mol: Mole | Cell,
         n_BE: int,
         *,
         treat_H_different: bool = True,
@@ -838,7 +844,7 @@ class Fragmented:
     """
 
     #: The full molecule
-    mol: Final[Mole] = field(eq=cmp_using(are_equal))
+    mol: Final[Mole | Cell] = field(eq=cmp_using(are_equal))
 
     # yes, it is a bit redundant, because `conn_data` is also contained in
     # `frag_structure`, but it is very convenient to have it here
@@ -924,7 +930,7 @@ class Fragmented:
     frozen_core: Final[bool]
 
     #: The molecule with the valence/minimal basis, if we use IAO.
-    iao_valence_mol: Final[Mole | None] = field(
+    iao_valence_mol: Final[Mole | Cell | None] = field(
         eq=cmp_using(
             lambda x, y: (x is None and y is None)
             or (x is not None and y is not None and are_equal(x, y))
@@ -934,7 +940,7 @@ class Fragmented:
     @classmethod
     def from_frag_structure(
         cls,
-        mol: Mole,
+        mol: Mole | Cell,
         frag_structure: PurelyStructureFragmented,
         frozen_core: bool,
         iao_valence_basis: str | None = None,
@@ -1044,7 +1050,7 @@ class Fragmented:
     @classmethod
     def from_mole(
         cls,
-        mol: Mole,
+        mol: Mole | Cell,
         n_BE: int,
         *,
         frozen_core: bool = False,
@@ -1315,7 +1321,10 @@ class Fragmented:
             return self._get_FragPart_with_iao(wrong_iao_indexing)
 
 
-def _get_AOidx_per_atom(mol: Mole, frozen_core: bool) -> list[OrderedSet[GlobalAOIdx]]:
+def _get_AOidx_per_atom(
+    mol: Mole | Cell,
+    frozen_core: bool,
+) -> list[OrderedSet[GlobalAOIdx]]:
     """Get the range of atomic orbital indices per atom.
 
     Parameters
@@ -1382,7 +1391,7 @@ class ChemGenArgs:
 
 
 def chemgen(
-    mol: Mole,
+    mol: Mole | Cell,
     n_BE: int,
     args: ChemGenArgs | None,
     frozen_core: bool,

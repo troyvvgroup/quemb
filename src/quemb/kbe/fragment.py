@@ -29,9 +29,14 @@ class FragPart:
     self_match: bool
     allcen: bool
     iao_valence_basis: str
+    iao_valence_only: bool
+    Frag_atom: list
+    center_atom: list
+    hlist_atom: list
+    add_center_atom: list
     kpt: list[int] | tuple[int, int, int]
 
-    Nfrag: int = field(init=False)
+    Nfrag: int = field()
     ncore: int | None = field(init=False)
     no_core_idx: list[int] | None = field(init=False)
     core_list: list[int] | None = field(init=False)
@@ -152,6 +157,7 @@ def fragmentate(
             print_frags=print_frags,
         )
 
+        MISSING = []  # type: ignore[var-annotated]
         return FragPart(
             unitcell=unitcell,
             mol=mol,
@@ -169,6 +175,11 @@ def fragmentate(
             self_match=self_match,
             allcen=allcen,
             iao_valence_basis=iao_valence_basis,
+            iao_valence_only=False,
+            Frag_atom=MISSING,
+            center_atom=MISSING,
+            hlist_atom=MISSING,
+            add_center_atom=MISSING,
             kpt=kpt,
         )
     elif frag_type == "chemgen":
@@ -176,12 +187,12 @@ def fragmentate(
             raise ValueError("Provide kpt mesh in fragmentate() and restart!")
         if n_BE != 1:
             raise ValueError(
-                "Only be_type=='be1' is currently supported for periodic chemgen!"
+                "Only BE1 (n_BE==1) is currently supported for periodic chemgen!"
             )
         else:
             warn("Periodic BE1 with chemgen is a temporary solution.")
         fragments = chemgen(
-            mol.to_mol(),
+            mol,
             n_BE=n_BE,
             frozen_core=frozen_core,
             args=ChemGenArgs(),
@@ -190,7 +201,14 @@ def fragmentate(
         chemgen_output = fragments.get_FragPart()
         if print_frags:
             print(fragments.frag_structure.get_string())
-        return FragPart(**chemgen_output)
+        return FragPart(
+            unitcell=unitcell,
+            natom=natom,
+            self_match=self_match,
+            allcen=allcen,
+            kpt=kpt,
+            **chemgen_output,
+        )
 
     else:
         raise ValueError(f"Fragmentation type = {frag_type} not implemented!")
