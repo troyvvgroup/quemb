@@ -307,7 +307,7 @@ def graphgen(
     -------
     dict :
         Keyword dictionary containing all fragmentation results. These are
-        later used to directly instantiate the `FragPart` object. 
+        later used to directly instantiate the `FragPart` object.
         More specifically:
 
         fsites :
