@@ -37,7 +37,6 @@ from ordered_set import OrderedSet
 from pyscf.gto import Mole
 from typing_extensions import Self, assert_never
 
-from quemb.molbe.autofrag import FragPart
 from quemb.molbe.helper import are_equal, get_core
 from quemb.shared.helper import unused
 from quemb.shared.typing import (
@@ -1108,8 +1107,8 @@ class Fragmented:
         """The number of fragments."""
         return len(self.AO_per_frag)
 
-    def _get_FragPart_no_iao(self) -> FragPart:
-        """Transform into a :class:`quemb.molbe.autofrag.FragPart`
+    def _get_FragPart_no_iao(self) -> dict:
+        """Construct the inputs for :class:`quemb.molbe.fragment.FragPart`
         for further use in quemb.
 
         Matches the output of :func:`quemb.molbe.autofrag.autogen`.
@@ -1140,37 +1139,40 @@ class Fragmented:
         center_atom = list(union_of_seqs(*self.frag_structure.origin_per_frag))
         assert len(center_atom) == len(self)
 
-        return FragPart(
-            mol=self.mol,
-            frag_type="chemgen",
-            be_type=f"be{self.frag_structure.n_BE}",
-            fsites=[list(AO_indices) for AO_indices in self.AO_per_frag],
-            edge_sites=_extract_values(self.AO_per_edge_per_frag),
-            center=[list(D.values()) for D in self.frag_structure.frag_idx_per_edge],
-            edge_idx=_extract_values(self.rel_AO_per_edge_per_frag),
-            center_idx=_extract_values(self.other_rel_AO_per_edge_per_frag),
-            centerf_idx=[list(seq) for seq in centerf_idx],
-            ebe_weight=ebe_weight,
-            Frag_atom=[list(motifs) for motifs in self.frag_structure.motifs_per_frag],
-            center_atom=center_atom,
-            hlist_atom=[
+        return {
+            "mol": self.mol,
+            "frag_type": "chemgen",
+            "be_type": f"be{self.frag_structure.n_BE}",
+            "fsites": [list(AO_indices) for AO_indices in self.AO_per_frag],
+            "edge_sites": _extract_values(self.AO_per_edge_per_frag),
+            "center": [list(D.values()) for D in self.frag_structure.frag_idx_per_edge],
+            "edge_idx": _extract_values(self.rel_AO_per_edge_per_frag),
+            "center_idx": _extract_values(self.other_rel_AO_per_edge_per_frag),
+            "centerf_idx": [list(seq) for seq in centerf_idx],
+            "ebe_weight": ebe_weight,
+            "Frag_atom": [
+                list(motifs) for motifs in self.frag_structure.motifs_per_frag
+            ],
+            "center_atom": center_atom,
+            "hlist_atom": [
                 list(self.conn_data.H_per_motif.get(MotifIdx(atom), []))
                 for atom in self.conn_data.bonds_atoms
             ],
-            add_center_atom=[
+            "add_center_atom": [
                 list(centers.difference(origins))
                 for (centers, origins) in zip(
                     self.frag_structure.centers_per_frag,
                     self.frag_structure.origin_per_frag,
                 )
             ],
-            frozen_core=self.frozen_core,
-            iao_valence_basis=None,
-            iao_valence_only=False,
-        )
+            "Nfrag": len(self.AO_per_frag),
+            "frozen_core": self.frozen_core,
+            "iao_valence_basis": None,
+            "iao_valence_only": False,
+        }
 
-    def _get_FragPart_with_iao(self, wrong_iao_indexing: bool) -> FragPart:
-        """Transform into a :class:`quemb.molbe.autofrag.FragPart`
+    def _get_FragPart_with_iao(self, wrong_iao_indexing: bool) -> dict:
+        """Construct the inputs for :class:`quemb.molbe.fragment.FragPart`
         for further use in quemb.
 
         Matches the output of :func:`quemb.molbe.autofrag.autogen`.
@@ -1283,28 +1285,28 @@ class Fragmented:
 
         # Only edge_sites, edge_idx, center_idx, and centerf_idx are actually different
         # when doing IAOs
-        return FragPart(
-            mol=self.mol,
-            frag_type="chemgen",
-            be_type=f"be{self.frag_structure.n_BE}",
-            edge_sites=edge_sites,
-            edge_idx=edge_idx,
-            center_idx=center_idx,
-            centerf_idx=centerf_idx,
-            fsites=matched_output_no_iao.fsites,
-            center=matched_output_no_iao.center,
-            ebe_weight=matched_output_no_iao.ebe_weight,
-            Frag_atom=matched_output_no_iao.Frag_atom,
-            center_atom=matched_output_no_iao.center_atom,
-            hlist_atom=matched_output_no_iao.hlist_atom,
-            add_center_atom=matched_output_no_iao.add_center_atom,
-            Nfrag=matched_output_no_iao.Nfrag,
-            frozen_core=self.frozen_core,
-            iao_valence_basis=self.iao_valence_mol.basis,
-            iao_valence_only=False,
-        )
+        return {
+            "mol": self.mol,
+            "frag_type": "chemgen",
+            "be_type": f"be{self.frag_structure.n_BE}",
+            "edge_sites": edge_sites,
+            "edge_idx": edge_idx,
+            "center_idx": center_idx,
+            "centerf_idx": centerf_idx,
+            "fsites": matched_output_no_iao["fsites"],
+            "center": matched_output_no_iao["center"],
+            "ebe_weight": matched_output_no_iao["ebe_weight"],
+            "Frag_atom": matched_output_no_iao["Frag_atom"],
+            "center_atom": matched_output_no_iao["center_atom"],
+            "hlist_atom": matched_output_no_iao["hlist_atom"],
+            "add_center_atom": matched_output_no_iao["add_center_atom"],
+            "Nfrag": matched_output_no_iao["Nfrag"],
+            "frozen_core": self.frozen_core,
+            "iao_valence_basis": self.iao_valence_mol.basis,
+            "iao_valence_only": False,
+        }
 
-    def get_FragPart(self, wrong_iao_indexing: bool | None = None) -> FragPart:
+    def get_FragPart(self, wrong_iao_indexing: bool | None = None) -> dict:
         """Match the output of :func:`quemb.molbe.autofrag.autogen`."""
         if self.iao_valence_mol is None:
             return self._get_FragPart_no_iao()
