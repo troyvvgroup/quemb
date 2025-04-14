@@ -307,50 +307,52 @@ def graphgen(
     -------
     dict :
         Keyword dictionary containing all fragmentation results. These are
-        later used to directly instantiate the `FragPart` object.
-            fsites :
-                List whose entries are sequences (tuple or list) containing
-                all AO indices for a fragment.
-            fsites_by_atom :
-                List whose entries are sequences of sequences, containing AO indices per
-                atom per fragment.
-            edge_sites :
-                List whose entries are sequences of sequences, containing edge AO
-                indices per atom (inner tuple) per fragment (outer tuple).
-            center :
-                List whose entries are sequences of sequences, containing all fragment
-                AO indices per atom (inner tuple) and per fragment (outer tuple).
-            centerf_idx :
-                List whose entries are sequences containing the relative AO index of the
-                origin site within a fragment.
-                Relative is to the own fragment; since the origin site is at the
-                beginning of the motif list for each fragment, this is always a
-                Sequence :python:`range(0, n)`.
-            ebe_weight :
-                Weights determining the energy contributions from each center site
-                (ie, with respect to centerf_idx).
-            sites :
-                List whose entries are sequences containing all AO indices per atom
-                (excluding frozen core indices, if applicable).
-            dnames :
-                List of strings giving fragment data names. Useful for bookkeeping and
-                for constructing fragment scratch directories.
-            Frag_atom :
-                List whose entries are sequences containing all atom indices for a
-                fragment.
-            center_atom :
-                List whose entries are sequences giving the center atom indices per
-                fragment.
-            edge_atoms :
-                List whose entries are sequences giving the edge atom indices per
-                fragment.
-            adjacency_mat :
-                The adjacency matrix for all sites (atoms) in the system.
-            adjacency_graph :
-                The adjacency graph corresponding to `adjacency_mat`.
-            edge_list:
-                Sequences of edge pairs per fragment (these correspond to edges in
-                `adjacency_graph`).
+        later used to directly instantiate the `FragPart` object. More specifically:
+        {
+        fsites :
+            List whose entries are sequences (tuple or list) containing
+            all AO indices for a fragment.
+        fsites_by_atom :
+            List whose entries are sequences of sequences, containing AO indices per
+            atom per fragment.
+        edge_sites :
+            List whose entries are sequences of sequences, containing edge AO
+            indices per atom (inner tuple) per fragment (outer tuple).
+        center :
+            List whose entries are sequences of sequences, containing all fragment
+            AO indices per atom (inner tuple) and per fragment (outer tuple).
+        centerf_idx :
+            List whose entries are sequences containing the relative AO index of the
+            origin site within a fragment.
+            Relative is to the own fragment; since the origin site is at the
+            beginning of the motif list for each fragment, this is always a
+            Sequence :python:`range(0, n)`.
+        ebe_weight :
+            Weights determining the energy contributions from each center site
+            (ie, with respect to centerf_idx).
+        sites :
+            List whose entries are sequences containing all AO indices per atom
+            (excluding frozen core indices, if applicable).
+        dnames :
+            List of strings giving fragment data names. Useful for bookkeeping and
+            for constructing fragment scratch directories.
+        Frag_atom :
+            List whose entries are sequences containing all atom indices for a
+            fragment.
+        center_atom :
+            List whose entries are sequences giving the center atom indices per
+            fragment.
+        edge_atoms :
+            List whose entries are sequences giving the edge atom indices per
+            fragment.
+        adjacency_mat :
+            The adjacency matrix for all sites (atoms) in the system.
+        adjacency_graph :
+            The adjacency graph corresponding to `adjacency_mat`.
+        edge_list:
+            Sequences of edge pairs per fragment (these correspond to edges in
+            `adjacency_graph`).
+        }
 
     """
     assert mol is not None
