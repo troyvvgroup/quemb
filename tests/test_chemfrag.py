@@ -13,7 +13,7 @@ from quemb.molbe.chemfrag import (
     PurelyStructureFragmented,
     _cleanup_if_subset,
 )
-from quemb.molbe.fragment import fragmentate
+from quemb.molbe.fragment import fragmentate, FragPart
 from quemb.molbe.mbe import BE
 
 from ._expected_data_for_chemfrag import get_expected
@@ -170,12 +170,12 @@ def test_match_autogen_output():
             iao_valence_basis,
             frozen_core,
             wrong_iao_indexing,
-        ): Fragmented.from_mole(
+        ): FragPart(**Fragmented.from_mole(
             mol=m.to_pyscf(basis=basis),
             iao_valence_basis=iao_valence_basis,
             n_BE=n_BE,
             frozen_core=frozen_core,
-        ).get_FragPart(wrong_iao_indexing=wrong_iao_indexing)
+        ).get_FragPart(wrong_iao_indexing=wrong_iao_indexing))
         for n_BE in range(1, 5)
         for basis, iao_valence_basis in bases
         for frozen_core in [True, False]
