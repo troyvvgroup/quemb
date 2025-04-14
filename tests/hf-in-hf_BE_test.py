@@ -22,9 +22,9 @@ class TestHFinHF_restricted(unittest.TestCase):
         mol.charge = 0.0
         mol.spin = 0.0
         mol.build()
-        self.molecular_restricted_test(mol, "be1", "H8 (BE1)")
-        self.molecular_restricted_test(mol, "be2", "H8 (BE2)")
-        self.molecular_restricted_test(mol, "be3", "H8 (BE3)")
+        self.molecular_restricted_test(mol, 1, "H8 (BE1)")
+        self.molecular_restricted_test(mol, 2, "H8 (BE2)")
+        self.molecular_restricted_test(mol, 3, "H8 (BE3)")
 
     def test_h8_ccpvdz_ben(self):
         # Linear Equidistant (r=1Å) H8 Chain, cc-pVDZ
@@ -34,9 +34,9 @@ class TestHFinHF_restricted(unittest.TestCase):
         mol.charge = 0.0
         mol.spin = 0.0
         mol.build()
-        self.molecular_restricted_test(mol, "be1", "H8 (BE1)")
-        self.molecular_restricted_test(mol, "be2", "H8 (BE2)")
-        self.molecular_restricted_test(mol, "be3", "H8 (BE3)")
+        self.molecular_restricted_test(mol, 1, "H8 (BE1)")
+        self.molecular_restricted_test(mol, 2, "H8 (BE2)")
+        self.molecular_restricted_test(mol, 3, "H8 (BE3)")
 
     def test_octane_sto3g_ben(self):
         # Octane, STO-3G
@@ -46,14 +46,14 @@ class TestHFinHF_restricted(unittest.TestCase):
         mol.charge = 0.0
         mol.spin = 0.0
         mol.build()
-        self.molecular_restricted_test(mol, "be1", "Octane (BE1)")
-        self.molecular_restricted_test(mol, "be2", "Octane (BE2)")
-        self.molecular_restricted_test(mol, "be3", "Octane (BE3)")
+        self.molecular_restricted_test(mol, 1, "Octane (BE1)")
+        self.molecular_restricted_test(mol, 2, "Octane (BE2)")
+        self.molecular_restricted_test(mol, 3, "Octane (BE3)")
 
-    def molecular_restricted_test(self, mol, be_type, test_name, delta=1e-5):
+    def molecular_restricted_test(self, mol, n_BE, test_name, delta=1e-5):
         mf = scf.RHF(mol)
         mf.kernel()
-        fobj = fragmentate(frag_type="autogen", be_type=be_type, mol=mol)
+        fobj = fragmentate(frag_type="autogen", n_BE=n_BE, mol=mol)
         mybe = BE(mf, fobj)
         self.assertAlmostEqual(
             mybe.ebe_hf,

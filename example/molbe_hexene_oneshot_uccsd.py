@@ -25,7 +25,7 @@ mf.kernel()
 nproc = 1
 
 # Initialize fragments without frozen core approximation at BE2 level
-fobj = fragmentate(frag_type="autogen", be_type="be2", mol=mol, frozen_core=False)
+fobj = fragmentate(frag_type="autogen", n_BE=2, mol=mol, frozen_core=False)
 # Initialize UBE
 mybe = UBE(mf, fobj)
 
