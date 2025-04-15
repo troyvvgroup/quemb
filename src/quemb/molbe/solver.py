@@ -320,6 +320,10 @@ def be_func(
                 )
                 rdm1_tmp = make_rdm1_ccsd_t1(fobj.t1)
 
+        elif solver == "EOM-CCSD":
+            # import rdms from Q-Chem
+            print("under construction :)")
+
         elif solver == "FCI":
             mc = fci.FCI(fobj._mf, fobj._mf.mo_coeff)
             _, civec = mc.kernel()
