@@ -98,7 +98,7 @@ def _convert_eri_gen(origsym, targetsym, eri, norb1, norb2):
 
         Add to your PySCF and recompile: /pyscf/lib/ao2mo/restore_eri.c
     For gcc 14.2.0 (and perhaps earlier gcc), add:
-    import <string.h>
+    #include <string.h>
     to avoid memcpy issues in compilation:
 
     Add to end of file:
