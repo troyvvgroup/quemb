@@ -259,6 +259,7 @@ def be2puffin(
     from_chk=False,
     checkfile=None,
     ecp=None,
+    frag_type='chemgen',
 ):
     """Front-facing API bridge tailored for SCINE Puffin
 
@@ -470,7 +471,7 @@ def be2puffin(
 
     # Finished initial reference HF: now, fragmentation step
 
-    fobj = fragmentate(n_BE=n_BE, frag_type="autogen", mol=mol, frozen_core=frozen_core)
+    fobj = fragmentate(n_BE=n_BE, frag_type=frag_type, mol=mol, frozen_core=frozen_core)
     time_post_fragmentate = time.time()
     print(
         "Time for fragmentation to run: ",
