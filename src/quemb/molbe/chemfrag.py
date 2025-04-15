@@ -708,7 +708,7 @@ class PurelyStructureFragmented:
         """
         nx_graph: Graph = Graph(self.conn_data.bonds_motifs)  # type: ignore[arg-type]
 
-        def distance_to_fragment(i_frag: FragmentIdx) -> tuple[int, int]:
+        def distance_to_fragment(i_frag: FragmentIdx) -> tuple[int, FragmentIdx]:
             """Return the distance to the fragment with index ``i_frag``,
             as measured by the edge-number of the shortest path to the closest origin.
             Additionally return the index itsef to achieve unique ordering, if the
@@ -716,7 +716,7 @@ class PurelyStructureFragmented:
             return (
                 min(
                     shortest_path_length(nx_graph, source=center, target=i_origin)
-                    for i_origin in self.origin_per_frag[i_frag]
+                    for i_origin in self.origin_per_frag[i_frag]  # type: ignore[call-overload]
                 ),
                 i_frag,
             )
@@ -780,7 +780,7 @@ class PurelyStructureFragmented:
             conn_data=self.conn_data,
             n_BE=self.n_BE,
             centers_per_frag=[
-                centers.difference(becomes_an_edge[FragmentIdx(i_frag)])
+                centers.difference(becomes_an_edge[cast(FragmentIdx, i_frag)])
                 for i_frag, centers in enumerate(self.centers_per_frag)
             ],
             # In the following we re-declare some of the centers as edges,
@@ -789,7 +789,9 @@ class PurelyStructureFragmented:
                 OrderedSet(
                     sorted(
                         edges.union(
-                            cast(Set[EdgeIdx], becomes_an_edge[FragmentIdx(i_frag)])
+                            cast(
+                                Set[EdgeIdx], becomes_an_edge[cast(FragmentIdx, i_frag)]
+                            )
                         )
                     )
                 )
@@ -800,7 +802,9 @@ class PurelyStructureFragmented:
                     dict(edges)
                     | {
                         cast(EdgeIdx, center): best_fragment[center]
-                        for center in becomes_an_edge.get(FragmentIdx(i_frag), set())
+                        for center in becomes_an_edge.get(
+                            cast(FragmentIdx, i_frag), set()
+                        )
                     }
                 )
                 for i_frag, edges in enumerate(self.frag_idx_per_edge)
