@@ -259,7 +259,7 @@ def be2puffin(
     from_chk=False,
     checkfile=None,
     ecp=None,
-    frag_type='chemgen',
+    frag_type="chemgen",
 ):
     """Front-facing API bridge tailored for SCINE Puffin
 
