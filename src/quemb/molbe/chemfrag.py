@@ -903,7 +903,7 @@ class Fragmented:
     #: The relative atomic orbital indices per origin per fragment.
     #: Relative means that the AO indices are relative to
     #: the **own** fragment.
-    #: This variable is a subset of :attr:`rel_AO_per_center_per_frag`,
+    #: This variable is a subset of :attr:`relAO_per_center`,
     #: in the sense that the motif indices, the keys in the Mapping,
     #: are restricted to the origins of the fragment.
     #: This variable was formerly known as :python:`centerf_idx`.

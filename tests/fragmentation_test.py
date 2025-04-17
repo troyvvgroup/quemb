@@ -26,10 +26,10 @@ class TestBE_Fragmentation(unittest.TestCase):
 
         target = {
             "AO_per_frag": [[0], [1], [2], [3], [4], [5], [6], [7]],
-            "edge": [],
-            "center": [],
+            "AO_per_edge": [],
+            "ref_frag_idx_per_edge": [],
             "centerf_idx": [[0], [0], [0], [0], [0], [0], [0], [0]],
-            "rel_AO_per_center_per_frag": [
+            "centerweight_and_relAO_per_center": [
                 (1.0, [0]),
                 (1.0, [0]),
                 (1.0, [0]),
@@ -68,10 +68,17 @@ class TestBE_Fragmentation(unittest.TestCase):
                 [5, 4, 6],
                 [6, 7, 5],
             ],
-            "edge": [[[2]], [[1], [3]], [[2], [4]], [[3], [5]], [[4], [6]], [[5]]],
-            "center": [[1], [0, 2], [1, 3], [2, 4], [3, 5], [4]],
+            "AO_per_edge": [
+                [[2]],
+                [[1], [3]],
+                [[2], [4]],
+                [[3], [5]],
+                [[4], [6]],
+                [[5]],
+            ],
+            "ref_frag_idx_per_edge": [[1], [0, 2], [1, 3], [2, 4], [3, 5], [4]],
             "centerf_idx": [[0], [0], [0], [0], [0], [0]],
-            "rel_AO_per_center_per_frag": [
+            "centerweight_and_relAO_per_center": [
                 (1.0, [0, 1]),
                 (1.0, [0]),
                 (1.0, [0]),
@@ -106,15 +113,15 @@ class TestBE_Fragmentation(unittest.TestCase):
                 [4, 3, 2, 5, 6],
                 [5, 6, 7, 4, 3],
             ],
-            "edge": [
+            "AO_per_edge": [
                 [[3], [4]],
                 [[2], [1], [4], [5]],
                 [[3], [2], [5], [6]],
                 [[4], [3]],
             ],
-            "center": [[1, 2], [0, 0, 2, 3], [1, 0, 3, 3], [2, 1]],
+            "ref_frag_idx_per_edge": [[1, 2], [0, 0, 2, 3], [1, 0, 3, 3], [2, 1]],
             "centerf_idx": [[0], [0], [0], [0]],
-            "rel_AO_per_center_per_frag": [
+            "centerweight_and_relAO_per_center": [
                 (1.0, [0, 1, 2]),
                 (1.0, [0]),
                 (1.0, [0]),
@@ -151,8 +158,8 @@ class TestBE_Fragmentation(unittest.TestCase):
                 [42, 43, 44, 45, 46, 52, 54, 57],
                 [47, 48, 49, 50, 51, 53, 55, 56],
             ],
-            "edge": [],
-            "center": [],
+            "AO_per_edge": [],
+            "ref_frag_idx_per_edge": [],
             "centerf_idx": [
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
@@ -163,7 +170,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 [0, 1, 2, 3, 4, 5, 6, 7],
                 [0, 1, 2, 3, 4, 5, 6, 7],
             ],
-            "rel_AO_per_center_per_frag": [
+            "centerweight_and_relAO_per_center": [
                 (1.0, [0, 1, 2, 3, 4, 5, 6]),
                 (1.0, [0, 1, 2, 3, 4, 5, 6]),
                 (1.0, [0, 1, 2, 3, 4, 5, 6]),
@@ -336,7 +343,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                     27,
                 ],
             ],
-            "edge": [
+            "AO_per_edge": [
                 [[5, 6, 7, 8, 9, 10, 12], [19, 20, 21, 22, 23, 25, 27]],
                 [[0, 1, 2, 3, 4, 11, 13], [14, 15, 16, 17, 18, 24, 26]],
                 [[5, 6, 7, 8, 9, 10, 12], [28, 29, 30, 31, 32, 38, 40]],
@@ -344,7 +351,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 [[14, 15, 16, 17, 18, 24, 26]],
                 [[19, 20, 21, 22, 23, 25, 27]],
             ],
-            "center": [[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
+            "ref_frag_idx_per_edge": [[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
             "centerf_idx": [
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
@@ -353,7 +360,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
             ],
-            "rel_AO_per_center_per_frag": [
+            "centerweight_and_relAO_per_center": [
                 (1.0, [0, 1, 2, 3, 4, 5, 6]),
                 (1.0, [0, 1, 2, 3, 4, 5, 6]),
                 (1.0, [0, 1, 2, 3, 4, 5, 6]),
@@ -534,7 +541,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                     12,
                 ],
             ],
-            "edge": [
+            "AO_per_edge": [
                 [
                     [5, 6, 7, 8, 9, 10, 12],
                     [14, 15, 16, 17, 18, 24, 26],
@@ -550,14 +557,14 @@ class TestBE_Fragmentation(unittest.TestCase):
                 [[5, 6, 7, 8, 9, 10, 12], [0, 1, 2, 3, 4, 11, 13]],
                 [[0, 1, 2, 3, 4, 11, 13], [5, 6, 7, 8, 9, 10, 12]],
             ],
-            "center": [[1, 2, 3, 3], [0, 3, 2, 2], [1, 0], [0, 1]],
+            "ref_frag_idx_per_edge": [[1, 2, 3, 3], [0, 3, 2, 2], [1, 0], [0, 1]],
             "centerf_idx": [
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
             ],
-            "rel_AO_per_center_per_frag": [
+            "centerweight_and_relAO_per_center": [
                 (1.0, [0, 1, 2, 3, 4, 5, 6]),
                 (1.0, [0, 1, 2, 3, 4, 5, 6]),
                 (
@@ -637,10 +644,10 @@ class TestBE_Fragmentation(unittest.TestCase):
 
         target = {
             "AO_per_frag": [(0,), (1,), (2,), (3,), (4,), (5,), (6,), (7,)],
-            "edge": [(), (), (), (), (), (), (), ()],
-            "center": [(0,), (1,), (2,), (3,), (4,), (5,), (6,), (7,)],
+            "AO_per_edge": [(), (), (), (), (), (), (), ()],
+            "ref_frag_idx_per_edge": [(0,), (1,), (2,), (3,), (4,), (5,), (6,), (7,)],
             "centerf_idx": [(0,), (0,), (0,), (0,), (0,), (0,), (0,), (0,)],
-            "rel_AO_per_center_per_frag": [
+            "centerweight_and_relAO_per_center": [
                 (1.0, (0,)),
                 (1.0, (0,)),
                 (1.0, (0,)),
@@ -679,7 +686,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 (5, 4, 6),
                 (6, 5, 7),
             ],
-            "edge": [
+            "AO_per_edge": [
                 ((2,),),
                 ((1,), (3,)),
                 ((2,), (4,)),
@@ -687,9 +694,9 @@ class TestBE_Fragmentation(unittest.TestCase):
                 ((6,), (4,)),
                 ((5,),),
             ],
-            "center": [(0, 1), (2,), (3,), (4,), (5,), (6, 7)],
+            "ref_frag_idx_per_edge": [(0, 1), (2,), (3,), (4,), (5,), (6, 7)],
             "centerf_idx": [(1, 0), (0,), (0,), (0,), (0,), (0, 2)],
-            "rel_AO_per_center_per_frag": [
+            "centerweight_and_relAO_per_center": [
                 (1.0, (1, 0)),
                 (1.0, (0,)),
                 (1.0, (0,)),
@@ -724,15 +731,15 @@ class TestBE_Fragmentation(unittest.TestCase):
                 (4, 2, 3, 5, 6),
                 (5, 3, 4, 6, 7),
             ],
-            "edge": [
+            "AO_per_edge": [
                 ((3,), (4,)),
                 ((1,), (2,), (4,), (5,)),
                 ((6,), (2,), (3,), (5,)),
                 ((3,), (4,)),
             ],
-            "center": [(0, 1, 2), (3,), (4,), (5, 6, 7)],
+            "ref_frag_idx_per_edge": [(0, 1, 2), (3,), (4,), (5, 6, 7)],
             "centerf_idx": [(1, 2, 0), (0,), (0,), (0, 3, 4)],
-            "rel_AO_per_center_per_frag": [
+            "centerweight_and_relAO_per_center": [
                 (1.0, (1, 2, 0)),
                 (1.0, (0,)),
                 (1.0, (0,)),
@@ -787,7 +794,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 (56,),
                 (57,),
             ],
-            "edge": [
+            "AO_per_edge": [
                 (),
                 (),
                 (),
@@ -815,7 +822,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 (),
                 (),
             ],
-            "center": [
+            "ref_frag_idx_per_edge": [
                 (0, 1, 2, 3, 4),
                 (5, 6, 7, 8, 9),
                 (10,),
@@ -871,7 +878,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 (0,),
                 (0,),
             ],
-            "rel_AO_per_center_per_frag": [
+            "centerweight_and_relAO_per_center": [
                 (1.0, (0, 1, 2, 3, 4)),
                 (1.0, (0, 1, 2, 3, 4)),
                 (1.0, (0,)),
@@ -930,7 +937,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 (42, 43, 44, 45, 46, 28, 29, 30, 31, 32, 52, 54, 57),
                 (47, 48, 49, 50, 51, 33, 34, 35, 36, 37, 53, 55, 56),
             ],
-            "edge": [
+            "AO_per_edge": [
                 ((5, 6, 7, 8, 9), (19, 20, 21, 22, 23)),
                 ((0, 1, 2, 3, 4), (14, 15, 16, 17, 18)),
                 ((5, 6, 7, 8, 9), (32, 28, 29, 30, 31)),
@@ -940,7 +947,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 ((32, 28, 29, 30, 31),),
                 ((33, 34, 35, 36, 37),),
             ],
-            "center": [
+            "ref_frag_idx_per_edge": [
                 (0, 1, 2, 3, 4, 11, 13),
                 (5, 6, 7, 8, 9, 10, 12),
                 (14, 15, 16, 17, 18, 24, 26),
@@ -960,7 +967,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 (0, 1, 2, 3, 4, 10, 11, 12),
                 (0, 1, 2, 3, 4, 10, 11, 12),
             ],
-            "rel_AO_per_center_per_frag": [
+            "centerweight_and_relAO_per_center": [
                 (1.0, (0, 1, 2, 3, 4, 10, 11)),
                 (1.0, (0, 1, 2, 3, 4, 10, 11)),
                 (1.0, (0, 1, 2, 3, 4, 10, 11)),
@@ -1133,7 +1140,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                     56,
                 ),
             ],
-            "edge": [
+            "AO_per_edge": [
                 ((12,), (27,), (5, 6, 7, 8, 9), (19, 20, 21, 22, 23), (10,), (25,)),
                 ((14, 15, 16, 17, 18), (11,), (24,), (26,), (13,), (0, 1, 2, 3, 4)),
                 ((12,), (32, 28, 29, 30, 31), (40,), (5, 6, 7, 8, 9), (10,), (38,)),
@@ -1141,7 +1148,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 ((24,), (26,), (14, 15, 16, 17, 18)),
                 ((25,), (19, 20, 21, 22, 23), (27,)),
             ],
-            "center": [
+            "ref_frag_idx_per_edge": [
                 (0, 1, 2, 3, 4, 11, 13),
                 (5, 6, 7, 8, 9, 10, 12),
                 (14, 15, 16, 17, 18, 24, 26),
@@ -1157,7 +1164,7 @@ class TestBE_Fragmentation(unittest.TestCase):
                 (4, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 0, 1, 2, 3),
                 (0, 1, 2, 3, 4, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21),
             ],
-            "rel_AO_per_center_per_frag": [
+            "centerweight_and_relAO_per_center": [
                 (1.0, (0, 1, 2, 3, 4, 11, 13)),
                 (1.0, (0, 1, 2, 3, 4, 10, 12)),
                 (1.0, (0, 1, 2, 3, 4, 12, 13)),
@@ -1273,12 +1280,12 @@ class TestBE_Fragmentation(unittest.TestCase):
         fobj = fragmentate(frag_type=frag_type, n_BE=n_BE, mol=mf.mol)
         try:
             assert fobj.AO_per_frag == target["AO_per_frag"]
-            assert fobj.AO_per_edge == target["edge"]
-            assert fobj.ref_frag_idx_per_edge == target["center"]
+            assert fobj.AO_per_edge == target["AO_per_edge"]
+            assert fobj.ref_frag_idx_per_edge == target["ref_frag_idx_per_edge"]
             assert fobj.centerf_idx == target["centerf_idx"]
             assert (
                 fobj.centerweight_and_relAO_per_center
-                == target["rel_AO_per_center_per_frag"]
+                == target["centerweight_and_relAO_per_center"]
             )
         except AssertionError as e:
             print(f"Fragmentation test failed at {test_name} \n")
