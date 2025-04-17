@@ -24,8 +24,8 @@ quemb.shared.typing
       T
       AOIdx
       GlobalAOIdx
-      OwnRelAOIdx
-      OtherRelAOIdx
+      RelAOIdx
+      RelAOIdxInRef
       FragmentIdx
       MotifIdx
       CenterIdx

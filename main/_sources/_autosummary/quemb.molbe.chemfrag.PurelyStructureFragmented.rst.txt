@@ -17,7 +17,7 @@ quemb.molbe.chemfrag.PurelyStructureFragmented
    .. autoattribute:: PurelyStructureFragmented.edges_per_frag
    .. autoattribute:: PurelyStructureFragmented.origin_per_frag
    .. autoattribute:: PurelyStructureFragmented.atoms_per_frag
-   .. autoattribute:: PurelyStructureFragmented.frag_idx_per_edge
+   .. autoattribute:: PurelyStructureFragmented.ref_frag_idx_per_edge
    .. autoattribute:: PurelyStructureFragmented.conn_data
    .. autoattribute:: PurelyStructureFragmented.n_BE
    

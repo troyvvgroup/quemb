@@ -654,8 +654,8 @@
 <li class="toctree-l4"><a class="reference internal" href="quemb.shared.typing.T.html">quemb.shared.typing.T</a></li>
 <li class="toctree-l4"><a class="reference internal" href="quemb.shared.typing.AOIdx.html">quemb.shared.typing.AOIdx</a></li>
 <li class="toctree-l4"><a class="reference internal" href="quemb.shared.typing.GlobalAOIdx.html">quemb.shared.typing.GlobalAOIdx</a></li>
-<li class="toctree-l4"><a class="reference internal" href="quemb.shared.typing.OwnRelAOIdx.html">quemb.shared.typing.OwnRelAOIdx</a></li>
-<li class="toctree-l4"><a class="reference internal" href="quemb.shared.typing.OtherRelAOIdx.html">quemb.shared.typing.OtherRelAOIdx</a></li>
+<li class="toctree-l4"><a class="reference internal" href="quemb.shared.typing.RelAOIdx.html">quemb.shared.typing.RelAOIdx</a></li>
+<li class="toctree-l4"><a class="reference internal" href="quemb.shared.typing.RelAOIdxInRef.html">quemb.shared.typing.RelAOIdxInRef</a></li>
 <li class="toctree-l4"><a class="reference internal" href="quemb.shared.typing.FragmentIdx.html">quemb.shared.typing.FragmentIdx</a></li>
 <li class="toctree-l4"><a class="reference internal" href="quemb.shared.typing.MotifIdx.html">quemb.shared.typing.MotifIdx</a></li>
 <li class="toctree-l4"><a class="reference internal" href="quemb.shared.typing.CenterIdx.html">quemb.shared.typing.CenterIdx</a></li>
@@ -752,21 +752,6 @@ the IAO partitioning. This is an experimental feature. Defaults to False.</p></l
 <li><p><strong>long_bond</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a>) – For systems with longer than 1.8 Angstrom covalent bond,
 set this to True otherwise the fragmentation might fail.</p></li>
 </ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p><ul class="simple">
-<li><p><strong>fsites</strong> (<em>list of list of int</em>) – List of fragment sites where each fragment is a list of LO indices.</p></li>
-<li><p><strong>edgsites</strong> (<em>list of list of list of int</em>) – List of edge sites for each fragment where each edge is a list of LO indices.</p></li>
-<li><p><strong>center</strong> (<em>list of list of int</em>) – List of center indices for each edge.</p></li>
-<li><p><strong>edge_idx</strong> (<em>list of list of list of int</em>) – List of edge indices for each fragment where each edge index is a list of
-LO indices.</p></li>
-<li><p><strong>center_idx</strong> (<em>list of list of list of int</em>) – List of center indices for each fragment where each center index is a list of
-LO indices.</p></li>
-<li><p><strong>centerf_idx</strong> (<em>list of list of int</em>) – List of center fragment indices.</p></li>
-<li><p><strong>ebe_weight</strong> (<em>list of list</em>) – Weights for each fragment. Each entry contains a weight and a list of LO
-indices.</p></li>
-</ul>
-</p>
 </dd>
 </dl>
 </dd></dl>

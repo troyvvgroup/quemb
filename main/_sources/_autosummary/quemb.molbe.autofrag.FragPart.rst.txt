@@ -14,21 +14,21 @@ quemb.molbe.autofrag.FragPart
    .. autoattribute:: FragPart.mol
    .. autoattribute:: FragPart.frag_type
    .. autoattribute:: FragPart.n_BE
-   .. autoattribute:: FragPart.fsites
-   .. autoattribute:: FragPart.edge_sites
-   .. autoattribute:: FragPart.center
-   .. autoattribute:: FragPart.edge_idx
-   .. autoattribute:: FragPart.center_idx
+   .. autoattribute:: FragPart.AO_per_frag
+   .. autoattribute:: FragPart.AO_per_edge
+   .. autoattribute:: FragPart.ref_frag_idx_per_edge
+   .. autoattribute:: FragPart.relAO_per_edge
+   .. autoattribute:: FragPart.relAO_in_ref_per_edge
    .. autoattribute:: FragPart.centerf_idx
-   .. autoattribute:: FragPart.ebe_weight
-   .. autoattribute:: FragPart.Frag_atom
-   .. autoattribute:: FragPart.center_atom
-   .. autoattribute:: FragPart.hlist_atom
+   .. autoattribute:: FragPart.centerweight_and_relAO_per_center
+   .. autoattribute:: FragPart.motifs_per_frag
+   .. autoattribute:: FragPart.origin_per_frag
+   .. autoattribute:: FragPart.H_per_motif
    .. autoattribute:: FragPart.add_center_atom
    .. autoattribute:: FragPart.frozen_core
    .. autoattribute:: FragPart.iao_valence_basis
    .. autoattribute:: FragPart.iao_valence_only
-   .. autoattribute:: FragPart.Nfrag
+   .. autoattribute:: FragPart.n_frag
    .. autoattribute:: FragPart.ncore
    .. autoattribute:: FragPart.no_core_idx
    .. autoattribute:: FragPart.core_list

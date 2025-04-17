@@ -14,12 +14,12 @@ quemb.kbe.fragment.FragPart
    .. autoattribute:: FragPart.unitcell
    .. autoattribute:: FragPart.mol
    .. autoattribute:: FragPart.frag_type
-   .. autoattribute:: FragPart.fsites
-   .. autoattribute:: FragPart.edge_sites
-   .. autoattribute:: FragPart.center
-   .. autoattribute:: FragPart.ebe_weight
-   .. autoattribute:: FragPart.edge_idx
-   .. autoattribute:: FragPart.center_idx
+   .. autoattribute:: FragPart.AO_per_frag
+   .. autoattribute:: FragPart.AO_per_edge
+   .. autoattribute:: FragPart.ref_frag_idx_per_edge
+   .. autoattribute:: FragPart.centerweight_and_relAO_per_center
+   .. autoattribute:: FragPart.relAO_per_edge
+   .. autoattribute:: FragPart.relAO_in_ref_per_edge
    .. autoattribute:: FragPart.centerf_idx
    .. autoattribute:: FragPart.n_BE
    .. autoattribute:: FragPart.natom
@@ -28,7 +28,7 @@ quemb.kbe.fragment.FragPart
    .. autoattribute:: FragPart.allcen
    .. autoattribute:: FragPart.iao_valence_basis
    .. autoattribute:: FragPart.kpt
-   .. autoattribute:: FragPart.Nfrag
+   .. autoattribute:: FragPart.n_frag
    .. autoattribute:: FragPart.ncore
    .. autoattribute:: FragPart.no_core_idx
    .. autoattribute:: FragPart.core_list

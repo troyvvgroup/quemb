@@ -654,8 +654,8 @@
 <li class="toctree-l4"><a class="reference internal" href="quemb.shared.typing.T.html">quemb.shared.typing.T</a></li>
 <li class="toctree-l4"><a class="reference internal" href="quemb.shared.typing.AOIdx.html">quemb.shared.typing.AOIdx</a></li>
 <li class="toctree-l4"><a class="reference internal" href="quemb.shared.typing.GlobalAOIdx.html">quemb.shared.typing.GlobalAOIdx</a></li>
-<li class="toctree-l4"><a class="reference internal" href="quemb.shared.typing.OwnRelAOIdx.html">quemb.shared.typing.OwnRelAOIdx</a></li>
-<li class="toctree-l4"><a class="reference internal" href="quemb.shared.typing.OtherRelAOIdx.html">quemb.shared.typing.OtherRelAOIdx</a></li>
+<li class="toctree-l4"><a class="reference internal" href="quemb.shared.typing.RelAOIdx.html">quemb.shared.typing.RelAOIdx</a></li>
+<li class="toctree-l4"><a class="reference internal" href="quemb.shared.typing.RelAOIdxInRef.html">quemb.shared.typing.RelAOIdxInRef</a></li>
 <li class="toctree-l4"><a class="reference internal" href="quemb.shared.typing.FragmentIdx.html">quemb.shared.typing.FragmentIdx</a></li>
 <li class="toctree-l4"><a class="reference internal" href="quemb.shared.typing.MotifIdx.html">quemb.shared.typing.MotifIdx</a></li>
 <li class="toctree-l4"><a class="reference internal" href="quemb.shared.typing.CenterIdx.html">quemb.shared.typing.CenterIdx</a></li>
@@ -719,19 +719,19 @@
 <h1>quemb.kbe.pbe.initialize_pot<a class="headerlink" href="#quemb-kbe-pbe-initialize-pot" title="Link to this heading">¶</a></h1>
 <dl class="py function">
 <dt class="sig sig-object py" id="quemb.kbe.pbe.initialize_pot">
-<span class="sig-prename descclassname"><span class="pre">quemb.kbe.pbe.</span></span><span class="sig-name descname"><span class="pre">initialize_pot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Nfrag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_idx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#quemb.kbe.pbe.initialize_pot" title="Link to this definition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">quemb.kbe.pbe.</span></span><span class="sig-name descname"><span class="pre">initialize_pot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_frag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rel_AO_per_edge_per_frag</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#quemb.kbe.pbe.initialize_pot" title="Link to this definition">¶</a></dt>
 <dd><p>Initialize the potential array for bootstrap embedding.</p>
 <p>This function initializes a potential array for a given number of
-fragments (<code class="code highlight python docutils literal highlight-python"><span class="n">Nfrag</span></code>) and their corresponding edge indices
-(<code class="code highlight python docutils literal highlight-python"><span class="n">edge_idx</span></code>).
+fragments (<code class="code highlight python docutils literal highlight-python"><span class="n">n_frag</span></code>) and their corresponding edge indices
+(<code class="code highlight python docutils literal highlight-python"><span class="n">rel_AO_per_edge_per_frag</span></code>).
 The potential array is initialized with zeros for each pair of
 edge site indices within each fragment, followed by an
 additional zero for the global chemical potential.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>Nfrag</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a>) – Number of fragments.</p></li>
-<li><p><strong>edge_idx</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.13)"><em>list</em></a><em> of </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.13)"><em>list</em></a><em> of </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.13)"><em>list</em></a><em> of </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a>) – List of edge indices for each fragment. Each element is a list of lists,
+<li><p><strong>n_frag</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a>) – Number of fragments.</p></li>
+<li><p><strong>rel_AO_per_edge_per_frag</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.13)"><em>list</em></a><em> of </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.13)"><em>list</em></a><em> of </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.13)"><em>list</em></a><em> of </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a>) – List of edge indices for each fragment. Each element is a list of lists,
 where each sublist contains the indices of edge sites for a particular fragment.</p></li>
 </ul>
 </dd>

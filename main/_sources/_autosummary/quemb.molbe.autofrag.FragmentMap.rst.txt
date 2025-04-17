@@ -11,16 +11,16 @@ quemb.molbe.autofrag.FragmentMap
    .. rubric:: Attributes
 
    
-   .. autoattribute:: FragmentMap.fsites
+   .. autoattribute:: FragmentMap.AO_per_frag
    .. autoattribute:: FragmentMap.fs
-   .. autoattribute:: FragmentMap.edge_sites
-   .. autoattribute:: FragmentMap.center
+   .. autoattribute:: FragmentMap.AO_per_edge
+   .. autoattribute:: FragmentMap.ref_frag_idx_per_edge
    .. autoattribute:: FragmentMap.centerf_idx
-   .. autoattribute:: FragmentMap.ebe_weight
+   .. autoattribute:: FragmentMap.centerweight_and_relAO_per_center
    .. autoattribute:: FragmentMap.sites
    .. autoattribute:: FragmentMap.dnames
-   .. autoattribute:: FragmentMap.Frag_atom
-   .. autoattribute:: FragmentMap.center_atom
+   .. autoattribute:: FragmentMap.motifs_per_frag
+   .. autoattribute:: FragmentMap.origin_per_frag
    .. autoattribute:: FragmentMap.edge_atoms
    .. autoattribute:: FragmentMap.adjacency_mat
    .. autoattribute:: FragmentMap.adjacency_graph

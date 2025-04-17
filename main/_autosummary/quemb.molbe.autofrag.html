@@ -654,8 +654,8 @@
 <li class="toctree-l4"><a class="reference internal" href="quemb.shared.typing.T.html">quemb.shared.typing.T</a></li>
 <li class="toctree-l4"><a class="reference internal" href="quemb.shared.typing.AOIdx.html">quemb.shared.typing.AOIdx</a></li>
 <li class="toctree-l4"><a class="reference internal" href="quemb.shared.typing.GlobalAOIdx.html">quemb.shared.typing.GlobalAOIdx</a></li>
-<li class="toctree-l4"><a class="reference internal" href="quemb.shared.typing.OwnRelAOIdx.html">quemb.shared.typing.OwnRelAOIdx</a></li>
-<li class="toctree-l4"><a class="reference internal" href="quemb.shared.typing.OtherRelAOIdx.html">quemb.shared.typing.OtherRelAOIdx</a></li>
+<li class="toctree-l4"><a class="reference internal" href="quemb.shared.typing.RelAOIdx.html">quemb.shared.typing.RelAOIdx</a></li>
+<li class="toctree-l4"><a class="reference internal" href="quemb.shared.typing.RelAOIdxInRef.html">quemb.shared.typing.RelAOIdxInRef</a></li>
 <li class="toctree-l4"><a class="reference internal" href="quemb.shared.typing.FragmentIdx.html">quemb.shared.typing.FragmentIdx</a></li>
 <li class="toctree-l4"><a class="reference internal" href="quemb.shared.typing.MotifIdx.html">quemb.shared.typing.MotifIdx</a></li>
 <li class="toctree-l4"><a class="reference internal" href="quemb.shared.typing.CenterIdx.html">quemb.shared.typing.CenterIdx</a></li>
@@ -740,10 +740,10 @@
 <tr class="row-odd"><td><p><a class="reference internal" href="quemb.molbe.autofrag.AutogenArgs.html#quemb.molbe.autofrag.AutogenArgs" title="quemb.molbe.autofrag.AutogenArgs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">AutogenArgs</span></code></a>([iao_valence_only])</p></td>
 <td><p>Additional arguments for autogen</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="quemb.molbe.autofrag.FragPart.html#quemb.molbe.autofrag.FragPart" title="quemb.molbe.autofrag.FragPart"><code class="xref py py-obj docutils literal notranslate"><span class="pre">FragPart</span></code></a>(mol, frag_type, n_BE, fsites, ...)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="quemb.molbe.autofrag.FragPart.html#quemb.molbe.autofrag.FragPart" title="quemb.molbe.autofrag.FragPart"><code class="xref py py-obj docutils literal notranslate"><span class="pre">FragPart</span></code></a>(*, mol, frag_type, n_BE, ...)</p></td>
 <td><p>Data structure to hold the result of BE fragmentations.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="quemb.molbe.autofrag.FragmentMap.html#quemb.molbe.autofrag.FragmentMap" title="quemb.molbe.autofrag.FragmentMap"><code class="xref py py-obj docutils literal notranslate"><span class="pre">FragmentMap</span></code></a>(fsites, fs, edge_sites, center, ...)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="quemb.molbe.autofrag.FragmentMap.html#quemb.molbe.autofrag.FragmentMap" title="quemb.molbe.autofrag.FragmentMap"><code class="xref py py-obj docutils literal notranslate"><span class="pre">FragmentMap</span></code></a>(AO_per_frag, fs, AO_per_edge, ...)</p></td>
 <td><p>Dataclass for fragment bookkeeping.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="quemb.molbe.autofrag.GraphGenArgs.html#quemb.molbe.autofrag.GraphGenArgs" title="quemb.molbe.autofrag.GraphGenArgs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GraphGenArgs</span></code></a>(*[, connectivity, cutoff, ...])</p></td>
