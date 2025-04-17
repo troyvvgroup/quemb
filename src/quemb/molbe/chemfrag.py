@@ -1145,7 +1145,7 @@ class Fragmented:
         # extracting the values from this structure would give one nesting
         # level too much. We therefore need to merge over all origins,
         # (which there is usually only one per fragment).
-        centerf_idx = [
+        relAO_per_origin = [
             union_of_seqs(*idx_per_origin)
             for idx_per_origin in _extract_values(self.relAO_per_origin)
         ]
@@ -1172,7 +1172,7 @@ class Fragmented:
             ],
             relAO_per_edge=_extract_values(self.relAO_per_edge),
             relAO_in_ref_per_edge=_extract_values(self.relAO_in_ref_per_edge),
-            centerf_idx=[list(seq) for seq in centerf_idx],
+            relAO_per_origin=[list(seq) for seq in relAO_per_origin],
             centerweight_and_relAO_per_center=centerweight_and_relAO_per_center,
             motifs_per_frag=[
                 list(motifs) for motifs in self.frag_structure.motifs_per_frag
@@ -1295,7 +1295,7 @@ class Fragmented:
 
         # We have to flatten one nesting level since it is assumed in the output
         # of autogen that there is always only one origin per fragment.,
-        centerf_idx: Final = [
+        relAO_per_origin: Final = [
             L[0]
             for L in _extract_with_iao_offset(
                 valence_frags.relAO_per_origin,
@@ -1314,7 +1314,7 @@ class Fragmented:
             AO_per_edge=AO_per_edge,
             relAO_per_edge=relAO_per_edge,
             relAO_in_ref_per_edge=relAO_in_ref_per_edge,
-            centerf_idx=centerf_idx,
+            relAO_per_origin=relAO_per_origin,
             AO_per_frag=matched_output_no_iao.AO_per_frag,
             ref_frag_idx_per_edge=matched_output_no_iao.ref_frag_idx_per_edge,
             centerweight_and_relAO_per_center=matched_output_no_iao.centerweight_and_relAO_per_center,

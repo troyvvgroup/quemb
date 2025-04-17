@@ -368,8 +368,8 @@ def get_atbe_Jblock_frag(
                 tmpjc_ = []
                 # center on the same fragment
                 # for cen in fobj.efac[1]:
-                for j__ in fobj.centerf_idx:
-                    for k__ in fobj.centerf_idx:
+                for j__ in fobj.relAO_per_origin:
+                    for k__ in fobj.relAO_per_origin:
                         if j__ > k__:
                             continue
                         tmpjc_.append(-dPs[cout][j__, k__])
@@ -388,8 +388,8 @@ def get_atbe_Jblock_frag(
         if not any(fidx in sublist for sublist in fobj.relAO_per_edge):
             alpha += dP_mu[fidx, fidx]
 
-    for j__ in fobj.centerf_idx:
-        for k__ in fobj.centerf_idx:
+    for j__ in fobj.relAO_per_origin:
+        for k__ in fobj.relAO_per_origin:
             if j__ > k__:
                 continue
             xc.append(-dP_mu[j__, k__])

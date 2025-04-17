@@ -1966,7 +1966,7 @@ def autogen(
     AO_per_frag = []
     AO_per_edge = []
     relAO_per_edge = []
-    centerf_idx = []
+    relAO_per_origin = []
     edge = []
 
     nkcon = True
@@ -2143,12 +2143,12 @@ def autogen(
 
         ls = len(sites__[cen[idx]]) + len(hsites[cen[idx]])
         if not pao:
-            centerf_idx.append([pq for pq in range(indix, indix + ls)])
+            relAO_per_origin.append([pq for pq in range(indix, indix + ls)])
         else:
             cntlist = sites__[cen[idx]].copy()[: nbas2[cen[idx]]]
             cntlist.extend(hsites[cen[idx]][: nbas2H[cen[idx]]])
             ind__ = [indix + frglist.index(pq) for pq in cntlist]
-            centerf_idx.append(ind__)
+            relAO_per_origin.append(ind__)
         indix += ls
 
         for jdx in pedge[idx]:
@@ -2357,6 +2357,6 @@ def autogen(
         ref_frag_idx_per_edge,
         relAO_per_edge,
         relAO_in_ref_per_edge,
-        centerf_idx,
+        relAO_per_origin,
         centerweight_and_relAO_per_center,
     )
