@@ -689,6 +689,15 @@ class BE(MixinLocalize):
                     "BE1 only works with chemical potential optimization. "
                     "Set only_chem=True"
                 )
+            elif self.fobj.n_BE >= 3 and not self.fobj.all_centers_are_origins():
+                raise ValueError(
+                    "BE3 currently does not work with matching conditions, if there "
+                    "are centers that are not origins.\n"
+                    "See this issue https://github.com/troyvvgroup/quemb/issues/150 "
+                    "for reference. "
+                    "As a stop gap measure you can use the `swallow_replace=True` "
+                    "option when fragmentating with chemgen."
+                )
         else:
             pot = [0.0]
 

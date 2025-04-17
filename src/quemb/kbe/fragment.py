@@ -93,6 +93,14 @@ class FragPart:
     def __len__(self) -> int:
         return self.n_frag
 
+    def all_centers_are_origins(self) -> bool:
+        return all(
+            relAO_per_center == rel_AO_per_origin
+            for (_, relAO_per_center), rel_AO_per_origin in zip(
+                self.centerweight_and_relAO_per_center, self.relAO_per_origin
+            )
+        )
+
 
 def fragmentate(
     mol: Cell,
