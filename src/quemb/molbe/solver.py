@@ -296,12 +296,14 @@ def be_func(
         if pot is not None:
             fobj.update_heff(pot, only_chem=only_chem)
 
+        assert fobj.fock is not None and fobj.heff is not None
         # Compute the one-electron Hamiltonian
         h1_ = fobj.fock + fobj.heff
         # Perform SCF calculation
         fobj.scf()
 
         # Solve using the specified solver
+        assert fobj._mf is not None
         if solver == "MP2":
             fobj._mc = solve_mp2(fobj._mf, mo_energy=fobj._mf.mo_energy)
         elif solver == "CCSD":
@@ -365,6 +367,7 @@ def be_func(
             assert isinstance(solver_args, SHCI_ArgsUser)
             SHCI_args = _SHCI_Args.from_user_input(solver_args)
 
+            assert isinstance(fobj.dname, str)
             frag_scratch = WorkDir(scratch_dir / fobj.dname)
 
             nmo = fobj._mf.mo_coeff.shape[1]
@@ -411,11 +414,13 @@ def be_func(
             rdm1_tmp, rdm2s = ci.make_rdm12(0, nmo, nelec)
 
         elif solver in ["block2", "DMRG", "DMRGCI", "DMRGSCF"]:
+            assert isinstance(fobj.dname, str)
             frag_scratch = WorkDir(scratch_dir / fobj.dname)
 
             assert isinstance(solver_args, DMRG_ArgsUser)
             DMRG_args = _DMRG_Args.from_user_input(solver_args, fobj._mf)
 
+            assert fobj.nsocc is not None
             try:
                 rdm1_tmp, rdm2s = solve_block2(
                     fobj._mf,
@@ -438,8 +443,11 @@ def be_func(
             raise ValueError("Solver not implemented")
 
         if solver == "MP2":
+            assert fobj._mc is not None
             rdm1_tmp = fobj._mc.make_rdm1()
         fobj.rdm1__ = rdm1_tmp.copy()
+
+        assert fobj.mo_coeffs is not None
         fobj._rdm1 = (
             multi_dot(
                 (
@@ -456,10 +464,12 @@ def be_func(
             if solver == "CCSD" and not relax_density:
                 rdm2s = make_rdm2_urlx(fobj.t1, fobj.t2, with_dm1=not use_cumulant)
             elif solver == "MP2":
+                assert fobj._mc is not None
                 rdm2s = fobj._mc.make_rdm2()
             elif solver == "FCI":
                 rdm2s = mc.make_rdm2(civec, mc.norb, mc.nelec)
                 if use_cumulant:
+                    assert fobj.nsocc is not None
                     hf_dm = zeros_like(rdm1_tmp)
                     hf_dm[diag_indices(fobj.nsocc)] += 2.0
                     del_rdm1 = rdm1_tmp.copy()
@@ -481,8 +491,8 @@ def be_func(
             e_f = get_frag_energy(
                 mo_coeffs=fobj.mo_coeffs,
                 nsocc=fobj.nsocc,
-                nfsites=fobj.nfsites,
-                efac=fobj.efac,
+                n_frag=fobj.n_frag,
+                centerweight_and_relAO_per_center=fobj.centerweight_and_relAO_per_center,
                 TA=fobj.TA,
                 h1=fobj.h1,
                 rdm1=rdm1_tmp,
@@ -511,7 +521,7 @@ def be_func(
 
 def be_func_u(
     pot,  # noqa: ARG001
-    Fobjs,
+    Fobjs: list[tuple[Frags, Frags]],
     solver,
     enuc,  # noqa: ARG001
     hf_veff=None,
@@ -588,6 +598,7 @@ def be_func_u(
         else:
             raise ValueError("Solver not implemented")
 
+        assert fobj_a._mf is not None and fobj_b._mf is not None
         fobj_a.rdm1__ = rdm1_tmp[0].copy()
         fobj_b._rdm1 = (
             multi_dot((fobj_a._mf.mo_coeff, rdm1_tmp[0], fobj_a._mf.mo_coeff.T)) * 0.5
@@ -615,8 +626,11 @@ def be_func_u(
             e_f = get_frag_energy_u(
                 (fobj_a._mo_coeffs, fobj_b._mo_coeffs),
                 (fobj_a.nsocc, fobj_b.nsocc),
-                (fobj_a.nfsites, fobj_b.nfsites),
-                (fobj_a.efac, fobj_b.efac),
+                (fobj_a.n_frag, fobj_b.n_frag),
+                (
+                    fobj_a.centerweight_and_relAO_per_center,
+                    fobj_b.centerweight_and_relAO_per_center,
+                ),
                 (fobj_a.TA, fobj_b.TA),
                 h1_ab,
                 hf_veff,
@@ -662,7 +676,7 @@ def solve_error(Fobjs, Nocc, only_chem=False):
     if only_chem:
         for fobj in Fobjs:
             # Compute chemical potential error for each fragment
-            for i in fobj.efac[1]:
+            for i in fobj.centerweight_and_relAO_per_center[1]:
                 err_chempot += fobj._rdm1[i, i]
         err_chempot /= Fobjs[0].unitcell_nkpt
         err = err_chempot - Nocc
@@ -672,14 +686,14 @@ def solve_error(Fobjs, Nocc, only_chem=False):
     # Compute edge and chemical potential errors
     for fobj in Fobjs:
         # match rdm-edge
-        for edge in fobj.edge_idx:
+        for edge in fobj.relAO_per_edge:
             for j_ in range(len(edge)):
                 for k_ in range(len(edge)):
                     if j_ > k_:
                         continue
                     err_edge.append(fobj._rdm1[edge[j_], edge[k_]])
         # chem potential
-        for i in fobj.efac[1]:
+        for i in fobj.centerweight_and_relAO_per_center[1]:
             err_chempot += fobj._rdm1[i, i]
 
     err_chempot /= Fobjs[0].unitcell_nkpt
@@ -689,13 +703,17 @@ def solve_error(Fobjs, Nocc, only_chem=False):
     err_cen = []
     for findx, fobj in enumerate(Fobjs):
         # Match RDM for centers
-        for cindx, cens in enumerate(fobj.center_idx):
+        for cindx, cens in enumerate(fobj.relAO_in_ref_per_edge):
             lenc = len(cens)
             for j_ in range(lenc):
                 for k_ in range(lenc):
                     if j_ > k_:
                         continue
-                    err_cen.append(Fobjs[fobj.center[cindx]]._rdm1[cens[j_], cens[k_]])
+                    err_cen.append(
+                        Fobjs[fobj.ref_frag_idx_per_edge[cindx]]._rdm1[
+                            cens[j_], cens[k_]
+                        ]
+                    )
 
     err_cen.append(Nocc)
     err_edge = array(err_edge)
