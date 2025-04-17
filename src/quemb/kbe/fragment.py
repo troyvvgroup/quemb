@@ -15,7 +15,7 @@ from quemb.shared.typing import (
     ListOverEdge,
     ListOverFrag,
     RelAOIdx,
-    RelAOIdxInOther,
+    RelAOIdxInRef,
 )
 
 
@@ -53,7 +53,7 @@ class FragPart:
     #: The relative atomic orbital indices per edge per fragment.
     #: **Note** for this variable relative means that the AO indices
     #: are relative to the other fragment where the edge is a center.
-    relAO_in_ref_per_edge: ListOverFrag[ListOverEdge[list[RelAOIdxInOther]]]
+    relAO_in_ref_per_edge: ListOverFrag[ListOverEdge[list[RelAOIdxInRef]]]
 
     #: List whose entries are lists containing the relative orbital index of the
     #: origin site within a fragment. Relative is to the own fragment.

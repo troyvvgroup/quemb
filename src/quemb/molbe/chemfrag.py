@@ -50,7 +50,7 @@ from quemb.shared.typing import (
     MotifIdx,
     OriginIdx,
     RelAOIdx,
-    RelAOIdxInOther,
+    RelAOIdxInRef,
     T,
 )
 
@@ -915,7 +915,7 @@ class Fragmented:
     #: Relative means that the AO indices are relative to the **other**
     #: fragment where the edge is a center.
     relAO_in_ref_per_edge: Final[
-        Sequence[Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[RelAOIdxInOther]]]]
+        Sequence[Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[RelAOIdxInRef]]]]
     ]
 
     #: Do we have frozen_core AO index offsets?
@@ -995,11 +995,11 @@ class Fragmented:
         )
 
         relAO_in_ref_per_edge: list[
-            Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[RelAOIdxInOther]]]
+            Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[RelAOIdxInRef]]]
         ] = [
             {
                 i_edge: {
-                    atom: cast(OrderedSet[RelAOIdxInOther], indices)
+                    atom: cast(OrderedSet[RelAOIdxInRef], indices)
                     # We correctly reinterpet the AO indices as
                     # indices of the other fragment
                     for atom, indices in relAO_per_motif[frag_per_edge[i_edge]][
