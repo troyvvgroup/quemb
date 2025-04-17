@@ -33,7 +33,7 @@ from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import (
     ListOverFrag,
     Matrix,
-    OwnRelAOIdx,
+    RelAOIdx,
 )
 
 
@@ -45,7 +45,7 @@ def run_solver(
     nao: int,
     nocc: int,
     n_frag: int,
-    scale_rel_AO_per_center_per_frag: ListOverFrag[tuple[float, list[OwnRelAOIdx]]],
+    scale_rel_AO_per_center_per_frag: ListOverFrag[tuple[float, list[RelAOIdx]]],
     TA: Matrix[float64],
     h1_e: Matrix[float64],
     solver: str = "MP2",

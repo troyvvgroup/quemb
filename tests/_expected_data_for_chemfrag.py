@@ -1785,8 +1785,8 @@ def get_expected():
                     24: OrderedSet([48]),
                 },
             },
-            AO_per_edge_per_frag=[{}, {}, {}, {}, {}, {}, {}, {}],
-            rel_AO_per_motif_per_frag=[
+            AO_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
+            relAO_per_motif=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3]),
@@ -1846,8 +1846,8 @@ def get_expected():
                     }
                 },
             ],
-            rel_AO_per_edge_per_frag=[{}, {}, {}, {}, {}, {}, {}, {}],
-            rel_AO_per_center_per_frag=[
+            relAO_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
+            relAO_per_center=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3]),
@@ -1907,7 +1907,7 @@ def get_expected():
                     }
                 },
             ],
-            rel_AO_per_origin_per_frag=[
+            relAO_per_origin=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3]),
@@ -1967,7 +1967,7 @@ def get_expected():
                     }
                 },
             ],
-            other_rel_AO_per_edge_per_frag=[{}, {}, {}, {}, {}, {}, {}, {}],
+            relAO_in_ref_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
             frozen_core=True,
             iao_valence_mol=None,
         ),
@@ -2259,8 +2259,8 @@ def get_expected():
                     24: OrderedSet([56]),
                 },
             },
-            AO_per_edge_per_frag=[{}, {}, {}, {}, {}, {}, {}, {}],
-            rel_AO_per_motif_per_frag=[
+            AO_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
+            relAO_per_motif=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4]),
@@ -2320,8 +2320,8 @@ def get_expected():
                     }
                 },
             ],
-            rel_AO_per_edge_per_frag=[{}, {}, {}, {}, {}, {}, {}, {}],
-            rel_AO_per_center_per_frag=[
+            relAO_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
+            relAO_per_center=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4]),
@@ -2381,7 +2381,7 @@ def get_expected():
                     }
                 },
             ],
-            rel_AO_per_origin_per_frag=[
+            relAO_per_origin=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4]),
@@ -2441,7 +2441,7 @@ def get_expected():
                     }
                 },
             ],
-            other_rel_AO_per_edge_per_frag=[{}, {}, {}, {}, {}, {}, {}, {}],
+            relAO_in_ref_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
             frozen_core=False,
             iao_valence_mol=None,
         ),
@@ -2780,7 +2780,7 @@ def get_expected():
                     24: OrderedSet([48]),
                 },
             },
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 {
                     1: {
                         1: OrderedSet([4, 5, 6, 7]),
@@ -2844,7 +2844,7 @@ def get_expected():
                     }
                 },
             ],
-            rel_AO_per_motif_per_frag=[
+            relAO_per_motif=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3]),
@@ -2950,7 +2950,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 {
                     1: {
                         1: OrderedSet([6, 7, 8, 9]),
@@ -3014,7 +3014,7 @@ def get_expected():
                     }
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            relAO_per_center=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3]),
@@ -3070,7 +3070,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_origin_per_frag=[
+            relAO_per_origin=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3]),
@@ -3114,7 +3114,7 @@ def get_expected():
                     }
                 },
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 {
                     1: {
                         1: OrderedSet([0, 1, 2, 3]),
@@ -3610,7 +3610,7 @@ def get_expected():
                     24: OrderedSet([56]),
                 },
             },
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 {
                     1: {
                         1: OrderedSet([5, 6, 7, 8, 9]),
@@ -3674,7 +3674,7 @@ def get_expected():
                     }
                 },
             ],
-            rel_AO_per_motif_per_frag=[
+            relAO_per_motif=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4]),
@@ -3780,7 +3780,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 {
                     1: {
                         1: OrderedSet([7, 8, 9, 10, 11]),
@@ -3844,7 +3844,7 @@ def get_expected():
                     }
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            relAO_per_center=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4]),
@@ -3900,7 +3900,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_origin_per_frag=[
+            relAO_per_origin=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4]),
@@ -3944,7 +3944,7 @@ def get_expected():
                     }
                 },
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 {
                     1: {
                         1: OrderedSet([0, 1, 2, 3, 4]),
@@ -4418,7 +4418,7 @@ def get_expected():
                     24: OrderedSet([48]),
                 },
             },
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 {
                     1: {
                         1: OrderedSet([4, 5, 6, 7]),
@@ -4488,7 +4488,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_motif_per_frag=[
+            relAO_per_motif=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3]),
@@ -4600,7 +4600,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 {
                     1: {
                         1: OrderedSet([6, 7, 8, 9]),
@@ -4670,7 +4670,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            relAO_per_center=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3]),
@@ -4722,7 +4722,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_origin_per_frag=[
+            relAO_per_origin=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3]),
@@ -4752,7 +4752,7 @@ def get_expected():
                     }
                 },
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 {
                     1: {
                         1: OrderedSet([0, 1, 2, 3]),
@@ -5252,7 +5252,7 @@ def get_expected():
                     24: OrderedSet([56]),
                 },
             },
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 {
                     1: {
                         1: OrderedSet([5, 6, 7, 8, 9]),
@@ -5322,7 +5322,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_motif_per_frag=[
+            relAO_per_motif=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4]),
@@ -5434,7 +5434,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 {
                     1: {
                         1: OrderedSet([7, 8, 9, 10, 11]),
@@ -5504,7 +5504,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            relAO_per_center=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4]),
@@ -5556,7 +5556,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_origin_per_frag=[
+            relAO_per_origin=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4]),
@@ -5586,7 +5586,7 @@ def get_expected():
                     }
                 },
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 {
                     1: {
                         1: OrderedSet([0, 1, 2, 3, 4]),
@@ -6047,7 +6047,7 @@ def get_expected():
                     24: OrderedSet([48]),
                 },
             },
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 {
                     1: {
                         1: OrderedSet([4, 5, 6, 7]),
@@ -6083,7 +6083,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_motif_per_frag=[
+            relAO_per_motif=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3]),
@@ -6161,7 +6161,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 {
                     1: {
                         1: OrderedSet([25, 26, 27, 28]),
@@ -6197,7 +6197,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            relAO_per_center=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3]),
@@ -6245,7 +6245,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_origin_per_frag=[
+            relAO_per_origin=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3]),
@@ -6261,7 +6261,7 @@ def get_expected():
                     }
                 },
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 {
                     1: {
                         1: OrderedSet([0, 1, 2, 3]),
@@ -6702,7 +6702,7 @@ def get_expected():
                     24: OrderedSet([56]),
                 },
             },
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 {
                     1: {
                         1: OrderedSet([5, 6, 7, 8, 9]),
@@ -6738,7 +6738,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_motif_per_frag=[
+            relAO_per_motif=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4]),
@@ -6816,7 +6816,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 {
                     1: {
                         1: OrderedSet([29, 30, 31, 32, 33]),
@@ -6852,7 +6852,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            relAO_per_center=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4]),
@@ -6900,7 +6900,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_origin_per_frag=[
+            relAO_per_origin=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4]),
@@ -6916,7 +6916,7 @@ def get_expected():
                     }
                 },
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 {
                     1: {
                         1: OrderedSet([0, 1, 2, 3, 4]),
@@ -7517,8 +7517,8 @@ def get_expected():
                     24: OrderedSet([184, 185, 186, 187, 188]),
                 },
             },
-            AO_per_edge_per_frag=[{}, {}, {}, {}, {}, {}, {}, {}],
-            rel_AO_per_motif_per_frag=[
+            AO_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
+            relAO_per_motif=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -7578,8 +7578,8 @@ def get_expected():
                     }
                 },
             ],
-            rel_AO_per_edge_per_frag=[{}, {}, {}, {}, {}, {}, {}, {}],
-            rel_AO_per_center_per_frag=[
+            relAO_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
+            relAO_per_center=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -7639,7 +7639,7 @@ def get_expected():
                     }
                 },
             ],
-            rel_AO_per_origin_per_frag=[
+            relAO_per_origin=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -7699,7 +7699,7 @@ def get_expected():
                     }
                 },
             ],
-            other_rel_AO_per_edge_per_frag=[{}, {}, {}, {}, {}, {}, {}, {}],
+            relAO_in_ref_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
             frozen_core=True,
             iao_valence_mol=None,
         ),
@@ -8344,8 +8344,8 @@ def get_expected():
                     24: OrderedSet([192, 193, 194, 195, 196]),
                 },
             },
-            AO_per_edge_per_frag=[{}, {}, {}, {}, {}, {}, {}, {}],
-            rel_AO_per_motif_per_frag=[
+            AO_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
+            relAO_per_motif=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -8405,8 +8405,8 @@ def get_expected():
                     }
                 },
             ],
-            rel_AO_per_edge_per_frag=[{}, {}, {}, {}, {}, {}, {}, {}],
-            rel_AO_per_center_per_frag=[
+            relAO_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
+            relAO_per_center=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -8466,7 +8466,7 @@ def get_expected():
                     }
                 },
             ],
-            rel_AO_per_origin_per_frag=[
+            relAO_per_origin=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -8526,7 +8526,7 @@ def get_expected():
                     }
                 },
             ],
-            other_rel_AO_per_edge_per_frag=[{}, {}, {}, {}, {}, {}, {}, {}],
+            relAO_in_ref_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
             frozen_core=False,
             iao_valence_mol=None,
         ),
@@ -9311,7 +9311,7 @@ def get_expected():
                     24: OrderedSet([184, 185, 186, 187, 188]),
                 },
             },
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 {
                     1: {
                         1: OrderedSet(
@@ -9405,7 +9405,7 @@ def get_expected():
                     }
                 },
             ],
-            rel_AO_per_motif_per_frag=[
+            relAO_per_motif=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -9535,7 +9535,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 {
                     1: {
                         1: OrderedSet(
@@ -9619,7 +9619,7 @@ def get_expected():
                     }
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            relAO_per_center=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -9679,7 +9679,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_origin_per_frag=[
+            relAO_per_origin=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -9723,7 +9723,7 @@ def get_expected():
                     }
                 },
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 {
                     1: {
                         1: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -10660,7 +10660,7 @@ def get_expected():
                     24: OrderedSet([192, 193, 194, 195, 196]),
                 },
             },
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 {
                     1: {
                         1: OrderedSet(
@@ -10770,7 +10770,7 @@ def get_expected():
                     }
                 },
             ],
-            rel_AO_per_motif_per_frag=[
+            relAO_per_motif=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -10900,7 +10900,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 {
                     1: {
                         1: OrderedSet(
@@ -10984,7 +10984,7 @@ def get_expected():
                     }
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            relAO_per_center=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -11044,7 +11044,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_origin_per_frag=[
+            relAO_per_origin=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -11088,7 +11088,7 @@ def get_expected():
                     }
                 },
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 {
                     1: {
                         1: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -11966,7 +11966,7 @@ def get_expected():
                     24: OrderedSet([184, 185, 186, 187, 188]),
                 },
             },
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 {
                     1: {
                         1: OrderedSet(
@@ -12068,7 +12068,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_motif_per_frag=[
+            relAO_per_motif=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -12240,7 +12240,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 {
                     1: {
                         1: OrderedSet(
@@ -12362,7 +12362,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            relAO_per_center=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -12422,7 +12422,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_origin_per_frag=[
+            relAO_per_origin=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -12452,7 +12452,7 @@ def get_expected():
                     }
                 },
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 {
                     1: {
                         1: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -13431,7 +13431,7 @@ def get_expected():
                     24: OrderedSet([192, 193, 194, 195, 196]),
                 },
             },
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 {
                     1: {
                         1: OrderedSet(
@@ -13549,7 +13549,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_motif_per_frag=[
+            relAO_per_motif=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -13753,7 +13753,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 {
                     1: {
                         1: OrderedSet(
@@ -13907,7 +13907,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            relAO_per_center=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -13967,7 +13967,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_origin_per_frag=[
+            relAO_per_origin=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -13997,7 +13997,7 @@ def get_expected():
                     }
                 },
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 {
                     1: {
                         1: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -14764,7 +14764,7 @@ def get_expected():
                     24: OrderedSet([184, 185, 186, 187, 188]),
                 },
             },
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 {
                     1: {
                         1: OrderedSet(
@@ -14824,7 +14824,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_motif_per_frag=[
+            relAO_per_motif=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -15010,7 +15010,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 {
                     1: {
                         1: OrderedSet(
@@ -15142,7 +15142,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            relAO_per_center=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -15202,7 +15202,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_origin_per_frag=[
+            relAO_per_origin=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -15218,7 +15218,7 @@ def get_expected():
                     }
                 },
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 {
                     1: {
                         1: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -16040,7 +16040,7 @@ def get_expected():
                     24: OrderedSet([192, 193, 194, 195, 196]),
                 },
             },
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 {
                     1: {
                         1: OrderedSet(
@@ -16116,7 +16116,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_motif_per_frag=[
+            relAO_per_motif=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -16308,7 +16308,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 {
                     1: {
                         1: OrderedSet(
@@ -16446,7 +16446,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            relAO_per_center=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -16506,7 +16506,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_origin_per_frag=[
+            relAO_per_origin=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -16522,7 +16522,7 @@ def get_expected():
                     }
                 },
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 {
                     1: {
                         1: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -17131,8 +17131,8 @@ def get_expected():
                     24: OrderedSet([184, 185, 186, 187, 188]),
                 },
             },
-            AO_per_edge_per_frag=[{}, {}, {}, {}, {}, {}, {}, {}],
-            rel_AO_per_motif_per_frag=[
+            AO_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
+            relAO_per_motif=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -17192,8 +17192,8 @@ def get_expected():
                     }
                 },
             ],
-            rel_AO_per_edge_per_frag=[{}, {}, {}, {}, {}, {}, {}, {}],
-            rel_AO_per_center_per_frag=[
+            relAO_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
+            relAO_per_center=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -17253,7 +17253,7 @@ def get_expected():
                     }
                 },
             ],
-            rel_AO_per_origin_per_frag=[
+            relAO_per_origin=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -17313,7 +17313,7 @@ def get_expected():
                     }
                 },
             ],
-            other_rel_AO_per_edge_per_frag=[{}, {}, {}, {}, {}, {}, {}, {}],
+            relAO_in_ref_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
             frozen_core=True,
             iao_valence_mol=octane_cart.to_pyscf(basis="sto-3g"),
         ),
@@ -17958,8 +17958,8 @@ def get_expected():
                     24: OrderedSet([192, 193, 194, 195, 196]),
                 },
             },
-            AO_per_edge_per_frag=[{}, {}, {}, {}, {}, {}, {}, {}],
-            rel_AO_per_motif_per_frag=[
+            AO_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
+            relAO_per_motif=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -18019,8 +18019,8 @@ def get_expected():
                     }
                 },
             ],
-            rel_AO_per_edge_per_frag=[{}, {}, {}, {}, {}, {}, {}, {}],
-            rel_AO_per_center_per_frag=[
+            relAO_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
+            relAO_per_center=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -18080,7 +18080,7 @@ def get_expected():
                     }
                 },
             ],
-            rel_AO_per_origin_per_frag=[
+            relAO_per_origin=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -18140,7 +18140,7 @@ def get_expected():
                     }
                 },
             ],
-            other_rel_AO_per_edge_per_frag=[{}, {}, {}, {}, {}, {}, {}, {}],
+            relAO_in_ref_per_edge=[{}, {}, {}, {}, {}, {}, {}, {}],
             frozen_core=False,
             iao_valence_mol=octane_cart.to_pyscf(basis="sto-3g"),
         ),
@@ -18925,7 +18925,7 @@ def get_expected():
                     24: OrderedSet([184, 185, 186, 187, 188]),
                 },
             },
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 {
                     1: {
                         1: OrderedSet(
@@ -19019,7 +19019,7 @@ def get_expected():
                     }
                 },
             ],
-            rel_AO_per_motif_per_frag=[
+            relAO_per_motif=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -19149,7 +19149,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 {
                     1: {
                         1: OrderedSet(
@@ -19233,7 +19233,7 @@ def get_expected():
                     }
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            relAO_per_center=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -19293,7 +19293,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_origin_per_frag=[
+            relAO_per_origin=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -19337,7 +19337,7 @@ def get_expected():
                     }
                 },
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 {
                     1: {
                         1: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -20274,7 +20274,7 @@ def get_expected():
                     24: OrderedSet([192, 193, 194, 195, 196]),
                 },
             },
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 {
                     1: {
                         1: OrderedSet(
@@ -20384,7 +20384,7 @@ def get_expected():
                     }
                 },
             ],
-            rel_AO_per_motif_per_frag=[
+            relAO_per_motif=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -20514,7 +20514,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 {
                     1: {
                         1: OrderedSet(
@@ -20598,7 +20598,7 @@ def get_expected():
                     }
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            relAO_per_center=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -20658,7 +20658,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_origin_per_frag=[
+            relAO_per_origin=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -20702,7 +20702,7 @@ def get_expected():
                     }
                 },
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 {
                     1: {
                         1: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -21580,7 +21580,7 @@ def get_expected():
                     24: OrderedSet([184, 185, 186, 187, 188]),
                 },
             },
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 {
                     1: {
                         1: OrderedSet(
@@ -21682,7 +21682,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_motif_per_frag=[
+            relAO_per_motif=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -21854,7 +21854,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 {
                     1: {
                         1: OrderedSet(
@@ -21976,7 +21976,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            relAO_per_center=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -22036,7 +22036,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_origin_per_frag=[
+            relAO_per_origin=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -22066,7 +22066,7 @@ def get_expected():
                     }
                 },
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 {
                     1: {
                         1: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -23045,7 +23045,7 @@ def get_expected():
                     24: OrderedSet([192, 193, 194, 195, 196]),
                 },
             },
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 {
                     1: {
                         1: OrderedSet(
@@ -23163,7 +23163,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_motif_per_frag=[
+            relAO_per_motif=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -23367,7 +23367,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 {
                     1: {
                         1: OrderedSet(
@@ -23521,7 +23521,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            relAO_per_center=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -23581,7 +23581,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_origin_per_frag=[
+            relAO_per_origin=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -23611,7 +23611,7 @@ def get_expected():
                     }
                 },
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 {
                     1: {
                         1: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -24378,7 +24378,7 @@ def get_expected():
                     24: OrderedSet([184, 185, 186, 187, 188]),
                 },
             },
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 {
                     1: {
                         1: OrderedSet(
@@ -24438,7 +24438,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_motif_per_frag=[
+            relAO_per_motif=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -24624,7 +24624,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 {
                     1: {
                         1: OrderedSet(
@@ -24756,7 +24756,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            relAO_per_center=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -24816,7 +24816,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_origin_per_frag=[
+            relAO_per_origin=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -24832,7 +24832,7 @@ def get_expected():
                     }
                 },
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 {
                     1: {
                         1: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -25654,7 +25654,7 @@ def get_expected():
                     24: OrderedSet([192, 193, 194, 195, 196]),
                 },
             },
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 {
                     1: {
                         1: OrderedSet(
@@ -25730,7 +25730,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_motif_per_frag=[
+            relAO_per_motif=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -25922,7 +25922,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 {
                     1: {
                         1: OrderedSet(
@@ -26060,7 +26060,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_center_per_frag=[
+            relAO_per_center=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -26120,7 +26120,7 @@ def get_expected():
                     },
                 },
             ],
-            rel_AO_per_origin_per_frag=[
+            relAO_per_origin=[
                 {
                     0: {
                         0: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -26136,7 +26136,7 @@ def get_expected():
                     }
                 },
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 {
                     1: {
                         1: OrderedSet([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
@@ -26201,10 +26201,10 @@ def get_expected():
                 [36, 37, 38, 39, 44, 46, 49],
                 [40, 41, 42, 43, 45, 47, 48],
             ],
-            AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
+            AO_per_edge=[[], [], [], [], [], [], [], []],
             ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
-            rel_AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
-            other_rel_AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
+            relAO_per_edge=[[], [], [], [], [], [], [], []],
+            relAO_in_ref_per_edge=[[], [], [], [], [], [], [], []],
             centerf_idx=[
                 [0, 1, 2, 3, 4, 5],
                 [0, 1, 2, 3, 4, 5],
@@ -26215,7 +26215,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (1.0, [0, 1, 2, 3, 4, 5]),
                 (1.0, [0, 1, 2, 3, 4, 5]),
                 (1.0, [0, 1, 2, 3, 4, 5]),
@@ -26274,10 +26274,10 @@ def get_expected():
                 [36, 37, 38, 39, 44, 46, 49],
                 [40, 41, 42, 43, 45, 47, 48],
             ],
-            AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
+            AO_per_edge=[[], [], [], [], [], [], [], []],
             ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
-            rel_AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
-            other_rel_AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
+            relAO_per_edge=[[], [], [], [], [], [], [], []],
+            relAO_in_ref_per_edge=[[], [], [], [], [], [], [], []],
             centerf_idx=[
                 [0, 1, 2, 3, 4, 5],
                 [0, 1, 2, 3, 4, 5],
@@ -26288,7 +26288,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (1.0, [0, 1, 2, 3, 4, 5]),
                 (1.0, [0, 1, 2, 3, 4, 5]),
                 (1.0, [0, 1, 2, 3, 4, 5]),
@@ -26347,10 +26347,10 @@ def get_expected():
                 [42, 43, 44, 45, 46, 52, 54, 57],
                 [47, 48, 49, 50, 51, 53, 55, 56],
             ],
-            AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
+            AO_per_edge=[[], [], [], [], [], [], [], []],
             ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
-            rel_AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
-            other_rel_AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
+            relAO_per_edge=[[], [], [], [], [], [], [], []],
+            relAO_in_ref_per_edge=[[], [], [], [], [], [], [], []],
             centerf_idx=[
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
@@ -26361,7 +26361,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 5, 6, 7],
                 [0, 1, 2, 3, 4, 5, 6, 7],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (1.0, [0, 1, 2, 3, 4, 5, 6]),
                 (1.0, [0, 1, 2, 3, 4, 5, 6]),
                 (1.0, [0, 1, 2, 3, 4, 5, 6]),
@@ -26420,10 +26420,10 @@ def get_expected():
                 [42, 43, 44, 45, 46, 52, 54, 57],
                 [47, 48, 49, 50, 51, 53, 55, 56],
             ],
-            AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
+            AO_per_edge=[[], [], [], [], [], [], [], []],
             ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
-            rel_AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
-            other_rel_AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
+            relAO_per_edge=[[], [], [], [], [], [], [], []],
+            relAO_in_ref_per_edge=[[], [], [], [], [], [], [], []],
             centerf_idx=[
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
@@ -26434,7 +26434,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 5, 6, 7],
                 [0, 1, 2, 3, 4, 5, 6, 7],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (1.0, [0, 1, 2, 3, 4, 5, 6]),
                 (1.0, [0, 1, 2, 3, 4, 5, 6]),
                 (1.0, [0, 1, 2, 3, 4, 5, 6]),
@@ -26695,10 +26695,10 @@ def get_expected():
                     188,
                 ],
             ],
-            AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
+            AO_per_edge=[[], [], [], [], [], [], [], []],
             ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
-            rel_AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
-            other_rel_AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
+            relAO_per_edge=[[], [], [], [], [], [], [], []],
+            relAO_in_ref_per_edge=[[], [], [], [], [], [], [], []],
             centerf_idx=[
                 [
                     0,
@@ -26911,7 +26911,7 @@ def get_expected():
                     27,
                 ],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -27398,10 +27398,10 @@ def get_expected():
                     188,
                 ],
             ],
-            AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
+            AO_per_edge=[[], [], [], [], [], [], [], []],
             ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
-            rel_AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
-            other_rel_AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
+            relAO_per_edge=[[], [], [], [], [], [], [], []],
+            relAO_in_ref_per_edge=[[], [], [], [], [], [], [], []],
             centerf_idx=[
                 [
                     0,
@@ -27614,7 +27614,7 @@ def get_expected():
                     27,
                 ],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -28109,10 +28109,10 @@ def get_expected():
                     196,
                 ],
             ],
-            AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
+            AO_per_edge=[[], [], [], [], [], [], [], []],
             ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
-            rel_AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
-            other_rel_AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
+            relAO_per_edge=[[], [], [], [], [], [], [], []],
+            relAO_in_ref_per_edge=[[], [], [], [], [], [], [], []],
             centerf_idx=[
                 [
                     0,
@@ -28333,7 +28333,7 @@ def get_expected():
                     28,
                 ],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -28836,10 +28836,10 @@ def get_expected():
                     196,
                 ],
             ],
-            AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
+            AO_per_edge=[[], [], [], [], [], [], [], []],
             ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
-            rel_AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
-            other_rel_AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
+            relAO_per_edge=[[], [], [], [], [], [], [], []],
+            relAO_in_ref_per_edge=[[], [], [], [], [], [], [], []],
             centerf_idx=[
                 [
                     0,
@@ -29060,7 +29060,7 @@ def get_expected():
                     28,
                 ],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -29555,10 +29555,10 @@ def get_expected():
                     188,
                 ],
             ],
-            AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
+            AO_per_edge=[[], [], [], [], [], [], [], []],
             ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
-            rel_AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
-            other_rel_AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
+            relAO_per_edge=[[], [], [], [], [], [], [], []],
+            relAO_in_ref_per_edge=[[], [], [], [], [], [], [], []],
             centerf_idx=[
                 [0, 1, 2, 3, 13, 14],
                 [0, 1, 2, 3, 13, 14],
@@ -29569,7 +29569,7 @@ def get_expected():
                 [0, 1, 2, 3, 13, 14, 15],
                 [0, 1, 2, 3, 13, 14, 15],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -30056,10 +30056,10 @@ def get_expected():
                     188,
                 ],
             ],
-            AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
+            AO_per_edge=[[], [], [], [], [], [], [], []],
             ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
-            rel_AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
-            other_rel_AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
+            relAO_per_edge=[[], [], [], [], [], [], [], []],
+            relAO_in_ref_per_edge=[[], [], [], [], [], [], [], []],
             centerf_idx=[
                 [0, 1, 2, 3, 13, 18],
                 [0, 1, 2, 3, 13, 18],
@@ -30070,7 +30070,7 @@ def get_expected():
                 [0, 1, 2, 3, 13, 18, 23],
                 [0, 1, 2, 3, 13, 18, 23],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -30565,10 +30565,10 @@ def get_expected():
                     196,
                 ],
             ],
-            AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
+            AO_per_edge=[[], [], [], [], [], [], [], []],
             ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
-            rel_AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
-            other_rel_AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
+            relAO_per_edge=[[], [], [], [], [], [], [], []],
+            relAO_in_ref_per_edge=[[], [], [], [], [], [], [], []],
             centerf_idx=[
                 [0, 1, 2, 3, 4, 14, 15],
                 [0, 1, 2, 3, 4, 14, 15],
@@ -30579,7 +30579,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 14, 15, 16],
                 [0, 1, 2, 3, 4, 14, 15, 16],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -31082,10 +31082,10 @@ def get_expected():
                     196,
                 ],
             ],
-            AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
+            AO_per_edge=[[], [], [], [], [], [], [], []],
             ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
-            rel_AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
-            other_rel_AO_per_edge_per_frag=[[], [], [], [], [], [], [], []],
+            relAO_per_edge=[[], [], [], [], [], [], [], []],
+            relAO_in_ref_per_edge=[[], [], [], [], [], [], [], []],
             centerf_idx=[
                 [0, 1, 2, 3, 4, 14, 19],
                 [0, 1, 2, 3, 4, 14, 19],
@@ -31096,7 +31096,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 14, 19, 24],
                 [0, 1, 2, 3, 4, 14, 19, 24],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -31427,7 +31427,7 @@ def get_expected():
                     23,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [[4, 5, 6, 7, 8, 10], [16, 17, 18, 19, 21, 23]],
                 [[0, 1, 2, 3, 9, 11], [12, 13, 14, 15, 20, 22]],
                 [[4, 5, 6, 7, 8, 10], [24, 25, 26, 27, 32, 34]],
@@ -31436,7 +31436,7 @@ def get_expected():
                 [[16, 17, 18, 19, 21, 23]],
             ],
             ref_frag_idx_per_edge=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [[6, 7, 8, 9, 10, 11], [12, 13, 14, 15, 16, 17]],
                 [[6, 7, 8, 9, 10, 11], [12, 13, 14, 15, 16, 17]],
                 [[6, 7, 8, 9, 10, 11], [12, 13, 14, 15, 16, 17]],
@@ -31444,7 +31444,7 @@ def get_expected():
                 [[13, 14, 15, 16, 17, 18]],
                 [[13, 14, 15, 16, 17, 18]],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]],
                 [[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]],
                 [[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]],
@@ -31460,7 +31460,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 5],
                 [0, 1, 2, 3, 4, 5],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (1.0, [0, 1, 2, 3, 4, 5]),
                 (1.0, [0, 1, 2, 3, 4, 5]),
                 (1.0, [0, 1, 2, 3, 4, 5]),
@@ -31562,7 +31562,7 @@ def get_expected():
                     23,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [[4, 5, 6, 7, 8, 10], [16, 17, 18, 19, 21, 23]],
                 [[0, 1, 2, 3, 9, 11], [12, 13, 14, 15, 20, 22]],
                 [[4, 5, 6, 7, 8, 10], [24, 25, 26, 27, 32, 34]],
@@ -31571,7 +31571,7 @@ def get_expected():
                 [[16, 17, 18, 19, 21, 23]],
             ],
             ref_frag_idx_per_edge=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [[6, 7, 8, 9, 10, 11], [12, 13, 14, 15, 16, 17]],
                 [[6, 7, 8, 9, 10, 11], [12, 13, 14, 15, 16, 17]],
                 [[6, 7, 8, 9, 10, 11], [12, 13, 14, 15, 16, 17]],
@@ -31579,7 +31579,7 @@ def get_expected():
                 [[13, 14, 15, 16, 17, 18]],
                 [[13, 14, 15, 16, 17, 18]],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]],
                 [[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]],
                 [[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]],
@@ -31595,7 +31595,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 5],
                 [0, 1, 2, 3, 4, 5],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (1.0, [0, 1, 2, 3, 4, 5]),
                 (1.0, [0, 1, 2, 3, 4, 5]),
                 (1.0, [0, 1, 2, 3, 4, 5]),
@@ -31791,7 +31791,7 @@ def get_expected():
                     27,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [[5, 6, 7, 8, 9, 10, 12], [19, 20, 21, 22, 23, 25, 27]],
                 [[0, 1, 2, 3, 4, 11, 13], [14, 15, 16, 17, 18, 24, 26]],
                 [[5, 6, 7, 8, 9, 10, 12], [28, 29, 30, 31, 32, 38, 40]],
@@ -31800,7 +31800,7 @@ def get_expected():
                 [[19, 20, 21, 22, 23, 25, 27]],
             ],
             ref_frag_idx_per_edge=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [[7, 8, 9, 10, 11, 12, 13], [14, 15, 16, 17, 18, 19, 20]],
                 [[7, 8, 9, 10, 11, 12, 13], [14, 15, 16, 17, 18, 19, 20]],
                 [[7, 8, 9, 10, 11, 12, 13], [14, 15, 16, 17, 18, 19, 20]],
@@ -31808,7 +31808,7 @@ def get_expected():
                 [[15, 16, 17, 18, 19, 20, 21]],
                 [[15, 16, 17, 18, 19, 20, 21]],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [[0, 1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5, 6]],
                 [[0, 1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5, 6]],
                 [[0, 1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5, 6]],
@@ -31824,7 +31824,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (1.0, [0, 1, 2, 3, 4, 5, 6]),
                 (1.0, [0, 1, 2, 3, 4, 5, 6]),
                 (1.0, [0, 1, 2, 3, 4, 5, 6]),
@@ -32020,7 +32020,7 @@ def get_expected():
                     27,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [[5, 6, 7, 8, 9, 10, 12], [19, 20, 21, 22, 23, 25, 27]],
                 [[0, 1, 2, 3, 4, 11, 13], [14, 15, 16, 17, 18, 24, 26]],
                 [[5, 6, 7, 8, 9, 10, 12], [28, 29, 30, 31, 32, 38, 40]],
@@ -32029,7 +32029,7 @@ def get_expected():
                 [[19, 20, 21, 22, 23, 25, 27]],
             ],
             ref_frag_idx_per_edge=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [[7, 8, 9, 10, 11, 12, 13], [14, 15, 16, 17, 18, 19, 20]],
                 [[7, 8, 9, 10, 11, 12, 13], [14, 15, 16, 17, 18, 19, 20]],
                 [[7, 8, 9, 10, 11, 12, 13], [14, 15, 16, 17, 18, 19, 20]],
@@ -32037,7 +32037,7 @@ def get_expected():
                 [[15, 16, 17, 18, 19, 20, 21]],
                 [[15, 16, 17, 18, 19, 20, 21]],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [[0, 1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5, 6]],
                 [[0, 1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5, 6]],
                 [[0, 1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5, 6]],
@@ -32053,7 +32053,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (1.0, [0, 1, 2, 3, 4, 5, 6]),
                 (1.0, [0, 1, 2, 3, 4, 5, 6]),
                 (1.0, [0, 1, 2, 3, 4, 5, 6]),
@@ -32545,7 +32545,7 @@ def get_expected():
                     91,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [
                     [
                         13,
@@ -32810,7 +32810,7 @@ def get_expected():
                 ],
             ],
             ref_frag_idx_per_edge=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [
                     [
                         23,
@@ -33074,7 +33074,7 @@ def get_expected():
                     ]
                 ],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [
                     [
                         0,
@@ -33490,7 +33490,7 @@ def get_expected():
                     22,
                 ],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -34200,7 +34200,7 @@ def get_expected():
                     91,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [
                     [
                         13,
@@ -34465,7 +34465,7 @@ def get_expected():
                 ],
             ],
             ref_frag_idx_per_edge=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [
                     [
                         23,
@@ -34729,7 +34729,7 @@ def get_expected():
                     ]
                 ],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [
                     [
                         0,
@@ -35145,7 +35145,7 @@ def get_expected():
                     22,
                 ],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -35873,7 +35873,7 @@ def get_expected():
                     95,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [
                     [
                         14,
@@ -36148,7 +36148,7 @@ def get_expected():
                 ],
             ],
             ref_frag_idx_per_edge=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [
                     [
                         24,
@@ -36422,7 +36422,7 @@ def get_expected():
                     ]
                 ],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [
                     [
                         0,
@@ -36854,7 +36854,7 @@ def get_expected():
                     23,
                 ],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -37590,7 +37590,7 @@ def get_expected():
                     95,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [
                     [
                         14,
@@ -37865,7 +37865,7 @@ def get_expected():
                 ],
             ],
             ref_frag_idx_per_edge=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [
                     [
                         24,
@@ -38139,7 +38139,7 @@ def get_expected():
                     ]
                 ],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [
                     [
                         0,
@@ -38571,7 +38571,7 @@ def get_expected():
                     23,
                 ],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -39289,7 +39289,7 @@ def get_expected():
                     91,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [[13, 14, 15, 16, 26, 27], [59, 60, 61, 62, 77, 78]],
                 [[0, 1, 2, 3, 31, 32], [46, 47, 48, 49, 72, 73]],
                 [[13, 14, 15, 16, 26, 27], [92, 93, 94, 95, 118, 119]],
@@ -39298,7 +39298,7 @@ def get_expected():
                 [[59, 60, 61, 62, 77, 78]],
             ],
             ref_frag_idx_per_edge=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [[23, 24, 25, 26, 36, 37], [46, 47, 48, 49, 59, 60]],
                 [[23, 24, 25, 26, 36, 37], [46, 47, 48, 49, 59, 60]],
                 [[23, 24, 25, 26, 36, 37], [46, 47, 48, 49, 59, 60]],
@@ -39306,7 +39306,7 @@ def get_expected():
                 [[51, 52, 53, 54, 64, 65]],
                 [[51, 52, 53, 54, 64, 65]],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [[0, 1, 2, 3, 13, 14], [0, 1, 2, 3, 13, 14]],
                 [[0, 1, 2, 3, 13, 14], [0, 1, 2, 3, 13, 14]],
                 [[0, 1, 2, 3, 13, 14], [0, 1, 2, 3, 13, 14]],
@@ -39322,7 +39322,7 @@ def get_expected():
                 [0, 1, 2, 3, 13, 14],
                 [0, 1, 2, 3, 13, 14],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -40032,7 +40032,7 @@ def get_expected():
                     91,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [[13, 14, 15, 16, 26, 36], [59, 60, 61, 62, 77, 87]],
                 [[0, 1, 2, 3, 31, 41], [46, 47, 48, 49, 72, 82]],
                 [[13, 14, 15, 16, 26, 36], [92, 93, 94, 95, 118, 128]],
@@ -40041,7 +40041,7 @@ def get_expected():
                 [[59, 60, 61, 62, 77, 87]],
             ],
             ref_frag_idx_per_edge=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [[23, 24, 25, 26, 36, 41], [46, 47, 48, 49, 59, 64]],
                 [[23, 24, 25, 26, 36, 41], [46, 47, 48, 49, 59, 64]],
                 [[23, 24, 25, 26, 36, 41], [46, 47, 48, 49, 59, 64]],
@@ -40049,7 +40049,7 @@ def get_expected():
                 [[51, 52, 53, 54, 64, 69]],
                 [[51, 52, 53, 54, 64, 69]],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [[0, 1, 2, 3, 13, 18], [0, 1, 2, 3, 13, 18]],
                 [[0, 1, 2, 3, 13, 18], [0, 1, 2, 3, 13, 18]],
                 [[0, 1, 2, 3, 13, 18], [0, 1, 2, 3, 13, 18]],
@@ -40065,7 +40065,7 @@ def get_expected():
                 [0, 1, 2, 3, 13, 18],
                 [0, 1, 2, 3, 13, 18],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -40793,7 +40793,7 @@ def get_expected():
                     95,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [[14, 15, 16, 17, 18, 28, 29], [62, 63, 64, 65, 66, 81, 82]],
                 [[0, 1, 2, 3, 4, 33, 34], [48, 49, 50, 51, 52, 76, 77]],
                 [[14, 15, 16, 17, 18, 28, 29], [96, 97, 98, 99, 100, 124, 125]],
@@ -40802,7 +40802,7 @@ def get_expected():
                 [[62, 63, 64, 65, 66, 81, 82]],
             ],
             ref_frag_idx_per_edge=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [[24, 25, 26, 27, 28, 38, 39], [48, 49, 50, 51, 52, 62, 63]],
                 [[24, 25, 26, 27, 28, 38, 39], [48, 49, 50, 51, 52, 62, 63]],
                 [[24, 25, 26, 27, 28, 38, 39], [48, 49, 50, 51, 52, 62, 63]],
@@ -40810,7 +40810,7 @@ def get_expected():
                 [[53, 54, 55, 56, 57, 67, 68]],
                 [[53, 54, 55, 56, 57, 67, 68]],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [[0, 1, 2, 3, 4, 14, 15], [0, 1, 2, 3, 4, 14, 15]],
                 [[0, 1, 2, 3, 4, 14, 15], [0, 1, 2, 3, 4, 14, 15]],
                 [[0, 1, 2, 3, 4, 14, 15], [0, 1, 2, 3, 4, 14, 15]],
@@ -40826,7 +40826,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 14, 15],
                 [0, 1, 2, 3, 4, 14, 15],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -41562,7 +41562,7 @@ def get_expected():
                     95,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [[14, 15, 16, 17, 18, 28, 38], [62, 63, 64, 65, 66, 81, 91]],
                 [[0, 1, 2, 3, 4, 33, 43], [48, 49, 50, 51, 52, 76, 86]],
                 [[14, 15, 16, 17, 18, 28, 38], [96, 97, 98, 99, 100, 124, 134]],
@@ -41571,7 +41571,7 @@ def get_expected():
                 [[62, 63, 64, 65, 66, 81, 91]],
             ],
             ref_frag_idx_per_edge=[[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [[24, 25, 26, 27, 28, 38, 43], [48, 49, 50, 51, 52, 62, 67]],
                 [[24, 25, 26, 27, 28, 38, 43], [48, 49, 50, 51, 52, 62, 67]],
                 [[24, 25, 26, 27, 28, 38, 43], [48, 49, 50, 51, 52, 62, 67]],
@@ -41579,7 +41579,7 @@ def get_expected():
                 [[53, 54, 55, 56, 57, 67, 72]],
                 [[53, 54, 55, 56, 57, 67, 72]],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [[0, 1, 2, 3, 4, 14, 19], [0, 1, 2, 3, 4, 14, 19]],
                 [[0, 1, 2, 3, 4, 14, 19], [0, 1, 2, 3, 4, 14, 19]],
                 [[0, 1, 2, 3, 4, 14, 19], [0, 1, 2, 3, 4, 14, 19]],
@@ -41595,7 +41595,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 14, 19],
                 [0, 1, 2, 3, 4, 14, 19],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -42007,7 +42007,7 @@ def get_expected():
                     10,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [
                     [4, 5, 6, 7, 8, 10],
                     [12, 13, 14, 15, 20, 22],
@@ -42024,7 +42024,7 @@ def get_expected():
                 [[0, 1, 2, 3, 9, 11], [4, 5, 6, 7, 8, 10]],
             ],
             ref_frag_idx_per_edge=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [
                     [6, 7, 8, 9, 10, 11],
                     [12, 13, 14, 15, 16, 17],
@@ -42040,7 +42040,7 @@ def get_expected():
                 [[19, 20, 21, 22, 23, 24], [25, 26, 27, 28, 29, 30]],
                 [[19, 20, 21, 22, 23, 24], [25, 26, 27, 28, 29, 30]],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [
                     [0, 1, 2, 3, 4, 5],
                     [0, 1, 2, 3, 4, 5],
@@ -42062,7 +42062,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 5],
                 [0, 1, 2, 3, 4, 5],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (1.0, [0, 1, 2, 3, 4, 5]),
                 (1.0, [0, 1, 2, 3, 4, 5]),
                 (
@@ -42250,7 +42250,7 @@ def get_expected():
                     10,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [
                     [4, 5, 6, 7, 8, 10],
                     [12, 13, 14, 15, 20, 22],
@@ -42267,7 +42267,7 @@ def get_expected():
                 [[0, 1, 2, 3, 9, 11], [4, 5, 6, 7, 8, 10]],
             ],
             ref_frag_idx_per_edge=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [
                     [6, 7, 8, 9, 10, 11],
                     [12, 13, 14, 15, 16, 17],
@@ -42283,7 +42283,7 @@ def get_expected():
                 [[19, 20, 21, 22, 23, 24], [25, 26, 27, 28, 29, 30]],
                 [[19, 20, 21, 22, 23, 24], [25, 26, 27, 28, 29, 30]],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [
                     [0, 1, 2, 3, 4, 5],
                     [0, 1, 2, 3, 4, 5],
@@ -42305,7 +42305,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 5],
                 [0, 1, 2, 3, 4, 5],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (1.0, [0, 1, 2, 3, 4, 5]),
                 (1.0, [0, 1, 2, 3, 4, 5]),
                 (
@@ -42513,7 +42513,7 @@ def get_expected():
                     12,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [
                     [5, 6, 7, 8, 9, 10, 12],
                     [14, 15, 16, 17, 18, 24, 26],
@@ -42530,7 +42530,7 @@ def get_expected():
                 [[0, 1, 2, 3, 4, 11, 13], [5, 6, 7, 8, 9, 10, 12]],
             ],
             ref_frag_idx_per_edge=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [
                     [7, 8, 9, 10, 11, 12, 13],
                     [14, 15, 16, 17, 18, 19, 20],
@@ -42546,7 +42546,7 @@ def get_expected():
                 [[22, 23, 24, 25, 26, 27, 28], [29, 30, 31, 32, 33, 34, 35]],
                 [[22, 23, 24, 25, 26, 27, 28], [29, 30, 31, 32, 33, 34, 35]],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [
                     [0, 1, 2, 3, 4, 5, 6],
                     [0, 1, 2, 3, 4, 5, 6],
@@ -42568,7 +42568,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (1.0, [0, 1, 2, 3, 4, 5, 6]),
                 (1.0, [0, 1, 2, 3, 4, 5, 6]),
                 (
@@ -42822,7 +42822,7 @@ def get_expected():
                     12,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [
                     [5, 6, 7, 8, 9, 10, 12],
                     [14, 15, 16, 17, 18, 24, 26],
@@ -42839,7 +42839,7 @@ def get_expected():
                 [[0, 1, 2, 3, 4, 11, 13], [5, 6, 7, 8, 9, 10, 12]],
             ],
             ref_frag_idx_per_edge=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [
                     [7, 8, 9, 10, 11, 12, 13],
                     [14, 15, 16, 17, 18, 19, 20],
@@ -42855,7 +42855,7 @@ def get_expected():
                 [[22, 23, 24, 25, 26, 27, 28], [29, 30, 31, 32, 33, 34, 35]],
                 [[22, 23, 24, 25, 26, 27, 28], [29, 30, 31, 32, 33, 34, 35]],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [
                     [0, 1, 2, 3, 4, 5, 6],
                     [0, 1, 2, 3, 4, 5, 6],
@@ -42877,7 +42877,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (1.0, [0, 1, 2, 3, 4, 5, 6]),
                 (1.0, [0, 1, 2, 3, 4, 5, 6]),
                 (
@@ -43459,7 +43459,7 @@ def get_expected():
                     40,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [
                     [
                         13,
@@ -43770,7 +43770,7 @@ def get_expected():
                 ],
             ],
             ref_frag_idx_per_edge=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [
                     [
                         23,
@@ -44080,7 +44080,7 @@ def get_expected():
                     ],
                 ],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [
                     [
                         0,
@@ -44492,7 +44492,7 @@ def get_expected():
                     22,
                 ],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -45232,7 +45232,7 @@ def get_expected():
                     40,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [
                     [
                         13,
@@ -45543,7 +45543,7 @@ def get_expected():
                 ],
             ],
             ref_frag_idx_per_edge=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [
                     [
                         23,
@@ -45853,7 +45853,7 @@ def get_expected():
                     ],
                 ],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [
                     [
                         0,
@@ -46265,7 +46265,7 @@ def get_expected():
                     22,
                 ],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -47025,7 +47025,7 @@ def get_expected():
                     42,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [
                     [
                         14,
@@ -47348,7 +47348,7 @@ def get_expected():
                 ],
             ],
             ref_frag_idx_per_edge=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [
                     [
                         24,
@@ -47670,7 +47670,7 @@ def get_expected():
                     ],
                 ],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [
                     [
                         0,
@@ -48098,7 +48098,7 @@ def get_expected():
                     23,
                 ],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -48866,7 +48866,7 @@ def get_expected():
                     42,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [
                     [
                         14,
@@ -49189,7 +49189,7 @@ def get_expected():
                 ],
             ],
             ref_frag_idx_per_edge=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [
                     [
                         24,
@@ -49511,7 +49511,7 @@ def get_expected():
                     ],
                 ],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [
                     [
                         0,
@@ -49939,7 +49939,7 @@ def get_expected():
                     23,
                 ],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -50687,7 +50687,7 @@ def get_expected():
                     40,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [
                     [13, 14, 15, 16, 26, 27],
                     [46, 47, 48, 49, 72, 73],
@@ -50704,7 +50704,7 @@ def get_expected():
                 [[0, 1, 2, 3, 31, 32], [13, 14, 15, 16, 26, 27]],
             ],
             ref_frag_idx_per_edge=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [
                     [23, 24, 25, 26, 36, 37],
                     [46, 47, 48, 49, 59, 60],
@@ -50720,7 +50720,7 @@ def get_expected():
                 [[74, 75, 76, 77, 87, 88], [97, 98, 99, 100, 110, 111]],
                 [[74, 75, 76, 77, 87, 88], [97, 98, 99, 100, 110, 111]],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [
                     [0, 1, 2, 3, 13, 14],
                     [0, 1, 2, 3, 13, 14],
@@ -50742,7 +50742,7 @@ def get_expected():
                 [0, 1, 2, 3, 13, 14],
                 [0, 1, 2, 3, 13, 14],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -51482,7 +51482,7 @@ def get_expected():
                     40,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [
                     [13, 14, 15, 16, 26, 36],
                     [46, 47, 48, 49, 72, 82],
@@ -51499,7 +51499,7 @@ def get_expected():
                 [[0, 1, 2, 3, 31, 41], [13, 14, 15, 16, 26, 36]],
             ],
             ref_frag_idx_per_edge=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [
                     [23, 24, 25, 26, 36, 41],
                     [46, 47, 48, 49, 59, 64],
@@ -51515,7 +51515,7 @@ def get_expected():
                 [[74, 75, 76, 77, 87, 92], [97, 98, 99, 100, 110, 115]],
                 [[74, 75, 76, 77, 87, 92], [97, 98, 99, 100, 110, 115]],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [
                     [0, 1, 2, 3, 13, 18],
                     [0, 1, 2, 3, 13, 18],
@@ -51537,7 +51537,7 @@ def get_expected():
                 [0, 1, 2, 3, 13, 18],
                 [0, 1, 2, 3, 13, 18],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -52297,7 +52297,7 @@ def get_expected():
                     42,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [
                     [14, 15, 16, 17, 18, 28, 29],
                     [48, 49, 50, 51, 52, 76, 77],
@@ -52314,7 +52314,7 @@ def get_expected():
                 [[0, 1, 2, 3, 4, 33, 34], [14, 15, 16, 17, 18, 28, 29]],
             ],
             ref_frag_idx_per_edge=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [
                     [24, 25, 26, 27, 28, 38, 39],
                     [48, 49, 50, 51, 52, 62, 63],
@@ -52330,7 +52330,7 @@ def get_expected():
                 [[77, 78, 79, 80, 81, 91, 92], [101, 102, 103, 104, 105, 115, 116]],
                 [[77, 78, 79, 80, 81, 91, 92], [101, 102, 103, 104, 105, 115, 116]],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [
                     [0, 1, 2, 3, 4, 14, 15],
                     [0, 1, 2, 3, 4, 14, 15],
@@ -52352,7 +52352,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 14, 15],
                 [0, 1, 2, 3, 4, 14, 15],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -53120,7 +53120,7 @@ def get_expected():
                     42,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [
                     [14, 15, 16, 17, 18, 28, 38],
                     [48, 49, 50, 51, 52, 76, 86],
@@ -53137,7 +53137,7 @@ def get_expected():
                 [[0, 1, 2, 3, 4, 33, 43], [14, 15, 16, 17, 18, 28, 38]],
             ],
             ref_frag_idx_per_edge=[[1, 2, 3, 3], [0, 2, 3, 2], [0, 1], [0, 1]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [
                     [24, 25, 26, 27, 28, 38, 43],
                     [48, 49, 50, 51, 52, 62, 67],
@@ -53153,7 +53153,7 @@ def get_expected():
                 [[77, 78, 79, 80, 81, 91, 96], [101, 102, 103, 104, 105, 115, 120]],
                 [[77, 78, 79, 80, 81, 91, 96], [101, 102, 103, 104, 105, 115, 120]],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [
                     [0, 1, 2, 3, 4, 14, 19],
                     [0, 1, 2, 3, 4, 14, 19],
@@ -53175,7 +53175,7 @@ def get_expected():
                 [0, 1, 2, 3, 4, 14, 19],
                 [0, 1, 2, 3, 4, 14, 19],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -53535,7 +53535,7 @@ def get_expected():
                     35,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [
                     [4, 5, 6, 7, 8, 10],
                     [12, 13, 14, 15, 20, 22],
@@ -53548,7 +53548,7 @@ def get_expected():
                 ],
             ],
             ref_frag_idx_per_edge=[[1, 1, 1], [0, 0, 0]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [
                     [25, 26, 27, 28, 29, 30],
                     [31, 32, 33, 34, 35, 36],
@@ -53560,12 +53560,12 @@ def get_expected():
                     [37, 38, 39, 40, 41, 42],
                 ],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [[0, 1, 2, 3, 4, 5], [6, 7, 8, 9, 10, 11], [12, 13, 14, 15, 16, 17]],
                 [[0, 1, 2, 3, 4, 5], [6, 7, 8, 9, 10, 11], [12, 13, 14, 15, 16, 17]],
             ],
             centerf_idx=[[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -53758,7 +53758,7 @@ def get_expected():
                     35,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [
                     [4, 5, 6, 7, 8, 10],
                     [12, 13, 14, 15, 20, 22],
@@ -53771,7 +53771,7 @@ def get_expected():
                 ],
             ],
             ref_frag_idx_per_edge=[[1, 1, 1], [0, 0, 0]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [
                     [25, 26, 27, 28, 29, 30],
                     [31, 32, 33, 34, 35, 36],
@@ -53783,12 +53783,12 @@ def get_expected():
                     [37, 38, 39, 40, 41, 42],
                 ],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [[0, 1, 2, 3, 4, 5], [6, 7, 8, 9, 10, 11], [12, 13, 14, 15, 16, 17]],
                 [[0, 1, 2, 3, 4, 5], [6, 7, 8, 9, 10, 11], [12, 13, 14, 15, 16, 17]],
             ],
             centerf_idx=[[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -53995,7 +53995,7 @@ def get_expected():
                     41,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [
                     [5, 6, 7, 8, 9, 10, 12],
                     [14, 15, 16, 17, 18, 24, 26],
@@ -54008,7 +54008,7 @@ def get_expected():
                 ],
             ],
             ref_frag_idx_per_edge=[[1, 1, 1], [0, 0, 0]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [
                     [29, 30, 31, 32, 33, 34, 35],
                     [36, 37, 38, 39, 40, 41, 42],
@@ -54020,7 +54020,7 @@ def get_expected():
                     [43, 44, 45, 46, 47, 48, 49],
                 ],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [
                     [0, 1, 2, 3, 4, 5, 6],
                     [7, 8, 9, 10, 11, 12, 13],
@@ -54033,7 +54033,7 @@ def get_expected():
                 ],
             ],
             centerf_idx=[[0, 1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5, 6]],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -54248,7 +54248,7 @@ def get_expected():
                     41,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [
                     [5, 6, 7, 8, 9, 10, 12],
                     [14, 15, 16, 17, 18, 24, 26],
@@ -54261,7 +54261,7 @@ def get_expected():
                 ],
             ],
             ref_frag_idx_per_edge=[[1, 1, 1], [0, 0, 0]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [
                     [29, 30, 31, 32, 33, 34, 35],
                     [36, 37, 38, 39, 40, 41, 42],
@@ -54273,7 +54273,7 @@ def get_expected():
                     [43, 44, 45, 46, 47, 48, 49],
                 ],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [
                     [0, 1, 2, 3, 4, 5, 6],
                     [7, 8, 9, 10, 11, 12, 13],
@@ -54286,7 +54286,7 @@ def get_expected():
                 ],
             ],
             centerf_idx=[[0, 1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5, 6]],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -54733,7 +54733,7 @@ def get_expected():
                     137,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [
                     [
                         13,
@@ -54890,7 +54890,7 @@ def get_expected():
                 ],
             ],
             ref_frag_idx_per_edge=[[1, 1, 1], [0, 0, 0]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [
                     [
                         97,
@@ -55046,7 +55046,7 @@ def get_expected():
                     ],
                 ],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [
                     [
                         0,
@@ -55254,7 +55254,7 @@ def get_expected():
                     22,
                 ],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -55837,7 +55837,7 @@ def get_expected():
                     137,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [
                     [
                         13,
@@ -55994,7 +55994,7 @@ def get_expected():
                 ],
             ],
             ref_frag_idx_per_edge=[[1, 1, 1], [0, 0, 0]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [
                     [
                         97,
@@ -56150,7 +56150,7 @@ def get_expected():
                     ],
                 ],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [
                     [
                         0,
@@ -56358,7 +56358,7 @@ def get_expected():
                     22,
                 ],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -56955,7 +56955,7 @@ def get_expected():
                     143,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [
                     [
                         14,
@@ -57118,7 +57118,7 @@ def get_expected():
                 ],
             ],
             ref_frag_idx_per_edge=[[1, 1, 1], [0, 0, 0]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [
                     [
                         101,
@@ -57280,7 +57280,7 @@ def get_expected():
                     ],
                 ],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [
                     [
                         0,
@@ -57496,7 +57496,7 @@ def get_expected():
                     23,
                 ],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -58101,7 +58101,7 @@ def get_expected():
                     143,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [
                     [
                         14,
@@ -58264,7 +58264,7 @@ def get_expected():
                 ],
             ],
             ref_frag_idx_per_edge=[[1, 1, 1], [0, 0, 0]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [
                     [
                         101,
@@ -58426,7 +58426,7 @@ def get_expected():
                     ],
                 ],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [
                     [
                         0,
@@ -58642,7 +58642,7 @@ def get_expected():
                     23,
                 ],
             ],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -59233,7 +59233,7 @@ def get_expected():
                     137,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [
                     [13, 14, 15, 16, 26, 27],
                     [46, 47, 48, 49, 72, 73],
@@ -59246,7 +59246,7 @@ def get_expected():
                 ],
             ],
             ref_frag_idx_per_edge=[[1, 1, 1], [0, 0, 0]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [
                     [97, 98, 99, 100, 110, 111],
                     [120, 121, 122, 123, 133, 134],
@@ -59258,7 +59258,7 @@ def get_expected():
                     [143, 144, 145, 146, 156, 157],
                 ],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [
                     [0, 1, 2, 3, 13, 14],
                     [23, 24, 25, 26, 36, 37],
@@ -59271,7 +59271,7 @@ def get_expected():
                 ],
             ],
             centerf_idx=[[0, 1, 2, 3, 13, 14], [0, 1, 2, 3, 13, 14]],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -59854,7 +59854,7 @@ def get_expected():
                     137,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [
                     [13, 14, 15, 16, 26, 36],
                     [46, 47, 48, 49, 72, 82],
@@ -59867,7 +59867,7 @@ def get_expected():
                 ],
             ],
             ref_frag_idx_per_edge=[[1, 1, 1], [0, 0, 0]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [
                     [97, 98, 99, 100, 110, 115],
                     [120, 121, 122, 123, 133, 138],
@@ -59879,7 +59879,7 @@ def get_expected():
                     [143, 144, 145, 146, 156, 161],
                 ],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [
                     [0, 1, 2, 3, 13, 18],
                     [23, 24, 25, 26, 36, 41],
@@ -59892,7 +59892,7 @@ def get_expected():
                 ],
             ],
             centerf_idx=[[0, 1, 2, 3, 13, 18], [0, 1, 2, 3, 13, 18]],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -60489,7 +60489,7 @@ def get_expected():
                     143,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [
                     [14, 15, 16, 17, 18, 28, 29],
                     [48, 49, 50, 51, 52, 76, 77],
@@ -60502,7 +60502,7 @@ def get_expected():
                 ],
             ],
             ref_frag_idx_per_edge=[[1, 1, 1], [0, 0, 0]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [
                     [101, 102, 103, 104, 105, 115, 116],
                     [125, 126, 127, 128, 129, 139, 140],
@@ -60514,7 +60514,7 @@ def get_expected():
                     [149, 150, 151, 152, 153, 163, 164],
                 ],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [
                     [0, 1, 2, 3, 4, 14, 15],
                     [24, 25, 26, 27, 28, 38, 39],
@@ -60527,7 +60527,7 @@ def get_expected():
                 ],
             ],
             centerf_idx=[[0, 1, 2, 3, 4, 14, 15], [0, 1, 2, 3, 4, 14, 15]],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [
@@ -61132,7 +61132,7 @@ def get_expected():
                     143,
                 ],
             ],
-            AO_per_edge_per_frag=[
+            AO_per_edge=[
                 [
                     [14, 15, 16, 17, 18, 28, 38],
                     [48, 49, 50, 51, 52, 76, 86],
@@ -61145,7 +61145,7 @@ def get_expected():
                 ],
             ],
             ref_frag_idx_per_edge=[[1, 1, 1], [0, 0, 0]],
-            rel_AO_per_edge_per_frag=[
+            relAO_per_edge=[
                 [
                     [101, 102, 103, 104, 105, 115, 120],
                     [125, 126, 127, 128, 129, 139, 144],
@@ -61157,7 +61157,7 @@ def get_expected():
                     [149, 150, 151, 152, 153, 163, 168],
                 ],
             ],
-            other_rel_AO_per_edge_per_frag=[
+            relAO_in_ref_per_edge=[
                 [
                     [0, 1, 2, 3, 4, 14, 19],
                     [24, 25, 26, 27, 28, 38, 43],
@@ -61170,7 +61170,7 @@ def get_expected():
                 ],
             ],
             centerf_idx=[[0, 1, 2, 3, 4, 14, 19], [0, 1, 2, 3, 4, 14, 19]],
-            scale_rel_AO_per_center_per_frag=[
+            centerweight_and_relAO_per_center=[
                 (
                     1.0,
                     [

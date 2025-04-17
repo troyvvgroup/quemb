@@ -34,9 +34,9 @@ class Frags:
         self,
         AO_per_frag,
         ifrag: int,
-        AO_per_edge_per_frag=None,
+        AO_per_edge=None,
         ref_frag_idx_per_edge=None,
-        rel_AO_per_edge_per_frag=None,
+        relAO_per_edge=None,
         other_rel_AO_per_edge_per_frag=None,
         scale_rel_AO_per_center_per_frag=None,
         eri_file="eri_file.h5",
@@ -100,9 +100,9 @@ class Frags:
         self.t2 = None
 
         self.heff: Matrix[float64] | None = None
-        self.AO_per_edge_per_frag = AO_per_edge_per_frag
+        self.AO_per_edge_per_frag = AO_per_edge
         self.ref_frag_idx_per_edge = ref_frag_idx_per_edge
-        self.rel_AO_per_edge_per_frag = rel_AO_per_edge_per_frag
+        self.rel_AO_per_edge_per_frag = relAO_per_edge
         self.other_rel_AO_per_edge_per_frag = other_rel_AO_per_edge_per_frag
         self.centerf_idx = centerf_idx
         self.udim: int | None = None

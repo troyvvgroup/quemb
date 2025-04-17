@@ -67,12 +67,12 @@ GlobalAOIdx = NewType("GlobalAOIdx", AOIdx)
 
 #: The relative AO index.
 #: This is relative to the own fragment.
-OwnRelAOIdx = NewType("OwnRelAOIdx", AOIdx)
+RelAOIdx = NewType("RelAOIdx", AOIdx)
 
 #: The relative AO index, relative to another fragment.
 #: For example for an edge in fragment 1 it is the AO index of the same atom
 #: interpreted as center in fragment 2.
-OtherRelAOIdx = NewType("OtherRelAOIdx", AOIdx)
+RelAOIdxInOther = NewType("RelAOIdxInOther", AOIdx)
 
 #: The index of a Fragment.
 FragmentIdx = NewType("FragmentIdx", int)

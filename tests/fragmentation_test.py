@@ -1273,11 +1273,11 @@ class TestBE_Fragmentation(unittest.TestCase):
         fobj = fragmentate(frag_type=frag_type, n_BE=n_BE, mol=mf.mol)
         try:
             assert fobj.AO_per_frag == target["AO_per_frag"]
-            assert fobj.AO_per_edge_per_frag == target["edge"]
+            assert fobj.AO_per_edge == target["edge"]
             assert fobj.ref_frag_idx_per_edge == target["center"]
             assert fobj.centerf_idx == target["centerf_idx"]
             assert (
-                fobj.scale_rel_AO_per_center_per_frag
+                fobj.centerweight_and_relAO_per_center
                 == target["rel_AO_per_center_per_frag"]
             )
         except AssertionError as e:

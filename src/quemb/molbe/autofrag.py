@@ -25,8 +25,8 @@ from quemb.shared.typing import (
     ListOverMotif,
     MotifIdx,
     OriginIdx,
-    OtherRelAOIdx,
-    OwnRelAOIdx,
+    RelAOIdx,
+    RelAOIdxInOther,
     Vector,
 )
 
@@ -49,7 +49,7 @@ class FragPart:
     AO_per_frag: ListOverFrag[list[GlobalAOIdx]]
 
     #: The global orbital indices, including hydrogens, per edge per fragment.
-    AO_per_edge_per_frag: ListOverFrag[ListOverEdge[list[GlobalAOIdx]]]
+    AO_per_edge: ListOverFrag[ListOverEdge[list[GlobalAOIdx]]]
 
     #: Reference fragment index per edge:
     #: A list over fragments: list of indices of the fragments in which an edge
@@ -61,18 +61,18 @@ class FragPart:
 
     #: The relative orbital indices, including hydrogens, per edge per fragment.
     #: The index is relative to the own fragment.
-    rel_AO_per_edge_per_frag: ListOverFrag[ListOverEdge[list[OwnRelAOIdx]]]
+    relAO_per_edge: ListOverFrag[ListOverEdge[list[RelAOIdx]]]
 
     #: The relative atomic orbital indices per edge per fragment.
     #: **Note** for this variable relative means that the AO indices
     #: are relative to the other fragment where the edge is a center.
-    other_rel_AO_per_edge_per_frag: ListOverFrag[ListOverEdge[list[OtherRelAOIdx]]]
+    relAO_in_ref_per_edge: ListOverFrag[ListOverEdge[list[RelAOIdxInOther]]]
 
     #: List whose entries are lists containing the relative orbital index of the
     #: origin site within a fragment. Relative is to the own fragment.
     #  Since the origin site is at the beginning
     #: of the motif list for each fragment, this is always a ``list(range(0, n))``
-    centerf_idx: ListOverFrag[list[OwnRelAOIdx]]
+    centerf_idx: ListOverFrag[list[RelAOIdx]]
 
     #: The first element is a float, the second is the list
     #: The float weight makes only sense for democratic matching and is currently 1.0
@@ -80,7 +80,7 @@ class FragPart:
     #: i.e. the list of indices.
     #: This is a list whose entries are sequences containing the relative orbital index
     #  of the center sites within a fragment. Relative is to the own fragment.
-    scale_rel_AO_per_center_per_frag: ListOverFrag[tuple[float, list[OwnRelAOIdx]]]
+    centerweight_and_relAO_per_center: ListOverFrag[tuple[float, list[RelAOIdx]]]
 
     #: The motifs/heavy atoms in each fragment, in order.
     #: Each are labeled based on the global atom index.
@@ -270,13 +270,13 @@ class FragmentMap:
             mol=mol,
             frag_type="graphgen",
             n_BE=n_BE,
-            AO_per_edge_per_frag=self.AO_per_edge_per_frag,  # type: ignore[arg-type]
-            rel_AO_per_edge_per_frag=MISSING,
-            other_rel_AO_per_edge_per_frag=MISSING,
+            AO_per_edge=self.AO_per_edge_per_frag,  # type: ignore[arg-type]
+            relAO_per_edge=MISSING,
+            relAO_in_ref_per_edge=MISSING,
             centerf_idx=self.centerf_idx,  # type: ignore[arg-type]
             AO_per_frag=self.AO_per_frag,  # type: ignore[arg-type]
             ref_frag_idx_per_edge=self.ref_frag_idx_per_edge,  # type: ignore[arg-type]
-            scale_rel_AO_per_center_per_frag=self.scale_rel_AO_per_center_per_frag,  # type: ignore[arg-type]
+            centerweight_and_relAO_per_center=self.scale_rel_AO_per_center_per_frag,  # type: ignore[arg-type]
             motifs_per_frag=self.motifs_per_frag,  # type: ignore[arg-type]
             origin_per_frag=self.origin_per_frag,  # type: ignore[arg-type]
             H_per_motif=MISSING,
@@ -845,8 +845,8 @@ def autogen(
             hsites[hdx].extend(b1list)
 
     AO_per_frag = []
-    AO_per_edge_per_frag = []
-    rel_AO_per_edge_per_frag = []
+    AO_per_edge = []
+    relAO_per_edge = []
     centerf_idx = []
     edge = []
 
@@ -911,8 +911,8 @@ def autogen(
                     edind.append(ind__)
                 indix += ls
             edge.append(edg)
-            AO_per_edge_per_frag.append(ftmpe)
-            rel_AO_per_edge_per_frag.append(edind)
+            AO_per_edge.append(ftmpe)
+            relAO_per_edge.append(edind)
         AO_per_frag.append(ftmp)
     ref_frag_idx_per_edge = []
     for ix in edge:
@@ -930,7 +930,7 @@ def autogen(
     n_frag = len(AO_per_frag)
 
     add_center_atom = [[] for x in range(n_frag)]  # additional centers for mixed-basis
-    scale_rel_AO_per_center_per_frag = []
+    centerweight_and_relAO_per_center = []
 
     # Compute weights for each fragment
     for ix, i in enumerate(AO_per_frag):
@@ -942,9 +942,9 @@ def autogen(
                     add_center_atom[pid__].append(open_frag_cen[pidx__])
                     tmp_.extend([i.index(pq) for pq in sites__[open_frag_cen[pidx__]]])
                     tmp_.extend([i.index(pq) for pq in hsites[open_frag_cen[pidx__]]])
-        scale_rel_AO_per_center_per_frag.append((1.0, tmp_))
+        centerweight_and_relAO_per_center.append((1.0, tmp_))
 
-    other_rel_AO_per_edge_per_frag = []
+    relAO_in_ref_per_edge = []
     if n_BE != 1:
         for i in range(n_frag):
             idx = []
@@ -990,19 +990,19 @@ def autogen(
                     )
                     idx.append([AO_per_frag[j].index(k) for k in cntlist])
 
-            other_rel_AO_per_edge_per_frag.append(idx)
+            relAO_in_ref_per_edge.append(idx)
 
     return FragPart(
         mol=mol,
         frag_type="autogen",
         n_BE=n_BE,
         AO_per_frag=AO_per_frag,
-        AO_per_edge_per_frag=AO_per_edge_per_frag,
+        AO_per_edge=AO_per_edge,
         ref_frag_idx_per_edge=ref_frag_idx_per_edge,
-        rel_AO_per_edge_per_frag=rel_AO_per_edge_per_frag,
-        other_rel_AO_per_edge_per_frag=other_rel_AO_per_edge_per_frag,
+        relAO_per_edge=relAO_per_edge,
+        relAO_in_ref_per_edge=relAO_in_ref_per_edge,
         centerf_idx=centerf_idx,
-        scale_rel_AO_per_center_per_frag=scale_rel_AO_per_center_per_frag,
+        centerweight_and_relAO_per_center=centerweight_and_relAO_per_center,
         motifs_per_frag=motifs_per_frag,
         origin_per_frag=origin_per_frag,
         H_per_motif=H_per_motif,

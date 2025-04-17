@@ -14,8 +14,8 @@ from quemb.shared.typing import (
     GlobalAOIdx,
     ListOverEdge,
     ListOverFrag,
-    OtherRelAOIdx,
-    OwnRelAOIdx,
+    RelAOIdx,
+    RelAOIdxInOther,
 )
 
 
@@ -45,21 +45,21 @@ class FragPart:
     #: i.e. the list of indices.
     #: This is a list whose entries are sequences containing the relative orbital index
     #  of the center sites within a fragment. Relative is to the own fragment.
-    scale_rel_AO_per_center_per_frag: ListOverFrag[tuple[float, list[OwnRelAOIdx]]]
+    scale_rel_AO_per_center_per_frag: ListOverFrag[tuple[float, list[RelAOIdx]]]
 
     #: The relative orbital indices, including hydrogens, per edge per fragment.
     #: The index is relative to the own fragment.
-    rel_AO_per_edge_per_frag: ListOverFrag[ListOverEdge[list[OwnRelAOIdx]]]
+    rel_AO_per_edge_per_frag: ListOverFrag[ListOverEdge[list[RelAOIdx]]]
     #: The relative atomic orbital indices per edge per fragment.
     #: **Note** for this variable relative means that the AO indices
     #: are relative to the other fragment where the edge is a center.
-    other_rel_AO_per_edge_per_frag: ListOverFrag[ListOverEdge[list[OtherRelAOIdx]]]
+    other_rel_AO_per_edge_per_frag: ListOverFrag[ListOverEdge[list[RelAOIdxInOther]]]
 
     #: List whose entries are lists containing the relative orbital index of the
     #: origin site within a fragment. Relative is to the own fragment.
     #  Since the origin site is at the beginning
     #: of the motif list for each fragment, this is always a ``list(range(0, n))``
-    centerf_idx: ListOverFrag[list[OwnRelAOIdx]]
+    centerf_idx: ListOverFrag[list[RelAOIdx]]
 
     n_BE: int
     natom: int
@@ -233,11 +233,11 @@ def fragmentate(
             mol=mol,
             frag_type=frag_type,
             AO_per_frag=molecular_FragPart.AO_per_frag,
-            AO_per_edge_per_frag=molecular_FragPart.AO_per_edge_per_frag,
+            AO_per_edge_per_frag=molecular_FragPart.AO_per_edge,
             ref_frag_idx_per_edge=molecular_FragPart.ref_frag_idx_per_edge,
-            scale_rel_AO_per_center_per_frag=molecular_FragPart.scale_rel_AO_per_center_per_frag,
-            rel_AO_per_edge_per_frag=molecular_FragPart.rel_AO_per_edge_per_frag,
-            other_rel_AO_per_edge_per_frag=molecular_FragPart.other_rel_AO_per_edge_per_frag,
+            scale_rel_AO_per_center_per_frag=molecular_FragPart.centerweight_and_relAO_per_center,
+            rel_AO_per_edge_per_frag=molecular_FragPart.relAO_per_edge,
+            other_rel_AO_per_edge_per_frag=molecular_FragPart.relAO_in_ref_per_edge,
             centerf_idx=molecular_FragPart.centerf_idx,
             n_BE=molecular_FragPart.n_BE,
             natom=natom,
