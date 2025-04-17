@@ -14,6 +14,7 @@ from numpy import (
     einsum,
     mean,
     ndarray,
+    zeros,
     zeros_like,
 )
 from numpy.linalg import multi_dot
@@ -291,7 +292,7 @@ def be_func(
         total_e = [0.0, 0.0, 0.0]
 
     # Loop over each fragment and solve using the specified solver
-    for fobj in Fobjs:
+    for frag_number, fobj in enumerate(Fobjs):
         # Update the effective Hamiltonian
         if pot is not None:
             fobj.update_heff(pot, only_chem=only_chem)
@@ -319,11 +320,22 @@ def be_func(
                     fobj._mf, mo_energy=fobj._mf.mo_energy, rdm_return=False
                 )
                 rdm1_tmp = make_rdm1_ccsd_t1(fobj.t1)
-
         elif solver == "EOM-CCSD":
             # import rdms from Q-Chem
             print("under construction :)")
-            print("test commit")
+            print("Alexa")
+            """fobj.t1, fobj.t2, rdm1_tmp, rdm2s = solve_eom(
+                frag_number,
+                fobj,
+                Nocc,
+                fobj._mf,
+                mo_energy=fobj._mf.mo_energy,
+                use_cumulant=True,
+            )"""
+        elif solver == "Qchem":
+            # export necessary information to Q-Chem
+            print("Exporting files 99.0, 58.0, 53.0 to Q-Chem for EOM-CCSD calculation")
+            qchem_setup(frag_number, fobj._mf)
 
         elif solver == "FCI":
             mc = fci.FCI(fobj._mf, fobj._mf.mo_coeff)
@@ -1078,3 +1090,44 @@ def solve_uccsd(
             return (ucc, rdm1, rdm2)
         return (ucc, rdm1, None)
     return ucc
+
+
+def qchem_setup(frag_number, mf):
+    """
+    Extracts the information necessary to run a Q-Chem EOM-CCSD calculation
+    for each fragment.
+    Constructs the following scratch files:
+    - 99.0 (Total energy)
+    - 53.0 (MO coefficients)
+    - 58.0 (Fock matrix)
+
+    Parameters
+    ----------
+    frag_number: int
+        Fragment index.
+    fobj: MolBE.fragpart
+        current fragment definition.
+    Nocc : int
+        Number of occupied orbitals for the full system.
+    mf : pyscf.scf.hf.RHF
+        Mean-field object from PySCF.
+
+    Returns
+    -------
+    Nothing
+    """
+
+    ###File 99.0 - energy file in Qchem
+
+    energy = mf.kernel()
+
+    energy_array = zeros(12)
+    # placeholder value - exact value doesn't matter
+    energy_array[0] = 3.7617453591977221e02
+    energy_array[1] = energy
+    energy_array[11] = energy
+
+    if not os.path.exists("files_EOM/scratch_fragment_" + str(frag_number)):
+        os.makedirs("files_EOM/scratch_fragment_" + str(frag_number))
+
+    energy_array.tofile("files_EOM/scratch_fragment_" + str(frag_number) + "/99.0")
