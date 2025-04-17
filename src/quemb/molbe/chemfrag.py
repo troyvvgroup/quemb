@@ -883,7 +883,7 @@ class Fragmented:
     #: The relative atomic orbital indices per edge per fragment.
     #: Relative means that the AO indices are relative to
     #: the **own** fragment.
-    #: This variable is a strict subset of :attr:`rel_AO_per_motif_per_frag`,
+    #: This variable is a strict subset of :attr:`relAO_per_motif`,
     #: in the sense that the motif indices, the keys in the Mapping,
     #: are restricted to the edges of the fragment.
     relAO_per_edge: Final[
@@ -893,7 +893,7 @@ class Fragmented:
     #: The relative atomic orbital indices per edge per fragment.
     #: Relative means that the AO indices are relative to
     #: the **own** fragment.
-    #: This variable is a subset of :attr:`rel_AO_per_motif_per_frag`,
+    #: This variable is a subset of :attr:`relAO_per_motif`,
     #: in the sense that the motif indices, the keys in the Mapping,
     #: are restricted to the centers of the fragment.
     relAO_per_center: Final[

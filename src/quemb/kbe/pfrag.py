@@ -69,7 +69,7 @@ class Frags:
             list of lists of indices for edge site AOs within the fragment,
             by default None
             Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
-        other_rel_AO_per_edge_per_frag: list, optional
+        relAO_in_ref_per_edge :
             list of lists of indices within the fragment specified
             in :python:`center` that points to the edge site AOs,
             by default :python:`None`
