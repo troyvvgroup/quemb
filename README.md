@@ -41,12 +41,12 @@ are automatically installed by `pip`.
 
 One can just `pip install` directly from the Github repository:
 ```bash
-pip install git+https://https://github.com/troyvvgroup/quemb
+pip install git+https://github.com/troyvvgroup/quemb
 ```
 
 Alternatively one can manually clone and install as in:
 ```bash
-git clone https://https://github.com/troyvvgroup/quemb
+git clone https://github.com/troyvvgroup/quemb
 cd quemb
 pip install .
 ```
