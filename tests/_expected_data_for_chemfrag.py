@@ -5,10 +5,10 @@ from pyscf.gto import M
 from quemb.molbe.chemfrag import (
     BondConnectivity,
     Fragmented,
-    FragPart,
     PurelyStructureFragmented,
     _SubsetsCleaned,
 )
+from quemb.molbe.fragment import FragPart
 
 
 def get_expected():

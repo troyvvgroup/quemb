@@ -19,7 +19,7 @@ def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
     ----------
     mf : pyscf.scf.hf.RHF
         Mean-field object for the chemical system (typically BE.mf)
-    Fobjs : list of quemb.molbe.autofrag.FragPart
+    Fobjs : list of quemb.molbe.fragment.FragPart
         List containing fragment objects (typically BE.Fobjs)
         The MO coefficients are taken from Frags.TA and the transformed ERIs are stored
         in Frags.dname as h5py datasets.
