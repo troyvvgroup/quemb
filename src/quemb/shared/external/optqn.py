@@ -326,7 +326,7 @@ def get_atbe_Jblock_frag(
         and fobj.heff is not None
         and fobj.nao is not None
     )
-    vpots = get_vpots_frag(fobj.nao, fobj.rel_AO_per_edge_per_frag, fobj.AO_per_frag)
+    vpots = get_vpots_frag(fobj.nao, fobj.relAO_per_edge, fobj.AO_per_frag)
     eri_ = get_eri(fobj.dname, fobj.nao, eri_file=fobj.eri_file)
     dm0 = 2.0 * (fobj._mo_coeffs[:, : fobj.nsocc] @ fobj._mo_coeffs[:, : fobj.nsocc].T)
     mf_ = get_scfObj(fobj.fock + fobj.heff, eri_, fobj.nsocc, dm0=dm0)
@@ -340,7 +340,7 @@ def get_atbe_Jblock_frag(
     xc = []
     cout = 0
 
-    for edge in fobj.rel_AO_per_edge_per_frag:
+    for edge in fobj.relAO_per_edge:
         for j_ in range(len(edge)):
             for k_ in range(len(edge)):
                 if j_ > k_:
@@ -349,7 +349,7 @@ def get_atbe_Jblock_frag(
                 # edges
                 tmpje_ = []
 
-                for edge_ in fobj.rel_AO_per_edge_per_frag:
+                for edge_ in fobj.relAO_per_edge:
                     lene = len(edge_)
 
                     for j__ in range(lene):
@@ -360,9 +360,7 @@ def get_atbe_Jblock_frag(
                             tmpje_.append(dPs[cout][edge_[j__], edge_[k__]])
                 y_ = 0.0
                 for fidx, fval in enumerate(fobj.AO_per_frag):
-                    if not any(
-                        fidx in sublist for sublist in fobj.rel_AO_per_edge_per_frag
-                    ):
+                    if not any(fidx in sublist for sublist in fobj.relAO_per_edge):
                         y_ += dPs[cout][fidx, fidx]
 
                 y.append(y_)
@@ -387,7 +385,7 @@ def get_atbe_Jblock_frag(
 
     alpha = 0.0
     for fidx, _ in enumerate(fobj.AO_per_frag):
-        if not any(fidx in sublist for sublist in fobj.rel_AO_per_edge_per_frag):
+        if not any(fidx in sublist for sublist in fobj.relAO_per_edge):
             alpha += dP_mu[fidx, fidx]
 
     for j__ in fobj.centerf_idx:

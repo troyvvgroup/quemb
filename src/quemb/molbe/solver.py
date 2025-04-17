@@ -492,7 +492,7 @@ def be_func(
                 mo_coeffs=fobj.mo_coeffs,
                 nsocc=fobj.nsocc,
                 n_frag=fobj.n_frag,
-                scale_rel_AO_per_center_per_frag=fobj.scale_rel_AO_per_center_per_frag,
+                centerweight_and_relAO_per_center=fobj.centerweight_and_relAO_per_center,
                 TA=fobj.TA,
                 h1=fobj.h1,
                 rdm1=rdm1_tmp,
@@ -628,8 +628,8 @@ def be_func_u(
                 (fobj_a.nsocc, fobj_b.nsocc),
                 (fobj_a.n_frag, fobj_b.n_frag),
                 (
-                    fobj_a.scale_rel_AO_per_center_per_frag,
-                    fobj_b.scale_rel_AO_per_center_per_frag,
+                    fobj_a.centerweight_and_relAO_per_center,
+                    fobj_b.centerweight_and_relAO_per_center,
                 ),
                 (fobj_a.TA, fobj_b.TA),
                 h1_ab,
@@ -676,7 +676,7 @@ def solve_error(Fobjs, Nocc, only_chem=False):
     if only_chem:
         for fobj in Fobjs:
             # Compute chemical potential error for each fragment
-            for i in fobj.scale_rel_AO_per_center_per_frag[1]:
+            for i in fobj.centerweight_and_relAO_per_center[1]:
                 err_chempot += fobj._rdm1[i, i]
         err_chempot /= Fobjs[0].unitcell_nkpt
         err = err_chempot - Nocc
@@ -686,14 +686,14 @@ def solve_error(Fobjs, Nocc, only_chem=False):
     # Compute edge and chemical potential errors
     for fobj in Fobjs:
         # match rdm-edge
-        for edge in fobj.rel_AO_per_edge_per_frag:
+        for edge in fobj.relAO_per_edge:
             for j_ in range(len(edge)):
                 for k_ in range(len(edge)):
                     if j_ > k_:
                         continue
                     err_edge.append(fobj._rdm1[edge[j_], edge[k_]])
         # chem potential
-        for i in fobj.scale_rel_AO_per_center_per_frag[1]:
+        for i in fobj.centerweight_and_relAO_per_center[1]:
             err_chempot += fobj._rdm1[i, i]
 
     err_chempot /= Fobjs[0].unitcell_nkpt
@@ -703,7 +703,7 @@ def solve_error(Fobjs, Nocc, only_chem=False):
     err_cen = []
     for findx, fobj in enumerate(Fobjs):
         # Match RDM for centers
-        for cindx, cens in enumerate(fobj.other_rel_AO_per_edge_per_frag):
+        for cindx, cens in enumerate(fobj.relAO_in_ref_per_edge):
             lenc = len(cens)
             for j_ in range(lenc):
                 for k_ in range(lenc):

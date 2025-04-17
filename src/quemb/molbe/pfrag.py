@@ -37,8 +37,8 @@ class Frags:
         AO_per_edge=None,
         ref_frag_idx_per_edge=None,
         relAO_per_edge=None,
-        other_rel_AO_per_edge_per_frag=None,
-        scale_rel_AO_per_center_per_frag=None,
+        relAO_in_ref_per_edge=None,
+        centerweight_and_relAO_per_center=None,
         eri_file="eri_file.h5",
         centerf_idx=None,
         unrestricted=False,
@@ -58,13 +58,13 @@ class Frags:
         ref_frag_idx_per_edge : list, optional
             list of fragment indices where edge site AOs are center site,
             by default None
-        rel_AO_per_edge_per_frag: list, optional
+        relAO_per_edge : list, optional
             list of lists of indices for edge site AOs within the fragment,
             by default None
-        other_rel_AO_per_edge_per_frag : list, optional
+        relAO_in_ref_per_edge: list, optional
             list of lists of indices within the fragment specified in :python:`center`
             that points to the edge site AOs , by default None
-        scale_rel_AO_per_center_per_frag : list, optional
+        centerweight_and_relAO_per_center : list, optional
             weight used for energy contributions and the indices, by default None
         eri_file : str, optional
             two-electron integrals stored as h5py file, by default 'eri_file.h5'
@@ -100,10 +100,10 @@ class Frags:
         self.t2 = None
 
         self.heff: Matrix[float64] | None = None
-        self.AO_per_edge_per_frag = AO_per_edge
+        self.AO_per_edge = AO_per_edge
         self.ref_frag_idx_per_edge = ref_frag_idx_per_edge
-        self.rel_AO_per_edge_per_frag = relAO_per_edge
-        self.other_rel_AO_per_edge_per_frag = other_rel_AO_per_edge_per_frag
+        self.relAO_per_edge = relAO_per_edge
+        self.relAO_in_ref_per_edge = relAO_in_ref_per_edge
         self.centerf_idx = centerf_idx
         self.udim: int | None = None
 
@@ -114,7 +114,7 @@ class Frags:
         self.genvs = None
         self.ebe = 0.0
         self.ebe_hf = 0.0
-        self.scale_rel_AO_per_center_per_frag = scale_rel_AO_per_center_per_frag
+        self.centerweight_and_relAO_per_center = centerweight_and_relAO_per_center
         self.fock = None
         self.veff = None
         self.veff0 = None
@@ -294,14 +294,14 @@ class Frags:
             cout = self.udim
 
         for i, fi in enumerate(self.AO_per_frag):
-            if not any(i in sublist for sublist in self.rel_AO_per_edge_per_frag):
+            if not any(i in sublist for sublist in self.relAO_per_edge):
                 heff_[i, i] -= u[-1]
 
         if only_chem:
             self.heff = heff_
             return
         else:
-            for i in self.rel_AO_per_edge_per_frag:
+            for i in self.relAO_per_edge:
                 for j in range(len(i)):
                     for k in range(len(i)):
                         if j > k:  # or j==k:
@@ -315,7 +315,7 @@ class Frags:
             self.heff = heff_
 
     def set_udim(self, cout):
-        for i in self.rel_AO_per_edge_per_frag:
+        for i in self.relAO_per_edge:
             for j in range(len(i)):
                 for k in range(len(i)):
                     if j > k:
@@ -384,17 +384,17 @@ class Frags:
 
         e_ = e1 + e2 + ec
         etmp = 0.0
-        for i in self.scale_rel_AO_per_center_per_frag[1]:
-            etmp += self.scale_rel_AO_per_center_per_frag[0] * e_[i]
+        for i in self.centerweight_and_relAO_per_center[1]:
+            etmp += self.centerweight_and_relAO_per_center[0] * e_[i]
 
         self.ebe_hf = etmp
 
         if return_e:
             e_h1 = 0.0
             e_coul = 0.0
-            for i in self.scale_rel_AO_per_center_per_frag[1]:
-                e_h1 += self.scale_rel_AO_per_center_per_frag[0] * e1[i]
-                e_coul += self.scale_rel_AO_per_center_per_frag[0] * (e2[i] + ec[i])
+            for i in self.centerweight_and_relAO_per_center[1]:
+                e_h1 += self.centerweight_and_relAO_per_center[0] * e1[i]
+                e_coul += self.centerweight_and_relAO_per_center[0] * (e2[i] + ec[i])
             return (e_h1, e_coul, e1 + e2 + ec)
         else:
             return None

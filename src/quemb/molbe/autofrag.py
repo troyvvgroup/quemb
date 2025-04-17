@@ -173,7 +173,7 @@ class FragmentMap:
     fs :
         List whose entries are sequences of sequences, containing AO indices per atom
         per fragment.
-    AO_per_edge_per_frag :
+    AO_per_edge :
         List whose entries are sequences of sequences, containing edge AO
         indices per atom (inner tuple) per fragment (outer tuple).
     center :
@@ -185,7 +185,7 @@ class FragmentMap:
         Relative is to the own fragment; since the origin site is at the beginning
         of the motif list for each fragment, this is always a Sequence
         :python:`range(0, n)`.
-    scale_rel_AO_per_center_per_frag :
+    centerweight_and_relAO_per_center :
         Weights determining the energy contributions from each center site
         (ie, with respect to centerf_idx).
     sites :
@@ -208,10 +208,10 @@ class FragmentMap:
 
     AO_per_frag: list[Sequence[int]]
     fs: list[Sequence[Sequence[int]]]
-    AO_per_edge_per_frag: list[Sequence[Sequence[int]]]
+    AO_per_edge: list[Sequence[Sequence[int]]]
     ref_frag_idx_per_edge: list[Sequence[int]]
     centerf_idx: list[Sequence[int]]
-    scale_rel_AO_per_center_per_frag: list[Sequence]
+    centerweight_and_relAO_per_center: list[Sequence]
     sites: list[Sequence]
     dnames: list[str]
     motifs_per_frag: list[Sequence[int]]
@@ -270,13 +270,13 @@ class FragmentMap:
             mol=mol,
             frag_type="graphgen",
             n_BE=n_BE,
-            AO_per_edge=self.AO_per_edge_per_frag,  # type: ignore[arg-type]
+            AO_per_edge=self.AO_per_edge,  # type: ignore[arg-type]
             relAO_per_edge=MISSING,
             relAO_in_ref_per_edge=MISSING,
             centerf_idx=self.centerf_idx,  # type: ignore[arg-type]
             AO_per_frag=self.AO_per_frag,  # type: ignore[arg-type]
             ref_frag_idx_per_edge=self.ref_frag_idx_per_edge,  # type: ignore[arg-type]
-            centerweight_and_relAO_per_center=self.scale_rel_AO_per_center_per_frag,  # type: ignore[arg-type]
+            centerweight_and_relAO_per_center=self.centerweight_and_relAO_per_center,  # type: ignore[arg-type]
             motifs_per_frag=self.motifs_per_frag,  # type: ignore[arg-type]
             origin_per_frag=self.origin_per_frag,  # type: ignore[arg-type]
             H_per_motif=MISSING,
@@ -372,10 +372,10 @@ def graphgen(
     fragment_map = FragmentMap(
         AO_per_frag=(list(tuple())),
         fs=list(tuple(tuple())),
-        AO_per_edge_per_frag=list(tuple(tuple())),
+        AO_per_edge=list(tuple(tuple())),
         ref_frag_idx_per_edge=list(tuple()),
         centerf_idx=list(tuple()),
-        scale_rel_AO_per_center_per_frag=list(tuple()),
+        centerweight_and_relAO_per_center=list(tuple()),
         sites=list(tuple()),
         dnames=list(),
         motifs_per_frag=list(),
@@ -489,7 +489,7 @@ def graphgen(
                         c_temp = set(fragment_map.origin_per_frag[bdx])
                         edge_temp.add(tuple(overlap))
                         eatoms_temp.add(tuple(i for i in f_temp.intersection(c_temp)))
-        fragment_map.AO_per_edge_per_frag.append(tuple(edge_temp))
+        fragment_map.AO_per_edge.append(tuple(edge_temp))
         fragment_map.edge_atoms.extend(tuple(eatoms_temp))
 
     # Update relative center site indices (centerf_idx) and weights
@@ -497,7 +497,7 @@ def graphgen(
     for adx, center in enumerate(fragment_map.ref_frag_idx_per_edge):
         centerf_idx = tuple(fragment_map.AO_per_frag[adx].index(cdx) for cdx in center)
         fragment_map.centerf_idx.append(centerf_idx)
-        fragment_map.scale_rel_AO_per_center_per_frag.append((1.0, tuple(centerf_idx)))
+        fragment_map.centerweight_and_relAO_per_center.append((1.0, tuple(centerf_idx)))
 
     # Finally, set fragment data names for scratch and bookkeeping:
     for adx, _ in enumerate(fragment_map.fs):

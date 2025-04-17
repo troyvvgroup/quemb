@@ -166,7 +166,7 @@ class BE(Mixin_k_Localize):
 
         self.print_ini()
         self.Fobjs: list[Frags] = []
-        self.pot = initialize_pot(self.fobj.n_frag, self.fobj.rel_AO_per_edge_per_frag)
+        self.pot = initialize_pot(self.fobj.n_frag, self.fobj.relAO_per_edge)
         self.eri_file = eri_file
         self.cderi = cderi
 
@@ -480,21 +480,19 @@ class BE(Mixin_k_Localize):
         # Create a file to store ERIs
         if not restart:
             file_eri = h5py.File(self.eri_file, "w")
-        lentmp = len(self.fobj.rel_AO_per_edge_per_frag)
+        lentmp = len(self.fobj.relAO_per_edge)
         transform_parallel = False  # hard set for now
         for fidx in range(self.fobj.n_frag):
             if lentmp:
                 fobjs_ = Frags(
                     self.fobj.AO_per_frag[fidx],
                     fidx,
-                    edge=self.fobj.AO_per_edge_per_frag[fidx],
+                    edge=self.fobj.AO_per_edge[fidx],
                     eri_file=self.eri_file,
                     ref_frag_idx_per_edge=self.fobj.ref_frag_idx_per_edge[fidx],
-                    rel_AO_per_edge_per_frag=self.fobj.rel_AO_per_edge_per_frag[fidx],
-                    other_rel_AO_per_edge_per_frag=self.fobj.other_rel_AO_per_edge_per_frag[
-                        fidx
-                    ],
-                    scale_rel_AO_per_center_per_frag=self.fobj.scale_rel_AO_per_center_per_frag[
+                    relAO_per_edge=self.fobj.relAO_per_edge[fidx],
+                    relAO_in_ref_per_edge=self.fobj.relAO_in_ref_per_edge[fidx],
+                    centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
                         fidx
                     ],
                     centerf_idx=self.fobj.centerf_idx[fidx],
@@ -508,10 +506,10 @@ class BE(Mixin_k_Localize):
                     edge=[],
                     ref_frag_idx_per_edge=[],
                     eri_file=self.eri_file,
-                    rel_AO_per_edge_per_frag=[],
-                    other_rel_AO_per_edge_per_frag=[],
+                    relAO_per_edge=[],
+                    relAO_in_ref_per_edge=[],
                     centerf_idx=[],
-                    scale_rel_AO_per_center_per_frag=self.fobj.scale_rel_AO_per_center_per_frag[
+                    centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
                         fidx
                     ],
                     unitcell=self.fobj.unitcell,

@@ -180,8 +180,8 @@ class UBE(BE):  # 🍠
                     eri_file=self.eri_file,
                     ref_frag_idx_per_edge=self.fobj.ref_frag_idx_per_edge[I],
                     relAO_per_edge=self.fobj.relAO_per_edge[I],
-                    other_rel_AO_per_edge_per_frag=self.fobj.relAO_in_ref_per_edge[I],
-                    scale_rel_AO_per_center_per_frag=self.fobj.centerweight_and_relAO_per_center[
+                    relAO_in_ref_per_edge=self.fobj.relAO_in_ref_per_edge[I],
+                    centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
                         I
                     ],
                     centerf_idx=self.fobj.centerf_idx[I],
@@ -195,9 +195,9 @@ class UBE(BE):  # 🍠
                     ref_frag_idx_per_edge=[],
                     eri_file=self.eri_file,
                     relAO_per_edge=[],
-                    other_rel_AO_per_edge_per_frag=[],
+                    relAO_in_ref_per_edge=[],
                     centerf_idx=[],
-                    scale_rel_AO_per_center_per_frag=self.fobj.centerweight_and_relAO_per_center[
+                    centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
                         I
                     ],
                     unrestricted=True,
@@ -213,8 +213,8 @@ class UBE(BE):  # 🍠
                     eri_file=self.eri_file,
                     ref_frag_idx_per_edge=self.fobj.ref_frag_idx_per_edge[I],
                     relAO_per_edge=self.fobj.relAO_per_edge[I],
-                    other_rel_AO_per_edge_per_frag=self.fobj.relAO_in_ref_per_edge[I],
-                    scale_rel_AO_per_center_per_frag=self.fobj.centerweight_and_relAO_per_center[
+                    relAO_in_ref_per_edge=self.fobj.relAO_in_ref_per_edge[I],
+                    centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
                         I
                     ],
                     centerf_idx=self.fobj.centerf_idx[I],
@@ -228,9 +228,9 @@ class UBE(BE):  # 🍠
                     ref_frag_idx_per_edge=[],
                     eri_file=self.eri_file,
                     relAO_per_edge=[],
-                    other_rel_AO_per_edge_per_frag=[],
+                    relAO_in_ref_per_edge=[],
                     centerf_idx=[],
-                    scale_rel_AO_per_center_per_frag=self.fobj.centerweight_and_relAO_per_center[
+                    centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
                         I
                     ],
                     unrestricted=True,
@@ -445,12 +445,12 @@ class UBE(BE):  # 🍠
         )
 
 
-def initialize_pot(n_frag, rel_AO_per_edge_per_frag):
+def initialize_pot(n_frag, relAO_per_edge):
     pot_ = []
 
-    if not len(rel_AO_per_edge_per_frag) == 0:
+    if relAO_per_edge:
         for I in range(n_frag):
-            for i in rel_AO_per_edge_per_frag[I]:
+            for i in relAO_per_edge[I]:
                 for j in range(len(i)):
                     for k in range(len(i)):
                         if j > k:

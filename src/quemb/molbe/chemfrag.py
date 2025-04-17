@@ -1120,9 +1120,9 @@ class Fragmented:
             union_of_seqs(*idx_per_origin)
             for idx_per_origin in _extract_values(self.relAO_per_origin)
         ]
-        # A similar issue occurs for scale_rel_AO_per_center_per_frag, where the output
-        # of autogen is a union over all centers.
-        scale_rel_AO_per_center_per_frag = [
+        # A similar issue occurs for ``centerweight_and_relAO_per_center``
+        # where we have to form the union.
+        centerweight_and_relAO_per_center = [
             (1.0, list(union_of_seqs(*idx_per_center)))
             for idx_per_center in _extract_values(self.relAO_per_center)
         ]
@@ -1144,7 +1144,7 @@ class Fragmented:
             relAO_per_edge=_extract_values(self.relAO_per_edge),
             relAO_in_ref_per_edge=_extract_values(self.relAO_in_ref_per_edge),
             centerf_idx=[list(seq) for seq in centerf_idx],
-            centerweight_and_relAO_per_center=scale_rel_AO_per_center_per_frag,
+            centerweight_and_relAO_per_center=centerweight_and_relAO_per_center,
             motifs_per_frag=[
                 list(motifs) for motifs in self.frag_structure.motifs_per_frag
             ],

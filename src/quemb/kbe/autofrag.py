@@ -2329,12 +2329,12 @@ def autogen(
         ref_frag_idx_per_edge.append(cen_)
 
     n_frag = len(AO_per_frag)
-    scale_rel_AO_per_center_per_frag = []
+    centerweight_and_relAO_per_center = []
     # Use IAO+PAO for computing energy
     for ix, i in enumerate(AO_per_frag):
         tmp_ = [i.index(pq) for pq in sites__[cen[ix]]]
         tmp_.extend([i.index(pq) for pq in hsites[cen[ix]]])
-        scale_rel_AO_per_center_per_frag.append([1.0, tmp_])
+        centerweight_and_relAO_per_center.append([1.0, tmp_])
 
     other_rel_AO_per_edge_per_frag = []
     for i in range(n_frag):
@@ -2358,5 +2358,5 @@ def autogen(
         rel_AO_per_edge,
         other_rel_AO_per_edge_per_frag,
         centerf_idx,
-        scale_rel_AO_per_center_per_frag,
+        centerweight_and_relAO_per_center,
     )
