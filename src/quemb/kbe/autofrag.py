@@ -1965,7 +1965,7 @@ def autogen(
 
     AO_per_frag = []
     AO_per_edge = []
-    rel_AO_per_edge = []
+    relAO_per_edge = []
     centerf_idx = []
     edge = []
 
@@ -2319,7 +2319,7 @@ def autogen(
         edge.append(edg)
         AO_per_frag.append(ftmp)
         AO_per_edge.append(ftmpe)
-        rel_AO_per_edge.append(edind)
+        relAO_per_edge.append(edind)
 
     ref_frag_idx_per_edge = []
     for ix in edge:
@@ -2336,7 +2336,7 @@ def autogen(
         tmp_.extend([i.index(pq) for pq in hsites[cen[ix]]])
         centerweight_and_relAO_per_center.append([1.0, tmp_])
 
-    other_rel_AO_per_edge_per_frag = []
+    relAO_in_ref_per_edge = []
     for i in range(n_frag):
         idx = []
         for j in ref_frag_idx_per_edge[i]:
@@ -2349,14 +2349,14 @@ def autogen(
                 cntlist.extend(hsites[cen[j]][: nbas2H[cen[j]]])
                 idx.append([AO_per_frag[j].index(k) for k in cntlist])
 
-        other_rel_AO_per_edge_per_frag.append(idx)
+        relAO_in_ref_per_edge.append(idx)
 
     return (
         AO_per_frag,
         AO_per_edge,
         ref_frag_idx_per_edge,
-        rel_AO_per_edge,
-        other_rel_AO_per_edge_per_frag,
+        relAO_per_edge,
+        relAO_in_ref_per_edge,
         centerf_idx,
         centerweight_and_relAO_per_center,
     )
