@@ -323,6 +323,7 @@ def be_func(
         elif solver == "EOM-CCSD":
             # import rdms from Q-Chem
             print("under construction :)")
+            print("test commit")
 
         elif solver == "FCI":
             mc = fci.FCI(fobj._mf, fobj._mf.mo_coeff)
