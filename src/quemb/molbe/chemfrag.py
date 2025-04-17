@@ -49,8 +49,8 @@ from quemb.shared.typing import (
     GlobalAOIdx,
     MotifIdx,
     OriginIdx,
-    OtherRelAOIdx,
-    OwnRelAOIdx,
+    RelAOIdx,
+    RelAOIdxInRef,
     T,
 )
 
@@ -511,7 +511,7 @@ class PurelyStructureFragmented:
     #: of the fragment where this fragment is a center, i.e.
     #: where this edge is correctly described and should be matched against.
     #: Variable was formerly known as `center`.
-    frag_idx_per_edge: Final[Sequence[Mapping[EdgeIdx, FragmentIdx]]]
+    ref_frag_idx_per_edge: Final[Sequence[Mapping[EdgeIdx, FragmentIdx]]]
 
     #: Connectivity data of the molecule.
     conn_data: Final[BondConnectivity]
@@ -573,7 +573,7 @@ class PurelyStructureFragmented:
             for i_fragment in motifs_per_frag
         ]
 
-        frag_idx_per_edge = [
+        ref_frag_idx_per_edge = [
             {edge: frag_idx(edge) for edge in edges} for edges in edges_per_frag
         ]
 
@@ -584,7 +584,7 @@ class PurelyStructureFragmented:
             centers_per_frag=list(centers_per_frag.values()),
             edges_per_frag=edges_per_frag,
             origin_per_frag=origin_per_frag,
-            frag_idx_per_edge=frag_idx_per_edge,
+            ref_frag_idx_per_edge=ref_frag_idx_per_edge,
             conn_data=conn_data,
             n_BE=n_BE,
         )
@@ -806,7 +806,7 @@ class PurelyStructureFragmented:
                 )
                 for i_frag, edges in enumerate(self.edges_per_frag)
             ],
-            frag_idx_per_edge=[
+            ref_frag_idx_per_edge=[
                 _sort_by_keys(
                     dict(edges)
                     | {
@@ -814,7 +814,7 @@ class PurelyStructureFragmented:
                         for center in becomes_an_edge.get(FragmentIdx(i_frag), set())
                     }
                 )
-                for i_frag, edges in enumerate(self.frag_idx_per_edge)
+                for i_frag, edges in enumerate(self.ref_frag_idx_per_edge)
             ],
         )
 
@@ -869,56 +869,53 @@ class Fragmented:
 
     #: The atomic orbital indices per edge per fragment.
     #: The AO index is global.
-    #: This variable was formerly known as :python:`edgesites`.
-    AO_per_edge_per_frag: Final[
+    AO_per_edge: Final[
         Sequence[Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[GlobalAOIdx]]]]
     ]
 
     #: The relative atomic orbital indices per motif per fragment.
     #: Relative means that the AO indices are relative to
     #: the **own** fragment.
-    rel_AO_per_motif_per_frag: Final[
-        Sequence[Mapping[MotifIdx, Mapping[AtomIdx, OrderedSet[OwnRelAOIdx]]]]
+    relAO_per_motif: Final[
+        Sequence[Mapping[MotifIdx, Mapping[AtomIdx, OrderedSet[RelAOIdx]]]]
     ]
 
     #: The relative atomic orbital indices per edge per fragment.
     #: Relative means that the AO indices are relative to
     #: the **own** fragment.
-    #: This variable is a strict subset of :attr:`rel_AO_per_motif_per_frag`,
+    #: This variable is a strict subset of :attr:`relAO_per_motif`,
     #: in the sense that the motif indices, the keys in the Mapping,
     #: are restricted to the edges of the fragment.
-    #: This variable was formerly known as :python:`edge_idx`.
-    rel_AO_per_edge_per_frag: Final[
-        Sequence[Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[OwnRelAOIdx]]]]
+    relAO_per_edge: Final[
+        Sequence[Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[RelAOIdx]]]]
     ]
 
-    #: Is the complement of :attr:`rel_AO_per_edge_per_frag`.
-    #: This variable was formerly known as :python:`ebe_weight`.
-    #: Note that :python:`ebe_weight` also contained the weight
-    #: for democratic matching. This was always 1.0 in
-    #: :func:`quemb.molbe.autofrag.autogen`
-    #: so it did actually not matter.
-    rel_AO_per_center_per_frag: Final[
-        Sequence[Mapping[CenterIdx, Mapping[AtomIdx, OrderedSet[OwnRelAOIdx]]]]
+    #: The relative atomic orbital indices per edge per fragment.
+    #: Relative means that the AO indices are relative to
+    #: the **own** fragment.
+    #: This variable is a subset of :attr:`relAO_per_motif`,
+    #: in the sense that the motif indices, the keys in the Mapping,
+    #: are restricted to the centers of the fragment.
+    relAO_per_center: Final[
+        Sequence[Mapping[CenterIdx, Mapping[AtomIdx, OrderedSet[RelAOIdx]]]]
     ]
 
     #: The relative atomic orbital indices per origin per fragment.
     #: Relative means that the AO indices are relative to
     #: the **own** fragment.
-    #: This variable is a subset of :attr:`rel_AO_per_center_per_frag`,
+    #: This variable is a subset of :attr:`relAO_per_center`,
     #: in the sense that the motif indices, the keys in the Mapping,
     #: are restricted to the origins of the fragment.
     #: This variable was formerly known as :python:`centerf_idx`.
-    rel_AO_per_origin_per_frag: Final[
-        Sequence[Mapping[OriginIdx, Mapping[AtomIdx, OrderedSet[OwnRelAOIdx]]]]
+    relAO_per_origin: Final[
+        Sequence[Mapping[OriginIdx, Mapping[AtomIdx, OrderedSet[RelAOIdx]]]]
     ]
 
     #: The relative atomic orbital indices per edge per fragment.
     #: Relative means that the AO indices are relative to the **other**
     #: fragment where the edge is a center.
-    #: This variable was formerly known as :python:`center_idx`.
-    other_rel_AO_per_edge_per_frag: Final[
-        Sequence[Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[OtherRelAOIdx]]]]
+    relAO_in_ref_per_edge: Final[
+        Sequence[Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[RelAOIdxInRef]]]]
     ]
 
     #: Do we have frozen_core AO index offsets?
@@ -962,18 +959,16 @@ class Fragmented:
             for motif in conn_data.motifs
         }
 
-        AO_per_edge_per_frag: Final = [
+        AO_per_edge: Final = [
             restrict_keys(AO_per_motif, edges)
             for edges in frag_structure.edges_per_frag
         ]
 
-        rel_AO_per_motif_per_frag: list[
-            Mapping[MotifIdx, Mapping[AtomIdx, OrderedSet[OwnRelAOIdx]]]
+        relAO_per_motif: list[
+            Mapping[MotifIdx, Mapping[AtomIdx, OrderedSet[RelAOIdx]]]
         ] = []
         for motifs in frag_structure.motifs_per_frag:
-            rel_AO_per_motif: dict[
-                MotifIdx, dict[AtomIdx, OrderedSet[OwnRelAOIdx]]
-            ] = {}
+            rel_AO_per_motif: dict[MotifIdx, dict[AtomIdx, OrderedSet[RelAOIdx]]] = {}
             previous = 0
             for motif in motifs:
                 rel_AO_per_motif[motif] = {}
@@ -983,38 +978,38 @@ class Fragmented:
                         (previous := previous + len(AO_per_motif[motif][atom])),
                     )
                     rel_AO_per_motif[motif][atom] = OrderedSet(
-                        OwnRelAOIdx(AOIdx(i)) for i in indices
+                        RelAOIdx(AOIdx(i)) for i in indices
                     )
-            rel_AO_per_motif_per_frag.append(rel_AO_per_motif)
+            relAO_per_motif.append(rel_AO_per_motif)
 
-        rel_AO_per_edge_per_frag: Final = _restrict(
-            rel_AO_per_motif_per_frag, frag_structure.edges_per_frag
+        relAO_per_edge: Final = _restrict(
+            relAO_per_motif, frag_structure.edges_per_frag
         )
 
-        rel_AO_per_center_per_frag: Final = _restrict(
-            rel_AO_per_motif_per_frag, frag_structure.centers_per_frag
+        relAO_per_center: Final = _restrict(
+            relAO_per_motif, frag_structure.centers_per_frag
         )
 
-        rel_AO_per_origin_per_frag: Final = _restrict(
-            rel_AO_per_motif_per_frag, frag_structure.origin_per_frag
+        relAO_per_origin: Final = _restrict(
+            relAO_per_motif, frag_structure.origin_per_frag
         )
 
-        other_rel_AO_per_edge_per_frag: list[
-            Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[OtherRelAOIdx]]]
+        relAO_in_ref_per_edge: list[
+            Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[RelAOIdxInRef]]]
         ] = [
             {
                 i_edge: {
-                    atom: cast(OrderedSet[OtherRelAOIdx], indices)
+                    atom: cast(OrderedSet[RelAOIdxInRef], indices)
                     # We correctly reinterpet the AO indices as
                     # indices of the other fragment
-                    for atom, indices in rel_AO_per_motif_per_frag[
-                        frag_per_edge[i_edge]
-                    ][i_edge].items()
+                    for atom, indices in relAO_per_motif[frag_per_edge[i_edge]][
+                        i_edge
+                    ].items()
                 }
                 for i_edge in edges
             }
             for edges, frag_per_edge in zip(
-                frag_structure.edges_per_frag, frag_structure.frag_idx_per_edge
+                frag_structure.edges_per_frag, frag_structure.ref_frag_idx_per_edge
             )
         ]
 
@@ -1032,12 +1027,12 @@ class Fragmented:
             AO_per_atom=AO_per_atom,
             AO_per_frag=AO_per_frag,
             AO_per_motif=AO_per_motif,
-            AO_per_edge_per_frag=AO_per_edge_per_frag,
-            rel_AO_per_motif_per_frag=rel_AO_per_motif_per_frag,
-            rel_AO_per_edge_per_frag=rel_AO_per_edge_per_frag,
-            rel_AO_per_center_per_frag=rel_AO_per_center_per_frag,
-            rel_AO_per_origin_per_frag=rel_AO_per_origin_per_frag,
-            other_rel_AO_per_edge_per_frag=other_rel_AO_per_edge_per_frag,
+            AO_per_edge=AO_per_edge,
+            relAO_per_motif=relAO_per_motif,
+            relAO_per_edge=relAO_per_edge,
+            relAO_per_center=relAO_per_center,
+            relAO_per_origin=relAO_per_origin,
+            relAO_in_ref_per_edge=relAO_in_ref_per_edge,
             frozen_core=frozen_core,
             iao_valence_mol=small_mol,
         )
@@ -1117,43 +1112,44 @@ class Fragmented:
 
         # We cannot use the `extract_values(self.rel_AO_per_origin_per_frag)`
         # alone, because the structure in `self.rel_AO_per_origin_per_frag`
-        # is more flexible and allows multiple origins per fragment.
+        # is more flexible than in FragPart and allows multiple origins per fragment.
         # extracting the values from this structure would give one nesting
         # level too much. We therefore need to merge over all origins,
         # (which there is usually only one per fragment).
         centerf_idx = [
             union_of_seqs(*idx_per_origin)
-            for idx_per_origin in _extract_values(self.rel_AO_per_origin_per_frag)
+            for idx_per_origin in _extract_values(self.relAO_per_origin)
         ]
-        # A similar issue occurs for ebe_weight, where the output
-        # of autogen is a union over all centers.
-        ebe_weight = [
-            cast(
-                list[float | list[OwnRelAOIdx]],
-                [1.0, list(union_of_seqs(*idx_per_center))],
-            )
-            for idx_per_center in _extract_values(self.rel_AO_per_center_per_frag)
+        # A similar issue occurs for ``centerweight_and_relAO_per_center``
+        # where we have to form the union.
+        centerweight_and_relAO_per_center = [
+            (1.0, list(union_of_seqs(*idx_per_center)))
+            for idx_per_center in _extract_values(self.relAO_per_center)
         ]
         # Again, we have to account for the fact that
         # autogen assumes a single origin per fragment.
         # Check with an assert as well
-        center_atom = list(union_of_seqs(*self.frag_structure.origin_per_frag))
-        assert len(center_atom) == len(self)
+        origin_per_frag = list(union_of_seqs(*self.frag_structure.origin_per_frag))
+        assert len(origin_per_frag) == len(self)
 
         return FragPart(
             mol=self.mol,
             frag_type="chemgen",
             n_BE=self.frag_structure.n_BE,
-            fsites=[list(AO_indices) for AO_indices in self.AO_per_frag],
-            edge_sites=_extract_values(self.AO_per_edge_per_frag),
-            center=[list(D.values()) for D in self.frag_structure.frag_idx_per_edge],
-            edge_idx=_extract_values(self.rel_AO_per_edge_per_frag),
-            center_idx=_extract_values(self.other_rel_AO_per_edge_per_frag),
+            AO_per_frag=[list(AO_indices) for AO_indices in self.AO_per_frag],
+            AO_per_edge=_extract_values(self.AO_per_edge),
+            ref_frag_idx_per_edge=[
+                list(D.values()) for D in self.frag_structure.ref_frag_idx_per_edge
+            ],
+            relAO_per_edge=_extract_values(self.relAO_per_edge),
+            relAO_in_ref_per_edge=_extract_values(self.relAO_in_ref_per_edge),
             centerf_idx=[list(seq) for seq in centerf_idx],
-            ebe_weight=ebe_weight,
-            Frag_atom=[list(motifs) for motifs in self.frag_structure.motifs_per_frag],
-            center_atom=center_atom,
-            hlist_atom=[
+            centerweight_and_relAO_per_center=centerweight_and_relAO_per_center,
+            motifs_per_frag=[
+                list(motifs) for motifs in self.frag_structure.motifs_per_frag
+            ],
+            origin_per_frag=origin_per_frag,
+            H_per_motif=[
                 list(self.conn_data.H_per_motif.get(MotifIdx(atom), []))
                 for atom in self.conn_data.bonds_atoms
             ],
@@ -1252,19 +1248,19 @@ class Fragmented:
                 result.append(tmp)
             return result
 
-        center_idx: Final = _extract_with_iao_offset(
-            valence_frags.other_rel_AO_per_edge_per_frag,
-            self.other_rel_AO_per_edge_per_frag,
+        relAO_in_ref_per_edge: Final = _extract_with_iao_offset(
+            valence_frags.relAO_in_ref_per_edge,
+            self.relAO_in_ref_per_edge,
             wrong_iao_indexing=wrong_iao_indexing,
         )
-        edge_sites: Final = _extract_with_iao_offset(
-            valence_frags.AO_per_edge_per_frag,
-            self.AO_per_edge_per_frag,
+        AO_per_edge: Final = _extract_with_iao_offset(
+            valence_frags.AO_per_edge,
+            self.AO_per_edge,
             wrong_iao_indexing=wrong_iao_indexing,
         )
-        edge_idx: Final = _extract_with_iao_offset(
-            valence_frags.rel_AO_per_edge_per_frag,
-            self.rel_AO_per_edge_per_frag,
+        relAO_per_edge: Final = _extract_with_iao_offset(
+            valence_frags.relAO_per_edge,
+            self.relAO_per_edge,
             wrong_iao_indexing=wrong_iao_indexing,
         )
 
@@ -1273,32 +1269,30 @@ class Fragmented:
         centerf_idx: Final = [
             L[0]
             for L in _extract_with_iao_offset(
-                valence_frags.rel_AO_per_origin_per_frag,
-                self.rel_AO_per_origin_per_frag,
+                valence_frags.relAO_per_origin,
+                self.relAO_per_origin,
                 wrong_iao_indexing=wrong_iao_indexing,
             )
         ]
 
         matched_output_no_iao = self._get_FragPart_no_iao()
 
-        # Only edge_sites, edge_idx, center_idx, and centerf_idx are actually different
-        # when doing IAOs
+        # Only are actually different when doing IAOs
         return FragPart(
             mol=self.mol,
             frag_type="chemgen",
             n_BE=self.frag_structure.n_BE,
-            edge_sites=edge_sites,
-            edge_idx=edge_idx,
-            center_idx=center_idx,
+            AO_per_edge=AO_per_edge,
+            relAO_per_edge=relAO_per_edge,
+            relAO_in_ref_per_edge=relAO_in_ref_per_edge,
             centerf_idx=centerf_idx,
-            fsites=matched_output_no_iao.fsites,
-            center=matched_output_no_iao.center,
-            ebe_weight=matched_output_no_iao.ebe_weight,
-            Frag_atom=matched_output_no_iao.Frag_atom,
-            center_atom=matched_output_no_iao.center_atom,
-            hlist_atom=matched_output_no_iao.hlist_atom,
+            AO_per_frag=matched_output_no_iao.AO_per_frag,
+            ref_frag_idx_per_edge=matched_output_no_iao.ref_frag_idx_per_edge,
+            centerweight_and_relAO_per_center=matched_output_no_iao.centerweight_and_relAO_per_center,
+            motifs_per_frag=matched_output_no_iao.motifs_per_frag,
+            origin_per_frag=matched_output_no_iao.origin_per_frag,
+            H_per_motif=matched_output_no_iao.H_per_motif,
             add_center_atom=matched_output_no_iao.add_center_atom,
-            Nfrag=matched_output_no_iao.Nfrag,
             frozen_core=self.frozen_core,
             iao_valence_basis=self.iao_valence_mol.basis,
             iao_valence_only=False,

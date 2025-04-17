@@ -94,7 +94,7 @@ class UBE(BE):  # 🍠
         self.Fobjs_a: list[Frags] = []
         self.Fobjs_b: list[Frags] = []
 
-        self.pot = initialize_pot(self.fobj.Nfrag, self.fobj.edge_idx)
+        self.pot = initialize_pot(self.fobj.n_frag, self.fobj.relAO_per_edge)
 
         self.eri_file = Path(eri_file)
         self.ek = 0.0
@@ -168,63 +168,71 @@ class UBE(BE):  # 🍠
         ECOUL = 0.0
 
         file_eri = h5py.File(self.eri_file, "w")
-        lentmp = len(self.fobj.edge_idx)
+        lentmp = len(self.fobj.relAO_per_edge)
 
         # alpha orbitals
-        for I in range(self.fobj.Nfrag):
+        for I in range(self.fobj.n_frag):
             if lentmp:
                 fobjs_a = Frags(
-                    self.fobj.fsites[I],
+                    self.fobj.AO_per_frag[I],
                     I,
-                    edge=self.fobj.edge_sites[I],
+                    AO_per_edge=self.fobj.AO_per_edge[I],
                     eri_file=self.eri_file,
-                    center=self.fobj.center[I],
-                    edge_idx=self.fobj.edge_idx[I],
-                    center_idx=self.fobj.center_idx[I],
-                    efac=self.fobj.ebe_weight[I],
+                    ref_frag_idx_per_edge=self.fobj.ref_frag_idx_per_edge[I],
+                    relAO_per_edge=self.fobj.relAO_per_edge[I],
+                    relAO_in_ref_per_edge=self.fobj.relAO_in_ref_per_edge[I],
+                    centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
+                        I
+                    ],
                     centerf_idx=self.fobj.centerf_idx[I],
                     unrestricted=True,
                 )
             else:
                 fobjs_a = Frags(
-                    self.fobj.fsites[I],
+                    self.fobj.AO_per_frag[I],
                     I,
-                    edge=[],
-                    center=[],
+                    AO_per_edge=[],
+                    ref_frag_idx_per_edge=[],
                     eri_file=self.eri_file,
-                    edge_idx=[],
-                    center_idx=[],
+                    relAO_per_edge=[],
+                    relAO_in_ref_per_edge=[],
                     centerf_idx=[],
-                    efac=self.fobj.ebe_weight[I],
+                    centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
+                        I
+                    ],
                     unrestricted=True,
                 )
             self.Fobjs_a.append(fobjs_a)
         # beta
-        for I in range(self.fobj.Nfrag):
+        for I in range(self.fobj.n_frag):
             if lentmp:
                 fobjs_b = Frags(
-                    self.fobj.fsites[I],
+                    self.fobj.AO_per_frag[I],
                     I,
-                    edge=self.fobj.edge_sites[I],
+                    AO_per_edge=self.fobj.AO_per_edge[I],
                     eri_file=self.eri_file,
-                    center=self.fobj.center[I],
-                    edge_idx=self.fobj.edge_idx[I],
-                    center_idx=self.fobj.center_idx[I],
-                    efac=self.fobj.ebe_weight[I],
+                    ref_frag_idx_per_edge=self.fobj.ref_frag_idx_per_edge[I],
+                    relAO_per_edge=self.fobj.relAO_per_edge[I],
+                    relAO_in_ref_per_edge=self.fobj.relAO_in_ref_per_edge[I],
+                    centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
+                        I
+                    ],
                     centerf_idx=self.fobj.centerf_idx[I],
                     unrestricted=True,
                 )
             else:
                 fobjs_b = Frags(
-                    self.fobj.fsites[I],
+                    self.fobj.AO_per_frag[I],
                     I,
-                    edge=[],
-                    center=[],
+                    AO_per_edge=[],
+                    ref_frag_idx_per_edge=[],
                     eri_file=self.eri_file,
-                    edge_idx=[],
-                    center_idx=[],
+                    relAO_per_edge=[],
+                    relAO_in_ref_per_edge=[],
                     centerf_idx=[],
-                    efac=self.fobj.ebe_weight[I],
+                    centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
+                        I
+                    ],
                     unrestricted=True,
                 )
             self.Fobjs_b.append(fobjs_b)
@@ -234,7 +242,7 @@ class UBE(BE):  # 🍠
 
         all_noccs = []
 
-        for I in range(self.fobj.Nfrag):
+        for I in range(self.fobj.n_frag):
             fobj_a = self.Fobjs_a[I]
             fobj_b = self.Fobjs_b[I]
 
@@ -352,7 +360,7 @@ class UBE(BE):  # 🍠
             "____________________________________________________________________",
             flush=True,
         )
-        for I in range(self.fobj.Nfrag):
+        for I in range(self.fobj.n_frag):
             print(
                 "|    {:>2}    | ({:>3},{:>3}) |   ({:>3},{:>3})   | ({:>3},{:>3}) |   ({:>3},{:>3})   |".format(  # noqa: E501
                     I,
@@ -437,12 +445,12 @@ class UBE(BE):  # 🍠
         )
 
 
-def initialize_pot(Nfrag, edge_idx):
+def initialize_pot(n_frag, relAO_per_edge):
     pot_ = []
 
-    if not len(edge_idx) == 0:
-        for I in range(Nfrag):
-            for i in edge_idx[I]:
+    if relAO_per_edge:
+        for I in range(n_frag):
+            for i in relAO_per_edge[I]:
                 for j in range(len(i)):
                     for k in range(len(i)):
                         if j > k:

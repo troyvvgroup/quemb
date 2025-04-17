@@ -67,12 +67,12 @@ GlobalAOIdx = NewType("GlobalAOIdx", AOIdx)
 
 #: The relative AO index.
 #: This is relative to the own fragment.
-OwnRelAOIdx = NewType("OwnRelAOIdx", AOIdx)
+RelAOIdx = NewType("RelAOIdx", AOIdx)
 
-#: The relative AO index, relative to another fragment.
+#: The relative AO index, relative to the reference fragment.
 #: For example for an edge in fragment 1 it is the AO index of the same atom
 #: interpreted as center in fragment 2.
-OtherRelAOIdx = NewType("OtherRelAOIdx", AOIdx)
+RelAOIdxInRef = NewType("RelAOIdxInRef", AOIdx)
 
 #: The index of a Fragment.
 FragmentIdx = NewType("FragmentIdx", int)
@@ -118,3 +118,9 @@ EdgeIdx = NewType("EdgeIdx", MotifIdx)
 #:    |        |        |        |
 #:
 OriginIdx = NewType("OriginIdx", CenterIdx)
+
+
+ListOverFrag: TypeAlias = list
+ListOverEdge: TypeAlias = list
+ListOverCenter: TypeAlias = list
+ListOverMotif: TypeAlias = list
