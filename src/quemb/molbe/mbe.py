@@ -154,6 +154,16 @@ class BE(MixinLocalize):
         self.auxbasis = auxbasis
         self.thr_bath = thr_bath
 
+        ###Temporary solution for EOM solver code
+        ###save full system HF Fock matrix to file
+        import os
+
+        if not os.path.exists("files_EOM"):
+            os.makedirs("files_EOM")
+
+        with open("files_EOM/full_syst_fock.npy", "wb") as f:
+            numpy.save(f, mf.get_fock())
+
         # Fragment information from fobj
         self.fobj = fobj
 
