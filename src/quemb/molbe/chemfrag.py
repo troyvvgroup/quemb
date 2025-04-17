@@ -1139,8 +1139,8 @@ class Fragmented:
         Matches the output of :func:`quemb.molbe.autofrag.autogen`.
         """
 
-        # We cannot use the `extract_values(self.rel_AO_per_origin_per_frag)`
-        # alone, because the structure in `self.rel_AO_per_origin_per_frag`
+        # We cannot use the `extract_values(self.relAO_per_origin)`
+        # alone, because the structure in `self.relAO_per_origin`
         # is more flexible than in FragPart and allows multiple origins per fragment.
         # extracting the values from this structure would give one nesting
         # level too much. We therefore need to merge over all origins,
