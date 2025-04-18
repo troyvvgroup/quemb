@@ -217,8 +217,8 @@ def get_core(mol: Mole | Cell) -> tuple[int, list[int], list[int]]:
 def get_frag_energy(
     mo_coeffs,
     nsocc,
-    nfsites,
-    efac,
+    n_frag,
+    centerweight_and_relAO_per_center,
     TA,
     h1,
     rdm1,
@@ -242,9 +242,9 @@ def get_frag_energy(
         Molecular orbital coefficients.
     nsocc : int
         Number of occupied orbitals.
-    nfsites : int
+    n_frag : int
         Number of fragment sites.
-    efac : list
+    centerweight_and_relAO_per_center :
         List containing energy scaling factors and indices.
     TA : numpy.ndarray
         Transformation matrix.
@@ -283,13 +283,13 @@ def get_frag_energy(
         delta_rdm1 = 2 * (rdm1s_rot - hf_1rdm)
 
         # Calculate the one-electron contributions
-        e1 = einsum("ij,ij->i", h1[:nfsites], delta_rdm1[:nfsites])
-        ec = einsum("ij,ij->i", veff0[:nfsites], delta_rdm1[:nfsites])
+        e1 = einsum("ij,ij->i", h1[:n_frag], delta_rdm1[:n_frag])
+        ec = einsum("ij,ij->i", veff0[:n_frag], delta_rdm1[:n_frag])
 
     else:
         # Calculate the one-electron and effective potential energy contributions
-        e1 = 2 * einsum("ij,ij->i", h1[:nfsites], rdm1s_rot[:nfsites])
-        ec = einsum("ij,ij->i", veff[:nfsites], rdm1s_rot[:nfsites])
+        e1 = 2 * einsum("ij,ij->i", h1[:n_frag], rdm1s_rot[:n_frag])
+        ec = einsum("ij,ij->i", veff[:n_frag], rdm1s_rot[:n_frag])
 
     if TA.ndim == 3:
         jmax = TA[0].shape[1]
@@ -309,7 +309,7 @@ def get_frag_energy(
     e2 = zeros_like(e1)
 
     # Calculate the two-electron energy contribution
-    for i in range(nfsites):
+    for i in range(n_frag):
         for j in range(jmax):
             ij = i * (i + 1) // 2 + j if i > j else j * (j + 1) // 2 + i
             Gij = rdm2s[i, j, :jmax, :jmax].copy()
@@ -327,11 +327,11 @@ def get_frag_energy(
     ec_tmp = 0.0
 
     # Calculate the total energy contribution for the specified fragment indices
-    for i in efac[1]:
-        etmp += efac[0] * e_[i]
-        e1_tmp += efac[0] * e1[i]
-        e2_tmp += efac[0] * e2[i]
-        ec_tmp += efac[0] * ec[i]
+    for i in centerweight_and_relAO_per_center[1]:
+        etmp += centerweight_and_relAO_per_center[0] * e_[i]
+        e1_tmp += centerweight_and_relAO_per_center[0] * e1[i]
+        e2_tmp += centerweight_and_relAO_per_center[0] * e2[i]
+        ec_tmp += centerweight_and_relAO_per_center[0] * ec[i]
 
     return [e1_tmp, e2_tmp, ec_tmp]
 
@@ -339,8 +339,8 @@ def get_frag_energy(
 def get_frag_energy_u(
     mo_coeffs,
     nsocc,
-    nfsites,
-    efac,
+    n_frag,
+    centerweight_and_relAO_per_center,
     TA,
     h1,
     hf_veff,
@@ -365,9 +365,9 @@ def get_frag_energy_u(
         Molecular orbital coefficients.
     nsocc : tuple of int
         Number of occupied orbitals.
-    nfsites : tuple of int
+    n_frag : tuple of int
         Number of fragment sites.
-    efac : tuple of list
+    centerweight_and_relAO_per_center :
         List containing energy scaling factors and indices.
     TA : tuple of numpy.ndarray
         Transformation matrix.
@@ -419,11 +419,11 @@ def get_frag_energy_u(
 
     # Calculate the one-electron and effective potential energy contributions
     e1 = [
-        einsum("ij,ij->i", h1[s][: nfsites[s]], delta_rdm1[s][: nfsites[s]])
+        einsum("ij,ij->i", h1[s][: n_frag[s]], delta_rdm1[s][: n_frag[s]])
         for s in [0, 1]
     ]
     ec = [
-        einsum("ij,ij->i", veff0[s][: nfsites[s]], delta_rdm1[s][: nfsites[s]])
+        einsum("ij,ij->i", veff0[s][: n_frag[s]], delta_rdm1[s][: n_frag[s]])
         for s in [0, 1]
     ]
 
@@ -449,9 +449,9 @@ def get_frag_energy_u(
 
     # Calculate the two-electron energy contribution for alpha and beta
     def contract_2e(jmaxs, rdm2_, V_, s, sym):
-        e2_ = zeros(nfsites[s])
+        e2_ = zeros(n_frag[s])
         jmax1, jmax2 = [jmaxs] * 2 if isinstance(jmaxs, int) else jmaxs
-        for i in range(nfsites[s]):
+        for i in range(n_frag[s]):
             for j in range(jmax1):
                 ij = i * (i + 1) // 2 + j if i > j else j * (j + 1) // 2 + i
                 if sym in [4, 2]:
@@ -493,12 +493,12 @@ def get_frag_energy_u(
     ec_tmp = 0.0
 
     # Calculate the total energy contribution for the specified fragment indices
-    for i in efac[0][1]:
-        e2_tmp += efac[0][0] * e2[i]
+    for i in centerweight_and_relAO_per_center[0][1]:
+        e2_tmp += centerweight_and_relAO_per_center[0][0] * e2[i]
         for s in [0, 1]:
-            etmp += efac[s][0] * e_[s][i]
-            e1_tmp += efac[s][0] * e1[s][i]
-            ec_tmp += efac[s][0] * ec[s][i]
+            etmp += centerweight_and_relAO_per_center[s][0] * e_[s][i]
+            e1_tmp += centerweight_and_relAO_per_center[s][0] * e1[s][i]
+            ec_tmp += centerweight_and_relAO_per_center[s][0] * ec[s][i]
 
     return [e1_tmp, e2_tmp, ec_tmp]
 

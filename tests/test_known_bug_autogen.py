@@ -24,8 +24,6 @@ def test_matching_order():
 
         fobj = fragmentate(mol=mol, frag_type="autogen", n_BE=3)
 
-        # fobj.center_idx[0][0][0] = 200
-
         mybe = BE(mf, fobj)
 
         mybe.optimize(solver="CCSD")

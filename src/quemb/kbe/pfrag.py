@@ -34,13 +34,13 @@ class Frags:
 
     def __init__(
         self,
-        fsites,
+        AO_per_frag,
         ifrag,
         edge=None,
-        center=None,
-        edge_idx=None,
-        center_idx=None,
-        efac=None,
+        ref_frag_idx_per_edge=None,
+        relAO_per_edge=None,
+        relAO_in_ref_per_edge=None,
+        centerweight_and_relAO_per_center=None,
         eri_file="eri_file.h5",
         unitcell_nkpt=1,
         ewald_ek=None,
@@ -51,24 +51,30 @@ class Frags:
 
         Parameters
         ----------
-        fsites : list
-            list of AOs in the fragment (i.e. pbe.fsites[i] or fragpart.fsites[i])
+        AO_per_frag: list
+            list of AOs in the fragment (i.e. pbe.AO_per_frag[i]
+            or FragPart.AO_per_frag[i])
+            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
         ifrag : int
-            fragment index (∈ [0, pbe.Nfrag])
+            fragment index (∈ [0, pbe.n_frag - 1])
         edge : list, optional
             list of lists of edge site AOs for each atom in the fragment,
             by default None
-        center : list, optional
+            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
+        ref_frag_idx_per_edge: list, optional
             list of fragment indices where edge site AOs are center site,
-            by default None
-        edge_idx : list, optional
+            by default None.
+            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
+        rel_AO_per_edge_per_frag: list, optional
             list of lists of indices for edge site AOs within the fragment,
             by default None
-        center_idx : list, optional
+            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
+        relAO_in_ref_per_edge :
             list of lists of indices within the fragment specified
             in :python:`center` that points to the edge site AOs,
             by default :python:`None`
-        efac : list, optional
+            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
+        centerweight_and_relAO_per_center :
             weight used for energy contributions, by default None
         eri_file : str, optional
             two-electron integrals stored as h5py file, by default 'eri_file.h5'
@@ -76,10 +82,10 @@ class Frags:
             indices of the center site atoms in the fragment, by default None
         """
 
-        self.fsites = fsites
+        self.AO_per_frag = AO_per_frag
         self.unitcell = unitcell
         self.unitcell_nkpt = unitcell_nkpt
-        self.nfsites = len(fsites)
+        self.n_frag = len(AO_per_frag)
         self.TA = None
         self.TA_lo_eo = None
         self.h1 = None
@@ -98,9 +104,9 @@ class Frags:
 
         self.heff = None
         self.edge = edge
-        self.center = center
-        self.edge_idx = edge_idx
-        self.center_idx = center_idx
+        self.ref_frag_idx_per_edge = ref_frag_idx_per_edge
+        self.relAO_per_edge = relAO_per_edge
+        self.relAO_in_ref_per_edge = relAO_in_ref_per_edge
         self.centerf_idx = centerf_idx
         self.udim = None
 
@@ -112,7 +118,7 @@ class Frags:
         self.genvs = None
         self.ebe = 0.0
         self.ebe_hf = 0.0
-        self.efac = efac
+        self.centerweight_and_relAO_per_center = centerweight_and_relAO_per_center
         self.ewald_ek = ewald_ek
         self.fock = None
         self.veff = None
@@ -168,7 +174,7 @@ class Frags:
         else:
             raise ValueError(f"Imaginary density in Full SD {max_val}")
 
-        Sites = [i + (nlo * 0) for i in self.fsites]
+        Sites = [i + (nlo * 0) for i in self.AO_per_frag]
         if not frag_type == "autogen":
             Sites.sort()
 
@@ -197,10 +203,10 @@ class Frags:
         for k in range(nk):
             h1_eo += multi_dot((self.TA[k].conj().T, h1[k], self.TA[k]))
         h1_eo /= float(nk)
-        e1 = 2.0 * einsum("ij,ij->i", h1_eo[: self.nfsites], rdm1_eo[: self.nfsites])
+        e1 = 2.0 * einsum("ij,ij->i", h1_eo[: self.n_frag], rdm1_eo[: self.n_frag])
         e_h1 = 0.0
-        for i in self.efac[1]:
-            e_h1 += self.efac[0] * e1[i]
+        for i in self.centerweight_and_relAO_per_center[1]:
+            e_h1 += self.centerweight_and_relAO_per_center[0] * e1[i]
 
     def cons_h1(self, h1):
         """
@@ -366,14 +372,14 @@ class Frags:
             cout = self.udim
 
         if do_chempot:
-            for i, fi in enumerate(self.fsites):
-                if not any(i in sublist for sublist in self.edge_idx):
+            for i, fi in enumerate(self.AO_per_frag):
+                if not any(i in sublist for sublist in self.relAO_per_edge):
                     heff_[i, i] -= u[-1]
 
         if only_chem:
             self.heff = heff_
         else:
-            for idx, i in enumerate(self.edge_idx):
+            for idx, i in enumerate(self.relAO_per_edge):
                 for j in range(len(i)):
                     for k in range(len(i)):
                         if j > k:
@@ -385,7 +391,7 @@ class Frags:
             self.heff = heff_
 
     def set_udim(self, cout):
-        for i in self.edge_idx:
+        for i in self.relAO_per_edge:
             for j in range(len(i)):
                 for k in range(len(i)):
                     if j > k:
@@ -405,13 +411,13 @@ class Frags:
         unrestricted = 1.0 if unrestricted else 2.0
 
         e1 = unrestricted * einsum(
-            "ij,ij->i", self.h1[: self.nfsites], rdm_hf[: self.nfsites]
+            "ij,ij->i", self.h1[: self.n_frag], rdm_hf[: self.n_frag]
         )
 
         ec = (
             0.5
             * unrestricted
-            * einsum("ij,ij->i", self.veff[: self.nfsites], rdm_hf[: self.nfsites])
+            * einsum("ij,ij->i", self.veff[: self.n_frag], rdm_hf[: self.n_frag])
         )
 
         if self.TA.ndim == 3:
@@ -423,7 +429,7 @@ class Frags:
                 eri = r[self.dname][()]
 
         e2 = zeros_like(e1)
-        for i in range(self.nfsites):
+        for i in range(self.n_frag):
             for j in range(jmax):
                 ij = i * (i + 1) // 2 + j if i > j else j * (j + 1) // 2 + i
                 Gij = (2.0 * rdm_hf[i, j] * rdm_hf - outer(rdm_hf[i], rdm_hf[j]))[
@@ -438,19 +444,19 @@ class Frags:
         e1_ = 0.0
         e2_ = 0.0
         ec_ = 0.0
-        for i in self.efac[1]:
-            etmp += self.efac[0] * e_[i]
-            e1_ += self.efac[0] * e1[i]
-            e2_ += self.efac[0] * e2[i]
-            ec_ += self.efac[0] * ec[i]
+        for i in self.centerweight_and_relAO_per_center[1]:
+            etmp += self.centerweight_and_relAO_per_center[0] * e_[i]
+            e1_ += self.centerweight_and_relAO_per_center[0] * e1[i]
+            e2_ += self.centerweight_and_relAO_per_center[0] * e2[i]
+            ec_ += self.centerweight_and_relAO_per_center[0] * ec[i]
 
         self.ebe_hf = etmp
         if return_e1:
             e_h1 = 0.0
             e_coul = 0.0
-            for i in self.efac[1]:
-                e_h1 += self.efac[0] * e1[i]
-                e_coul += self.efac[0] * (e2[i] + ec[i])
+            for i in self.centerweight_and_relAO_per_center[1]:
+                e_h1 += self.centerweight_and_relAO_per_center[0] * e1[i]
+                e_coul += self.centerweight_and_relAO_per_center[0] * (e2[i] + ec[i])
             return (e_h1, e_coul, e1 + e2 + ec)
 
         return e1 + e2 + ec
