@@ -12,14 +12,14 @@ def swap_block(spin, n_max):
 
     Parameters
     ----------
-    spin : integer
+    spin : int
         index of 2RDM element, in Q-Chem spin-orbital representation
-    n_max : integer
+    n_max : int
         maximum value of index along a specific dimension
 
     Returns
     -------
-    integer
+    int
         index of 2RDM element, in PySCF spin-orbital representation
     """
 
@@ -38,18 +38,18 @@ def get_idx(Q, R, S, idx):
 
     Parameters
     ----------
-    Q : integer
+    Q : int
         max dimension of 2RDM, along 3rd dimension
-    R : integer
+    R : int
         max dimension of 2RDM, along 2nd dimension
-    S : integer
+    S : int
         max dimension of 2RDM, along 1st dimension
-    idx : integer
+    idx : int
         index of 1D array element printed in Q-Chem output file.
 
     Returns
     -------
-    p, q, r, s : integers
+    p, q, r, s : int
         indices of 2RDM element
     """
 
@@ -70,21 +70,21 @@ def reorder_2rdm(
 
     Parameters
     ----------
-    imin : integer
+    imin : int
         min dimension of 2RDM, along 1st dimension
-    jmin : integer
+    jmin : int
         min dimension of 2RDM, along 2nd dimension
-    kmin : integer
+    kmin : int
         min dimension of 2RDM, along 3rd dimension
-    lmin : integer
+    lmin : int
         min dimension of 2RDM, along 4th dimension
-    imax : integer
+    imax : int
         max dimension of 2RDM, along 1st dimension
-    jmax : integer
+    jmax : int
         max dimension of 2RDM, along 2nd dimension
-    kmax : integer
+    kmax : int
         max dimension of 2RDM, along 3rd dimension
-    lmax : integer
+    lmax : int
         max dimension of 2RDM, along 4th dimension
     rdm2 : numpy.ndarray
         2RDM, in Q-Chem ordering
@@ -120,9 +120,9 @@ def parser_nocc(output):
 
     Returns
     -------
-    n_occ : integer
+    n_occ : int
         number of active occupied spin-orbitals
-    n_virt : integer
+    n_virt : int
         number of active virtual spin-orbitals
     """
 
@@ -148,11 +148,11 @@ def get_rdms(output, n_ex, n_occ, n_virt):
     ----------
     output : string
         Q-Chem output file
-    n_ex : integer
+    n_ex : int
         The excited state for which RDMs are computed
-    n_occ : integer
+    n_occ : int
         number of active occupied spin-orbitals
-    n_virt : integer
+    n_virt : int
         number of active virtual spin-orbitals
 
     Returns
@@ -449,9 +449,9 @@ def spin_traced(dm_matrix, n_occ, n_virt):
     ----------
     dm_matrix : numpy.ndarray
         1-RDM in spin-orbital Q-Chem representation
-    n_occ : integer
+    n_occ : int
         number of active occupied spin-orbitals
-    n_virt : integer
+    n_virt : int
         number of active virtual spin-orbitals
 
     Returns
@@ -491,9 +491,9 @@ def eom_parser(output="eom.out", n_ex=1, frag_number=0):
     ----------
     output : string
         Q-Chem output file
-    n_ex : integer
+    n_ex : int
         The excited state for which RDMs are computed
-    frag_number : integer
+    frag_number : int
         fragment index for which RDMs have been computed
     """
 
