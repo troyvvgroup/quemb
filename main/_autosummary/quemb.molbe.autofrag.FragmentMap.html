@@ -3,7 +3,7 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="quemb.molbe.autofrag.FragmentMap.__init__" href="quemb.molbe.autofrag.FragmentMap.__init__.html" /><link rel="prev" title="quemb.molbe.autofrag.FragPart.__init__" href="quemb.molbe.autofrag.FragPart.__init__.html" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="quemb.molbe.autofrag.FragmentMap.__init__" href="quemb.molbe.autofrag.FragmentMap.__init__.html" /><link rel="prev" title="quemb.molbe.autofrag.FragPart.all_centers_are_origins" href="quemb.molbe.autofrag.FragPart.all_centers_are_origins.html" />
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2024.08.06 -->
         <title>quemb.molbe.autofrag.FragmentMap - QuEmb documentation</title>
@@ -212,6 +212,7 @@
 </li>
 <li class="toctree-l4 has-children"><a class="reference internal" href="quemb.molbe.autofrag.FragPart.html">quemb.molbe.autofrag.FragPart</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><div class="visually-hidden">Toggle navigation of quemb.molbe.autofrag.FragPart</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.autofrag.FragPart.__init__.html">quemb.molbe.autofrag.FragPart.__init__</a></li>
+<li class="toctree-l5"><a class="reference internal" href="quemb.molbe.autofrag.FragPart.all_centers_are_origins.html">quemb.molbe.autofrag.FragPart.all_centers_are_origins</a></li>
 </ul>
 </li>
 <li class="toctree-l4 current has-children current-page"><a class="current reference internal" href="#">quemb.molbe.autofrag.FragmentMap</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle navigation of quemb.molbe.autofrag.FragmentMap</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
@@ -428,6 +429,7 @@
 <li class="toctree-l4"><a class="reference internal" href="quemb.kbe.fragment.fragmentate.html">quemb.kbe.fragment.fragmentate</a></li>
 <li class="toctree-l4 has-children"><a class="reference internal" href="quemb.kbe.fragment.FragPart.html">quemb.kbe.fragment.FragPart</a><input class="toctree-checkbox" id="toctree-checkbox-38" name="toctree-checkbox-38" role="switch" type="checkbox"/><label for="toctree-checkbox-38"><div class="visually-hidden">Toggle navigation of quemb.kbe.fragment.FragPart</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l5"><a class="reference internal" href="quemb.kbe.fragment.FragPart.__init__.html">quemb.kbe.fragment.FragPart.__init__</a></li>
+<li class="toctree-l5"><a class="reference internal" href="quemb.kbe.fragment.FragPart.all_centers_are_origins.html">quemb.kbe.fragment.FragPart.all_centers_are_origins</a></li>
 </ul>
 </li>
 </ul>
@@ -719,7 +721,7 @@
 <h1>quemb.molbe.autofrag.FragmentMap<a class="headerlink" href="#quemb-molbe-autofrag-fragmentmap" title="Link to this heading">¶</a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="quemb.molbe.autofrag.FragmentMap">
-<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">quemb.molbe.autofrag.</span></span><span class="sig-name descname"><span class="pre">FragmentMap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">AO_per_frag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">AO_per_edge</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ref_frag_idx_per_edge</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">centerf_idx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">centerweight_and_relAO_per_center</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sites</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dnames</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">motifs_per_frag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">origin_per_frag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_atoms</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">adjacency_mat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">adjacency_graph</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#quemb.molbe.autofrag.FragmentMap" title="Link to this definition">¶</a></dt>
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">quemb.molbe.autofrag.</span></span><span class="sig-name descname"><span class="pre">FragmentMap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">AO_per_frag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">AO_per_edge</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ref_frag_idx_per_edge</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relAO_per_origin</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">centerweight_and_relAO_per_center</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sites</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dnames</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">motifs_per_frag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">origin_per_frag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_atoms</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">adjacency_mat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">adjacency_graph</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#quemb.molbe.autofrag.FragmentMap" title="Link to this definition">¶</a></dt>
 <dd><p>Dataclass for fragment bookkeeping.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -732,7 +734,7 @@ per fragment.</p></li>
 indices per atom (inner tuple) per fragment (outer tuple).</p></li>
 <li><p><strong>center</strong> – List whose entries are sequences of sequences, containing all fragment AO
 indices per atom (inner tuple) and per fragment (outer tuple).</p></li>
-<li><p><strong>centerf_idx</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Sequence" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>]]</span>) – List whose entries are sequences containing the relative AO index of the
+<li><p><strong>centerf_idx</strong> – List whose entries are sequences containing the relative AO index of the
 origin site within a fragment.
 Relative is to the own fragment; since the origin site is at the beginning
 of the motif list for each fragment, this is always a Sequence
@@ -773,8 +775,8 @@ for constructing fragment scratch directories.</p></li>
 <dd></dd></dl>
 
 <dl class="py attribute">
-<dt class="sig sig-object py" id="quemb.molbe.autofrag.FragmentMap.centerf_idx">
-<span class="sig-name descname"><span class="pre">centerf_idx</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></a><span class="pre">[</span><a class="reference external" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Sequence" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a><span class="pre">[</span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a><span class="pre">]]</span></em><a class="headerlink" href="#quemb.molbe.autofrag.FragmentMap.centerf_idx" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="quemb.molbe.autofrag.FragmentMap.relAO_per_origin">
+<span class="sig-name descname"><span class="pre">relAO_per_origin</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></a><span class="pre">[</span><a class="reference external" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Sequence" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a><span class="pre">[</span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a><span class="pre">]]</span></em><a class="headerlink" href="#quemb.molbe.autofrag.FragmentMap.relAO_per_origin" title="Link to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
@@ -851,14 +853,14 @@ for constructing fragment scratch directories.</p></li>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
-          <a class="prev-page" href="quemb.molbe.autofrag.FragPart.__init__.html">
+          <a class="prev-page" href="quemb.molbe.autofrag.FragPart.all_centers_are_origins.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">quemb.molbe.autofrag.FragPart.__init__</div>
+                <div class="title">quemb.molbe.autofrag.FragPart.all_centers_are_origins</div>
                 
               </div>
             </a>
@@ -898,7 +900,7 @@ for constructing fragment scratch directories.</p></li>
 <li><a class="reference internal" href="#quemb.molbe.autofrag.FragmentMap.fs"><code class="docutils literal notranslate"><span class="pre">FragmentMap.fs</span></code></a></li>
 <li><a class="reference internal" href="#quemb.molbe.autofrag.FragmentMap.AO_per_edge"><code class="docutils literal notranslate"><span class="pre">FragmentMap.AO_per_edge</span></code></a></li>
 <li><a class="reference internal" href="#quemb.molbe.autofrag.FragmentMap.ref_frag_idx_per_edge"><code class="docutils literal notranslate"><span class="pre">FragmentMap.ref_frag_idx_per_edge</span></code></a></li>
-<li><a class="reference internal" href="#quemb.molbe.autofrag.FragmentMap.centerf_idx"><code class="docutils literal notranslate"><span class="pre">FragmentMap.centerf_idx</span></code></a></li>
+<li><a class="reference internal" href="#quemb.molbe.autofrag.FragmentMap.relAO_per_origin"><code class="docutils literal notranslate"><span class="pre">FragmentMap.relAO_per_origin</span></code></a></li>
 <li><a class="reference internal" href="#quemb.molbe.autofrag.FragmentMap.centerweight_and_relAO_per_center"><code class="docutils literal notranslate"><span class="pre">FragmentMap.centerweight_and_relAO_per_center</span></code></a></li>
 <li><a class="reference internal" href="#quemb.molbe.autofrag.FragmentMap.sites"><code class="docutils literal notranslate"><span class="pre">FragmentMap.sites</span></code></a></li>
 <li><a class="reference internal" href="#quemb.molbe.autofrag.FragmentMap.dnames"><code class="docutils literal notranslate"><span class="pre">FragmentMap.dnames</span></code></a></li>

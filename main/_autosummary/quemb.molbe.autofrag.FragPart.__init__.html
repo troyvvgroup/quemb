@@ -3,7 +3,7 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="quemb.molbe.autofrag.FragmentMap" href="quemb.molbe.autofrag.FragmentMap.html" /><link rel="prev" title="quemb.molbe.autofrag.FragPart" href="quemb.molbe.autofrag.FragPart.html" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="quemb.molbe.autofrag.FragPart.all_centers_are_origins" href="quemb.molbe.autofrag.FragPart.all_centers_are_origins.html" /><link rel="prev" title="quemb.molbe.autofrag.FragPart" href="quemb.molbe.autofrag.FragPart.html" />
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2024.08.06 -->
         <title>quemb.molbe.autofrag.FragPart.__init__ - QuEmb documentation</title>
@@ -212,6 +212,7 @@
 </li>
 <li class="toctree-l4 current has-children"><a class="reference internal" href="quemb.molbe.autofrag.FragPart.html">quemb.molbe.autofrag.FragPart</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><div class="visually-hidden">Toggle navigation of quemb.molbe.autofrag.FragPart</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
 <li class="toctree-l5 current current-page"><a class="current reference internal" href="#">quemb.molbe.autofrag.FragPart.__init__</a></li>
+<li class="toctree-l5"><a class="reference internal" href="quemb.molbe.autofrag.FragPart.all_centers_are_origins.html">quemb.molbe.autofrag.FragPart.all_centers_are_origins</a></li>
 </ul>
 </li>
 <li class="toctree-l4 has-children"><a class="reference internal" href="quemb.molbe.autofrag.FragmentMap.html">quemb.molbe.autofrag.FragmentMap</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle navigation of quemb.molbe.autofrag.FragmentMap</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
@@ -428,6 +429,7 @@
 <li class="toctree-l4"><a class="reference internal" href="quemb.kbe.fragment.fragmentate.html">quemb.kbe.fragment.fragmentate</a></li>
 <li class="toctree-l4 has-children"><a class="reference internal" href="quemb.kbe.fragment.FragPart.html">quemb.kbe.fragment.FragPart</a><input class="toctree-checkbox" id="toctree-checkbox-38" name="toctree-checkbox-38" role="switch" type="checkbox"/><label for="toctree-checkbox-38"><div class="visually-hidden">Toggle navigation of quemb.kbe.fragment.FragPart</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l5"><a class="reference internal" href="quemb.kbe.fragment.FragPart.__init__.html">quemb.kbe.fragment.FragPart.__init__</a></li>
+<li class="toctree-l5"><a class="reference internal" href="quemb.kbe.fragment.FragPart.all_centers_are_origins.html">quemb.kbe.fragment.FragPart.all_centers_are_origins</a></li>
 </ul>
 </li>
 </ul>
@@ -719,7 +721,7 @@
 <h1>quemb.molbe.autofrag.FragPart.__init__<a class="headerlink" href="#quemb-molbe-autofrag-fragpart-init" title="Link to this heading">¶</a></h1>
 <dl class="py method">
 <dt class="sig sig-object py" id="quemb.molbe.autofrag.FragPart.__init__">
-<span class="sig-prename descclassname"><span class="pre">FragPart.</span></span><span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">mol</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frag_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_BE</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">AO_per_frag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">AO_per_edge</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ref_frag_idx_per_edge</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relAO_per_edge</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relAO_in_ref_per_edge</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">centerf_idx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">centerweight_and_relAO_per_center</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">motifs_per_frag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">origin_per_frag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">H_per_motif</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">add_center_atom</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frozen_core</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">iao_valence_basis</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">iao_valence_only</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#quemb.molbe.autofrag.FragPart.__init__" title="Link to this definition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">FragPart.</span></span><span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">mol</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frag_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_BE</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">AO_per_frag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">AO_per_edge</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ref_frag_idx_per_edge</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relAO_per_edge</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relAO_in_ref_per_edge</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relAO_per_origin</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">centerweight_and_relAO_per_center</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">motifs_per_frag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">origin_per_frag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">H_per_motif</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">add_center_atom</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frozen_core</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">iao_valence_basis</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">iao_valence_only</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#quemb.molbe.autofrag.FragPart.__init__" title="Link to this definition">¶</a></dt>
 <dd><p>Method generated by attrs for class FragPart.</p>
 </dd></dl>
 
@@ -730,12 +732,12 @@
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="quemb.molbe.autofrag.FragmentMap.html">
+          <a class="next-page" href="quemb.molbe.autofrag.FragPart.all_centers_are_origins.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">quemb.molbe.autofrag.FragmentMap</div>
+                <div class="title">quemb.molbe.autofrag.FragPart.all_centers_are_origins</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>

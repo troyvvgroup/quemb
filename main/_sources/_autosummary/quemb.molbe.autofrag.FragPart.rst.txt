@@ -19,7 +19,7 @@ quemb.molbe.autofrag.FragPart
    .. autoattribute:: FragPart.ref_frag_idx_per_edge
    .. autoattribute:: FragPart.relAO_per_edge
    .. autoattribute:: FragPart.relAO_in_ref_per_edge
-   .. autoattribute:: FragPart.centerf_idx
+   .. autoattribute:: FragPart.relAO_per_origin
    .. autoattribute:: FragPart.centerweight_and_relAO_per_center
    .. autoattribute:: FragPart.motifs_per_frag
    .. autoattribute:: FragPart.origin_per_frag
@@ -43,5 +43,6 @@ quemb.molbe.autofrag.FragPart
       :toctree:
    
       ~FragPart.__init__
+      ~FragPart.all_centers_are_origins
    
    

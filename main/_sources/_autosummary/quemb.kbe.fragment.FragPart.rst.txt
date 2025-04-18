@@ -20,7 +20,7 @@ quemb.kbe.fragment.FragPart
    .. autoattribute:: FragPart.centerweight_and_relAO_per_center
    .. autoattribute:: FragPart.relAO_per_edge
    .. autoattribute:: FragPart.relAO_in_ref_per_edge
-   .. autoattribute:: FragPart.centerf_idx
+   .. autoattribute:: FragPart.relAO_per_origin
    .. autoattribute:: FragPart.n_BE
    .. autoattribute:: FragPart.natom
    .. autoattribute:: FragPart.frozen_core
@@ -43,5 +43,6 @@ quemb.kbe.fragment.FragPart
       :toctree:
    
       ~FragPart.__init__
+      ~FragPart.all_centers_are_origins
    
    

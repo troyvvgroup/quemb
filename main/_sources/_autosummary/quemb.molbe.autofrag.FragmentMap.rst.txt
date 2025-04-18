@@ -15,7 +15,7 @@ quemb.molbe.autofrag.FragmentMap
    .. autoattribute:: FragmentMap.fs
    .. autoattribute:: FragmentMap.AO_per_edge
    .. autoattribute:: FragmentMap.ref_frag_idx_per_edge
-   .. autoattribute:: FragmentMap.centerf_idx
+   .. autoattribute:: FragmentMap.relAO_per_origin
    .. autoattribute:: FragmentMap.centerweight_and_relAO_per_center
    .. autoattribute:: FragmentMap.sites
    .. autoattribute:: FragmentMap.dnames
