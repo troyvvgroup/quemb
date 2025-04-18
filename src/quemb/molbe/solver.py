@@ -12,6 +12,7 @@ from numpy import (
     diag,
     diag_indices,
     einsum,
+    load,
     mean,
     ndarray,
     zeros_like,
@@ -290,7 +291,7 @@ def be_func(
         total_e = [0.0, 0.0, 0.0]
 
     # Loop over each fragment and solve using the specified solver
-    for fobj in Fobjs:
+    for frag_number, fobj in enumerate(Fobjs):
         # Update the effective Hamiltonian
         if pot is not None:
             fobj.update_heff(pot, only_chem=only_chem)
@@ -318,17 +319,12 @@ def be_func(
                     fobj._mf, mo_energy=fobj._mf.mo_energy, rdm_return=False
                 )
                 rdm1_tmp = make_rdm1_ccsd_t1(fobj.t1)
+
         elif solver == "EOM-CCSD":
             # import rdms from Q-Chem
-            print("under construction :)")
-            """fobj.t1, fobj.t2, rdm1_tmp, rdm2s = solve_eom(
-                frag_number,
-                fobj,
-                Nocc,
-                fobj._mf,
-                mo_energy=fobj._mf.mo_energy,
-                use_cumulant=True,
-            )"""
+
+            rdm1_tmp = load("RDMs_eom/ccsd-frag" + str(frag_number) + "-1rdm.npy")
+            rdm2s = load("RDMs_eom/ccsd-frag" + str(frag_number) + "-2rdm.npy")
 
         elif solver == "FCI":
             mc = fci.FCI(fobj._mf, fobj._mf.mo_coeff)
