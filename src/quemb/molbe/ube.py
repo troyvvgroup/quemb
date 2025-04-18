@@ -40,6 +40,7 @@ class UBE(BE):  # 🍠
         lo_method: PathLike = "lowdin",
         pop_method: str | None = None,
         compute_hf: bool = True,
+        thr_bath: float = 1.0e-10,
     ) -> None:
         """Initialize Unrestricted BE Object (ube🍠)
 
@@ -63,8 +64,11 @@ class UBE(BE):  # 🍠
         pop_method :
             Method for calculating orbital population, by default 'meta-lowdin'
             See pyscf.lo for more details and options
+        thr_bath : float,
+            Threshold for bath orbitals in Schmidt decomposition
         """
         self.unrestricted = True
+        self.thr_bath = thr_bath
 
         self.fobj = fobj
 
@@ -251,12 +255,20 @@ class UBE(BE):  # 🍠
                 fobj_b.core_veff = self.core_veff[1]
                 orb_count_a.append(
                     fobj_a.sd(
-                        self.W[0], self.lmo_coeff_a, self.Nocc[0], return_orb_count=True
+                        self.W[0],
+                        self.lmo_coeff_a,
+                        self.Nocc[0],
+                        return_orb_count=True,
+                        thr_bath=self.thr_bath,
                     )
                 )
                 orb_count_b.append(
                     fobj_b.sd(
-                        self.W[1], self.lmo_coeff_b, self.Nocc[1], return_orb_count=True
+                        self.W[1],
+                        self.lmo_coeff_b,
+                        self.Nocc[1],
+                        return_orb_count=True,
+                        thr_bath=self.thr_bath,
                     )
                 )
             else:
@@ -264,12 +276,20 @@ class UBE(BE):  # 🍠
                 fobj_b.core_veff = None
                 orb_count_a.append(
                     fobj_a.sd(
-                        self.W, self.lmo_coeff_a, self.Nocc[0], return_orb_count=True
+                        self.W,
+                        self.lmo_coeff_a,
+                        self.Nocc[0],
+                        return_orb_count=True,
+                        thr_bath=self.thr_bath,
                     )
                 )
                 orb_count_b.append(
                     fobj_b.sd(
-                        self.W, self.lmo_coeff_b, self.Nocc[1], return_orb_count=True
+                        self.W,
+                        self.lmo_coeff_b,
+                        self.Nocc[1],
+                        return_orb_count=True,
+                        thr_bath=self.thr_bath,
                     )
                 )
 
