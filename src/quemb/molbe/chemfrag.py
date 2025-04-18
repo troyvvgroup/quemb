@@ -635,7 +635,8 @@ class PurelyStructureFragmented:
             Look there for more details.
         swallow_replace :
             If a fragment would be swallowed, it is instead replaced by the largest
-            containing fragment.
+            fragment that contains the smaller fragment. The definition of origin
+            is taken from the smaller fragment.
             This means, there will be no centers other than origins.
         """
         fragments = cls.from_conn_data(
