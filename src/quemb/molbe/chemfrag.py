@@ -422,7 +422,9 @@ def _cleanup_if_subset(
         A dictionary mapping the center index to the set of motif indices.
     swallow_replace :
         If a fragment would be swallowed, it is instead replaced by the largest
-        containing fragment. This means, there will be no centers apart from origins.
+        fragment that contains the smaller fragment. The definition of the origin
+        is taken from the smaller fragment.
+        This means, there will be no centers other than origins.
 
     Returns
     -------
@@ -635,7 +637,8 @@ class PurelyStructureFragmented:
             Look there for more details.
         swallow_replace :
             If a fragment would be swallowed, it is instead replaced by the largest
-            containing fragment.
+            fragment that contains the smaller fragment. The definition of the origin
+            is taken from the smaller fragment.
             This means, there will be no centers other than origins.
         """
         fragments = cls.from_conn_data(
@@ -1110,7 +1113,8 @@ class Fragmented:
             upon construction.  Look there for more details.
         swallow_replace :
             If a fragment would be swallowed, it is instead replaced by the largest
-            containing fragment.
+            fragment that contains the smaller fragment. The definition of the origin
+            is taken from the smaller fragment.
             This means, there will be no centers other than origins.
         """
         return cls.from_frag_structure(
@@ -1396,15 +1400,16 @@ class ChemGenArgs:
     bonds_atoms: Mapping[int, set[int]] | None = None
     vdW_radius: InVdWRadius | None = None
 
+    #: If a fragment would be swallowed, it is instead replaced by the largest
+    #: fragment that contains the smaller fragment. The definition of the origin
+    #: is taken from the smaller fragment.
+    #: This means, there will be no centers other than origins.
+    swallow_replace: bool = False
+
     #: Option for debugging.
     #: If it is true, then chemgen adheres to the old **wrong** indexing
     #: of :python:`"autogen"``.
     _wrong_iao_indexing: bool = False
-
-    #: Option for debugging.
-    #: If a fragment would be swallowed, it is instead replaced by the largest
-    #: containing fragment. This means, there will be no centers apart from origins.
-    _swallow_replace: bool = False
 
 
 def chemgen(
@@ -1433,7 +1438,9 @@ def chemgen(
         The minimal basis used for the IAO definition.
     swallow_replace :
         If a fragment would be swallowed, it is instead replaced by the largest
-        containing fragment. This means, there will be no centers apart from origins.
+        fragment that contains the smaller fragment. The definition of the origin
+        is taken from the smaller fragment.
+        This means, there will be no centers other than origins.
     """
     if args is None:
         return Fragmented.from_mole(
@@ -1448,7 +1455,7 @@ def chemgen(
             bonds_atoms=args.bonds_atoms,
             vdW_radius=args.vdW_radius,
             iao_valence_basis=iao_valence_basis,
-            swallow_replace=args._swallow_replace,
+            swallow_replace=args.swallow_replace,
         )
 
 
