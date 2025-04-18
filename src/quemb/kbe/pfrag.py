@@ -44,7 +44,7 @@ class Frags:
         eri_file="eri_file.h5",
         unitcell_nkpt=1,
         ewald_ek=None,
-        centerf_idx=None,
+        relAO_per_origin=None,
         unitcell=1,
     ):
         """Constructor function for :python:`Frags` class.
@@ -78,8 +78,8 @@ class Frags:
             weight used for energy contributions, by default None
         eri_file : str, optional
             two-electron integrals stored as h5py file, by default 'eri_file.h5'
-        centerf_idx : list, optional
-            indices of the center site atoms in the fragment, by default None
+        relAO_per_origin : list, optional
+            indices of the origin in the fragment, by default None
         """
 
         self.AO_per_frag = AO_per_frag
@@ -107,7 +107,7 @@ class Frags:
         self.ref_frag_idx_per_edge = ref_frag_idx_per_edge
         self.relAO_per_edge = relAO_per_edge
         self.relAO_in_ref_per_edge = relAO_in_ref_per_edge
-        self.centerf_idx = centerf_idx
+        self.relAO_per_origin = relAO_per_origin
         self.udim = None
 
         self._rdm1 = None

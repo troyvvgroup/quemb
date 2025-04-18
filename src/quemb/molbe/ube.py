@@ -184,7 +184,7 @@ class UBE(BE):  # 🍠
                     centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
                         I
                     ],
-                    centerf_idx=self.fobj.centerf_idx[I],
+                    relAO_per_origin=self.fobj.relAO_per_origin[I],
                     unrestricted=True,
                 )
             else:
@@ -196,7 +196,7 @@ class UBE(BE):  # 🍠
                     eri_file=self.eri_file,
                     relAO_per_edge=[],
                     relAO_in_ref_per_edge=[],
-                    centerf_idx=[],
+                    relAO_per_origin=[],
                     centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
                         I
                     ],
@@ -217,7 +217,7 @@ class UBE(BE):  # 🍠
                     centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
                         I
                     ],
-                    centerf_idx=self.fobj.centerf_idx[I],
+                    relAO_per_origin=self.fobj.relAO_per_origin[I],
                     unrestricted=True,
                 )
             else:
@@ -229,7 +229,7 @@ class UBE(BE):  # 🍠
                     eri_file=self.eri_file,
                     relAO_per_edge=[],
                     relAO_in_ref_per_edge=[],
-                    centerf_idx=[],
+                    relAO_per_origin=[],
                     centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
                         I
                     ],
