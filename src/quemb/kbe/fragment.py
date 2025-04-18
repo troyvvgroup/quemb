@@ -59,7 +59,7 @@ class FragPart:
     #: origin site within a fragment. Relative is to the own fragment.
     #  Since the origin site is at the beginning
     #: of the motif list for each fragment, this is always a ``list(range(0, n))``
-    centerf_idx: ListOverFrag[list[RelAOIdx]]
+    relAO_per_origin: ListOverFrag[list[RelAOIdx]]
 
     n_BE: int
     natom: int
@@ -92,6 +92,14 @@ class FragPart:
 
     def __len__(self) -> int:
         return self.n_frag
+
+    def all_centers_are_origins(self) -> bool:
+        return all(
+            relAO_per_center == relAO_per_origin
+            for (_, relAO_per_center), relAO_per_origin in zip(
+                self.centerweight_and_relAO_per_center, self.relAO_per_origin
+            )
+        )
 
 
 def fragmentate(
@@ -169,7 +177,7 @@ def fragmentate(
             ref_frag_idx_per_edge,
             relAO_per_edge,
             relAO_in_ref_per_edge,
-            centerf_idx,
+            relAO_per_origin,
             centerweight_and_relAO_per_center,
         ) = autogen(
             mol,
@@ -200,7 +208,7 @@ def fragmentate(
             centerweight_and_relAO_per_center=centerweight_and_relAO_per_center,
             relAO_per_edge=relAO_per_edge,
             relAO_in_ref_per_edge=relAO_in_ref_per_edge,
-            centerf_idx=centerf_idx,
+            relAO_per_origin=relAO_per_origin,
             n_BE=n_BE,
             natom=natom,
             frozen_core=frozen_core,
@@ -238,7 +246,7 @@ def fragmentate(
             centerweight_and_relAO_per_center=molecular_FragPart.centerweight_and_relAO_per_center,
             relAO_per_edge=molecular_FragPart.relAO_per_edge,
             relAO_in_ref_per_edge=molecular_FragPart.relAO_in_ref_per_edge,
-            centerf_idx=molecular_FragPart.centerf_idx,
+            relAO_per_origin=molecular_FragPart.relAO_per_origin,
             n_BE=molecular_FragPart.n_BE,
             natom=natom,
             frozen_core=frozen_core,

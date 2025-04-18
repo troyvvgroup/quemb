@@ -398,6 +398,7 @@ class _SubsetsCleaned:
 
 def _cleanup_if_subset(
     fragment_indices: Mapping[MotifIdx, OrderedSet[MotifIdx]],
+    swallow_replace: bool = False,
 ) -> _SubsetsCleaned:
     """Remove fragments that are subsets of other fragments.
 
@@ -408,6 +409,11 @@ def _cleanup_if_subset(
     ----------
     fragment_indices :
         A dictionary mapping the center index to the set of motif indices.
+    swallow_replace :
+        If a fragment would be swallowed, it is instead replaced by the largest
+        fragment that contains the smaller fragment. The definition of the origin
+        is taken from the smaller fragment.
+        This means, there will be no centers other than origins.
 
     Returns
     -------
@@ -443,10 +449,16 @@ def _cleanup_if_subset(
     # stay at the first position. The rest of the motifs should be sorted.
     # We also remove the swallowed centers, i.e. only origins are left.
     cleaned_fragments = {
-        OriginIdx(CenterIdx(i_center)): union_of_seqs([i_center], sorted(motifs[1:]))
+        cast(OriginIdx, i_center): union_of_seqs([i_center], sorted(motifs[1:]))
         for i_center, motifs in fragment_indices.items()
         if i_center not in subset_of_others
     }
+
+    if swallow_replace:
+        for i_origin, centers in contain_others.items():
+            for center in centers:
+                cleaned_fragments[cast(OriginIdx, center)] = cleaned_fragments[i_origin]
+        contain_others = {k: OrderedSet() for k in contain_others}
     return _SubsetsCleaned(cleaned_fragments, contain_others)
 
 
@@ -507,12 +519,19 @@ class PurelyStructureFragmented:
     n_BE: Final[int]
 
     @classmethod
-    def from_conn_data(cls, mol: Mole, conn_data: BondConnectivity, n_BE: int) -> Self:
+    def from_conn_data(
+        cls,
+        mol: Mole,
+        conn_data: BondConnectivity,
+        n_BE: int,
+        swallow_replace: bool,
+    ) -> Self:
         fragments = _cleanup_if_subset(
             {
                 i_center: conn_data.get_BE_fragment(i_center, n_BE)
                 for i_center in conn_data.motifs
-            }
+            },
+            swallow_replace=swallow_replace,
         )
         centers_per_frag = {
             i_origin: union_of_seqs(
@@ -588,6 +607,7 @@ class PurelyStructureFragmented:
         bonds_atoms: Mapping[int, set[int]] | None = None,
         vdW_radius: InVdWRadius | None = None,
         autocratic_matching: bool = True,
+        swallow_replace: bool = False,
     ) -> Self:
         """Construct a :class:`PurelyStructureFragmented`
         from a :class:`pyscf.gto.mole.Mole`.
@@ -604,6 +624,11 @@ class PurelyStructureFragmented:
             Assume autocratic matching for possibly shared centers.
             Will call :meth:`get_autocratically_matched` upon construction.
             Look there for more details.
+        swallow_replace :
+            If a fragment would be swallowed, it is instead replaced by the largest
+            fragment that contains the smaller fragment. The definition of the origin
+            is taken from the smaller fragment.
+            This means, there will be no centers other than origins.
         """
         fragments = cls.from_conn_data(
             mol,
@@ -614,6 +639,7 @@ class PurelyStructureFragmented:
                 vdW_radius=vdW_radius,
             ),
             n_BE,
+            swallow_replace=swallow_replace,
         )
         if autocratic_matching:
             return fragments.get_autocratically_matched()
@@ -1042,6 +1068,7 @@ class Fragmented:
         vdW_radius: InVdWRadius | None = None,
         iao_valence_basis: str | None = None,
         autocratic_matching: bool = True,
+        swallow_replace: bool = False,
     ) -> Self:
         """Construct a :class:`Fragmented` from :class:`pyscf.gto.mole.Mole`.
 
@@ -1077,6 +1104,11 @@ class Fragmented:
             Assume autocratic matching for possibly shared centers.
             Will call :meth:`PurelyStructureFragmented.get_autocratically_matched`
             upon construction.  Look there for more details.
+        swallow_replace :
+            If a fragment would be swallowed, it is instead replaced by the largest
+            fragment that contains the smaller fragment. The definition of the origin
+            is taken from the smaller fragment.
+            This means, there will be no centers other than origins.
         """
         return cls.from_frag_structure(
             mol,
@@ -1087,6 +1119,7 @@ class Fragmented:
                 bonds_atoms=bonds_atoms,
                 vdW_radius=vdW_radius,
                 autocratic_matching=autocratic_matching,
+                swallow_replace=swallow_replace,
             ),
             frozen_core=frozen_core,
             iao_valence_basis=iao_valence_basis,
@@ -1103,13 +1136,13 @@ class Fragmented:
         Matches the output of :func:`quemb.molbe.autofrag.autogen`.
         """
 
-        # We cannot use the `extract_values(self.rel_AO_per_origin_per_frag)`
-        # alone, because the structure in `self.rel_AO_per_origin_per_frag`
+        # We cannot use the `extract_values(self.relAO_per_origin)`
+        # alone, because the structure in `self.relAO_per_origin`
         # is more flexible than in FragPart and allows multiple origins per fragment.
         # extracting the values from this structure would give one nesting
         # level too much. We therefore need to merge over all origins,
         # (which there is usually only one per fragment).
-        centerf_idx = [
+        relAO_per_origin = [
             union_of_seqs(*idx_per_origin)
             for idx_per_origin in _extract_values(self.relAO_per_origin)
         ]
@@ -1136,7 +1169,7 @@ class Fragmented:
             ],
             relAO_per_edge=_extract_values(self.relAO_per_edge),
             relAO_in_ref_per_edge=_extract_values(self.relAO_in_ref_per_edge),
-            centerf_idx=[list(seq) for seq in centerf_idx],
+            relAO_per_origin=[list(seq) for seq in relAO_per_origin],
             centerweight_and_relAO_per_center=centerweight_and_relAO_per_center,
             motifs_per_frag=[
                 list(motifs) for motifs in self.frag_structure.motifs_per_frag
@@ -1259,7 +1292,7 @@ class Fragmented:
 
         # We have to flatten one nesting level since it is assumed in the output
         # of autogen that there is always only one origin per fragment.,
-        centerf_idx: Final = [
+        relAO_per_origin: Final = [
             L[0]
             for L in _extract_with_iao_offset(
                 valence_frags.relAO_per_origin,
@@ -1278,7 +1311,7 @@ class Fragmented:
             AO_per_edge=AO_per_edge,
             relAO_per_edge=relAO_per_edge,
             relAO_in_ref_per_edge=relAO_in_ref_per_edge,
-            centerf_idx=centerf_idx,
+            relAO_per_origin=relAO_per_origin,
             AO_per_frag=matched_output_no_iao.AO_per_frag,
             ref_frag_idx_per_edge=matched_output_no_iao.ref_frag_idx_per_edge,
             centerweight_and_relAO_per_center=matched_output_no_iao.centerweight_and_relAO_per_center,
@@ -1362,7 +1395,13 @@ class ChemGenArgs:
     bonds_atoms: Mapping[int, set[int]] | None = None
     vdW_radius: InVdWRadius | None = None
 
-    #: This argument is not meant to be used by the user.
+    #: If a fragment would be swallowed, it is instead replaced by the largest
+    #: fragment that contains the smaller fragment. The definition of the origin
+    #: is taken from the smaller fragment.
+    #: This means, there will be no centers other than origins.
+    swallow_replace: bool = False
+
+    #: Option for debugging.
     #: If it is true, then chemgen adheres to the old **wrong** indexing
     #: of :python:`"autogen"``.
     _wrong_iao_indexing: bool = False
@@ -1392,6 +1431,11 @@ def chemgen(
         Do we perform a frozen core calculation?
     iao_valuence_basis :
         The minimal basis used for the IAO definition.
+    swallow_replace :
+        If a fragment would be swallowed, it is instead replaced by the largest
+        fragment that contains the smaller fragment. The definition of the origin
+        is taken from the smaller fragment.
+        This means, there will be no centers other than origins.
     """
     if args is None:
         return Fragmented.from_mole(
@@ -1406,6 +1450,7 @@ def chemgen(
             bonds_atoms=args.bonds_atoms,
             vdW_radius=args.vdW_radius,
             iao_valence_basis=iao_valence_basis,
+            swallow_replace=args.swallow_replace,
         )
 
 

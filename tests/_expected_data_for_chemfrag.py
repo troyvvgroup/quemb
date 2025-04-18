@@ -26205,7 +26205,7 @@ def get_expected():
             ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
             relAO_per_edge=[[], [], [], [], [], [], [], []],
             relAO_in_ref_per_edge=[[], [], [], [], [], [], [], []],
-            centerf_idx=[
+            relAO_per_origin=[
                 [0, 1, 2, 3, 4, 5],
                 [0, 1, 2, 3, 4, 5],
                 [0, 1, 2, 3, 4, 5],
@@ -26278,7 +26278,7 @@ def get_expected():
             ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
             relAO_per_edge=[[], [], [], [], [], [], [], []],
             relAO_in_ref_per_edge=[[], [], [], [], [], [], [], []],
-            centerf_idx=[
+            relAO_per_origin=[
                 [0, 1, 2, 3, 4, 5],
                 [0, 1, 2, 3, 4, 5],
                 [0, 1, 2, 3, 4, 5],
@@ -26351,7 +26351,7 @@ def get_expected():
             ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
             relAO_per_edge=[[], [], [], [], [], [], [], []],
             relAO_in_ref_per_edge=[[], [], [], [], [], [], [], []],
-            centerf_idx=[
+            relAO_per_origin=[
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
@@ -26424,7 +26424,7 @@ def get_expected():
             ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
             relAO_per_edge=[[], [], [], [], [], [], [], []],
             relAO_in_ref_per_edge=[[], [], [], [], [], [], [], []],
-            centerf_idx=[
+            relAO_per_origin=[
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
@@ -26699,7 +26699,7 @@ def get_expected():
             ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
             relAO_per_edge=[[], [], [], [], [], [], [], []],
             relAO_in_ref_per_edge=[[], [], [], [], [], [], [], []],
-            centerf_idx=[
+            relAO_per_origin=[
                 [
                     0,
                     1,
@@ -27402,7 +27402,7 @@ def get_expected():
             ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
             relAO_per_edge=[[], [], [], [], [], [], [], []],
             relAO_in_ref_per_edge=[[], [], [], [], [], [], [], []],
-            centerf_idx=[
+            relAO_per_origin=[
                 [
                     0,
                     1,
@@ -28113,7 +28113,7 @@ def get_expected():
             ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
             relAO_per_edge=[[], [], [], [], [], [], [], []],
             relAO_in_ref_per_edge=[[], [], [], [], [], [], [], []],
-            centerf_idx=[
+            relAO_per_origin=[
                 [
                     0,
                     1,
@@ -28840,7 +28840,7 @@ def get_expected():
             ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
             relAO_per_edge=[[], [], [], [], [], [], [], []],
             relAO_in_ref_per_edge=[[], [], [], [], [], [], [], []],
-            centerf_idx=[
+            relAO_per_origin=[
                 [
                     0,
                     1,
@@ -29559,7 +29559,7 @@ def get_expected():
             ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
             relAO_per_edge=[[], [], [], [], [], [], [], []],
             relAO_in_ref_per_edge=[[], [], [], [], [], [], [], []],
-            centerf_idx=[
+            relAO_per_origin=[
                 [0, 1, 2, 3, 13, 14],
                 [0, 1, 2, 3, 13, 14],
                 [0, 1, 2, 3, 13, 14],
@@ -30060,7 +30060,7 @@ def get_expected():
             ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
             relAO_per_edge=[[], [], [], [], [], [], [], []],
             relAO_in_ref_per_edge=[[], [], [], [], [], [], [], []],
-            centerf_idx=[
+            relAO_per_origin=[
                 [0, 1, 2, 3, 13, 18],
                 [0, 1, 2, 3, 13, 18],
                 [0, 1, 2, 3, 13, 18],
@@ -30569,7 +30569,7 @@ def get_expected():
             ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
             relAO_per_edge=[[], [], [], [], [], [], [], []],
             relAO_in_ref_per_edge=[[], [], [], [], [], [], [], []],
-            centerf_idx=[
+            relAO_per_origin=[
                 [0, 1, 2, 3, 4, 14, 15],
                 [0, 1, 2, 3, 4, 14, 15],
                 [0, 1, 2, 3, 4, 14, 15],
@@ -31086,7 +31086,7 @@ def get_expected():
             ref_frag_idx_per_edge=[[], [], [], [], [], [], [], []],
             relAO_per_edge=[[], [], [], [], [], [], [], []],
             relAO_in_ref_per_edge=[[], [], [], [], [], [], [], []],
-            centerf_idx=[
+            relAO_per_origin=[
                 [0, 1, 2, 3, 4, 14, 19],
                 [0, 1, 2, 3, 4, 14, 19],
                 [0, 1, 2, 3, 4, 14, 19],
@@ -31452,7 +31452,7 @@ def get_expected():
                 [[0, 1, 2, 3, 4, 5]],
                 [[0, 1, 2, 3, 4, 5]],
             ],
-            centerf_idx=[
+            relAO_per_origin=[
                 [0, 1, 2, 3, 4, 5],
                 [0, 1, 2, 3, 4, 5],
                 [0, 1, 2, 3, 4, 5],
@@ -31587,7 +31587,7 @@ def get_expected():
                 [[0, 1, 2, 3, 4, 5]],
                 [[0, 1, 2, 3, 4, 5]],
             ],
-            centerf_idx=[
+            relAO_per_origin=[
                 [0, 1, 2, 3, 4, 5],
                 [0, 1, 2, 3, 4, 5],
                 [0, 1, 2, 3, 4, 5],
@@ -31816,7 +31816,7 @@ def get_expected():
                 [[0, 1, 2, 3, 4, 5, 6]],
                 [[0, 1, 2, 3, 4, 5, 6]],
             ],
-            centerf_idx=[
+            relAO_per_origin=[
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
@@ -32045,7 +32045,7 @@ def get_expected():
                 [[0, 1, 2, 3, 4, 5, 6]],
                 [[0, 1, 2, 3, 4, 5, 6]],
             ],
-            centerf_idx=[
+            relAO_per_origin=[
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
@@ -33338,7 +33338,7 @@ def get_expected():
                     ]
                 ],
             ],
-            centerf_idx=[
+            relAO_per_origin=[
                 [
                     0,
                     1,
@@ -34993,7 +34993,7 @@ def get_expected():
                     ]
                 ],
             ],
-            centerf_idx=[
+            relAO_per_origin=[
                 [
                     0,
                     1,
@@ -36696,7 +36696,7 @@ def get_expected():
                     ]
                 ],
             ],
-            centerf_idx=[
+            relAO_per_origin=[
                 [
                     0,
                     1,
@@ -38413,7 +38413,7 @@ def get_expected():
                     ]
                 ],
             ],
-            centerf_idx=[
+            relAO_per_origin=[
                 [
                     0,
                     1,
@@ -39314,7 +39314,7 @@ def get_expected():
                 [[0, 1, 2, 3, 13, 14]],
                 [[0, 1, 2, 3, 13, 14]],
             ],
-            centerf_idx=[
+            relAO_per_origin=[
                 [0, 1, 2, 3, 13, 14],
                 [0, 1, 2, 3, 13, 14],
                 [0, 1, 2, 3, 13, 14],
@@ -40057,7 +40057,7 @@ def get_expected():
                 [[0, 1, 2, 3, 13, 18]],
                 [[0, 1, 2, 3, 13, 18]],
             ],
-            centerf_idx=[
+            relAO_per_origin=[
                 [0, 1, 2, 3, 13, 18],
                 [0, 1, 2, 3, 13, 18],
                 [0, 1, 2, 3, 13, 18],
@@ -40818,7 +40818,7 @@ def get_expected():
                 [[0, 1, 2, 3, 4, 14, 15]],
                 [[0, 1, 2, 3, 4, 14, 15]],
             ],
-            centerf_idx=[
+            relAO_per_origin=[
                 [0, 1, 2, 3, 4, 14, 15],
                 [0, 1, 2, 3, 4, 14, 15],
                 [0, 1, 2, 3, 4, 14, 15],
@@ -41587,7 +41587,7 @@ def get_expected():
                 [[0, 1, 2, 3, 4, 14, 19]],
                 [[0, 1, 2, 3, 4, 14, 19]],
             ],
-            centerf_idx=[
+            relAO_per_origin=[
                 [0, 1, 2, 3, 4, 14, 19],
                 [0, 1, 2, 3, 4, 14, 19],
                 [0, 1, 2, 3, 4, 14, 19],
@@ -42056,7 +42056,7 @@ def get_expected():
                 [[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]],
                 [[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]],
             ],
-            centerf_idx=[
+            relAO_per_origin=[
                 [0, 1, 2, 3, 4, 5],
                 [0, 1, 2, 3, 4, 5],
                 [0, 1, 2, 3, 4, 5],
@@ -42299,7 +42299,7 @@ def get_expected():
                 [[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]],
                 [[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]],
             ],
-            centerf_idx=[
+            relAO_per_origin=[
                 [0, 1, 2, 3, 4, 5],
                 [0, 1, 2, 3, 4, 5],
                 [0, 1, 2, 3, 4, 5],
@@ -42562,7 +42562,7 @@ def get_expected():
                 [[0, 1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5, 6]],
                 [[0, 1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5, 6]],
             ],
-            centerf_idx=[
+            relAO_per_origin=[
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
@@ -42871,7 +42871,7 @@ def get_expected():
                 [[0, 1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5, 6]],
                 [[0, 1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5, 6]],
             ],
-            centerf_idx=[
+            relAO_per_origin=[
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
@@ -44390,7 +44390,7 @@ def get_expected():
                     ],
                 ],
             ],
-            centerf_idx=[
+            relAO_per_origin=[
                 [
                     0,
                     1,
@@ -46163,7 +46163,7 @@ def get_expected():
                     ],
                 ],
             ],
-            centerf_idx=[
+            relAO_per_origin=[
                 [
                     0,
                     1,
@@ -47992,7 +47992,7 @@ def get_expected():
                     ],
                 ],
             ],
-            centerf_idx=[
+            relAO_per_origin=[
                 [
                     0,
                     1,
@@ -49833,7 +49833,7 @@ def get_expected():
                     ],
                 ],
             ],
-            centerf_idx=[
+            relAO_per_origin=[
                 [
                     0,
                     1,
@@ -50736,7 +50736,7 @@ def get_expected():
                 [[0, 1, 2, 3, 13, 14], [0, 1, 2, 3, 13, 14]],
                 [[0, 1, 2, 3, 13, 14], [0, 1, 2, 3, 13, 14]],
             ],
-            centerf_idx=[
+            relAO_per_origin=[
                 [0, 1, 2, 3, 13, 14],
                 [0, 1, 2, 3, 13, 14],
                 [0, 1, 2, 3, 13, 14],
@@ -51531,7 +51531,7 @@ def get_expected():
                 [[0, 1, 2, 3, 13, 18], [0, 1, 2, 3, 13, 18]],
                 [[0, 1, 2, 3, 13, 18], [0, 1, 2, 3, 13, 18]],
             ],
-            centerf_idx=[
+            relAO_per_origin=[
                 [0, 1, 2, 3, 13, 18],
                 [0, 1, 2, 3, 13, 18],
                 [0, 1, 2, 3, 13, 18],
@@ -52346,7 +52346,7 @@ def get_expected():
                 [[0, 1, 2, 3, 4, 14, 15], [0, 1, 2, 3, 4, 14, 15]],
                 [[0, 1, 2, 3, 4, 14, 15], [0, 1, 2, 3, 4, 14, 15]],
             ],
-            centerf_idx=[
+            relAO_per_origin=[
                 [0, 1, 2, 3, 4, 14, 15],
                 [0, 1, 2, 3, 4, 14, 15],
                 [0, 1, 2, 3, 4, 14, 15],
@@ -53169,7 +53169,7 @@ def get_expected():
                 [[0, 1, 2, 3, 4, 14, 19], [0, 1, 2, 3, 4, 14, 19]],
                 [[0, 1, 2, 3, 4, 14, 19], [0, 1, 2, 3, 4, 14, 19]],
             ],
-            centerf_idx=[
+            relAO_per_origin=[
                 [0, 1, 2, 3, 4, 14, 19],
                 [0, 1, 2, 3, 4, 14, 19],
                 [0, 1, 2, 3, 4, 14, 19],
@@ -53564,7 +53564,7 @@ def get_expected():
                 [[0, 1, 2, 3, 4, 5], [6, 7, 8, 9, 10, 11], [12, 13, 14, 15, 16, 17]],
                 [[0, 1, 2, 3, 4, 5], [6, 7, 8, 9, 10, 11], [12, 13, 14, 15, 16, 17]],
             ],
-            centerf_idx=[[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]],
+            relAO_per_origin=[[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]],
             centerweight_and_relAO_per_center=[
                 (
                     1.0,
@@ -53787,7 +53787,7 @@ def get_expected():
                 [[0, 1, 2, 3, 4, 5], [6, 7, 8, 9, 10, 11], [12, 13, 14, 15, 16, 17]],
                 [[0, 1, 2, 3, 4, 5], [6, 7, 8, 9, 10, 11], [12, 13, 14, 15, 16, 17]],
             ],
-            centerf_idx=[[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]],
+            relAO_per_origin=[[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]],
             centerweight_and_relAO_per_center=[
                 (
                     1.0,
@@ -54032,7 +54032,7 @@ def get_expected():
                     [14, 15, 16, 17, 18, 19, 20],
                 ],
             ],
-            centerf_idx=[[0, 1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5, 6]],
+            relAO_per_origin=[[0, 1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5, 6]],
             centerweight_and_relAO_per_center=[
                 (
                     1.0,
@@ -54285,7 +54285,7 @@ def get_expected():
                     [14, 15, 16, 17, 18, 19, 20],
                 ],
             ],
-            centerf_idx=[[0, 1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5, 6]],
+            relAO_per_origin=[[0, 1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5, 6]],
             centerweight_and_relAO_per_center=[
                 (
                     1.0,
@@ -55202,7 +55202,7 @@ def get_expected():
                     ],
                 ],
             ],
-            centerf_idx=[
+            relAO_per_origin=[
                 [
                     0,
                     1,
@@ -56306,7 +56306,7 @@ def get_expected():
                     ],
                 ],
             ],
-            centerf_idx=[
+            relAO_per_origin=[
                 [
                     0,
                     1,
@@ -57442,7 +57442,7 @@ def get_expected():
                     ],
                 ],
             ],
-            centerf_idx=[
+            relAO_per_origin=[
                 [
                     0,
                     1,
@@ -58588,7 +58588,7 @@ def get_expected():
                     ],
                 ],
             ],
-            centerf_idx=[
+            relAO_per_origin=[
                 [
                     0,
                     1,
@@ -59270,7 +59270,7 @@ def get_expected():
                     [46, 47, 48, 49, 59, 60],
                 ],
             ],
-            centerf_idx=[[0, 1, 2, 3, 13, 14], [0, 1, 2, 3, 13, 14]],
+            relAO_per_origin=[[0, 1, 2, 3, 13, 14], [0, 1, 2, 3, 13, 14]],
             centerweight_and_relAO_per_center=[
                 (
                     1.0,
@@ -59891,7 +59891,7 @@ def get_expected():
                     [46, 47, 48, 49, 59, 64],
                 ],
             ],
-            centerf_idx=[[0, 1, 2, 3, 13, 18], [0, 1, 2, 3, 13, 18]],
+            relAO_per_origin=[[0, 1, 2, 3, 13, 18], [0, 1, 2, 3, 13, 18]],
             centerweight_and_relAO_per_center=[
                 (
                     1.0,
@@ -60526,7 +60526,7 @@ def get_expected():
                     [48, 49, 50, 51, 52, 62, 63],
                 ],
             ],
-            centerf_idx=[[0, 1, 2, 3, 4, 14, 15], [0, 1, 2, 3, 4, 14, 15]],
+            relAO_per_origin=[[0, 1, 2, 3, 4, 14, 15], [0, 1, 2, 3, 4, 14, 15]],
             centerweight_and_relAO_per_center=[
                 (
                     1.0,
@@ -61169,7 +61169,7 @@ def get_expected():
                     [48, 49, 50, 51, 52, 62, 67],
                 ],
             ],
-            centerf_idx=[[0, 1, 2, 3, 4, 14, 19], [0, 1, 2, 3, 4, 14, 19]],
+            relAO_per_origin=[[0, 1, 2, 3, 4, 14, 19], [0, 1, 2, 3, 4, 14, 19]],
             centerweight_and_relAO_per_center=[
                 (
                     1.0,
