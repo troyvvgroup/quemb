@@ -290,8 +290,12 @@ def be_func(
     if eeval:
         total_e = [0.0, 0.0, 0.0]
 
+    frag_number = -1
+
     # Loop over each fragment and solve using the specified solver
-    for frag_number, fobj in enumerate(Fobjs):
+    for fobj in Fobjs:
+        # index of fragment - enumerate fails for some reason?
+        frag_number += 1
         # Update the effective Hamiltonian
         if pot is not None:
             fobj.update_heff(pot, only_chem=only_chem)
