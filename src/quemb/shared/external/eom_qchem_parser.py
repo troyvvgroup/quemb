@@ -115,7 +115,7 @@ def parser_nocc(output):
 
     Parameters
     ----------
-    output : string
+    output : str
         Q-Chem output file
 
     Returns
@@ -146,7 +146,7 @@ def get_rdms(output, n_ex, n_occ, n_virt):
 
     Parameters
     ----------
-    output : string
+    output : str
         Q-Chem output file
     n_ex : int
         The excited state for which RDMs are computed
@@ -489,7 +489,7 @@ def eom_parser(output="eom.out", n_ex=1, frag_number=0):
 
     Parameters
     ----------
-    output : string
+    output : str
         Q-Chem output file
     n_ex : int
         The excited state for which RDMs are computed
