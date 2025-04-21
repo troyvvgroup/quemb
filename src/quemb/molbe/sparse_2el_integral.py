@@ -378,7 +378,7 @@ class SemiSparse3DTensor:
 
         self._keys = np.array(  # type: ignore[call-overload]
             [
-                self.idx(p, q)  # type: ignore[arg-type]
+                self._idx(p, q)  # type: ignore[arg-type]
                 for p in range(self.shape[0])
                 for q in self.exch_reachable[p]
             ],
@@ -386,7 +386,7 @@ class SemiSparse3DTensor:
         )
 
     def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[np.float64]:
-        look_up_idx = np.searchsorted(self._keys, self.idx(key[0], key[1]))
+        look_up_idx = np.searchsorted(self._keys, self._idx(key[0], key[1]))
         return self.unique_dense_data[look_up_idx]
 
     # We cannot annotate the return type of this function, because of a strange bug in
@@ -400,7 +400,7 @@ class SemiSparse3DTensor:
                 g[p, q] = self[p, q]  # type: ignore[index]
         return g
 
-    def idx(self, a: OrbitalIdx, b: OrbitalIdx) -> int:
+    def _idx(self, a: OrbitalIdx, b: OrbitalIdx) -> int:
         """Return compound index"""
         return ravel(a, b, n_cols=self.shape[1])  # type: ignore[return-value]
 
@@ -455,12 +455,12 @@ class MutableSemiSparse3DTensor:
         self.exch_reachable = exch_reachable  # type: ignore[assignment]
 
     def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[np.float64]:
-        return self._data[self.idx(key[1], key[1])]
+        return self._data[self._idx(key[1], key[1])]
 
     def __setitem__(
         self, key: tuple[OrbitalIdx, OrbitalIdx], value: Vector[np.float64]
     ) -> None:
-        self._data[self.idx(*key)] = value
+        self._data[self._idx(*key)] = value
 
     # We cannot annotate the return type of this function, because of a strange bug in
     #  sphinx-autodoc-typehints.
@@ -473,7 +473,7 @@ class MutableSemiSparse3DTensor:
                 g[p, q] = self[p, q]  # type: ignore[index]
         return g
 
-    def idx(self, a: OrbitalIdx, b: OrbitalIdx) -> int:
+    def _idx(self, a: OrbitalIdx, b: OrbitalIdx) -> int:
         """Return compound index"""
         return ravel(a, b, n_cols=self.shape[1])  # type: ignore[return-value]
 
