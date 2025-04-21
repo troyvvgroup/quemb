@@ -894,8 +894,10 @@ class BE(MixinLocalize):
 
             fobjs_.cons_h1(self.hcore)
 
+            print(eri.shape)
             if not restart:
                 eri = ao2mo.restore(8, eri, fobjs_.nao)
+            print(eri.shape)
 
             fobjs_.cons_fock(self.hf_veff, self.S, self.hf_dm, eri_=eri)
 
@@ -909,7 +911,8 @@ class BE(MixinLocalize):
             )
 
             if compute_hf:
-                fobjs_.update_ebe_hf()  # Updates fragment HF energy.
+                # TODO wrong eri here
+                fobjs_.update_ebe_hf(eri=eri)  # Updates fragment HF energy.
                 E_hf += fobjs_.ebe_hf
 
         if not restart:

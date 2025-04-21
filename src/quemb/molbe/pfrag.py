@@ -354,11 +354,11 @@ class Frags:
         else:
             jmax = self.TA.shape[1]
         if eri is None:
-            with h5py.File(self.eri_file, "r") as r:
+            with h5py.File(self.eri_file, "r") as f:
                 if isinstance(self.dname, list):
-                    eri = [r[self.dname[0]][()], r[self.dname[1]][()]]
+                    eri = [f[self.dname[0]][()], f[self.dname[1]][()]]
                 else:
-                    eri = r[self.dname][()]
+                    eri = f[self.dname][()]
 
         e2 = zeros_like(e1)
         for i in range(self.n_frag):
@@ -369,9 +369,8 @@ class Frags:
                 ]
                 Gij[diag_indices(jmax)] *= 0.5
                 Gij += Gij.T
-                if (
-                    unrestricted
-                ):  # unrestricted ERI file has 3 spin components: a, b, ab
+                # unrestricted ERI file has 3 spin components: a, b, ab
+                if unrestricted:
                     e2[i] += (
                         0.5
                         * unrestricted_fac
