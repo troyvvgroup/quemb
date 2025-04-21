@@ -31,6 +31,7 @@ from quemb.shared.external.ccsd_rdm import (
     make_rdm2_uccsd,
     make_rdm2_urlx,
 )
+from quemb.shared.external.eom_qchem_parser import eom_parser
 from quemb.shared.external.uccsd_eri import make_eris_incore
 from quemb.shared.external.unrestricted_utils import make_uhf_obj
 from quemb.shared.helper import delete_multiple_files, unused
@@ -326,9 +327,25 @@ def be_func(
 
         elif solver == "EOM-CCSD":
             # import rdms from Q-Chem
+            ### TO DO: add check for qchem crash before printing RDMs
+            output = "qchem_fragment_" + str(frag_number) + "/eom.out"
+            n_ex = 1  ###TO DO: allow it to be input
 
-            rdm1_tmp = load("RDMs_eom/ccsd-frag" + str(frag_number) + "-1rdm.npy")
-            rdm2s = load("RDMs_eom/ccsd-frag" + str(frag_number) + "-2rdm.npy")
+            if not os.path.exists(
+                "RDMs_eom/ccsd-frag" + str(frag_number) + "-1rdm.npy"
+            ):
+                eom_parser(output, n_ex, frag_number)
+                rdm1_tmp = load("RDMs_eom/ccsd-frag" + str(frag_number) + "-1rdm.npy")
+                rdm2s = load("RDMs_eom/ccsd-frag" + str(frag_number) + "-2rdm.npy")
+            else:
+                rdm1_tmp = load("RDMs_eom/ccsd-frag" + str(frag_number) + "-1rdm.npy")
+                rdm2s = load("RDMs_eom/ccsd-frag" + str(frag_number) + "-2rdm.npy")
+
+            print(frag_number)
+            print(rdm1_tmp)
+
+            # rdm1_tmp = load("RDMs_eom/ccsd-frag" + str(frag_number) + "-1rdm.npy")
+            # rdm2s = load("RDMs_eom/ccsd-frag" + str(frag_number) + "-2rdm.npy")
 
         elif solver == "FCI":
             mc = fci.FCI(fobj._mf, fobj._mf.mo_coeff)
