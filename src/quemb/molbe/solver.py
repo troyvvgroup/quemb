@@ -332,20 +332,22 @@ def be_func(
             n_ex = 1  ###TO DO: allow it to be input
 
             if not os.path.exists(
-                "RDMs_eom/ccsd-frag" + str(frag_number) + "-1rdm.npy"
+                "RDMs_eom_" + str(n_ex) + "/frag" + str(frag_number) + "-1rdm.npy"
             ):
                 eom_parser(output, n_ex, frag_number)
-                rdm1_tmp = load("RDMs_eom/ccsd-frag" + str(frag_number) + "-1rdm.npy")
-                rdm2s = load("RDMs_eom/ccsd-frag" + str(frag_number) + "-2rdm.npy")
+                rdm1_tmp = load(
+                    "RDMs_eom_" + str(n_ex) + "/frag" + str(frag_number) + "-1rdm.npy"
+                )
+                rdm2s = load(
+                    "RDMs_eom_" + str(n_ex) + "/frag" + str(frag_number) + "-2rdm.npy"
+                )
             else:
-                rdm1_tmp = load("RDMs_eom/ccsd-frag" + str(frag_number) + "-1rdm.npy")
-                rdm2s = load("RDMs_eom/ccsd-frag" + str(frag_number) + "-2rdm.npy")
-
-            print(frag_number)
-            print(rdm1_tmp)
-
-            # rdm1_tmp = load("RDMs_eom/ccsd-frag" + str(frag_number) + "-1rdm.npy")
-            # rdm2s = load("RDMs_eom/ccsd-frag" + str(frag_number) + "-2rdm.npy")
+                rdm1_tmp = load(
+                    "RDMs_eom_" + str(n_ex) + "/frag" + str(frag_number) + "-1rdm.npy"
+                )
+                rdm2s = load(
+                    "RDMs_eom_" + str(n_ex) + "/frag" + str(frag_number) + "-2rdm.npy"
+                )
 
         elif solver == "FCI":
             mc = fci.FCI(fobj._mf, fobj._mf.mo_coeff)

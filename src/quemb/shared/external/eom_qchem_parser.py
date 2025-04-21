@@ -728,13 +728,17 @@ def eom_parser(output="eom.out", n_ex=1, frag_number=0):
                         )
 
     # save to .npy files - temporary solution
-    if not os.path.exists("RDMs_eom/"):
-        os.makedirs("RDMs_eom")
+    if not os.path.exists("RDMs_eom_" + str(n_ex) + "/"):
+        os.makedirs("RDMs_eom_" + str(n_ex))
 
-    with open("RDMs_eom/ccsd-frag" + str(frag_number) + "-1rdm.npy", "wb") as f:
+    with open(
+        "RDMs_eom_" + str(n_ex) + "/frag" + str(frag_number) + "-1rdm.npy", "wb"
+    ) as f:
         np.save(f, dm_spin_tr)
 
-    with open("RDMs_eom/ccsd-frag" + str(frag_number) + "-2rdm.npy", "wb") as f:
+    with open(
+        "RDMs_eom_" + str(n_ex) + "/frag" + str(frag_number) + "-2rdm.npy", "wb"
+    ) as f:
         np.save(f, rdm2_spin_tr)
 
     return
