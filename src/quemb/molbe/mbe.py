@@ -91,7 +91,7 @@ class BE(MixinLocalize):
         int_transform: IntTransforms = "in-core",
         auxbasis: str | None = None,
     ) -> None:
-        """
+        r"""
         Constructor for BE object.
 
         Parameters
@@ -125,13 +125,22 @@ class BE(MixinLocalize):
         scratch_dir :
             Scratch directory.
         int_transform :
-        integral_direct_DF:
-            If mf._eri is None (i.e. ERIs are not saved in memory using incore_anyway),
-            this flag is used to determine if the ERIs are computed integral-directly
-            using density fitting; by default False.
+            The possible integral transformations.
+
+            - :python:`"in-core"` (default): Use a dense representation of integrals
+              in memory without density fitting (DF) and transform in-memory.
+            - :python:`"out-core-DF"`: Use a dense, DF representation of integrals,
+              the DF integrals :math:`(\mu, \nu | P)` are stored on disc.
+            - :python:`"int-direct-DF"`: Use a dense, DF representation of integrals,
+              the required DF integrals :math:`(\mu, \nu | P)` are computed and fitted
+              on-demand for each fragment.
+            - :python:`"sparse-DF"`:  Work in progress.
+              Use a sparse, DF representation of integrals,
+              and avoid recomputation of elements that are shared across fragments.
         auxbasis :
             Auxiliary basis for density fitting, by default None
             (uses default auxiliary basis defined in PySCF).
+            Only relevant for :python:`int_transform in {"int-direct-DF", "sparse-DF"}`.
         """
         init_timer = Timer("Time to initialize BE object")
         if restart:
