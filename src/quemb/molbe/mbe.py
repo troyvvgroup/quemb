@@ -8,6 +8,7 @@ import h5py
 import numpy
 from attrs import define
 from numpy import array, diag_indices, einsum, float64, floating, zeros, zeros_like
+from numpy.linalg import multi_dot
 from pyscf import ao2mo, scf
 
 from quemb.molbe.be_parallel import be_func_parallel
@@ -892,7 +893,8 @@ class BE(MixinLocalize):
             eri = array(file_eri.get(fobjs_.dname))
             _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
 
-            fobjs_.cons_h1(self.hcore)
+            assert fobjs_.TA is not None
+            fobjs_.h1 = multi_dot((fobjs_.TA.T, self.hcore, fobjs_.TA))
 
             print(eri.shape)
             if not restart:
@@ -912,7 +914,7 @@ class BE(MixinLocalize):
 
             if compute_hf:
                 # TODO wrong eri here
-                fobjs_.update_ebe_hf(eri=eri)  # Updates fragment HF energy.
+                fobjs_.update_ebe_hf()  # Updates fragment HF energy.
                 E_hf += fobjs_.ebe_hf
 
         if not restart:

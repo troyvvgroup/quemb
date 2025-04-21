@@ -17,6 +17,7 @@ from warnings import warn
 
 import h5py
 from numpy import array, einsum, zeros_like
+from numpy.linalg import multi_dot
 from pyscf import ao2mo
 from pyscf.scf.uhf import UHF
 
@@ -302,7 +303,9 @@ class UBE(BE):  # 🍠
             # sab = self.C_a @ self.S @ self.C_b
             _ = fobj_a.get_nsocc(self.S, self.C_a, self.Nocc[0], ncore=self.ncore)
 
-            fobj_a.cons_h1(self.hcore)
+            assert fobj_a.TA is not None
+            fobj_a.h1 = multi_dot((fobj_a.TA.T, self.hcore, fobj_a.TA))
+
             eri_a = ao2mo.restore(8, eri_a, fobj_a.nao)
             fobj_a.cons_fock(self.hf_veff[0], self.S, self.hf_dm[0] * 2.0, eri_=eri_a)
 
@@ -325,7 +328,8 @@ class UBE(BE):  # 🍠
 
             _ = fobj_b.get_nsocc(self.S, self.C_b, self.Nocc[1], ncore=self.ncore)
 
-            fobj_b.cons_h1(self.hcore)
+            assert fobj_b.TA is not None
+            fobj_b.h1 = multi_dot((fobj_b.TA.T, self.hcore, fobj_b.TA))
             eri_b = ao2mo.restore(8, eri_b, fobj_b.nao)
             fobj_b.cons_fock(self.hf_veff[1], self.S, self.hf_dm[1] * 2.0, eri_=eri_b)
             fobj_b.hf_veff = self.hf_veff[1]

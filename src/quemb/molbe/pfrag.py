@@ -164,19 +164,6 @@ class Frags:
         if return_orb_count:
             return [n_f, n_b]
 
-    def cons_h1(self, h1):
-        """
-        Construct the one-electron Hamiltonian for the fragment.
-
-        Parameters
-        ----------
-        h1 : numpy.ndarray
-            One-electron Hamiltonian matrix.
-        """
-
-        h1_tmp = multi_dot((self.TA.T, h1, self.TA))
-        self.h1 = h1_tmp
-
     def cons_fock(self, hf_veff, S, dm, eri_=None):
         """
         Construct the Fock matrix for the fragment.
