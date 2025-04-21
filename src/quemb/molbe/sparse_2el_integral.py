@@ -272,8 +272,8 @@ class SemiSparseSym3DTensor:
 
     _keys: Vector[np.int64]
     unique_dense_data: Matrix[np.float64]
-    nao: np.int64
-    naux: np.int64
+    nao: int
+    naux: int
     exch_reachable: list[Vector[OrbitalIdx]]
     exch_reachable_unique: list[Vector[OrbitalIdx]]
 
@@ -360,8 +360,8 @@ class SemiSparse3DTensor:
 
     _keys: Vector[np.int64]
     unique_dense_data: Matrix[np.float64]
-    shape: tuple[np.int64, np.int64, np.int64]
-    naux: np.int64
+    shape: tuple[int, int, int]
+    naux: int
     exch_reachable: list[Vector[OrbitalIdx]]
 
     def __init__(
@@ -441,13 +441,13 @@ class MutableSemiSparse3DTensor:
     """
 
     _data: DictType(uint64, float64)  # type: ignore[valid-type]
-    shape: tuple[np.int64, np.int64, np.int64]
-    naux: np.int64
+    shape: tuple[int, int, int]
+    naux: int
     exch_reachable: list[Vector[OrbitalIdx]]
 
     def __init__(
         self,
-        shape: tuple[np.int64, np.int64, np.int64],
+        shape: tuple[int, int, int],
         exch_reachable: list[Vector[np.int64]],
     ) -> None:
         self.shape = shape
