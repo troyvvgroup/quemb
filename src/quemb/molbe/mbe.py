@@ -1,7 +1,7 @@
 # Author(s): Oinam Romesh Meitei
 
 import pickle
-from typing import Literal
+from typing import Literal, TypeAlias, assert_never
 from warnings import warn
 
 import h5py
@@ -25,6 +25,10 @@ from quemb.shared.external.optqn import (
 from quemb.shared.helper import Timer, copy_docstring
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix, PathLike
+
+IntTransforms: TypeAlias = Literal[
+    "in-core", "out-core-DF", "int-direct-DF", "sparse-DF"
+]
 
 
 @define
@@ -82,7 +86,7 @@ class BE(MixinLocalize):
         ompnum: int = 4,
         thr_bath: float = 1.0e-10,
         scratch_dir: WorkDir | None = None,
-        integral_direct_DF: bool = False,
+        int_transform: IntTransforms = "in-core",
         auxbasis: str | None = None,
     ) -> None:
         """
@@ -118,6 +122,7 @@ class BE(MixinLocalize):
             Threshold for bath orbitals in Schmidt decomposition
         scratch_dir :
             Scratch directory.
+        int_transform :
         integral_direct_DF:
             If mf._eri is None (i.e. ERIs are not saved in memory using incore_anyway),
             this flag is used to determine if the ERIs are computed integral-directly
@@ -150,7 +155,7 @@ class BE(MixinLocalize):
         self.unrestricted = False
         self.nproc = nproc
         self.ompnum = ompnum
-        self.integral_direct_DF = integral_direct_DF
+        self.integral_transform = int_transform
         self.auxbasis = auxbasis
         self.thr_bath = thr_bath
 
@@ -161,6 +166,7 @@ class BE(MixinLocalize):
         self.ebe_tot = 0.0
 
         self.mf = mf
+
         if not restart:
             self.mo_energy = mf.mo_energy
 
@@ -186,6 +192,7 @@ class BE(MixinLocalize):
             self.scratch_dir = WorkDir.from_environment()
         else:
             self.scratch_dir = scratch_dir
+        print(f"Scratch dir is in: {self.scratch_dir.path}")
         self.eri_file = self.scratch_dir / eri_file
 
         self.frozen_core = fobj.frozen_core
@@ -243,9 +250,11 @@ class BE(MixinLocalize):
 
         if not restart:
             # Initialize fragments and perform initial calculations
-            self.initialize(mf._eri, compute_hf)
+            self.initialize(
+                mf._eri, compute_hf, restart=False, int_transform=int_transform
+            )
         else:
-            self.initialize(None, compute_hf, restart=True)
+            self.initialize(None, compute_hf, restart=True, int_transform=int_transform)
         if settings.PRINT_LEVEL >= 10:
             print(init_timer.str_elapsed())
 
@@ -778,7 +787,14 @@ class BE(MixinLocalize):
         print("-----------------------------------------------------------", flush=True)
         print(flush=True)
 
-    def initialize(self, eri_, compute_hf, restart=False) -> None:
+    def initialize(
+        self,
+        eri_,
+        compute_hf: bool,
+        *,
+        restart: bool,
+        int_transform: IntTransforms,
+    ) -> None:
         """
         Initialize the Bootstrap Embedding calculation.
 
@@ -832,6 +848,7 @@ class BE(MixinLocalize):
             self.Fobjs.append(fobjs_)
 
         eritransform_timer = Timer("Time to transform ERIs")
+
         if not restart:
             # Transform ERIs for each fragment and store in the file
             # ERI Transform Decision Tree
@@ -840,37 +857,31 @@ class BE(MixinLocalize):
             #   No  -- Do we have (ij|P) from density fitting?
             #       Yes -- ao2mo, outcore version, using saved (ij|P)
             #       No  -- if integral_direct_DF is requested, invoke on-the-fly routine
-            assert (
-                (eri_ is not None)
-                or (hasattr(self.mf, "with_df"))
-                or (self.integral_direct_DF)
-            ), "Input mean-field object is missing ERI (mf._eri) or DF (mf.with_df) "
-            "object AND integral direct DF routine was not requested. "
-            "Please check your inputs."
-            if (
-                eri_ is not None
-            ):  # incore ao2mo using saved eri from mean-field calculation
+            if int_transform == "in-core":
+                assert eri_ is not None
                 for I in range(self.fobj.n_frag):
                     eri = ao2mo.incore.full(eri_, self.Fobjs[I].TA, compact=True)
                     file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
-            elif hasattr(self.mf, "with_df") and self.mf.with_df is not None:
+            elif int_transform == "out-core-DF":
+                assert hasattr(self.mf, "with_df") and self.mf.with_df is not None
                 # pyscf.ao2mo uses DF object in an outcore fashion using (ij|P)
                 #   in pyscf temp directory
                 for I in range(self.fobj.n_frag):
                     eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)
                     file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
-            else:
+            elif int_transform == "int-direct-DF":
                 # If ERIs are not saved on memory, compute fragment ERIs integral-direct
-                if (
-                    self.integral_direct_DF
-                ):  # Use density fitting to generate fragment ERIs on-the-fly
-                    integral_direct_DF(
-                        self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis
-                    )
-                else:  # Calculate ERIs on-the-fly to generate fragment ERIs
-                    # TODO: Future feature to be implemented
-                    # NOTE: Ideally, we want AO shell pair screening for this.
-                    raise NotImplementedError
+                integral_direct_DF(
+                    self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis
+                )
+                eri = None
+            elif int_transform == "sparse-DF":
+                # Calculate ERIs on-the-fly to generate fragment ERIs
+                # TODO: Future feature to be implemented
+                # NOTE: Ideally, we want AO shell pair screening for this.
+                raise NotImplementedError
+            else:
+                assert_never(int_transform)
         else:
             eri = None
         if settings.PRINT_LEVEL >= 10:

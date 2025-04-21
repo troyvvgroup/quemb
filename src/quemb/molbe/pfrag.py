@@ -284,7 +284,6 @@ class Frags:
             self.mo_coeffs = mf_.mo_coeff.copy()
         else:
             self._mo_coeffs = mf_.mo_coeff.copy()
-        mf_ = None
 
     def update_heff(self, u, cout=None, only_chem=False):
         """Update the effective Hamiltonian for the fragment."""
