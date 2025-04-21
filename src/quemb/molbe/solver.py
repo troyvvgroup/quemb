@@ -12,6 +12,7 @@ from numpy import (
     diag,
     diag_indices,
     einsum,
+    load,
     mean,
     ndarray,
     zeros_like,
@@ -30,6 +31,7 @@ from quemb.shared.external.ccsd_rdm import (
     make_rdm2_uccsd,
     make_rdm2_urlx,
 )
+from quemb.shared.external.eom_qchem_parser import eom_parser
 from quemb.shared.external.uccsd_eri import make_eris_incore
 from quemb.shared.external.unrestricted_utils import make_uhf_obj
 from quemb.shared.helper import delete_multiple_files, unused
@@ -275,7 +277,6 @@ def be_func(
         Whether to return the error vector. Defaults to False.
     use_cumulant :
         Whether to use the cumulant-based energy expression. Defaults to True.
-
     eeval :
         Whether to evaluate the energy. Defaults to False.
     return_vec :
@@ -290,8 +291,12 @@ def be_func(
     if eeval:
         total_e = [0.0, 0.0, 0.0]
 
+    frag_number = -1
+
     # Loop over each fragment and solve using the specified solver
     for fobj in Fobjs:
+        # index of fragment - enumerate fails for some reason?
+        frag_number += 1
         # Update the effective Hamiltonian
         if pot is not None:
             fobj.update_heff(pot, only_chem=only_chem)
@@ -321,6 +326,30 @@ def be_func(
                     fobj._mf, mo_energy=fobj._mf.mo_energy, rdm_return=False
                 )
                 rdm1_tmp = make_rdm1_ccsd_t1(fobj.t1)
+
+        elif solver == "EOM-CCSD":
+            # import rdms from Q-Chem
+            ### TO DO: add check for qchem crash before printing RDMs
+            output = "qchem_fragment_" + str(frag_number) + "/eom.out"
+            n_ex = 1  ###TO DO: allow it to be input
+
+            if not os.path.exists(
+                "RDMs_eom_" + str(n_ex) + "/frag" + str(frag_number) + "-1rdm.npy"
+            ):
+                eom_parser(output, n_ex, frag_number)
+                rdm1_tmp = load(
+                    "RDMs_eom_" + str(n_ex) + "/frag" + str(frag_number) + "-1rdm.npy"
+                )
+                rdm2s = load(
+                    "RDMs_eom_" + str(n_ex) + "/frag" + str(frag_number) + "-2rdm.npy"
+                )
+            else:
+                rdm1_tmp = load(
+                    "RDMs_eom_" + str(n_ex) + "/frag" + str(frag_number) + "-1rdm.npy"
+                )
+                rdm2s = load(
+                    "RDMs_eom_" + str(n_ex) + "/frag" + str(frag_number) + "-2rdm.npy"
+                )
 
         elif solver == "FCI":
             mc = fci.FCI(fobj._mf, fobj._mf.mo_coeff)

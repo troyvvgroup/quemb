@@ -1,5 +1,6 @@
 # Author(s): Oinam Romesh Meitei
 
+import os
 import pickle
 from typing import Literal
 from warnings import warn
@@ -7,7 +8,20 @@ from warnings import warn
 import h5py
 import numpy
 from attrs import define
-from numpy import array, diag_indices, einsum, float64, floating, zeros, zeros_like
+from numpy import (
+    array,
+    concatenate,
+    diag_indices,
+    einsum,
+    float64,
+    floating,
+    hstack,
+    load,
+    shape,
+    zeros,
+    zeros_like,
+)
+from numpy.linalg import svd
 from pyscf import ao2mo, scf
 
 from quemb.molbe.be_parallel import be_func_parallel
@@ -153,6 +167,16 @@ class BE(MixinLocalize):
         self.integral_direct_DF = integral_direct_DF
         self.auxbasis = auxbasis
         self.thr_bath = thr_bath
+
+        ###Temporary solution for EOM solver code
+        ###save full system HF Fock matrix to file
+        import os
+
+        if not os.path.exists("files_EOM"):
+            os.makedirs("files_EOM")
+
+        with open("files_EOM/full_syst_fock.npy", "wb") as f:
+            numpy.save(f, mf.get_fock())
 
         # Fragment information from fobj
         self.fobj = fobj
@@ -1034,6 +1058,129 @@ class BE(MixinLocalize):
         with h5py.File(heff_file, "r") as filepot:
             for fobj in self.Fobjs:
                 fobj.heff = filepot.get(fobj.dname)
+
+    def qchem_setup(self):
+        """
+        Extracts the information necessary to run a Q-Chem EOM-CCSD calculation
+        for each fragment.
+        Constructs the following scratch files:
+        - 99.0 (Total energy)
+        - 53.0 (MO coefficients)
+        - 58.0 (Fock matrix)
+        """
+
+        print("QChem:")
+        print("Exporting files 99.0, 58.0, 53.0 to Q-Chem for EOM-CCSD calculation")
+
+        pot = self.pot
+        Fobjs = self.Fobjs
+
+        # Loop over each fragment and extract necessary information from Qchem
+        for frag_number, fobj in enumerate(Fobjs):
+            # Update the effective Hamiltonian
+            if pot is not None:
+                fobj.update_heff(pot)
+
+            # Perform SCF calculation
+            fobj.scf()
+
+            # export necessary information to Q-Chem
+            mf = fobj._mf
+
+            print("Fragment number: ", frag_number)
+            ###numbers of electrons in:
+            n_mo_full_syst = shape(fobj.TA)[0]
+            occ_tot = self.Nocc  ###full system
+            SO_tot = shape(fobj.TA)[1]
+            SO_occ = fobj.nsocc  ###Schmidt space
+
+            """if fobj.nfsites <= SO_occ:  ###if fragment is fully occupied
+                frag_occ = fobj.nfsites
+            else:
+                frag_occ = occ_tot"""
+
+            # bath_occ = SO_occ - frag_occ
+
+            # bath_virt = SO_tot - frag_occ - bath_occ
+            ###TO DO: automate generation of qchem input files
+            env_occ = occ_tot - SO_occ
+            print("Qchem: set n_frozen_core")
+            print("Number occupied environment: ", env_occ)
+
+            env_virt = n_mo_full_syst - SO_tot - env_occ
+            print("Qchem: set n_frozen_virtual")
+            print("Number virtual environment: ", env_virt)
+
+            ###File 99.0 - energy file in Qchem
+
+            energy = mf.kernel()
+
+            energy_array = zeros(12)
+            # placeholder value - exact value doesn't matter
+            energy_array[0] = 3.7617453591977221e02
+            energy_array[1] = energy
+            energy_array[11] = energy
+
+            ###File 58.0 - Fock matrix file in Qchem
+            ###Full system Fock matrix (AO basis)
+            fock_full_syst = load("files_EOM/full_syst_fock.npy")
+
+            flat_fock = array(fock_full_syst.flatten(), dtype=float64)
+            full_fock = concatenate((flat_fock, flat_fock), axis=None)
+
+            ###File 53.0 - MO coefficient matrix
+            TA_after_HF = fobj.TA @ mf.mo_coeff
+
+            ###Pad TA matrix with orthogonal vectors
+            ###use it as MO coefficient matrix for Qchem
+
+            # m=n_orb_total (frag+bath+env)
+            # n=n_frag+n_bath
+            m, n = TA_after_HF.shape
+
+            # compute the orthonormal basis for the null space of TA.T
+            # do SVD
+            _, _, vh = svd(TA_after_HF.T, full_matrices=True)
+
+            # take the (m-n) right singular vectors orthogonal to TA.T
+            orthogonal_vectors = vh[n:m].T
+
+            # pad the original matrix with the orthogonal vectors
+            TA_full_pyscf = hstack(
+                (
+                    orthogonal_vectors[:, :env_occ],
+                    TA_after_HF,
+                    orthogonal_vectors[:, env_occ:],
+                )
+            )
+
+            TA_full_qchem = TA_full_pyscf.T
+
+            flat_mos = array(TA_full_qchem.flatten(), dtype=float64)
+
+            ###MO energies needed at the end of file 53.0
+            mo_energies = zeros(n_mo_full_syst)
+            # set to arbitrary low number to avoid recanonicalization in Qchem
+            mo_energies[:env_occ] = -1000
+            mo_energies[env_occ : env_occ + SO_tot] = mf.mo_energy
+            mo_energies[env_occ + SO_tot :] = 1000
+
+            full_mo_array = concatenate(
+                (flat_mos, flat_mos, mo_energies, mo_energies), axis=None
+            )
+
+            if not os.path.exists("files_EOM/scratch_fragment_" + str(frag_number)):
+                os.makedirs("files_EOM/scratch_fragment_" + str(frag_number))
+
+            energy_array.tofile(
+                "files_EOM/scratch_fragment_" + str(frag_number) + "/99.0"
+            )
+            full_fock.tofile("files_EOM/scratch_fragment_" + str(frag_number) + "/58.0")
+            full_mo_array.tofile(
+                "files_EOM/scratch_fragment_" + str(frag_number) + "/53.0"
+            )
+
+        return
 
 
 def initialize_pot(n_frag, relAO_per_edge):
