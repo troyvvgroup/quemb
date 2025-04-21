@@ -29,6 +29,7 @@ from quemb.shared.helper import jitclass, njit, ravel, ravel_symmetric
 from quemb.shared.typing import (
     AOIdx,
     AtomIdx,
+    Integral,
     Matrix,
     OrbitalIdx,
     Real,
@@ -53,10 +54,10 @@ def _aux_e2(  # type: ignore[no-untyped-def]
     intor: str = "int3c2e",
     aosym: str = "s1",
     comp: int | None = None,
-    out: Tensor4D[float64] | None = None,
+    out: Tensor4D[np.float64] | None = None,
     cintopt=None,
     shls_slice: tuple[int, int, int, int, int, int] | list[int] | None = None,
-) -> Tensor3D[float64]:
+) -> Tensor3D[np.float64]:
     """3-center AO integrals (ij|L), where L is the auxiliary basis.
 
     Fixes a bug in the original implementation :func:`pyscf.df.incore.aux_e2`
@@ -179,7 +180,10 @@ def get_sparse_DF_integrals(
     ints_2c2e = auxmol.intor("int2c2e")
     df_coeffs_data = solve(ints_2c2e, ints_3c2e.unique_dense_data.T).T
     df_coef = SemiSparseSym3DTensor(
-        df_coeffs_data, ints_3c2e.nao, ints_3c2e.naux, ints_3c2e.exch_reachable
+        df_coeffs_data,
+        ints_3c2e.nao,
+        ints_3c2e.naux,
+        ints_3c2e.exch_reachable,  # type: ignore[arg-type]
     )
     return ints_3c2e, df_coef
 
@@ -187,7 +191,7 @@ def get_sparse_DF_integrals(
 @njit(parallel=True)
 def get_dense_integrals(
     ints_3c2e: SemiSparseSym3DTensor, df_coef: SemiSparseSym3DTensor
-) -> Tensor4D[float64]:
+) -> Tensor4D[np.float64]:
     r"""Compute dense ERIs from sparse 3-center integrals and sparse DF coefficients.
 
     We evaluate the integrals via
@@ -266,28 +270,28 @@ class SemiSparseSym3DTensor:
     in a dense manner, which has some performance benefits.
     """
 
-    _keys: Vector[int64]
-    unique_dense_data: Matrix[float64]
-    nao: int64
-    naux: int64
+    _keys: Vector[np.int64]
+    unique_dense_data: Matrix[np.float64]
+    nao: np.int64
+    naux: np.int64
     exch_reachable: list[Vector[OrbitalIdx]]
     exch_reachable_unique: list[Vector[OrbitalIdx]]
 
     def __init__(
         self,
-        unique_dense_data: Matrix[float64],
-        nao: int,
-        naux: int,
-        exch_reachable: list[Vector[int64]],
+        unique_dense_data: Matrix[np.float64],
+        nao: Integral,
+        naux: Integral,
+        exch_reachable: list[Vector[np.int64]],
     ) -> None:
-        self.nao = nao
-        self.naux = naux
-        self.exch_reachable = exch_reachable
-        self.exch_reachable_unique = _jit_account_for_symmetry(exch_reachable)
+        self.nao = nao  # type: ignore[assignment]
+        self.naux = naux  # type: ignore[assignment]
+        self.exch_reachable = exch_reachable  # type: ignore[assignment]
+        self.exch_reachable_unique = _jit_account_for_symmetry(exch_reachable)  # type: ignore[arg-type]
 
         self.unique_dense_data = unique_dense_data
 
-        self._keys = np.array(
+        self._keys = np.array(  # type: ignore[call-overload]
             [
                 self.idx(p, q)  # type: ignore[arg-type]
                 for p in range(self.nao)
@@ -296,7 +300,7 @@ class SemiSparseSym3DTensor:
             dtype=int64,
         )
 
-    def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[float64]:
+    def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[np.float64]:
         look_up_idx = np.searchsorted(self._keys, self.idx(key[0], key[1]))
         return self.unique_dense_data[look_up_idx]
 
@@ -354,25 +358,25 @@ class SemiSparse3DTensor:
     in a dense manner, which has some performance benefits.
     """
 
-    _keys: Vector[int64]
-    unique_dense_data: Matrix[float64]
-    shape: tuple[int64, int64, int64]
-    naux: int64
+    _keys: Vector[np.int64]
+    unique_dense_data: Matrix[np.float64]
+    shape: tuple[np.int64, np.int64, np.int64]
+    naux: np.int64
     exch_reachable: list[Vector[OrbitalIdx]]
 
     def __init__(
         self,
-        unique_dense_data: Matrix[float64],
-        shape: tuple[int64, int64, int64],
-        exch_reachable: list[Vector[int64]],
+        unique_dense_data: Matrix[np.float64],
+        shape: tuple[Integral, Integral, Integral],
+        exch_reachable: list[Vector[np.int64]],
     ) -> None:
-        self.shape = shape
-        self.naux = shape[-1]
-        self.exch_reachable = exch_reachable
+        self.shape = shape  # type: ignore[assignment]
+        self.naux = shape[-1]  # type: ignore[assignment]
+        self.exch_reachable = exch_reachable  # type: ignore[assignment]
 
         self.unique_dense_data = unique_dense_data
 
-        self._keys = np.array(
+        self._keys = np.array(  # type: ignore[call-overload]
             [
                 self.idx(p, q)  # type: ignore[arg-type]
                 for p in range(self.shape[0])
@@ -381,7 +385,7 @@ class SemiSparse3DTensor:
             dtype=int64,
         )
 
-    def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[float64]:
+    def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[np.float64]:
         look_up_idx = np.searchsorted(self._keys, self.idx(key[0], key[1]))
         return self.unique_dense_data[look_up_idx]
 
@@ -437,24 +441,24 @@ class MutableSemiSparse3DTensor:
     """
 
     _data: DictType(uint64, float64)  # type: ignore[valid-type]
-    shape: tuple[int64, int64, int64]
-    naux: int64
+    shape: tuple[np.int64, np.int64, np.int64]
+    naux: np.int64
     exch_reachable: list[Vector[OrbitalIdx]]
 
     def __init__(
         self,
-        shape: tuple[int64, int64, int64],
-        exch_reachable: list[Vector[int64]],
+        shape: tuple[np.int64, np.int64, np.int64],
+        exch_reachable: list[Vector[np.int64]],
     ) -> None:
         self.shape = shape
         self.naux = shape[-1]
-        self.exch_reachable = exch_reachable
+        self.exch_reachable = exch_reachable  # type: ignore[assignment]
 
-    def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[float64]:
+    def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[np.float64]:
         return self._data[self.idx(key[1], key[1])]
 
     def __setitem__(
-        self, key: tuple[OrbitalIdx, OrbitalIdx], value: Vector[float64]
+        self, key: tuple[OrbitalIdx, OrbitalIdx], value: Vector[np.float64]
     ) -> None:
         self._data[self.idx(*key)] = value
 
@@ -867,7 +871,7 @@ def _calc_residual(mol: Mole) -> dict[tuple[AOIdx, AOIdx], float]:
 
 def _calc_aux_residual(
     mol: Mole, auxmol: Mole
-) -> dict[tuple[AOIdx, AOIdx], Vector[float64]]:
+) -> dict[tuple[AOIdx, AOIdx], Vector[np.float64]]:
     r"""Return the residual of :math:`(\mu,\nu | P)` integrals that are sceened away.
 
     Here :math:`\mu, \nu` are the AO indices and :math:`P` is the auxiliary basis.
