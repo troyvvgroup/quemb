@@ -1,7 +1,7 @@
 # Author(s): Oinam Romesh Meitei
 
 import pickle
-from typing import Literal, TypeAlias, assert_never
+from typing import Literal, TypeAlias
 from warnings import warn
 
 import h5py
@@ -10,6 +10,7 @@ from attrs import define
 from numpy import array, diag_indices, einsum, float64, floating, zeros, zeros_like
 from numpy.linalg import multi_dot
 from pyscf import ao2mo, scf
+from typing_extensions import assert_never
 
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
