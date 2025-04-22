@@ -274,13 +274,14 @@ class FragmentMap:
 
     def to_FragPart(self, mol: Mole, n_BE: int, frozen_core: bool) -> FragPart:
         MISSING = []  # type: ignore[var-annotated]
+        MISSING_PER_FRAG = [[] for _ in range(len(self.AO_per_frag))]  # type: ignore[var-annotated]
         return FragPart(
             mol=mol,
             frag_type="graphgen",
             n_BE=n_BE,
             AO_per_edge=self.AO_per_edge,  # type: ignore[arg-type]
-            relAO_per_edge=MISSING,
-            relAO_in_ref_per_edge=MISSING,
+            relAO_per_edge=MISSING_PER_FRAG,
+            relAO_in_ref_per_edge=MISSING_PER_FRAG,
             relAO_per_origin=self.relAO_per_origin,  # type: ignore[arg-type]
             AO_per_frag=self.AO_per_frag,  # type: ignore[arg-type]
             ref_frag_idx_per_edge=self.ref_frag_idx_per_edge,  # type: ignore[arg-type]
