@@ -17,7 +17,7 @@ from quemb.shared.config import settings
 from quemb.shared.external.cphf_utils import cphf_kernel_batch, get_rhf_dP_from_u
 from quemb.shared.external.cpmp2_utils import get_dPmp2_batch_r
 from quemb.shared.external.jac_utils import get_dPccsdurlx_batch_u
-from quemb.shared.typing import GlobalAOIdx, Matrix, RelAOIdx, SeqOverEdge, SeqOverFrag
+from quemb.shared.typing import GlobalAOIdx, Matrix, RelAOIdx, SeqOverEdge
 
 
 def line_search_LF(func, xold, fold, dx, iter_):
@@ -327,7 +327,7 @@ def get_atbe_Jblock_frag(
         and fobj.heff is not None
         and fobj.nao is not None
     )
-    vpots = get_vpots_frag(fobj.nao, fobj.relAO_per_edge, fobj.AO_per_frag)
+    vpots = get_vpots_frag(fobj.nao, fobj.relAO_per_edge, fobj.AO_in_frag)
     eri_ = get_eri(fobj.dname, fobj.nao, eri_file=fobj.eri_file)
     dm0 = 2.0 * (fobj._mo_coeffs[:, : fobj.nsocc] @ fobj._mo_coeffs[:, : fobj.nsocc].T)
     mf_ = get_scfObj(fobj.fock + fobj.heff, eri_, fobj.nsocc, dm0=dm0)
@@ -360,7 +360,7 @@ def get_atbe_Jblock_frag(
 
                             tmpje_.append(dPs[cout][edge_[j__], edge_[k__]])
                 y_ = 0.0
-                for fidx, fval in enumerate(fobj.AO_per_frag):
+                for fidx, fval in enumerate(fobj.AO_in_frag):
                     if not any(fidx in sublist for sublist in fobj.relAO_per_edge):
                         y_ += dPs[cout][fidx, fidx]
 
@@ -385,7 +385,7 @@ def get_atbe_Jblock_frag(
                 cout += 1
 
     alpha = 0.0
-    for fidx, _ in enumerate(fobj.AO_per_frag):
+    for fidx, _ in enumerate(fobj.AO_in_frag):
         if not any(fidx in sublist for sublist in fobj.relAO_per_edge):
             alpha += dP_mu[fidx, fidx]
 
@@ -470,7 +470,7 @@ def ccsdres_func(mf, vpots, eri, nsocc):
 def get_vpots_frag(
     nao: int,
     rel_AO_per_edge: SeqOverEdge[Sequence[RelAOIdx]],
-    AO_per_frag: SeqOverFrag[Sequence[GlobalAOIdx]],
+    AO_in_frag: Sequence[GlobalAOIdx],
 ) -> list[Matrix[float64]]:
     vpots: list[Matrix[float64]] = []
 
@@ -488,7 +488,7 @@ def get_vpots_frag(
     # only the centers
     # outer edges not included
     tmppot = zeros((nao, nao))
-    for fidx, fval in enumerate(AO_per_frag):
+    for fidx, fval in enumerate(AO_in_frag):
         if not any(fidx in sublist for sublist in rel_AO_per_edge):
             tmppot[fidx, fidx] = -1
 

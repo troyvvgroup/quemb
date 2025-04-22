@@ -369,7 +369,7 @@ class BE(MixinLocalize):
 
             # Generate the projection matrix
             cind = [
-                fobjs.AO_per_frag[i] for i in fobjs.centerweight_and_relAO_per_center[1]
+                fobjs.AO_in_frag[i] for i in fobjs.centerweight_and_relAO_per_center[1]
             ]
             Pc_ = (
                 fobjs.TA.T

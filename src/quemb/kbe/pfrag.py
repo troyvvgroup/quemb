@@ -34,7 +34,7 @@ class Frags:
 
     def __init__(
         self,
-        AO_per_frag,
+        AO_in_frag,
         ifrag,
         edge=None,
         ref_frag_idx_per_edge=None,
@@ -82,10 +82,10 @@ class Frags:
             indices of the origin in the fragment, by default None
         """
 
-        self.AO_per_frag = AO_per_frag
+        self.AO_in_frag = AO_in_frag
         self.unitcell = unitcell
         self.unitcell_nkpt = unitcell_nkpt
-        self.n_frag = len(AO_per_frag)
+        self.n_frag = len(AO_in_frag)
         self.TA = None
         self.TA_lo_eo = None
         self.h1 = None
@@ -174,7 +174,7 @@ class Frags:
         else:
             raise ValueError(f"Imaginary density in Full SD {max_val}")
 
-        Sites = [i + (nlo * 0) for i in self.AO_per_frag]
+        Sites = [i + (nlo * 0) for i in self.AO_in_frag]
         if not frag_type == "autogen":
             Sites.sort()
 
@@ -372,7 +372,7 @@ class Frags:
             cout = self.udim
 
         if do_chempot:
-            for i, fi in enumerate(self.AO_per_frag):
+            for i, fi in enumerate(self.AO_in_frag):
                 if not any(i in sublist for sublist in self.relAO_per_edge):
                     heff_[i, i] -= u[-1]
 
