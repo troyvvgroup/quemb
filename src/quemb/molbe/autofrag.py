@@ -14,6 +14,7 @@ from pyscf import gto
 from pyscf.gto import Mole
 
 from quemb.molbe.helper import are_equal, get_core
+from quemb.molbe.pfrag import Frags
 from quemb.shared.helper import unused
 from quemb.shared.typing import (
     AtomIdx,
@@ -25,6 +26,7 @@ from quemb.shared.typing import (
     ListOverMotif,
     MotifIdx,
     OriginIdx,
+    PathLike,
     RelAOIdx,
     RelAOIdxInRef,
     Vector,
@@ -139,6 +141,19 @@ class FragPart:
             for (_, relAO_per_center), relAO_per_origin in zip(
                 self.centerweight_and_relAO_per_center, self.relAO_per_origin
             )
+        )
+
+    def to_Frags(self, I: int, eri_file: PathLike) -> Frags:
+        return Frags(
+            self.AO_per_frag[I],
+            I,
+            AO_per_edge=self.AO_per_edge[I],
+            eri_file=eri_file,
+            ref_frag_idx_per_edge=self.ref_frag_idx_per_edge[I],
+            relAO_per_edge=self.relAO_per_edge[I],
+            relAO_in_ref_per_edge=self.relAO_in_ref_per_edge[I],
+            centerweight_and_relAO_per_center=self.centerweight_and_relAO_per_center[I],
+            relAO_per_origin=self.relAO_per_origin[I],
         )
 
 

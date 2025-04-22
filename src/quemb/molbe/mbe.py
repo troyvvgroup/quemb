@@ -825,19 +825,7 @@ class BE(MixinLocalize):
         if not restart:
             file_eri = h5py.File(self.eri_file, "w")
         for I in range(self.fobj.n_frag):
-            fobjs_ = Frags(
-                self.fobj.AO_per_frag[I],
-                I,
-                AO_per_edge=self.fobj.AO_per_edge[I],
-                eri_file=self.eri_file,
-                ref_frag_idx_per_edge=self.fobj.ref_frag_idx_per_edge[I],
-                relAO_per_edge=self.fobj.relAO_per_edge[I],
-                relAO_in_ref_per_edge=self.fobj.relAO_in_ref_per_edge[I],
-                centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
-                    I
-                ],
-                relAO_per_origin=self.fobj.relAO_per_origin[I],
-            )
+            fobjs_ = self.fobj.to_Frags(I, eri_file=self.eri_file)
             fobjs_.sd(self.W, self.lmo_coeff, self.Nocc, thr_bath=self.thr_bath)
 
             self.Fobjs.append(fobjs_)

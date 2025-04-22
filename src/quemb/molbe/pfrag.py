@@ -86,9 +86,14 @@ class Frags:
 
         self.AO_in_frag = AO_in_frag
         self.n_frag = len(AO_in_frag)
-        self.TA: Matrix[float64] | None = None
-        self.TA_lo_eo: Matrix[float64] | None = None
-        self.h1 = None
+        self.AO_per_edge = AO_per_edge
+        self.ref_frag_idx_per_edge = ref_frag_idx_per_edge
+        self.relAO_per_edge = relAO_per_edge
+        self.relAO_in_ref_per_edge = relAO_in_ref_per_edge
+        self.relAO_per_origin = relAO_per_origin
+        self.centerweight_and_relAO_per_center = centerweight_and_relAO_per_center
+        self.eri_file = eri_file
+
         self.ifrag = ifrag
         if unrestricted:
             self.dname: str | list[str] = [
@@ -98,6 +103,11 @@ class Frags:
             ]
         else:
             self.dname = "f" + str(ifrag)
+
+        self.TA: Matrix[float64] | None = None
+        self.TA_lo_eo: Matrix[float64] | None = None
+
+        self.h1 = None
         self.nao = None
         self.mo_coeffs = None
         self._mo_coeffs = None
@@ -110,11 +120,6 @@ class Frags:
         self.t2 = None
 
         self.heff: Matrix[float64] | None = None
-        self.AO_per_edge = AO_per_edge
-        self.ref_frag_idx_per_edge = ref_frag_idx_per_edge
-        self.relAO_per_edge = relAO_per_edge
-        self.relAO_in_ref_per_edge = relAO_in_ref_per_edge
-        self.relAO_per_origin = relAO_per_origin
         self.udim: int | None = None
 
         self._rdm1 = None
@@ -124,13 +129,11 @@ class Frags:
         self.genvs = None
         self.ebe = 0.0
         self.ebe_hf = 0.0
-        self.centerweight_and_relAO_per_center = centerweight_and_relAO_per_center
         self.fock = None
         self.veff = None
         self.veff0 = None
         self.dm_init = None
         self.dm0 = None
-        self.eri_file = eri_file
         self.unitcell_nkpt = 1.0
 
     def sd(self, lao, lmo, nocc, thr_bath, norb=None, return_orb_count=False):
@@ -156,17 +159,13 @@ class Frags:
             Default is False
         """
 
-        if return_orb_count:
-            TA, n_f, n_b = schmidt_decomposition(
-                lmo,
-                nocc,
-                self.AO_in_frag,
-                thr_bath=thr_bath,
-                norb=norb,
-                return_orb_count=return_orb_count,
-            )
-        else:
-            TA = schmidt_decomposition(lmo, nocc, self.AO_in_frag, thr_bath=thr_bath)
+        TA, n_f, n_b = schmidt_decomposition(
+            lmo,
+            nocc,
+            self.AO_in_frag,
+            thr_bath=thr_bath,
+            norb=norb,
+        )
         self.C_lo_eo = TA
         TA = lao @ TA
         self.nao = TA.shape[1]
