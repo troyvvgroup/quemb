@@ -3,6 +3,7 @@
 # between edge & centers of fragments.
 
 import numpy as np
+import pytest
 from pyscf import gto, scf
 
 from quemb.molbe import BE, fragmentate
@@ -32,12 +33,14 @@ def prepare_system():
     return mol, mf
 
 
-def do_BE(mol, mf, n_BE: int, only_chem: bool):
+def do_BE(mol, mf, n_BE: int, only_chem: bool, swallow_replace: bool = False):
     fobj = fragmentate(
         n_BE=n_BE,
         frag_type="chemgen",
         mol=mol,
-        additional_args=ChemGenArgs(treat_H_different=False),
+        additional_args=ChemGenArgs(
+            treat_H_different=False, swallow_replace=swallow_replace
+        ),
     )
     mybe = BE(mf, fobj)
     mybe.optimize(solver="FCI", only_chem=only_chem)
@@ -50,7 +53,12 @@ def test_BE_density_matching():
     BE2 = do_BE(mol, mf, 2, only_chem=False)
     assert np.isclose(BE2.ebe_tot - BE2.ebe_hf, -0.1343036698277933)
 
-    BE3 = do_BE(mol, mf, 3, only_chem=False)
+    with pytest.raises(ValueError):
+        # should raise until https://github.com/troyvvgroup/quemb/issues/150
+        # is resolved.
+        BE3 = do_BE(mol, mf, 3, only_chem=False, swallow_replace=False)
+
+    BE3 = do_BE(mol, mf, 3, only_chem=False, swallow_replace=True)
     assert np.isclose(BE3.ebe_tot - BE3.ebe_hf, -0.1332017928466369)
 
 

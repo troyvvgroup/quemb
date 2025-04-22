@@ -9,6 +9,7 @@ from pyscf.gto import M
 
 from quemb.molbe.chemfrag import (
     BondConnectivity,
+    ChemGenArgs,
     Fragmented,
     PurelyStructureFragmented,
     _cleanup_if_subset,
@@ -122,7 +123,7 @@ def test_structure_agreement_with_autogen():
         auto_frags = fragmentate(mol=mol, frag_type="autogen", n_BE=n_BE)
 
         for chem_fragment, auto_fragment in zip(
-            chem_frags.motifs_per_frag, auto_frags.Frag_atom
+            chem_frags.motifs_per_frag, auto_frags.motifs_per_frag
         ):
             # We assert that the first atom, i.e. the origin, is the same for both
             # chemfrag and autogen
@@ -261,3 +262,21 @@ def test_shared_centers():
     Fragmented.from_mole(mol, 3, autocratic_matching=True)
     with pytest.raises(ValueError):
         Fragmented.from_mole(mol, 3, autocratic_matching=False)
+
+
+def test_swallow_replace():
+    mol = Cartesian.read_xyz("xyz/short_polypropylene.xyz").to_pyscf(basis="sto-3g")
+
+    assert not fragmentate(
+        n_BE=3,
+        mol=mol,
+        frag_type="chemgen",
+        additional_args=ChemGenArgs(swallow_replace=False),
+    ).all_centers_are_origins()
+
+    assert fragmentate(
+        n_BE=3,
+        mol=mol,
+        frag_type="chemgen",
+        additional_args=ChemGenArgs(swallow_replace=True),
+    ).all_centers_are_origins()

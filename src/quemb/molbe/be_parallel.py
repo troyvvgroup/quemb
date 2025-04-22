@@ -30,7 +30,11 @@ from quemb.shared.external.ccsd_rdm import make_rdm1_uccsd, make_rdm2_uccsd
 from quemb.shared.external.unrestricted_utils import make_uhf_obj
 from quemb.shared.helper import unused
 from quemb.shared.manage_scratch import WorkDir
-from quemb.shared.typing import Matrix
+from quemb.shared.typing import (
+    ListOverFrag,
+    Matrix,
+    RelAOIdx,
+)
 
 
 def run_solver(
@@ -40,8 +44,8 @@ def run_solver(
     dname: str,
     nao: int,
     nocc: int,
-    nfsites: int,
-    efac: float,
+    n_frag: int,
+    centerweight_and_relAO_per_center: ListOverFrag[tuple[float, list[RelAOIdx]]],
     TA: Matrix[float64],
     h1_e: Matrix[float64],
     solver: str = "MP2",
@@ -77,10 +81,11 @@ def run_solver(
         Number of atomic orbitals.
     nocc :
         Number of occupied orbitals.
-    nfsites :
+    n_frag :
         Number of fragment sites.
-    efac :
-        Scaling factor for the electronic energy.
+    centerweight_and_relAO_per_center :
+        Scaling factor for the electronic energy **and**
+        the relative AO indices per center per frag
     TA :
         Transformation matrix for embedding orbitals.
     h1_e :
@@ -253,8 +258,8 @@ def run_solver(
         e_f = get_frag_energy(
             mf_.mo_coeff,
             nocc,
-            nfsites,
-            efac,
+            n_frag,
+            centerweight_and_relAO_per_center,
             TA,
             h1_e,
             rdm1_tmp,
@@ -272,8 +277,8 @@ def run_solver(
 
 
 def run_solver_u(
-    fobj_a,
-    fobj_b,
+    fobj_a: Frags,
+    fobj_b: Frags,
     solver,
     enuc,  # noqa: ARG001
     hf_veff,
@@ -311,7 +316,6 @@ def run_solver_u(
     float
         As implemented, only returns the UCCSD fragment energy
     """
-    print("obj type", type(fobj_a))
     # Run SCF for alpha and beta spins
     fobj_a.scf(unrestricted=True, spin_ind=0)
     fobj_b.scf(unrestricted=True, spin_ind=1)
@@ -339,6 +343,7 @@ def run_solver_u(
 
     # Compute RDM1
     fobj_a.rdm1__ = rdm1_tmp[0].copy()
+    assert fobj_a._mf is not None and fobj_b._mf is not None
     fobj_a._rdm1 = (
         multi_dot((fobj_a._mf.mo_coeff, rdm1_tmp[0], fobj_a._mf.mo_coeff.T)) * 0.5
     )
@@ -367,8 +372,11 @@ def run_solver_u(
         e_f = get_frag_energy_u(
             (fobj_a._mo_coeffs, fobj_b._mo_coeffs),
             (fobj_a.nsocc, fobj_b.nsocc),
-            (fobj_a.nfsites, fobj_b.nfsites),
-            (fobj_a.efac, fobj_b.efac),
+            (fobj_a.n_frag, fobj_b.n_frag),
+            (
+                fobj_a.centerweight_and_relAO_per_center,
+                fobj_b.centerweight_and_relAO_per_center,
+            ),
             (fobj_a.TA, fobj_b.TA),
             h1_ab,
             hf_veff,
@@ -460,6 +468,10 @@ def be_func_parallel(
         results = []
         # Run solver in parallel for each fragment
         for fobj in Fobjs:
+            assert (
+                fobj.fock is not None and fobj.heff is not None and fobj.dm0 is not None
+            )
+
             result = pool_.apply_async(
                 run_solver,
                 [
@@ -469,8 +481,8 @@ def be_func_parallel(
                     fobj.dname,
                     fobj.nao,
                     fobj.nsocc,
-                    fobj.nfsites,
-                    fobj.efac,
+                    fobj.n_frag,
+                    fobj.centerweight_and_relAO_per_center,
                     fobj.TA,
                     fobj.h1,
                     solver,

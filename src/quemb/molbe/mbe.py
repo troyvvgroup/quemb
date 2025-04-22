@@ -180,7 +180,7 @@ class BE(MixinLocalize):
 
         self.print_ini()
         self.Fobjs: list[Frags] = []
-        self.pot = initialize_pot(self.fobj.Nfrag, self.fobj.edge_idx)
+        self.pot = initialize_pot(self.fobj.n_frag, self.fobj.relAO_per_edge)
 
         if scratch_dir is None:
             self.scratch_dir = WorkDir.from_environment()
@@ -348,7 +348,9 @@ class BE(MixinLocalize):
                 fobjs.rdm2__ -= dm_nc
 
             # Generate the projection matrix
-            cind = [fobjs.fsites[i] for i in fobjs.efac[1]]
+            cind = [
+                fobjs.AO_per_frag[i] for i in fobjs.centerweight_and_relAO_per_center[1]
+            ]
             Pc_ = (
                 fobjs.TA.T
                 @ self.S
@@ -687,6 +689,15 @@ class BE(MixinLocalize):
                     "BE1 only works with chemical potential optimization. "
                     "Set only_chem=True"
                 )
+            elif self.fobj.n_BE >= 3 and not self.fobj.all_centers_are_origins():
+                raise ValueError(
+                    "BE3 currently does not work with matching conditions, if there "
+                    "are centers that are not origins.\n"
+                    "See this issue https://github.com/troyvvgroup/quemb/issues/150 "
+                    "for reference. "
+                    "As a stop gap measure you can use the `swallow_replace=True` "
+                    "option when fragmentating with chemgen."
+                )
         else:
             pot = [0.0]
 
@@ -745,7 +756,7 @@ class BE(MixinLocalize):
 
     @copy_docstring(_ext_get_be_error_jacobian)
     def get_be_error_jacobian(self, jac_solver: str = "HF") -> Matrix[floating]:
-        return _ext_get_be_error_jacobian(self.fobj.Nfrag, self.Fobjs, jac_solver)
+        return _ext_get_be_error_jacobian(self.fobj.n_frag, self.Fobjs, jac_solver)
 
     def print_ini(self):
         """
@@ -786,31 +797,35 @@ class BE(MixinLocalize):
         # Create a file to store ERIs
         if not restart:
             file_eri = h5py.File(self.eri_file, "w")
-        lentmp = len(self.fobj.edge_idx)
-        for I in range(self.fobj.Nfrag):
+        lentmp = len(self.fobj.relAO_per_edge)
+        for I in range(self.fobj.n_frag):
             if lentmp:
                 fobjs_ = Frags(
-                    self.fobj.fsites[I],
+                    self.fobj.AO_per_frag[I],
                     I,
-                    edge=self.fobj.edge_sites[I],
+                    AO_per_edge=self.fobj.AO_per_edge[I],
                     eri_file=self.eri_file,
-                    center=self.fobj.center[I],
-                    edge_idx=self.fobj.edge_idx[I],
-                    center_idx=self.fobj.center_idx[I],
-                    efac=self.fobj.ebe_weight[I],
-                    centerf_idx=self.fobj.centerf_idx[I],
+                    ref_frag_idx_per_edge=self.fobj.ref_frag_idx_per_edge[I],
+                    relAO_per_edge=self.fobj.relAO_per_edge[I],
+                    relAO_in_ref_per_edge=self.fobj.relAO_in_ref_per_edge[I],
+                    centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
+                        I
+                    ],
+                    relAO_per_origin=self.fobj.relAO_per_origin[I],
                 )
             else:
                 fobjs_ = Frags(
-                    self.fobj.fsites[I],
+                    self.fobj.AO_per_frag[I],
                     I,
-                    edge=[],
-                    center=[],
+                    AO_per_edge=[],
+                    ref_frag_idx_per_edge=[],
                     eri_file=self.eri_file,
-                    edge_idx=[],
-                    center_idx=[],
-                    centerf_idx=[],
-                    efac=self.fobj.ebe_weight[I],
+                    relAO_per_edge=[],
+                    relAO_in_ref_per_edge=[],
+                    relAO_per_origin=[],
+                    centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
+                        I
+                    ],
                 )
             fobjs_.sd(self.W, self.lmo_coeff, self.Nocc, thr_bath=self.thr_bath)
 
@@ -835,13 +850,13 @@ class BE(MixinLocalize):
             if (
                 eri_ is not None
             ):  # incore ao2mo using saved eri from mean-field calculation
-                for I in range(self.fobj.Nfrag):
+                for I in range(self.fobj.n_frag):
                     eri = ao2mo.incore.full(eri_, self.Fobjs[I].TA, compact=True)
                     file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
             elif hasattr(self.mf, "with_df") and self.mf.with_df is not None:
                 # pyscf.ao2mo uses DF object in an outcore fashion using (ij|P)
                 #   in pyscf temp directory
-                for I in range(self.fobj.Nfrag):
+                for I in range(self.fobj.n_frag):
                     eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)
                     file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
             else:
@@ -876,6 +891,7 @@ class BE(MixinLocalize):
             fobjs_.heff = zeros_like(fobjs_.h1)
             fobjs_.scf(fs=True, eri=eri)
 
+            assert fobjs_.h1 is not None and fobjs_.nsocc is not None
             fobjs_.dm0 = 2.0 * (
                 fobjs_._mo_coeffs[:, : fobjs_.nsocc]
                 @ fobjs_._mo_coeffs[:, : fobjs_.nsocc].conj().T
@@ -984,9 +1000,11 @@ class BE(MixinLocalize):
         """
         if heff is None:
             for fobj in self.Fobjs:
+                assert fobj.fock is not None and fobj.heff is not None
                 fobj.fock += fobj.heff
         else:
             for idx, fobj in enumerate(self.Fobjs):
+                assert fobj.fock is not None
                 fobj.fock += heff[idx]
 
     def write_heff(self, heff_file: str = "bepotfile.h5") -> None:
@@ -1000,6 +1018,7 @@ class BE(MixinLocalize):
         """
         with h5py.File(heff_file, "w") as filepot:
             for fobj in self.Fobjs:
+                assert fobj.heff is not None
                 print(fobj.heff.shape, fobj.dname, flush=True)
                 filepot.create_dataset(fobj.dname, data=fobj.heff)
 
@@ -1017,21 +1036,22 @@ class BE(MixinLocalize):
                 fobj.heff = filepot.get(fobj.dname)
 
 
-def initialize_pot(Nfrag, edge_idx):
+def initialize_pot(n_frag, relAO_per_edge):
     """
     Initialize the potential array for bootstrap embedding.
 
     This function initializes a potential array for a given number of fragments
-    (:python:`Nfrag`) and their corresponding edge indices (:python:`edge_idx`).
+    (:python:`n_frag`) and their corresponding edge indices
+    (:python:`relAO_per_edge`).
     The potential array is initialized with zeros for each pair of edge site indices
     within each fragment, followed by an
     additional zero for the global chemical potential.
 
     Parameters
     ----------
-    Nfrag : int
+    n_frag: int
         Number of fragments.
-    edge_idx : list of list of list of int
+    relAO_per_edge: list of list of list of int
         List of edge indices for each fragment. Each element is a list of lists,
         where each sublist contains the indices of edge sites for a particular fragment.
 
@@ -1042,9 +1062,9 @@ def initialize_pot(Nfrag, edge_idx):
     """
     pot_ = []
 
-    if not len(edge_idx) == 0:
-        for I in range(Nfrag):
-            for i in edge_idx[I]:
+    if relAO_per_edge:
+        for I in range(n_frag):
+            for i in relAO_per_edge[I]:
                 for j in range(len(i)):
                     for k in range(len(i)):
                         if j > k:
