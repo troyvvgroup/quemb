@@ -10,6 +10,7 @@ i.e. the type is mostly useful to document intent to the developer.
 """
 
 import os
+from collections.abc import Sequence
 from typing import Any, NewType, TypeAlias, TypeVar
 
 import numpy as np
@@ -141,3 +142,9 @@ ListOverFrag: TypeAlias = list
 ListOverEdge: TypeAlias = list
 ListOverCenter: TypeAlias = list
 ListOverMotif: TypeAlias = list
+
+
+SeqOverFrag: TypeAlias = Sequence
+SeqOverEdge: TypeAlias = Sequence
+SeqOverCenter: TypeAlias = Sequence
+SeqOverMotif: TypeAlias = Sequence

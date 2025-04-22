@@ -1,5 +1,7 @@
 # Author(s): Oinam Romesh Meitei
 
+from typing import Sequence
+
 import h5py
 import numpy as np
 import scipy.linalg
@@ -19,7 +21,15 @@ from numpy import (
 from numpy.linalg import eigh, multi_dot
 
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
-from quemb.shared.typing import Matrix
+from quemb.shared.typing import (
+    FragmentIdx,
+    GlobalAOIdx,
+    Matrix,
+    PathLike,
+    RelAOIdx,
+    RelAOIdxInRef,
+    SeqOverEdge,
+)
 
 
 class Frags:
@@ -34,15 +44,15 @@ class Frags:
         self,
         AO_per_frag,
         ifrag: int,
-        AO_per_edge=None,
-        ref_frag_idx_per_edge=None,
-        relAO_per_edge=None,
-        relAO_in_ref_per_edge=None,
-        centerweight_and_relAO_per_center=None,
-        eri_file="eri_file.h5",
-        relAO_per_origin=None,
-        unrestricted=False,
-    ):
+        AO_per_edge: SeqOverEdge[Sequence[GlobalAOIdx]],
+        ref_frag_idx_per_edge: SeqOverEdge[FragmentIdx],
+        relAO_per_edge: SeqOverEdge[Sequence[RelAOIdx]],
+        relAO_in_ref_per_edge: SeqOverEdge[Sequence[RelAOIdxInRef]],
+        centerweight_and_relAO_per_center: tuple[float, Sequence[RelAOIdx]],
+        relAO_per_origin: Sequence[RelAOIdx],
+        eri_file: PathLike = "eri_file.h5",
+        unrestricted: bool = False,
+    ) -> None:
         """Constructor function for :python:`Frags` class.
 
         Parameters

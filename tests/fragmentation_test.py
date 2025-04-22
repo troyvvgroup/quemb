@@ -158,8 +158,8 @@ class TestBE_Fragmentation(unittest.TestCase):
                 [42, 43, 44, 45, 46, 52, 54, 57],
                 [47, 48, 49, 50, 51, 53, 55, 56],
             ],
-            "AO_per_edge": [],
-            "ref_frag_idx_per_edge": [],
+            "AO_per_edge": [[], [], [], [], [], [], [], []],
+            "ref_frag_idx_per_edge": [[], [], [], [], [], [], [], []],
             "relAO_per_origin": [
                 [0, 1, 2, 3, 4, 5, 6],
                 [0, 1, 2, 3, 4, 5, 6],
