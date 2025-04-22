@@ -103,7 +103,7 @@ class Frags:
         self.t2 = None
 
         self.heff = None
-        self.edge = AO_per_edge
+        self.AO_per_edge = AO_per_edge
         self.ref_frag_idx_per_edge = ref_frag_idx_per_edge
         self.relAO_per_edge = relAO_per_edge
         self.relAO_in_ref_per_edge = relAO_in_ref_per_edge
