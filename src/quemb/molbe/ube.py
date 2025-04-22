@@ -174,93 +174,40 @@ class UBE(BE):  # 🍠
 
         file_eri = h5py.File(self.eri_file, "w")
         # alpha orbitals
-        for I in range(self.fobj.n_frag):
-            fobjs_a = Frags(
-                self.fobj.AO_per_frag[I],
-                I,
-                AO_per_edge=self.fobj.AO_per_edge[I],
-                eri_file=self.eri_file,
-                ref_frag_idx_per_edge=self.fobj.ref_frag_idx_per_edge[I],
-                relAO_per_edge=self.fobj.relAO_per_edge[I],
-                relAO_in_ref_per_edge=self.fobj.relAO_in_ref_per_edge[I],
-                centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
-                    I
-                ],
-                relAO_per_origin=self.fobj.relAO_per_origin[I],
-                unrestricted=True,
+        self.Fobjs_a = [
+            self.fobj_a.to_Frags(
+                i_frag,
+                self.eri_file,
+                self.W[0] if self.frozen_core else self.W,
+                self.lmo_coeff_a,
+                self.Nocc[0],
+                thr_bath=self.thr_bath,
             )
-            self.Fobjs_a.append(fobjs_a)
-        # beta
-        for I in range(self.fobj.n_frag):
-            fobjs_b = Frags(
-                self.fobj.AO_per_frag[I],
-                I,
-                AO_per_edge=self.fobj.AO_per_edge[I],
-                eri_file=self.eri_file,
-                ref_frag_idx_per_edge=self.fobj.ref_frag_idx_per_edge[I],
-                relAO_per_edge=self.fobj.relAO_per_edge[I],
-                relAO_in_ref_per_edge=self.fobj.relAO_in_ref_per_edge[I],
-                centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
-                    I
-                ],
-                relAO_per_origin=self.fobj.relAO_per_origin[I],
-                unrestricted=True,
+            for i_frag in range(self.fobj_a.n_frag)
+        ]
+        self.Fobjs_b = [
+            self.fobj_b.to_Frags(
+                i_frag,
+                self.eri_file,
+                self.W[1] if self.frozen_core else self.W,
+                self.lmo_coeff_b,
+                self.Nocc[1],
+                thr_bath=self.thr_bath,
             )
-            self.Fobjs_b.append(fobjs_b)
+            for i_frag in range(self.fobj_b.n_frag)
+        ]
 
-        orb_count_a = []
-        orb_count_b = []
+        for I in range(self.fobj.n_frag):
+            self.Fobjs_a[I].core_veff = self.core_veff[0] if self.frozen_core else None
+            self.Fobjs_b[I].core_veff = self.core_veff[1] if self.frozen_core else None
 
-        all_noccs = []
+        orb_count_a = [(frag.n_f, frag.n_b) for frag in self.Fobjs_a]
+        orb_count_b = [(frag.n_f, frag.n_b) for frag in self.Fobjs_b]
+        all_noccs = [self.Nocc for _ in range(self.fobj.n_frag)]
 
         for I in range(self.fobj.n_frag):
             fobj_a = self.Fobjs_a[I]
             fobj_b = self.Fobjs_b[I]
-
-            if self.frozen_core:
-                fobj_a.core_veff = self.core_veff[0]
-                fobj_b.core_veff = self.core_veff[1]
-                orb_count_a.append(
-                    fobj_a.sd(
-                        self.W[0],
-                        self.lmo_coeff_a,
-                        self.Nocc[0],
-                        return_orb_count=True,
-                        thr_bath=self.thr_bath,
-                    )
-                )
-                orb_count_b.append(
-                    fobj_b.sd(
-                        self.W[1],
-                        self.lmo_coeff_b,
-                        self.Nocc[1],
-                        return_orb_count=True,
-                        thr_bath=self.thr_bath,
-                    )
-                )
-            else:
-                fobj_a.core_veff = None
-                fobj_b.core_veff = None
-                orb_count_a.append(
-                    fobj_a.sd(
-                        self.W,
-                        self.lmo_coeff_a,
-                        self.Nocc[0],
-                        return_orb_count=True,
-                        thr_bath=self.thr_bath,
-                    )
-                )
-                orb_count_b.append(
-                    fobj_b.sd(
-                        self.W,
-                        self.lmo_coeff_b,
-                        self.Nocc[1],
-                        return_orb_count=True,
-                        thr_bath=self.thr_bath,
-                    )
-                )
-
-            all_noccs.append(self.Nocc)
 
             if eri_ is None and self.mf.with_df is not None:
                 # NOT IMPLEMENTED: should not be called, as no unrestricted DF tested
