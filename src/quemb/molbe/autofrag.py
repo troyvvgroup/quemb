@@ -89,7 +89,7 @@ class FragPart:
     #: everywhere anyway. We concentrate only on the second part,
     #: i.e. the list of indices.
     #: This is a list whose entries are sequences containing the relative orbital index
-    #:  of the center sites within a fragment. Relative is to the own fragment.
+    #: of the center sites within a fragment. Relative is to the own fragment.
     #:
     #: When using IAOs this refers to the large basis.
     centerweight_and_relAO_per_center: ListOverFrag[tuple[float, list[RelAOIdx]]]
