@@ -46,7 +46,7 @@ class FragPart:
     #: everywhere anyway. We concentrate only on the second part,
     #: i.e. the list of indices.
     #: This is a list whose entries are sequences containing the relative orbital index
-    #  of the center sites within a fragment. Relative is to the own fragment.
+    #:  of the center sites within a fragment. Relative is to the own fragment.
     #:
     #: When using IAOs this refers to the large basis.
     centerweight_and_relAO_per_center: ListOverFrag[tuple[float, list[RelAOIdx]]]
@@ -105,6 +105,10 @@ class FragPart:
         return self.n_frag
 
     def all_centers_are_origins(self) -> bool:
+        if self.iao_valence_basis:
+            raise ValueError("Test is only defined if IAO is not used.")
+            # This is because relAO_per_center uses the large basis
+            # and relAO_per_origin the small/valence basis
         return all(
             relAO_per_center == relAO_per_origin
             for (_, relAO_per_center), relAO_per_origin in zip(
