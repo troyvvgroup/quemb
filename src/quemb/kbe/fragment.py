@@ -29,6 +29,8 @@ class FragPart:
     AO_per_frag: ListOverFrag[list[GlobalAOIdx]]
 
     #: The global orbital indices, including hydrogens, per edge per fragment.
+    #:
+    #: When using IAOs this refers to the valence/small basis.
     AO_per_edge: ListOverFrag[ListOverEdge[list[GlobalAOIdx]]]
 
     #: Reference fragment index per edge:
@@ -45,20 +47,29 @@ class FragPart:
     #: i.e. the list of indices.
     #: This is a list whose entries are sequences containing the relative orbital index
     #  of the center sites within a fragment. Relative is to the own fragment.
+    #:
+    #: When using IAOs this refers to the large basis.
     centerweight_and_relAO_per_center: ListOverFrag[tuple[float, list[RelAOIdx]]]
 
     #: The relative orbital indices, including hydrogens, per edge per fragment.
     #: The index is relative to the own fragment.
+    #:
+    #: When using IAOs this refers to the valence/small basis.
     relAO_per_edge: ListOverFrag[ListOverEdge[list[RelAOIdx]]]
+
     #: The relative atomic orbital indices per edge per fragment.
     #: **Note** for this variable relative means that the AO indices
     #: are relative to the other fragment where the edge is a center.
+    #:
+    #: When using IAOs this refers to the valence/small basis.
     relAO_in_ref_per_edge: ListOverFrag[ListOverEdge[list[RelAOIdxInRef]]]
 
     #: List whose entries are lists containing the relative orbital index of the
     #: origin site within a fragment. Relative is to the own fragment.
     #  Since the origin site is at the beginning
     #: of the motif list for each fragment, this is always a ``list(range(0, n))``
+    #:
+    #: When using IAOs this refers to the valence/small basis.
     relAO_per_origin: ListOverFrag[list[RelAOIdx]]
 
     n_BE: int
