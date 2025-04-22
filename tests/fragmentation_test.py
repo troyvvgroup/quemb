@@ -26,8 +26,8 @@ class TestBE_Fragmentation(unittest.TestCase):
 
         target = {
             "AO_per_frag": [[0], [1], [2], [3], [4], [5], [6], [7]],
-            "AO_per_edge": [],
-            "ref_frag_idx_per_edge": [],
+            "AO_per_edge": [[], [], [], [], [], [], [], []],
+            "ref_frag_idx_per_edge": [[], [], [], [], [], [], [], []],
             "relAO_per_origin": [[0], [0], [0], [0], [0], [0], [0], [0]],
             "centerweight_and_relAO_per_center": [
                 (1.0, [0]),
