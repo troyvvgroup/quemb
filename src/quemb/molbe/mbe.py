@@ -849,7 +849,7 @@ class BE(MixinLocalize):
                     eri_file=self.eri_file,
                     relAO_per_edge=[],
                     relAO_in_ref_per_edge=[],
-                    relAO_per_origin=[],
+                    relAO_per_origin=self.fobj.relAO_per_origin[I],
                     centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
                         I
                     ],
