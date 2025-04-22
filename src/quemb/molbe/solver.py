@@ -35,7 +35,7 @@ from quemb.shared.external.unrestricted_utils import make_uhf_obj
 from quemb.shared.helper import delete_multiple_files, unused
 from quemb.shared.manage_scratch import WorkDir
 
-Solvers: TypeAlias = Literal["CCSD", "MP2", "CCSD", "FCI", "HCI", "SHCI", "SCI", "DMRG"]
+Solvers: TypeAlias = Literal["MP2", "CCSD", "FCI", "HCI", "SHCI", "SCI", "DMRG"]
 USolvers: TypeAlias = Literal["UCCSD"]
 
 
