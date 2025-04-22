@@ -1000,6 +1000,12 @@ def autogen(
 
             relAO_in_ref_per_edge.append(idx)
 
+    if not AO_per_edge:
+        AO_per_edge = [[] for _ in range(n_frag)]
+        ref_frag_idx_per_edge = [[] for _ in range(n_frag)]
+        relAO_per_edge = [[] for _ in range(n_frag)]
+        relAO_in_ref_per_edge = [[] for _ in range(n_frag)]
+
     return FragPart(
         mol=mol,
         frag_type="autogen",
