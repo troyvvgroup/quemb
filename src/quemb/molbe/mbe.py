@@ -824,11 +824,18 @@ class BE(MixinLocalize):
         # Create a file to store ERIs
         if not restart:
             file_eri = h5py.File(self.eri_file, "w")
-        for I in range(self.fobj.n_frag):
-            fobjs_ = self.fobj.to_Frags(I, eri_file=self.eri_file)
-            fobjs_.sd(self.W, self.lmo_coeff, self.Nocc, thr_bath=self.thr_bath)
 
-            self.Fobjs.append(fobjs_)
+        self.Fobjs = [
+            self.fobj.to_Frags(
+                i_frag,
+                self.eri_file,
+                self.W,
+                self.lmo_coeff,
+                self.Nocc,
+                thr_bath=self.thr_bath,
+            )
+            for i_frag in range(self.fobj.n_frag)
+        ]
 
         eritransform_timer = Timer("Time to transform ERIs")
 

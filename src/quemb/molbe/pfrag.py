@@ -50,6 +50,11 @@ class Frags:
         relAO_in_ref_per_edge: SeqOverEdge[Sequence[RelAOIdxInRef]],
         centerweight_and_relAO_per_center: tuple[float, Sequence[RelAOIdx]],
         relAO_per_origin: Sequence[RelAOIdx],
+        lao: Matrix[float64],
+        lmo: Matrix[float64],
+        nocc: int,
+        thr_bath: float,
+        norb: int | None = None,
         eri_file: PathLike = "eri_file.h5",
         unrestricted: bool = False,
     ) -> None:
@@ -104,11 +109,11 @@ class Frags:
         else:
             self.dname = "f" + str(ifrag)
 
-        self.TA: Matrix[float64] | None = None
-        self.TA_lo_eo: Matrix[float64] | None = None
+        self.nao, self.n_f, self.n_b, self.TA_lo_eo, self.TA = sd(
+            lao, lmo, nocc, thr_bath, AO_in_frag, norb
+        )
 
         self.h1 = None
-        self.nao = None
         self.mo_coeffs = None
         self._mo_coeffs = None
         self.nsocc = None
@@ -135,43 +140,6 @@ class Frags:
         self.dm_init = None
         self.dm0 = None
         self.unitcell_nkpt = 1.0
-
-    def sd(self, lao, lmo, nocc, thr_bath, norb=None, return_orb_count=False):
-        """
-        Perform Schmidt decomposition for the fragment.
-
-        Parameters
-        ----------
-        lao : numpy.ndarray
-            Orthogonalized AOs
-        lmo : numpy.ndarray
-            Local molecular orbital coefficients.
-        nocc : int
-            Number of occupied orbitals.
-        thr_bath : float,
-            Threshold for bath orbitals in Schmidt decomposition
-        norb : int, optional
-            Specify number of bath orbitals.
-            Used for UBE, where different number of alpha and beta orbitals
-            Default is None, allowing orbitals to be chosen by threshold
-        return_orb_count : bool, optional
-            Retrun the number of orbitals in each space, for UBE use/
-            Default is False
-        """
-
-        TA, n_f, n_b = schmidt_decomposition(
-            lmo,
-            nocc,
-            self.AO_in_frag,
-            thr_bath=thr_bath,
-            norb=norb,
-        )
-        self.C_lo_eo = TA
-        TA = lao @ TA
-        self.nao = TA.shape[1]
-        self.TA = TA
-        if return_orb_count:
-            return [n_f, n_b]
 
     def cons_fock(self, hf_veff, S, dm, eri_=None):
         """
@@ -486,3 +454,43 @@ def schmidt_decomposition(
 
     # return TA, norbs_frag, norbs_bath
     return TA, Frag_sites1.shape[0], len(Bidx)
+
+
+def sd(
+    lao: Matrix[float64],
+    lmo: Matrix[float64],
+    nocc: int,
+    thr_bath: float,
+    AO_in_frag: Sequence[GlobalAOIdx],
+    norb: int | None = None,
+) -> tuple[int, int, int, Matrix[float64], Matrix[float64]]:
+    """
+    Perform Schmidt decomposition for the fragment.
+
+    Parameters
+    ----------
+    lao : numpy.ndarray
+        Orthogonalized AOs
+    lmo : numpy.ndarray
+        Local molecular orbital coefficients.
+    nocc : int
+        Number of occupied orbitals.
+    thr_bath : float,
+        Threshold for bath orbitals in Schmidt decomposition
+    norb : int, optional
+        Specify number of bath orbitals.
+        Used for UBE, where different number of alpha and beta orbitals
+        Default is None, allowing orbitals to be chosen by threshold
+    """
+
+    TA, n_f, n_b = schmidt_decomposition(
+        lmo,
+        nocc,
+        AO_in_frag,
+        thr_bath=thr_bath,
+        norb=norb,
+    )
+    TA_lo_eo = TA
+    TA = lao @ TA
+    nao = TA.shape[1]
+    return nao, n_f, n_b, TA_lo_eo, TA

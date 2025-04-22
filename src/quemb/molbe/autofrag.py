@@ -9,6 +9,7 @@ import networkx as nx
 import numpy as np
 from attrs import cmp_using, define, field
 from networkx import shortest_path
+from numpy import float64
 from numpy.linalg import norm
 from pyscf import gto
 from pyscf.gto import Mole
@@ -24,6 +25,7 @@ from quemb.shared.typing import (
     ListOverEdge,
     ListOverFrag,
     ListOverMotif,
+    Matrix,
     MotifIdx,
     OriginIdx,
     PathLike,
@@ -143,17 +145,33 @@ class FragPart:
             )
         )
 
-    def to_Frags(self, I: int, eri_file: PathLike) -> Frags:
+    def to_Frags(
+        self,
+        i_frag: int,
+        eri_file: PathLike,
+        lao: Matrix[float64],
+        lmo: Matrix[float64],
+        nocc: int,
+        thr_bath: float,
+        norb: int | None = None,
+    ) -> Frags:
         return Frags(
-            self.AO_per_frag[I],
-            I,
-            AO_per_edge=self.AO_per_edge[I],
+            self.AO_per_frag[i_frag],
+            i_frag,
+            AO_per_edge=self.AO_per_edge[i_frag],
             eri_file=eri_file,
-            ref_frag_idx_per_edge=self.ref_frag_idx_per_edge[I],
-            relAO_per_edge=self.relAO_per_edge[I],
-            relAO_in_ref_per_edge=self.relAO_in_ref_per_edge[I],
-            centerweight_and_relAO_per_center=self.centerweight_and_relAO_per_center[I],
-            relAO_per_origin=self.relAO_per_origin[I],
+            ref_frag_idx_per_edge=self.ref_frag_idx_per_edge[i_frag],
+            relAO_per_edge=self.relAO_per_edge[i_frag],
+            relAO_in_ref_per_edge=self.relAO_in_ref_per_edge[i_frag],
+            centerweight_and_relAO_per_center=self.centerweight_and_relAO_per_center[
+                i_frag
+            ],
+            relAO_per_origin=self.relAO_per_origin[i_frag],
+            lao=lao,
+            lmo=lmo,
+            nocc=nocc,
+            thr_bath=thr_bath,
+            norb=norb,
         )
 
 
