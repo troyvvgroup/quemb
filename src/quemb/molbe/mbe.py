@@ -19,12 +19,12 @@ from quemb.molbe.lo import MixinLocalize
 from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
 from quemb.molbe.opt import BEOPT
 from quemb.molbe.pfrag import Frags
-from quemb.molbe.solver import UserSolverArgs, be_func
+from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.config import settings
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
-from quemb.shared.helper import Timer, copy_docstring
+from quemb.shared.helper import Timer, copy_docstring, ensure
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix, PathLike
 
@@ -651,7 +651,7 @@ class BE(MixinLocalize):
 
     def optimize(
         self,
-        solver: str = "MP2",
+        solver: Solvers = "MP2",
         method: str = "QN",
         only_chem: bool = False,
         use_cumulant: bool = True,
@@ -869,12 +869,15 @@ class BE(MixinLocalize):
             #       Yes -- ao2mo, outcore version, using saved (ij|P)
             #       No  -- if integral_direct_DF is requested, invoke on-the-fly routine
             if int_transform == "in-core":
-                assert eri_ is not None
+                ensure(eri_ is not None, "ERIs have to be available in memory.")
                 for I in range(self.fobj.n_frag):
                     eri = ao2mo.incore.full(eri_, self.Fobjs[I].TA, compact=True)
                     file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
             elif int_transform == "out-core-DF":
-                assert hasattr(self.mf, "with_df") and self.mf.with_df is not None
+                ensure(
+                    hasattr(self.mf, "with_df") and self.mf.with_df is not None,
+                    "Pyscf mean field object has to support `with_df`.",
+                )
                 # pyscf.ao2mo uses DF object in an outcore fashion using (ij|P)
                 #   in pyscf temp directory
                 for I in range(self.fobj.n_frag):
@@ -882,6 +885,7 @@ class BE(MixinLocalize):
                     file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
             elif int_transform == "int-direct-DF":
                 # If ERIs are not saved on memory, compute fragment ERIs integral-direct
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
                 integral_direct_DF(
                     self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis
                 )
@@ -906,10 +910,8 @@ class BE(MixinLocalize):
             assert fobjs_.TA is not None
             fobjs_.h1 = multi_dot((fobjs_.TA.T, self.hcore, fobjs_.TA))
 
-            print(eri.shape)
             if not restart:
                 eri = ao2mo.restore(8, eri, fobjs_.nao)
-            print(eri.shape)
 
             fobjs_.cons_fock(self.hf_veff, self.S, self.hf_dm, eri_=eri)
 
@@ -944,7 +946,7 @@ class BE(MixinLocalize):
 
     def oneshot(
         self,
-        solver: str = "MP2",
+        solver: Solvers = "MP2",
         use_cumulant: bool = True,
         nproc: int = 1,
         ompnum: int = 4,

@@ -46,6 +46,15 @@ def add_docstring(doc: str | None) -> Callable[[_Function], _Function]:
     return update_doc
 
 
+def ensure(condition: bool, message: str = "") -> None:
+    """This function can be used instead of :python:`assert`,
+    if the test should be always executed.
+    """
+    if not condition:
+        message = message if message else "Invariant condition was violated."
+        raise ValueError(message)
+
+
 def copy_docstring(f: Callable) -> Callable[[_Function], _Function]:
     """Copy docstring from another function as decorator."""
     return add_docstring(f.__doc__)

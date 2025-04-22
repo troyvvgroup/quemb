@@ -21,7 +21,7 @@ from quemb.kbe.pfrag import Frags
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
 from quemb.molbe.opt import BEOPT
-from quemb.molbe.solver import UserSolverArgs, be_func
+from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
@@ -282,7 +282,7 @@ class BE(Mixin_k_Localize):
 
     def optimize(
         self,
-        solver: str = "MP2",
+        solver: Solvers = "MP2",
         method: str = "QN",
         only_chem: bool = False,
         use_cumulant: bool = True,
@@ -665,7 +665,7 @@ class BE(Mixin_k_Localize):
 
     def oneshot(
         self,
-        solver: str = "MP2",
+        solver: Solvers = "MP2",
         use_cumulant: bool = True,
         nproc: int = 1,
         ompnum: int = 4,
