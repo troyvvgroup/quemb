@@ -1,11 +1,12 @@
 import numpy as np
 import scipy
 from chemcoord import Cartesian
-from pyscf import df
+from pyscf import df, scf
 from pyscf.df import make_auxmol
 from pyscf.gto import M
 from pyscf.lib import einsum
 
+from quemb.molbe import BE, fragmentate
 from quemb.molbe.eri_sparse_DF import (
     SparseInt2,
     _get_sparse_ints_3c2e,
@@ -86,3 +87,21 @@ def test_find_screening_radius() -> None:
         "C": 3.4198590087890626,
         "H": 3.2658367919921876,
     }
+
+
+def test_sparse_DF_BE() -> None:
+    mol = M("data/octane.xyz", basis="sto-3g")
+
+    mf = scf.RHF(mol)
+    mf.kernel()
+
+    fobj = fragmentate(frag_type="chemgen", n_BE=2, mol=mol, print_frags=False)
+    sparse_DF_BE = BE(mf, fobj, auxbasis="weigend", int_transform="sparse-DF")
+    sparse_DF_BE.oneshot(solver="CCSD")
+
+    assert np.isclose(
+        sparse_DF_BE.ebe_tot - sparse_DF_BE.ebe_hf,
+        -0.5498849435531383,
+        atol=1e-10,
+        rtol=0,
+    )
