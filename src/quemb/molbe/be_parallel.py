@@ -19,8 +19,6 @@ from quemb.molbe.solver import (
     SHCI_ArgsUser,
     UserSolverArgs,
     _SHCI_Args,
-    make_rdm1_ccsd_t1,
-    make_rdm2_urlx,
     solve_ccsd,
     solve_error,
     solve_mp2,
@@ -129,25 +127,35 @@ def run_solver(
     if solver == "MP2":
         mc_ = solve_mp2(mf_, mo_energy=mf_.mo_energy)
         rdm1_tmp = mc_.make_rdm1()
+        if eeval:
+            rdm2s = mc_.make_rdm2()
 
     elif solver == "CCSD":
-        if not relax_density:
-            t1, t2 = solve_ccsd(mf_, mo_energy=mf_.mo_energy, rdm_return=False)
-            rdm1_tmp = make_rdm1_ccsd_t1(t1)
-        else:
+        if eeval:
             t1, t2, rdm1_tmp, rdm2s = solve_ccsd(
                 mf_,
                 mo_energy=mf_.mo_energy,
+                relax=relax_density,
+                use_cumulant=use_cumulant,
                 rdm_return=True,
                 rdm2_return=True,
-                use_cumulant=use_cumulant,
-                relax=True,
             )
+        else:
+            t1, t2, rdm1_tmp, _ = solve_ccsd(
+                mf_,
+                mo_energy=mf_.mo_energy,
+                relax=relax_density,
+                use_cumulant=use_cumulant,
+                rdm_return=True,
+                rdm2_return=False,
+            )
+
     elif solver == "FCI":
         mc_ = fci.FCI(mf_, mf_.mo_coeff)
         efci, civec = mc_.kernel()
         unused(efci)
         rdm1_tmp = mc_.make_rdm1(civec, mc_.norb, mc_.nelec)
+
     elif solver == "HCI":
         # pylint: disable-next=E0611
         from pyscf import hci  # type: ignore[attr-defined]  # noqa: PLC0415
@@ -233,11 +241,7 @@ def run_solver(
     rdm1 = multi_dot((mf_.mo_coeff, rdm1_tmp, mf_.mo_coeff.T)) * 0.5
 
     if eeval:
-        if solver == "CCSD" and not relax_density:
-            rdm2s = make_rdm2_urlx(t1, t2, with_dm1=not use_cumulant)
-        elif solver == "MP2":
-            rdm2s = mc_.make_rdm2()
-        elif solver == "FCI":
+        if solver == "FCI":
             rdm2s = mc_.make_rdm2(civec, mc_.norb, mc_.nelec)
             if use_cumulant:
                 hf_dm = zeros_like(rdm1_tmp)
