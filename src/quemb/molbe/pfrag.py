@@ -1,6 +1,6 @@
 # Author(s): Oinam Romesh Meitei
 
-from typing import Sequence
+from collections.abc import Sequence
 
 import h5py
 import numpy as np

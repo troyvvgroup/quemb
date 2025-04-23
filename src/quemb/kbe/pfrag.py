@@ -1,5 +1,6 @@
 # Author(s): Oinam Romesh Meitei
 
+from collections.abc import Sequence
 
 import h5py
 import numpy as np
@@ -8,6 +9,7 @@ from numpy import (
     complex128,
     diag_indices,
     einsum,
+    float64,
     outer,
     result_type,
     trace,
@@ -22,6 +24,15 @@ from quemb.kbe.misc import get_phase, get_phase1
 from quemb.kbe.solver import schmidt_decomp_svd
 from quemb.molbe.helper import get_eri, get_scfObj
 from quemb.shared.helper import unused
+from quemb.shared.typing import (
+    FragmentIdx,
+    GlobalAOIdx,
+    Matrix,
+    PathLike,
+    RelAOIdx,
+    RelAOIdxInRef,
+    SeqOverEdge,
+)
 
 
 class Frags:
@@ -34,19 +45,19 @@ class Frags:
 
     def __init__(
         self,
-        AO_in_frag,
-        ifrag,
-        edge=None,
-        ref_frag_idx_per_edge=None,
-        relAO_per_edge=None,
-        relAO_in_ref_per_edge=None,
-        centerweight_and_relAO_per_center=None,
-        eri_file="eri_file.h5",
-        unitcell_nkpt=1,
-        ewald_ek=None,
-        relAO_per_origin=None,
-        unitcell=1,
-    ):
+        *,
+        AO_in_frag: Sequence[GlobalAOIdx],
+        ifrag: int,
+        AO_per_edge: SeqOverEdge[Sequence[GlobalAOIdx]],
+        ref_frag_idx_per_edge: SeqOverEdge[FragmentIdx],
+        relAO_per_edge: SeqOverEdge[Sequence[RelAOIdx]],
+        relAO_in_ref_per_edge: SeqOverEdge[Sequence[RelAOIdxInRef]],
+        centerweight_and_relAO_per_center: tuple[float, Sequence[RelAOIdx]],
+        relAO_per_origin: Sequence[RelAOIdx],
+        eri_file: PathLike,
+        unitcell_nkpt: int,
+        unitcell: int,
+    ) -> None:
         """Constructor function for :python:`Frags` class.
 
         Parameters
@@ -57,7 +68,7 @@ class Frags:
             Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
         ifrag : int
             fragment index (∈ [0, pbe.n_frag - 1])
-        edge : list, optional
+        AO_per_edge : list, optional
             list of lists of edge site AOs for each atom in the fragment,
             by default None
             Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
@@ -86,15 +97,22 @@ class Frags:
         self.unitcell = unitcell
         self.unitcell_nkpt = unitcell_nkpt
         self.n_frag = len(AO_in_frag)
-        self.TA = None
-        self.TA_lo_eo = None
-        self.h1 = None
-        self.ifrag = ifrag
         self.dname = "f" + str(ifrag)
-        self.nao = None
-        self.mo_coeffs = None
-        self._mo_coeffs = None
-        self.nsocc = None
+        self.AO_per_edge = AO_per_edge
+        self.ref_frag_idx_per_edge = ref_frag_idx_per_edge
+        self.relAO_per_edge = relAO_per_edge
+        self.relAO_in_ref_per_edge = relAO_in_ref_per_edge
+        self.relAO_per_origin = relAO_per_origin
+        self.centerweight_and_relAO_per_center = centerweight_and_relAO_per_center
+        self.ifrag = ifrag
+
+        self.TA: Matrix[float64]
+        self.TA_lo_eo: Matrix[float64]
+        self.h1 = None
+        self.nao: int
+        self.mo_coeffs: Matrix[float64]
+        self._mo_coeffs: Matrix[float64]
+        self.nsocc: int
         self._mf = None
         self._mc = None
 
@@ -102,13 +120,8 @@ class Frags:
         self.t1 = None
         self.t2 = None
 
-        self.heff = None
-        self.edge = edge
-        self.ref_frag_idx_per_edge = ref_frag_idx_per_edge
-        self.relAO_per_edge = relAO_per_edge
-        self.relAO_in_ref_per_edge = relAO_in_ref_per_edge
-        self.relAO_per_origin = relAO_per_origin
-        self.udim = None
+        self.heff: Matrix[float64]
+        self.udim: int
 
         self._rdm1 = None
         self.rdm1__ = None
@@ -118,13 +131,11 @@ class Frags:
         self.genvs = None
         self.ebe = 0.0
         self.ebe_hf = 0.0
-        self.centerweight_and_relAO_per_center = centerweight_and_relAO_per_center
-        self.ewald_ek = ewald_ek
-        self.fock = None
+        self.fock: Matrix[float64]
         self.veff = None
         self.veff0 = None
         self.dm_init = None
-        self.dm0 = None
+        self.dm0: Matrix[float64]
         self.eri_file = eri_file
         self.pot = None
         self.ebe_hf0 = 0.0

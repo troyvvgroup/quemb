@@ -482,22 +482,7 @@ class BE(Mixin_k_Localize):
             file_eri = h5py.File(self.eri_file, "w")
         transform_parallel = False  # hard set for now
         for fidx in range(self.fobj.n_frag):
-            fobjs_ = Frags(
-                self.fobj.AO_per_frag[fidx],
-                fidx,
-                edge=self.fobj.AO_per_edge[fidx],
-                eri_file=self.eri_file,
-                ref_frag_idx_per_edge=self.fobj.ref_frag_idx_per_edge[fidx],
-                relAO_per_edge=self.fobj.relAO_per_edge[fidx],
-                relAO_in_ref_per_edge=self.fobj.relAO_in_ref_per_edge[fidx],
-                centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
-                    fidx
-                ],
-                relAO_per_origin=self.fobj.relAO_per_origin[fidx],
-                unitcell=self.fobj.unitcell,
-                unitcell_nkpt=self.unitcell_nkpt,
-            )
-
+            fobjs_ = self.fobj.to_Frags(fidx, self.eri_file, self.unitcell_nkpt)
             fobjs_.sd(
                 self.W,
                 self.lmo_coeff,
