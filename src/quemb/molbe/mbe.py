@@ -279,7 +279,7 @@ class BE(MixinLocalize):
         with open(save_file, "wb") as rfile:
             pickle.dump(store_, rfile, pickle.HIGHEST_PROTOCOL)
 
-    def rdm1_fullbasis(
+    def rdm_fullbasis(
         self,
         return_ao=True,
         only_rdm1=False,
