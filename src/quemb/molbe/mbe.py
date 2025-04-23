@@ -14,13 +14,13 @@ from typing_extensions import assert_never
 
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
+from quemb.molbe.eri_sparse_DF import transform_sparse_DF_integral
 from quemb.molbe.fragment import FragPart
 from quemb.molbe.lo import MixinLocalize
 from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
 from quemb.molbe.opt import BEOPT
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
-from quemb.molbe.sparse_2el_integral import transform_sparse_DF_integral
 from quemb.shared.config import settings
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,

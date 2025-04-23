@@ -6,7 +6,7 @@ from pyscf.df import make_auxmol
 from pyscf.gto import M
 from pyscf.lib import einsum
 
-from quemb.molbe.sparse_2el_integral import (
+from quemb.molbe.eri_sparse_DF import (
     SparseInt2,
     _get_sparse_ints_3c2e,
     find_screening_radius,
