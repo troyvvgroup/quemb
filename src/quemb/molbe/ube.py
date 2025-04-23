@@ -174,39 +174,15 @@ class UBE(BE):  # 🍠
 
         file_eri = h5py.File(self.eri_file, "w")
         # alpha orbitals
-        for I in range(self.fobj.n_frag):
-            fobjs_a = Frags(
-                self.fobj.AO_per_frag[I],
-                I,
-                AO_per_edge=self.fobj.AO_per_edge[I],
-                eri_file=self.eri_file,
-                ref_frag_idx_per_edge=self.fobj.ref_frag_idx_per_edge[I],
-                relAO_per_edge=self.fobj.relAO_per_edge[I],
-                relAO_in_ref_per_edge=self.fobj.relAO_in_ref_per_edge[I],
-                centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
-                    I
-                ],
-                relAO_per_origin=self.fobj.relAO_per_origin[I],
-                unrestricted=True,
-            )
-            self.Fobjs_a.append(fobjs_a)
+        self.Fobjs_a = [
+            self.fobj.to_Frags(I, eri_file=self.eri_file, unrestricted=True)
+            for I in range(self.fobj.n_frag)
+        ]
         # beta
-        for I in range(self.fobj.n_frag):
-            fobjs_b = Frags(
-                self.fobj.AO_per_frag[I],
-                I,
-                AO_per_edge=self.fobj.AO_per_edge[I],
-                eri_file=self.eri_file,
-                ref_frag_idx_per_edge=self.fobj.ref_frag_idx_per_edge[I],
-                relAO_per_edge=self.fobj.relAO_per_edge[I],
-                relAO_in_ref_per_edge=self.fobj.relAO_in_ref_per_edge[I],
-                centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
-                    I
-                ],
-                relAO_per_origin=self.fobj.relAO_per_origin[I],
-                unrestricted=True,
-            )
-            self.Fobjs_b.append(fobjs_b)
+        self.Fobjs_b = [
+            self.fobj.to_Frags(I, eri_file=self.eri_file, unrestricted=True)
+            for I in range(self.fobj.n_frag)
+        ]
 
         orb_count_a = []
         orb_count_b = []
