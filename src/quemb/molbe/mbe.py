@@ -690,7 +690,7 @@ class BE(MixinLocalize):
                     "Set only_chem=True"
                 )
             elif (
-                #  The `all_centers_are_origins`` test is not defined for IAOs
+                #  The `all_centers_are_origins` test is not defined for IAOs
                 not self.fobj.iao_valence_basis
                 and self.fobj.n_BE >= 3
                 and not self.fobj.all_centers_are_origins()
