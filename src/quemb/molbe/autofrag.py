@@ -48,9 +48,13 @@ class FragPart:
 
     #: This is a list over fragments  and gives the global orbital indices of all atoms
     #: in the fragment. These are ordered by the atoms in the fragment.
+    #:
+    #: When using IAOs this refers to the large/working basis.
     AO_per_frag: ListOverFrag[list[GlobalAOIdx]]
 
     #: The global orbital indices, including hydrogens, per edge per fragment.
+    #:
+    #: When using IAOs this refers to the valence/small basis.
     AO_per_edge: ListOverFrag[ListOverEdge[list[GlobalAOIdx]]]
 
     #: Reference fragment index per edge:
@@ -63,17 +67,23 @@ class FragPart:
 
     #: The relative orbital indices, including hydrogens, per edge per fragment.
     #: The index is relative to the own fragment.
+    #:
+    #: When using IAOs this refers to the valence/small basis.
     relAO_per_edge: ListOverFrag[ListOverEdge[list[RelAOIdx]]]
 
     #: The relative atomic orbital indices per edge per fragment.
     #: **Note** for this variable relative means that the AO indices
     #: are relative to the other fragment where the edge is a center.
+    #:
+    #: When using IAOs this refers to the valence/small basis.
     relAO_in_ref_per_edge: ListOverFrag[ListOverEdge[list[RelAOIdxInRef]]]
 
     #: List whose entries are lists containing the relative orbital index of the
     #: origin site within a fragment. Relative is to the own fragment.
     #  Since the origin site is at the beginning
     #: of the motif list for each fragment, this is always a ``list(range(0, n))``
+    #:
+    #: When using IAOs this refers to the valence/small basis.
     relAO_per_origin: ListOverFrag[list[RelAOIdx]]
 
     #: The first element is a float, the second is the list
@@ -81,7 +91,9 @@ class FragPart:
     #: everywhere anyway. We concentrate only on the second part,
     #: i.e. the list of indices.
     #: This is a list whose entries are sequences containing the relative orbital index
-    #  of the center sites within a fragment. Relative is to the own fragment.
+    #: of the center sites within a fragment. Relative is to the own fragment.
+    #:
+    #: When using IAOs this refers to the large/working basis.
     centerweight_and_relAO_per_center: ListOverFrag[tuple[float, list[RelAOIdx]]]
 
     #: The motifs/heavy atoms in each fragment, in order.
@@ -136,6 +148,10 @@ class FragPart:
         return self.n_frag
 
     def all_centers_are_origins(self) -> bool:
+        if self.iao_valence_basis:
+            raise ValueError("Test is only defined if IAO is not used.")
+            # This is because relAO_per_center uses the large basis
+            # and relAO_per_origin the small/valence basis
         return all(
             relAO_per_center == relAO_per_origin
             for (_, relAO_per_center), relAO_per_origin in zip(
