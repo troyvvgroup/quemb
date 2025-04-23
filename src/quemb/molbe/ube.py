@@ -184,10 +184,9 @@ class UBE(BE):  # 🍠
             for I in range(self.fobj.n_frag)
         ]
 
-        orb_count_a = []
-        orb_count_b = []
-
-        all_noccs = []
+        orb_count_a = [(frag.n_f, frag.n_b) for frag in self.Fobjs_a]
+        orb_count_b = [(frag.n_f, frag.n_b) for frag in self.Fobjs_b]
+        all_noccs = [self.Nocc for _ in range(self.fobj.n_frag)]
 
         for I in range(self.fobj.n_frag):
             fobj_a = self.Fobjs_a[I]
@@ -196,47 +195,37 @@ class UBE(BE):  # 🍠
             if self.frozen_core:
                 fobj_a.core_veff = self.core_veff[0]
                 fobj_b.core_veff = self.core_veff[1]
-                orb_count_a.append(
-                    fobj_a.sd(
-                        self.W[0],
-                        self.lmo_coeff_a,
-                        self.Nocc[0],
-                        return_orb_count=True,
-                        thr_bath=self.thr_bath,
-                    )
+                fobj_a.sd(
+                    self.W[0],
+                    self.lmo_coeff_a,
+                    self.Nocc[0],
+                    return_orb_count=True,
+                    thr_bath=self.thr_bath,
                 )
-                orb_count_b.append(
-                    fobj_b.sd(
-                        self.W[1],
-                        self.lmo_coeff_b,
-                        self.Nocc[1],
-                        return_orb_count=True,
-                        thr_bath=self.thr_bath,
-                    )
+                fobj_b.sd(
+                    self.W[1],
+                    self.lmo_coeff_b,
+                    self.Nocc[1],
+                    return_orb_count=True,
+                    thr_bath=self.thr_bath,
                 )
             else:
                 fobj_a.core_veff = None
                 fobj_b.core_veff = None
-                orb_count_a.append(
-                    fobj_a.sd(
-                        self.W,
-                        self.lmo_coeff_a,
-                        self.Nocc[0],
-                        return_orb_count=True,
-                        thr_bath=self.thr_bath,
-                    )
+                fobj_a.sd(
+                    self.W,
+                    self.lmo_coeff_a,
+                    self.Nocc[0],
+                    return_orb_count=True,
+                    thr_bath=self.thr_bath,
                 )
-                orb_count_b.append(
-                    fobj_b.sd(
-                        self.W,
-                        self.lmo_coeff_b,
-                        self.Nocc[1],
-                        return_orb_count=True,
-                        thr_bath=self.thr_bath,
-                    )
+                fobj_b.sd(
+                    self.W,
+                    self.lmo_coeff_b,
+                    self.Nocc[1],
+                    return_orb_count=True,
+                    thr_bath=self.thr_bath,
                 )
-
-            all_noccs.append(self.Nocc)
 
             if eri_ is None and self.mf.with_df is not None:
                 # NOT IMPLEMENTED: should not be called, as no unrestricted DF tested
