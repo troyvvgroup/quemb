@@ -689,7 +689,12 @@ class BE(MixinLocalize):
                     "BE1 only works with chemical potential optimization. "
                     "Set only_chem=True"
                 )
-            elif self.fobj.n_BE >= 3 and not self.fobj.all_centers_are_origins():
+            elif (
+                #  The `all_centers_are_origins` test is not defined for IAOs
+                not self.fobj.iao_valence_basis
+                and self.fobj.n_BE >= 3
+                and not self.fobj.all_centers_are_origins()
+            ):
                 raise ValueError(
                     "BE3 currently does not work with matching conditions, if there "
                     "are centers that are not origins.\n"
