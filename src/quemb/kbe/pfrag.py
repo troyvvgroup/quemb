@@ -32,6 +32,7 @@ from quemb.shared.typing import (
     RelAOIdx,
     RelAOIdxInRef,
     SeqOverEdge,
+    Tensor3D,
 )
 
 
@@ -139,7 +140,7 @@ class Frags:
         self.eri_file = eri_file
         self.pot = None
         self.ebe_hf0 = 0.0
-        self.rdm1_lo_k = None
+        self.rdm1_lo_k: Tensor3D[float64]
 
     def sd(
         self,
@@ -152,7 +153,7 @@ class Frags:
         kpts=None,
         kmesh=None,
         h1=None,
-    ):
+    ) -> None:
         """
         Perform Schmidt decomposition for the fragment.
 
@@ -186,7 +187,8 @@ class Frags:
             raise ValueError(f"Imaginary density in Full SD {max_val}")
 
         Sites = [i + (nlo * 0) for i in self.AO_in_frag]
-        if not frag_type == "autogen":
+        # TODO: Discuss with Minsik
+        if frag_type != "autogen":
             Sites.sort()
 
         TA_R = schmidt_decomp_svd(supcell_rdm, Sites, thr_bath=thr_bath)
