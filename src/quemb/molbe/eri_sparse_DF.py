@@ -989,11 +989,14 @@ def transform_sparse_DF_integral(
     Fobjs: Sequence[Frags],
     file_eri_handler: h5py.File,
     auxbasis: str | None = None,
+    screen_radius: Mapping[str, float] | None = None,
 ) -> None:
     mol = mf.mol
     auxmol = addons.make_auxmol(mf.mol, auxbasis=auxbasis)
+    if screen_radius is None:
+        screen_radius = find_screening_radius(mol, auxmol, threshold=1e-4)
     sparse_ints_3c2e, sparse_df_coef = get_sparse_DF_integrals(
-        mol, auxmol, find_screening_radius(mol, auxmol, threshold=1e-11)
+        mol, auxmol, screen_radius
     )
     ints_mu_nu_P = sparse_ints_3c2e.to_dense()
     ints_2c2e = auxmol.intor("int2c2e")
@@ -1015,5 +1018,3 @@ def transform_sparse_DF_integral(
         file_eri_handler.create_dataset(
             Fobjs[fragidx].dname, data=restore("4", eri, len(eri))
         )
-
-    return df_eri
