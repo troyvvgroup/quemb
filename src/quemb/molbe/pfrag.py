@@ -76,8 +76,8 @@ class Frags:
 
         self.AO_per_frag = AO_per_frag
         self.n_frag = len(AO_per_frag)
-        self.TA: Matrix[float64] | None = None
-        self.TA_lo_eo: Matrix[float64] | None = None
+        self.TA: Matrix[float64]
+        self.TA_lo_eo: Matrix[float64]
         self.h1 = None
         self.ifrag = ifrag
         if unrestricted:

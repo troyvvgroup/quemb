@@ -905,7 +905,6 @@ class BE(MixinLocalize):
                     self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis
                 )
                 eri = None
-                raise NotImplementedError
             else:
                 assert_never(int_transform)
         else:

@@ -16,6 +16,7 @@ from numba.types import (  # type: ignore[attr-defined]
     UniTuple,
 )
 from pyscf import df, gto, scf
+from pyscf.ao2mo.addons import restore
 from pyscf.df import addons
 from pyscf.gto import Mole
 from pyscf.gto.moleintor import getints
@@ -26,7 +27,7 @@ from scipy.optimize import bisect
 from quemb.molbe.chemfrag import (
     _get_AOidx_per_atom,
 )
-from quemb.molbe.fragment import FragPart
+from quemb.molbe.pfrag import Frags
 from quemb.shared.helper import jitclass, njit, ravel, ravel_symmetric
 from quemb.shared.typing import (
     AOIdx,
@@ -985,8 +986,34 @@ def find_screening_radius(
 
 def transform_sparse_DF_integral(
     mf: scf.hf.SCF,
-    Fobjs: FragPart,
+    Fobjs: Sequence[Frags],
     file_eri_handler: h5py.File,
     auxbasis: str | None = None,
 ) -> None:
-    pass
+    mol = mf.mol
+    auxmol = addons.make_auxmol(mf.mol, auxbasis=auxbasis)
+    sparse_ints_3c2e, sparse_df_coef = get_sparse_DF_integrals(
+        mol, auxmol, find_screening_radius(mol, auxmol, threshold=1e-11)
+    )
+    ints_mu_nu_P = sparse_ints_3c2e.to_dense()
+    ints_2c2e = auxmol.intor("int2c2e")
+
+    ints_i_j_P = []
+
+    for fragidx, fragobj in enumerate(Fobjs):
+        int_mu_i_P = fragobj.TA.T @ ints_mu_nu_P
+        ints_i_j_P.append(fragobj.TA.T @ np.moveaxis(int_mu_i_P, 1, 0))
+
+    Ds_i_j_P = [solve(ints_2c2e, int_i_j_P.T).T for int_i_j_P in ints_i_j_P]
+
+    df_eri = [
+        einsum("ijP,klP->ijkl", ints, df_coef)
+        for ints, df_coef in zip(ints_i_j_P, Ds_i_j_P)
+    ]
+
+    for fragidx, eri in enumerate(df_eri):
+        file_eri_handler.create_dataset(
+            Fobjs[fragidx].dname, data=restore("4", eri, len(eri))
+        )
+
+    return df_eri
