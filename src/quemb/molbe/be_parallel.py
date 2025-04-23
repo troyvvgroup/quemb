@@ -24,7 +24,6 @@ from quemb.molbe.solver import (
     solve_mp2,
     solve_uccsd,
 )
-from quemb.shared.external.ccsd_rdm import make_rdm1_uccsd, make_rdm2_uccsd
 from quemb.shared.external.unrestricted_utils import make_uhf_obj
 from quemb.shared.helper import unused
 from quemb.shared.manage_scratch import WorkDir
@@ -289,7 +288,6 @@ def run_solver_u(
     relax_density=False,
     frozen=False,
     use_cumulant=True,
-    ereturn=True,
 ):
     """
     Run a quantum chemistry solver to compute the reduced density matrices.
@@ -312,8 +310,6 @@ def run_solver_u(
         If True, uses frozen core, defaults to False
     use_cumulant : bool, optional
         If True, uses the cumulant approximation for RDM2. Default is True.
-    ereturn : bool, optional
-        If True, return the computed energy. Defaults to False.
 
     Returns
     -------
@@ -328,20 +324,15 @@ def run_solver_u(
     full_uhf, eris = make_uhf_obj(fobj_a, fobj_b, frozen=frozen)
 
     if solver == "UCCSD":
-        if relax_density:
-            ucc, rdm1_tmp, rdm2s = solve_uccsd(
-                full_uhf,
-                eris,
-                relax=relax_density,
-                rdm_return=True,
-                rdm2_return=True,
-                frozen=frozen,
-            )
-        else:
-            ucc = solve_uccsd(
-                full_uhf, eris, relax=relax_density, rdm_return=False, frozen=frozen
-            )
-            rdm1_tmp = make_rdm1_uccsd(ucc, relax=relax_density)
+        ucc, rdm1_tmp, rdm2s = solve_uccsd(
+            full_uhf,
+            eris,
+            relax=relax_density,
+            use_cumulant=use_cumulant,
+            rdm_return=True,
+            rdm2_return=True,
+            frozen=frozen,
+        )
     else:
         raise NotImplementedError("Only UCCSD Solver implemented")
 
@@ -358,40 +349,36 @@ def run_solver_u(
     )
 
     # Calculate Energies
-    if ereturn:
-        if solver == "UCCSD" and not relax_density:
-            rdm2s = make_rdm2_uccsd(ucc, with_dm1=not use_cumulant)
+    fobj_a.rdm2__ = rdm2s[0].copy()
+    fobj_b.rdm2__ = rdm2s[1].copy()
 
-        fobj_a.rdm2__ = rdm2s[0].copy()
-        fobj_b.rdm2__ = rdm2s[1].copy()
-
-        # Calculate energy on a per-fragment basis
-        if frozen:
-            h1_ab = [
-                full_uhf.h1[0] + full_uhf.full_gcore[0] + full_uhf.core_veffs[0],
-                full_uhf.h1[1] + full_uhf.full_gcore[1] + full_uhf.core_veffs[1],
-            ]
-        else:
-            h1_ab = [fobj_a.h1, fobj_b.h1]
-        e_f = get_frag_energy_u(
-            (fobj_a._mo_coeffs, fobj_b._mo_coeffs),
-            (fobj_a.nsocc, fobj_b.nsocc),
-            (fobj_a.n_frag, fobj_b.n_frag),
-            (
-                fobj_a.centerweight_and_relAO_per_center,
-                fobj_b.centerweight_and_relAO_per_center,
-            ),
-            (fobj_a.TA, fobj_b.TA),
-            h1_ab,
-            hf_veff,
-            rdm1_tmp,
-            rdm2s,
-            fobj_a.dname,
-            eri_file=fobj_a.eri_file,
-            gcores=full_uhf.full_gcore,
-            frozen=frozen,
-        )
-        return e_f
+    # Calculate energy on a per-fragment basis
+    if frozen:
+        h1_ab = [
+            full_uhf.h1[0] + full_uhf.full_gcore[0] + full_uhf.core_veffs[0],
+            full_uhf.h1[1] + full_uhf.full_gcore[1] + full_uhf.core_veffs[1],
+        ]
+    else:
+        h1_ab = [fobj_a.h1, fobj_b.h1]
+    e_f = get_frag_energy_u(
+        (fobj_a._mo_coeffs, fobj_b._mo_coeffs),
+        (fobj_a.nsocc, fobj_b.nsocc),
+        (fobj_a.n_frag, fobj_b.n_frag),
+        (
+            fobj_a.centerweight_and_relAO_per_center,
+            fobj_b.centerweight_and_relAO_per_center,
+        ),
+        (fobj_a.TA, fobj_b.TA),
+        h1_ab,
+        hf_veff,
+        rdm1_tmp,
+        rdm2s,
+        fobj_a.dname,
+        eri_file=fobj_a.eri_file,
+        gcores=full_uhf.full_gcore,
+        frozen=frozen,
+    )
+    return e_f
 
 
 def be_func_parallel(
@@ -612,7 +599,6 @@ def be_func_parallel_u(
                     relax_density,
                     frozen,
                     use_cumulant,
-                    True,
                 ],
             )
             results.append(result)

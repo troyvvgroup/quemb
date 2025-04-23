@@ -522,7 +522,6 @@ def be_func_u(
     enuc,  # noqa: ARG001
     hf_veff=None,
     eeval=False,
-    ereturn=False,
     relax_density=False,
     use_cumulant=True,
     frozen=False,
@@ -548,8 +547,6 @@ def be_func_u(
         Hartree-Fock effective potential. Defaults to None.
     eeval : bool, optional
         Whether to evaluate the energy. Defaults to False.
-    ereturn : bool, optional
-        Whether to return the energy. Defaults to False.
     relax_density : bool, optional
         Whether to relax the density. Defaults to False.
     return_vec : bool, optional
@@ -605,7 +602,7 @@ def be_func_u(
             multi_dot((fobj_b._mf.mo_coeff, rdm1_tmp[1], fobj_b._mf.mo_coeff.T)) * 0.5
         )
 
-        if eeval or ereturn:
+        if eeval:
             if solver == "UCCSD" and not relax_density:
                 rdm2s = make_rdm2_uccsd(ucc, with_dm1=not use_cumulant)
             fobj_a.rdm2__ = rdm2s[0].copy()
@@ -974,8 +971,8 @@ def solve_uccsd(
     frozen=None,
     relax=False,
     use_cumulant=True,
-    rdm2_return=False,
     rdm_return=False,
+    rdm2_return=False,
     verbose=0,
 ):
     """
@@ -998,10 +995,10 @@ def solve_uccsd(
         Whether to use relaxed density matrices. Defaults to False.
     use_cumulant : bool, optional
         Whether to use cumulant-based energy expression. Defaults to True.
-    rdm2_return : bool, optional
-        Whether to return the two-particle density matrix. Defaults to False.
     rdm_return : bool, optional
         Whether to return the one-particle density matrix. Defaults to False.
+    rdm2_return : bool, optional
+        Whether to return the two-particle density matrix. Defaults to False.
     verbose : int, optional
         Verbosity level. Defaults to 0.
 
