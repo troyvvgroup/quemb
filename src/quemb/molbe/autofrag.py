@@ -47,7 +47,7 @@ class FragPart:
     #: This is a list over fragments  and gives the global orbital indices of all atoms
     #: in the fragment. These are ordered by the atoms in the fragment.
     #:
-    #: When using IAOs this refers to the large basis.
+    #: When using IAOs this refers to the large/working basis.
     AO_per_frag: ListOverFrag[list[GlobalAOIdx]]
 
     #: The global orbital indices, including hydrogens, per edge per fragment.
@@ -91,7 +91,7 @@ class FragPart:
     #: This is a list whose entries are sequences containing the relative orbital index
     #: of the center sites within a fragment. Relative is to the own fragment.
     #:
-    #: When using IAOs this refers to the large basis.
+    #: When using IAOs this refers to the large/working basis.
     centerweight_and_relAO_per_center: ListOverFrag[tuple[float, list[RelAOIdx]]]
 
     #: The motifs/heavy atoms in each fragment, in order.
