@@ -318,7 +318,7 @@ def be_func(
                 )
             else:
                 # currently passing mycc: likely unnecessary
-                fobj.t1, fobj.t2.rdm1_tmp, _ = solve_ccsd(  # mycc
+                fobj.t1, fobj.t2, rdm1_tmp, _ = solve_ccsd(  # mycc
                     fobj._mf,
                     mo_energy=fobj._mf.mo_energy,
                     relax=relax_density,
