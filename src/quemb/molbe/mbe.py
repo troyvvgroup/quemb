@@ -20,6 +20,7 @@ from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
 from quemb.molbe.opt import BEOPT
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
+from quemb.molbe.sparse_2el_integral import transform_sparse_DF_integral
 from quemb.shared.config import settings
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
@@ -894,6 +895,11 @@ class BE(MixinLocalize):
                 # Calculate ERIs on-the-fly to generate fragment ERIs
                 # TODO: Future feature to be implemented
                 # NOTE: Ideally, we want AO shell pair screening for this.
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                transform_sparse_DF_integral(
+                    self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis
+                )
+                eri = None
                 raise NotImplementedError
             else:
                 assert_never(int_transform)

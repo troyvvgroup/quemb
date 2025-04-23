@@ -5,6 +5,7 @@ from collections.abc import Callable, Collection, Iterator, Mapping, Sequence, S
 from itertools import chain, takewhile
 from typing import Final, TypeVar, cast
 
+import h5py
 import numpy as np
 from chemcoord import Cartesian
 from numba import float64, int64, prange, uint64  # type: ignore[attr-defined]
@@ -14,7 +15,7 @@ from numba.types import (  # type: ignore[attr-defined]
     ListType,
     UniTuple,
 )
-from pyscf import df, gto
+from pyscf import df, gto, scf
 from pyscf.df import addons
 from pyscf.gto import Mole
 from pyscf.gto.moleintor import getints
@@ -25,6 +26,7 @@ from scipy.optimize import bisect
 from quemb.molbe.chemfrag import (
     _get_AOidx_per_atom,
 )
+from quemb.molbe.fragment import FragPart
 from quemb.shared.helper import jitclass, njit, ravel, ravel_symmetric
 from quemb.shared.typing import (
     AOIdx,
@@ -979,3 +981,12 @@ def find_screening_radius(
             * scale_factor
             for atom in atoms
         }
+
+
+def transform_sparse_DF_integral(
+    mf: scf.hf.SCF,
+    Fobjs: FragPart,
+    file_eri_handler: h5py.File,
+    auxbasis: str | None = None,
+) -> None:
+    pass
