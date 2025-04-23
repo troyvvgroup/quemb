@@ -322,6 +322,7 @@ def be_func(
                     fobj._mf,
                     mo_energy=fobj._mf.mo_energy,
                     relax=relax_density,
+                    use_cumulant=use_cumulant,
                     rdm_return=True,
                     rdm2_return=False,
                 )
@@ -881,7 +882,7 @@ def solve_ccsd(
             else:
                 rdm2s = make_rdm2_urlx(t1, t2, with_dm1=not use_cumulant)
             return (t1, t2, rdm1a, rdm2s)
-        # change to (t1, t2, rdm1a) ?
+
         return (t1, t2, rdm1a, mycc)
 
     return (t1, t2)
