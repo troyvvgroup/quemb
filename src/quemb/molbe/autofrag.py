@@ -143,7 +143,7 @@ class FragPart:
             )
         )
 
-    def to_Frags(self, I: int, eri_file: PathLike) -> Frags:
+    def to_Frags(self, I: int, eri_file: PathLike, unrestricted: bool = False) -> Frags:
         return Frags(
             self.AO_per_frag[I],
             I,
@@ -154,6 +154,7 @@ class FragPart:
             relAO_in_ref_per_edge=self.relAO_in_ref_per_edge[I],
             centerweight_and_relAO_per_center=self.centerweight_and_relAO_per_center[I],
             relAO_per_origin=self.relAO_per_origin[I],
+            unrestricted=unrestricted,
         )
 
 

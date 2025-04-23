@@ -108,7 +108,7 @@ class Frags:
         self.TA_lo_eo: Matrix[float64] | None = None
 
         self.h1 = None
-        self.nao = None
+        self.nao: int
         self.mo_coeffs = None
         self._mo_coeffs = None
         self.nsocc = None
@@ -136,7 +136,14 @@ class Frags:
         self.dm0 = None
         self.unitcell_nkpt = 1.0
 
-    def sd(self, lao, lmo, nocc, thr_bath, norb=None, return_orb_count=False):
+    def sd(
+        self,
+        lao: Matrix[float64],
+        lmo: Matrix[float64],
+        nocc: int,
+        thr_bath: float,
+        norb: int | None = None,
+    ) -> None:
         """
         Perform Schmidt decomposition for the fragment.
 
@@ -154,24 +161,16 @@ class Frags:
             Specify number of bath orbitals.
             Used for UBE, where different number of alpha and beta orbitals
             Default is None, allowing orbitals to be chosen by threshold
-        return_orb_count : bool, optional
-            Retrun the number of orbitals in each space, for UBE use/
-            Default is False
         """
-
-        TA, n_f, n_b = schmidt_decomposition(
+        self.TA_lo_eo, self.n_f, self.n_b = schmidt_decomposition(
             lmo,
             nocc,
             self.AO_in_frag,
             thr_bath=thr_bath,
             norb=norb,
         )
-        self.C_lo_eo = TA
-        TA = lao @ TA
-        self.nao = TA.shape[1]
-        self.TA = TA
-        if return_orb_count:
-            return [n_f, n_b]
+        self.TA = lao @ self.TA_lo_eo
+        self.nao = self.TA.shape[1]
 
     def cons_fock(self, hf_veff, S, dm, eri_=None):
         """
