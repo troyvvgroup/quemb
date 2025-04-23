@@ -25,7 +25,6 @@ from quemb.kbe.pfrag import Frags as pFrags
 from quemb.molbe.helper import get_frag_energy, get_frag_energy_u
 from quemb.molbe.pfrag import Frags
 from quemb.shared.external.ccsd_rdm import (
-    make_rdm1_ccsd_t1,
     make_rdm1_uccsd,
     make_rdm2_uccsd,
     make_rdm2_urlx,
@@ -267,10 +266,8 @@ def be_func(
         Number of processors. Defaults to 4. This is only neccessary for 'SHCI' solver
     eeval :
         Whether to evaluate the energy. Defaults to False.
-    ereturn :
-        Whether to return the energy. Defaults to False.
     relax_density :
-        Whether to relax the density. Defaults to False.
+        Whether to use the relaxed CCSD density matrix. Defaults to False.
     return_vec :
         Whether to return the error vector. Defaults to False.
     use_cumulant :
@@ -306,21 +303,28 @@ def be_func(
         assert fobj._mf is not None
         if solver == "MP2":
             fobj._mc = solve_mp2(fobj._mf, mo_energy=fobj._mf.mo_energy)
+            rdm1_tmp = fobj._mc.make_rdm1()
+            if eeval:
+                rdm2s = fobj._mc.make_rdm2()
         elif solver == "CCSD":
-            if relax_density:
+            if eeval:
                 fobj.t1, fobj.t2, rdm1_tmp, rdm2s = solve_ccsd(
                     fobj._mf,
                     mo_energy=fobj._mf.mo_energy,
-                    relax=True,
+                    relax=relax_density,
                     use_cumulant=use_cumulant,
-                    rdm2_return=True,
                     rdm_return=True,
+                    rdm2_return=True,
                 )
             else:
-                fobj.t1, fobj.t2 = solve_ccsd(
-                    fobj._mf, mo_energy=fobj._mf.mo_energy, rdm_return=False
+                # currently passing mycc: likely unnecessary
+                fobj.t1, fobj.t2.rdm1_tmp, _ = solve_ccsd(  # mycc
+                    fobj._mf,
+                    mo_energy=fobj._mf.mo_energy,
+                    relax=relax_density,
+                    rdm_return=True,
+                    rdm2_return=False,
                 )
-                rdm1_tmp = make_rdm1_ccsd_t1(fobj.t1)
 
         elif solver == "FCI":
             mc = fci.FCI(fobj._mf, fobj._mf.mo_coeff)
@@ -442,9 +446,6 @@ def be_func(
         else:
             raise ValueError("Solver not implemented")
 
-        if solver == "MP2":
-            assert fobj._mc is not None
-            rdm1_tmp = fobj._mc.make_rdm1()
         fobj.rdm1__ = rdm1_tmp.copy()
 
         assert fobj.mo_coeffs is not None
@@ -452,7 +453,6 @@ def be_func(
             multi_dot(
                 (
                     fobj.mo_coeffs,
-                    # fobj._mc.make_rdm1(),
                     rdm1_tmp,
                     fobj.mo_coeffs.T,
                 ),
@@ -461,12 +461,7 @@ def be_func(
         )
 
         if eeval:
-            if solver == "CCSD" and not relax_density:
-                rdm2s = make_rdm2_urlx(fobj.t1, fobj.t2, with_dm1=not use_cumulant)
-            elif solver == "MP2":
-                assert fobj._mc is not None
-                rdm2s = fobj._mc.make_rdm2()
-            elif solver == "FCI":
+            if solver == "FCI":
                 rdm2s = mc.make_rdm2(civec, mc.norb, mc.nelec)
                 if use_cumulant:
                     assert fobj.nsocc is not None
@@ -778,11 +773,10 @@ def solve_ccsd(
     mo_coeff=None,
     relax=False,
     use_cumulant=True,
-    with_dm1=True,
+    rdm_return=False,
     rdm2_return=False,
     mo_occ=None,
     mo_energy=None,
-    rdm_return=False,
     verbose=0,
 ):
     """
@@ -803,18 +797,17 @@ def solve_ccsd(
     relax : bool, optional
         Whether to use relaxed density matrices. Defaults to False.
     use_cumulant : bool, optional
-        Whether to use cumulant-based energy expression. Defaults to True.
-    with_dm1 : bool, optional
-        Whether to include one-particle density matrix in the two-particle
-        density matrix calculation. Defaults to True.
+        Whether to use cumulant-based energy expression. When using the cumulant, the
+        one-particle density matrix is not included in the two-particle density matrix
+        calculation (with_dm1 = False). Defaults to True.
+    rdm_return : bool, optional
+        Whether to return the one-particle density matrix. Defaults to False.
     rdm2_return : bool, optional
         Whether to return the two-particle density matrix. Defaults to False.
     mo_occ : numpy.ndarray, optional
         Molecular orbital occupations. Defaults to None.
     mo_energy : numpy.ndarray, optional
         Molecular orbital energies. Defaults to None.
-    rdm_return : bool, optional
-        Whether to return the one-particle density matrix. Defaults to False.
     verbose : int, optional
         Verbosity level. Defaults to 0.
 
@@ -866,6 +859,7 @@ def solve_ccsd(
     # Compute and return the density matrices if requested
     if rdm_return:
         if not relax:
+            # use PySCF function to make unrelaxed RDMs
             l1 = zeros_like(t1)
             l2 = zeros_like(t2)
             rdm1a = cc.ccsd_rdm.make_rdm1(mycc, t1, t2, l1, l2)
@@ -873,17 +867,21 @@ def solve_ccsd(
             rdm1a = mycc.make_rdm1(with_frozen=False)
 
         if rdm2_return:
-            rdm2s = make_rdm2(
-                mycc,
-                mycc.t1,
-                mycc.t2,
-                mycc.l1,
-                mycc.l2,
-                with_frozen=False,
-                ao_repr=False,
-                with_dm1=with_dm1 and not use_cumulant,
-            )
+            if relax:
+                rdm2s = make_rdm2(
+                    mycc,
+                    t1,
+                    t2,
+                    mycc.l1,
+                    mycc.l2,
+                    with_frozen=False,
+                    ao_repr=False,
+                    with_dm1=not use_cumulant,
+                )
+            else:
+                rdm2s = make_rdm2_urlx(t1, t2, with_dm1=not use_cumulant)
             return (t1, t2, rdm1a, rdm2s)
+        # change to (t1, t2, rdm1a) ?
         return (t1, t2, rdm1a, mycc)
 
     return (t1, t2)
