@@ -422,10 +422,8 @@ class BondConnectivity:
             for idx, bond in connectivity.bonds_atoms.items():
                 bonds_atoms.update(
                     {
-                        idx % cell.natm: set(
-                            [bonded % cell.natm for bonded in bond]
-                            + list(bonds_atoms.get(idx % cell.natm, set()))
-                        )
+                        idx % cell.natm: {bonded % cell.natm for bonded in bond}
+                        | bonds_atoms.get(idx % cell.natm, set())
                     }
                 )
         return cls.from_cartesian(
