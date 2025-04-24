@@ -1,5 +1,7 @@
 # Author(s): Oinam Romesh Meitei
 
+from typing import Literal
+from warnings import warn
 
 from attrs import define, field
 from pyscf.pbc.gto.cell import Cell
@@ -7,36 +9,87 @@ from pyscf.pbc.gto.cell import Cell
 from quemb.kbe.autofrag import autogen
 from quemb.molbe.chemfrag import ChemGenArgs, chemgen
 from quemb.molbe.helper import get_core
+from quemb.shared.typing import (
+    FragmentIdx,
+    GlobalAOIdx,
+    ListOverEdge,
+    ListOverFrag,
+    RelAOIdx,
+    RelAOIdxInRef,
+)
 
 
-@define
+@define(kw_only=True)
 class FragPart:
     unitcell: int
     mol: Cell
     frag_type: str
-    fsites: list
-    edge_sites: list
-    center: list
-    ebe_weight: list
-    edge_idx: list
-    center_idx: list
-    centerf_idx: list
+    #: This is a list over fragments  and gives the global orbital indices of all atoms
+    #: in the fragment. These are ordered by the atoms in the fragment.
+    #:
+    #: When using IAOs this refers to the large/working basis.
+    AO_per_frag: ListOverFrag[list[GlobalAOIdx]]
+
+    #: The global orbital indices, including hydrogens, per edge per fragment.
+    #:
+    #: When using IAOs this refers to the valence/small basis.
+    AO_per_edge: ListOverFrag[ListOverEdge[list[GlobalAOIdx]]]
+
+    #: Reference fragment index per edge:
+    #: A list over fragments: list of indices of the fragments in which an edge
+    #: of the fragment is actually a center.
+    #: The edge will be matched against this center.
+    #: For fragments A, B: the A’th element of :python:`.center`,
+    #: if the edge of A is the center of B, will be B.
+    ref_frag_idx_per_edge: ListOverFrag[ListOverEdge[FragmentIdx]]
+
+    #: The first element is a float, the second is the list
+    #: The float weight makes only sense for democratic matching and is currently 1.0
+    #: everywhere anyway. We concentrate only on the second part,
+    #: i.e. the list of indices.
+    #: This is a list whose entries are sequences containing the relative orbital index
+    #: of the center sites within a fragment. Relative is to the own fragment.
+    #:
+    #: When using IAOs this refers to the large/working basis.
+    centerweight_and_relAO_per_center: ListOverFrag[tuple[float, list[RelAOIdx]]]
+
+    #: The relative orbital indices, including hydrogens, per edge per fragment.
+    #: The index is relative to the own fragment.
+    #:
+    #: When using IAOs this refers to the valence/small basis.
+    relAO_per_edge: ListOverFrag[ListOverEdge[list[RelAOIdx]]]
+
+    #: The relative atomic orbital indices per edge per fragment.
+    #: **Note** for this variable relative means that the AO indices
+    #: are relative to the other fragment where the edge is a center.
+    #:
+    #: When using IAOs this refers to the valence/small basis.
+    relAO_in_ref_per_edge: ListOverFrag[ListOverEdge[list[RelAOIdxInRef]]]
+
+    #: List whose entries are lists containing the relative orbital index of the
+    #: origin site within a fragment. Relative is to the own fragment.
+    #  Since the origin site is at the beginning
+    #: of the motif list for each fragment, this is always a ``list(range(0, n))``
+    #:
+    #: When using IAOs this refers to the valence/small basis.
+    relAO_per_origin: ListOverFrag[list[RelAOIdx]]
+
     n_BE: int
     natom: int
     frozen_core: bool
     self_match: bool
     allcen: bool
-    iao_valence_basis: str
+    iao_valence_basis: str | None
     kpt: list[int] | tuple[int, int, int]
 
-    Nfrag: int = field(init=False)
+    n_frag: int = field(init=False)
     ncore: int | None = field(init=False)
     no_core_idx: list[int] | None = field(init=False)
     core_list: list[int] | None = field(init=False)
 
-    @Nfrag.default
-    def _get_default_Nfrag(self) -> int:
-        return len(self.fsites)
+    @n_frag.default
+    def _get_default_n_frag(self) -> int:
+        return len(self.AO_per_frag)
 
     @ncore.default
     def _get_default_ncore(self) -> int | None:
@@ -51,35 +104,44 @@ class FragPart:
         return get_core(self.mol)[2] if self.frozen_core else None
 
     def __len__(self) -> int:
-        return self.Nfrag
+        return self.n_frag
+
+    def all_centers_are_origins(self) -> bool:
+        if self.iao_valence_basis:
+            raise ValueError("Test is only defined if IAO is not used.")
+            # This is because relAO_per_center uses the large basis
+            # and relAO_per_origin the small/valence basis
+        return all(
+            relAO_per_center == relAO_per_origin
+            for (_, relAO_per_center), relAO_per_origin in zip(
+                self.centerweight_and_relAO_per_center, self.relAO_per_origin
+            )
+        )
 
 
 def fragmentate(
     mol: Cell,
     kpt: list[int] | tuple[int, int, int],
     *,
-    natom=0,
-    frag_type="autogen",
-    unitcell=1,
-    gamma_2d=False,
-    gamma_1d=False,
-    interlayer=False,
-    long_bond=False,
-    perpend_dist=4.0,
-    perpend_dist_tol=1e-3,
-    nx=False,
-    ny=False,
-    nz=False,
-    iao_valence_basis=None,
+    natom: int = 0,
+    frag_type: Literal["autogen"] = "autogen",
+    unitcell: int = 1,
+    gamma_2d: bool = False,
+    gamma_1d: bool = False,
+    interlayer: bool = False,
+    long_bond: bool = False,
+    perpend_dist: float = 4.0,
+    perpend_dist_tol: float = 1e-3,
+    nx: bool = False,
+    ny: bool = False,
+    nz: bool = False,
+    iao_valence_basis: str | None = None,
     n_BE: int = 2,
-    frozen_core=False,
-    self_match=False,
-    allcen=True,
-    print_frags=True,
-    write_geom=False,
-    frag_prefix="f",
-    additional_args=None,
-):
+    frozen_core: bool = False,
+    self_match: bool = False,
+    allcen: bool = True,
+    print_frags: bool = True,
+) -> FragPart:
     """Fragment/partitioning definition
 
     Interfaces the main fragmentation function (autogen) in MolBE.
@@ -125,13 +187,13 @@ def fragmentate(
             raise ValueError("Provide kpt mesh in fragmentate() and restart!")
 
         (
-            fsites,
-            edge_sites,
-            center,
-            edge_idx,
-            center_idx,
-            centerf_idx,
-            ebe_weight,
+            AO_per_frag,
+            AO_per_edge,
+            ref_frag_idx_per_edge,
+            relAO_per_edge,
+            relAO_in_ref_per_edge,
+            relAO_per_origin,
+            centerweight_and_relAO_per_center,
         ) = autogen(
             mol,
             kpt,
@@ -156,13 +218,13 @@ def fragmentate(
             unitcell=unitcell,
             mol=mol,
             frag_type=frag_type,
-            fsites=fsites,
-            edge_sites=edge_sites,
-            center=center,
-            ebe_weight=ebe_weight,
-            edge_idx=edge_idx,
-            center_idx=center_idx,
-            centerf_idx=centerf_idx,
+            AO_per_frag=AO_per_frag,
+            AO_per_edge=AO_per_edge,
+            ref_frag_idx_per_edge=ref_frag_idx_per_edge,
+            centerweight_and_relAO_per_center=centerweight_and_relAO_per_center,
+            relAO_per_edge=relAO_per_edge,
+            relAO_in_ref_per_edge=relAO_in_ref_per_edge,
+            relAO_per_origin=relAO_per_origin,
             n_BE=n_BE,
             natom=natom,
             frozen_core=frozen_core,
@@ -198,14 +260,14 @@ def fragmentate(
             unitcell=unitcell,
             mol=mol,
             frag_type=frag_type,
-            fsites=mol_fragments.fsites,
-            edge_sites=mol_fragments.edge_sites,
-            center=mol_fragments.center,
-            ebe_weight=mol_fragments.ebe_weight,
-            edge_idx=mol_fragments.edge_idx,
-            center_idx=mol_fragments.center_idx,
-            centerf_idx=mol_fragments.centerf_idx,
-            n_BE=mol_fragments.n_BE,
+            AO_per_frag=molecular_FragPart.AO_per_frag,
+            AO_per_edge=molecular_FragPart.AO_per_edge,
+            ref_frag_idx_per_edge=molecular_FragPart.ref_frag_idx_per_edge,
+            centerweight_and_relAO_per_center=molecular_FragPart.centerweight_and_relAO_per_center,
+            relAO_per_edge=molecular_FragPart.relAO_per_edge,
+            relAO_in_ref_per_edge=molecular_FragPart.relAO_in_ref_per_edge,
+            relAO_per_origin=molecular_FragPart.relAO_per_origin,
+            n_BE=molecular_FragPart.n_BE,
             natom=natom,
             frozen_core=frozen_core,
             iao_valence_basis=iao_valence_basis,

@@ -9,6 +9,7 @@ from numpy import (
     diag_indices,
     einsum,
     eye,
+    float64,
     outer,
     trace,
     tril_indices,
@@ -18,6 +19,7 @@ from numpy import (
 from numpy.linalg import eigh, multi_dot
 
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
+from quemb.shared.typing import Matrix
 
 
 class Frags:
@@ -30,55 +32,56 @@ class Frags:
 
     def __init__(
         self,
-        fsites,
-        ifrag,
-        edge=None,
-        center=None,
-        edge_idx=None,
-        center_idx=None,
-        efac=None,
+        AO_per_frag,
+        ifrag: int,
+        AO_per_edge=None,
+        ref_frag_idx_per_edge=None,
+        relAO_per_edge=None,
+        relAO_in_ref_per_edge=None,
+        centerweight_and_relAO_per_center=None,
         eri_file="eri_file.h5",
-        centerf_idx=None,
+        relAO_per_origin=None,
         unrestricted=False,
     ):
         """Constructor function for :python:`Frags` class.
 
         Parameters
         ----------
-        fsites : list
-            list of AOs in the fragment (i.e. BE.fsites[i] or FragPart.fsites[i])
+        AO_per_frag : list
+            list of AOs in the fragment (i.e. ``BE.AO_per_frag[i]``
+            or ``FragPart.AO_per_frag[i]``)
         ifrag : int
-            fragment index (∈ [0, BE.Nfrag])
+            fragment index (∈ [0, BE.n_frag - 1])
         edge : list, optional
             list of lists of edge site AOs for each atom in the fragment,
             by default None
-        center : list, optional
+        ref_frag_idx_per_edge : list, optional
             list of fragment indices where edge site AOs are center site,
             by default None
-        edge_idx : list, optional
+        relAO_per_edge : list, optional
             list of lists of indices for edge site AOs within the fragment,
             by default None
-        center_idx : list, optional
+        relAO_in_ref_per_edge: list, optional
             list of lists of indices within the fragment specified in :python:`center`
             that points to the edge site AOs , by default None
-        efac : list, optional
-            weight used for energy contributions, by default None
+        centerweight_and_relAO_per_center : list, optional
+            weight used for energy contributions and the indices, by default None
         eri_file : str, optional
             two-electron integrals stored as h5py file, by default 'eri_file.h5'
-        centerf_idx : list, optional
+        relAO_per_origin : list, optional
             indices of the center site atoms in the fragment, by default None
         unrestricted : bool, optional
             unrestricted calculation, by default False
         """
 
-        self.fsites = fsites
-        self.nfsites = len(fsites)
-        self.TA = None
-        self.TA_lo_eo = None
+        self.AO_per_frag = AO_per_frag
+        self.n_frag = len(AO_per_frag)
+        self.TA: Matrix[float64] | None = None
+        self.TA_lo_eo: Matrix[float64] | None = None
         self.h1 = None
         self.ifrag = ifrag
         if unrestricted:
-            self.dname = [
+            self.dname: str | list[str] = [
                 "f" + str(ifrag) + "/aa",
                 "f" + str(ifrag) + "/bb",
                 "f" + str(ifrag) + "/ab",
@@ -96,13 +99,13 @@ class Frags:
         self.t1 = None
         self.t2 = None
 
-        self.heff = None
-        self.edge = edge
-        self.center = center
-        self.edge_idx = edge_idx
-        self.center_idx = center_idx
-        self.centerf_idx = centerf_idx
-        self.udim = None
+        self.heff: Matrix[float64] | None = None
+        self.AO_per_edge = AO_per_edge
+        self.ref_frag_idx_per_edge = ref_frag_idx_per_edge
+        self.relAO_per_edge = relAO_per_edge
+        self.relAO_in_ref_per_edge = relAO_in_ref_per_edge
+        self.relAO_per_origin = relAO_per_origin
+        self.udim: int | None = None
 
         self._rdm1 = None
         self.rdm1__ = None
@@ -111,7 +114,7 @@ class Frags:
         self.genvs = None
         self.ebe = 0.0
         self.ebe_hf = 0.0
-        self.efac = efac
+        self.centerweight_and_relAO_per_center = centerweight_and_relAO_per_center
         self.fock = None
         self.veff = None
         self.veff0 = None
@@ -147,32 +150,19 @@ class Frags:
             TA, n_f, n_b = schmidt_decomposition(
                 lmo,
                 nocc,
-                self.fsites,
+                self.AO_per_frag,
                 thr_bath=thr_bath,
                 norb=norb,
                 return_orb_count=return_orb_count,
             )
         else:
-            TA = schmidt_decomposition(lmo, nocc, self.fsites, thr_bath=thr_bath)
+            TA = schmidt_decomposition(lmo, nocc, self.AO_per_frag, thr_bath=thr_bath)
         self.C_lo_eo = TA
         TA = lao @ TA
         self.nao = TA.shape[1]
         self.TA = TA
         if return_orb_count:
             return [n_f, n_b]
-
-    def cons_h1(self, h1):
-        """
-        Construct the one-electron Hamiltonian for the fragment.
-
-        Parameters
-        ----------
-        h1 : numpy.ndarray
-            One-electron Hamiltonian matrix.
-        """
-
-        h1_tmp = multi_dot((self.TA.T, h1, self.TA))
-        self.h1 = h1_tmp
 
     def cons_fock(self, hf_veff, S, dm, eri_=None):
         """
@@ -281,7 +271,6 @@ class Frags:
             self.mo_coeffs = mf_.mo_coeff.copy()
         else:
             self._mo_coeffs = mf_.mo_coeff.copy()
-        mf_ = None
 
     def update_heff(self, u, cout=None, only_chem=False):
         """Update the effective Hamiltonian for the fragment."""
@@ -290,15 +279,15 @@ class Frags:
         if cout is None:
             cout = self.udim
 
-        for i, fi in enumerate(self.fsites):
-            if not any(i in sublist for sublist in self.edge_idx):
+        for i, fi in enumerate(self.AO_per_frag):
+            if not any(i in sublist for sublist in self.relAO_per_edge):
                 heff_[i, i] -= u[-1]
 
         if only_chem:
             self.heff = heff_
             return
         else:
-            for i in self.edge_idx:
+            for i in self.relAO_per_edge:
                 for j in range(len(i)):
                     for k in range(len(i)):
                         if j > k:  # or j==k:
@@ -312,7 +301,7 @@ class Frags:
             self.heff = heff_
 
     def set_udim(self, cout):
-        for i in self.edge_idx:
+        for i in self.relAO_per_edge:
             for j in range(len(i)):
                 for k in range(len(i)):
                     if j > k:
@@ -338,13 +327,13 @@ class Frags:
         unrestricted_fac = 1.0 if unrestricted else 2.0
 
         e1 = unrestricted_fac * einsum(
-            "ij,ij->i", self.h1[: self.nfsites], rdm_hf[: self.nfsites]
+            "ij,ij->i", self.h1[: self.n_frag], rdm_hf[: self.n_frag]
         )
 
         ec = (
             0.5
             * unrestricted_fac
-            * einsum("ij,ij->i", self.veff[: self.nfsites], rdm_hf[: self.nfsites])
+            * einsum("ij,ij->i", self.veff[: self.n_frag], rdm_hf[: self.n_frag])
         )
 
         if self.TA.ndim == 3:
@@ -352,14 +341,14 @@ class Frags:
         else:
             jmax = self.TA.shape[1]
         if eri is None:
-            with h5py.File(self.eri_file, "r") as r:
+            with h5py.File(self.eri_file, "r") as f:
                 if isinstance(self.dname, list):
-                    eri = [r[self.dname[0]][()], r[self.dname[1]][()]]
+                    eri = [f[self.dname[0]][()], f[self.dname[1]][()]]
                 else:
-                    eri = r[self.dname][()]
+                    eri = f[self.dname][()]
 
         e2 = zeros_like(e1)
-        for i in range(self.nfsites):
+        for i in range(self.n_frag):
             for j in range(jmax):
                 ij = i * (i + 1) // 2 + j if i > j else j * (j + 1) // 2 + i
                 Gij = (2.0 * rdm_hf[i, j] * rdm_hf - outer(rdm_hf[i], rdm_hf[j]))[
@@ -367,9 +356,8 @@ class Frags:
                 ]
                 Gij[diag_indices(jmax)] *= 0.5
                 Gij += Gij.T
-                if (
-                    unrestricted
-                ):  # unrestricted ERI file has 3 spin components: a, b, ab
+                # unrestricted ERI file has 3 spin components: a, b, ab
+                if unrestricted:
                     e2[i] += (
                         0.5
                         * unrestricted_fac
@@ -381,17 +369,17 @@ class Frags:
 
         e_ = e1 + e2 + ec
         etmp = 0.0
-        for i in self.efac[1]:
-            etmp += self.efac[0] * e_[i]
+        for i in self.centerweight_and_relAO_per_center[1]:
+            etmp += self.centerweight_and_relAO_per_center[0] * e_[i]
 
         self.ebe_hf = etmp
 
         if return_e:
             e_h1 = 0.0
             e_coul = 0.0
-            for i in self.efac[1]:
-                e_h1 += self.efac[0] * e1[i]
-                e_coul += self.efac[0] * (e2[i] + ec[i])
+            for i in self.centerweight_and_relAO_per_center[1]:
+                e_h1 += self.centerweight_and_relAO_per_center[0] * e1[i]
+                e_coul += self.centerweight_and_relAO_per_center[0] * (e2[i] + ec[i])
             return (e_h1, e_coul, e1 + e2 + ec)
         else:
             return None

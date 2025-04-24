@@ -17,6 +17,7 @@ from warnings import warn
 
 import h5py
 from numpy import array, einsum, zeros_like
+from numpy.linalg import multi_dot
 from pyscf import ao2mo
 from pyscf.scf.uhf import UHF
 
@@ -40,6 +41,7 @@ class UBE(BE):  # 🍠
         lo_method: PathLike = "lowdin",
         pop_method: str | None = None,
         compute_hf: bool = True,
+        thr_bath: float = 1.0e-10,
     ) -> None:
         """Initialize Unrestricted BE Object (ube🍠)
 
@@ -63,8 +65,11 @@ class UBE(BE):  # 🍠
         pop_method :
             Method for calculating orbital population, by default 'meta-lowdin'
             See pyscf.lo for more details and options
+        thr_bath : float,
+            Threshold for bath orbitals in Schmidt decomposition
         """
         self.unrestricted = True
+        self.thr_bath = thr_bath
 
         self.fobj = fobj
 
@@ -94,7 +99,7 @@ class UBE(BE):  # 🍠
         self.Fobjs_a: list[Frags] = []
         self.Fobjs_b: list[Frags] = []
 
-        self.pot = initialize_pot(self.fobj.Nfrag, self.fobj.edge_idx)
+        self.pot = initialize_pot(self.fobj.n_frag, self.fobj.relAO_per_edge)
 
         self.eri_file = Path(eri_file)
         self.ek = 0.0
@@ -168,63 +173,71 @@ class UBE(BE):  # 🍠
         ECOUL = 0.0
 
         file_eri = h5py.File(self.eri_file, "w")
-        lentmp = len(self.fobj.edge_idx)
+        lentmp = len(self.fobj.relAO_per_edge)
 
         # alpha orbitals
-        for I in range(self.fobj.Nfrag):
+        for I in range(self.fobj.n_frag):
             if lentmp:
                 fobjs_a = Frags(
-                    self.fobj.fsites[I],
+                    self.fobj.AO_per_frag[I],
                     I,
-                    edge=self.fobj.edge_sites[I],
+                    AO_per_edge=self.fobj.AO_per_edge[I],
                     eri_file=self.eri_file,
-                    center=self.fobj.center[I],
-                    edge_idx=self.fobj.edge_idx[I],
-                    center_idx=self.fobj.center_idx[I],
-                    efac=self.fobj.ebe_weight[I],
-                    centerf_idx=self.fobj.centerf_idx[I],
+                    ref_frag_idx_per_edge=self.fobj.ref_frag_idx_per_edge[I],
+                    relAO_per_edge=self.fobj.relAO_per_edge[I],
+                    relAO_in_ref_per_edge=self.fobj.relAO_in_ref_per_edge[I],
+                    centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
+                        I
+                    ],
+                    relAO_per_origin=self.fobj.relAO_per_origin[I],
                     unrestricted=True,
                 )
             else:
                 fobjs_a = Frags(
-                    self.fobj.fsites[I],
+                    self.fobj.AO_per_frag[I],
                     I,
-                    edge=[],
-                    center=[],
+                    AO_per_edge=[],
+                    ref_frag_idx_per_edge=[],
                     eri_file=self.eri_file,
-                    edge_idx=[],
-                    center_idx=[],
-                    centerf_idx=[],
-                    efac=self.fobj.ebe_weight[I],
+                    relAO_per_edge=[],
+                    relAO_in_ref_per_edge=[],
+                    relAO_per_origin=[],
+                    centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
+                        I
+                    ],
                     unrestricted=True,
                 )
             self.Fobjs_a.append(fobjs_a)
         # beta
-        for I in range(self.fobj.Nfrag):
+        for I in range(self.fobj.n_frag):
             if lentmp:
                 fobjs_b = Frags(
-                    self.fobj.fsites[I],
+                    self.fobj.AO_per_frag[I],
                     I,
-                    edge=self.fobj.edge_sites[I],
+                    AO_per_edge=self.fobj.AO_per_edge[I],
                     eri_file=self.eri_file,
-                    center=self.fobj.center[I],
-                    edge_idx=self.fobj.edge_idx[I],
-                    center_idx=self.fobj.center_idx[I],
-                    efac=self.fobj.ebe_weight[I],
-                    centerf_idx=self.fobj.centerf_idx[I],
+                    ref_frag_idx_per_edge=self.fobj.ref_frag_idx_per_edge[I],
+                    relAO_per_edge=self.fobj.relAO_per_edge[I],
+                    relAO_in_ref_per_edge=self.fobj.relAO_in_ref_per_edge[I],
+                    centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
+                        I
+                    ],
+                    relAO_per_origin=self.fobj.relAO_per_origin[I],
                     unrestricted=True,
                 )
             else:
                 fobjs_b = Frags(
-                    self.fobj.fsites[I],
+                    self.fobj.AO_per_frag[I],
                     I,
-                    edge=[],
-                    center=[],
+                    AO_per_edge=[],
+                    ref_frag_idx_per_edge=[],
                     eri_file=self.eri_file,
-                    edge_idx=[],
-                    center_idx=[],
-                    centerf_idx=[],
-                    efac=self.fobj.ebe_weight[I],
+                    relAO_per_edge=[],
+                    relAO_in_ref_per_edge=[],
+                    relAO_per_origin=[],
+                    centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
+                        I
+                    ],
                     unrestricted=True,
                 )
             self.Fobjs_b.append(fobjs_b)
@@ -234,7 +247,7 @@ class UBE(BE):  # 🍠
 
         all_noccs = []
 
-        for I in range(self.fobj.Nfrag):
+        for I in range(self.fobj.n_frag):
             fobj_a = self.Fobjs_a[I]
             fobj_b = self.Fobjs_b[I]
 
@@ -243,12 +256,20 @@ class UBE(BE):  # 🍠
                 fobj_b.core_veff = self.core_veff[1]
                 orb_count_a.append(
                     fobj_a.sd(
-                        self.W[0], self.lmo_coeff_a, self.Nocc[0], return_orb_count=True
+                        self.W[0],
+                        self.lmo_coeff_a,
+                        self.Nocc[0],
+                        return_orb_count=True,
+                        thr_bath=self.thr_bath,
                     )
                 )
                 orb_count_b.append(
                     fobj_b.sd(
-                        self.W[1], self.lmo_coeff_b, self.Nocc[1], return_orb_count=True
+                        self.W[1],
+                        self.lmo_coeff_b,
+                        self.Nocc[1],
+                        return_orb_count=True,
+                        thr_bath=self.thr_bath,
                     )
                 )
             else:
@@ -256,12 +277,20 @@ class UBE(BE):  # 🍠
                 fobj_b.core_veff = None
                 orb_count_a.append(
                     fobj_a.sd(
-                        self.W, self.lmo_coeff_a, self.Nocc[0], return_orb_count=True
+                        self.W,
+                        self.lmo_coeff_a,
+                        self.Nocc[0],
+                        return_orb_count=True,
+                        thr_bath=self.thr_bath,
                     )
                 )
                 orb_count_b.append(
                     fobj_b.sd(
-                        self.W, self.lmo_coeff_b, self.Nocc[1], return_orb_count=True
+                        self.W,
+                        self.lmo_coeff_b,
+                        self.Nocc[1],
+                        return_orb_count=True,
+                        thr_bath=self.thr_bath,
                     )
                 )
 
@@ -294,7 +323,9 @@ class UBE(BE):  # 🍠
             # sab = self.C_a @ self.S @ self.C_b
             _ = fobj_a.get_nsocc(self.S, self.C_a, self.Nocc[0], ncore=self.ncore)
 
-            fobj_a.cons_h1(self.hcore)
+            assert fobj_a.TA is not None
+            fobj_a.h1 = multi_dot((fobj_a.TA.T, self.hcore, fobj_a.TA))
+
             eri_a = ao2mo.restore(8, eri_a, fobj_a.nao)
             fobj_a.cons_fock(self.hf_veff[0], self.S, self.hf_dm[0] * 2.0, eri_=eri_a)
 
@@ -317,7 +348,8 @@ class UBE(BE):  # 🍠
 
             _ = fobj_b.get_nsocc(self.S, self.C_b, self.Nocc[1], ncore=self.ncore)
 
-            fobj_b.cons_h1(self.hcore)
+            assert fobj_b.TA is not None
+            fobj_b.h1 = multi_dot((fobj_b.TA.T, self.hcore, fobj_b.TA))
             eri_b = ao2mo.restore(8, eri_b, fobj_b.nao)
             fobj_b.cons_fock(self.hf_veff[1], self.S, self.hf_dm[1] * 2.0, eri_=eri_b)
             fobj_b.hf_veff = self.hf_veff[1]
@@ -352,7 +384,7 @@ class UBE(BE):  # 🍠
             "____________________________________________________________________",
             flush=True,
         )
-        for I in range(self.fobj.Nfrag):
+        for I in range(self.fobj.n_frag):
             print(
                 "|    {:>2}    | ({:>3},{:>3}) |   ({:>3},{:>3})   | ({:>3},{:>3}) |   ({:>3},{:>3})   |".format(  # noqa: E501
                     I,
@@ -437,12 +469,12 @@ class UBE(BE):  # 🍠
         )
 
 
-def initialize_pot(Nfrag, edge_idx):
+def initialize_pot(n_frag, relAO_per_edge):
     pot_ = []
 
-    if not len(edge_idx) == 0:
-        for I in range(Nfrag):
-            for i in edge_idx[I]:
+    if relAO_per_edge:
+        for I in range(n_frag):
+            for i in relAO_per_edge[I]:
                 for j in range(len(i)):
                     for k in range(len(i)):
                         if j > k:

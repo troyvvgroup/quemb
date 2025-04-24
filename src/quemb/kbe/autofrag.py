@@ -288,27 +288,6 @@ def autogen(
     long_bond : bool
         For systems with longer than 1.8 Angstrom covalent bond,
         set this to True otherwise the fragmentation might fail.
-
-
-    Returns
-    -------
-    fsites : list of list of int
-        List of fragment sites where each fragment is a list of LO indices.
-    edgsites : list of list of list of int
-        List of edge sites for each fragment where each edge is a list of LO indices.
-    center : list of list of int
-        List of center indices for each edge.
-    edge_idx : list of list of list of int
-        List of edge indices for each fragment where each edge index is a list of
-        LO indices.
-    center_idx : list of list of list of int
-        List of center indices for each fragment where each center index is a list of
-        LO indices.
-    centerf_idx : list of list of int
-        List of center fragment indices.
-    ebe_weight : list of list
-        Weights for each fragment. Each entry contains a weight and a list of LO
-        indices.
     """
     if not float(unitcell).is_integer():
         raise ValueError("Fractional unitcell is not supported!")
@@ -1984,10 +1963,10 @@ def autogen(
         maxH = max([j for i in hsites for j in i])
         max_site = max(max_site, maxH)
 
-    fsites = []
-    edge_sites = []
-    edge_idx = []
-    centerf_idx = []
+    AO_per_frag = []
+    AO_per_edge = []
+    relAO_per_edge = []
+    relAO_per_origin = []
     edge = []
 
     nkcon = True
@@ -2164,12 +2143,12 @@ def autogen(
 
         ls = len(sites__[cen[idx]]) + len(hsites[cen[idx]])
         if not pao:
-            centerf_idx.append([pq for pq in range(indix, indix + ls)])
+            relAO_per_origin.append([pq for pq in range(indix, indix + ls)])
         else:
             cntlist = sites__[cen[idx]].copy()[: nbas2[cen[idx]]]
             cntlist.extend(hsites[cen[idx]][: nbas2H[cen[idx]]])
             ind__ = [indix + frglist.index(pq) for pq in cntlist]
-            centerf_idx.append(ind__)
+            relAO_per_origin.append(ind__)
         indix += ls
 
         for jdx in pedge[idx]:
@@ -2338,41 +2317,46 @@ def autogen(
             indix += ls
 
         edge.append(edg)
-        fsites.append(ftmp)
-        edge_sites.append(ftmpe)
-        edge_idx.append(edind)
+        AO_per_frag.append(ftmp)
+        AO_per_edge.append(ftmpe)
+        relAO_per_edge.append(edind)
 
-    center = []
+    ref_frag_idx_per_edge = []
     for ix in edge:
         cen_ = []
         for jx in ix:
             cen_.append(cen.index(jx))
-        center.append(cen_)
+        ref_frag_idx_per_edge.append(cen_)
 
-    Nfrag = len(fsites)
-    ebe_weight = []
+    n_frag = len(AO_per_frag)
+    centerweight_and_relAO_per_center = []
     # Use IAO+PAO for computing energy
-    for ix, i in enumerate(fsites):
+    for ix, i in enumerate(AO_per_frag):
         tmp_ = [i.index(pq) for pq in sites__[cen[ix]]]
         tmp_.extend([i.index(pq) for pq in hsites[cen[ix]]])
-        ebe_weight.append([1.0, tmp_])
+        centerweight_and_relAO_per_center.append([1.0, tmp_])
 
-    # Center of a fragment are defined in cen[idx]
-    # center[[idx,jdx]] defines fragments idx,jdx who's cen[idx],cen[jdx] \\
-    # centers are matched to the edges.
-    center_idx = []
-    for i in range(Nfrag):
+    relAO_in_ref_per_edge = []
+    for i in range(n_frag):
         idx = []
-        for j in center[i]:
+        for j in ref_frag_idx_per_edge[i]:
             if not pao:
                 cntlist = sites__[cen[j]].copy()
                 cntlist.extend(hsites[cen[j]])
-                idx.append([fsites[j].index(k) for k in cntlist])
+                idx.append([AO_per_frag[j].index(k) for k in cntlist])
             else:
                 cntlist = sites__[cen[j]].copy()[: nbas2[cen[j]]]
                 cntlist.extend(hsites[cen[j]][: nbas2H[cen[j]]])
-                idx.append([fsites[j].index(k) for k in cntlist])
+                idx.append([AO_per_frag[j].index(k) for k in cntlist])
 
-        center_idx.append(idx)
+        relAO_in_ref_per_edge.append(idx)
 
-    return (fsites, edge_sites, center, edge_idx, center_idx, centerf_idx, ebe_weight)
+    return (
+        AO_per_frag,
+        AO_per_edge,
+        ref_frag_idx_per_edge,
+        relAO_per_edge,
+        relAO_in_ref_per_edge,
+        relAO_per_origin,
+        centerweight_and_relAO_per_center,
+    )

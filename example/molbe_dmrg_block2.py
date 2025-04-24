@@ -52,7 +52,7 @@ for a in seps:
 
     # Next, run BE-DMRG with default parameters and maxM=100.
     mybe.oneshot(
-        solver="block2",  # or 'DMRG', 'DMRGSCF', 'DMRGCI'
+        solver="DMRG",  # or 'block2', 'DMRGSCF', 'DMRGCI'
         solver_args=DMRG_ArgsUser(
             maxM=100,  # Max fragment bond dimension
             force_cleanup=True,  # Remove all fragment DMRG tmpfiles
@@ -98,7 +98,7 @@ mybe = BE(mf, fobj, lo_method="pipek-mezey", pop_method="lowdin")
 # to the Fiedler vector procedure, along with a few other tweaks:
 
 mybe.optimize(
-    solver="block2",  # or 'DMRG', 'DMRGSCF', 'DMRGCI'
+    solver="DMRG",  # or 'block2', 'DMRGSCF', 'DMRGCI'
     max_iter=60,  # Max number of sweeps
     only_chem=True,
     solver_args=DMRG_ArgsUser(
@@ -123,7 +123,7 @@ schedule: dict[str, list[int] | list[float]] = {
 
 # and pass it to the fragment solver through `schedule_kwargs`:
 mybe.optimize(
-    solver="block2",
+    solver="DMRG",
     only_chem=True,
     solver_args=DMRG_ArgsUser(
         schedule_kwargs=schedule,
