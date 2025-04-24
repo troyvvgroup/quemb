@@ -954,14 +954,44 @@ def find_screening_radius(
 
 
 @njit
-def contract_with_TA(
+def _first_contract_with_TA(
     TA: Matrix[np.float64], int_mu_nu_P: SemiSparseSym3DTensor
 ) -> MutableSemiSparse3DTensor:
-    g = MutableSemiSparse3DTensor((TA.shape[0], TA.shape[1], int_mu_nu_P.naux))
+    assert TA.shape[0] == int_mu_nu_P.nao
+    g = MutableSemiSparse3DTensor((int_mu_nu_P.nao, TA.shape[1], int_mu_nu_P.naux))
+
+    for mu in range(g.shape[0]):
+        for i in range(g.shape[1]):
+            tmp = np.zeros(int_mu_nu_P.naux, dtype="f8")
+            for nu in int_mu_nu_P.exch_reachable[mu]:
+                tmp += TA[nu, i] * int_mu_nu_P[mu, nu]
+
+            if np.abs(tmp).sum() > 1e-10:
+                g[mu, i] = tmp
     return g
 
 
-def transform_sparse_DF_integral(
+# @njit
+# def _second_contract_with_TA(
+#     TA: Matrix[np.float64], int_mu_i_P: MutableSemiSparse3DTensor
+# ) -> MutableSemiSparse3DTensor:
+#     assert TA.shape[0] == int_mu_i_P.shape[0]
+#     assert TA.shape[1] == int_mu_i_P.shape[1]
+
+#     g = MutableSemiSparse3DTensor((TA.shape[1], TA.shape[1], int_mu_i_P.naux))
+
+#     for i in range(g.shape[0]):
+#         for j in range(g.shape[1]):
+#             tmp = np.zeros(int_mu_i_P.naux, dtype="f8")
+#             for nu in int_mu_i_P. [mu]:
+#                 tmp += TA[nu, i] * int_mu_nu_P[mu, nu]
+
+#             if np.abs(tmp).sum() > 1e-10:
+#                 g[i, j] = tmp
+#     return g
+
+
+def slow_transform_sparse_DF_integral(
     mf: scf.hf.SCF,
     Fobjs: Sequence[Frags],
     file_eri_handler: h5py.File,
