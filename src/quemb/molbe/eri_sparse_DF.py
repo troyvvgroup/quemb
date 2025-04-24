@@ -29,6 +29,7 @@ from quemb.molbe.chemfrag import (
 )
 from quemb.molbe.pfrag import Frags
 from quemb.shared.helper import jitclass, njit, ravel, ravel_symmetric
+from quemb.shared.numba_helpers import SortedIntSet, Type_SortedIntSet
 from quemb.shared.typing import (
     AOIdx,
     AtomIdx,
@@ -325,6 +326,55 @@ class SemiSparseSym3DTensor:
         return ravel_symmetric(a, b)  # type: ignore[return-value]
 
 
+@njit
+def _get_list_of_sortedset(n: int) -> list[SortedIntSet]:
+    L = List.empty_list(Type_SortedIntSet)
+    for _ in range(n):
+        L.append(SortedIntSet())
+    return L
+
+
+_UniTuple_int64_2 = UniTuple(int64, 2)
+
+
+@jitclass(
+    [
+        ("shape", UniTuple(int64, 3)),
+        ("naux", int64),
+        ("_data", DictType(_UniTuple_int64_2, float64[:])),
+        ("exch_reachable_mu", ListType(Type_SortedIntSet)),
+        ("exch_reachable_i", ListType(Type_SortedIntSet)),
+    ]
+)
+class MutSemiSparse3DTensor:
+    def __init__(
+        self,
+        shape,
+    ) -> None:
+        self.shape = shape
+        self.naux = shape[-1]
+        self._data = Dict.empty(_UniTuple_int64_2, float64[:])
+        self.exch_reachable_mu = List.empty_list(Type_SortedIntSet)
+        for _ in range(self.shape[0]):
+            self.exch_reachable_mu.append(SortedIntSet())
+        self.exch_reachable_mu = _get_list_of_sortedset(self.shape[0])
+        self.exch_reachable_i = _get_list_of_sortedset(self.shape[1])
+
+    def __getitem__(self, key):
+        assert key[0] < self.shape[0] and key[1] < self.shape[1]
+        return self._data[key]
+
+    def __setitem__(self, key, value):
+        assert (
+            key[0] < self.shape[0]
+            and key[1] < self.shape[1]
+            and len(value) == self.naux
+        )
+        self._data[key] = value
+        self.exch_reachable_mu[key[0]].add(key[1])
+        self.exch_reachable_i[key[1]].add(key[0])
+
+
 @jitclass(
     [
         ("_keys", int64[::1]),
@@ -338,24 +388,16 @@ class SemiSparse3DTensor:
 
     For a tensor, :math:`T_{ijk}`, to be stored in this datastructure we assume
 
-    - 2-fold permutational symmetry for the :math:`i, j` indices,
-      i.e. :math:`T_{ijk} = T_{jik}`
     - sparsity along the :math:`i, j` indices, i.e. :math:`T_{ijk} = 0`
       for many :math:`i, j`
     - dense storage along the :math:`k` index
 
     It can be used for example to store the 3-center, 2-electron integrals
-    :math:`(\mu \nu | P)`, with AOs :math:`\mu, \nu` and auxiliary basis indices
-    :math:`P`.
+    :math:`(\mu i | P)`, with AOs :math:`\mu`, MOs :math:`i`,
+    and auxiliary basis indices :math:`P`.
     Semi-sparsely, because it is assumed that there are many
     exchange pairs :math:`\mu, \nu` which are zero, while the integral along
     the auxiliary basis :math:`P` is stored densely as numpy array.
-
-    2-fold permutational symmetry for the :math:`\mu, \nu` pairs is assumed, i.e.
-
-    .. math::
-
-        (\mu \nu | P) == (\nu, \mu | P)
 
     Note that this class is immutable which enables to store the unique, non-zero data
     in a dense manner, which has some performance benefits.
@@ -984,6 +1026,12 @@ def find_screening_radius(
         }
 
 
+def contract_with_TA(
+    TA: Matrix[np.float64], int_mu_nu_P: SemiSparseSym3DTensor
+) -> MutSemiSparse3DTensor:
+    pass
+
+
 def transform_sparse_DF_integral(
     mf: scf.hf.SCF,
     Fobjs: Sequence[Frags],
@@ -1004,8 +1052,10 @@ def transform_sparse_DF_integral(
     ints_i_j_P = []
 
     for fragidx, fragobj in enumerate(Fobjs):
-        int_mu_i_P = fragobj.TA.T @ ints_mu_nu_P
-        ints_i_j_P.append(fragobj.TA.T @ np.moveaxis(int_mu_i_P, 1, 0))
+        transf = fragobj.TA.T.copy()
+        transf[np.abs(transf) < 1e-4] = 0.0
+        int_mu_i_P = transf @ ints_mu_nu_P
+        ints_i_j_P.append(transf @ np.moveaxis(int_mu_i_P, 1, 0))
 
     Ds_i_j_P = [solve(ints_2c2e, int_i_j_P.T).T for int_i_j_P in ints_i_j_P]
 
