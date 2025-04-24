@@ -14,8 +14,21 @@ quemb.molbe.sparse\_2el\_integral
    .. autosummary::
       :toctree:
    
-      gauss_sum
-      to_numba_dict
+      account_for_symmetry
+      conversions_AO_shell
+      find_screening_radius
+      get_atom_per_AO
+      get_blocks
+      get_complement
+      get_dense_integrals
+      get_orbs_per_atom
+      get_orbs_reachable_by_atom
+      get_orbs_reachable_by_orb
+      get_reachable
+      get_sparse_DF_integrals
+      identify_contiguous_blocks
+      to_numba_input
+      traverse_nonzero
    
    
 
@@ -27,7 +40,10 @@ quemb.molbe.sparse\_2el\_integral
       :toctree:
       :template: custom-class-template.rst
    
-      TwoElIntegral
+      MutableSemiSparse3DTensor
+      SemiSparse3DTensor
+      SemiSparseSym3DTensor
+      SparseInt2
    
    
 

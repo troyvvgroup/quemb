@@ -22,10 +22,14 @@ quemb.shared.typing
       PathLike
       KwargDict
       T
+      OrbitalIdx
       AOIdx
       GlobalAOIdx
       RelAOIdx
       RelAOIdxInRef
+      MOIdx
+      GlobalMOIdx
+      ShellIdx
       FragmentIdx
       MotifIdx
       CenterIdx

@@ -33,5 +33,6 @@
    helper
    io
    manage_scratch
+   numba_helpers
    typing
 

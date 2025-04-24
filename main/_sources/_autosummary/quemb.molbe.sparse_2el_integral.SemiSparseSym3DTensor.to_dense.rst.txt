@@ -1,0 +1,6 @@
+quemb.molbe.sparse\_2el\_integral.SemiSparseSym3DTensor.to\_dense
+=================================================================
+
+.. currentmodule:: quemb.molbe.sparse_2el_integral
+
+.. automethod:: SemiSparseSym3DTensor.to_dense

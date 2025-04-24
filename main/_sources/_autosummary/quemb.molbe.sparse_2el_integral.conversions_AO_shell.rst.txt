@@ -1,0 +1,6 @@
+quemb.molbe.sparse\_2el\_integral.conversions\_AO\_shell
+========================================================
+
+.. currentmodule:: quemb.molbe.sparse_2el_integral
+
+.. autofunction:: conversions_AO_shell

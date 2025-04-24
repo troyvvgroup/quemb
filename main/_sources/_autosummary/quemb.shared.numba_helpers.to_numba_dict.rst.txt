@@ -1,0 +1,6 @@
+quemb.shared.numba\_helpers.to\_numba\_dict
+===========================================
+
+.. currentmodule:: quemb.shared.numba_helpers
+
+.. autofunction:: to_numba_dict

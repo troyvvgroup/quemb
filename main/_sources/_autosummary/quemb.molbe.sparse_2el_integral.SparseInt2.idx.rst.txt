@@ -1,0 +1,6 @@
+quemb.molbe.sparse\_2el\_integral.SparseInt2.idx
+================================================
+
+.. currentmodule:: quemb.molbe.sparse_2el_integral
+
+.. automethod:: SparseInt2.idx

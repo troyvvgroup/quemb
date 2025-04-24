@@ -1,0 +1,32 @@
+quemb.shared.numba\_helpers
+===========================
+
+.. automodule:: quemb.shared.numba_helpers
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      extend_with
+      merge_dictionaries
+      to_numba_dict
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

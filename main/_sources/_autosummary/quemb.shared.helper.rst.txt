@@ -18,7 +18,15 @@ quemb.shared.helper
       add_init_docstring
       copy_docstring
       delete_multiple_files
+      ensure
+      gauss_sum
+      get_flexible_n_eri
+      jitclass
       ncore_
+      njit
+      ravel
+      ravel_symmetric
+      symmetric_different_size
       unused
    
    
