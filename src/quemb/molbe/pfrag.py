@@ -104,14 +104,14 @@ class Frags:
         else:
             self.dname = "f" + str(ifrag)
 
-        self.TA: Matrix[float64] | None = None
-        self.TA_lo_eo: Matrix[float64] | None = None
+        self.TA: Matrix[float64]
+        self.TA_lo_eo: Matrix[float64]
 
-        self.h1 = None
+        self.h1: Matrix[float64]
         self.nao: int
-        self.mo_coeffs = None
-        self._mo_coeffs = None
-        self.nsocc = None
+        self.mo_coeffs: Matrix[float64]
+        self._mo_coeffs: Matrix[float64]
+        self.nsocc: int
         self._mf = None
         self._mc = None
 
@@ -119,7 +119,7 @@ class Frags:
         self.t1 = None
         self.t2 = None
 
-        self.heff: Matrix[float64] | None = None
+        self.heff: Matrix[float64]
         self.udim: int | None = None
 
         self._rdm1 = None
@@ -133,7 +133,7 @@ class Frags:
         self.veff = None
         self.veff0 = None
         self.dm_init = None
-        self.dm0 = None
+        self.dm0: Matrix[float64]
         self.unitcell_nkpt = 1.0
 
     def sd(
