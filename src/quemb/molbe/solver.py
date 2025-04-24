@@ -2,7 +2,7 @@
 
 import os
 from abc import ABC
-from typing import Final
+from typing import Final, Literal, TypeAlias
 
 from attrs import Factory, define, field
 from numpy import (
@@ -34,6 +34,9 @@ from quemb.shared.external.uccsd_eri import make_eris_incore
 from quemb.shared.external.unrestricted_utils import make_uhf_obj
 from quemb.shared.helper import delete_multiple_files, unused
 from quemb.shared.manage_scratch import WorkDir
+
+Solvers: TypeAlias = Literal["MP2", "CCSD", "FCI", "HCI", "SHCI", "SCI", "DMRG"]
+USolvers: TypeAlias = Literal["UCCSD"]
 
 
 class UserSolverArgs(ABC):
@@ -232,7 +235,7 @@ def be_func(
     pot: list[float] | None,
     Fobjs: list[Frags] | list[pFrags],
     Nocc: int,
-    solver: str,
+    solver: Solvers,
     enuc: float,  # noqa: ARG001
     solver_args: UserSolverArgs | None,
     scratch_dir: WorkDir,
@@ -258,7 +261,7 @@ def be_func(
     Nocc :
         Number of occupied orbitals.
     solver :
-        Quantum chemistry solver to use ('MP2', 'CCSD', 'FCI', 'HCI', 'SHCI', 'SCI').
+        Quantum chemistry solver to use.
     enuc :
         Nuclear energy.
     only_chem :
@@ -522,7 +525,7 @@ def be_func(
 def be_func_u(
     pot,  # noqa: ARG001
     Fobjs: list[tuple[Frags, Frags]],
-    solver,
+    solver: USolvers,
     enuc,  # noqa: ARG001
     hf_veff=None,
     eeval=False,
@@ -544,7 +547,7 @@ def be_func_u(
         zip list of :class:`quemb.molbe.autofrag.FragPart`, alpha and beta
         List of fragment objects. Each element is a tuple with the alpha and
         beta components
-    solver : str
+    solver :
         Quantum chemistry solver to use ('UCCSD').
     enuc : float
         Nuclear energy.

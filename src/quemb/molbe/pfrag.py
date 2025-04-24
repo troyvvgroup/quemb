@@ -164,19 +164,6 @@ class Frags:
         if return_orb_count:
             return [n_f, n_b]
 
-    def cons_h1(self, h1):
-        """
-        Construct the one-electron Hamiltonian for the fragment.
-
-        Parameters
-        ----------
-        h1 : numpy.ndarray
-            One-electron Hamiltonian matrix.
-        """
-
-        h1_tmp = multi_dot((self.TA.T, h1, self.TA))
-        self.h1 = h1_tmp
-
     def cons_fock(self, hf_veff, S, dm, eri_=None):
         """
         Construct the Fock matrix for the fragment.
@@ -284,7 +271,6 @@ class Frags:
             self.mo_coeffs = mf_.mo_coeff.copy()
         else:
             self._mo_coeffs = mf_.mo_coeff.copy()
-        mf_ = None
 
     def update_heff(self, u, cout=None, only_chem=False):
         """Update the effective Hamiltonian for the fragment."""
@@ -355,11 +341,11 @@ class Frags:
         else:
             jmax = self.TA.shape[1]
         if eri is None:
-            with h5py.File(self.eri_file, "r") as r:
+            with h5py.File(self.eri_file, "r") as f:
                 if isinstance(self.dname, list):
-                    eri = [r[self.dname[0]][()], r[self.dname[1]][()]]
+                    eri = [f[self.dname[0]][()], f[self.dname[1]][()]]
                 else:
-                    eri = r[self.dname][()]
+                    eri = f[self.dname][()]
 
         e2 = zeros_like(e1)
         for i in range(self.n_frag):
@@ -370,9 +356,8 @@ class Frags:
                 ]
                 Gij[diag_indices(jmax)] *= 0.5
                 Gij += Gij.T
-                if (
-                    unrestricted
-                ):  # unrestricted ERI file has 3 spin components: a, b, ab
+                # unrestricted ERI file has 3 spin components: a, b, ab
+                if unrestricted:
                     e2[i] += (
                         0.5
                         * unrestricted_fac
