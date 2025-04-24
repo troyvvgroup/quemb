@@ -184,8 +184,6 @@ class UBE(BE):  # 🍠
             for I in range(self.fobj.n_frag)
         ]
 
-        orb_count_a = [(frag.n_f, frag.n_b) for frag in self.Fobjs_a]
-        orb_count_b = [(frag.n_f, frag.n_b) for frag in self.Fobjs_b]
         all_noccs = [self.Nocc for _ in range(self.fobj.n_frag)]
 
         for I in range(self.fobj.n_frag):
@@ -199,14 +197,12 @@ class UBE(BE):  # 🍠
                     self.W[0],
                     self.lmo_coeff_a,
                     self.Nocc[0],
-                    return_orb_count=True,
                     thr_bath=self.thr_bath,
                 )
                 fobj_b.sd(
                     self.W[1],
                     self.lmo_coeff_b,
                     self.Nocc[1],
-                    return_orb_count=True,
                     thr_bath=self.thr_bath,
                 )
             else:
@@ -216,14 +212,12 @@ class UBE(BE):  # 🍠
                     self.W,
                     self.lmo_coeff_a,
                     self.Nocc[0],
-                    return_orb_count=True,
                     thr_bath=self.thr_bath,
                 )
                 fobj_b.sd(
                     self.W,
                     self.lmo_coeff_b,
                     self.Nocc[1],
-                    return_orb_count=True,
                     thr_bath=self.thr_bath,
                 )
 
@@ -300,6 +294,10 @@ class UBE(BE):  # 🍠
                 EH1 += eh1_b
                 ECOUL += ecoul_b
                 E_hf += fobj_b.ebe_hf
+
+        orb_count_a = [(frag.n_f, frag.n_b) for frag in self.Fobjs_a]
+        orb_count_b = [(frag.n_f, frag.n_b) for frag in self.Fobjs_b]
+
         file_eri.close()
 
         print("Number of Orbitals per Fragment:", flush=True)
