@@ -1,7 +1,6 @@
 # Author(s): Oinam Romesh Meitei
 
 from typing import Literal
-from warnings import warn
 
 from attrs import define, field
 from pyscf.pbc.gto.cell import Cell
@@ -141,6 +140,7 @@ def fragmentate(
     self_match: bool = False,
     allcen: bool = True,
     print_frags: bool = True,
+    additional_args: ChemGenArgs | None = None,
 ) -> FragPart:
     """Fragment/partitioning definition
 
@@ -171,9 +171,6 @@ def fragmentate(
         Whether to invoke frozen core approximation. This is set to False by default
     print_frags: bool
         Whether to print out list of resulting fragments. True by default
-    write_geom: bool
-        Whether to write 'fragment.xyz' file which contains all the fragments in
-        cartesian coordinates.
     kpt : list of int
         No. of k-points in each lattice vector direction. This is the same as kmesh.
     interlayer : bool
@@ -181,6 +178,8 @@ def fragmentate(
     long_bond : bool
         For systems with longer than 1.8 Angstrom covalent bond, set this to True
         otherwise the fragmentation might fail.
+    additional_args:
+        Additional arguments for different fragmentation functions.
     """
     if frag_type == "autogen":
         if kpt is None:
@@ -211,7 +210,6 @@ def fragmentate(
             gamma_1d=gamma_1d,
             interlayer=interlayer,
             print_frags=print_frags,
-            write_geom=write_geom,
         )
 
         return FragPart(
@@ -247,8 +245,6 @@ def fragmentate(
             args=additional_args,
             iao_valence_basis=iao_valence_basis,
         )
-        if write_geom:
-            fragments.frag_structure.write_geom(prefix=frag_prefix)
         if print_frags:
             print(fragments.frag_structure.get_string())
         # Once periodic FragPart API is fixed,
@@ -260,14 +256,14 @@ def fragmentate(
             unitcell=unitcell,
             mol=mol,
             frag_type=frag_type,
-            AO_per_frag=molecular_FragPart.AO_per_frag,
-            AO_per_edge=molecular_FragPart.AO_per_edge,
-            ref_frag_idx_per_edge=molecular_FragPart.ref_frag_idx_per_edge,
-            centerweight_and_relAO_per_center=molecular_FragPart.centerweight_and_relAO_per_center,
-            relAO_per_edge=molecular_FragPart.relAO_per_edge,
-            relAO_in_ref_per_edge=molecular_FragPart.relAO_in_ref_per_edge,
-            relAO_per_origin=molecular_FragPart.relAO_per_origin,
-            n_BE=molecular_FragPart.n_BE,
+            AO_per_frag=mol_fragments.AO_per_frag,
+            AO_per_edge=mol_fragments.AO_per_edge,
+            ref_frag_idx_per_edge=mol_fragments.ref_frag_idx_per_edge,
+            centerweight_and_relAO_per_center=mol_fragments.centerweight_and_relAO_per_center,
+            relAO_per_edge=mol_fragments.relAO_per_edge,
+            relAO_in_ref_per_edge=mol_fragments.relAO_in_ref_per_edge,
+            relAO_per_origin=mol_fragments.relAO_per_origin,
+            n_BE=mol_fragments.n_BE,
             natom=natom,
             frozen_core=frozen_core,
             iao_valence_basis=iao_valence_basis,
