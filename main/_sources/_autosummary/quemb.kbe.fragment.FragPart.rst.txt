@@ -44,5 +44,6 @@ quemb.kbe.fragment.FragPart
    
       ~FragPart.__init__
       ~FragPart.all_centers_are_origins
+      ~FragPart.to_Frags
    
    

@@ -213,6 +213,7 @@
 <li class="toctree-l4 has-children"><a class="reference internal" href="quemb.molbe.autofrag.FragPart.html">quemb.molbe.autofrag.FragPart</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><div class="visually-hidden">Toggle navigation of quemb.molbe.autofrag.FragPart</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.autofrag.FragPart.__init__.html">quemb.molbe.autofrag.FragPart.__init__</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.autofrag.FragPart.all_centers_are_origins.html">quemb.molbe.autofrag.FragPart.all_centers_are_origins</a></li>
+<li class="toctree-l5"><a class="reference internal" href="quemb.molbe.autofrag.FragPart.to_Frags.html">quemb.molbe.autofrag.FragPart.to_Frags</a></li>
 </ul>
 </li>
 <li class="toctree-l4 has-children"><a class="reference internal" href="quemb.molbe.autofrag.FragmentMap.html">quemb.molbe.autofrag.FragmentMap</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle navigation of quemb.molbe.autofrag.FragmentMap</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
@@ -459,6 +460,7 @@
 <li class="toctree-l4 has-children"><a class="reference internal" href="quemb.kbe.fragment.FragPart.html">quemb.kbe.fragment.FragPart</a><input class="toctree-checkbox" id="toctree-checkbox-41" name="toctree-checkbox-41" role="switch" type="checkbox"/><label for="toctree-checkbox-41"><div class="visually-hidden">Toggle navigation of quemb.kbe.fragment.FragPart</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l5"><a class="reference internal" href="quemb.kbe.fragment.FragPart.__init__.html">quemb.kbe.fragment.FragPart.__init__</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.kbe.fragment.FragPart.all_centers_are_origins.html">quemb.kbe.fragment.FragPart.all_centers_are_origins</a></li>
+<li class="toctree-l5"><a class="reference internal" href="quemb.kbe.fragment.FragPart.to_Frags.html">quemb.kbe.fragment.FragPart.to_Frags</a></li>
 </ul>
 </li>
 </ul>
@@ -768,7 +770,7 @@
 <h1>quemb.molbe.pfrag.Frags.sd<a class="headerlink" href="#quemb-molbe-pfrag-frags-sd" title="Link to this heading">¶</a></h1>
 <dl class="py method">
 <dt class="sig sig-object py" id="quemb.molbe.pfrag.Frags.sd">
-<span class="sig-prename descclassname"><span class="pre">Frags.</span></span><span class="sig-name descname"><span class="pre">sd</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lao</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lmo</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nocc</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">thr_bath</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">norb</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_orb_count</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#quemb.molbe.pfrag.Frags.sd" title="Link to this definition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">Frags.</span></span><span class="sig-name descname"><span class="pre">sd</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lao</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lmo</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nocc</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">thr_bath</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">norb</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#quemb.molbe.pfrag.Frags.sd" title="Link to this definition">¶</a></dt>
 <dd><p>Perform Schmidt decomposition for the fragment.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -780,9 +782,10 @@
 <li><p><strong>norb</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em>, </em><em>optional</em>) – Specify number of bath orbitals.
 Used for UBE, where different number of alpha and beta orbitals
 Default is None, allowing orbitals to be chosen by threshold</p></li>
-<li><p><strong>return_orb_count</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em>, </em><em>optional</em>) – Retrun the number of orbitals in each space, for UBE use/
-Default is False</p></li>
 </ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.13)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></a></span></p>
 </dd>
 </dl>
 </dd></dl>

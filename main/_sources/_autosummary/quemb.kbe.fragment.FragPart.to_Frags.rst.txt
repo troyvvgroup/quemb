@@ -1,0 +1,6 @@
+quemb.kbe.fragment.FragPart.to\_Frags
+=====================================
+
+.. currentmodule:: quemb.kbe.fragment
+
+.. automethod:: FragPart.to_Frags

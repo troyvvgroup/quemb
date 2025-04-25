@@ -1,0 +1,6 @@
+quemb.molbe.autofrag.FragPart.to\_Frags
+=======================================
+
+.. currentmodule:: quemb.molbe.autofrag
+
+.. automethod:: FragPart.to_Frags
