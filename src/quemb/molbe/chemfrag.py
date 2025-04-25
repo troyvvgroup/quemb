@@ -785,7 +785,7 @@ class PurelyStructureFragmented(Generic[_T_chemsystem]):
         mol = (
             Cartesian.from_pyscf(self.mol)
             if isinstance(self.mol, Mole)
-            else Cartesian(self.mol.to_mol())
+            else Cartesian.from_pyscf(self.mol.to_mol())
         )
         for i_frag, atoms in enumerate(self.atoms_per_frag):
             mol.loc[atoms, :].to_xyz(dir / f"{prefix}{i_frag}.xyz")
@@ -1061,7 +1061,7 @@ class Fragmented(Generic[_T_chemsystem]):
     frozen_core: Final[bool]
 
     #: The molecule with the valence/minimal basis, if we use IAO.
-    iao_valence_mol: Final[Mole | None] = field(
+    iao_valence_mol: _T_chemsystem | None = field(
         eq=cmp_using(
             lambda x, y: (x is None and y is None)
             or (x is not None and y is not None and are_equal(x, y))
