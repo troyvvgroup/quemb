@@ -397,8 +397,8 @@ class BondConnectivity:
             )
             mol.atom = [
                 (element, (coords + offset).tolist())
-                for element, coords in zip(cell.elements, cell.atom_coords(unit="Bohr"))
                 for offset in offsets
+                for element, coords in zip(cell.elements, cell.atom_coords(unit="Bohr"))
             ]
             mol.basis = cell.basis
             mol.build()
