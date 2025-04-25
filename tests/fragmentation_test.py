@@ -1280,11 +1280,13 @@ class TestBE_Fragmentation(unittest.TestCase):
         fobj = fragmentate(frag_type=frag_type, n_BE=n_BE, mol=mf.mol)
         try:
             assert fobj.AO_per_frag == target["AO_per_frag"]
-            assert fobj.AO_per_edge == target["AO_per_edge"]
-            assert fobj.ref_frag_idx_per_edge == target["ref_frag_idx_per_edge"]
-            assert fobj.relAO_per_origin == target["relAO_per_origin"]
+            assert fobj.AO_per_edge_per_frag == target["AO_per_edge"]
             assert (
-                fobj.centerweight_and_relAO_per_center
+                fobj.ref_frag_idx_per_edge_per_frag == target["ref_frag_idx_per_edge"]
+            )
+            assert fobj.relAO_per_origin_per_frag == target["relAO_per_origin"]
+            assert (
+                fobj.weight_and_relAO_per_center_per_frag
                 == target["centerweight_and_relAO_per_center"]
             )
         except AssertionError as e:

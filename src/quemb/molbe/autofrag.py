@@ -55,7 +55,7 @@ class FragPart:
     #: The global orbital indices, including hydrogens, per edge per fragment.
     #:
     #: When using IAOs this refers to the valence/small basis.
-    AO_per_edge: ListOverFrag[ListOverEdge[list[GlobalAOIdx]]]
+    AO_per_edge_per_frag: ListOverFrag[ListOverEdge[list[GlobalAOIdx]]]
 
     #: Reference fragment index per edge:
     #: A list over fragments: list of indices of the fragments in which an edge
@@ -63,20 +63,20 @@ class FragPart:
     #: The edge will be matched against this center.
     #: For fragments A, B: the A’th element of :python:`.center`,
     #: if the edge of A is the center of B, will be B.
-    ref_frag_idx_per_edge: ListOverFrag[ListOverEdge[FragmentIdx]]
+    ref_frag_idx_per_edge_per_frag: ListOverFrag[ListOverEdge[FragmentIdx]]
 
     #: The relative orbital indices, including hydrogens, per edge per fragment.
     #: The index is relative to the own fragment.
     #:
     #: When using IAOs this refers to the valence/small basis.
-    relAO_per_edge: ListOverFrag[ListOverEdge[list[RelAOIdx]]]
+    relAO_per_edge_per_frag: ListOverFrag[ListOverEdge[list[RelAOIdx]]]
 
     #: The relative atomic orbital indices per edge per fragment.
     #: **Note** for this variable relative means that the AO indices
     #: are relative to the other fragment where the edge is a center.
     #:
     #: When using IAOs this refers to the valence/small basis.
-    relAO_in_ref_per_edge: ListOverFrag[ListOverEdge[list[RelAOIdxInRef]]]
+    relAO_in_ref_per_edge_per_frag: ListOverFrag[ListOverEdge[list[RelAOIdxInRef]]]
 
     #: List whose entries are lists containing the relative orbital index of the
     #: origin site within a fragment. Relative is to the own fragment.
@@ -84,7 +84,7 @@ class FragPart:
     #: of the motif list for each fragment, this is always a ``list(range(0, n))``
     #:
     #: When using IAOs this refers to the valence/small basis.
-    relAO_per_origin: ListOverFrag[list[RelAOIdx]]
+    relAO_per_origin_per_frag: ListOverFrag[list[RelAOIdx]]
 
     #: The first element is a float, the second is the list
     #: The float weight makes only sense for democratic matching and is currently 1.0
@@ -94,7 +94,7 @@ class FragPart:
     #: of the center sites within a fragment. Relative is to the own fragment.
     #:
     #: When using IAOs this refers to the large/working basis.
-    centerweight_and_relAO_per_center: ListOverFrag[tuple[float, list[RelAOIdx]]]
+    weight_and_relAO_per_center_per_frag: ListOverFrag[tuple[float, list[RelAOIdx]]]
 
     #: The motifs/heavy atoms in each fragment, in order.
     #: Each are labeled based on the global atom index.
@@ -155,7 +155,8 @@ class FragPart:
         return all(
             relAO_per_center == relAO_per_origin
             for (_, relAO_per_center), relAO_per_origin in zip(
-                self.centerweight_and_relAO_per_center, self.relAO_per_origin
+                self.weight_and_relAO_per_center_per_frag,
+                self.relAO_per_origin_per_frag,
             )
         )
 
@@ -163,13 +164,15 @@ class FragPart:
         return Frags(
             self.AO_per_frag[I],
             I,
-            AO_per_edge=self.AO_per_edge[I],
+            AO_per_edge=self.AO_per_edge_per_frag[I],
             eri_file=eri_file,
-            ref_frag_idx_per_edge=self.ref_frag_idx_per_edge[I],
-            relAO_per_edge=self.relAO_per_edge[I],
-            relAO_in_ref_per_edge=self.relAO_in_ref_per_edge[I],
-            centerweight_and_relAO_per_center=self.centerweight_and_relAO_per_center[I],
-            relAO_per_origin=self.relAO_per_origin[I],
+            ref_frag_idx_per_edge=self.ref_frag_idx_per_edge_per_frag[I],
+            relAO_per_edge=self.relAO_per_edge_per_frag[I],
+            relAO_in_ref_per_edge=self.relAO_in_ref_per_edge_per_frag[I],
+            centerweight_and_relAO_per_center=self.weight_and_relAO_per_center_per_frag[
+                I
+            ],
+            relAO_per_origin=self.relAO_per_origin_per_frag[I],
             unrestricted=unrestricted,
         )
 
@@ -311,13 +314,13 @@ class FragmentMap:
             mol=mol,
             frag_type="graphgen",
             n_BE=n_BE,
-            AO_per_edge=self.AO_per_edge,  # type: ignore[arg-type]
-            relAO_per_edge=MISSING_PER_FRAG,
-            relAO_in_ref_per_edge=MISSING_PER_FRAG,
-            relAO_per_origin=self.relAO_per_origin,  # type: ignore[arg-type]
+            AO_per_edge_per_frag=self.AO_per_edge,  # type: ignore[arg-type]
+            relAO_per_edge_per_frag=MISSING_PER_FRAG,
+            relAO_in_ref_per_edge_per_frag=MISSING_PER_FRAG,
+            relAO_per_origin_per_frag=self.relAO_per_origin,  # type: ignore[arg-type]
             AO_per_frag=self.AO_per_frag,  # type: ignore[arg-type]
-            ref_frag_idx_per_edge=self.ref_frag_idx_per_edge,  # type: ignore[arg-type]
-            centerweight_and_relAO_per_center=self.centerweight_and_relAO_per_center,  # type: ignore[arg-type]
+            ref_frag_idx_per_edge_per_frag=self.ref_frag_idx_per_edge,  # type: ignore[arg-type]
+            weight_and_relAO_per_center_per_frag=self.centerweight_and_relAO_per_center,  # type: ignore[arg-type]
             motifs_per_frag=self.motifs_per_frag,  # type: ignore[arg-type]
             origin_per_frag=self.origin_per_frag,  # type: ignore[arg-type]
             H_per_motif=MISSING,
@@ -1044,12 +1047,12 @@ def autogen(
         frag_type="autogen",
         n_BE=n_BE,
         AO_per_frag=AO_per_frag,
-        AO_per_edge=AO_per_edge,
-        ref_frag_idx_per_edge=ref_frag_idx_per_edge,
-        relAO_per_edge=relAO_per_edge,
-        relAO_in_ref_per_edge=relAO_in_ref_per_edge,
-        relAO_per_origin=relAO_per_origin,
-        centerweight_and_relAO_per_center=centerweight_and_relAO_per_center,
+        AO_per_edge_per_frag=AO_per_edge,
+        ref_frag_idx_per_edge_per_frag=ref_frag_idx_per_edge,
+        relAO_per_edge_per_frag=relAO_per_edge,
+        relAO_in_ref_per_edge_per_frag=relAO_in_ref_per_edge,
+        relAO_per_origin_per_frag=relAO_per_origin,
+        weight_and_relAO_per_center_per_frag=centerweight_and_relAO_per_center,
         motifs_per_frag=motifs_per_frag,
         origin_per_frag=origin_per_frag,
         H_per_motif=H_per_motif,

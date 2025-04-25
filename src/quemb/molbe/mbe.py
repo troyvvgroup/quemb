@@ -197,7 +197,7 @@ class BE(MixinLocalize):
 
         self.print_ini()
         self.Fobjs: list[Frags] = []
-        self.pot = initialize_pot(self.fobj.n_frag, self.fobj.relAO_per_edge)
+        self.pot = initialize_pot(self.fobj.n_frag, self.fobj.relAO_per_edge_per_frag)
 
         if scratch_dir is None:
             self.scratch_dir = WorkDir.from_environment()

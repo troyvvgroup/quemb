@@ -888,14 +888,14 @@ class Fragmented:
 
     #: The atomic orbital indices per edge per fragment.
     #: The AO index is global.
-    AO_per_edge: Final[
+    AO_per_edge_per_frag: Final[
         Sequence[Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[GlobalAOIdx]]]]
     ]
 
     #: The relative atomic orbital indices per motif per fragment.
     #: Relative means that the AO indices are relative to
     #: the **own** fragment.
-    relAO_per_motif: Final[
+    relAO_per_motif_per_frag: Final[
         Sequence[Mapping[MotifIdx, Mapping[AtomIdx, OrderedSet[RelAOIdx]]]]
     ]
 
@@ -905,7 +905,7 @@ class Fragmented:
     #: This variable is a strict subset of :attr:`relAO_per_motif`,
     #: in the sense that the motif indices, the keys in the Mapping,
     #: are restricted to the edges of the fragment.
-    relAO_per_edge: Final[
+    relAO_per_edge_per_frag: Final[
         Sequence[Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[RelAOIdx]]]]
     ]
 
@@ -915,7 +915,7 @@ class Fragmented:
     #: This variable is a subset of :attr:`relAO_per_motif`,
     #: in the sense that the motif indices, the keys in the Mapping,
     #: are restricted to the centers of the fragment.
-    relAO_per_center: Final[
+    relAO_per_center_per_frag: Final[
         Sequence[Mapping[CenterIdx, Mapping[AtomIdx, OrderedSet[RelAOIdx]]]]
     ]
 
@@ -926,14 +926,14 @@ class Fragmented:
     #: in the sense that the motif indices, the keys in the Mapping,
     #: are restricted to the origins of the fragment.
     #: This variable was formerly known as :python:`centerf_idx`.
-    relAO_per_origin: Final[
+    relAO_per_origin_per_frag: Final[
         Sequence[Mapping[OriginIdx, Mapping[AtomIdx, OrderedSet[RelAOIdx]]]]
     ]
 
     #: The relative atomic orbital indices per edge per fragment.
     #: Relative means that the AO indices are relative to the **other**
     #: fragment where the edge is a center.
-    relAO_in_ref_per_edge: Final[
+    relAO_in_ref_per_edge_per_frag: Final[
         Sequence[Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[RelAOIdxInRef]]]]
     ]
 
@@ -1144,13 +1144,13 @@ class Fragmented:
         # (which there is usually only one per fragment).
         relAO_per_origin = [
             union_of_seqs(*idx_per_origin)
-            for idx_per_origin in _extract_values(self.relAO_per_origin)
+            for idx_per_origin in _extract_values(self.relAO_per_origin_per_frag)
         ]
         # A similar issue occurs for ``centerweight_and_relAO_per_center``
         # where we have to form the union.
         centerweight_and_relAO_per_center = [
             (1.0, list(union_of_seqs(*idx_per_center)))
-            for idx_per_center in _extract_values(self.relAO_per_center)
+            for idx_per_center in _extract_values(self.relAO_per_center_per_frag)
         ]
         # Again, we have to account for the fact that
         # autogen assumes a single origin per fragment.
@@ -1163,14 +1163,16 @@ class Fragmented:
             frag_type="chemgen",
             n_BE=self.frag_structure.n_BE,
             AO_per_frag=[list(AO_indices) for AO_indices in self.AO_per_frag],
-            AO_per_edge=_extract_values(self.AO_per_edge),
-            ref_frag_idx_per_edge=[
+            AO_per_edge_per_frag=_extract_values(self.AO_per_edge_per_frag),
+            ref_frag_idx_per_edge_per_frag=[
                 list(D.values()) for D in self.frag_structure.ref_frag_idx_per_edge
             ],
-            relAO_per_edge=_extract_values(self.relAO_per_edge),
-            relAO_in_ref_per_edge=_extract_values(self.relAO_in_ref_per_edge),
-            relAO_per_origin=[list(seq) for seq in relAO_per_origin],
-            centerweight_and_relAO_per_center=centerweight_and_relAO_per_center,
+            relAO_per_edge_per_frag=_extract_values(self.relAO_per_edge_per_frag),
+            relAO_in_ref_per_edge_per_frag=_extract_values(
+                self.relAO_in_ref_per_edge_per_frag
+            ),
+            relAO_per_origin_per_frag=[list(seq) for seq in relAO_per_origin],
+            weight_and_relAO_per_center_per_frag=centerweight_and_relAO_per_center,
             motifs_per_frag=[
                 list(motifs) for motifs in self.frag_structure.motifs_per_frag
             ],
@@ -1275,18 +1277,18 @@ class Fragmented:
             return result
 
         relAO_in_ref_per_edge: Final = _extract_with_iao_offset(
-            valence_frags.relAO_in_ref_per_edge,
-            self.relAO_in_ref_per_edge,
+            valence_frags.relAO_in_ref_per_edge_per_frag,
+            self.relAO_in_ref_per_edge_per_frag,
             wrong_iao_indexing=wrong_iao_indexing,
         )
         AO_per_edge: Final = _extract_with_iao_offset(
-            valence_frags.AO_per_edge,
-            self.AO_per_edge,
+            valence_frags.AO_per_edge_per_frag,
+            self.AO_per_edge_per_frag,
             wrong_iao_indexing=wrong_iao_indexing,
         )
         relAO_per_edge: Final = _extract_with_iao_offset(
-            valence_frags.relAO_per_edge,
-            self.relAO_per_edge,
+            valence_frags.relAO_per_edge_per_frag,
+            self.relAO_per_edge_per_frag,
             wrong_iao_indexing=wrong_iao_indexing,
         )
 
@@ -1295,8 +1297,8 @@ class Fragmented:
         relAO_per_origin: Final = [
             L[0]
             for L in _extract_with_iao_offset(
-                valence_frags.relAO_per_origin,
-                self.relAO_per_origin,
+                valence_frags.relAO_per_origin_per_frag,
+                self.relAO_per_origin_per_frag,
                 wrong_iao_indexing=wrong_iao_indexing,
             )
         ]
@@ -1308,13 +1310,13 @@ class Fragmented:
             mol=self.mol,
             frag_type="chemgen",
             n_BE=self.frag_structure.n_BE,
-            AO_per_edge=AO_per_edge,
-            relAO_per_edge=relAO_per_edge,
-            relAO_in_ref_per_edge=relAO_in_ref_per_edge,
-            relAO_per_origin=relAO_per_origin,
+            AO_per_edge_per_frag=AO_per_edge,
+            relAO_per_edge_per_frag=relAO_per_edge,
+            relAO_in_ref_per_edge_per_frag=relAO_in_ref_per_edge,
+            relAO_per_origin_per_frag=relAO_per_origin,
             AO_per_frag=matched_output_no_iao.AO_per_frag,
-            ref_frag_idx_per_edge=matched_output_no_iao.ref_frag_idx_per_edge,
-            centerweight_and_relAO_per_center=matched_output_no_iao.centerweight_and_relAO_per_center,
+            ref_frag_idx_per_edge_per_frag=matched_output_no_iao.ref_frag_idx_per_edge_per_frag,
+            weight_and_relAO_per_center_per_frag=matched_output_no_iao.weight_and_relAO_per_center_per_frag,
             motifs_per_frag=matched_output_no_iao.motifs_per_frag,
             origin_per_frag=matched_output_no_iao.origin_per_frag,
             H_per_motif=matched_output_no_iao.H_per_motif,
