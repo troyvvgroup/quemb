@@ -53,7 +53,7 @@ class FragPart:
     #: of the center sites within a fragment. Relative is to the own fragment.
     #:
     #: When using IAOs this refers to the large/working basis.
-    centerweight_and_relAO_per_center: ListOverFrag[tuple[float, list[RelAOIdx]]]
+    weight_and_relAO_per_center: ListOverFrag[tuple[float, list[RelAOIdx]]]
 
     #: The relative orbital indices, including hydrogens, per edge per fragment.
     #: The index is relative to the own fragment.
@@ -116,7 +116,7 @@ class FragPart:
         return all(
             relAO_per_center == relAO_per_origin
             for (_, relAO_per_center), relAO_per_origin in zip(
-                self.centerweight_and_relAO_per_center, self.relAO_per_origin
+                self.weight_and_relAO_per_center, self.relAO_per_origin
             )
         )
 
@@ -129,7 +129,7 @@ class FragPart:
             ref_frag_idx_per_edge=self.ref_frag_idx_per_edge[I],
             relAO_per_edge=self.relAO_per_edge[I],
             relAO_in_ref_per_edge=self.relAO_in_ref_per_edge[I],
-            centerweight_and_relAO_per_center=self.centerweight_and_relAO_per_center[I],
+            weight_and_relAO_per_center=self.weight_and_relAO_per_center[I],
             relAO_per_origin=self.relAO_per_origin[I],
             unitcell=self.unitcell,
             unitcell_nkpt=unitcell_nkpt,
@@ -212,7 +212,7 @@ def fragmentate(
             relAO_per_edge,
             relAO_in_ref_per_edge,
             relAO_per_origin,
-            centerweight_and_relAO_per_center,
+            weight_and_relAO_per_center,
         ) = autogen(
             mol,
             kpt,
@@ -239,7 +239,7 @@ def fragmentate(
             AO_per_frag=AO_per_frag,
             AO_per_edge=AO_per_edge,
             ref_frag_idx_per_edge=ref_frag_idx_per_edge,
-            centerweight_and_relAO_per_center=centerweight_and_relAO_per_center,
+            weight_and_relAO_per_center=weight_and_relAO_per_center,
             relAO_per_edge=relAO_per_edge,
             relAO_in_ref_per_edge=relAO_in_ref_per_edge,
             relAO_per_origin=relAO_per_origin,
@@ -277,7 +277,7 @@ def fragmentate(
             AO_per_frag=molecular_FragPart.AO_per_frag,
             AO_per_edge=molecular_FragPart.AO_per_edge_per_frag,
             ref_frag_idx_per_edge=molecular_FragPart.ref_frag_idx_per_edge_per_frag,
-            centerweight_and_relAO_per_center=molecular_FragPart.weight_and_relAO_per_center_per_frag,
+            weight_and_relAO_per_center=molecular_FragPart.weight_and_relAO_per_center_per_frag,
             relAO_per_edge=molecular_FragPart.relAO_per_edge_per_frag,
             relAO_in_ref_per_edge=molecular_FragPart.relAO_in_ref_per_edge_per_frag,
             relAO_per_origin=molecular_FragPart.relAO_per_origin_per_frag,

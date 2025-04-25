@@ -495,7 +495,7 @@ def be_func(
                 mo_coeffs=fobj.mo_coeffs,
                 nsocc=fobj.nsocc,
                 n_frag=fobj.n_frag,
-                centerweight_and_relAO_per_center=fobj.centerweight_and_relAO_per_center,
+                weight_and_relAO_per_center=fobj.weight_and_relAO_per_center,
                 TA=fobj.TA,
                 h1=fobj.h1,
                 rdm1=rdm1_tmp,
@@ -631,8 +631,8 @@ def be_func_u(
                 (fobj_a.nsocc, fobj_b.nsocc),
                 (fobj_a.n_frag, fobj_b.n_frag),
                 (
-                    fobj_a.centerweight_and_relAO_per_center,
-                    fobj_b.centerweight_and_relAO_per_center,
+                    fobj_a.weight_and_relAO_per_center,
+                    fobj_b.weight_and_relAO_per_center,
                 ),
                 (fobj_a.TA, fobj_b.TA),
                 h1_ab,
@@ -679,7 +679,7 @@ def solve_error(Fobjs, Nocc, only_chem=False):
     if only_chem:
         for fobj in Fobjs:
             # Compute chemical potential error for each fragment
-            for i in fobj.centerweight_and_relAO_per_center[1]:
+            for i in fobj.weight_and_relAO_per_center[1]:
                 err_chempot += fobj._rdm1[i, i]
         err_chempot /= Fobjs[0].unitcell_nkpt
         err = err_chempot - Nocc
@@ -696,7 +696,7 @@ def solve_error(Fobjs, Nocc, only_chem=False):
                         continue
                     err_edge.append(fobj._rdm1[edge[j_], edge[k_]])
         # chem potential
-        for i in fobj.centerweight_and_relAO_per_center[1]:
+        for i in fobj.weight_and_relAO_per_center[1]:
             err_chempot += fobj._rdm1[i, i]
 
     err_chempot /= Fobjs[0].unitcell_nkpt

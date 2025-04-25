@@ -45,7 +45,7 @@ def run_solver(
     nao: int,
     nocc: int,
     n_frag: int,
-    centerweight_and_relAO_per_center: ListOverFrag[tuple[float, list[RelAOIdx]]],
+    weight_and_relAO_per_center: ListOverFrag[tuple[float, list[RelAOIdx]]],
     TA: Matrix[float64],
     h1_e: Matrix[float64],
     solver: str = "MP2",
@@ -83,7 +83,7 @@ def run_solver(
         Number of occupied orbitals.
     n_frag :
         Number of fragment sites.
-    centerweight_and_relAO_per_center :
+    weight_and_relAO_per_center :
         Scaling factor for the electronic energy **and**
         the relative AO indices per center per frag
     TA :
@@ -259,7 +259,7 @@ def run_solver(
             mf_.mo_coeff,
             nocc,
             n_frag,
-            centerweight_and_relAO_per_center,
+            weight_and_relAO_per_center,
             TA,
             h1_e,
             rdm1_tmp,
@@ -374,8 +374,8 @@ def run_solver_u(
             (fobj_a.nsocc, fobj_b.nsocc),
             (fobj_a.n_frag, fobj_b.n_frag),
             (
-                fobj_a.centerweight_and_relAO_per_center,
-                fobj_b.centerweight_and_relAO_per_center,
+                fobj_a.weight_and_relAO_per_center,
+                fobj_b.weight_and_relAO_per_center,
             ),
             (fobj_a.TA, fobj_b.TA),
             h1_ab,
@@ -482,7 +482,7 @@ def be_func_parallel(
                     fobj.nao,
                     fobj.nsocc,
                     fobj.n_frag,
-                    fobj.centerweight_and_relAO_per_center,
+                    fobj.weight_and_relAO_per_center,
                     fobj.TA,
                     fobj.h1,
                     solver,

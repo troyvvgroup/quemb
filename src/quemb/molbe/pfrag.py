@@ -48,7 +48,7 @@ class Frags:
         ref_frag_idx_per_edge: SeqOverEdge[FragmentIdx],
         relAO_per_edge: SeqOverEdge[Sequence[RelAOIdx]],
         relAO_in_ref_per_edge: SeqOverEdge[Sequence[RelAOIdxInRef]],
-        centerweight_and_relAO_per_center: tuple[float, Sequence[RelAOIdx]],
+        weight_and_relAO_per_center: tuple[float, Sequence[RelAOIdx]],
         relAO_per_origin: Sequence[RelAOIdx],
         eri_file: PathLike = "eri_file.h5",
         unrestricted: bool = False,
@@ -74,7 +74,7 @@ class Frags:
         relAO_in_ref_per_edge: list, optional
             list of lists of indices within the fragment specified in :python:`center`
             that points to the edge site AOs , by default None
-        centerweight_and_relAO_per_center : list, optional
+        weight_and_relAO_per_center : list, optional
             weight used for energy contributions and the indices, by default None
         eri_file : str, optional
             two-electron integrals stored as h5py file, by default 'eri_file.h5'
@@ -91,7 +91,7 @@ class Frags:
         self.relAO_per_edge = relAO_per_edge
         self.relAO_in_ref_per_edge = relAO_in_ref_per_edge
         self.relAO_per_origin = relAO_per_origin
-        self.centerweight_and_relAO_per_center = centerweight_and_relAO_per_center
+        self.weight_and_relAO_per_center = weight_and_relAO_per_center
         self.eri_file = eri_file
 
         self.ifrag = ifrag
@@ -377,17 +377,17 @@ class Frags:
 
         e_ = e1 + e2 + ec
         etmp = 0.0
-        for i in self.centerweight_and_relAO_per_center[1]:
-            etmp += self.centerweight_and_relAO_per_center[0] * e_[i]
+        for i in self.weight_and_relAO_per_center[1]:
+            etmp += self.weight_and_relAO_per_center[0] * e_[i]
 
         self.ebe_hf = etmp
 
         if return_e:
             e_h1 = 0.0
             e_coul = 0.0
-            for i in self.centerweight_and_relAO_per_center[1]:
-                e_h1 += self.centerweight_and_relAO_per_center[0] * e1[i]
-                e_coul += self.centerweight_and_relAO_per_center[0] * (e2[i] + ec[i])
+            for i in self.weight_and_relAO_per_center[1]:
+                e_h1 += self.weight_and_relAO_per_center[0] * e1[i]
+                e_coul += self.weight_and_relAO_per_center[0] * (e2[i] + ec[i])
             return (e_h1, e_coul, e1 + e2 + ec)
         else:
             return None

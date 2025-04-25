@@ -169,9 +169,7 @@ class FragPart:
             ref_frag_idx_per_edge=self.ref_frag_idx_per_edge_per_frag[I],
             relAO_per_edge=self.relAO_per_edge_per_frag[I],
             relAO_in_ref_per_edge=self.relAO_in_ref_per_edge_per_frag[I],
-            centerweight_and_relAO_per_center=self.weight_and_relAO_per_center_per_frag[
-                I
-            ],
+            weight_and_relAO_per_center=self.weight_and_relAO_per_center_per_frag[I],
             relAO_per_origin=self.relAO_per_origin_per_frag[I],
             unrestricted=unrestricted,
         )
@@ -228,7 +226,7 @@ class FragmentMap:
         Relative is to the own fragment; since the origin site is at the beginning
         of the motif list for each fragment, this is always a Sequence
         :python:`range(0, n)`.
-    centerweight_and_relAO_per_center :
+    weight_and_relAO_per_center :
         Weights determining the energy contributions from each center site
         (ie, with respect to centerf_idx).
     sites :
@@ -254,7 +252,7 @@ class FragmentMap:
     AO_per_edge: list[Sequence[Sequence[int]]]
     ref_frag_idx_per_edge: list[Sequence[int]]
     relAO_per_origin: list[Sequence[int]]
-    centerweight_and_relAO_per_center: list[Sequence]
+    weight_and_relAO_per_center: list[Sequence]
     sites: list[Sequence]
     dnames: list[str]
     motifs_per_frag: list[Sequence[int]]
@@ -320,7 +318,7 @@ class FragmentMap:
             relAO_per_origin_per_frag=self.relAO_per_origin,  # type: ignore[arg-type]
             AO_per_frag=self.AO_per_frag,  # type: ignore[arg-type]
             ref_frag_idx_per_edge_per_frag=self.ref_frag_idx_per_edge,  # type: ignore[arg-type]
-            weight_and_relAO_per_center_per_frag=self.centerweight_and_relAO_per_center,  # type: ignore[arg-type]
+            weight_and_relAO_per_center_per_frag=self.weight_and_relAO_per_center,  # type: ignore[arg-type]
             motifs_per_frag=self.motifs_per_frag,  # type: ignore[arg-type]
             origin_per_frag=self.origin_per_frag,  # type: ignore[arg-type]
             H_per_motif=MISSING,
@@ -419,7 +417,7 @@ def graphgen(
         AO_per_edge=list(tuple(tuple())),
         ref_frag_idx_per_edge=list(tuple()),
         relAO_per_origin=list(tuple()),
-        centerweight_and_relAO_per_center=list(tuple()),
+        weight_and_relAO_per_center=list(tuple()),
         sites=list(tuple()),
         dnames=list(),
         motifs_per_frag=list(),
@@ -541,7 +539,7 @@ def graphgen(
     for adx, center in enumerate(fragment_map.ref_frag_idx_per_edge):
         centerf_idx = tuple(fragment_map.AO_per_frag[adx].index(cdx) for cdx in center)
         fragment_map.relAO_per_origin.append(centerf_idx)
-        fragment_map.centerweight_and_relAO_per_center.append((1.0, tuple(centerf_idx)))
+        fragment_map.weight_and_relAO_per_center.append((1.0, tuple(centerf_idx)))
 
     # Finally, set fragment data names for scratch and bookkeeping:
     for adx, _ in enumerate(fragment_map.fs):
@@ -974,7 +972,7 @@ def autogen(
     n_frag = len(AO_per_frag)
 
     add_center_atom = [[] for x in range(n_frag)]  # additional centers for mixed-basis
-    centerweight_and_relAO_per_center = []
+    weight_and_relAO_per_center = []
 
     # Compute weights for each fragment
     for ix, i in enumerate(AO_per_frag):
@@ -986,7 +984,7 @@ def autogen(
                     add_center_atom[pid__].append(open_frag_cen[pidx__])
                     tmp_.extend([i.index(pq) for pq in sites__[open_frag_cen[pidx__]]])
                     tmp_.extend([i.index(pq) for pq in hsites[open_frag_cen[pidx__]]])
-        centerweight_and_relAO_per_center.append((1.0, tmp_))
+        weight_and_relAO_per_center.append((1.0, tmp_))
 
     relAO_in_ref_per_edge = []
     if n_BE != 1:
@@ -1052,7 +1050,7 @@ def autogen(
         relAO_per_edge_per_frag=relAO_per_edge,
         relAO_in_ref_per_edge_per_frag=relAO_in_ref_per_edge,
         relAO_per_origin_per_frag=relAO_per_origin,
-        weight_and_relAO_per_center_per_frag=centerweight_and_relAO_per_center,
+        weight_and_relAO_per_center_per_frag=weight_and_relAO_per_center,
         motifs_per_frag=motifs_per_frag,
         origin_per_frag=origin_per_frag,
         H_per_motif=H_per_motif,

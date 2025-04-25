@@ -1146,9 +1146,7 @@ class Fragmented:
             union_of_seqs(*idx_per_origin)
             for idx_per_origin in _extract_values(self.relAO_per_origin_per_frag)
         ]
-        # A similar issue occurs for ``centerweight_and_relAO_per_center``
-        # where we have to form the union.
-        centerweight_and_relAO_per_center = [
+        weight_and_relAO_per_center = [
             (1.0, list(union_of_seqs(*idx_per_center)))
             for idx_per_center in _extract_values(self.relAO_per_center_per_frag)
         ]
@@ -1172,7 +1170,7 @@ class Fragmented:
                 self.relAO_in_ref_per_edge_per_frag
             ),
             relAO_per_origin_per_frag=[list(seq) for seq in relAO_per_origin],
-            weight_and_relAO_per_center_per_frag=centerweight_and_relAO_per_center,
+            weight_and_relAO_per_center_per_frag=weight_and_relAO_per_center,
             motifs_per_frag=[
                 list(motifs) for motifs in self.frag_structure.motifs_per_frag
             ],
