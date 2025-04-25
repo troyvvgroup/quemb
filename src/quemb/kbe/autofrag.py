@@ -1964,9 +1964,9 @@ def autogen(
         max_site = max(max_site, maxH)
 
     AO_per_frag = []
-    AO_per_edge = []
-    relAO_per_edge = []
-    relAO_per_origin = []
+    AO_per_edge_per_frag = []
+    relAO_per_edge_per_frag = []
+    relAO_per_origin_per_frag = []
     edge = []
 
     nkcon = True
@@ -2143,12 +2143,12 @@ def autogen(
 
         ls = len(sites__[cen[idx]]) + len(hsites[cen[idx]])
         if not pao:
-            relAO_per_origin.append([pq for pq in range(indix, indix + ls)])
+            relAO_per_origin_per_frag.append([pq for pq in range(indix, indix + ls)])
         else:
             cntlist = sites__[cen[idx]].copy()[: nbas2[cen[idx]]]
             cntlist.extend(hsites[cen[idx]][: nbas2H[cen[idx]]])
             ind__ = [indix + frglist.index(pq) for pq in cntlist]
-            relAO_per_origin.append(ind__)
+            relAO_per_origin_per_frag.append(ind__)
         indix += ls
 
         for jdx in pedge[idx]:
@@ -2318,28 +2318,28 @@ def autogen(
 
         edge.append(edg)
         AO_per_frag.append(ftmp)
-        AO_per_edge.append(ftmpe)
-        relAO_per_edge.append(edind)
+        AO_per_edge_per_frag.append(ftmpe)
+        relAO_per_edge_per_frag.append(edind)
 
-    ref_frag_idx_per_edge = []
+    ref_frag_idx_per_edge_per_frag = []
     for ix in edge:
         cen_ = []
         for jx in ix:
             cen_.append(cen.index(jx))
-        ref_frag_idx_per_edge.append(cen_)
+        ref_frag_idx_per_edge_per_frag.append(cen_)
 
     n_frag = len(AO_per_frag)
-    weight_and_relAO_per_center = []
+    weight_and_relAO_per_center_per_frag = []
     # Use IAO+PAO for computing energy
     for ix, i in enumerate(AO_per_frag):
         tmp_ = [i.index(pq) for pq in sites__[cen[ix]]]
         tmp_.extend([i.index(pq) for pq in hsites[cen[ix]]])
-        weight_and_relAO_per_center.append([1.0, tmp_])
+        weight_and_relAO_per_center_per_frag.append([1.0, tmp_])
 
-    relAO_in_ref_per_edge = []
+    relAO_in_ref_per_edge_per_frag = []
     for i in range(n_frag):
         idx = []
-        for j in ref_frag_idx_per_edge[i]:
+        for j in ref_frag_idx_per_edge_per_frag[i]:
             if not pao:
                 cntlist = sites__[cen[j]].copy()
                 cntlist.extend(hsites[cen[j]])
@@ -2349,20 +2349,20 @@ def autogen(
                 cntlist.extend(hsites[cen[j]][: nbas2H[cen[j]]])
                 idx.append([AO_per_frag[j].index(k) for k in cntlist])
 
-        relAO_in_ref_per_edge.append(idx)
+        relAO_in_ref_per_edge_per_frag.append(idx)
 
-    if not AO_per_edge:
-        AO_per_edge = [[] for _ in range(n_frag)]
-        ref_frag_idx_per_edge = [[] for _ in range(n_frag)]
-        relAO_per_edge = [[] for _ in range(n_frag)]
-        relAO_in_ref_per_edge = [[] for _ in range(n_frag)]
+    if not AO_per_edge_per_frag:
+        AO_per_edge_per_frag = [[] for _ in range(n_frag)]
+        ref_frag_idx_per_edge_per_frag = [[] for _ in range(n_frag)]
+        relAO_per_edge_per_frag = [[] for _ in range(n_frag)]
+        relAO_in_ref_per_edge_per_frag = [[] for _ in range(n_frag)]
 
     return (
         AO_per_frag,
-        AO_per_edge,
-        ref_frag_idx_per_edge,
-        relAO_per_edge,
-        relAO_in_ref_per_edge,
-        relAO_per_origin,
-        weight_and_relAO_per_center,
+        AO_per_edge_per_frag,
+        ref_frag_idx_per_edge_per_frag,
+        relAO_per_edge_per_frag,
+        relAO_in_ref_per_edge_per_frag,
+        relAO_per_origin_per_frag,
+        weight_and_relAO_per_center_per_frag,
     )

@@ -35,7 +35,7 @@ class FragPart:
     #: The global orbital indices, including hydrogens, per edge per fragment.
     #:
     #: When using IAOs this refers to the valence/small basis.
-    AO_per_edge: ListOverFrag[ListOverEdge[list[GlobalAOIdx]]]
+    AO_per_edge_per_frag: ListOverFrag[ListOverEdge[list[GlobalAOIdx]]]
 
     #: Reference fragment index per edge:
     #: A list over fragments: list of indices of the fragments in which an edge
@@ -43,7 +43,7 @@ class FragPart:
     #: The edge will be matched against this center.
     #: For fragments A, B: the A’th element of :python:`.center`,
     #: if the edge of A is the center of B, will be B.
-    ref_frag_idx_per_edge: ListOverFrag[ListOverEdge[FragmentIdx]]
+    ref_frag_idx_per_edge_per_frag: ListOverFrag[ListOverEdge[FragmentIdx]]
 
     #: The first element is a float, the second is the list
     #: The float weight makes only sense for democratic matching and is currently 1.0
@@ -53,20 +53,20 @@ class FragPart:
     #: of the center sites within a fragment. Relative is to the own fragment.
     #:
     #: When using IAOs this refers to the large/working basis.
-    weight_and_relAO_per_center: ListOverFrag[tuple[float, list[RelAOIdx]]]
+    weight_and_relAO_per_center_per_frag: ListOverFrag[tuple[float, list[RelAOIdx]]]
 
     #: The relative orbital indices, including hydrogens, per edge per fragment.
     #: The index is relative to the own fragment.
     #:
     #: When using IAOs this refers to the valence/small basis.
-    relAO_per_edge: ListOverFrag[ListOverEdge[list[RelAOIdx]]]
+    relAO_per_edge_per_frag: ListOverFrag[ListOverEdge[list[RelAOIdx]]]
 
     #: The relative atomic orbital indices per edge per fragment.
     #: **Note** for this variable relative means that the AO indices
     #: are relative to the other fragment where the edge is a center.
     #:
     #: When using IAOs this refers to the valence/small basis.
-    relAO_in_ref_per_edge: ListOverFrag[ListOverEdge[list[RelAOIdxInRef]]]
+    relAO_in_ref_per_edge_per_frag: ListOverFrag[ListOverEdge[list[RelAOIdxInRef]]]
 
     #: List whose entries are lists containing the relative orbital index of the
     #: origin site within a fragment. Relative is to the own fragment.
@@ -74,7 +74,7 @@ class FragPart:
     #: of the motif list for each fragment, this is always a ``list(range(0, n))``
     #:
     #: When using IAOs this refers to the valence/small basis.
-    relAO_per_origin: ListOverFrag[list[RelAOIdx]]
+    relAO_per_origin_per_frag: ListOverFrag[list[RelAOIdx]]
 
     n_BE: int
     natom: int
@@ -116,7 +116,8 @@ class FragPart:
         return all(
             relAO_per_center == relAO_per_origin
             for (_, relAO_per_center), relAO_per_origin in zip(
-                self.weight_and_relAO_per_center, self.relAO_per_origin
+                self.weight_and_relAO_per_center_per_frag,
+                self.relAO_per_origin_per_frag,
             )
         )
 
@@ -124,13 +125,13 @@ class FragPart:
         return Frags(
             AO_in_frag=self.AO_per_frag[I],
             ifrag=I,
-            AO_per_edge=self.AO_per_edge[I],
+            AO_per_edge=self.AO_per_edge_per_frag[I],
             eri_file=eri_file,
-            ref_frag_idx_per_edge=self.ref_frag_idx_per_edge[I],
-            relAO_per_edge=self.relAO_per_edge[I],
-            relAO_in_ref_per_edge=self.relAO_in_ref_per_edge[I],
-            weight_and_relAO_per_center=self.weight_and_relAO_per_center[I],
-            relAO_per_origin=self.relAO_per_origin[I],
+            ref_frag_idx_per_edge=self.ref_frag_idx_per_edge_per_frag[I],
+            relAO_per_edge=self.relAO_per_edge_per_frag[I],
+            relAO_in_ref_per_edge=self.relAO_in_ref_per_edge_per_frag[I],
+            weight_and_relAO_per_center=self.weight_and_relAO_per_center_per_frag[I],
+            relAO_per_origin=self.relAO_per_origin_per_frag[I],
             unitcell=self.unitcell,
             unitcell_nkpt=unitcell_nkpt,
         )
@@ -237,12 +238,12 @@ def fragmentate(
             mol=mol,
             frag_type=frag_type,
             AO_per_frag=AO_per_frag,
-            AO_per_edge=AO_per_edge,
-            ref_frag_idx_per_edge=ref_frag_idx_per_edge,
-            weight_and_relAO_per_center=weight_and_relAO_per_center,
-            relAO_per_edge=relAO_per_edge,
-            relAO_in_ref_per_edge=relAO_in_ref_per_edge,
-            relAO_per_origin=relAO_per_origin,
+            AO_per_edge_per_frag=AO_per_edge,
+            ref_frag_idx_per_edge_per_frag=ref_frag_idx_per_edge,
+            weight_and_relAO_per_center_per_frag=weight_and_relAO_per_center,
+            relAO_per_edge_per_frag=relAO_per_edge,
+            relAO_in_ref_per_edge_per_frag=relAO_in_ref_per_edge,
+            relAO_per_origin_per_frag=relAO_per_origin,
             n_BE=n_BE,
             natom=natom,
             frozen_core=frozen_core,
@@ -275,12 +276,12 @@ def fragmentate(
             mol=mol,
             frag_type=frag_type,
             AO_per_frag=molecular_FragPart.AO_per_frag,
-            AO_per_edge=molecular_FragPart.AO_per_edge_per_frag,
-            ref_frag_idx_per_edge=molecular_FragPart.ref_frag_idx_per_edge_per_frag,
-            weight_and_relAO_per_center=molecular_FragPart.weight_and_relAO_per_center_per_frag,
-            relAO_per_edge=molecular_FragPart.relAO_per_edge_per_frag,
-            relAO_in_ref_per_edge=molecular_FragPart.relAO_in_ref_per_edge_per_frag,
-            relAO_per_origin=molecular_FragPart.relAO_per_origin_per_frag,
+            AO_per_edge_per_frag=molecular_FragPart.AO_per_edge_per_frag,
+            ref_frag_idx_per_edge_per_frag=molecular_FragPart.ref_frag_idx_per_edge_per_frag,
+            weight_and_relAO_per_center_per_frag=molecular_FragPart.weight_and_relAO_per_center_per_frag,
+            relAO_per_edge_per_frag=molecular_FragPart.relAO_per_edge_per_frag,
+            relAO_in_ref_per_edge_per_frag=molecular_FragPart.relAO_in_ref_per_edge_per_frag,
+            relAO_per_origin_per_frag=molecular_FragPart.relAO_per_origin_per_frag,
             n_BE=molecular_FragPart.n_BE,
             natom=natom,
             frozen_core=frozen_core,

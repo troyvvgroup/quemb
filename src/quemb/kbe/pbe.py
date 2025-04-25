@@ -166,7 +166,7 @@ class BE(Mixin_k_Localize):
 
         self.print_ini()
         self.Fobjs: list[Frags] = []
-        self.pot = initialize_pot(self.fobj.n_frag, self.fobj.relAO_per_edge)
+        self.pot = initialize_pot(self.fobj.n_frag, self.fobj.relAO_per_edge_per_frag)
         self.eri_file = eri_file
         self.cderi = cderi
 
