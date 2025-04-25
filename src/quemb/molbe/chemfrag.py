@@ -1,11 +1,11 @@
-"""This module implements the fragmentation of a molecule based
-on chemical connectivity that uses the overlap of tabulated van der Waals radii.
+"""This module implements the fragmentation of molecular and periodic systems
+based on chemical connectivity that uses the overlap of tabulated van der Waals radii.
 
 There are three main classes:
 
-* :class:`BondConnectivity` contains the connectivity data of a molecule
+* :class:`BondConnectivity` contains the connectivity data of a chemical system
     and is fully independent of the BE fragmentation level or used basis sets.
-    After construction the knowledge about motifs in the molecule are available,
+    After construction the knowledge about motifs in the system are available,
     if hydrogen atoms are treated differently then the motifs are all
     non-hydrogen atoms, while if hydrogen atoms are treated equal then
     all atoms are motifs.
@@ -25,7 +25,7 @@ from collections import defaultdict
 from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence, Set
 from itertools import chain
 from pathlib import Path
-from typing import Any, Final, TypeAlias, TypeVar, cast
+from typing import Any, Final, Generic, TypeAlias, TypeVar, cast
 
 import numpy as np
 from attr import cmp_using, define, field
@@ -33,7 +33,9 @@ from chemcoord import Cartesian
 from networkx.algorithms.shortest_paths.generic import shortest_path_length
 from networkx.classes.graph import Graph
 from ordered_set import OrderedSet
-from pyscf.gto import Mole
+from pyscf.gto import M, Mole, is_au
+from pyscf.lib import param
+from pyscf.pbc.gto import Cell
 from typing_extensions import Self
 
 from quemb.molbe.autofrag import FragPart
@@ -325,6 +327,104 @@ class BondConnectivity:
             treat_H_different=treat_H_different,
         )
 
+    @classmethod
+    def from_cell(
+        cls,
+        cell: Cell,
+        *,
+        bonds_atoms: Mapping[int, set[int]] | None = None,
+        vdW_radius: InVdWRadius | None = None,
+        treat_H_different: bool = True,
+    ) -> Self:
+        """Create a :class:`BondConnectivity` from a :class:`pyscf.pbc.gto.cell.Cell`.
+        This function considers the periodic boundary conditions by adding periodic
+        copies of the cell to the molecule. The connectivity graph from the open
+        boundary condition supercell is then used to determine the connectivity graph
+        of the original periodic cell.
+
+        Parameters
+        ----------
+        cell :
+            The :class:`pyscf.pbc.gto.cell.Cell` to extract the connectivity data from.
+        bonds_atoms : Mapping[int, OrderedSet[int]]
+            Can be used to specify the connectivity graph of the molecule.
+            Has exactly the same format as the output of
+            :meth:`chemcoord.Cartesian.get_bonds`,
+            which is called internally if this argument is not specified.
+            Allows it to manually change the connectivity by modifying the output of
+            :meth:`chemcoord.Cartesian.get_bonds`.
+            The keyword is mutually exclusive with :python:`vdW_radius`.
+        vdW_radius :
+            If :python:`bonds_atoms` is :class:`None`, then the connectivity graph is
+            determined by the van der Waals radius of the atoms.
+            It is possible to pass:
+
+            * a single number which is used as radius for all atoms,
+            * a callable which is applied to all radii
+              and can be used to e.g. scale via :python:`lambda r: r * 1.1`,
+            * a dictionary which maps the element symbol to the van der Waals radius,
+              to change the radius of individual elements, e.g. :python:`{"C": 1.5}`.
+
+            The keyword is mutually exclusive with :python:`bonds_atoms`.
+        treat_H_different :
+            If True, we treat hydrogen atoms differently from heavy atoms.
+        """
+        # If bonds_atoms was given, use the information.
+        # Otherwise, use chemcoord to get the connectivity graph.
+        if bonds_atoms is None:
+            # Add periodic copies to a fake mol object
+            # Eight copies of the original cell to account for periodicity
+            lattice_vectors = (
+                np.array(cell.a) if is_au(cell.unit) else np.array(cell.a) / param.BOHR
+            )
+            offsets = np.array(
+                [
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                    ],
+                    lattice_vectors[0],
+                    lattice_vectors[1],
+                    lattice_vectors[2],
+                    lattice_vectors[0] + lattice_vectors[1],
+                    lattice_vectors[0] + lattice_vectors[2],
+                    lattice_vectors[1] + lattice_vectors[2],
+                    lattice_vectors[0] + lattice_vectors[1] + lattice_vectors[2],
+                ]
+            )
+            supercell_mol = M(
+                atom=[
+                    (element, (coords + offset).tolist())
+                    for offset in offsets
+                    for element, coords in zip(
+                        cell.elements, cell.atom_coords(unit="Bohr")
+                    )
+                ],
+                basis=cell.basis,
+                unit="bohr",
+            )
+            # Reuse molecular code with periodic copies
+            supercell_connectivity = cls.from_cartesian(
+                Cartesian.from_pyscf(supercell_mol),
+                bonds_atoms=bonds_atoms,
+                vdW_radius=vdW_radius,
+                treat_H_different=treat_H_different,
+            )
+            # We have to choose unique pairs from the whole
+            # supercell connectivity graph,
+            # because we cannot guarantee that we are in the middle of the supercell.
+            bonds_atoms = defaultdict(set)
+            for idx, connected in supercell_connectivity.bonds_atoms.items():
+                bonds_atoms[idx % cell.natm] |= {j % cell.natm for j in connected}
+
+        return cls.from_cartesian(
+            Cartesian.from_pyscf(cell.to_mol()),
+            bonds_atoms=bonds_atoms,  # always set (from input or molecular code)
+            vdW_radius=None,
+            treat_H_different=treat_H_different,
+        )
+
     def get_BE_fragment(self, i_center: MotifIdx, n_BE: int) -> OrderedSet[MotifIdx]:
         """Return the BE fragment around atom :code:`i_center`.
 
@@ -462,8 +562,11 @@ def _cleanup_if_subset(
     return _SubsetsCleaned(cleaned_fragments, contain_others)
 
 
+_T_chemsystem = TypeVar("_T_chemsystem", Mole, Cell)
+
+
 @define(frozen=True, kw_only=True)
-class PurelyStructureFragmented:
+class PurelyStructureFragmented(Generic[_T_chemsystem]):
     """Data structure to store the fragments of a molecule.
 
     This takes into account only the connectivity data and the fragmentation
@@ -471,7 +574,7 @@ class PurelyStructureFragmented:
     """
 
     #: The full molecule
-    mol: Final[Mole] = field(eq=cmp_using(are_equal))
+    mol: _T_chemsystem = field(eq=cmp_using(are_equal))
 
     #: The motifs per fragment.
     #: Note that the full set of motifs for a fragment is the union of all center motifs
@@ -521,7 +624,7 @@ class PurelyStructureFragmented:
     @classmethod
     def from_conn_data(
         cls,
-        mol: Mole,
+        mol: _T_chemsystem,
         conn_data: BondConnectivity,
         n_BE: int,
         swallow_replace: bool,
@@ -600,7 +703,7 @@ class PurelyStructureFragmented:
     @classmethod
     def from_mole(
         cls,
-        mol: Mole,
+        mol: _T_chemsystem,
         n_BE: int,
         *,
         treat_H_different: bool = True,
@@ -630,17 +733,30 @@ class PurelyStructureFragmented:
             is taken from the smaller fragment.
             This means, there will be no centers other than origins.
         """
-        fragments = cls.from_conn_data(
-            mol,
-            BondConnectivity.from_mole(
+        if isinstance(mol, Mole):
+            fragments = cls.from_conn_data(
                 mol,
-                treat_H_different=treat_H_different,
-                bonds_atoms=bonds_atoms,
-                vdW_radius=vdW_radius,
-            ),
-            n_BE,
-            swallow_replace=swallow_replace,
-        )
+                BondConnectivity.from_mole(
+                    mol,
+                    treat_H_different=treat_H_different,
+                    bonds_atoms=bonds_atoms,
+                    vdW_radius=vdW_radius,
+                ),
+                n_BE,
+                swallow_replace=swallow_replace,
+            )
+        elif isinstance(mol, Cell):
+            fragments = cls.from_conn_data(
+                mol,
+                BondConnectivity.from_cell(
+                    mol,
+                    treat_H_different=treat_H_different,
+                    bonds_atoms=bonds_atoms,
+                    vdW_radius=vdW_radius,
+                ),
+                n_BE,
+                swallow_replace=swallow_replace,
+            )
         if autocratic_matching:
             return fragments.get_autocratically_matched()
         return fragments
@@ -666,6 +782,11 @@ class PurelyStructureFragmented:
 
     def write_geom(self, prefix: str = "f", dir: Path = Path(".")) -> None:
         """Write the structures of the fragments to files."""
+        if isinstance(self.mol, Cell):
+            raise NotImplementedError(
+                "Writing the structures of fragments from periodic systems"
+                " is not implemented."
+            )
         mol = Cartesian.from_pyscf(self.mol)
         for i_frag, atoms in enumerate(self.atoms_per_frag):
             mol.loc[atoms, :].to_xyz(dir / f"{prefix}{i_frag}.xyz")
@@ -847,7 +968,7 @@ class PurelyStructureFragmented:
 
 
 @define(frozen=True, kw_only=True)
-class Fragmented:
+class Fragmented(Generic[_T_chemsystem]):
     """Contains the whole BE fragmentation information, including AO indices.
 
     This takes into account the geometrical data and the used
@@ -858,7 +979,7 @@ class Fragmented:
     """
 
     #: The full molecule
-    mol: Final[Mole] = field(eq=cmp_using(are_equal))
+    mol: _T_chemsystem = field(eq=cmp_using(are_equal))
 
     # yes, it is a bit redundant, because `conn_data` is also contained in
     # `frag_structure`, but it is very convenient to have it here
@@ -941,7 +1062,7 @@ class Fragmented:
     frozen_core: Final[bool]
 
     #: The molecule with the valence/minimal basis, if we use IAO.
-    iao_valence_mol: Final[Mole | None] = field(
+    iao_valence_mol: _T_chemsystem | None = field(
         eq=cmp_using(
             lambda x, y: (x is None and y is None)
             or (x is not None and y is not None and are_equal(x, y))
@@ -951,7 +1072,7 @@ class Fragmented:
     @classmethod
     def from_frag_structure(
         cls,
-        mol: Mole,
+        mol: _T_chemsystem,
         frag_structure: PurelyStructureFragmented,
         frozen_core: bool,
         iao_valence_basis: str | None = None,
@@ -1059,7 +1180,7 @@ class Fragmented:
     @classmethod
     def from_mole(
         cls,
-        mol: Mole,
+        mol: _T_chemsystem,
         n_BE: int,
         *,
         frozen_core: bool = False,
@@ -1070,12 +1191,14 @@ class Fragmented:
         autocratic_matching: bool = True,
         swallow_replace: bool = False,
     ) -> Self:
-        """Construct a :class:`Fragmented` from :class:`pyscf.gto.mole.Mole`.
+        """Construct a :class:`Fragmented` from :class:`pyscf.gto.mole.Mole`
+         or :class:`pyscf.pbc.gto.cell.Cell`.
 
         Parameters
         ----------
         mol :
-            The :class:`pyscf.gto.mole.Mole` to extract the connectivity data from.
+            The :class:`pyscf.gto.mole.Mole` or :class:`pyscf.pbc.gto.cell.Cell`
+            to extract the connectivity data from.
         n_BE :
             The BE fragmentation level.
         treat_H_different :
@@ -1239,7 +1362,7 @@ class Fragmented:
         ) -> list[list[list[_T_AOIdx]]]:
             result = []
             for fragment, fragment_big_basis in zip(AO_small_basis, AO_full_basis):
-                tmp: list[list[_T_AOIdx]] = []
+                AO_indices: list[list[_T_AOIdx]] = []
                 for motif in fragment:
                     if wrong_iao_indexing:
                         offset = _iloc(fragment_big_basis[motif].values(), 1)[0]
@@ -1261,17 +1384,13 @@ class Fragmented:
                             fragment_big_basis[motif][H_atom][:n_small_AO_H]
                             for H_atom in H_per_motif[motif]
                         ]
-                    tmp.append(
-                        _flatten(
-                            (
-                                _iloc(fragment_big_basis[motif].values(), 0)[
-                                    : len(_iloc(fragment[motif].values(), 0))
-                                ],
-                                *H_offsets,
-                            )
-                        )
-                    )
-                result.append(tmp)
+
+                    AO_index_heavy_atom = _iloc(fragment_big_basis[motif].values(), 0)[
+                        : len(_iloc(fragment[motif].values(), 0))
+                    ]
+
+                    AO_indices.append(_flatten([AO_index_heavy_atom] + H_offsets))
+                result.append(AO_indices)
             return result
 
         relAO_in_ref_per_edge: Final = _extract_with_iao_offset(
@@ -1333,7 +1452,9 @@ class Fragmented:
             return self._get_FragPart_with_iao(wrong_iao_indexing)
 
 
-def _get_AOidx_per_atom(mol: Mole, frozen_core: bool) -> list[OrderedSet[GlobalAOIdx]]:
+def _get_AOidx_per_atom(
+    mol: _T_chemsystem, frozen_core: bool
+) -> list[OrderedSet[GlobalAOIdx]]:
     """Get the range of atomic orbital indices per atom.
 
     Parameters
@@ -1408,7 +1529,7 @@ class ChemGenArgs:
 
 
 def chemgen(
-    mol: Mole,
+    mol: _T_chemsystem,
     n_BE: int,
     args: ChemGenArgs | None,
     frozen_core: bool,
@@ -1419,7 +1540,7 @@ def chemgen(
     Parameters
     ----------
     mol :
-        Molecule to be fragmented.
+        Molecule or Cell to be fragmented.
     n_BE :
         BE fragmentation level.
     args :
