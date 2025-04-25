@@ -25,7 +25,7 @@ from collections import defaultdict
 from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence, Set
 from itertools import chain
 from pathlib import Path
-from typing import Any, Final, TypeAlias, TypeVar, cast
+from typing import Any, Final, Generic, TypeAlias, TypeVar, cast
 
 import numpy as np
 from attr import cmp_using, define, field
@@ -562,8 +562,11 @@ def _cleanup_if_subset(
     return _SubsetsCleaned(cleaned_fragments, contain_others)
 
 
+_T_chemsystem = TypeVar("_T_chemsystem", Mole, Cell)
+
+
 @define(frozen=True, kw_only=True)
-class PurelyStructureFragmented:
+class PurelyStructureFragmented(Generic[_T_chemsystem]):
     """Data structure to store the fragments of a molecule.
 
     This takes into account only the connectivity data and the fragmentation
@@ -571,7 +574,7 @@ class PurelyStructureFragmented:
     """
 
     #: The full molecule
-    mol: Final[Mole] = field(eq=cmp_using(are_equal))
+    mol: _T_chemsystem = field(eq=cmp_using(are_equal))
 
     #: The motifs per fragment.
     #: Note that the full set of motifs for a fragment is the union of all center motifs
@@ -621,7 +624,7 @@ class PurelyStructureFragmented:
     @classmethod
     def from_conn_data(
         cls,
-        mol: Mole,
+        mol: _T_chemsystem,
         conn_data: BondConnectivity,
         n_BE: int,
         swallow_replace: bool,
@@ -700,7 +703,7 @@ class PurelyStructureFragmented:
     @classmethod
     def from_mole(
         cls,
-        mol: Mole | Cell,
+        mol: _T_chemsystem,
         n_BE: int,
         *,
         treat_H_different: bool = True,
@@ -744,7 +747,7 @@ class PurelyStructureFragmented:
             )
         elif isinstance(mol, Cell):
             fragments = cls.from_conn_data(
-                mol.to_mol(),
+                mol,
                 BondConnectivity.from_cell(
                     mol,
                     treat_H_different=treat_H_different,
@@ -779,7 +782,11 @@ class PurelyStructureFragmented:
 
     def write_geom(self, prefix: str = "f", dir: Path = Path(".")) -> None:
         """Write the structures of the fragments to files."""
-        mol = Cartesian.from_pyscf(self.mol)
+        mol = (
+            Cartesian.from_pyscf(self.mol)
+            if isinstance(self.mol, Mole)
+            else Cartesian(self.mol.to_mol())
+        )
         for i_frag, atoms in enumerate(self.atoms_per_frag):
             mol.loc[atoms, :].to_xyz(dir / f"{prefix}{i_frag}.xyz")
 
@@ -960,7 +967,7 @@ class PurelyStructureFragmented:
 
 
 @define(frozen=True, kw_only=True)
-class Fragmented:
+class Fragmented(Generic[_T_chemsystem]):
     """Contains the whole BE fragmentation information, including AO indices.
 
     This takes into account the geometrical data and the used
@@ -971,7 +978,7 @@ class Fragmented:
     """
 
     #: The full molecule
-    mol: Final[Mole | Cell] = field(eq=cmp_using(are_equal))
+    mol: _T_chemsystem = field(eq=cmp_using(are_equal))
 
     # yes, it is a bit redundant, because `conn_data` is also contained in
     # `frag_structure`, but it is very convenient to have it here
@@ -1064,7 +1071,7 @@ class Fragmented:
     @classmethod
     def from_frag_structure(
         cls,
-        mol: Mole | Cell,
+        mol: _T_chemsystem,
         frag_structure: PurelyStructureFragmented,
         frozen_core: bool,
         iao_valence_basis: str | None = None,
@@ -1172,7 +1179,7 @@ class Fragmented:
     @classmethod
     def from_mole(
         cls,
-        mol: Mole | Cell,
+        mol: _T_chemsystem,
         n_BE: int,
         *,
         frozen_core: bool = False,
@@ -1449,7 +1456,7 @@ class Fragmented:
 
 
 def _get_AOidx_per_atom(
-    mol: Mole | Cell, frozen_core: bool
+    mol: _T_chemsystem, frozen_core: bool
 ) -> list[OrderedSet[GlobalAOIdx]]:
     """Get the range of atomic orbital indices per atom.
 
@@ -1525,7 +1532,7 @@ class ChemGenArgs:
 
 
 def chemgen(
-    mol: Mole | Cell,
+    mol: _T_chemsystem,
     n_BE: int,
     args: ChemGenArgs | None,
     frozen_core: bool,
