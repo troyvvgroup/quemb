@@ -395,12 +395,11 @@ class BondConnectivity:
                     lattice_vectors[0] + lattice_vectors[1] + lattice_vectors[2],
                 ]
             )
-            mol.atom = []
-            for offset in offsets:
-                for element, coords in zip(
-                    cell.elements, cell.atom_coords(unit="Bohr")
-                ):
-                    mol.atom.append((element, (coords + offset).tolist()))
+            mol.atom = [
+                (element, (coords + offset).tolist())
+                for element, coords in zip(cell.elements, cell.atom_coords(unit="Bohr"))
+                for offset in offsets
+            ]
             mol.basis = cell.basis
             mol.build()
             # Reuse molecular code with periodic copies
