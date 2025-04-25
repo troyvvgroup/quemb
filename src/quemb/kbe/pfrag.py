@@ -63,21 +63,21 @@ class Frags:
 
         Parameters
         ----------
-        AO_per_frag: list
+        AO_in_frag:
             list of AOs in the fragment (i.e. pbe.AO_per_frag[i]
             or FragPart.AO_per_frag[i])
             Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
-        ifrag : int
+        ifrag :
             fragment index (∈ [0, pbe.n_frag - 1])
-        AO_per_edge : list, optional
+        AO_per_edge :
             list of lists of edge site AOs for each atom in the fragment,
             by default None
             Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
-        ref_frag_idx_per_edge: list, optional
+        ref_frag_idx_per_edge :
             list of fragment indices where edge site AOs are center site,
             by default None.
             Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
-        rel_AO_per_edge_per_frag: list, optional
+        rel_AO_per_edge :
             list of lists of indices for edge site AOs within the fragment,
             by default None
             Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
@@ -86,12 +86,14 @@ class Frags:
             in :python:`center` that points to the edge site AOs,
             by default :python:`None`
             Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
+        relAO_per_origin :
+            indices of the origin in the fragment, by default None
         weight_and_relAO_per_center :
             weight used for energy contributions, by default None
-        eri_file : str, optional
+        eri_file :
             two-electron integrals stored as h5py file, by default 'eri_file.h5'
-        relAO_per_origin : list, optional
-            indices of the origin in the fragment, by default None
+        unitcell_nkpt:
+        unitcell:
         """
 
         self.AO_in_frag = AO_in_frag
