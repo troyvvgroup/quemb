@@ -1,11 +1,11 @@
-"""This module implements the fragmentation of a molecule based
-on chemical connectivity that uses the overlap of tabulated van der Waals radii.
+"""This module implements the fragmentation of molecular and periodic systems
+based on chemical connectivity that uses the overlap of tabulated van der Waals radii.
 
 There are three main classes:
 
-* :class:`BondConnectivity` contains the connectivity data of a molecule
+* :class:`BondConnectivity` contains the connectivity data of a chemical system
     and is fully independent of the BE fragmentation level or used basis sets.
-    After construction the knowledge about motifs in the molecule are available,
+    After construction the knowledge about motifs in the system are available,
     if hydrogen atoms are treated differently then the motifs are all
     non-hydrogen atoms, while if hydrogen atoms are treated equal then
     all atoms are motifs.
@@ -337,6 +337,10 @@ class BondConnectivity:
         treat_H_different: bool = True,
     ) -> Self:
         """Create a :class:`BondConnectivity` from a :class:`pyscf.pbc.gto.cell.Cell`.
+        This function considers the periodic boundary conditions by adding periodic
+        copies of the cell to the molecule. The connectivity graph from the open
+        boundary condition supercell is then used to determine the connectivity graph
+        of the original periodic cell.
 
         Parameters
         ----------
@@ -727,7 +731,7 @@ class PurelyStructureFragmented:
             is taken from the smaller fragment.
             This means, there will be no centers other than origins.
         """
-        if type(mol) is Mole:
+        if isinstance(mol, Mole):
             fragments = cls.from_conn_data(
                 mol,
                 BondConnectivity.from_mole(
@@ -739,7 +743,7 @@ class PurelyStructureFragmented:
                 n_BE,
                 swallow_replace=swallow_replace,
             )
-        elif type(mol) is Cell:
+        elif isinstance(mol, Cell):
             fragments = cls.from_conn_data(
                 mol.to_mol(),
                 BondConnectivity.from_cell(
