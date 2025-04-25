@@ -410,14 +410,10 @@ class BondConnectivity:
                 treat_H_different=treat_H_different,
             )
             # Choose unique pairs
-            bonds_atoms = {}
-            for idx, bond in connectivity.bonds_atoms.items():
-                bonds_atoms.update(
-                    {
-                        idx % cell.natm: {bonded % cell.natm for bonded in bond}
-                        | bonds_atoms.get(idx % cell.natm, set())
-                    }
-                )
+            bonds_atoms = {
+                i: {bonded % cell.natm for bonded in connectivity.bonds_atoms[i]}
+                for i in range(cell.natm)
+            }
         return cls.from_cartesian(
             Cartesian.from_pyscf(cell.to_mol()),
             bonds_atoms=bonds_atoms,  # always set (from input or molecular code)
