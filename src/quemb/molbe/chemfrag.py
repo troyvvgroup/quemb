@@ -33,7 +33,7 @@ from chemcoord import Cartesian
 from networkx.algorithms.shortest_paths.generic import shortest_path_length
 from networkx.classes.graph import Graph
 from ordered_set import OrderedSet
-from pyscf.gto import Mole, is_au
+from pyscf.gto import M, Mole, is_au
 from pyscf.lib import param
 from pyscf.pbc.gto import Cell
 from typing_extensions import Self
@@ -374,8 +374,6 @@ class BondConnectivity:
         if bonds_atoms is None:
             # Add periodic copies to a fake mol object
             # Eight copies of the original cell to account for periodicity
-            mol = Mole()
-            mol.unit = "Bohr"
             lattice_vectors = (
                 np.array(cell.a) if is_au(cell.unit) else np.array(cell.a) / param.BOHR
             )
@@ -395,29 +393,31 @@ class BondConnectivity:
                     lattice_vectors[0] + lattice_vectors[1] + lattice_vectors[2],
                 ]
             )
-            mol.atom = [
-                (element, (coords + offset).tolist())
-                for offset in offsets
-                for element, coords in zip(cell.elements, cell.atom_coords(unit="Bohr"))
-            ]
-            mol.basis = cell.basis
-            mol.build()
+            supercell_mol = M(
+                atom=[
+                    (element, (coords + offset).tolist())
+                    for offset in offsets
+                    for element, coords in zip(
+                        cell.elements, cell.atom_coords(unit="Bohr")
+                    )
+                ],
+                basis=cell.basis,
+                unit="bohr",
+            )
             # Reuse molecular code with periodic copies
-            connectivity = cls.from_cartesian(
-                Cartesian.from_pyscf(mol),
+            supercell_connectivity = cls.from_cartesian(
+                Cartesian.from_pyscf(supercell_mol),
                 bonds_atoms=bonds_atoms,
                 vdW_radius=vdW_radius,
                 treat_H_different=treat_H_different,
             )
-            # Choose unique pairs
-            bonds_atoms = {}
-            for idx, bond in connectivity.bonds_atoms.items():
-                bonds_atoms.update(
-                    {
-                        idx % cell.natm: {bonded % cell.natm for bonded in bond}
-                        | bonds_atoms.get(idx % cell.natm, set())
-                    }
-                )
+            # We have to choose unique pairs from the whole
+            # supercell connectivity graph,
+            # because we cannot guarantee that we are in the middle of the supercell.
+            bonds_atoms = defaultdict(set)
+            for idx, connected in supercell_connectivity.bonds_atoms.items():
+                bonds_atoms[idx % cell.natm] |= {j % cell.natm for j in connected}
+
         return cls.from_cartesian(
             Cartesian.from_pyscf(cell.to_mol()),
             bonds_atoms=bonds_atoms,  # always set (from input or molecular code)
