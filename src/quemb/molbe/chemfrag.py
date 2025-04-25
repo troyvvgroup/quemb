@@ -782,11 +782,12 @@ class PurelyStructureFragmented(Generic[_T_chemsystem]):
 
     def write_geom(self, prefix: str = "f", dir: Path = Path(".")) -> None:
         """Write the structures of the fragments to files."""
-        mol = (
-            Cartesian.from_pyscf(self.mol)
-            if isinstance(self.mol, Mole)
-            else Cartesian.from_pyscf(self.mol.to_mol())
-        )
+        if isinstance(self.mol, Cell):
+            raise NotImplementedError(
+                "Writing the structures of fragments from periodic systems"
+                " is not implemented."
+            )
+        mol = Cartesian.from_pyscf(self.mol)
         for i_frag, atoms in enumerate(self.atoms_per_frag):
             mol.loc[atoms, :].to_xyz(dir / f"{prefix}{i_frag}.xyz")
 
