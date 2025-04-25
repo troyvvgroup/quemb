@@ -6,6 +6,7 @@ from attrs import define, field
 from pyscf.pbc.gto.cell import Cell
 
 from quemb.kbe.autofrag import autogen
+from quemb.kbe.pfrag import Frags
 from quemb.molbe.chemfrag import ChemGenArgs, chemgen
 from quemb.molbe.helper import get_core
 from quemb.shared.typing import (
@@ -13,6 +14,7 @@ from quemb.shared.typing import (
     GlobalAOIdx,
     ListOverEdge,
     ListOverFrag,
+    PathLike,
     RelAOIdx,
     RelAOIdxInRef,
 )
@@ -115,6 +117,21 @@ class FragPart:
             for (_, relAO_per_center), relAO_per_origin in zip(
                 self.centerweight_and_relAO_per_center, self.relAO_per_origin
             )
+        )
+
+    def to_Frags(self, I: int, eri_file: PathLike, unitcell_nkpt: int) -> Frags:
+        return Frags(
+            AO_in_frag=self.AO_per_frag[I],
+            ifrag=I,
+            AO_per_edge=self.AO_per_edge[I],
+            eri_file=eri_file,
+            ref_frag_idx_per_edge=self.ref_frag_idx_per_edge[I],
+            relAO_per_edge=self.relAO_per_edge[I],
+            relAO_in_ref_per_edge=self.relAO_in_ref_per_edge[I],
+            centerweight_and_relAO_per_center=self.centerweight_and_relAO_per_center[I],
+            relAO_per_origin=self.relAO_per_origin[I],
+            unitcell=self.unitcell,
+            unitcell_nkpt=unitcell_nkpt,
         )
 
 

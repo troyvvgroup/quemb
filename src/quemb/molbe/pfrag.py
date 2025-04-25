@@ -1,5 +1,7 @@
 # Author(s): Oinam Romesh Meitei
 
+from collections.abc import Sequence
+
 import h5py
 import numpy as np
 import scipy.linalg
@@ -19,7 +21,15 @@ from numpy import (
 from numpy.linalg import eigh, multi_dot
 
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
-from quemb.shared.typing import Matrix
+from quemb.shared.typing import (
+    FragmentIdx,
+    GlobalAOIdx,
+    Matrix,
+    PathLike,
+    RelAOIdx,
+    RelAOIdxInRef,
+    SeqOverEdge,
+)
 
 
 class Frags:
@@ -32,17 +42,17 @@ class Frags:
 
     def __init__(
         self,
-        AO_per_frag,
+        AO_in_frag: Sequence[GlobalAOIdx],
         ifrag: int,
-        AO_per_edge=None,
-        ref_frag_idx_per_edge=None,
-        relAO_per_edge=None,
-        relAO_in_ref_per_edge=None,
-        centerweight_and_relAO_per_center=None,
-        eri_file="eri_file.h5",
-        relAO_per_origin=None,
-        unrestricted=False,
-    ):
+        AO_per_edge: SeqOverEdge[Sequence[GlobalAOIdx]],
+        ref_frag_idx_per_edge: SeqOverEdge[FragmentIdx],
+        relAO_per_edge: SeqOverEdge[Sequence[RelAOIdx]],
+        relAO_in_ref_per_edge: SeqOverEdge[Sequence[RelAOIdxInRef]],
+        centerweight_and_relAO_per_center: tuple[float, Sequence[RelAOIdx]],
+        relAO_per_origin: Sequence[RelAOIdx],
+        eri_file: PathLike = "eri_file.h5",
+        unrestricted: bool = False,
+    ) -> None:
         """Constructor function for :python:`Frags` class.
 
         Parameters
@@ -74,11 +84,16 @@ class Frags:
             unrestricted calculation, by default False
         """
 
-        self.AO_per_frag = AO_per_frag
-        self.n_frag = len(AO_per_frag)
-        self.TA: Matrix[float64] | None = None
-        self.TA_lo_eo: Matrix[float64] | None = None
-        self.h1 = None
+        self.AO_in_frag = AO_in_frag
+        self.n_frag = len(AO_in_frag)
+        self.AO_per_edge = AO_per_edge
+        self.ref_frag_idx_per_edge = ref_frag_idx_per_edge
+        self.relAO_per_edge = relAO_per_edge
+        self.relAO_in_ref_per_edge = relAO_in_ref_per_edge
+        self.relAO_per_origin = relAO_per_origin
+        self.centerweight_and_relAO_per_center = centerweight_and_relAO_per_center
+        self.eri_file = eri_file
+
         self.ifrag = ifrag
         if unrestricted:
             self.dname: str | list[str] = [
@@ -88,10 +103,15 @@ class Frags:
             ]
         else:
             self.dname = "f" + str(ifrag)
-        self.nao = None
-        self.mo_coeffs = None
-        self._mo_coeffs = None
-        self.nsocc = None
+
+        self.TA: Matrix[float64]
+        self.TA_lo_eo: Matrix[float64]
+
+        self.h1: Matrix[float64]
+        self.nao: int
+        self.mo_coeffs: Matrix[float64]
+        self._mo_coeffs: Matrix[float64]
+        self.nsocc: int
         self._mf = None
         self._mc = None
 
@@ -99,12 +119,7 @@ class Frags:
         self.t1 = None
         self.t2 = None
 
-        self.heff: Matrix[float64] | None = None
-        self.AO_per_edge = AO_per_edge
-        self.ref_frag_idx_per_edge = ref_frag_idx_per_edge
-        self.relAO_per_edge = relAO_per_edge
-        self.relAO_in_ref_per_edge = relAO_in_ref_per_edge
-        self.relAO_per_origin = relAO_per_origin
+        self.heff: Matrix[float64]
         self.udim: int | None = None
 
         self._rdm1 = None
@@ -114,16 +129,21 @@ class Frags:
         self.genvs = None
         self.ebe = 0.0
         self.ebe_hf = 0.0
-        self.centerweight_and_relAO_per_center = centerweight_and_relAO_per_center
         self.fock = None
         self.veff = None
         self.veff0 = None
         self.dm_init = None
-        self.dm0 = None
-        self.eri_file = eri_file
+        self.dm0: Matrix[float64]
         self.unitcell_nkpt = 1.0
 
-    def sd(self, lao, lmo, nocc, thr_bath, norb=None, return_orb_count=False):
+    def sd(
+        self,
+        lao: Matrix[float64],
+        lmo: Matrix[float64],
+        nocc: int,
+        thr_bath: float,
+        norb: int | None = None,
+    ) -> None:
         """
         Perform Schmidt decomposition for the fragment.
 
@@ -141,28 +161,16 @@ class Frags:
             Specify number of bath orbitals.
             Used for UBE, where different number of alpha and beta orbitals
             Default is None, allowing orbitals to be chosen by threshold
-        return_orb_count : bool, optional
-            Retrun the number of orbitals in each space, for UBE use/
-            Default is False
         """
-
-        if return_orb_count:
-            TA, n_f, n_b = schmidt_decomposition(
-                lmo,
-                nocc,
-                self.AO_per_frag,
-                thr_bath=thr_bath,
-                norb=norb,
-                return_orb_count=return_orb_count,
-            )
-        else:
-            TA = schmidt_decomposition(lmo, nocc, self.AO_per_frag, thr_bath=thr_bath)
-        self.C_lo_eo = TA
-        TA = lao @ TA
-        self.nao = TA.shape[1]
-        self.TA = TA
-        if return_orb_count:
-            return [n_f, n_b]
+        self.TA_lo_eo, self.n_f, self.n_b = schmidt_decomposition(
+            lmo,
+            nocc,
+            self.AO_in_frag,
+            thr_bath=thr_bath,
+            norb=norb,
+        )
+        self.TA = lao @ self.TA_lo_eo
+        self.nao = self.TA.shape[1]
 
     def cons_fock(self, hf_veff, S, dm, eri_=None):
         """
@@ -279,7 +287,7 @@ class Frags:
         if cout is None:
             cout = self.udim
 
-        for i, fi in enumerate(self.AO_per_frag):
+        for i, fi in enumerate(self.AO_in_frag):
             if not any(i in sublist for sublist in self.relAO_per_edge):
                 heff_[i, i] -= u[-1]
 
@@ -386,15 +394,14 @@ class Frags:
 
 
 def schmidt_decomposition(
-    mo_coeff,
-    nocc,
-    Frag_sites,
-    thr_bath=1.0e-10,
-    cinv=None,
-    rdm=None,
-    norb=None,
-    return_orb_count=False,
-):
+    mo_coeff: Matrix[float64],
+    nocc: int,
+    AO_in_frag: Sequence[GlobalAOIdx],
+    thr_bath: float = 1.0e-10,
+    cinv: Matrix[float64] | None = None,
+    rdm: Matrix[float64] | None = None,
+    norb: int | None = None,
+) -> tuple[Matrix[float64], int, int]:
     """
     Perform Schmidt decomposition on the molecular orbital coefficients.
 
@@ -404,34 +411,29 @@ def schmidt_decomposition(
 
     Parameters
     ----------
-    mo_coeff : numpy.ndarray
+    mo_coeff :
         Molecular orbital coefficients.
-    nocc : int
+    nocc :
         Number of occupied orbitals.
     Frag_sites : list of int
         List of fragment sites (indices).
-    thr_bath : float,
+    thr_bath :
         Threshold for bath orbitals in Schmidt decomposition
-    cinv : numpy.ndarray, optional
+    cinv :
         Inverse of the transformation matrix. Defaults to None.
-    rdm : numpy.ndarray, optional
+    rdm :
         Reduced density matrix. If not provided, it will be computed from the molecular
         orbitals. Defaults to None.
-    norb : int, optional
+    norb :
         Specifies number of bath orbitals. Used for UBE to make alpha and beta
         spaces the same size. Defaults to None
-    return_orb_count : bool, optional
-        Return more information about the number of orbitals. Used in UBE.
-        Defaults to False
 
     Returns
     -------
-    numpy.ndarray
+    tuple:
+        TA, norbs_frag, norbs_bath
+
         Transformation matrix (TA) including both fragment and entangled bath orbitals.
-    if return_orb_count:
-        numpy.ndarray, int, int
-        returns TA (above), number of orbitals in the fragment space, and number of
-        orbitals in bath space
     """
 
     # Compute the reduced density matrix (RDM) if not provided
@@ -448,9 +450,9 @@ def schmidt_decomposition(
     Tot_sites = Dhf.shape[0]
 
     # Identify environment sites (indices not in Frag_sites)
-    Env_sites1 = array([i for i in range(Tot_sites) if i not in Frag_sites])
-    Env_sites = array([[i] for i in range(Tot_sites) if i not in Frag_sites])
-    Frag_sites1 = array([[i] for i in Frag_sites])
+    Env_sites1 = array([i for i in range(Tot_sites) if i not in AO_in_frag])
+    Env_sites = array([[i] for i in range(Tot_sites) if i not in AO_in_frag])
+    Frag_sites1 = array([[i] for i in AO_in_frag])
 
     # Compute the environment part of the density matrix
     Denv = Dhf[Env_sites, Env_sites.T]
@@ -477,12 +479,9 @@ def schmidt_decomposition(
                 Bidx.append(i)
 
     # Initialize the transformation matrix (TA)
-    TA = zeros([Tot_sites, len(Frag_sites) + len(Bidx)])
-    TA[Frag_sites, : len(Frag_sites)] = eye(len(Frag_sites))  # Fragment part
-    TA[Env_sites1, len(Frag_sites) :] = Evec[:, Bidx]  # Environment part
+    TA = zeros([Tot_sites, len(AO_in_frag) + len(Bidx)])
+    TA[AO_in_frag, : len(AO_in_frag)] = eye(len(AO_in_frag))  # Fragment part
+    TA[Env_sites1, len(AO_in_frag) :] = Evec[:, Bidx]  # Environment part
 
-    if return_orb_count:
-        # return TA, norbs_frag, norbs_bath
-        return TA, Frag_sites1.shape[0], len(Bidx)
-    else:
-        return TA
+    # return TA, norbs_frag, norbs_bath
+    return TA, Frag_sites1.shape[0], len(Bidx)

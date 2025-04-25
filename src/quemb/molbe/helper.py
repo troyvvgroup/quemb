@@ -22,6 +22,7 @@ from pyscf.gto.mole import Mole
 from pyscf.pbc.gto.cell import Cell
 
 from quemb.shared.helper import ncore_
+from quemb.shared.typing import Matrix
 
 
 def get_veff(eri_, dm, S, TA, hf_veff):
@@ -70,11 +71,11 @@ def get_veff(eri_, dm, S, TA, hf_veff):
 
 # create pyscf pbc scf object
 def get_scfObj(
-    h1,
+    h1: Matrix[float64],
     Eri,
-    nocc,
+    nocc: int,
     dm0=None,
-):
+) -> scf.hf.RHF:
     """Initialize and run a restricted Hartree-Fock (RHF) calculation.
 
     This function sets up an SCF (Self-Consistent Field) object using the provided

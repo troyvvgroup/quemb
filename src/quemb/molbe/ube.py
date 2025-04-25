@@ -173,79 +173,18 @@ class UBE(BE):  # 🍠
         ECOUL = 0.0
 
         file_eri = h5py.File(self.eri_file, "w")
-        lentmp = len(self.fobj.relAO_per_edge)
-
         # alpha orbitals
-        for I in range(self.fobj.n_frag):
-            if lentmp:
-                fobjs_a = Frags(
-                    self.fobj.AO_per_frag[I],
-                    I,
-                    AO_per_edge=self.fobj.AO_per_edge[I],
-                    eri_file=self.eri_file,
-                    ref_frag_idx_per_edge=self.fobj.ref_frag_idx_per_edge[I],
-                    relAO_per_edge=self.fobj.relAO_per_edge[I],
-                    relAO_in_ref_per_edge=self.fobj.relAO_in_ref_per_edge[I],
-                    centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
-                        I
-                    ],
-                    relAO_per_origin=self.fobj.relAO_per_origin[I],
-                    unrestricted=True,
-                )
-            else:
-                fobjs_a = Frags(
-                    self.fobj.AO_per_frag[I],
-                    I,
-                    AO_per_edge=[],
-                    ref_frag_idx_per_edge=[],
-                    eri_file=self.eri_file,
-                    relAO_per_edge=[],
-                    relAO_in_ref_per_edge=[],
-                    relAO_per_origin=[],
-                    centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
-                        I
-                    ],
-                    unrestricted=True,
-                )
-            self.Fobjs_a.append(fobjs_a)
+        self.Fobjs_a = [
+            self.fobj.to_Frags(I, eri_file=self.eri_file, unrestricted=True)
+            for I in range(self.fobj.n_frag)
+        ]
         # beta
-        for I in range(self.fobj.n_frag):
-            if lentmp:
-                fobjs_b = Frags(
-                    self.fobj.AO_per_frag[I],
-                    I,
-                    AO_per_edge=self.fobj.AO_per_edge[I],
-                    eri_file=self.eri_file,
-                    ref_frag_idx_per_edge=self.fobj.ref_frag_idx_per_edge[I],
-                    relAO_per_edge=self.fobj.relAO_per_edge[I],
-                    relAO_in_ref_per_edge=self.fobj.relAO_in_ref_per_edge[I],
-                    centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
-                        I
-                    ],
-                    relAO_per_origin=self.fobj.relAO_per_origin[I],
-                    unrestricted=True,
-                )
-            else:
-                fobjs_b = Frags(
-                    self.fobj.AO_per_frag[I],
-                    I,
-                    AO_per_edge=[],
-                    ref_frag_idx_per_edge=[],
-                    eri_file=self.eri_file,
-                    relAO_per_edge=[],
-                    relAO_in_ref_per_edge=[],
-                    relAO_per_origin=[],
-                    centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
-                        I
-                    ],
-                    unrestricted=True,
-                )
-            self.Fobjs_b.append(fobjs_b)
+        self.Fobjs_b = [
+            self.fobj.to_Frags(I, eri_file=self.eri_file, unrestricted=True)
+            for I in range(self.fobj.n_frag)
+        ]
 
-        orb_count_a = []
-        orb_count_b = []
-
-        all_noccs = []
+        all_noccs = [self.Nocc for _ in range(self.fobj.n_frag)]
 
         for I in range(self.fobj.n_frag):
             fobj_a = self.Fobjs_a[I]
@@ -254,47 +193,33 @@ class UBE(BE):  # 🍠
             if self.frozen_core:
                 fobj_a.core_veff = self.core_veff[0]
                 fobj_b.core_veff = self.core_veff[1]
-                orb_count_a.append(
-                    fobj_a.sd(
-                        self.W[0],
-                        self.lmo_coeff_a,
-                        self.Nocc[0],
-                        return_orb_count=True,
-                        thr_bath=self.thr_bath,
-                    )
+                fobj_a.sd(
+                    self.W[0],
+                    self.lmo_coeff_a,
+                    self.Nocc[0],
+                    thr_bath=self.thr_bath,
                 )
-                orb_count_b.append(
-                    fobj_b.sd(
-                        self.W[1],
-                        self.lmo_coeff_b,
-                        self.Nocc[1],
-                        return_orb_count=True,
-                        thr_bath=self.thr_bath,
-                    )
+                fobj_b.sd(
+                    self.W[1],
+                    self.lmo_coeff_b,
+                    self.Nocc[1],
+                    thr_bath=self.thr_bath,
                 )
             else:
                 fobj_a.core_veff = None
                 fobj_b.core_veff = None
-                orb_count_a.append(
-                    fobj_a.sd(
-                        self.W,
-                        self.lmo_coeff_a,
-                        self.Nocc[0],
-                        return_orb_count=True,
-                        thr_bath=self.thr_bath,
-                    )
+                fobj_a.sd(
+                    self.W,
+                    self.lmo_coeff_a,
+                    self.Nocc[0],
+                    thr_bath=self.thr_bath,
                 )
-                orb_count_b.append(
-                    fobj_b.sd(
-                        self.W,
-                        self.lmo_coeff_b,
-                        self.Nocc[1],
-                        return_orb_count=True,
-                        thr_bath=self.thr_bath,
-                    )
+                fobj_b.sd(
+                    self.W,
+                    self.lmo_coeff_b,
+                    self.Nocc[1],
+                    thr_bath=self.thr_bath,
                 )
-
-            all_noccs.append(self.Nocc)
 
             if eri_ is None and self.mf.with_df is not None:
                 # NOT IMPLEMENTED: should not be called, as no unrestricted DF tested
@@ -369,6 +294,10 @@ class UBE(BE):  # 🍠
                 EH1 += eh1_b
                 ECOUL += ecoul_b
                 E_hf += fobj_b.ebe_hf
+
+        orb_count_a = [(frag.n_f, frag.n_b) for frag in self.Fobjs_a]
+        orb_count_b = [(frag.n_f, frag.n_b) for frag in self.Fobjs_b]
+
         file_eri.close()
 
         print("Number of Orbitals per Fragment:", flush=True)
