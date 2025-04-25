@@ -785,7 +785,7 @@ class PurelyStructureFragmented(Generic[_T_chemsystem]):
         mol = (
             Cartesian.from_pyscf(self.mol)
             if isinstance(self.mol, Mole)
-            else Cartesian(self.mol.to_mol())
+            else Cartesian.from_pyscf(self.mol.to_mol())
         )
         for i_frag, atoms in enumerate(self.atoms_per_frag):
             mol.loc[atoms, :].to_xyz(dir / f"{prefix}{i_frag}.xyz")
