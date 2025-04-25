@@ -1361,7 +1361,7 @@ class Fragmented(Generic[_T_chemsystem]):
         ) -> list[list[list[_T_AOIdx]]]:
             result = []
             for fragment, fragment_big_basis in zip(AO_small_basis, AO_full_basis):
-                tmp: list[list[_T_AOIdx]] = []
+                AO_indices: list[list[_T_AOIdx]] = []
                 for motif in fragment:
                     if wrong_iao_indexing:
                         offset = _iloc(fragment_big_basis[motif].values(), 1)[0]
@@ -1383,17 +1383,13 @@ class Fragmented(Generic[_T_chemsystem]):
                             fragment_big_basis[motif][H_atom][:n_small_AO_H]
                             for H_atom in H_per_motif[motif]
                         ]
-                    tmp.append(
-                        _flatten(
-                            (
-                                _iloc(fragment_big_basis[motif].values(), 0)[
-                                    : len(_iloc(fragment[motif].values(), 0))
-                                ],
-                                *H_offsets,
-                            )
-                        )
-                    )
-                result.append(tmp)
+
+                    AO_index_heavy_atom = _iloc(fragment_big_basis[motif].values(), 0)[
+                        : len(_iloc(fragment[motif].values(), 0))
+                    ]
+
+                    AO_indices.append(_flatten([AO_index_heavy_atom] + H_offsets))
+                result.append(AO_indices)
             return result
 
         relAO_in_ref_per_edge: Final = _extract_with_iao_offset(

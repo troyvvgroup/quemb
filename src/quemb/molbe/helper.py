@@ -518,7 +518,7 @@ def are_equal(m1: _T, m2: _T) -> bool:
         )
 
     if isinstance(m1, Cell) and isinstance(m2, Cell):
-        return compare(m1, m2) and m1.a == m2.a
+        return compare(m1, m2) and (m1.a == m2.a).all()
     elif isinstance(m1, Mole) and isinstance(m2, Mole):
         return compare(m1, m2)
     else:
