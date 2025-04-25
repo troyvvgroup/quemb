@@ -57,30 +57,33 @@ class Frags:
 
         Parameters
         ----------
-        AO_per_frag : list
+        AO_in_frag :
             list of AOs in the fragment (i.e. ``BE.AO_per_frag[i]``
             or ``FragPart.AO_per_frag[i]``)
-        ifrag : int
+        ifrag :
             fragment index (∈ [0, BE.n_frag - 1])
-        edge : list, optional
-            list of lists of edge site AOs for each atom in the fragment,
-            by default None
-        ref_frag_idx_per_edge : list, optional
-            list of fragment indices where edge site AOs are center site,
-            by default None
-        relAO_per_edge : list, optional
-            list of lists of indices for edge site AOs within the fragment,
-            by default None
-        relAO_in_ref_per_edge: list, optional
+        AO_per_edge :
+            list of lists of edge site AOs for each atom in the fragment.
+            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
+        ref_frag_idx_per_edge :
+            list of fragment indices where edge site AOs are center site.
+            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
+        relAO_per_edge :
+            list of lists of indices for edge site AOs within the fragment.
+            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
+        relAO_in_ref_per_edge :
             list of lists of indices within the fragment specified in :python:`center`
-            that points to the edge site AOs , by default None
-        weight_and_relAO_per_center : list, optional
-            weight used for energy contributions and the indices, by default None
-        eri_file : str, optional
+            that points to the edge site AOs.
+            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
+        weight_and_relAO_per_center :
+            weight used for energy contributions and the indices.
+            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
+        relAO_per_origin :
+            indices of the origin site atoms in the fragment
+            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
+        eri_file :
             two-electron integrals stored as h5py file, by default 'eri_file.h5'
-        relAO_per_origin : list, optional
-            indices of the center site atoms in the fragment, by default None
-        unrestricted : bool, optional
+        unrestricted :
             unrestricted calculation, by default False
         """
 

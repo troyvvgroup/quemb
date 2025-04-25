@@ -66,26 +66,22 @@ class Frags:
         AO_in_frag:
             list of AOs in the fragment (i.e. pbe.AO_per_frag[i]
             or FragPart.AO_per_frag[i])
-            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
+            Read more detailed description in :class:`quemb.kbe.fragment.FragPart`.
         ifrag :
             fragment index (∈ [0, pbe.n_frag - 1])
         AO_per_edge :
-            list of lists of edge site AOs for each atom in the fragment,
-            by default None
-            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
+            list of lists of edge site AOs for each atom in the fragment.
+            Read more detailed description in :class:`quemb.kbe.fragment.FragPart`.
         ref_frag_idx_per_edge :
-            list of fragment indices where edge site AOs are center site,
-            by default None.
-            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
+            list of fragment indices where edge site AOs are center site.
+            Read more detailed description in :class:`quemb.kbe.fragment.FragPart`.
         rel_AO_per_edge :
             list of lists of indices for edge site AOs within the fragment,
-            by default None
-            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
+            Read more detailed description in :class:`quemb.kbe.fragment.FragPart`.
         relAO_in_ref_per_edge :
             list of lists of indices within the fragment specified
-            in :python:`center` that points to the edge site AOs,
-            by default :python:`None`
-            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
+            in :python:`center` that points to the edge site AOs.
+            Read more detailed description in :class:`quemb.kbe.fragment.FragPart`.
         relAO_per_origin :
             indices of the origin in the fragment, by default None
         weight_and_relAO_per_center :
@@ -95,7 +91,6 @@ class Frags:
         unitcell_nkpt:
         unitcell:
         """
-
         self.AO_in_frag = AO_in_frag
         self.unitcell = unitcell
         self.unitcell_nkpt = unitcell_nkpt
