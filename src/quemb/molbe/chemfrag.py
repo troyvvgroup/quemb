@@ -978,12 +978,12 @@ class Fragmented:
             for motif in conn_data.motifs
         }
 
-        AO_per_edge: Final = [
+        AO_per_edge_per_frag: Final = [
             restrict_keys(AO_per_motif, edges)
             for edges in frag_structure.edges_per_frag
         ]
 
-        relAO_per_motif: list[
+        relAO_per_motif_per_frag: list[
             Mapping[MotifIdx, Mapping[AtomIdx, OrderedSet[RelAOIdx]]]
         ] = []
         for motifs in frag_structure.motifs_per_frag:
@@ -999,21 +999,21 @@ class Fragmented:
                     rel_AO_per_motif[motif][atom] = OrderedSet(
                         cast(RelAOIdx, i) for i in indices
                     )
-            relAO_per_motif.append(rel_AO_per_motif)
+            relAO_per_motif_per_frag.append(rel_AO_per_motif)
 
-        relAO_per_edge: Final = _restrict(
-            relAO_per_motif, frag_structure.edges_per_frag
+        relAO_per_edge_per_frag: Final = _restrict(
+            relAO_per_motif_per_frag, frag_structure.edges_per_frag
         )
 
-        relAO_per_center: Final = _restrict(
-            relAO_per_motif, frag_structure.centers_per_frag
+        relAO_per_center_per_frag: Final = _restrict(
+            relAO_per_motif_per_frag, frag_structure.centers_per_frag
         )
 
-        relAO_per_origin: Final = _restrict(
-            relAO_per_motif, frag_structure.origin_per_frag
+        relAO_per_origin_per_frag: Final = _restrict(
+            relAO_per_motif_per_frag, frag_structure.origin_per_frag
         )
 
-        relAO_in_ref_per_edge: list[
+        relAO_in_ref_per_edge_per_frag: list[
             Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[RelAOIdxInRef]]]
         ] = [
             {
@@ -1021,9 +1021,9 @@ class Fragmented:
                     atom: cast(OrderedSet[RelAOIdxInRef], indices)
                     # We correctly reinterpet the AO indices as
                     # indices of the other fragment
-                    for atom, indices in relAO_per_motif[frag_per_edge[i_edge]][
-                        i_edge
-                    ].items()
+                    for atom, indices in relAO_per_motif_per_frag[
+                        frag_per_edge[i_edge]
+                    ][i_edge].items()
                 }
                 for i_edge in edges
             }
@@ -1046,12 +1046,12 @@ class Fragmented:
             AO_per_atom=AO_per_atom,
             AO_per_frag=AO_per_frag,
             AO_per_motif=AO_per_motif,
-            AO_per_edge=AO_per_edge,
-            relAO_per_motif=relAO_per_motif,
-            relAO_per_edge=relAO_per_edge,
-            relAO_per_center=relAO_per_center,
-            relAO_per_origin=relAO_per_origin,
-            relAO_in_ref_per_edge=relAO_in_ref_per_edge,
+            AO_per_edge_per_frag=AO_per_edge_per_frag,
+            relAO_per_motif_per_frag=relAO_per_motif_per_frag,
+            relAO_per_edge_per_frag=relAO_per_edge_per_frag,
+            relAO_per_center_per_frag=relAO_per_center_per_frag,
+            relAO_per_origin_per_frag=relAO_per_origin_per_frag,
+            relAO_in_ref_per_edge_per_frag=relAO_in_ref_per_edge_per_frag,
             frozen_core=frozen_core,
             iao_valence_mol=small_mol,
         )
