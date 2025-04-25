@@ -30,6 +30,7 @@ quemb.molbe.chemfrag.BondConnectivity
    
       ~BondConnectivity.__init__
       ~BondConnectivity.from_cartesian
+      ~BondConnectivity.from_cell
       ~BondConnectivity.from_mole
       ~BondConnectivity.get_BE_fragment
       ~BondConnectivity.get_all_BE_fragments

@@ -241,6 +241,7 @@
 <li class="toctree-l4 has-children"><a class="reference internal" href="quemb.molbe.chemfrag.BondConnectivity.html">quemb.molbe.chemfrag.BondConnectivity</a><input class="toctree-checkbox" id="toctree-checkbox-10" name="toctree-checkbox-10" role="switch" type="checkbox"/><label for="toctree-checkbox-10"><div class="visually-hidden">Toggle navigation of quemb.molbe.chemfrag.BondConnectivity</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.chemfrag.BondConnectivity.__init__.html">quemb.molbe.chemfrag.BondConnectivity.__init__</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.chemfrag.BondConnectivity.from_cartesian.html">quemb.molbe.chemfrag.BondConnectivity.from_cartesian</a></li>
+<li class="toctree-l5"><a class="reference internal" href="quemb.molbe.chemfrag.BondConnectivity.from_cell.html">quemb.molbe.chemfrag.BondConnectivity.from_cell</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.chemfrag.BondConnectivity.from_mole.html">quemb.molbe.chemfrag.BondConnectivity.from_mole</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.chemfrag.BondConnectivity.get_BE_fragment.html">quemb.molbe.chemfrag.BondConnectivity.get_BE_fragment</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.chemfrag.BondConnectivity.get_all_BE_fragments.html">quemb.molbe.chemfrag.BondConnectivity.get_all_BE_fragments</a></li>
@@ -765,13 +766,13 @@
         <article role="main" id="furo-main-content">
           <section id="module-quemb.molbe.chemfrag">
 <span id="quemb-molbe-chemfrag"></span><h1>quemb.molbe.chemfrag<a class="headerlink" href="#module-quemb.molbe.chemfrag" title="Link to this heading">¶</a></h1>
-<p>This module implements the fragmentation of a molecule based
-on chemical connectivity that uses the overlap of tabulated van der Waals radii.</p>
+<p>This module implements the fragmentation of molecular and periodic systems
+based on chemical connectivity that uses the overlap of tabulated van der Waals radii.</p>
 <p>There are three main classes:</p>
 <ul class="simple">
 <li><dl class="simple">
-<dt><a class="reference internal" href="quemb.molbe.chemfrag.BondConnectivity.html#quemb.molbe.chemfrag.BondConnectivity" title="quemb.molbe.chemfrag.BondConnectivity"><code class="xref py py-class docutils literal notranslate"><span class="pre">BondConnectivity</span></code></a> contains the connectivity data of a molecule</dt><dd><p>and is fully independent of the BE fragmentation level or used basis sets.
-After construction the knowledge about motifs in the molecule are available,
+<dt><a class="reference internal" href="quemb.molbe.chemfrag.BondConnectivity.html#quemb.molbe.chemfrag.BondConnectivity" title="quemb.molbe.chemfrag.BondConnectivity"><code class="xref py py-class docutils literal notranslate"><span class="pre">BondConnectivity</span></code></a> contains the connectivity data of a chemical system</dt><dd><p>and is fully independent of the BE fragmentation level or used basis sets.
+After construction the knowledge about motifs in the system are available,
 if hydrogen atoms are treated differently then the motifs are all
 non-hydrogen atoms, while if hydrogen atoms are treated equal then
 all atoms are motifs.</p>
