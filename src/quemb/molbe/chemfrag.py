@@ -411,7 +411,10 @@ class BondConnectivity:
             )
             # Choose unique pairs
             bonds_atoms = {
-                i: {bonded % cell.natm for bonded in connectivity.bonds_atoms[i]}
+                i: {
+                    bonded % cell.natm
+                    for bonded in connectivity.bonds_atoms[AtomIdx(i)]
+                }
                 for i in range(cell.natm)
             }
         return cls.from_cartesian(
