@@ -12,6 +12,7 @@ from networkx import shortest_path
 from numpy.linalg import norm
 from pyscf import gto
 from pyscf.gto import Mole
+from pyscf.pbc.gto import Cell
 
 from quemb.molbe.helper import are_equal, get_core
 from quemb.shared.helper import unused
@@ -38,7 +39,7 @@ class FragPart:
     """Data structure to hold the result of BE fragmentations."""
 
     #: The full molecule.
-    mol: Mole = field(eq=cmp_using(are_equal))
+    mol: Mole | Cell = field(eq=cmp_using(are_equal))
     #: The algorithm used for fragmenting.
     frag_type: FragType
     #: The level of BE fragmentation, i.e. 1, 2, ...

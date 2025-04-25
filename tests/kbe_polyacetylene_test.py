@@ -61,6 +61,20 @@ def test_polyacetylene():
     assert np.isclose(mykbe.ebe_tot, -152.1959745442392)
     assert np.isclose(mykbe.E_core, -142.19538494320057)
 
+    # Repeat with chemgen
+    kfrag_chemgen = fragmentate(
+        n_BE=2,
+        mol=cell,
+        kpt=kpt,
+        frozen_core=True,
+        frag_type="chemgen",
+    )
+    mykbe_chemgen = BE(kmf, kfrag_chemgen, kpts=kpts)
+    mykbe_chemgen.optimize(solver="CCSD")
+
+    assert np.isclose(mykbe_chemgen.ebe_tot, -152.19262755)
+    assert np.isclose(mykbe_chemgen.E_core, -142.19538494320057)
+
 
 if __name__ == "__main__":
     test_polyacetylene()

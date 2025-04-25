@@ -522,7 +522,6 @@ class BE(Mixin_k_Localize):
                 self.Nocc,
                 kmesh=self.fobj.kpt,
                 cell=self.fobj.mol,
-                frag_type=self.fobj.frag_type,
                 kpts=self.kpts,
                 h1=self.hcore,
                 thr_bath=self.thr_bath,
