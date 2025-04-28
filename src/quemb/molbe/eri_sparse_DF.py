@@ -974,29 +974,25 @@ def _first_contract_with_TA(
             tmp = np.zeros(int_mu_nu_P.naux, dtype="f8")
             for nu in int_mu_nu_P.exch_reachable[mu]:
                 tmp += TA[nu, i] * int_mu_nu_P[mu, nu]
-
-            if np.abs(tmp).sum() > 1e-10:
-                g[mu, i] = tmp
+            g[mu, i] = tmp
     return g
 
 
-@njit
+@njit(parallel=True)
 def _second_contract_with_TA(
     TA: Matrix[np.float64], int_mu_i_P: MutableSemiSparse3DTensor
-) -> MutableSemiSparse3DTensor:
+) -> Tensor3D[np.float64]:
     assert TA.shape[0] == int_mu_i_P.shape[0]
     assert TA.shape[1] == int_mu_i_P.shape[1]
 
-    g = MutableSemiSparse3DTensor((TA.shape[1], TA.shape[1], int_mu_i_P.naux))
+    g = np.zeros((TA.shape[1], TA.shape[1], int_mu_i_P.naux), dtype=np.float64)
 
-    for i in range(g.shape[0]):
-        for j in range(g.shape[1]):
-            tmp = np.zeros(int_mu_i_P.naux, dtype="f8")
+    for i in prange(g.shape[0]):
+        for j in prange(min(g.shape[1], i + 1)):
             for nu in int_mu_i_P.exch_reachable_i[i].items:
-                tmp += TA[nu, j] * int_mu_i_P[nu, i]
+                g[i, j, :] += TA[nu, j] * int_mu_i_P[nu, i]
 
-            if np.abs(tmp).sum() > 1e-10:
-                g[i, j] = tmp
+            g[j, i, :] = g[i, j, :]
     return g
 
 
@@ -1047,17 +1043,6 @@ def _slow_transform_sparse_DF_integral(
     ]
 
 
-def write_eris(
-    Fobjs: Sequence[Frags],
-    eris: Sequence[Matrix[np.float64]],
-    file_eri_handler: h5py.File,
-) -> None:
-    for fragidx, eri in enumerate(eris):
-        file_eri_handler.create_dataset(
-            Fobjs[fragidx].dname, data=restore("4", eri, len(eri))
-        )
-
-
 def _fast_transform_sparse_DF_integral(
     mf: scf.hf.SCF,
     Fobjs: Sequence[Frags],
@@ -1078,11 +1063,10 @@ def _fast_transform_sparse_DF_integral(
     for fragidx, fragobj in enumerate(Fobjs):
         transf = fragobj.TA
         sparse_int_mu_i_P = _first_contract_with_TA(transf, sparse_ints_3c2e)
-        sparse_int_i_j_P = _second_contract_with_TA(transf, sparse_int_mu_i_P)
-        ints_i_j_P.append(sparse_int_i_j_P)
-    return ints_i_j_P
+        int_i_j_P = _second_contract_with_TA(transf, sparse_int_mu_i_P)
+        ints_i_j_P.append(int_i_j_P)
 
-    Ds_i_j_P = [solve(ints_2c2e, int_i_j_P.to_dense().T).T for int_i_j_P in ints_i_j_P]
+    Ds_i_j_P = [solve(ints_2c2e, int_i_j_P.T).T for int_i_j_P in ints_i_j_P]
 
     return [
         einsum("ijP,klP->ijkl", ints, df_coef)
