@@ -361,7 +361,6 @@ class UBE(BE):  # 🍠
                 self.enuc,
                 hf_veff=self.hf_veff,
                 eeval=True,
-                ereturn=True,
                 relax_density=False,
                 frozen=self.frozen_core,
             )
