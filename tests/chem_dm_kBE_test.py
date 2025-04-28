@@ -79,6 +79,16 @@ class Test_kBE_Full(unittest.TestCase):
             only_chem=False,
         )
 
+        self.periodic_test(
+            cell,
+            kpt,
+            2,
+            "C4 (kBE2)",
+            "chemgen",
+            -204.44557767,
+            only_chem=False,
+        )
+
     def test_kc4_sto3g_be2_mp2density(self) -> None:
         kpt = [1, 1, 2]
         cell = gto.Cell()

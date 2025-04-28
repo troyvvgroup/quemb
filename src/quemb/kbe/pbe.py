@@ -21,7 +21,7 @@ from quemb.kbe.pfrag import Frags
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
 from quemb.molbe.opt import BEOPT
-from quemb.molbe.solver import UserSolverArgs, be_func
+from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
@@ -282,7 +282,7 @@ class BE(Mixin_k_Localize):
 
     def optimize(
         self,
-        solver: str = "MP2",
+        solver: Solvers = "MP2",
         method: str = "QN",
         only_chem: bool = False,
         use_cumulant: bool = True,
@@ -480,49 +480,15 @@ class BE(Mixin_k_Localize):
         # Create a file to store ERIs
         if not restart:
             file_eri = h5py.File(self.eri_file, "w")
-        lentmp = len(self.fobj.relAO_per_edge)
         transform_parallel = False  # hard set for now
         for fidx in range(self.fobj.n_frag):
-            if lentmp:
-                fobjs_ = Frags(
-                    self.fobj.AO_per_frag[fidx],
-                    fidx,
-                    edge=self.fobj.AO_per_edge[fidx],
-                    eri_file=self.eri_file,
-                    ref_frag_idx_per_edge=self.fobj.ref_frag_idx_per_edge[fidx],
-                    relAO_per_edge=self.fobj.relAO_per_edge[fidx],
-                    relAO_in_ref_per_edge=self.fobj.relAO_in_ref_per_edge[fidx],
-                    centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
-                        fidx
-                    ],
-                    relAO_per_origin=self.fobj.relAO_per_origin[fidx],
-                    unitcell=self.fobj.unitcell,
-                    unitcell_nkpt=self.unitcell_nkpt,
-                )
-            else:
-                fobjs_ = Frags(
-                    self.fobj.AO_per_frag[fidx],
-                    fidx,
-                    edge=[],
-                    ref_frag_idx_per_edge=[],
-                    eri_file=self.eri_file,
-                    relAO_per_edge=[],
-                    relAO_in_ref_per_edge=[],
-                    relAO_per_origin=[],
-                    centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
-                        fidx
-                    ],
-                    unitcell=self.fobj.unitcell,
-                    unitcell_nkpt=self.unitcell_nkpt,
-                )
-
+            fobjs_ = self.fobj.to_Frags(fidx, self.eri_file, self.unitcell_nkpt)
             fobjs_.sd(
                 self.W,
                 self.lmo_coeff,
                 self.Nocc,
                 kmesh=self.fobj.kpt,
                 cell=self.fobj.mol,
-                frag_type=self.fobj.frag_type,
                 kpts=self.kpts,
                 h1=self.hcore,
                 thr_bath=self.thr_bath,
@@ -665,7 +631,7 @@ class BE(Mixin_k_Localize):
 
     def oneshot(
         self,
-        solver: str = "MP2",
+        solver: Solvers = "MP2",
         use_cumulant: bool = True,
         nproc: int = 1,
         ompnum: int = 4,

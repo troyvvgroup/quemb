@@ -1,14 +1,16 @@
 # Author(s): Oinam Romesh Meitei
 
 import pickle
-from typing import Literal
+from typing import Literal, TypeAlias
 from warnings import warn
 
 import h5py
 import numpy
 from attrs import define
 from numpy import array, diag_indices, einsum, float64, floating, zeros, zeros_like
+from numpy.linalg import multi_dot
 from pyscf import ao2mo, scf
+from typing_extensions import assert_never
 
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
@@ -17,14 +19,18 @@ from quemb.molbe.lo import MixinLocalize
 from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
 from quemb.molbe.opt import BEOPT
 from quemb.molbe.pfrag import Frags
-from quemb.molbe.solver import UserSolverArgs, be_func
+from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.config import settings
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
-from quemb.shared.helper import Timer, copy_docstring
+from quemb.shared.helper import Timer, copy_docstring, ensure
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix, PathLike
+
+IntTransforms: TypeAlias = Literal[
+    "in-core", "out-core-DF", "int-direct-DF", "sparse-DF"
+]
 
 
 @define
@@ -82,10 +88,10 @@ class BE(MixinLocalize):
         ompnum: int = 4,
         thr_bath: float = 1.0e-10,
         scratch_dir: WorkDir | None = None,
-        integral_direct_DF: bool = False,
+        int_transform: IntTransforms = "in-core",
         auxbasis: str | None = None,
     ) -> None:
-        """
+        r"""
         Constructor for BE object.
 
         Parameters
@@ -118,13 +124,23 @@ class BE(MixinLocalize):
             Threshold for bath orbitals in Schmidt decomposition
         scratch_dir :
             Scratch directory.
-        integral_direct_DF:
-            If mf._eri is None (i.e. ERIs are not saved in memory using incore_anyway),
-            this flag is used to determine if the ERIs are computed integral-directly
-            using density fitting; by default False.
+        int_transform :
+            The possible integral transformations.
+
+            - :python:`"in-core"` (default): Use a dense representation of integrals
+              in memory without density fitting (DF) and transform in-memory.
+            - :python:`"out-core-DF"`: Use a dense, DF representation of integrals,
+              the DF integrals :math:`(\mu, \nu | P)` are stored on disc.
+            - :python:`"int-direct-DF"`: Use a dense, DF representation of integrals,
+              the required DF integrals :math:`(\mu, \nu | P)` are computed and fitted
+              on-demand for each fragment.
+            - :python:`"sparse-DF"`:  Work in progress.
+              Use a sparse, DF representation of integrals,
+              and avoid recomputation of elements that are shared across fragments.
         auxbasis :
             Auxiliary basis for density fitting, by default None
             (uses default auxiliary basis defined in PySCF).
+            Only relevant for :python:`int_transform in {"int-direct-DF", "sparse-DF"}`.
         """
         init_timer = Timer("Time to initialize BE object")
         if restart:
@@ -150,7 +166,7 @@ class BE(MixinLocalize):
         self.unrestricted = False
         self.nproc = nproc
         self.ompnum = ompnum
-        self.integral_direct_DF = integral_direct_DF
+        self.integral_transform = int_transform
         self.auxbasis = auxbasis
         self.thr_bath = thr_bath
 
@@ -161,6 +177,7 @@ class BE(MixinLocalize):
         self.ebe_tot = 0.0
 
         self.mf = mf
+
         if not restart:
             self.mo_energy = mf.mo_energy
 
@@ -186,6 +203,7 @@ class BE(MixinLocalize):
             self.scratch_dir = WorkDir.from_environment()
         else:
             self.scratch_dir = scratch_dir
+        print(f"Scratch dir is in: {self.scratch_dir.path}")
         self.eri_file = self.scratch_dir / eri_file
 
         self.frozen_core = fobj.frozen_core
@@ -243,9 +261,11 @@ class BE(MixinLocalize):
 
         if not restart:
             # Initialize fragments and perform initial calculations
-            self.initialize(mf._eri, compute_hf)
+            self.initialize(
+                mf._eri, compute_hf, restart=False, int_transform=int_transform
+            )
         else:
-            self.initialize(None, compute_hf, restart=True)
+            self.initialize(None, compute_hf, restart=True, int_transform=int_transform)
         if settings.PRINT_LEVEL >= 10:
             print(init_timer.str_elapsed())
 
@@ -349,7 +369,7 @@ class BE(MixinLocalize):
 
             # Generate the projection matrix
             cind = [
-                fobjs.AO_per_frag[i] for i in fobjs.centerweight_and_relAO_per_center[1]
+                fobjs.AO_in_frag[i] for i in fobjs.centerweight_and_relAO_per_center[1]
             ]
             Pc_ = (
                 fobjs.TA.T
@@ -631,7 +651,7 @@ class BE(MixinLocalize):
 
     def optimize(
         self,
-        solver: str = "MP2",
+        solver: Solvers = "MP2",
         method: str = "QN",
         only_chem: bool = False,
         use_cumulant: bool = True,
@@ -783,7 +803,14 @@ class BE(MixinLocalize):
         print("-----------------------------------------------------------", flush=True)
         print(flush=True)
 
-    def initialize(self, eri_, compute_hf, restart=False) -> None:
+    def initialize(
+        self,
+        eri_,
+        compute_hf: bool,
+        *,
+        restart: bool,
+        int_transform: IntTransforms,
+    ) -> None:
         """
         Initialize the Bootstrap Embedding calculation.
 
@@ -802,41 +829,14 @@ class BE(MixinLocalize):
         # Create a file to store ERIs
         if not restart:
             file_eri = h5py.File(self.eri_file, "w")
-        lentmp = len(self.fobj.relAO_per_edge)
         for I in range(self.fobj.n_frag):
-            if lentmp:
-                fobjs_ = Frags(
-                    self.fobj.AO_per_frag[I],
-                    I,
-                    AO_per_edge=self.fobj.AO_per_edge[I],
-                    eri_file=self.eri_file,
-                    ref_frag_idx_per_edge=self.fobj.ref_frag_idx_per_edge[I],
-                    relAO_per_edge=self.fobj.relAO_per_edge[I],
-                    relAO_in_ref_per_edge=self.fobj.relAO_in_ref_per_edge[I],
-                    centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
-                        I
-                    ],
-                    relAO_per_origin=self.fobj.relAO_per_origin[I],
-                )
-            else:
-                fobjs_ = Frags(
-                    self.fobj.AO_per_frag[I],
-                    I,
-                    AO_per_edge=[],
-                    ref_frag_idx_per_edge=[],
-                    eri_file=self.eri_file,
-                    relAO_per_edge=[],
-                    relAO_in_ref_per_edge=[],
-                    relAO_per_origin=[],
-                    centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
-                        I
-                    ],
-                )
+            fobjs_ = self.fobj.to_Frags(I, eri_file=self.eri_file)
             fobjs_.sd(self.W, self.lmo_coeff, self.Nocc, thr_bath=self.thr_bath)
 
             self.Fobjs.append(fobjs_)
 
         eritransform_timer = Timer("Time to transform ERIs")
+
         if not restart:
             # Transform ERIs for each fragment and store in the file
             # ERI Transform Decision Tree
@@ -845,37 +845,35 @@ class BE(MixinLocalize):
             #   No  -- Do we have (ij|P) from density fitting?
             #       Yes -- ao2mo, outcore version, using saved (ij|P)
             #       No  -- if integral_direct_DF is requested, invoke on-the-fly routine
-            assert (
-                (eri_ is not None)
-                or (hasattr(self.mf, "with_df"))
-                or (self.integral_direct_DF)
-            ), "Input mean-field object is missing ERI (mf._eri) or DF (mf.with_df) "
-            "object AND integral direct DF routine was not requested. "
-            "Please check your inputs."
-            if (
-                eri_ is not None
-            ):  # incore ao2mo using saved eri from mean-field calculation
+            if int_transform == "in-core":
+                ensure(eri_ is not None, "ERIs have to be available in memory.")
                 for I in range(self.fobj.n_frag):
                     eri = ao2mo.incore.full(eri_, self.Fobjs[I].TA, compact=True)
                     file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
-            elif hasattr(self.mf, "with_df") and self.mf.with_df is not None:
+            elif int_transform == "out-core-DF":
+                ensure(
+                    hasattr(self.mf, "with_df") and self.mf.with_df is not None,
+                    "Pyscf mean field object has to support `with_df`.",
+                )
                 # pyscf.ao2mo uses DF object in an outcore fashion using (ij|P)
                 #   in pyscf temp directory
                 for I in range(self.fobj.n_frag):
                     eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)
                     file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
-            else:
+            elif int_transform == "int-direct-DF":
                 # If ERIs are not saved on memory, compute fragment ERIs integral-direct
-                if (
-                    self.integral_direct_DF
-                ):  # Use density fitting to generate fragment ERIs on-the-fly
-                    integral_direct_DF(
-                        self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis
-                    )
-                else:  # Calculate ERIs on-the-fly to generate fragment ERIs
-                    # TODO: Future feature to be implemented
-                    # NOTE: Ideally, we want AO shell pair screening for this.
-                    raise NotImplementedError
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                integral_direct_DF(
+                    self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis
+                )
+                eri = None
+            elif int_transform == "sparse-DF":
+                # Calculate ERIs on-the-fly to generate fragment ERIs
+                # TODO: Future feature to be implemented
+                # NOTE: Ideally, we want AO shell pair screening for this.
+                raise NotImplementedError
+            else:
+                assert_never(int_transform)
         else:
             eri = None
         if settings.PRINT_LEVEL >= 10:
@@ -886,7 +884,8 @@ class BE(MixinLocalize):
             eri = array(file_eri.get(fobjs_.dname))
             _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
 
-            fobjs_.cons_h1(self.hcore)
+            assert fobjs_.TA is not None
+            fobjs_.h1 = multi_dot((fobjs_.TA.T, self.hcore, fobjs_.TA))
 
             if not restart:
                 eri = ao2mo.restore(8, eri, fobjs_.nao)
@@ -923,7 +922,7 @@ class BE(MixinLocalize):
 
     def oneshot(
         self,
-        solver: str = "MP2",
+        solver: Solvers = "MP2",
         use_cumulant: bool = True,
         nproc: int = 1,
         ompnum: int = 4,

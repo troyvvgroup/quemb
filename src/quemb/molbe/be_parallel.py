@@ -456,7 +456,7 @@ def be_func_parallel(
             fobj.update_heff(pot, only_chem=only_chem)
 
     with Pool(nprocs) as pool_:
-        results = []
+        results = []  # type: ignore[var-annotated]
         # Run solver in parallel for each fragment
         for fobj in Fobjs:
             assert (

@@ -10,12 +10,16 @@ i.e. the type is mostly useful to document intent to the developer.
 """
 
 import os
+from collections.abc import Sequence
 from typing import Any, NewType, TypeAlias, TypeVar
 
 import numpy as np
 
 # We just reexpose the AtomIdx type from chemcoord here
 from chemcoord.typing import AtomIdx
+
+Real: TypeAlias = int | float | np.floating
+Integral: TypeAlias = int | np.integer
 
 # We want the dtype to behave covariant, i.e. if a
 #  Vector[float] is allowed, then the more specific
@@ -26,7 +30,7 @@ from chemcoord.typing import AtomIdx
 T_dtype_co = TypeVar("T_dtype_co", bound=np.generic, covariant=True)
 
 # Currently we can define :code:`Matrix` and higher order tensors
-# only with shape :code`Tuple[int, ...]` because of
+# only with shape :code`tuple[int, ...]` because of
 # https://github.com/numpy/numpy/issues/27957
 # make the typechecks more strict over time, when shape checking finally comes to numpy.
 
@@ -56,9 +60,11 @@ KwargDict: TypeAlias = dict[str, Any]
 #: A generic type variable, without any constraints.
 T = TypeVar("T")
 
+#: The index of an orbital.
+OrbitalIdx = NewType("OrbitalIdx", np.integer)
 
-#: The index of an atomic orbital. This is the global index, i.e. not per fragment.
-AOIdx = NewType("AOIdx", int)
+#: The index of an atomic orbital.
+AOIdx = NewType("AOIdx", OrbitalIdx)
 
 #: The global index of an atomic orbital, i.e. not per fragment.
 #: This is basically the result of
@@ -74,8 +80,20 @@ RelAOIdx = NewType("RelAOIdx", AOIdx)
 #: interpreted as center in fragment 2.
 RelAOIdxInRef = NewType("RelAOIdxInRef", AOIdx)
 
+
+#: The index of a molecular orbital.
+MOIdx = NewType("MOIdx", OrbitalIdx)
+
+#: The global index of a molecular orbital, i.e. not per fragment.
+GlobalMOIdx = NewType("GlobalMOIdx", MOIdx)
+
+# TODO improve description of ShellIdx
+
+#: The shell index ...
+ShellIdx = NewType("ShellIdx", np.integer)
+
 #: The index of a Fragment.
-FragmentIdx = NewType("FragmentIdx", int)
+FragmentIdx = NewType("FragmentIdx", np.integer)
 
 #: The index of a heavy atom, i.e. of a motif.
 #: If hydrogen atoms are not treated differently, then every atom
@@ -124,3 +142,9 @@ ListOverFrag: TypeAlias = list
 ListOverEdge: TypeAlias = list
 ListOverCenter: TypeAlias = list
 ListOverMotif: TypeAlias = list
+
+
+SeqOverFrag: TypeAlias = Sequence
+SeqOverEdge: TypeAlias = Sequence
+SeqOverCenter: TypeAlias = Sequence
+SeqOverMotif: TypeAlias = Sequence

@@ -1,12 +1,12 @@
 # Author(s): Oinam Romesh Meitei
 
 from typing import Literal
-from warnings import warn
 
 from attrs import define, field
 from pyscf.pbc.gto.cell import Cell
 
 from quemb.kbe.autofrag import autogen
+from quemb.kbe.pfrag import Frags
 from quemb.molbe.chemfrag import ChemGenArgs, chemgen
 from quemb.molbe.helper import get_core
 from quemb.shared.typing import (
@@ -14,6 +14,7 @@ from quemb.shared.typing import (
     GlobalAOIdx,
     ListOverEdge,
     ListOverFrag,
+    PathLike,
     RelAOIdx,
     RelAOIdxInRef,
 )
@@ -118,6 +119,21 @@ class FragPart:
             )
         )
 
+    def to_Frags(self, I: int, eri_file: PathLike, unitcell_nkpt: int) -> Frags:
+        return Frags(
+            AO_in_frag=self.AO_per_frag[I],
+            ifrag=I,
+            AO_per_edge=self.AO_per_edge[I],
+            eri_file=eri_file,
+            ref_frag_idx_per_edge=self.ref_frag_idx_per_edge[I],
+            relAO_per_edge=self.relAO_per_edge[I],
+            relAO_in_ref_per_edge=self.relAO_in_ref_per_edge[I],
+            centerweight_and_relAO_per_center=self.centerweight_and_relAO_per_center[I],
+            relAO_per_origin=self.relAO_per_origin[I],
+            unitcell=self.unitcell,
+            unitcell_nkpt=unitcell_nkpt,
+        )
+
 
 def fragmentate(
     mol: Cell,
@@ -141,6 +157,7 @@ def fragmentate(
     self_match: bool = False,
     allcen: bool = True,
     print_frags: bool = True,
+    additional_args: ChemGenArgs | None = None,
 ) -> FragPart:
     """Fragment/partitioning definition
 
@@ -153,10 +170,8 @@ def fragmentate(
     Parameters
     ----------
     frag_type : str
-        Name of fragmentation function. 'autogen', 'hchain_simple', and 'chain' are
-        supported. Defaults to 'autogen'
-        For systems with only hydrogen, use 'chain';
-        everything else should use 'autogen'
+        Name of fragmentation function. 'autogen' and 'chemgen' are supported.
+        Defaults to 'autogen'
     n_BE: int, optional
         Specifies the order of bootstrap calculation in the atom-based fragmentation,
         i.e. BE(n).
@@ -173,9 +188,6 @@ def fragmentate(
         Whether to invoke frozen core approximation. This is set to False by default
     print_frags: bool
         Whether to print out list of resulting fragments. True by default
-    write_geom: bool
-        Whether to write 'fragment.xyz' file which contains all the fragments in
-        cartesian coordinates.
     kpt : list of int
         No. of k-points in each lattice vector direction. This is the same as kmesh.
     interlayer : bool
@@ -183,6 +195,8 @@ def fragmentate(
     long_bond : bool
         For systems with longer than 1.8 Angstrom covalent bond, set this to True
         otherwise the fragmentation might fail.
+    additional_args:
+        Additional arguments for different fragmentation functions.
     """
     if frag_type == "autogen":
         if kpt is None:
@@ -237,34 +251,36 @@ def fragmentate(
     elif frag_type == "chemgen":
         if kpt is None:
             raise ValueError("Provide kpt mesh in fragmentate() and restart!")
-        if n_BE != 1:
-            raise ValueError(
-                "Only be_type='be1' is currently supported for periodic chemgen!"
-            )
+        if additional_args is None:
+            additional_args = ChemGenArgs()
         else:
-            warn("Periodic BE1 with chemgen is a temporary solution.")
+            assert isinstance(additional_args, ChemGenArgs)
         fragments = chemgen(
-            mol.to_mol(),
+            mol,
             n_BE=n_BE,
             frozen_core=frozen_core,
-            args=ChemGenArgs(),
+            args=additional_args,
             iao_valence_basis=iao_valence_basis,
         )
-        molecular_FragPart = fragments.get_FragPart()
         if print_frags:
             print(fragments.frag_structure.get_string())
+        # Once periodic FragPart API is fixed,
+        # add _get_FragPart_no_iao equivalent in quemb.molbe.chemgen
+        mol_fragments = fragments.get_FragPart(
+            wrong_iao_indexing=additional_args._wrong_iao_indexing
+        )
         return FragPart(
             unitcell=unitcell,
             mol=mol,
             frag_type=frag_type,
-            AO_per_frag=molecular_FragPart.AO_per_frag,
-            AO_per_edge=molecular_FragPart.AO_per_edge,
-            ref_frag_idx_per_edge=molecular_FragPart.ref_frag_idx_per_edge,
-            centerweight_and_relAO_per_center=molecular_FragPart.centerweight_and_relAO_per_center,
-            relAO_per_edge=molecular_FragPart.relAO_per_edge,
-            relAO_in_ref_per_edge=molecular_FragPart.relAO_in_ref_per_edge,
-            relAO_per_origin=molecular_FragPart.relAO_per_origin,
-            n_BE=molecular_FragPart.n_BE,
+            AO_per_frag=mol_fragments.AO_per_frag,
+            AO_per_edge=mol_fragments.AO_per_edge,
+            ref_frag_idx_per_edge=mol_fragments.ref_frag_idx_per_edge,
+            centerweight_and_relAO_per_center=mol_fragments.centerweight_and_relAO_per_center,
+            relAO_per_edge=mol_fragments.relAO_per_edge,
+            relAO_in_ref_per_edge=mol_fragments.relAO_in_ref_per_edge,
+            relAO_per_origin=mol_fragments.relAO_per_origin,
+            n_BE=mol_fragments.n_BE,
             natom=natom,
             frozen_core=frozen_core,
             iao_valence_basis=iao_valence_basis,

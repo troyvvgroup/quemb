@@ -18,7 +18,7 @@ class TestDF_ontheflyERI(unittest.TestCase):
         os.getenv("QUEMB_SKIP_EXPENSIVE_TESTS") == "true",
         "Skipped expensive tests for QuEmb.",
     )
-    def test_octane_BE2(self):
+    def test_octane_BE2_large(self):
         # Octane, cc-pvtz
         mol = gto.M()
         mol.atom = os.path.join(os.path.dirname(__file__), "xyz/octane.xyz")
@@ -30,12 +30,35 @@ class TestDF_ontheflyERI(unittest.TestCase):
         mf.direct_scf = True
         mf.kernel()
         fobj = fragmentate(frag_type="autogen", n_BE=2, mol=mol)
-        mybe = BE(mf, fobj, integral_direct_DF=True)
+        mybe = BE(mf, fobj, int_transform="int-direct-DF")
         self.assertAlmostEqual(
             mybe.ebe_hf,
             mf.e_tot,
             msg="HF-in-HF energy for Octane (BE2) does not match the HF energy!",
             delta=1e-6,
+        )
+
+    def test_octane_BE2_small(self):
+        # Octane, cc-pvtz
+        mol = gto.M("xyz/octane.xyz", basis="sto-3g")
+
+        mf = scf.RHF(mol)
+        mf.kernel()
+
+        fobj = fragmentate(frag_type="chemgen", n_BE=2, mol=mol)
+
+        incore_BE = BE(mf, fobj, int_transform="in-core")
+        incore_BE.oneshot(solver="CCSD")
+
+        int_direct_DF_BE = BE(
+            mf, fobj, auxbasis="weigend", int_transform="int-direct-DF"
+        )
+        int_direct_DF_BE.oneshot(solver="CCSD")
+
+        self.assertAlmostEqual(
+            (incore_BE.ebe_tot - int_direct_DF_BE.ebe_tot),
+            -6.078869063230741e-05,
+            delta=1e-8,
         )
 
 
