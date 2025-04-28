@@ -12,8 +12,10 @@ from networkx import shortest_path
 from numpy.linalg import norm
 from pyscf import gto
 from pyscf.gto import Mole
+from pyscf.pbc.gto import Cell
 
 from quemb.molbe.helper import are_equal, get_core
+from quemb.molbe.pfrag import Frags
 from quemb.shared.helper import unused
 from quemb.shared.typing import (
     AtomIdx,
@@ -25,6 +27,7 @@ from quemb.shared.typing import (
     ListOverMotif,
     MotifIdx,
     OriginIdx,
+    PathLike,
     RelAOIdx,
     RelAOIdxInRef,
     Vector,
@@ -38,7 +41,7 @@ class FragPart:
     """Data structure to hold the result of BE fragmentations."""
 
     #: The full molecule.
-    mol: Mole = field(eq=cmp_using(are_equal))
+    mol: Mole | Cell = field(eq=cmp_using(are_equal))
     #: The algorithm used for fragmenting.
     frag_type: FragType
     #: The level of BE fragmentation, i.e. 1, 2, ...
@@ -155,6 +158,20 @@ class FragPart:
             for (_, relAO_per_center), relAO_per_origin in zip(
                 self.centerweight_and_relAO_per_center, self.relAO_per_origin
             )
+        )
+
+    def to_Frags(self, I: int, eri_file: PathLike, unrestricted: bool = False) -> Frags:
+        return Frags(
+            self.AO_per_frag[I],
+            I,
+            AO_per_edge=self.AO_per_edge[I],
+            eri_file=eri_file,
+            ref_frag_idx_per_edge=self.ref_frag_idx_per_edge[I],
+            relAO_per_edge=self.relAO_per_edge[I],
+            relAO_in_ref_per_edge=self.relAO_in_ref_per_edge[I],
+            centerweight_and_relAO_per_center=self.centerweight_and_relAO_per_center[I],
+            relAO_per_origin=self.relAO_per_origin[I],
+            unrestricted=unrestricted,
         )
 
 
@@ -290,13 +307,14 @@ class FragmentMap:
 
     def to_FragPart(self, mol: Mole, n_BE: int, frozen_core: bool) -> FragPart:
         MISSING = []  # type: ignore[var-annotated]
+        MISSING_PER_FRAG = [[] for _ in range(len(self.AO_per_frag))]  # type: ignore[var-annotated]
         return FragPart(
             mol=mol,
             frag_type="graphgen",
             n_BE=n_BE,
             AO_per_edge=self.AO_per_edge,  # type: ignore[arg-type]
-            relAO_per_edge=MISSING,
-            relAO_in_ref_per_edge=MISSING,
+            relAO_per_edge=MISSING_PER_FRAG,
+            relAO_in_ref_per_edge=MISSING_PER_FRAG,
             relAO_per_origin=self.relAO_per_origin,  # type: ignore[arg-type]
             AO_per_frag=self.AO_per_frag,  # type: ignore[arg-type]
             ref_frag_idx_per_edge=self.ref_frag_idx_per_edge,  # type: ignore[arg-type]
@@ -1015,6 +1033,12 @@ def autogen(
                     idx.append([AO_per_frag[j].index(k) for k in cntlist])
 
             relAO_in_ref_per_edge.append(idx)
+
+    if not AO_per_edge:
+        AO_per_edge = [[] for _ in range(n_frag)]
+        ref_frag_idx_per_edge = [[] for _ in range(n_frag)]
+        relAO_per_edge = [[] for _ in range(n_frag)]
+        relAO_in_ref_per_edge = [[] for _ in range(n_frag)]
 
     return FragPart(
         mol=mol,
