@@ -352,7 +352,7 @@ _UniTuple_int64_2 = UniTuple(int64, 2)
 class MutableSemiSparse3DTensor:
     def __init__(
         self,
-        shape,
+        shape: tuple[int, int, int],
     ) -> None:
         self.shape = shape
         self.naux = shape[-1]
@@ -360,11 +360,13 @@ class MutableSemiSparse3DTensor:
         self.exch_reachable_mu = _get_list_of_sortedset(self.shape[0])
         self.exch_reachable_i = _get_list_of_sortedset(self.shape[1])
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[np.float64]:
         assert key[0] < self.shape[0] and key[1] < self.shape[1]
         return self._data[key]
 
-    def __setitem__(self, key, value):
+    def __setitem__(
+        self, key: tuple[OrbitalIdx, OrbitalIdx], value: Vector[np.float64]
+    ) -> None:
         assert (
             key[0] < self.shape[0]
             and key[1] < self.shape[1]
@@ -373,6 +375,13 @@ class MutableSemiSparse3DTensor:
         self._data[key] = value
         self.exch_reachable_mu[key[0]].add(key[1])
         self.exch_reachable_i[key[1]].add(key[0])
+
+    def to_dense(self) -> Tensor3D[np.float64]:
+        result = np.zeros((self.shape), dtype="f8")
+        for mu in range(self.shape[0]):
+            for i in self.exch_reachable_mu[mu].items:
+                result[mu, i, :] = self[mu, i]
+        return result
 
 
 @jitclass(
@@ -971,33 +980,48 @@ def _first_contract_with_TA(
     return g
 
 
-# @njit
-# def _second_contract_with_TA(
-#     TA: Matrix[np.float64], int_mu_i_P: MutableSemiSparse3DTensor
-# ) -> MutableSemiSparse3DTensor:
-#     assert TA.shape[0] == int_mu_i_P.shape[0]
-#     assert TA.shape[1] == int_mu_i_P.shape[1]
+@njit
+def _second_contract_with_TA(
+    TA: Matrix[np.float64], int_mu_i_P: MutableSemiSparse3DTensor
+) -> MutableSemiSparse3DTensor:
+    assert TA.shape[0] == int_mu_i_P.shape[0]
+    assert TA.shape[1] == int_mu_i_P.shape[1]
 
-#     g = MutableSemiSparse3DTensor((TA.shape[1], TA.shape[1], int_mu_i_P.naux))
+    g = MutableSemiSparse3DTensor((TA.shape[1], TA.shape[1], int_mu_i_P.naux))
 
-#     for i in range(g.shape[0]):
-#         for j in range(g.shape[1]):
-#             tmp = np.zeros(int_mu_i_P.naux, dtype="f8")
-#             for nu in int_mu_i_P. [mu]:
-#                 tmp += TA[nu, i] * int_mu_nu_P[mu, nu]
+    for i in range(g.shape[0]):
+        for j in range(g.shape[1]):
+            tmp = np.zeros(int_mu_i_P.naux, dtype="f8")
+            for nu in int_mu_i_P.exch_reachable_i[i].items:
+                tmp += TA[nu, j] * int_mu_i_P[nu, i]
 
-#             if np.abs(tmp).sum() > 1e-10:
-#                 g[i, j] = tmp
-#     return g
+            if np.abs(tmp).sum() > 1e-10:
+                g[i, j] = tmp
+    return g
 
 
-def slow_transform_sparse_DF_integral(
+def transform_sparse_DF_integral(
     mf: scf.hf.SCF,
     Fobjs: Sequence[Frags],
     file_eri_handler: h5py.File,
     auxbasis: str | None = None,
     screen_radius: Mapping[str, float] | None = None,
 ) -> None:
+    eris = _slow_transform_sparse_DF_integral(
+        mf,
+        Fobjs,
+        auxbasis,
+        screen_radius,
+    )
+    write_eris(Fobjs, eris, file_eri_handler)
+
+
+def _slow_transform_sparse_DF_integral(
+    mf: scf.hf.SCF,
+    Fobjs: Sequence[Frags],
+    auxbasis: str | None = None,
+    screen_radius: Mapping[str, float] | None = None,
+) -> list[Matrix[np.float64]]:
     mol = mf.mol
     auxmol = addons.make_auxmol(mf.mol, auxbasis=auxbasis)
     if screen_radius is None:
@@ -1012,18 +1036,66 @@ def slow_transform_sparse_DF_integral(
 
     for fragidx, fragobj in enumerate(Fobjs):
         transf = fragobj.TA.T.copy()
-        transf[np.abs(transf) < 1e-4] = 0.0
         int_mu_i_P = transf @ ints_mu_nu_P
         ints_i_j_P.append(transf @ np.moveaxis(int_mu_i_P, 1, 0))
 
     Ds_i_j_P = [solve(ints_2c2e, int_i_j_P.T).T for int_i_j_P in ints_i_j_P]
 
-    df_eri = [
+    return [
         einsum("ijP,klP->ijkl", ints, df_coef)
         for ints, df_coef in zip(ints_i_j_P, Ds_i_j_P)
     ]
 
-    for fragidx, eri in enumerate(df_eri):
+
+def write_eris(
+    Fobjs: Sequence[Frags],
+    eris: Sequence[Matrix[np.float64]],
+    file_eri_handler: h5py.File,
+) -> None:
+    for fragidx, eri in enumerate(eris):
+        file_eri_handler.create_dataset(
+            Fobjs[fragidx].dname, data=restore("4", eri, len(eri))
+        )
+
+
+def _fast_transform_sparse_DF_integral(
+    mf: scf.hf.SCF,
+    Fobjs: Sequence[Frags],
+    auxbasis: str | None = None,
+    screen_radius: Mapping[str, float] | None = None,
+) -> list[Matrix[np.float64]]:
+    mol = mf.mol
+    auxmol = addons.make_auxmol(mf.mol, auxbasis=auxbasis)
+    if screen_radius is None:
+        screen_radius = find_screening_radius(mol, auxmol, threshold=1e-4)
+    sparse_ints_3c2e, sparse_df_coef = get_sparse_DF_integrals(
+        mol, auxmol, screen_radius
+    )
+    ints_2c2e = auxmol.intor("int2c2e")
+
+    ints_i_j_P = []
+
+    for fragidx, fragobj in enumerate(Fobjs):
+        transf = fragobj.TA
+        sparse_int_mu_i_P = _first_contract_with_TA(transf, sparse_ints_3c2e)
+        sparse_int_i_j_P = _second_contract_with_TA(transf, sparse_int_mu_i_P)
+        ints_i_j_P.append(sparse_int_i_j_P)
+    return ints_i_j_P
+
+    Ds_i_j_P = [solve(ints_2c2e, int_i_j_P.to_dense().T).T for int_i_j_P in ints_i_j_P]
+
+    return [
+        einsum("ijP,klP->ijkl", ints, df_coef)
+        for ints, df_coef in zip(ints_i_j_P, Ds_i_j_P)
+    ]
+
+
+def write_eris(
+    Fobjs: Sequence[Frags],
+    eris: Sequence[Matrix[np.float64]],
+    file_eri_handler: h5py.File,
+) -> None:
+    for fragidx, eri in enumerate(eris):
         file_eri_handler.create_dataset(
             Fobjs[fragidx].dname, data=restore("4", eri, len(eri))
         )
