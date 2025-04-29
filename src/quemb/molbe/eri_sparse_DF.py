@@ -663,7 +663,7 @@ def get_complement(
 
 
 def to_numba_input(
-    exch_reachable: Mapping[_T_orb_idx, Set[_T_orb_idx]],
+    exch_reachable: Mapping[_T_orb_idx, Collection[_T_orb_idx]],
 ) -> List[Vector[_T_orb_idx]]:
     """Convert the reachable orbitals to a list of numpy arrays.
 
@@ -1019,13 +1019,15 @@ def find_screening_radius(
 
 @njit
 def _first_contract_with_TA(
-    TA: Matrix[np.float64], int_mu_nu_P: SemiSparseSym3DTensor
+    TA: Matrix[np.float64],
+    int_mu_nu_P: SemiSparseSym3DTensor,
+    AO_reachable_by_MO: list[Vector[OrbitalIdx]],
 ) -> MutableSemiSparse3DTensor:
     assert TA.shape[0] == int_mu_nu_P.nao
     g = MutableSemiSparse3DTensor((int_mu_nu_P.nao, TA.shape[1], int_mu_nu_P.naux))
 
-    for mu in range(g.shape[0]):
-        for i in range(g.shape[1]):
+    for i in range(g.shape[1]):
+        for mu in AO_reachable_by_MO[i]:
             tmp = np.zeros(int_mu_nu_P.naux, dtype="f8")
             for nu in int_mu_nu_P.exch_reachable[mu]:
                 tmp += TA[nu, i] * int_mu_nu_P[mu, nu]  # type: ignore[index]
@@ -1113,12 +1115,22 @@ def _fast_transform_sparse_DF_integral(
     )
     ints_2c2e = auxmol.intor("int2c2e")
 
-    ints_i_j_P = []
+    atom_per_AO = get_atom_per_AO(mol)
 
+    ints_i_j_P = []
     for fragidx, fragobj in enumerate(Fobjs):
-        transf = fragobj.TA
-        sparse_int_mu_i_P = _first_contract_with_TA(transf, sparse_ints_3c2e)
-        int_i_j_P = _second_contract_with_TA(transf, sparse_int_mu_i_P)
+        TA = fragobj.TA
+
+        AO_reachable_per_SchmidtMO = get_reachable(
+            mol,
+            get_atom_per_MO(atom_per_AO, TA, epsilon=1e-8),
+            atom_per_AO,
+            screen_radius,
+        )
+        sparse_int_mu_i_P = _first_contract_with_TA(
+            TA, sparse_ints_3c2e, to_numba_input(AO_reachable_per_SchmidtMO)
+        )
+        int_i_j_P = _second_contract_with_TA(TA, sparse_int_mu_i_P)
         ints_i_j_P.append(int_i_j_P)
 
     Ds_i_j_P = [solve(ints_2c2e, int_i_j_P.T).T for int_i_j_P in ints_i_j_P]
