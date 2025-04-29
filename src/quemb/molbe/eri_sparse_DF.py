@@ -390,7 +390,10 @@ class MutableSemiSparse3DTensor:
         self.exch_reachable_mu[key[0]].add(key[1])
         self.exch_reachable_i[key[1]].add(key[0])
 
-    def to_dense(self) -> Tensor3D[np.float64]:
+    # We cannot annotate the return type of this function, because of a strange bug in
+    #  sphinx-autodoc-typehints.
+    #  https://github.com/tox-dev/sphinx-autodoc-typehints/issues/532
+    def to_dense(self):  # type: ignore[no-untyped-def]
         result = np.zeros((self.shape), dtype="f8")
         for mu in range(self.shape[0]):
             for i in self.exch_reachable_mu[mu].items:

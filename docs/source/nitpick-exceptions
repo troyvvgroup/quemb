@@ -5,6 +5,8 @@ py:class ordered_set.OrderedSet
 py:class Real
 py:class AtomIdx
 py:class numba.typed.typeddict.Dict
+py:class numba.typed.Dict
+py:class numba.typed.List
 py:class numba.typed.typedlist.List
 py:class numba.core.types.old_scalars.Float
 py:class numba.core.types.old_scalars.Integer
