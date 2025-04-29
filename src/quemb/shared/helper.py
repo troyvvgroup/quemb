@@ -1,3 +1,4 @@
+import inspect
 from collections.abc import Callable, Iterable, Sequence
 from inspect import signature
 from itertools import islice
@@ -301,3 +302,9 @@ def union_of_seqs(*seqs: Sequence[T]) -> OrderedSet[T]:
     """
     # mypy wrongly complains that the arg type is not valid, which it is.
     return OrderedSet().union(*seqs)  # type: ignore[arg-type]
+
+
+def get_calling_function_name() -> str:
+    """Do stack inspection shenanigan to obtain the name
+    of the calling function"""
+    return inspect.stack()[1][3]

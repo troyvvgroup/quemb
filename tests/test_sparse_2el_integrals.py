@@ -15,9 +15,15 @@ from quemb.molbe.eri_sparse_DF import (
     get_atom_per_AO,
     get_atom_per_MO,
     get_dense_integrals,
+    get_reachable,
     get_sparse_DF_integrals,
     traverse_nonzero,
 )
+from quemb.shared.helper import get_calling_function_name
+
+from ._expected_data_for_sparse_2el_integrals import get_expected
+
+expected = get_expected()
 
 
 def test_basic_indexing() -> None:
@@ -127,7 +133,46 @@ def test_MO_screening() -> None:
     fobj = fragmentate(frag_type="chemgen", n_BE=2, mol=mol, print_frags=False)
     my_be = BE(mf, fobj, auxbasis=auxbasis, int_transform="int-direct-DF")
 
-    TA = my_be.Fobjs[0].TA.copy()
-
     atom_per_AO = get_atom_per_AO(mol)
-    atom_per_MO = get_atom_per_MO(atom_per_AO, TA, epsilon=1e-8)
+
+    screening_cutoff = find_screening_radius(mol, auxmol)
+
+    SchmidtMO_reachable_per_AO_per_frag = [
+        get_reachable(
+            mol,
+            atom_per_AO,
+            get_atom_per_MO(atom_per_AO, TA, epsilon=1e-8),
+            screening_cutoff,
+        )
+        for TA in (fobj.TA for fobj in my_be.Fobjs)
+    ]
+
+    AO_reachable_per_SchmidtMO_per_frag = [
+        get_reachable(
+            mol,
+            get_atom_per_MO(atom_per_AO, TA, epsilon=1e-8),
+            atom_per_AO,
+            screening_cutoff,
+        )
+        for TA in (fobj.TA for fobj in my_be.Fobjs)
+    ]
+
+    assert (
+        SchmidtMO_reachable_per_AO_per_frag
+        == expected[get_calling_function_name()]["SchmidtMO_reachable_per_AO"]
+    )
+    assert (
+        AO_reachable_per_SchmidtMO_per_frag
+        == expected[get_calling_function_name()]["AO_reachable_per_SchmidtMO"]
+    )
+
+    for MO_reachable_by_AO, AO_reachable_by_MO in zip(
+        SchmidtMO_reachable_per_AO_per_frag, AO_reachable_per_SchmidtMO_per_frag
+    ):
+        for i_AO in MO_reachable_by_AO:
+            for i_MO in MO_reachable_by_AO[i_AO]:
+                assert i_AO in AO_reachable_by_MO[i_MO]
+
+        for i_MO in AO_reachable_by_MO:
+            for i_AO in AO_reachable_by_MO[i_MO]:
+                assert i_MO in MO_reachable_by_AO[i_AO]
