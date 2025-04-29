@@ -2357,12 +2357,6 @@ def autogen(
         relAO_per_edge_per_frag = [[] for _ in range(n_frag)]
         relAO_in_ref_per_edge_per_frag = [[] for _ in range(n_frag)]
 
-    if not AO_per_edge_per_frag:
-        AO_per_edge_per_frag = [[] for _ in range(n_frag)]
-        ref_frag_idx_per_edge_per_frag = [[] for _ in range(n_frag)]
-        relAO_per_edge_per_frag = [[] for _ in range(n_frag)]
-        relAO_in_ref_per_edge_per_frag = [[] for _ in range(n_frag)]
-
     return (
         AO_per_frag,
         AO_per_edge_per_frag,
