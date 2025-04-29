@@ -1,7 +1,15 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Callable, Collection, Iterator, Mapping, Sequence, Set
+from collections.abc import (
+    Callable,
+    Collection,
+    Hashable,
+    Iterator,
+    Mapping,
+    Sequence,
+    Set,
+)
 from itertools import chain, takewhile
 from typing import Final, TypeVar, cast
 
@@ -28,13 +36,19 @@ from quemb.molbe.chemfrag import (
     _get_AOidx_per_atom,
 )
 from quemb.molbe.pfrag import Frags
-from quemb.shared.helper import jitclass, njit, ravel, ravel_symmetric
+from quemb.shared.helper import (
+    jitclass,
+    njit,
+    ravel,
+    ravel_symmetric,
+)
 from quemb.shared.numba_helpers import SortedIntSet, Type_SortedIntSet
 from quemb.shared.typing import (
     AOIdx,
     AtomIdx,
     Integral,
     Matrix,
+    MOIdx,
     OrbitalIdx,
     Real,
     ShellIdx,
@@ -380,7 +394,7 @@ class MutableSemiSparse3DTensor:
         result = np.zeros((self.shape), dtype="f8")
         for mu in range(self.shape[0]):
             for i in self.exch_reachable_mu[mu].items:
-                result[mu, i, :] = self[mu, i]
+                result[mu, i, :] = self[mu, i]  # type: ignore[index]
         return result
 
 
@@ -493,14 +507,24 @@ def traverse_nonzero(
             yield cast(tuple[OrbitalIdx, OrbitalIdx], (p, q))
 
 
+_T_old_key = TypeVar("_T_old_key", bound=Hashable)
+_T_new_key = TypeVar("_T_new_key", bound=Hashable)
+
+
+def _invert_dict(
+    D: Mapping[_T_old_key, Collection[_T_new_key]],
+) -> dict[_T_new_key, set[_T_old_key]]:
+    inverted_D = defaultdict(set)
+    for old_key, new_keys in D.items():
+        for new_key in new_keys:
+            inverted_D[new_key].add(old_key)
+    return dict(inverted_D)
+
+
 def get_orbs_per_atom(
     atom_per_orb: Mapping[_T_orb_idx, Set[AtomIdx]],
 ) -> dict[AtomIdx, set[_T_orb_idx]]:
-    orb_per_atom = defaultdict(set)
-    for i_AO, atoms in atom_per_orb.items():
-        for i_atom in atoms:
-            orb_per_atom[i_atom].add(i_AO)
-    return dict(orb_per_atom)
+    return _invert_dict(atom_per_orb)
 
 
 def get_orbs_reachable_by_atom(
@@ -508,7 +532,9 @@ def get_orbs_reachable_by_atom(
     screened: Mapping[AtomIdx, Set[AtomIdx]],
 ) -> dict[AtomIdx, dict[AtomIdx, Set[_T_orb_idx]]]:
     return {
-        i_atom: {j_atom: orb_per_atom[j_atom] for j_atom in sorted(connected)}
+        i_atom: {
+            j_atom: orb_per_atom.get(j_atom, set()) for j_atom in sorted(connected)
+        }
         for i_atom, connected in screened.items()
     }
 
@@ -517,6 +543,9 @@ def get_orbs_reachable_by_orb(
     atom_per_orb: Mapping[_T_start_orb, Set[AtomIdx]],
     reachable_orb_per_atom: Mapping[AtomIdx, Mapping[AtomIdx, Set[_T_target_orb]]],
 ) -> dict[_T_start_orb, dict[AtomIdx, Mapping[AtomIdx, Set[_T_target_orb]]]]:
+    """Concatenate the :python:`atom_per_orb` and :python:`reachable_orb_per_atom`
+    Such that it becomes a mapping :python:`i_orb -> i_atom -> j_atom`
+    """
     return {
         i_AO: {atom: reachable_orb_per_atom[atom] for atom in atoms}
         for i_AO, atoms in atom_per_orb.items()
@@ -536,6 +565,22 @@ def get_atom_per_AO(mol: Mole) -> dict[AOIdx, set[AtomIdx]]:
     return {
         i_AO: {get_atom(i_AO, AOs_per_atom)}
         for i_AO in cast(Sequence[AOIdx], range(n_AO))
+    }
+
+
+def get_atom_per_MO(
+    atom_per_AO: Mapping[AOIdx, Set[AtomIdx]],
+    TA: Matrix[np.float64],
+    epsilon: float = 1e-8,
+) -> dict[MOIdx, set[AtomIdx]]:
+    n_MO = TA.shape[-1]
+    large_enough = {
+        i_MO: (TA[:, i_MO] ** 2 > epsilon).nonzero()[0]
+        for i_MO in cast(Sequence[MOIdx], range(n_MO))
+    }
+    return {
+        i_MO: set().union(*(atom_per_AO[AO] for AO in AO_indices))
+        for i_MO, AO_indices in large_enough.items()
     }
 
 
@@ -566,9 +611,10 @@ def conversions_AO_shell(
 
 def get_reachable(
     mol: Mole,
-    atoms_per_orb: Mapping[_T_orb_idx, Set[AtomIdx]],
+    atoms_per_start_orb: Mapping[_T_start_orb, Set[AtomIdx]],
+    atoms_per_target_orb: Mapping[_T_target_orb, Set[AtomIdx]],
     screening_cutoff: Real | Callable[[Real], Real] | Mapping[str, Real] = 5,
-) -> dict[_T_orb_idx, list[_T_orb_idx]]:
+) -> dict[_T_start_orb, list[_T_target_orb]]:
     """Return the sorted orbitals that can by reached for each orbital after screening.
 
     Parameters
@@ -597,8 +643,10 @@ def get_reachable(
 
     return _flatten(
         get_orbs_reachable_by_orb(
-            atoms_per_orb,
-            get_orbs_reachable_by_atom(get_orbs_per_atom(atoms_per_orb), screen_conn),
+            atoms_per_start_orb,
+            get_orbs_reachable_by_atom(
+                get_orbs_per_atom(atoms_per_target_orb), screen_conn
+            ),
         )
     )
 
@@ -727,9 +775,11 @@ def _get_sparse_ints_3c2e(
 
     if screening_cutoff is None:
         screening_cutoff = find_screening_radius(mol, auxmol)
+
+    atom_per_AO = get_atom_per_AO(mol)
     exch_reachable = cast(
         Mapping[AOIdx, Set[AOIdx]],
-        get_reachable(mol, get_atom_per_AO(mol), screening_cutoff),
+        get_reachable(mol, atom_per_AO, atom_per_AO, screening_cutoff),
     )
     exch_reachable_unique = account_for_symmetry(exch_reachable)
 
@@ -841,8 +891,9 @@ def _calc_residual(mol: Mole) -> dict[tuple[AOIdx, AOIdx], float]:
     give upper bounds to the other 2-electron integrals, due to the
     Schwarz inequality.
     """
+    atom_per_AO = get_atom_per_AO(mol)
     screened_away = account_for_symmetry(
-        get_complement(get_reachable(mol, get_atom_per_AO(mol), 0.0))
+        get_complement(get_reachable(mol, atom_per_AO, atom_per_AO, 0.0))
     )
     g = mol.intor("int2e")
     return {
@@ -859,8 +910,9 @@ def _calc_aux_residual(
     For a screened AO pair :math:`(\mu, \nu)`, the whole vector along :math:`P`
     is returned.
     """
+    atom_per_AO = get_atom_per_AO(mol)
     screened_away = account_for_symmetry(
-        get_complement(get_reachable(mol, get_atom_per_AO(mol), 0.0))
+        get_complement(get_reachable(mol, atom_per_AO, atom_per_AO, 0.0))
     )
     ints_3c2e = df.incore.aux_e2(mol, auxmol, intor="int3c2e")
     return {
@@ -973,8 +1025,8 @@ def _first_contract_with_TA(
         for i in range(g.shape[1]):
             tmp = np.zeros(int_mu_nu_P.naux, dtype="f8")
             for nu in int_mu_nu_P.exch_reachable[mu]:
-                tmp += TA[nu, i] * int_mu_nu_P[mu, nu]
-            g[mu, i] = tmp
+                tmp += TA[nu, i] * int_mu_nu_P[mu, nu]  # type: ignore[index]
+            g[mu, i] = tmp  # type: ignore[index]
     return g
 
 
@@ -987,8 +1039,8 @@ def _second_contract_with_TA(
 
     g = np.zeros((TA.shape[1], TA.shape[1], int_mu_i_P.naux), dtype=np.float64)
 
-    for i in prange(g.shape[0]):
-        for j in prange(min(g.shape[1], i + 1)):
+    for i in prange(g.shape[0]):  # type: ignore[attr-defined]
+        for j in prange(min(g.shape[1], i + 1)):  # type: ignore[attr-defined]
             for nu in int_mu_i_P.exch_reachable_i[i].items:
                 g[i, j, :] += TA[nu, j] * int_mu_i_P[nu, i]
 

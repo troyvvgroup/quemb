@@ -1,4 +1,4 @@
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from inspect import signature
 from itertools import islice
 from pathlib import Path
@@ -7,6 +7,7 @@ from typing import Any, TypeVar, overload
 
 import numba as nb
 from attr import define, field
+from ordered_set import OrderedSet
 
 from quemb.shared.typing import Integral, T
 
@@ -285,3 +286,18 @@ def get_flexible_n_eri(
     return symmetric_different_size(
         symmetric_different_size(p_max, q_max), symmetric_different_size(r_max, s_max)
     )
+
+
+def union_of_seqs(*seqs: Sequence[T]) -> OrderedSet[T]:
+    """Merge multiple sequences into a single :class:`OrderedSet`.
+
+    This preserves the order of the elements in each sequence,
+    and of the arguments to this function, but removes duplicates.
+    (Always the first occurrence of an element is kept.)
+
+    .. code-block:: python
+
+        merge_seq([1, 2], [2, 3], [1, 4]) -> OrderedSet([1, 2, 3, 4])
+    """
+    # mypy wrongly complains that the arg type is not valid, which it is.
+    return OrderedSet().union(*seqs)  # type: ignore[arg-type]

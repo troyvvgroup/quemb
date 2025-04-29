@@ -10,7 +10,10 @@ from quemb.molbe import BE, fragmentate
 from quemb.molbe.eri_sparse_DF import (
     SparseInt2,
     _get_sparse_ints_3c2e,
+    _invert_dict,
     find_screening_radius,
+    get_atom_per_AO,
+    get_atom_per_MO,
     get_dense_integrals,
     get_sparse_DF_integrals,
     traverse_nonzero,
@@ -105,3 +108,26 @@ def test_sparse_DF_BE() -> None:
         atol=1e-10,
         rtol=0,
     )
+
+
+def test_invert_dict() -> None:
+    X = {0: {1, 2}, 1: {2, 3, 4}}
+    expected = {1: {0}, 2: {0, 1}, 3: {1}, 4: {1}}
+    assert _invert_dict(X) == expected
+
+
+def test_MO_screening() -> None:
+    mol = M("xyz/E-polyacetylene/20.xyz", basis="sto-3g")
+    auxbasis = "weigend"
+    auxmol = make_auxmol(mol, auxbasis=auxbasis)
+
+    mf = scf.RHF(mol)
+    mf.kernel()
+
+    fobj = fragmentate(frag_type="chemgen", n_BE=2, mol=mol, print_frags=False)
+    my_be = BE(mf, fobj, auxbasis=auxbasis, int_transform="int-direct-DF")
+
+    TA = my_be.Fobjs[0].TA.copy()
+
+    atom_per_AO = get_atom_per_AO(mol)
+    atom_per_MO = get_atom_per_MO(atom_per_AO, TA, epsilon=1e-8)
