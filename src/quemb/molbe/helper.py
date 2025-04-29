@@ -2,6 +2,8 @@
 #            Leah Weisburn
 
 
+from typing import TypeVar
+
 import h5py
 from numpy import (
     array,
@@ -20,6 +22,7 @@ from pyscf.gto.mole import Mole
 from pyscf.pbc.gto.cell import Cell
 
 from quemb.shared.helper import ncore_
+from quemb.shared.typing import Matrix
 
 
 def get_veff(eri_, dm, S, TA, hf_veff):
@@ -68,11 +71,11 @@ def get_veff(eri_, dm, S, TA, hf_veff):
 
 # create pyscf pbc scf object
 def get_scfObj(
-    h1,
+    h1: Matrix[float64],
     Eri,
-    nocc,
+    nocc: int,
     dm0=None,
-):
+) -> scf.hf.RHF:
     """Initialize and run a restricted Hartree-Fock (RHF) calculation.
 
     This function sets up an SCF (Self-Consistent Field) object using the provided
@@ -503,10 +506,21 @@ def get_frag_energy_u(
     return [e1_tmp, e2_tmp, ec_tmp]
 
 
-def are_equal(m1: Mole, m2: Mole) -> bool:
-    return (
-        m1.atom == m2.atom
-        and m1.basis == m2.basis
-        and m1.charge == m2.charge
-        and m1.multiplicity == m2.multiplicity
-    )
+_T = TypeVar("_T", Mole, Cell)
+
+
+def are_equal(m1: _T, m2: _T) -> bool:
+    def compare(m1: _T, m2: _T) -> bool:
+        return (
+            m1.atom == m2.atom
+            and m1.basis == m2.basis
+            and m1.charge == m2.charge
+            and m1.multiplicity == m2.multiplicity
+        )
+
+    if isinstance(m1, Cell) and isinstance(m2, Cell):
+        return compare(m1, m2) and (m1.a == m2.a).all()
+    elif isinstance(m1, Mole) and isinstance(m2, Mole):
+        return compare(m1, m2)
+    else:
+        raise TypeError("Both objects must be of the same type (Mole or Cell).")

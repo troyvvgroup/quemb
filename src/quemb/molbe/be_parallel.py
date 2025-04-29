@@ -19,14 +19,11 @@ from quemb.molbe.solver import (
     SHCI_ArgsUser,
     UserSolverArgs,
     _SHCI_Args,
-    make_rdm1_ccsd_t1,
-    make_rdm2_urlx,
     solve_ccsd,
     solve_error,
     solve_mp2,
     solve_uccsd,
 )
-from quemb.shared.external.ccsd_rdm import make_rdm1_uccsd, make_rdm2_uccsd
 from quemb.shared.external.unrestricted_utils import make_uhf_obj
 from quemb.shared.helper import unused
 from quemb.shared.manage_scratch import WorkDir
@@ -129,25 +126,35 @@ def run_solver(
     if solver == "MP2":
         mc_ = solve_mp2(mf_, mo_energy=mf_.mo_energy)
         rdm1_tmp = mc_.make_rdm1()
+        if eeval:
+            rdm2s = mc_.make_rdm2()
 
     elif solver == "CCSD":
-        if not relax_density:
-            t1, t2 = solve_ccsd(mf_, mo_energy=mf_.mo_energy, rdm_return=False)
-            rdm1_tmp = make_rdm1_ccsd_t1(t1)
-        else:
+        if eeval:
             t1, t2, rdm1_tmp, rdm2s = solve_ccsd(
                 mf_,
                 mo_energy=mf_.mo_energy,
+                relax=relax_density,
+                use_cumulant=use_cumulant,
                 rdm_return=True,
                 rdm2_return=True,
-                use_cumulant=use_cumulant,
-                relax=True,
             )
+        else:
+            t1, t2, rdm1_tmp, _ = solve_ccsd(
+                mf_,
+                mo_energy=mf_.mo_energy,
+                relax=relax_density,
+                use_cumulant=use_cumulant,
+                rdm_return=True,
+                rdm2_return=False,
+            )
+
     elif solver == "FCI":
         mc_ = fci.FCI(mf_, mf_.mo_coeff)
         efci, civec = mc_.kernel()
         unused(efci)
         rdm1_tmp = mc_.make_rdm1(civec, mc_.norb, mc_.nelec)
+
     elif solver == "HCI":
         # pylint: disable-next=E0611
         from pyscf import hci  # type: ignore[attr-defined]  # noqa: PLC0415
@@ -233,11 +240,7 @@ def run_solver(
     rdm1 = multi_dot((mf_.mo_coeff, rdm1_tmp, mf_.mo_coeff.T)) * 0.5
 
     if eeval:
-        if solver == "CCSD" and not relax_density:
-            rdm2s = make_rdm2_urlx(t1, t2, with_dm1=not use_cumulant)
-        elif solver == "MP2":
-            rdm2s = mc_.make_rdm2()
-        elif solver == "FCI":
+        if solver == "FCI":
             rdm2s = mc_.make_rdm2(civec, mc_.norb, mc_.nelec)
             if use_cumulant:
                 hf_dm = zeros_like(rdm1_tmp)
@@ -285,7 +288,6 @@ def run_solver_u(
     relax_density=False,
     frozen=False,
     use_cumulant=True,
-    ereturn=True,
 ):
     """
     Run a quantum chemistry solver to compute the reduced density matrices.
@@ -308,8 +310,6 @@ def run_solver_u(
         If True, uses frozen core, defaults to False
     use_cumulant : bool, optional
         If True, uses the cumulant approximation for RDM2. Default is True.
-    ereturn : bool, optional
-        If True, return the computed energy. Defaults to False.
 
     Returns
     -------
@@ -324,20 +324,15 @@ def run_solver_u(
     full_uhf, eris = make_uhf_obj(fobj_a, fobj_b, frozen=frozen)
 
     if solver == "UCCSD":
-        if relax_density:
-            ucc, rdm1_tmp, rdm2s = solve_uccsd(
-                full_uhf,
-                eris,
-                relax=relax_density,
-                rdm_return=True,
-                rdm2_return=True,
-                frozen=frozen,
-            )
-        else:
-            ucc = solve_uccsd(
-                full_uhf, eris, relax=relax_density, rdm_return=False, frozen=frozen
-            )
-            rdm1_tmp = make_rdm1_uccsd(ucc, relax=relax_density)
+        ucc, rdm1_tmp, rdm2s = solve_uccsd(
+            full_uhf,
+            eris,
+            relax=relax_density,
+            use_cumulant=use_cumulant,
+            rdm_return=True,
+            rdm2_return=True,
+            frozen=frozen,
+        )
     else:
         raise NotImplementedError("Only UCCSD Solver implemented")
 
@@ -354,40 +349,36 @@ def run_solver_u(
     )
 
     # Calculate Energies
-    if ereturn:
-        if solver == "UCCSD" and not relax_density:
-            rdm2s = make_rdm2_uccsd(ucc, with_dm1=not use_cumulant)
+    fobj_a.rdm2__ = rdm2s[0].copy()
+    fobj_b.rdm2__ = rdm2s[1].copy()
 
-        fobj_a.rdm2__ = rdm2s[0].copy()
-        fobj_b.rdm2__ = rdm2s[1].copy()
-
-        # Calculate energy on a per-fragment basis
-        if frozen:
-            h1_ab = [
-                full_uhf.h1[0] + full_uhf.full_gcore[0] + full_uhf.core_veffs[0],
-                full_uhf.h1[1] + full_uhf.full_gcore[1] + full_uhf.core_veffs[1],
-            ]
-        else:
-            h1_ab = [fobj_a.h1, fobj_b.h1]
-        e_f = get_frag_energy_u(
-            (fobj_a._mo_coeffs, fobj_b._mo_coeffs),
-            (fobj_a.nsocc, fobj_b.nsocc),
-            (fobj_a.n_frag, fobj_b.n_frag),
-            (
-                fobj_a.centerweight_and_relAO_per_center,
-                fobj_b.centerweight_and_relAO_per_center,
-            ),
-            (fobj_a.TA, fobj_b.TA),
-            h1_ab,
-            hf_veff,
-            rdm1_tmp,
-            rdm2s,
-            fobj_a.dname,
-            eri_file=fobj_a.eri_file,
-            gcores=full_uhf.full_gcore,
-            frozen=frozen,
-        )
-        return e_f
+    # Calculate energy on a per-fragment basis
+    if frozen:
+        h1_ab = [
+            full_uhf.h1[0] + full_uhf.full_gcore[0] + full_uhf.core_veffs[0],
+            full_uhf.h1[1] + full_uhf.full_gcore[1] + full_uhf.core_veffs[1],
+        ]
+    else:
+        h1_ab = [fobj_a.h1, fobj_b.h1]
+    e_f = get_frag_energy_u(
+        (fobj_a._mo_coeffs, fobj_b._mo_coeffs),
+        (fobj_a.nsocc, fobj_b.nsocc),
+        (fobj_a.n_frag, fobj_b.n_frag),
+        (
+            fobj_a.centerweight_and_relAO_per_center,
+            fobj_b.centerweight_and_relAO_per_center,
+        ),
+        (fobj_a.TA, fobj_b.TA),
+        h1_ab,
+        hf_veff,
+        rdm1_tmp,
+        rdm2s,
+        fobj_a.dname,
+        eri_file=fobj_a.eri_file,
+        gcores=full_uhf.full_gcore,
+        frozen=frozen,
+    )
+    return e_f
 
 
 def be_func_parallel(
@@ -465,7 +456,7 @@ def be_func_parallel(
             fobj.update_heff(pot, only_chem=only_chem)
 
     with Pool(nprocs) as pool_:
-        results = []
+        results = []  # type: ignore[var-annotated]
         # Run solver in parallel for each fragment
         for fobj in Fobjs:
             assert (
@@ -608,7 +599,6 @@ def be_func_parallel_u(
                     relax_density,
                     frozen,
                     use_cumulant,
-                    True,
                 ],
             )
             results.append(result)

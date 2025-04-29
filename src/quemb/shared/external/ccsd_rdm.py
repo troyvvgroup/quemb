@@ -8,6 +8,8 @@ from pyscf.cc.uccsd_rdm import make_rdm1, make_rdm2
 
 
 def make_rdm1_ccsd_t1(t1):
+    # This is the same as requesting the RDM1 built from PySCF's CCSD
+    # with the lambda's set to zero
     nocc, nvir = t1.shape
     nmo = nocc + nvir
     dm = zeros((nmo, nmo), dtype=t1.dtype)

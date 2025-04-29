@@ -480,49 +480,15 @@ class BE(Mixin_k_Localize):
         # Create a file to store ERIs
         if not restart:
             file_eri = h5py.File(self.eri_file, "w")
-        lentmp = len(self.fobj.relAO_per_edge)
         transform_parallel = False  # hard set for now
         for fidx in range(self.fobj.n_frag):
-            if lentmp:
-                fobjs_ = Frags(
-                    self.fobj.AO_per_frag[fidx],
-                    fidx,
-                    edge=self.fobj.AO_per_edge[fidx],
-                    eri_file=self.eri_file,
-                    ref_frag_idx_per_edge=self.fobj.ref_frag_idx_per_edge[fidx],
-                    relAO_per_edge=self.fobj.relAO_per_edge[fidx],
-                    relAO_in_ref_per_edge=self.fobj.relAO_in_ref_per_edge[fidx],
-                    centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
-                        fidx
-                    ],
-                    relAO_per_origin=self.fobj.relAO_per_origin[fidx],
-                    unitcell=self.fobj.unitcell,
-                    unitcell_nkpt=self.unitcell_nkpt,
-                )
-            else:
-                fobjs_ = Frags(
-                    self.fobj.AO_per_frag[fidx],
-                    fidx,
-                    edge=[],
-                    ref_frag_idx_per_edge=[],
-                    eri_file=self.eri_file,
-                    relAO_per_edge=[],
-                    relAO_in_ref_per_edge=[],
-                    relAO_per_origin=[],
-                    centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
-                        fidx
-                    ],
-                    unitcell=self.fobj.unitcell,
-                    unitcell_nkpt=self.unitcell_nkpt,
-                )
-
+            fobjs_ = self.fobj.to_Frags(fidx, self.eri_file, self.unitcell_nkpt)
             fobjs_.sd(
                 self.W,
                 self.lmo_coeff,
                 self.Nocc,
                 kmesh=self.fobj.kpt,
                 cell=self.fobj.mol,
-                frag_type=self.fobj.frag_type,
                 kpts=self.kpts,
                 h1=self.hcore,
                 thr_bath=self.thr_bath,

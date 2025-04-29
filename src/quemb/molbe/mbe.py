@@ -370,7 +370,7 @@ class BE(MixinLocalize):
 
             # Generate the projection matrix
             cind = [
-                fobjs.AO_per_frag[i] for i in fobjs.centerweight_and_relAO_per_center[1]
+                fobjs.AO_in_frag[i] for i in fobjs.centerweight_and_relAO_per_center[1]
             ]
             Pc_ = (
                 fobjs.TA.T
@@ -830,36 +830,8 @@ class BE(MixinLocalize):
         # Create a file to store ERIs
         if not restart:
             file_eri = h5py.File(self.eri_file, "w")
-        lentmp = len(self.fobj.relAO_per_edge)
         for I in range(self.fobj.n_frag):
-            if lentmp:
-                fobjs_ = Frags(
-                    self.fobj.AO_per_frag[I],
-                    I,
-                    AO_per_edge=self.fobj.AO_per_edge[I],
-                    eri_file=self.eri_file,
-                    ref_frag_idx_per_edge=self.fobj.ref_frag_idx_per_edge[I],
-                    relAO_per_edge=self.fobj.relAO_per_edge[I],
-                    relAO_in_ref_per_edge=self.fobj.relAO_in_ref_per_edge[I],
-                    centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
-                        I
-                    ],
-                    relAO_per_origin=self.fobj.relAO_per_origin[I],
-                )
-            else:
-                fobjs_ = Frags(
-                    self.fobj.AO_per_frag[I],
-                    I,
-                    AO_per_edge=[],
-                    ref_frag_idx_per_edge=[],
-                    eri_file=self.eri_file,
-                    relAO_per_edge=[],
-                    relAO_in_ref_per_edge=[],
-                    relAO_per_origin=[],
-                    centerweight_and_relAO_per_center=self.fobj.centerweight_and_relAO_per_center[
-                        I
-                    ],
-                )
+            fobjs_ = self.fobj.to_Frags(I, eri_file=self.eri_file)
             fobjs_.sd(self.W, self.lmo_coeff, self.Nocc, thr_bath=self.thr_bath)
 
             self.Fobjs.append(fobjs_)
