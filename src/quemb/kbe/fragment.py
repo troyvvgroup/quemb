@@ -1,4 +1,4 @@
-# Author(s): Oinam Romesh Meitei
+# Author(s): Oinam Romesh Meitei, Minsik Cho, Oskar Weser
 
 from typing import Literal
 
