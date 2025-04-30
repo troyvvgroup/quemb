@@ -221,7 +221,7 @@ def get_frag_energy(
     mo_coeffs,
     nsocc,
     n_frag,
-    centerweight_and_relAO_per_center,
+    weight_and_relAO_per_center,
     TA,
     h1,
     rdm1,
@@ -247,7 +247,7 @@ def get_frag_energy(
         Number of occupied orbitals.
     n_frag : int
         Number of fragment sites.
-    centerweight_and_relAO_per_center :
+    weight_and_relAO_per_center :
         List containing energy scaling factors and indices.
     TA : numpy.ndarray
         Transformation matrix.
@@ -330,11 +330,11 @@ def get_frag_energy(
     ec_tmp = 0.0
 
     # Calculate the total energy contribution for the specified fragment indices
-    for i in centerweight_and_relAO_per_center[1]:
-        etmp += centerweight_and_relAO_per_center[0] * e_[i]
-        e1_tmp += centerweight_and_relAO_per_center[0] * e1[i]
-        e2_tmp += centerweight_and_relAO_per_center[0] * e2[i]
-        ec_tmp += centerweight_and_relAO_per_center[0] * ec[i]
+    for i in weight_and_relAO_per_center[1]:
+        etmp += weight_and_relAO_per_center[0] * e_[i]
+        e1_tmp += weight_and_relAO_per_center[0] * e1[i]
+        e2_tmp += weight_and_relAO_per_center[0] * e2[i]
+        ec_tmp += weight_and_relAO_per_center[0] * ec[i]
 
     return [e1_tmp, e2_tmp, ec_tmp]
 
@@ -343,7 +343,7 @@ def get_frag_energy_u(
     mo_coeffs,
     nsocc,
     n_frag,
-    centerweight_and_relAO_per_center,
+    weight_and_relAO_per_center,
     TA,
     h1,
     hf_veff,
@@ -370,7 +370,7 @@ def get_frag_energy_u(
         Number of occupied orbitals.
     n_frag : tuple of int
         Number of fragment sites.
-    centerweight_and_relAO_per_center :
+    weight_and_relAO_per_center :
         List containing energy scaling factors and indices.
     TA : tuple of numpy.ndarray
         Transformation matrix.
@@ -496,12 +496,12 @@ def get_frag_energy_u(
     ec_tmp = 0.0
 
     # Calculate the total energy contribution for the specified fragment indices
-    for i in centerweight_and_relAO_per_center[0][1]:
-        e2_tmp += centerweight_and_relAO_per_center[0][0] * e2[i]
+    for i in weight_and_relAO_per_center[0][1]:
+        e2_tmp += weight_and_relAO_per_center[0][0] * e2[i]
         for s in [0, 1]:
-            etmp += centerweight_and_relAO_per_center[s][0] * e_[s][i]
-            e1_tmp += centerweight_and_relAO_per_center[s][0] * e1[s][i]
-            ec_tmp += centerweight_and_relAO_per_center[s][0] * ec[s][i]
+            etmp += weight_and_relAO_per_center[s][0] * e_[s][i]
+            e1_tmp += weight_and_relAO_per_center[s][0] * e1[s][i]
+            ec_tmp += weight_and_relAO_per_center[s][0] * ec[s][i]
 
     return [e1_tmp, e2_tmp, ec_tmp]
 

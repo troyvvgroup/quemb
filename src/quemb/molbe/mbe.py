@@ -197,7 +197,7 @@ class BE(MixinLocalize):
 
         self.print_ini()
         self.Fobjs: list[Frags] = []
-        self.pot = initialize_pot(self.fobj.n_frag, self.fobj.relAO_per_edge)
+        self.pot = initialize_pot(self.fobj.n_frag, self.fobj.relAO_per_edge_per_frag)
 
         if scratch_dir is None:
             self.scratch_dir = WorkDir.from_environment()
@@ -368,9 +368,7 @@ class BE(MixinLocalize):
                 fobjs.rdm2__ -= dm_nc
 
             # Generate the projection matrix
-            cind = [
-                fobjs.AO_in_frag[i] for i in fobjs.centerweight_and_relAO_per_center[1]
-            ]
+            cind = [fobjs.AO_in_frag[i] for i in fobjs.weight_and_relAO_per_center[1]]
             Pc_ = (
                 fobjs.TA.T
                 @ self.S

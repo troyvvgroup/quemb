@@ -99,7 +99,7 @@ class UBE(BE):  # 🍠
         self.Fobjs_a: list[Frags] = []
         self.Fobjs_b: list[Frags] = []
 
-        self.pot = initialize_pot(self.fobj.n_frag, self.fobj.relAO_per_edge)
+        self.pot = initialize_pot(self.fobj.n_frag, self.fobj.relAO_per_edge_per_frag)
 
         self.eri_file = Path(eri_file)
         self.ek = 0.0
