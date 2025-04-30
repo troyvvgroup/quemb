@@ -99,6 +99,7 @@ The methods implemented in this code are described in details in the following p
 The contributors in alphabetic order were:
 - Minsik Cho
 - Beck Hanscam
+- Oinam Romesh Meitei
 - Aleksandr Trofimov
 - Oskar Weser
 - Shaun Weatherly
