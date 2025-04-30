@@ -5,7 +5,7 @@ from typing import Literal
 from attrs import define, field
 from pyscf.pbc.gto.cell import Cell
 
-from quemb.kbe.autofrag import autogen
+from quemb.kbe.autofrag import AutogenArgs, autogen
 from quemb.kbe.pfrag import Frags
 from quemb.molbe.chemfrag import ChemGenArgs, chemgen
 from quemb.molbe.helper import get_core
@@ -143,22 +143,13 @@ def fragmentate(
     natom: int = 0,
     frag_type: Literal["autogen"] = "autogen",
     unitcell: int = 1,
-    gamma_2d: bool = False,
-    gamma_1d: bool = False,
-    interlayer: bool = False,
-    long_bond: bool = False,
-    perpend_dist: float = 4.0,
-    perpend_dist_tol: float = 1e-3,
-    nx: bool = False,
-    ny: bool = False,
-    nz: bool = False,
     iao_valence_basis: str | None = None,
     n_BE: int = 2,
     frozen_core: bool = False,
     self_match: bool = False,
     allcen: bool = True,
     print_frags: bool = True,
-    additional_args: ChemGenArgs | None = None,
+    additional_args: ChemGenArgs | AutogenArgs | None = None,
 ) -> FragPart:
     """Fragment/partitioning definition
 
@@ -170,38 +161,34 @@ def fragmentate(
 
     Parameters
     ----------
-    frag_type : str
+    frag_type :
         Name of fragmentation function. 'autogen' and 'chemgen' are supported.
         Defaults to 'autogen'
-    n_BE: int, optional
+    n_BE :
         Specifies the order of bootstrap calculation in the atom-based fragmentation,
         i.e. BE(n).
         For a simple linear system A-B-C-D,
         BE(1) only has fragments [A], [B], [C], [D]
         BE(2) has [A, B, C], [B, C, D]
-        ben ...
-    mol : pyscf.pbc.gto.cell.Cell
+    mol :
         pyscf.pbc.gto.cell.Cell object. This is required for the options, 'autogen',
         and 'chain' as frag_type.
-    iao_valence_basis: str
+    iao_valence_basis :
         Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
-    frozen_core: bool
+    frozen_core :
         Whether to invoke frozen core approximation. This is set to False by default
-    print_frags: bool
+    print_frags :
         Whether to print out list of resulting fragments. True by default
-    kpt : list of int
+    kpt :
         No. of k-points in each lattice vector direction. This is the same as kmesh.
-    interlayer : bool
-        Whether the periodic system has two stacked monolayers.
-    long_bond : bool
-        For systems with longer than 1.8 Angstrom covalent bond, set this to True
-        otherwise the fragmentation might fail.
-    additional_args:
+    additional_args :
         Additional arguments for different fragmentation functions.
     """
     if frag_type == "autogen":
-        if kpt is None:
-            raise ValueError("Provide kpt mesh in fragmentate() and restart!")
+        if additional_args is None:
+            additional_args = AutogenArgs()
+        else:
+            assert isinstance(additional_args, AutogenArgs)
 
         (
             AO_per_frag,
@@ -218,15 +205,15 @@ def fragmentate(
             frozen_core=frozen_core,
             iao_valence_basis=iao_valence_basis,
             unitcell=unitcell,
-            nx=nx,
-            ny=ny,
-            nz=nz,
-            long_bond=long_bond,
-            perpend_dist=perpend_dist,
-            perpend_dist_tol=perpend_dist_tol,
-            gamma_2d=gamma_2d,
-            gamma_1d=gamma_1d,
-            interlayer=interlayer,
+            nx=additional_args.nx,
+            ny=additional_args.ny,
+            nz=additional_args.nz,
+            long_bond=additional_args.long_bond,
+            perpend_dist=additional_args.perpend_dist,
+            perpend_dist_tol=additional_args.perpend_dist_tol,
+            gamma_2d=additional_args.gamma_2d,
+            gamma_1d=additional_args.gamma_1d,
+            interlayer=additional_args.interlayer,
             print_frags=print_frags,
         )
 
@@ -250,8 +237,6 @@ def fragmentate(
             kpt=kpt,
         )
     elif frag_type == "chemgen":
-        if kpt is None:
-            raise ValueError("Provide kpt mesh in fragmentate() and restart!")
         if additional_args is None:
             additional_args = ChemGenArgs()
         else:

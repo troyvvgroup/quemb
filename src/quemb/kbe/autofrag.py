@@ -2,12 +2,44 @@
 
 from warnings import warn
 
+from attrs import define
 from numpy import arange, asarray, where
 from numpy.linalg import norm
 from pyscf import lib
 
 from quemb.kbe.misc import sgeom
 from quemb.molbe.helper import get_core
+
+
+@define
+class AutogenArgs:
+    """Additional arguments for autogen
+
+    Parameters
+    ----------
+    gamma_2d:
+    gamma_1d:
+    interlayer :
+        Whether the periodic system has two stacked monolayers.
+    long_bond :
+        For systems with longer than 1.8 Angstrom covalent bond, set this to True
+        otherwise the fragmentation might fail.
+    perpend_dist:
+    perpend_dist_tol:
+    nx:
+    ny:
+    nz:
+    """
+
+    gamma_2d: bool = False
+    gamma_1d: bool = False
+    interlayer: bool = False
+    long_bond: bool = False
+    perpend_dist: float = 4.0
+    perpend_dist_tol: float = 1e-3
+    nx: bool = False
+    ny: bool = False
+    nz: bool = False
 
 
 def warn_large_fragment():
