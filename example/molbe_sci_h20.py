@@ -1,5 +1,7 @@
 # Illustrates parallelized BE computation on octane
 
+import pathlib
+
 from pyscf import gto, scf
 
 from quemb.molbe import BE, fragmentate
@@ -8,7 +10,7 @@ from quemb.molbe.solver import SHCI_ArgsUser
 from quemb.shared.config import settings
 
 # Set the path to the scratch directory
-settings.SCRATCH_ROOT = "/tmp/"
+settings.SCRATCH_ROOT = pathlib.Path("/tmp/")
 
 # Initialize molecule and run reference HF calculation
 mol = gto.M(
