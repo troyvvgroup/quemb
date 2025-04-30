@@ -15,12 +15,12 @@ quemb.molbe.autofrag.FragPart
    .. autoattribute:: FragPart.frag_type
    .. autoattribute:: FragPart.n_BE
    .. autoattribute:: FragPart.AO_per_frag
-   .. autoattribute:: FragPart.AO_per_edge
-   .. autoattribute:: FragPart.ref_frag_idx_per_edge
-   .. autoattribute:: FragPart.relAO_per_edge
-   .. autoattribute:: FragPart.relAO_in_ref_per_edge
-   .. autoattribute:: FragPart.relAO_per_origin
-   .. autoattribute:: FragPart.centerweight_and_relAO_per_center
+   .. autoattribute:: FragPart.AO_per_edge_per_frag
+   .. autoattribute:: FragPart.ref_frag_idx_per_edge_per_frag
+   .. autoattribute:: FragPart.relAO_per_edge_per_frag
+   .. autoattribute:: FragPart.relAO_in_ref_per_edge_per_frag
+   .. autoattribute:: FragPart.relAO_per_origin_per_frag
+   .. autoattribute:: FragPart.weight_and_relAO_per_center_per_frag
    .. autoattribute:: FragPart.motifs_per_frag
    .. autoattribute:: FragPart.origin_per_frag
    .. autoattribute:: FragPart.H_per_motif

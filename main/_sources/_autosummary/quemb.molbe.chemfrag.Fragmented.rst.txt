@@ -17,12 +17,12 @@ quemb.molbe.chemfrag.Fragmented
    .. autoattribute:: Fragmented.AO_per_atom
    .. autoattribute:: Fragmented.AO_per_frag
    .. autoattribute:: Fragmented.AO_per_motif
-   .. autoattribute:: Fragmented.AO_per_edge
-   .. autoattribute:: Fragmented.relAO_per_motif
-   .. autoattribute:: Fragmented.relAO_per_edge
-   .. autoattribute:: Fragmented.relAO_per_center
-   .. autoattribute:: Fragmented.relAO_per_origin
-   .. autoattribute:: Fragmented.relAO_in_ref_per_edge
+   .. autoattribute:: Fragmented.AO_per_edge_per_frag
+   .. autoattribute:: Fragmented.relAO_per_motif_per_frag
+   .. autoattribute:: Fragmented.relAO_per_edge_per_frag
+   .. autoattribute:: Fragmented.relAO_per_center_per_frag
+   .. autoattribute:: Fragmented.relAO_per_origin_per_frag
+   .. autoattribute:: Fragmented.relAO_in_ref_per_edge_per_frag
    .. autoattribute:: Fragmented.frozen_core
    .. autoattribute:: Fragmented.iao_valence_mol
    

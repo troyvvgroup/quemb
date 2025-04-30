@@ -1,0 +1,6 @@
+quemb.kbe.autofrag.AutogenArgs.\_\_init\_\_
+===========================================
+
+.. currentmodule:: quemb.kbe.autofrag
+
+.. automethod:: AutogenArgs.__init__

@@ -1,0 +1,35 @@
+quemb.kbe.autofrag.AutogenArgs
+==============================
+
+.. currentmodule:: quemb.kbe.autofrag
+
+.. autoclass:: AutogenArgs
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: AutogenArgs.gamma_2d
+   .. autoattribute:: AutogenArgs.gamma_1d
+   .. autoattribute:: AutogenArgs.interlayer
+   .. autoattribute:: AutogenArgs.long_bond
+   .. autoattribute:: AutogenArgs.perpend_dist
+   .. autoattribute:: AutogenArgs.perpend_dist_tol
+   .. autoattribute:: AutogenArgs.nx
+   .. autoattribute:: AutogenArgs.ny
+   .. autoattribute:: AutogenArgs.nz
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~AutogenArgs.__init__
+   
+   
