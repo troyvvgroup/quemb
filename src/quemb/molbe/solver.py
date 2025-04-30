@@ -443,9 +443,9 @@ def be_func(
                         + str(iter)
                     )
                 frag_scratch = WorkDir(frag_name, cleanup_at_end=False)
+                print("Fragment Scratch Directory:", frag_scratch.__fspath__())
             else:
                 frag_scratch = WorkDir(scratch_dir / fobj.dname)
-            print("Fragment Scratch Directory:", frag_scratch.__fspath__())
             ci = cornell_shci.SHCI()
             ci.runtimedir = frag_scratch
             ci.restart = True
