@@ -361,8 +361,8 @@ _UniTuple_int64_2 = UniTuple(int64, 2)
         ("shape", UniTuple(int64, 3)),
         ("naux", int64),
         ("_data", DictType(_UniTuple_int64_2, float64[:])),
-        ("exch_reachable_mu", ListType(Type_SortedIntSet)),
-        ("exch_reachable_i", ListType(Type_SortedIntSet)),
+        ("MO_reachable_by_AO", ListType(Type_SortedIntSet)),
+        ("AO_reachable_by_MO", ListType(Type_SortedIntSet)),
     ]
 )
 class MutableSemiSparse3DTensor:
@@ -373,8 +373,8 @@ class MutableSemiSparse3DTensor:
         self.shape = shape
         self.naux = shape[-1]
         self._data = Dict.empty(_UniTuple_int64_2, float64[:])
-        self.exch_reachable_mu = _get_list_of_sortedset(self.shape[0])
-        self.exch_reachable_i = _get_list_of_sortedset(self.shape[1])
+        self.MO_reachable_by_AO = _get_list_of_sortedset(self.shape[0])
+        self.AO_reachable_by_MO = _get_list_of_sortedset(self.shape[1])
 
     def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[np.float64]:
         assert key[0] < self.shape[0] and key[1] < self.shape[1]
@@ -389,8 +389,8 @@ class MutableSemiSparse3DTensor:
             and len(value) == self.naux
         )
         self._data[key] = value
-        self.exch_reachable_mu[key[0]].add(key[1])
-        self.exch_reachable_i[key[1]].add(key[0])
+        self.MO_reachable_by_AO[key[0]].add(key[1])
+        self.AO_reachable_by_MO[key[1]].add(key[0])
 
     # We cannot annotate the return type of this function, because of a strange bug in
     #  sphinx-autodoc-typehints.
@@ -398,7 +398,7 @@ class MutableSemiSparse3DTensor:
     def to_dense(self):  # type: ignore[no-untyped-def]
         result = np.zeros((self.shape), dtype="f8")
         for mu in range(self.shape[0]):
-            for i in self.exch_reachable_mu[mu].items:
+            for i in self.MO_reachable_by_AO[mu].items:
                 result[mu, i, :] = self[mu, i]  # type: ignore[index]
         return result
 
@@ -408,7 +408,8 @@ class MutableSemiSparse3DTensor:
         ("_keys", int64[::1]),
         ("unique_dense_data", float64[:, ::1]),
         ("shape", UniTuple(int64, 3)),
-        ("exch_reachable", ListType(int64[::1])),
+        ("MO_reachable_by_AO", ListType(int64[::1])),
+        ("AO_reachable_by_MO", ListType(int64[::1])),
     ]
 )
 class SemiSparse3DTensor:
@@ -435,25 +436,28 @@ class SemiSparse3DTensor:
     unique_dense_data: Matrix[np.float64]
     shape: tuple[int, int, int]
     naux: int
-    exch_reachable: list[Vector[OrbitalIdx]]
+    MO_reachable_by_AO: list[Vector[MOIdx]]
+    AO_reachable_by_MO: list[Vector[AOIdx]]
 
     def __init__(
         self,
         unique_dense_data: Matrix[np.float64],
         shape: tuple[Integral, Integral, Integral],
-        exch_reachable: list[Vector[np.int64]],
+        MO_reachable_by_AO: list[Vector[MOIdx]],
+        AO_reachable_by_MO: list[Vector[AOIdx]],
     ) -> None:
         self.shape = shape  # type: ignore[assignment]
         self.naux = shape[-1]  # type: ignore[assignment]
-        self.exch_reachable = exch_reachable  # type: ignore[assignment]
+        self.MO_reachable_by_AO = MO_reachable_by_AO  # type: ignore[assignment]
+        self.AO_reachable_by_MO = AO_reachable_by_MO  # type: ignore[assignment]
 
         self.unique_dense_data = unique_dense_data
 
         self._keys = np.array(  # type: ignore[call-overload]
             [
-                self._idx(p, q)  # type: ignore[arg-type]
-                for p in range(self.shape[0])
-                for q in self.exch_reachable[p]
+                self._idx(mu, i)  # type: ignore[arg-type]
+                for i in range(self.shape[1])
+                for mu in self.AO_reachable_by_MO[i]
             ],
             dtype=int64,
         )
@@ -468,9 +472,9 @@ class SemiSparse3DTensor:
     def to_dense(self):  # type: ignore[no-untyped-def]
         """Convert to dense 3D tensor"""
         g = np.zeros(self.shape)
-        for p in range(self.shape[0]):
-            for q in self.exch_reachable[p]:
-                g[p, q] = self[p, q]  # type: ignore[index]
+        for i in range(self.shape[1]):
+            for mu in self.AO_reachable_by_MO[i]:
+                g[mu, i] = self[mu, i]  # type: ignore[index]
         return g
 
     def _idx(self, a: OrbitalIdx, b: OrbitalIdx) -> int:
@@ -523,7 +527,7 @@ def _invert_dict(
     for old_key, new_keys in D.items():
         for new_key in new_keys:
             inverted_D[new_key].add(old_key)
-    return dict(inverted_D)
+    return {key: inverted_D[key] for key in sorted(inverted_D.keys())}
 
 
 def get_orbs_per_atom(
@@ -852,14 +856,16 @@ def _flatten(
             set(
                 chain(
                     *(
-                        start_atoms[start_atom][target_atom]
-                        for start_atom, target_atoms in start_atoms.items()
+                        orb_reachable_by_orb[i_orb][start_atom][target_atom]
+                        for start_atom, target_atoms in orb_reachable_by_orb[
+                            i_orb
+                        ].items()
                         for target_atom in target_atoms
                     )
                 )
             )
         )
-        for i_orb, start_atoms in orb_reachable_by_orb.items()
+        for i_orb in sorted(orb_reachable_by_orb.keys())
     }
 
 
@@ -1019,11 +1025,45 @@ def find_screening_radius(
         }
 
 
+# TODO make parallel = True
+@njit
+def _first_contract_with_TA_with_screening_but_dense(
+    TA: Matrix[np.float64],
+    int_mu_nu_P: SemiSparseSym3DTensor,
+    AO_MO_pair_with_offset: list[tuple[int, AOIdx, MOIdx]],
+    MO_reachable_by_AO: list[Vector[MOIdx]],
+    AO_reachable_by_MO: list[Vector[AOIdx]],
+) -> SemiSparse3DTensor:
+    assert (
+        TA.shape[0] == int_mu_nu_P.nao
+        and TA.shape[0] == len(MO_reachable_by_AO)
+        and TA.shape[1] == len(AO_reachable_by_MO)
+    )
+    n_unique = len(AO_MO_pair_with_offset)
+    g_unique = np.zeros((n_unique, int_mu_nu_P.naux), dtype="f8")
+
+    offset = 0
+    for i in range(TA.shape[1]):
+        for mu in AO_reachable_by_MO[i]:
+            for nu in int_mu_nu_P.exch_reachable[mu]:
+                g_unique[offset] += TA[nu, i] * int_mu_nu_P[mu, nu]  # type: ignore[index]
+            offset += 1
+
+    return SemiSparse3DTensor(
+        g_unique,
+        (TA.shape[0], TA.shape[1], int_mu_nu_P.naux),
+        MO_reachable_by_AO,
+        AO_reachable_by_MO,
+    )
+
+
 @njit
 def _first_contract_with_TA_with_screening(
     TA: Matrix[np.float64],
     int_mu_nu_P: SemiSparseSym3DTensor,
-    AO_reachable_by_MO: list[Vector[OrbitalIdx]],
+    AO_MO_pair_with_offset: list[tuple[int, AOIdx, MOIdx]],
+    MO_reachable_by_AO: list[Vector[MOIdx]],
+    AO_reachable_by_MO: list[Vector[AOIdx]],
 ) -> MutableSemiSparse3DTensor:
     assert TA.shape[0] == int_mu_nu_P.nao
     g = MutableSemiSparse3DTensor((int_mu_nu_P.nao, TA.shape[1], int_mu_nu_P.naux))
@@ -1033,7 +1073,8 @@ def _first_contract_with_TA_with_screening(
             tmp = np.zeros(int_mu_nu_P.naux, dtype="f8")
             for nu in int_mu_nu_P.exch_reachable[mu]:
                 tmp += TA[nu, i] * int_mu_nu_P[mu, nu]  # type: ignore[index]
-            g[mu, i] = tmp  # type: ignore[index]
+            if np.abs(tmp).sum() > 1e-6:
+                g[mu, i] = tmp  # type: ignore[index]
     return g
 
 
@@ -1041,7 +1082,6 @@ def _first_contract_with_TA_with_screening(
 def _first_contract_with_TA(
     TA: Matrix[np.float64],
     int_mu_nu_P: SemiSparseSym3DTensor,
-    AO_reachable_by_MO: list[Vector[OrbitalIdx]],
 ) -> MutableSemiSparse3DTensor:
     assert TA.shape[0] == int_mu_nu_P.nao
     g = MutableSemiSparse3DTensor((int_mu_nu_P.nao, TA.shape[1], int_mu_nu_P.naux))
@@ -1067,7 +1107,7 @@ def _second_contract_with_TA(
 
     for i in prange(g.shape[0]):  # type: ignore[attr-defined]
         for j in prange(min(g.shape[1], i + 1)):  # type: ignore[attr-defined]
-            for nu in int_mu_i_P.exch_reachable_i[i].items:
+            for nu in int_mu_i_P.AO_reachable_by_MO[i].items:
                 g[i, j, :] += TA[nu, j] * int_mu_i_P[nu, i]
 
             g[j, i, :] = g[i, j, :]
@@ -1121,6 +1161,65 @@ def _slow_transform_sparse_DF_integral(
     ]
 
 
+def get_AO_MO_pair_with_offset(
+    AO_reachable_by_MO: Mapping[MOIdx, Collection[AOIdx]],
+) -> list[tuple[int, AOIdx, MOIdx]]:
+    return [
+        (offset, mu, i)
+        for offset, (mu, i) in enumerate(
+            (i_AO, i_MO)
+            for i_MO, reachable_AOs in AO_reachable_by_MO.items()
+            for i_AO in sorted(reachable_AOs)
+        )
+    ]
+
+
+def _last_working_transform_sparse_DF_integral(
+    mf: scf.hf.SCF,
+    Fobjs: Sequence[Frags],
+    auxbasis: str | None = None,
+    screen_radius: Mapping[str, float] | None = None,
+) -> list[Matrix[np.float64]]:
+    mol = mf.mol
+    auxmol = addons.make_auxmol(mf.mol, auxbasis=auxbasis)
+    if screen_radius is None:
+        screen_radius = find_screening_radius(mol, auxmol, threshold=1e-4)
+    sparse_ints_3c2e, sparse_df_coef = get_sparse_DF_integrals(
+        mol, auxmol, screen_radius
+    )
+    ints_2c2e = auxmol.intor("int2c2e")
+
+    atom_per_AO = get_atom_per_AO(mol)
+
+    ints_i_j_P = []
+    for fragidx, fragobj in enumerate(Fobjs):
+        TA = fragobj.TA
+
+        AO_reachable_per_SchmidtMO = get_reachable(
+            mol,
+            get_atom_per_MO(atom_per_AO, TA, epsilon=1e-8),
+            atom_per_AO,
+            screen_radius,
+        )
+
+        sparse_int_mu_i_P = _first_contract_with_TA_with_screening(
+            TA,
+            sparse_ints_3c2e,
+            List(get_AO_MO_pair_with_offset(AO_reachable_per_SchmidtMO)),
+            to_numba_input(_invert_dict(AO_reachable_per_SchmidtMO)),
+            to_numba_input(AO_reachable_per_SchmidtMO),
+        )
+        int_i_j_P = _second_contract_with_TA(TA, sparse_int_mu_i_P)
+        ints_i_j_P.append(int_i_j_P)
+
+    Ds_i_j_P = [solve(ints_2c2e, int_i_j_P.T).T for int_i_j_P in ints_i_j_P]
+
+    return [
+        einsum("ijP,klP->ijkl", ints, df_coef)
+        for ints, df_coef in zip(ints_i_j_P, Ds_i_j_P)
+    ]
+
+
 def _fast_transform_sparse_DF_integral(
     mf: scf.hf.SCF,
     Fobjs: Sequence[Frags],
@@ -1148,11 +1247,27 @@ def _fast_transform_sparse_DF_integral(
             atom_per_AO,
             screen_radius,
         )
-        sparse_int_mu_i_P = _first_contract_with_TA(
-            TA, sparse_ints_3c2e, to_numba_input(AO_reachable_per_SchmidtMO)
+
+        sparse_int_mu_i_P = _first_contract_with_TA_with_screening_but_dense(
+            TA,
+            sparse_ints_3c2e,
+            List(get_AO_MO_pair_with_offset(AO_reachable_per_SchmidtMO)),
+            to_numba_input(_invert_dict(AO_reachable_per_SchmidtMO)),
+            to_numba_input(AO_reachable_per_SchmidtMO),
         )
-        int_i_j_P = _second_contract_with_TA(TA, sparse_int_mu_i_P)
-        ints_i_j_P.append(int_i_j_P)
+
+        g = np.zeros(
+            (TA.shape[1], TA.shape[1], sparse_int_mu_i_P.naux), dtype=np.float64
+        )
+
+        for i in prange(g.shape[0]):  # type: ignore[attr-defined]
+            for j in prange(min(g.shape[1], i + 1)):  # type: ignore[attr-defined]
+                for nu in sparse_int_mu_i_P.AO_reachable_by_MO[i]:
+                    g[i, j, :] += TA[nu, j] * sparse_int_mu_i_P[nu, i]
+
+                g[j, i, :] = g[i, j, :]
+
+        ints_i_j_P.append(g)
 
     Ds_i_j_P = [solve(ints_2c2e, int_i_j_P.T).T for int_i_j_P in ints_i_j_P]
 
