@@ -1,11 +1,11 @@
-"""This module implements the fragmentation of a molecule based
-on chemical connectivity that uses the overlap of tabulated van der Waals radii.
+"""This module implements the fragmentation of molecular and periodic systems
+based on chemical connectivity that uses the overlap of tabulated van der Waals radii.
 
 There are three main classes:
 
-* :class:`BondConnectivity` contains the connectivity data of a molecule
+* :class:`BondConnectivity` contains the connectivity data of a chemical system
     and is fully independent of the BE fragmentation level or used basis sets.
-    After construction the knowledge about motifs in the molecule are available,
+    After construction the knowledge about motifs in the system are available,
     if hydrogen atoms are treated differently then the motifs are all
     non-hydrogen atoms, while if hydrogen atoms are treated equal then
     all atoms are motifs.
@@ -19,23 +19,26 @@ There are three main classes:
     of which AO index belongs to which center and edge.
 """
 
+# Author(s): Oskar Weser
+
+from __future__ import annotations
+
 from collections import defaultdict
 from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence, Set
 from itertools import chain
-from numbers import Real
 from pathlib import Path
-from typing import Any, Final, TypeAlias, TypeVar, cast
+from typing import Any, Final, Generic, TypeAlias, TypeVar, cast
 
-import chemcoord as cc
 import numpy as np
 from attr import cmp_using, define, field
 from chemcoord import Cartesian
-from chemcoord.constants import elements
 from networkx.algorithms.shortest_paths.generic import shortest_path_length
 from networkx.classes.graph import Graph
 from ordered_set import OrderedSet
-from pyscf.gto import Mole
-from typing_extensions import Self, assert_never
+from pyscf.gto import M, Mole, is_au
+from pyscf.lib import param
+from pyscf.pbc.gto import Cell
+from typing_extensions import Self
 
 from quemb.molbe.autofrag import FragPart
 from quemb.molbe.helper import are_equal, get_core
@@ -49,8 +52,9 @@ from quemb.shared.typing import (
     GlobalAOIdx,
     MotifIdx,
     OriginIdx,
-    OtherRelAOIdx,
-    OwnRelAOIdx,
+    Real,
+    RelAOIdx,
+    RelAOIdxInRef,
     T,
 )
 
@@ -223,28 +227,17 @@ class BondConnectivity:
                 for k, v in bonds_atoms.items()
             }
         else:
-            with cc.constants.RestoreElementData():
-                used_vdW_r = elements.loc[:, "atomic_radius_cc"]
-                if isinstance(vdW_radius, Real):
-                    elements.loc[:, "atomic_radius_cc"] = used_vdW_r.map(
-                        lambda _: float(vdW_radius)
-                    )
-                elif callable(vdW_radius):
-                    elements.loc[:, "atomic_radius_cc"] = used_vdW_r.map(vdW_radius)  # type: ignore[arg-type]
-                elif isinstance(vdW_radius, Mapping):
-                    elements.loc[:, "atomic_radius_cc"].update(vdW_radius)  # type: ignore[arg-type]
-                elif vdW_radius is None:
-                    # To avoid false-negatives we set all vdW radii to
-                    # at least 0.55 Å
-                    # or 20 % larger than the tabulated value.
-                    elements.loc[:, "atomic_radius_cc"] = np.maximum(
-                        0.55, used_vdW_r * 1.20
-                    )
-                else:
-                    assert_never(vdW_radius)
-                processed_bonds_atoms = {
-                    k: OrderedSet(sorted(v)) for k, v in m.get_bonds().items()
-                }
+            # To avoid false-negatives we set all vdW radii to
+            # at least 0.55 Å
+            # or 20 % larger than the tabulated value.
+            processed_bonds_atoms = {
+                k: OrderedSet(sorted(v))
+                for k, v in m.get_bonds(
+                    modify_element_data=(lambda r: np.maximum(0.55, 1.2 * r))
+                    if vdW_radius is None
+                    else vdW_radius
+                ).items()
+            }
 
         if treat_H_different:
             motifs = OrderedSet(m.loc[m.atom != "H", :].index)
@@ -336,6 +329,104 @@ class BondConnectivity:
             treat_H_different=treat_H_different,
         )
 
+    @classmethod
+    def from_cell(
+        cls,
+        cell: Cell,
+        *,
+        bonds_atoms: Mapping[int, set[int]] | None = None,
+        vdW_radius: InVdWRadius | None = None,
+        treat_H_different: bool = True,
+    ) -> Self:
+        """Create a :class:`BondConnectivity` from a :class:`pyscf.pbc.gto.cell.Cell`.
+        This function considers the periodic boundary conditions by adding periodic
+        copies of the cell to the molecule. The connectivity graph from the open
+        boundary condition supercell is then used to determine the connectivity graph
+        of the original periodic cell.
+
+        Parameters
+        ----------
+        cell :
+            The :class:`pyscf.pbc.gto.cell.Cell` to extract the connectivity data from.
+        bonds_atoms : Mapping[int, OrderedSet[int]]
+            Can be used to specify the connectivity graph of the molecule.
+            Has exactly the same format as the output of
+            :meth:`chemcoord.Cartesian.get_bonds`,
+            which is called internally if this argument is not specified.
+            Allows it to manually change the connectivity by modifying the output of
+            :meth:`chemcoord.Cartesian.get_bonds`.
+            The keyword is mutually exclusive with :python:`vdW_radius`.
+        vdW_radius :
+            If :python:`bonds_atoms` is :class:`None`, then the connectivity graph is
+            determined by the van der Waals radius of the atoms.
+            It is possible to pass:
+
+            * a single number which is used as radius for all atoms,
+            * a callable which is applied to all radii
+              and can be used to e.g. scale via :python:`lambda r: r * 1.1`,
+            * a dictionary which maps the element symbol to the van der Waals radius,
+              to change the radius of individual elements, e.g. :python:`{"C": 1.5}`.
+
+            The keyword is mutually exclusive with :python:`bonds_atoms`.
+        treat_H_different :
+            If True, we treat hydrogen atoms differently from heavy atoms.
+        """
+        # If bonds_atoms was given, use the information.
+        # Otherwise, use chemcoord to get the connectivity graph.
+        if bonds_atoms is None:
+            # Add periodic copies to a fake mol object
+            # Eight copies of the original cell to account for periodicity
+            lattice_vectors = (
+                np.array(cell.a) if is_au(cell.unit) else np.array(cell.a) / param.BOHR
+            )
+            offsets = np.array(
+                [
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                    ],
+                    lattice_vectors[0],
+                    lattice_vectors[1],
+                    lattice_vectors[2],
+                    lattice_vectors[0] + lattice_vectors[1],
+                    lattice_vectors[0] + lattice_vectors[2],
+                    lattice_vectors[1] + lattice_vectors[2],
+                    lattice_vectors[0] + lattice_vectors[1] + lattice_vectors[2],
+                ]
+            )
+            supercell_mol = M(
+                atom=[
+                    (element, (coords + offset).tolist())
+                    for offset in offsets
+                    for element, coords in zip(
+                        cell.elements, cell.atom_coords(unit="Bohr")
+                    )
+                ],
+                basis=cell.basis,
+                unit="bohr",
+            )
+            # Reuse molecular code with periodic copies
+            supercell_connectivity = cls.from_cartesian(
+                Cartesian.from_pyscf(supercell_mol),
+                bonds_atoms=bonds_atoms,
+                vdW_radius=vdW_radius,
+                treat_H_different=treat_H_different,
+            )
+            # We have to choose unique pairs from the whole
+            # supercell connectivity graph,
+            # because we cannot guarantee that we are in the middle of the supercell.
+            bonds_atoms = defaultdict(set)
+            for idx, connected in supercell_connectivity.bonds_atoms.items():
+                bonds_atoms[idx % cell.natm] |= {j % cell.natm for j in connected}
+
+        return cls.from_cartesian(
+            Cartesian.from_pyscf(cell.to_mol()),
+            bonds_atoms=bonds_atoms,  # always set (from input or molecular code)
+            vdW_radius=None,
+            treat_H_different=treat_H_different,
+        )
+
     def get_BE_fragment(self, i_center: MotifIdx, n_BE: int) -> OrderedSet[MotifIdx]:
         """Return the BE fragment around atom :code:`i_center`.
 
@@ -409,6 +500,7 @@ class _SubsetsCleaned:
 
 def _cleanup_if_subset(
     fragment_indices: Mapping[MotifIdx, OrderedSet[MotifIdx]],
+    swallow_replace: bool = False,
 ) -> _SubsetsCleaned:
     """Remove fragments that are subsets of other fragments.
 
@@ -419,6 +511,11 @@ def _cleanup_if_subset(
     ----------
     fragment_indices :
         A dictionary mapping the center index to the set of motif indices.
+    swallow_replace :
+        If a fragment would be swallowed, it is instead replaced by the largest
+        fragment that contains the smaller fragment. The definition of the origin
+        is taken from the smaller fragment.
+        This means, there will be no centers other than origins.
 
     Returns
     -------
@@ -454,15 +551,24 @@ def _cleanup_if_subset(
     # stay at the first position. The rest of the motifs should be sorted.
     # We also remove the swallowed centers, i.e. only origins are left.
     cleaned_fragments = {
-        OriginIdx(CenterIdx(i_center)): union_of_seqs([i_center], sorted(motifs[1:]))
+        cast(OriginIdx, i_center): union_of_seqs([i_center], sorted(motifs[1:]))
         for i_center, motifs in fragment_indices.items()
         if i_center not in subset_of_others
     }
+
+    if swallow_replace:
+        for i_origin, centers in contain_others.items():
+            for center in centers:
+                cleaned_fragments[cast(OriginIdx, center)] = cleaned_fragments[i_origin]
+        contain_others = {k: OrderedSet() for k in contain_others}
     return _SubsetsCleaned(cleaned_fragments, contain_others)
 
 
+_T_chemsystem = TypeVar("_T_chemsystem", Mole, Cell)
+
+
 @define(frozen=True, kw_only=True)
-class PurelyStructureFragmented:
+class PurelyStructureFragmented(Generic[_T_chemsystem]):
     """Data structure to store the fragments of a molecule.
 
     This takes into account only the connectivity data and the fragmentation
@@ -470,7 +576,7 @@ class PurelyStructureFragmented:
     """
 
     #: The full molecule
-    mol: Final[Mole] = field(eq=cmp_using(are_equal))
+    mol: _T_chemsystem = field(eq=cmp_using(are_equal))
 
     #: The motifs per fragment.
     #: Note that the full set of motifs for a fragment is the union of all center motifs
@@ -511,19 +617,26 @@ class PurelyStructureFragmented:
     #: of the fragment where this fragment is a center, i.e.
     #: where this edge is correctly described and should be matched against.
     #: Variable was formerly known as `center`.
-    frag_idx_per_edge: Final[Sequence[Mapping[EdgeIdx, FragmentIdx]]]
+    ref_frag_idx_per_edge: Final[Sequence[Mapping[EdgeIdx, FragmentIdx]]]
 
     #: Connectivity data of the molecule.
     conn_data: Final[BondConnectivity]
     n_BE: Final[int]
 
     @classmethod
-    def from_conn_data(cls, mol: Mole, conn_data: BondConnectivity, n_BE: int) -> Self:
+    def from_conn_data(
+        cls,
+        mol: _T_chemsystem,
+        conn_data: BondConnectivity,
+        n_BE: int,
+        swallow_replace: bool,
+    ) -> Self:
         fragments = _cleanup_if_subset(
             {
                 i_center: conn_data.get_BE_fragment(i_center, n_BE)
                 for i_center in conn_data.motifs
-            }
+            },
+            swallow_replace=swallow_replace,
         )
         centers_per_frag = {
             i_origin: union_of_seqs(
@@ -551,7 +664,7 @@ class PurelyStructureFragmented:
         def frag_idx(edge: EdgeIdx) -> FragmentIdx:
             for i_frag, centers in enumerate(centers_per_frag.values()):
                 if edge in centers:
-                    return FragmentIdx(i_frag)
+                    return cast(FragmentIdx, i_frag)
             raise ValueError(f"Edge {edge} not found in any fragment.")
 
         origin_per_frag = [
@@ -573,7 +686,7 @@ class PurelyStructureFragmented:
             for i_fragment in motifs_per_frag
         ]
 
-        frag_idx_per_edge = [
+        ref_frag_idx_per_edge = [
             {edge: frag_idx(edge) for edge in edges} for edges in edges_per_frag
         ]
 
@@ -584,7 +697,7 @@ class PurelyStructureFragmented:
             centers_per_frag=list(centers_per_frag.values()),
             edges_per_frag=edges_per_frag,
             origin_per_frag=origin_per_frag,
-            frag_idx_per_edge=frag_idx_per_edge,
+            ref_frag_idx_per_edge=ref_frag_idx_per_edge,
             conn_data=conn_data,
             n_BE=n_BE,
         )
@@ -592,13 +705,14 @@ class PurelyStructureFragmented:
     @classmethod
     def from_mole(
         cls,
-        mol: Mole,
+        mol: _T_chemsystem,
         n_BE: int,
         *,
         treat_H_different: bool = True,
         bonds_atoms: Mapping[int, set[int]] | None = None,
         vdW_radius: InVdWRadius | None = None,
         autocratic_matching: bool = True,
+        swallow_replace: bool = False,
     ) -> Self:
         """Construct a :class:`PurelyStructureFragmented`
         from a :class:`pyscf.gto.mole.Mole`.
@@ -615,17 +729,36 @@ class PurelyStructureFragmented:
             Assume autocratic matching for possibly shared centers.
             Will call :meth:`get_autocratically_matched` upon construction.
             Look there for more details.
+        swallow_replace :
+            If a fragment would be swallowed, it is instead replaced by the largest
+            fragment that contains the smaller fragment. The definition of the origin
+            is taken from the smaller fragment.
+            This means, there will be no centers other than origins.
         """
-        fragments = cls.from_conn_data(
-            mol,
-            BondConnectivity.from_mole(
+        if isinstance(mol, Mole):
+            fragments = cls.from_conn_data(
                 mol,
-                treat_H_different=treat_H_different,
-                bonds_atoms=bonds_atoms,
-                vdW_radius=vdW_radius,
-            ),
-            n_BE,
-        )
+                BondConnectivity.from_mole(
+                    mol,
+                    treat_H_different=treat_H_different,
+                    bonds_atoms=bonds_atoms,
+                    vdW_radius=vdW_radius,
+                ),
+                n_BE,
+                swallow_replace=swallow_replace,
+            )
+        elif isinstance(mol, Cell):
+            fragments = cls.from_conn_data(
+                mol,
+                BondConnectivity.from_cell(
+                    mol,
+                    treat_H_different=treat_H_different,
+                    bonds_atoms=bonds_atoms,
+                    vdW_radius=vdW_radius,
+                ),
+                n_BE,
+                swallow_replace=swallow_replace,
+            )
         if autocratic_matching:
             return fragments.get_autocratically_matched()
         return fragments
@@ -651,6 +784,11 @@ class PurelyStructureFragmented:
 
     def write_geom(self, prefix: str = "f", dir: Path = Path(".")) -> None:
         """Write the structures of the fragments to files."""
+        if isinstance(self.mol, Cell):
+            raise NotImplementedError(
+                "Writing the structures of fragments from periodic systems"
+                " is not implemented."
+            )
         mol = Cartesian.from_pyscf(self.mol)
         for i_frag, atoms in enumerate(self.atoms_per_frag):
             mol.loc[atoms, :].to_xyz(dir / f"{prefix}{i_frag}.xyz")
@@ -719,7 +857,7 @@ class PurelyStructureFragmented:
         """
         nx_graph: Graph = Graph(self.conn_data.bonds_motifs)  # type: ignore[arg-type]
 
-        def distance_to_fragment(i_frag: FragmentIdx) -> tuple[int, int]:
+        def distance_to_fragment(i_frag: FragmentIdx) -> tuple[int, FragmentIdx]:
             """Return the distance to the fragment with index ``i_frag``,
             as measured by the edge-number of the shortest path to the closest origin.
             Additionally return the index itsef to achieve unique ordering, if the
@@ -727,7 +865,7 @@ class PurelyStructureFragmented:
             return (
                 min(
                     shortest_path_length(nx_graph, source=center, target=i_origin)
-                    for i_origin in self.origin_per_frag[i_frag]
+                    for i_origin in self.origin_per_frag[i_frag]  # type: ignore[call-overload]
                 ),
                 i_frag,
             )
@@ -791,7 +929,7 @@ class PurelyStructureFragmented:
             conn_data=self.conn_data,
             n_BE=self.n_BE,
             centers_per_frag=[
-                centers.difference(becomes_an_edge[FragmentIdx(i_frag)])
+                centers.difference(becomes_an_edge[cast(FragmentIdx, i_frag)])
                 for i_frag, centers in enumerate(self.centers_per_frag)
             ],
             # In the following we re-declare some of the centers as edges,
@@ -800,21 +938,25 @@ class PurelyStructureFragmented:
                 OrderedSet(
                     sorted(
                         edges.union(
-                            cast(Set[EdgeIdx], becomes_an_edge[FragmentIdx(i_frag)])
+                            cast(
+                                Set[EdgeIdx], becomes_an_edge[cast(FragmentIdx, i_frag)]
+                            )
                         )
                     )
                 )
                 for i_frag, edges in enumerate(self.edges_per_frag)
             ],
-            frag_idx_per_edge=[
+            ref_frag_idx_per_edge=[
                 _sort_by_keys(
                     dict(edges)
                     | {
                         cast(EdgeIdx, center): best_fragment[center]
-                        for center in becomes_an_edge.get(FragmentIdx(i_frag), set())
+                        for center in becomes_an_edge.get(
+                            cast(FragmentIdx, i_frag), set()
+                        )
                     }
                 )
-                for i_frag, edges in enumerate(self.frag_idx_per_edge)
+                for i_frag, edges in enumerate(self.ref_frag_idx_per_edge)
             ],
         )
 
@@ -828,7 +970,7 @@ class PurelyStructureFragmented:
 
 
 @define(frozen=True, kw_only=True)
-class Fragmented:
+class Fragmented(Generic[_T_chemsystem]):
     """Contains the whole BE fragmentation information, including AO indices.
 
     This takes into account the geometrical data and the used
@@ -839,7 +981,7 @@ class Fragmented:
     """
 
     #: The full molecule
-    mol: Final[Mole] = field(eq=cmp_using(are_equal))
+    mol: _T_chemsystem = field(eq=cmp_using(are_equal))
 
     # yes, it is a bit redundant, because `conn_data` is also contained in
     # `frag_structure`, but it is very convenient to have it here
@@ -869,7 +1011,6 @@ class Fragmented:
 
     #: The atomic orbital indices per edge per fragment.
     #: The AO index is global.
-    #: This variable was formerly known as :python:`edgesites`.
     AO_per_edge_per_frag: Final[
         Sequence[Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[GlobalAOIdx]]]]
     ]
@@ -877,55 +1018,53 @@ class Fragmented:
     #: The relative atomic orbital indices per motif per fragment.
     #: Relative means that the AO indices are relative to
     #: the **own** fragment.
-    rel_AO_per_motif_per_frag: Final[
-        Sequence[Mapping[MotifIdx, Mapping[AtomIdx, OrderedSet[OwnRelAOIdx]]]]
+    relAO_per_motif_per_frag: Final[
+        Sequence[Mapping[MotifIdx, Mapping[AtomIdx, OrderedSet[RelAOIdx]]]]
     ]
 
     #: The relative atomic orbital indices per edge per fragment.
     #: Relative means that the AO indices are relative to
     #: the **own** fragment.
-    #: This variable is a strict subset of :attr:`rel_AO_per_motif_per_frag`,
+    #: This variable is a strict subset of :attr:`relAO_per_motif_per_frag`,
     #: in the sense that the motif indices, the keys in the Mapping,
     #: are restricted to the edges of the fragment.
-    #: This variable was formerly known as :python:`edge_idx`.
-    rel_AO_per_edge_per_frag: Final[
-        Sequence[Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[OwnRelAOIdx]]]]
+    relAO_per_edge_per_frag: Final[
+        Sequence[Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[RelAOIdx]]]]
     ]
 
-    #: Is the complement of :attr:`rel_AO_per_edge_per_frag`.
-    #: This variable was formerly known as :python:`ebe_weight`.
-    #: Note that :python:`ebe_weight` also contained the weight
-    #: for democratic matching. This was always 1.0 in
-    #: :func:`quemb.molbe.autofrag.autogen`
-    #: so it did actually not matter.
-    rel_AO_per_center_per_frag: Final[
-        Sequence[Mapping[CenterIdx, Mapping[AtomIdx, OrderedSet[OwnRelAOIdx]]]]
+    #: The relative atomic orbital indices per edge per fragment.
+    #: Relative means that the AO indices are relative to
+    #: the **own** fragment.
+    #: This variable is a subset of :attr:`relAO_per_motif_per_frag`,
+    #: in the sense that the motif indices, the keys in the Mapping,
+    #: are restricted to the centers of the fragment.
+    relAO_per_center_per_frag: Final[
+        Sequence[Mapping[CenterIdx, Mapping[AtomIdx, OrderedSet[RelAOIdx]]]]
     ]
 
     #: The relative atomic orbital indices per origin per fragment.
     #: Relative means that the AO indices are relative to
     #: the **own** fragment.
-    #: This variable is a subset of :attr:`rel_AO_per_center_per_frag`,
+    #: This variable is a subset of :attr:`relAO_per_center_per_frag`,
     #: in the sense that the motif indices, the keys in the Mapping,
     #: are restricted to the origins of the fragment.
     #: This variable was formerly known as :python:`centerf_idx`.
-    rel_AO_per_origin_per_frag: Final[
-        Sequence[Mapping[OriginIdx, Mapping[AtomIdx, OrderedSet[OwnRelAOIdx]]]]
+    relAO_per_origin_per_frag: Final[
+        Sequence[Mapping[OriginIdx, Mapping[AtomIdx, OrderedSet[RelAOIdx]]]]
     ]
 
     #: The relative atomic orbital indices per edge per fragment.
     #: Relative means that the AO indices are relative to the **other**
     #: fragment where the edge is a center.
-    #: This variable was formerly known as :python:`center_idx`.
-    other_rel_AO_per_edge_per_frag: Final[
-        Sequence[Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[OtherRelAOIdx]]]]
+    relAO_in_ref_per_edge_per_frag: Final[
+        Sequence[Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[RelAOIdxInRef]]]]
     ]
 
     #: Do we have frozen_core AO index offsets?
     frozen_core: Final[bool]
 
     #: The molecule with the valence/minimal basis, if we use IAO.
-    iao_valence_mol: Final[Mole | None] = field(
+    iao_valence_mol: _T_chemsystem | None = field(
         eq=cmp_using(
             lambda x, y: (x is None and y is None)
             or (x is not None and y is not None and are_equal(x, y))
@@ -935,7 +1074,7 @@ class Fragmented:
     @classmethod
     def from_frag_structure(
         cls,
-        mol: Mole,
+        mol: _T_chemsystem,
         frag_structure: PurelyStructureFragmented,
         frozen_core: bool,
         iao_valence_basis: str | None = None,
@@ -967,13 +1106,11 @@ class Fragmented:
             for edges in frag_structure.edges_per_frag
         ]
 
-        rel_AO_per_motif_per_frag: list[
-            Mapping[MotifIdx, Mapping[AtomIdx, OrderedSet[OwnRelAOIdx]]]
+        relAO_per_motif_per_frag: list[
+            Mapping[MotifIdx, Mapping[AtomIdx, OrderedSet[RelAOIdx]]]
         ] = []
         for motifs in frag_structure.motifs_per_frag:
-            rel_AO_per_motif: dict[
-                MotifIdx, dict[AtomIdx, OrderedSet[OwnRelAOIdx]]
-            ] = {}
+            rel_AO_per_motif: dict[MotifIdx, dict[AtomIdx, OrderedSet[RelAOIdx]]] = {}
             previous = 0
             for motif in motifs:
                 rel_AO_per_motif[motif] = {}
@@ -983,38 +1120,38 @@ class Fragmented:
                         (previous := previous + len(AO_per_motif[motif][atom])),
                     )
                     rel_AO_per_motif[motif][atom] = OrderedSet(
-                        OwnRelAOIdx(AOIdx(i)) for i in indices
+                        cast(RelAOIdx, i) for i in indices
                     )
-            rel_AO_per_motif_per_frag.append(rel_AO_per_motif)
+            relAO_per_motif_per_frag.append(rel_AO_per_motif)
 
-        rel_AO_per_edge_per_frag: Final = _restrict(
-            rel_AO_per_motif_per_frag, frag_structure.edges_per_frag
+        relAO_per_edge_per_frag: Final = _restrict(
+            relAO_per_motif_per_frag, frag_structure.edges_per_frag
         )
 
-        rel_AO_per_center_per_frag: Final = _restrict(
-            rel_AO_per_motif_per_frag, frag_structure.centers_per_frag
+        relAO_per_center_per_frag: Final = _restrict(
+            relAO_per_motif_per_frag, frag_structure.centers_per_frag
         )
 
-        rel_AO_per_origin_per_frag: Final = _restrict(
-            rel_AO_per_motif_per_frag, frag_structure.origin_per_frag
+        relAO_per_origin_per_frag: Final = _restrict(
+            relAO_per_motif_per_frag, frag_structure.origin_per_frag
         )
 
-        other_rel_AO_per_edge_per_frag: list[
-            Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[OtherRelAOIdx]]]
+        relAO_in_ref_per_edge_per_frag: list[
+            Mapping[EdgeIdx, Mapping[AtomIdx, OrderedSet[RelAOIdxInRef]]]
         ] = [
             {
                 i_edge: {
-                    atom: cast(OrderedSet[OtherRelAOIdx], indices)
+                    atom: cast(OrderedSet[RelAOIdxInRef], indices)
                     # We correctly reinterpet the AO indices as
                     # indices of the other fragment
-                    for atom, indices in rel_AO_per_motif_per_frag[
+                    for atom, indices in relAO_per_motif_per_frag[
                         frag_per_edge[i_edge]
                     ][i_edge].items()
                 }
                 for i_edge in edges
             }
             for edges, frag_per_edge in zip(
-                frag_structure.edges_per_frag, frag_structure.frag_idx_per_edge
+                frag_structure.edges_per_frag, frag_structure.ref_frag_idx_per_edge
             )
         ]
 
@@ -1033,11 +1170,11 @@ class Fragmented:
             AO_per_frag=AO_per_frag,
             AO_per_motif=AO_per_motif,
             AO_per_edge_per_frag=AO_per_edge_per_frag,
-            rel_AO_per_motif_per_frag=rel_AO_per_motif_per_frag,
-            rel_AO_per_edge_per_frag=rel_AO_per_edge_per_frag,
-            rel_AO_per_center_per_frag=rel_AO_per_center_per_frag,
-            rel_AO_per_origin_per_frag=rel_AO_per_origin_per_frag,
-            other_rel_AO_per_edge_per_frag=other_rel_AO_per_edge_per_frag,
+            relAO_per_motif_per_frag=relAO_per_motif_per_frag,
+            relAO_per_edge_per_frag=relAO_per_edge_per_frag,
+            relAO_per_center_per_frag=relAO_per_center_per_frag,
+            relAO_per_origin_per_frag=relAO_per_origin_per_frag,
+            relAO_in_ref_per_edge_per_frag=relAO_in_ref_per_edge_per_frag,
             frozen_core=frozen_core,
             iao_valence_mol=small_mol,
         )
@@ -1045,7 +1182,7 @@ class Fragmented:
     @classmethod
     def from_mole(
         cls,
-        mol: Mole,
+        mol: _T_chemsystem,
         n_BE: int,
         *,
         frozen_core: bool = False,
@@ -1054,13 +1191,16 @@ class Fragmented:
         vdW_radius: InVdWRadius | None = None,
         iao_valence_basis: str | None = None,
         autocratic_matching: bool = True,
+        swallow_replace: bool = False,
     ) -> Self:
-        """Construct a :class:`Fragmented` from :class:`pyscf.gto.mole.Mole`.
+        """Construct a :class:`Fragmented` from :class:`pyscf.gto.mole.Mole`
+         or :class:`pyscf.pbc.gto.cell.Cell`.
 
         Parameters
         ----------
         mol :
-            The :class:`pyscf.gto.mole.Mole` to extract the connectivity data from.
+            The :class:`pyscf.gto.mole.Mole` or :class:`pyscf.pbc.gto.cell.Cell`
+            to extract the connectivity data from.
         n_BE :
             The BE fragmentation level.
         treat_H_different :
@@ -1089,6 +1229,11 @@ class Fragmented:
             Assume autocratic matching for possibly shared centers.
             Will call :meth:`PurelyStructureFragmented.get_autocratically_matched`
             upon construction.  Look there for more details.
+        swallow_replace :
+            If a fragment would be swallowed, it is instead replaced by the largest
+            fragment that contains the smaller fragment. The definition of the origin
+            is taken from the smaller fragment.
+            This means, there will be no centers other than origins.
         """
         return cls.from_frag_structure(
             mol,
@@ -1099,6 +1244,7 @@ class Fragmented:
                 bonds_atoms=bonds_atoms,
                 vdW_radius=vdW_radius,
                 autocratic_matching=autocratic_matching,
+                swallow_replace=swallow_replace,
             ),
             frozen_core=frozen_core,
             iao_valence_basis=iao_valence_basis,
@@ -1115,45 +1261,46 @@ class Fragmented:
         Matches the output of :func:`quemb.molbe.autofrag.autogen`.
         """
 
-        # We cannot use the `extract_values(self.rel_AO_per_origin_per_frag)`
-        # alone, because the structure in `self.rel_AO_per_origin_per_frag`
-        # is more flexible and allows multiple origins per fragment.
+        # We cannot use the `extract_values(self.relAO_per_origin)`
+        # alone, because the structure in `self.relAO_per_origin`
+        # is more flexible than in FragPart and allows multiple origins per fragment.
         # extracting the values from this structure would give one nesting
         # level too much. We therefore need to merge over all origins,
         # (which there is usually only one per fragment).
-        centerf_idx = [
+        relAO_per_origin = [
             union_of_seqs(*idx_per_origin)
-            for idx_per_origin in _extract_values(self.rel_AO_per_origin_per_frag)
+            for idx_per_origin in _extract_values(self.relAO_per_origin_per_frag)
         ]
-        # A similar issue occurs for ebe_weight, where the output
-        # of autogen is a union over all centers.
-        ebe_weight = [
-            cast(
-                list[float | list[OwnRelAOIdx]],
-                [1.0, list(union_of_seqs(*idx_per_center))],
-            )
-            for idx_per_center in _extract_values(self.rel_AO_per_center_per_frag)
+        weight_and_relAO_per_center_per_frag = [
+            (1.0, list(union_of_seqs(*idx_per_center)))
+            for idx_per_center in _extract_values(self.relAO_per_center_per_frag)
         ]
         # Again, we have to account for the fact that
         # autogen assumes a single origin per fragment.
         # Check with an assert as well
-        center_atom = list(union_of_seqs(*self.frag_structure.origin_per_frag))
-        assert len(center_atom) == len(self)
+        origin_per_frag = list(union_of_seqs(*self.frag_structure.origin_per_frag))
+        assert len(origin_per_frag) == len(self)
 
         return FragPart(
             mol=self.mol,
             frag_type="chemgen",
             n_BE=self.frag_structure.n_BE,
-            fsites=[list(AO_indices) for AO_indices in self.AO_per_frag],
-            edge_sites=_extract_values(self.AO_per_edge_per_frag),
-            center=[list(D.values()) for D in self.frag_structure.frag_idx_per_edge],
-            edge_idx=_extract_values(self.rel_AO_per_edge_per_frag),
-            center_idx=_extract_values(self.other_rel_AO_per_edge_per_frag),
-            centerf_idx=[list(seq) for seq in centerf_idx],
-            ebe_weight=ebe_weight,
-            Frag_atom=[list(motifs) for motifs in self.frag_structure.motifs_per_frag],
-            center_atom=center_atom,
-            hlist_atom=[
+            AO_per_frag=[list(AO_indices) for AO_indices in self.AO_per_frag],
+            AO_per_edge_per_frag=_extract_values(self.AO_per_edge_per_frag),
+            ref_frag_idx_per_edge_per_frag=[
+                list(D.values()) for D in self.frag_structure.ref_frag_idx_per_edge
+            ],
+            relAO_per_edge_per_frag=_extract_values(self.relAO_per_edge_per_frag),
+            relAO_in_ref_per_edge_per_frag=_extract_values(
+                self.relAO_in_ref_per_edge_per_frag
+            ),
+            relAO_per_origin_per_frag=[list(seq) for seq in relAO_per_origin],
+            weight_and_relAO_per_center_per_frag=weight_and_relAO_per_center_per_frag,
+            motifs_per_frag=[
+                list(motifs) for motifs in self.frag_structure.motifs_per_frag
+            ],
+            origin_per_frag=origin_per_frag,
+            H_per_motif=[
                 list(self.conn_data.H_per_motif.get(MotifIdx(atom), []))
                 for atom in self.conn_data.bonds_atoms
             ],
@@ -1217,7 +1364,7 @@ class Fragmented:
         ) -> list[list[list[_T_AOIdx]]]:
             result = []
             for fragment, fragment_big_basis in zip(AO_small_basis, AO_full_basis):
-                tmp: list[list[_T_AOIdx]] = []
+                AO_indices: list[list[_T_AOIdx]] = []
                 for motif in fragment:
                     if wrong_iao_indexing:
                         offset = _iloc(fragment_big_basis[motif].values(), 1)[0]
@@ -1239,66 +1386,60 @@ class Fragmented:
                             fragment_big_basis[motif][H_atom][:n_small_AO_H]
                             for H_atom in H_per_motif[motif]
                         ]
-                    tmp.append(
-                        _flatten(
-                            (
-                                _iloc(fragment_big_basis[motif].values(), 0)[
-                                    : len(_iloc(fragment[motif].values(), 0))
-                                ],
-                                *H_offsets,
-                            )
-                        )
-                    )
-                result.append(tmp)
+
+                    AO_index_heavy_atom = _iloc(fragment_big_basis[motif].values(), 0)[
+                        : len(_iloc(fragment[motif].values(), 0))
+                    ]
+
+                    AO_indices.append(_flatten([AO_index_heavy_atom] + H_offsets))
+                result.append(AO_indices)
             return result
 
-        center_idx: Final = _extract_with_iao_offset(
-            valence_frags.other_rel_AO_per_edge_per_frag,
-            self.other_rel_AO_per_edge_per_frag,
+        relAO_in_ref_per_edge: Final = _extract_with_iao_offset(
+            valence_frags.relAO_in_ref_per_edge_per_frag,
+            self.relAO_in_ref_per_edge_per_frag,
             wrong_iao_indexing=wrong_iao_indexing,
         )
-        edge_sites: Final = _extract_with_iao_offset(
+        AO_per_edge: Final = _extract_with_iao_offset(
             valence_frags.AO_per_edge_per_frag,
             self.AO_per_edge_per_frag,
             wrong_iao_indexing=wrong_iao_indexing,
         )
-        edge_idx: Final = _extract_with_iao_offset(
-            valence_frags.rel_AO_per_edge_per_frag,
-            self.rel_AO_per_edge_per_frag,
+        relAO_per_edge: Final = _extract_with_iao_offset(
+            valence_frags.relAO_per_edge_per_frag,
+            self.relAO_per_edge_per_frag,
             wrong_iao_indexing=wrong_iao_indexing,
         )
 
         # We have to flatten one nesting level since it is assumed in the output
         # of autogen that there is always only one origin per fragment.,
-        centerf_idx: Final = [
+        relAO_per_origin: Final = [
             L[0]
             for L in _extract_with_iao_offset(
-                valence_frags.rel_AO_per_origin_per_frag,
-                self.rel_AO_per_origin_per_frag,
+                valence_frags.relAO_per_origin_per_frag,
+                self.relAO_per_origin_per_frag,
                 wrong_iao_indexing=wrong_iao_indexing,
             )
         ]
 
         matched_output_no_iao = self._get_FragPart_no_iao()
 
-        # Only edge_sites, edge_idx, center_idx, and centerf_idx are actually different
-        # when doing IAOs
+        # Only are actually different when doing IAOs
         return FragPart(
             mol=self.mol,
             frag_type="chemgen",
             n_BE=self.frag_structure.n_BE,
-            edge_sites=edge_sites,
-            edge_idx=edge_idx,
-            center_idx=center_idx,
-            centerf_idx=centerf_idx,
-            fsites=matched_output_no_iao.fsites,
-            center=matched_output_no_iao.center,
-            ebe_weight=matched_output_no_iao.ebe_weight,
-            Frag_atom=matched_output_no_iao.Frag_atom,
-            center_atom=matched_output_no_iao.center_atom,
-            hlist_atom=matched_output_no_iao.hlist_atom,
+            AO_per_edge_per_frag=AO_per_edge,
+            relAO_per_edge_per_frag=relAO_per_edge,
+            relAO_in_ref_per_edge_per_frag=relAO_in_ref_per_edge,
+            relAO_per_origin_per_frag=relAO_per_origin,
+            AO_per_frag=matched_output_no_iao.AO_per_frag,
+            ref_frag_idx_per_edge_per_frag=matched_output_no_iao.ref_frag_idx_per_edge_per_frag,
+            weight_and_relAO_per_center_per_frag=matched_output_no_iao.weight_and_relAO_per_center_per_frag,
+            motifs_per_frag=matched_output_no_iao.motifs_per_frag,
+            origin_per_frag=matched_output_no_iao.origin_per_frag,
+            H_per_motif=matched_output_no_iao.H_per_motif,
             add_center_atom=matched_output_no_iao.add_center_atom,
-            Nfrag=matched_output_no_iao.Nfrag,
             frozen_core=self.frozen_core,
             iao_valence_basis=self.iao_valence_mol.basis,
             iao_valence_only=False,
@@ -1313,7 +1454,9 @@ class Fragmented:
             return self._get_FragPart_with_iao(wrong_iao_indexing)
 
 
-def _get_AOidx_per_atom(mol: Mole, frozen_core: bool) -> list[OrderedSet[GlobalAOIdx]]:
+def _get_AOidx_per_atom(
+    mol: _T_chemsystem, frozen_core: bool
+) -> list[OrderedSet[GlobalAOIdx]]:
     """Get the range of atomic orbital indices per atom.
 
     Parameters
@@ -1334,17 +1477,19 @@ def _get_AOidx_per_atom(mol: Mole, frozen_core: bool) -> list[OrderedSet[GlobalA
         core_list = get_core(mol)[2]
         for n_core, (_, _, start, stop) in zip(core_list, mol.aoslice_by_atom()):
             result.append(
-                OrderedSet(
-                    GlobalAOIdx(AOIdx(i))
-                    for i in range(start - core_offset, stop - (core_offset + n_core))
+                cast(
+                    OrderedSet[GlobalAOIdx],
+                    OrderedSet(
+                        range(start - core_offset, stop - (core_offset + n_core))
+                    ),
                 )
             )
             core_offset += n_core
         return result
     else:
         return [
-            OrderedSet(
-                GlobalAOIdx(AOIdx(i)) for i in range(AO_offsets[2], AO_offsets[3])
+            cast(
+                OrderedSet[GlobalAOIdx], OrderedSet(range(AO_offsets[2], AO_offsets[3]))
             )
             for AO_offsets in mol.aoslice_by_atom()
         ]
@@ -1373,14 +1518,20 @@ class ChemGenArgs:
     bonds_atoms: Mapping[int, set[int]] | None = None
     vdW_radius: InVdWRadius | None = None
 
-    #: This argument is not meant to be used by the user.
+    #: If a fragment would be swallowed, it is instead replaced by the largest
+    #: fragment that contains the smaller fragment. The definition of the origin
+    #: is taken from the smaller fragment.
+    #: This means, there will be no centers other than origins.
+    swallow_replace: bool = False
+
+    #: Option for debugging.
     #: If it is true, then chemgen adheres to the old **wrong** indexing
     #: of :python:`"autogen"``.
     _wrong_iao_indexing: bool = False
 
 
 def chemgen(
-    mol: Mole,
+    mol: _T_chemsystem,
     n_BE: int,
     args: ChemGenArgs | None,
     frozen_core: bool,
@@ -1391,7 +1542,7 @@ def chemgen(
     Parameters
     ----------
     mol :
-        Molecule to be fragmented.
+        Molecule or Cell to be fragmented.
     n_BE :
         BE fragmentation level.
     args :
@@ -1403,6 +1554,11 @@ def chemgen(
         Do we perform a frozen core calculation?
     iao_valuence_basis :
         The minimal basis used for the IAO definition.
+    swallow_replace :
+        If a fragment would be swallowed, it is instead replaced by the largest
+        fragment that contains the smaller fragment. The definition of the origin
+        is taken from the smaller fragment.
+        This means, there will be no centers other than origins.
     """
     if args is None:
         return Fragmented.from_mole(
@@ -1417,6 +1573,7 @@ def chemgen(
             bonds_atoms=args.bonds_atoms,
             vdW_radius=args.vdW_radius,
             iao_valence_basis=iao_valence_basis,
+            swallow_replace=args.swallow_replace,
         )
 
 

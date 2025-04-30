@@ -2,12 +2,44 @@
 
 from warnings import warn
 
+from attrs import define
 from numpy import arange, asarray, where
 from numpy.linalg import norm
 from pyscf import lib
 
 from quemb.kbe.misc import sgeom
 from quemb.molbe.helper import get_core
+
+
+@define
+class AutogenArgs:
+    """Additional arguments for autogen
+
+    Parameters
+    ----------
+    gamma_2d:
+    gamma_1d:
+    interlayer :
+        Whether the periodic system has two stacked monolayers.
+    long_bond :
+        For systems with longer than 1.8 Angstrom covalent bond, set this to True
+        otherwise the fragmentation might fail.
+    perpend_dist:
+    perpend_dist_tol:
+    nx:
+    ny:
+    nz:
+    """
+
+    gamma_2d: bool = False
+    gamma_1d: bool = False
+    interlayer: bool = False
+    long_bond: bool = False
+    perpend_dist: float = 4.0
+    perpend_dist_tol: float = 1e-3
+    nx: bool = False
+    ny: bool = False
+    nz: bool = False
 
 
 def warn_large_fragment():
@@ -288,27 +320,6 @@ def autogen(
     long_bond : bool
         For systems with longer than 1.8 Angstrom covalent bond,
         set this to True otherwise the fragmentation might fail.
-
-
-    Returns
-    -------
-    fsites : list of list of int
-        List of fragment sites where each fragment is a list of LO indices.
-    edgsites : list of list of list of int
-        List of edge sites for each fragment where each edge is a list of LO indices.
-    center : list of list of int
-        List of center indices for each edge.
-    edge_idx : list of list of list of int
-        List of edge indices for each fragment where each edge index is a list of
-        LO indices.
-    center_idx : list of list of list of int
-        List of center indices for each fragment where each center index is a list of
-        LO indices.
-    centerf_idx : list of list of int
-        List of center fragment indices.
-    ebe_weight : list of list
-        Weights for each fragment. Each entry contains a weight and a list of LO
-        indices.
     """
     if not float(unitcell).is_integer():
         raise ValueError("Fractional unitcell is not supported!")
@@ -1984,10 +1995,10 @@ def autogen(
         maxH = max([j for i in hsites for j in i])
         max_site = max(max_site, maxH)
 
-    fsites = []
-    edge_sites = []
-    edge_idx = []
-    centerf_idx = []
+    AO_per_frag = []
+    AO_per_edge_per_frag = []
+    relAO_per_edge_per_frag = []
+    relAO_per_origin_per_frag = []
     edge = []
 
     nkcon = True
@@ -2164,12 +2175,12 @@ def autogen(
 
         ls = len(sites__[cen[idx]]) + len(hsites[cen[idx]])
         if not pao:
-            centerf_idx.append([pq for pq in range(indix, indix + ls)])
+            relAO_per_origin_per_frag.append([pq for pq in range(indix, indix + ls)])
         else:
             cntlist = sites__[cen[idx]].copy()[: nbas2[cen[idx]]]
             cntlist.extend(hsites[cen[idx]][: nbas2H[cen[idx]]])
             ind__ = [indix + frglist.index(pq) for pq in cntlist]
-            centerf_idx.append(ind__)
+            relAO_per_origin_per_frag.append(ind__)
         indix += ls
 
         for jdx in pedge[idx]:
@@ -2338,41 +2349,52 @@ def autogen(
             indix += ls
 
         edge.append(edg)
-        fsites.append(ftmp)
-        edge_sites.append(ftmpe)
-        edge_idx.append(edind)
+        AO_per_frag.append(ftmp)
+        AO_per_edge_per_frag.append(ftmpe)
+        relAO_per_edge_per_frag.append(edind)
 
-    center = []
+    ref_frag_idx_per_edge_per_frag = []
     for ix in edge:
         cen_ = []
         for jx in ix:
             cen_.append(cen.index(jx))
-        center.append(cen_)
+        ref_frag_idx_per_edge_per_frag.append(cen_)
 
-    Nfrag = len(fsites)
-    ebe_weight = []
+    n_frag = len(AO_per_frag)
+    weight_and_relAO_per_center_per_frag = []
     # Use IAO+PAO for computing energy
-    for ix, i in enumerate(fsites):
+    for ix, i in enumerate(AO_per_frag):
         tmp_ = [i.index(pq) for pq in sites__[cen[ix]]]
         tmp_.extend([i.index(pq) for pq in hsites[cen[ix]]])
-        ebe_weight.append([1.0, tmp_])
+        weight_and_relAO_per_center_per_frag.append([1.0, tmp_])
 
-    # Center of a fragment are defined in cen[idx]
-    # center[[idx,jdx]] defines fragments idx,jdx who's cen[idx],cen[jdx] \\
-    # centers are matched to the edges.
-    center_idx = []
-    for i in range(Nfrag):
+    relAO_in_ref_per_edge_per_frag = []
+    for i in range(n_frag):
         idx = []
-        for j in center[i]:
+        for j in ref_frag_idx_per_edge_per_frag[i]:
             if not pao:
                 cntlist = sites__[cen[j]].copy()
                 cntlist.extend(hsites[cen[j]])
-                idx.append([fsites[j].index(k) for k in cntlist])
+                idx.append([AO_per_frag[j].index(k) for k in cntlist])
             else:
                 cntlist = sites__[cen[j]].copy()[: nbas2[cen[j]]]
                 cntlist.extend(hsites[cen[j]][: nbas2H[cen[j]]])
-                idx.append([fsites[j].index(k) for k in cntlist])
+                idx.append([AO_per_frag[j].index(k) for k in cntlist])
 
-        center_idx.append(idx)
+        relAO_in_ref_per_edge_per_frag.append(idx)
 
-    return (fsites, edge_sites, center, edge_idx, center_idx, centerf_idx, ebe_weight)
+    if not AO_per_edge_per_frag:
+        AO_per_edge_per_frag = [[] for _ in range(n_frag)]
+        ref_frag_idx_per_edge_per_frag = [[] for _ in range(n_frag)]
+        relAO_per_edge_per_frag = [[] for _ in range(n_frag)]
+        relAO_in_ref_per_edge_per_frag = [[] for _ in range(n_frag)]
+
+    return (
+        AO_per_frag,
+        AO_per_edge_per_frag,
+        ref_frag_idx_per_edge_per_frag,
+        relAO_per_edge_per_frag,
+        relAO_in_ref_per_edge_per_frag,
+        relAO_per_origin_per_frag,
+        weight_and_relAO_per_center_per_frag,
+    )

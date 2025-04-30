@@ -1,7 +1,13 @@
+Initial development of quemb was started by Oinam Romesh Meitei (2023).
+It partially contained parts from earlier codes of the Van Voorhis group,
+such as the Quasi Newton Optimization which was written by Hong-Zhou Ye,
 
-
-
-
-Quasi Newton Optimization by Hong-Zhou Ye:
-
-QuEmb contains codes that were written by Hong-Zhou Ye, namely the files ccsd_rdm.py, cphf_utils.py, cpmp2_utils.py, jac_utils.py, lo_helper.py, optqn.py, and rdm_ccsd.py in molbe/external. The Quasi-Newton optimization routine, along with all the functionalities to compute analytical Jacobian were written by Hong-Zhou Ye.
+The development branched off in November 2024 (see the tag `last_version_before_forking`)
+and was henceforth carried in alphabetic order by:
+- Minsik Cho
+- Beck Hanscam
+- Aleksandr Trofimov
+- Oskar Weser
+- Shaun Weatherly
+- Leah Weisburn
+- Hong-Zhou Ye

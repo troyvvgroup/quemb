@@ -21,7 +21,7 @@ from quemb.kbe.pfrag import Frags
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
 from quemb.molbe.opt import BEOPT
-from quemb.molbe.solver import UserSolverArgs, be_func
+from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
@@ -166,7 +166,7 @@ class BE(Mixin_k_Localize):
 
         self.print_ini()
         self.Fobjs: list[Frags] = []
-        self.pot = initialize_pot(self.fobj.Nfrag, self.fobj.edge_idx)
+        self.pot = initialize_pot(self.fobj.n_frag, self.fobj.relAO_per_edge_per_frag)
         self.eri_file = eri_file
         self.cderi = cderi
 
@@ -282,7 +282,7 @@ class BE(Mixin_k_Localize):
 
     def optimize(
         self,
-        solver: str = "MP2",
+        solver: Solvers = "MP2",
         method: str = "QN",
         only_chem: bool = False,
         use_cumulant: bool = True,
@@ -418,7 +418,7 @@ class BE(Mixin_k_Localize):
 
     @copy_docstring(_ext_get_be_error_jacobian)
     def get_be_error_jacobian(self, jac_solver: str = "HF") -> Matrix[floating]:
-        return _ext_get_be_error_jacobian(self.fobj.Nfrag, self.Fobjs, jac_solver)
+        return _ext_get_be_error_jacobian(self.fobj.n_frag, self.Fobjs, jac_solver)
 
     def print_ini(self) -> None:
         """
@@ -480,45 +480,15 @@ class BE(Mixin_k_Localize):
         # Create a file to store ERIs
         if not restart:
             file_eri = h5py.File(self.eri_file, "w")
-        lentmp = len(self.fobj.edge_idx)
         transform_parallel = False  # hard set for now
-        for fidx in range(self.fobj.Nfrag):
-            if lentmp:
-                fobjs_ = Frags(
-                    self.fobj.fsites[fidx],
-                    fidx,
-                    edge=self.fobj.edge_sites[fidx],
-                    eri_file=self.eri_file,
-                    center=self.fobj.center[fidx],
-                    edge_idx=self.fobj.edge_idx[fidx],
-                    center_idx=self.fobj.center_idx[fidx],
-                    efac=self.fobj.ebe_weight[fidx],
-                    centerf_idx=self.fobj.centerf_idx[fidx],
-                    unitcell=self.fobj.unitcell,
-                    unitcell_nkpt=self.unitcell_nkpt,
-                )
-            else:
-                fobjs_ = Frags(
-                    self.fobj.fsites[fidx],
-                    fidx,
-                    edge=[],
-                    center=[],
-                    eri_file=self.eri_file,
-                    edge_idx=[],
-                    center_idx=[],
-                    centerf_idx=[],
-                    efac=self.fobj.ebe_weight[fidx],
-                    unitcell=self.fobj.unitcell,
-                    unitcell_nkpt=self.unitcell_nkpt,
-                )
-
+        for fidx in range(self.fobj.n_frag):
+            fobjs_ = self.fobj.to_Frags(fidx, self.eri_file, self.unitcell_nkpt)
             fobjs_.sd(
                 self.W,
                 self.lmo_coeff,
                 self.Nocc,
                 kmesh=self.fobj.kpt,
                 cell=self.fobj.mol,
-                frag_type=self.fobj.frag_type,
                 kpts=self.kpts,
                 h1=self.hcore,
                 thr_bath=self.thr_bath,
@@ -556,7 +526,7 @@ class BE(Mixin_k_Localize):
             os.system("export OMP_NUM_THREADS=" + str(self.ompnum))
             with Pool(nprocs) as pool_:
                 results = []
-                for frg in range(self.fobj.Nfrag):
+                for frg in range(self.fobj.n_frag):
                     result = pool_.apply_async(
                         eritransform_parallel,
                         [
@@ -571,7 +541,7 @@ class BE(Mixin_k_Localize):
                     results.append(result)
                 eris = [result.get() for result in results]
 
-            for frg in range(self.fobj.Nfrag):
+            for frg in range(self.fobj.n_frag):
                 file_eri.create_dataset(self.Fobjs[frg].dname, data=eris[frg])
             del eris
             file_eri.close()
@@ -579,7 +549,7 @@ class BE(Mixin_k_Localize):
             nprocs = self.nproc // self.ompnum
             with Pool(nprocs) as pool_:
                 results = []
-                for frg in range(self.fobj.Nfrag):
+                for frg in range(self.fobj.n_frag):
                     result = pool_.apply_async(
                         parallel_fock_wrapper,
                         [
@@ -595,7 +565,7 @@ class BE(Mixin_k_Localize):
                     results.append(result)
                 veffs = [result.get() for result in results]
 
-            for frg in range(self.fobj.Nfrag):
+            for frg in range(self.fobj.n_frag):
                 veff0, veff_ = veffs[frg]
                 if np.abs(veff_.imag).max() < 1.0e-6:
                     self.Fobjs[frg].veff = veff_.real
@@ -608,7 +578,7 @@ class BE(Mixin_k_Localize):
 
         # SCF parallelized
         if self.nproc == 1 and not transform_parallel:
-            for frg in range(self.fobj.Nfrag):
+            for frg in range(self.fobj.n_frag):
                 # SCF
                 self.Fobjs[frg].scf(fs=True, dm0=self.Fobjs[frg].dm_init)
         else:
@@ -616,7 +586,7 @@ class BE(Mixin_k_Localize):
             with Pool(nprocs) as pool_:
                 os.system("export OMP_NUM_THREADS=" + str(self.ompnum))
                 results = []
-                for frg in range(self.fobj.Nfrag):
+                for frg in range(self.fobj.n_frag):
                     nao = self.Fobjs[frg].nao
                     nocc = self.Fobjs[frg].nsocc
                     dname = self.Fobjs[frg].dname
@@ -628,10 +598,10 @@ class BE(Mixin_k_Localize):
                     results.append(result)
                 mo_coeffs = [result.get() for result in results]
 
-            for frg in range(self.fobj.Nfrag):
+            for frg in range(self.fobj.n_frag):
                 self.Fobjs[frg]._mo_coeffs = mo_coeffs[frg]
 
-        for frg in range(self.fobj.Nfrag):
+        for frg in range(self.fobj.n_frag):
             self.Fobjs[frg].dm0 = 2.0 * (
                 self.Fobjs[frg]._mo_coeffs[:, : self.Fobjs[frg].nsocc]
                 @ self.Fobjs[frg]._mo_coeffs[:, : self.Fobjs[frg].nsocc].conj().T
@@ -661,7 +631,7 @@ class BE(Mixin_k_Localize):
 
     def oneshot(
         self,
-        solver: str = "MP2",
+        solver: Solvers = "MP2",
         use_cumulant: bool = True,
         nproc: int = 1,
         ompnum: int = 4,
@@ -780,22 +750,22 @@ class BE(Mixin_k_Localize):
                 fobj.heff = filepot.get(fobj.dname)
 
 
-def initialize_pot(Nfrag, edge_idx):
+def initialize_pot(n_frag, rel_AO_per_edge_per_frag):
     """
     Initialize the potential array for bootstrap embedding.
 
     This function initializes a potential array for a given number of
-    fragments (:python:`Nfrag`) and their corresponding edge indices
-    (:python:`edge_idx`).
+    fragments (:python:`n_frag`) and their corresponding edge indices
+    (:python:`rel_AO_per_edge_per_frag`).
     The potential array is initialized with zeros for each pair of
     edge site indices within each fragment, followed by an
     additional zero for the global chemical potential.
 
     Parameters
     ----------
-    Nfrag : int
+    n_frag: int
         Number of fragments.
-    edge_idx : list of list of list of int
+    rel_AO_per_edge_per_frag: list of list of list of int
         List of edge indices for each fragment. Each element is a list of lists,
         where each sublist contains the indices of edge sites for a particular fragment.
 
@@ -806,9 +776,9 @@ def initialize_pot(Nfrag, edge_idx):
     """
     pot_ = []
 
-    if not len(edge_idx) == 0:
-        for fidx in range(Nfrag):
-            for i in edge_idx[fidx]:
+    if not len(rel_AO_per_edge_per_frag) == 0:
+        for fidx in range(n_frag):
+            for i in rel_AO_per_edge_per_frag[fidx]:
                 for j in range(len(i)):
                     for k in range(len(i)):
                         if j > k:

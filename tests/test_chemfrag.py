@@ -9,6 +9,7 @@ from pyscf.gto import M
 
 from quemb.molbe.chemfrag import (
     BondConnectivity,
+    ChemGenArgs,
     Fragmented,
     PurelyStructureFragmented,
     _cleanup_if_subset,
@@ -16,7 +17,7 @@ from quemb.molbe.chemfrag import (
 from quemb.molbe.fragment import fragmentate
 from quemb.molbe.mbe import BE
 
-from ._expected_data_for_chemfrag import get_expected
+from ._expected_data_for_chemfrag import get_expected, get_graphene_cell
 
 
 def get_calling_function_name() -> str:
@@ -122,7 +123,7 @@ def test_structure_agreement_with_autogen():
         auto_frags = fragmentate(mol=mol, frag_type="autogen", n_BE=n_BE)
 
         for chem_fragment, auto_fragment in zip(
-            chem_frags.motifs_per_frag, auto_frags.Frag_atom
+            chem_frags.motifs_per_frag, auto_frags.motifs_per_frag
         ):
             # We assert that the first atom, i.e. the origin, is the same for both
             # chemfrag and autogen
@@ -183,6 +184,35 @@ def test_match_autogen_output():
     }
     for k, result in calculated.items():
         assert result == expected["test_match_autogen_output"]["octane.xyz"][k], k
+
+
+def test_periodic_graphene():
+    bases = [
+        ("sto-3g", None),
+        ("cc-pvdz", None),
+        # ("cc-pvdz", "sto-3g"), # Activate after PR #125
+    ]
+
+    calculated = {
+        (
+            n_BE,
+            basis,
+            iao_valence_basis,
+            frozen_core,
+            wrong_iao_indexing,
+        ): Fragmented.from_mole(
+            get_graphene_cell(basis),
+            iao_valence_basis=iao_valence_basis,
+            n_BE=n_BE,
+            frozen_core=frozen_core,
+        ).get_FragPart(wrong_iao_indexing=wrong_iao_indexing)
+        for n_BE in range(1, 5)
+        for basis, iao_valence_basis in bases
+        for frozen_core in [True, False]
+        for wrong_iao_indexing in [True, False]
+    }
+    for k, result in calculated.items():
+        assert result == expected["test_periodic"]["graphene"][k], k
 
 
 def test_conn_data_manipulation_of_vdW():
@@ -261,3 +291,21 @@ def test_shared_centers():
     Fragmented.from_mole(mol, 3, autocratic_matching=True)
     with pytest.raises(ValueError):
         Fragmented.from_mole(mol, 3, autocratic_matching=False)
+
+
+def test_swallow_replace():
+    mol = Cartesian.read_xyz("xyz/short_polypropylene.xyz").to_pyscf(basis="sto-3g")
+
+    assert not fragmentate(
+        n_BE=3,
+        mol=mol,
+        frag_type="chemgen",
+        additional_args=ChemGenArgs(swallow_replace=False),
+    ).all_centers_are_origins()
+
+    assert fragmentate(
+        n_BE=3,
+        mol=mol,
+        frag_type="chemgen",
+        additional_args=ChemGenArgs(swallow_replace=True),
+    ).all_centers_are_origins()

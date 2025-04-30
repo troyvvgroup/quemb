@@ -7,7 +7,7 @@ from numpy import array, float64
 from quemb.kbe.pfrag import Frags as pFrags
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.pfrag import Frags
-from quemb.molbe.solver import UserSolverArgs, be_func
+from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.config import settings
 from quemb.shared.external.optqn import FrankQN
 from quemb.shared.helper import Timer
@@ -65,7 +65,7 @@ class BEOPT:
     Nocc: int
     enuc: float
     scratch_dir: WorkDir
-    solver: str = "MP2"
+    solver: Solvers = "MP2"
     nproc: int = 1
     ompnum: int = 4
     only_chem: bool = False
