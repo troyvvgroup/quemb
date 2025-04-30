@@ -3,6 +3,7 @@
 import os
 from abc import ABC
 from typing import Final, Literal, TypeAlias
+from warnings import warn
 
 from attrs import Factory, define, field
 from numpy import (
@@ -192,8 +193,7 @@ class SHCI_ArgsUser(UserSolverArgs):
     hci_pt: Final[bool] = False
     ci_coeff_cutoff: Final[float | None] = None  # TODO SOLVER
     select_cutoff: Final[float | None] = None  # TODO SOLVER
-    return_rdm1_csv: Final[bool] = False
-    return_rdm2_csv: Final[bool] = False
+    return_frag_data: Final[bool] = False
 
 
 @define(frozen=True)
@@ -209,8 +209,7 @@ class _SHCI_Args:
     hci_pt: Final[bool]
     ci_coeff_cutoff: Final[float]  # TODO SOLVER
     select_cutoff: Final[float]  # TODO SOLVER
-    return_rdm1_csv: Final[bool]
-    return_rdm2_csv: Final[bool]
+    return_frag_data: Final[bool]
 
     @classmethod
     def from_user_input(cls, args: SHCI_ArgsUser):
@@ -225,14 +224,14 @@ class _SHCI_Args:
                 "Solver args `ci_coeff_cutoff` and `select_cutoff` must both "
                 "be specified or both be `None`!"
             )
-
+        if args.hci_pt:
+            warn("hci_pt is set True: note that the perturbed SCI solver is untested")
         return cls(
             hci_pt=args.hci_pt,
             hci_cutoff=args.hci_cutoff,
             ci_coeff_cutoff=ci_coeff_cutoff,
             select_cutoff=select_cutoff,
-            return_rdm1_csv=args.return_rdm1_csv,
-            return_rdm2_csv=args.return_rdm2_csv,
+            return_frag_data=args.return_frag_data,
         )
 
 
@@ -409,6 +408,8 @@ def be_func(
             assert isinstance(solver_args, SHCI_ArgsUser)
             SHCI_args = _SHCI_Args.from_user_input(solver_args)
 
+            assert isinstance(fobj.dname, str)
+
             nmo = fobj._mf.mo_coeff.shape[1]
             nelec = (fobj.nsocc, fobj.nsocc)
             cas = mcscf.CASCI(fobj._mf, nmo, nelec)
@@ -418,16 +419,44 @@ def be_func(
                 fobj._mf._eri, fobj._mf.mo_coeff, aosym="s4", compact=False
             ).reshape(4 * ((nmo),))
 
+            if SHCI_args.return_frag_data:
+                warn(
+                    "If return_frag_data is True, RDMs and other data"
+                    "are written into a directory which is not"
+                    "cleaned: cleanup_at_end is False"
+                )
+                iter = 0
+                frag_name = (
+                    scratch_dir.__fspath__()
+                    + "-fragdata/"
+                    + fobj.dname
+                    + "_iter"
+                    + str(iter)
+                )
+                while os.path.exists(frag_name):
+                    iter += 1
+                    frag_name = (
+                        scratch_dir.__fspath__()
+                        + "-frag_data/"
+                        + fobj.dname
+                        + "_iter"
+                        + str(iter)
+                    )
+                frag_scratch = WorkDir(frag_name, cleanup_at_end=False)
+            else:
+                frag_scratch = WorkDir(scratch_dir / fobj.dname)
+            print("Fragment Scratch Directory:", frag_scratch.__fspath__())
             ci = cornell_shci.SHCI()
-            ci.runtimedir = fobj.dname
+            ci.runtimedir = frag_scratch
             ci.restart = True
             # var_only being True means no perturbation is added to the fragment
-            ci.config["var_only"] = True if not SHCI_args.hci_pt else False
+            # This is advised
+            ci.config["var_only"] = not SHCI_args.hci_pt
             ci.config["eps_vars"] = [SHCI_args.hci_cutoff]
-            # Returning the 1RDM and 2RDM as csv can be helpful, but is
-            # made false by default to save disc space
-            ci.config["get_1rdm_csv"] = SHCI_args.return_rdm1_csv
-            ci.config["get_2rdm_csv"] = SHCI_args.return_rdm1_csv
+            # Returning the 1RDM and 2RDM as csv can be helpful,
+            # but is false by default to save disc space
+            ci.config["get_1rdm_csv"] = SHCI_args.return_frag_data
+            ci.config["get_2rdm_csv"] = SHCI_args.return_frag_data
             ci.kernel(h1, eri, nmo, nelec)
             # We always return 1 and 2rdms, for now
             rdm1_tmp, rdm2s = ci.make_rdm12(0, nmo, nelec)
