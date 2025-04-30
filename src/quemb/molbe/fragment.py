@@ -1,4 +1,4 @@
-# Author: Oinam Romesh Meitei
+# Authors: Oinam Romesh Meitei, Oskar Weser
 
 from typing import TypeAlias
 from warnings import warn

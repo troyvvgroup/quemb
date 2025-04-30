@@ -1,4 +1,4 @@
-# Author: Oinam Romesh Meitei, Shaun Weatherly
+# Authors: Oinam Romesh Meitei, Shaun Weatherly, Oskar Weser
 
 from collections.abc import Sequence
 from copy import deepcopy

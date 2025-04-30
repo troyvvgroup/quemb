@@ -29,6 +29,7 @@ processors.
 - PySCF library
 - Numpy
 - Scipy
+- [chemcoord](https://chemcoord.readthedocs.io/)  (required for fragmentation)
 - [libDMET](https://github.com/gkclab/libdmet_preview) (required for periodic BE)
 - [Wannier90](https://github.com/wannier-developers/wannier90)<sup>##</sup> (to use Wannier functions)
 
@@ -91,3 +92,16 @@ The methods implemented in this code are described in details in the following p
 - OR Meitei, T Van Voorhis, Periodic bootstrap embedding, [JCTC 19 3123 2023](https://doi.org/10.1021/acs.jctc.3c00069)
 - OR Meitei, T Van Voorhis, Electron correlation in 2D periodic systems, [arXiv:2308.06185](https://arxiv.org/abs/2308.06185)
 - HZ Ye, HK Tran, T Van Voorhis, Bootstrap embedding for large molecular systems, [JCTC 16 5035 2020](https://doi.org/10.1021/acs.jctc.0c00438)
+
+
+## Contributors
+
+The contributors in alphabetic order were:
+- Minsik Cho
+- Beck Hanscam
+- Oinam Romesh Meitei
+- Aleksandr Trofimov
+- Oskar Weser
+- Shaun Weatherly
+- Leah Weisburn
+- Hong-Zhou Ye

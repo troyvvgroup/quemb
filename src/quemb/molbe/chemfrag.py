@@ -19,6 +19,8 @@ There are three main classes:
     of which AO index belongs to which center and edge.
 """
 
+# Author(s): Oskar Weser
+
 from __future__ import annotations
 
 from collections import defaultdict

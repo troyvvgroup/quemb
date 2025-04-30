@@ -1,4 +1,4 @@
-# Author(s): Oinam Romesh Meitei
+# Author(s): Oinam Romesh Meitei, Oskar Weser
 
 from collections.abc import Sequence
 
