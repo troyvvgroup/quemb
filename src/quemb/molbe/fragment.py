@@ -1,4 +1,4 @@
-# Author: Oinam Romesh Meitei
+# Authors: Oinam Romesh Meitei, Oskar Weser
 
 from typing import TypeAlias
 from warnings import warn
@@ -142,7 +142,7 @@ def _correct_number_of_centers(fragpart: FragPart) -> bool:
         [
             len(motifs) - len(edges)
             for motifs, edges in zip(
-                fragpart.motifs_per_frag, fragpart.ref_frag_idx_per_edge
+                fragpart.motifs_per_frag, fragpart.ref_frag_idx_per_edge_per_frag
             )
         ]
     )

@@ -53,7 +53,7 @@ class Frags:
         ref_frag_idx_per_edge: SeqOverEdge[FragmentIdx],
         relAO_per_edge: SeqOverEdge[Sequence[RelAOIdx]],
         relAO_in_ref_per_edge: SeqOverEdge[Sequence[RelAOIdxInRef]],
-        centerweight_and_relAO_per_center: tuple[float, Sequence[RelAOIdx]],
+        weight_and_relAO_per_center: tuple[float, Sequence[RelAOIdx]],
         relAO_per_origin: Sequence[RelAOIdx],
         eri_file: PathLike,
         unitcell_nkpt: int,
@@ -63,37 +63,34 @@ class Frags:
 
         Parameters
         ----------
-        AO_per_frag: list
+        AO_in_frag:
             list of AOs in the fragment (i.e. pbe.AO_per_frag[i]
             or FragPart.AO_per_frag[i])
-            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
-        ifrag : int
+            Read more detailed description in :class:`quemb.kbe.fragment.FragPart`.
+        ifrag :
             fragment index (∈ [0, pbe.n_frag - 1])
-        AO_per_edge : list, optional
-            list of lists of edge site AOs for each atom in the fragment,
-            by default None
-            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
-        ref_frag_idx_per_edge: list, optional
-            list of fragment indices where edge site AOs are center site,
-            by default None.
-            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
-        rel_AO_per_edge_per_frag: list, optional
+        AO_per_edge :
+            list of lists of edge site AOs for each atom in the fragment.
+            Read more detailed description in :class:`quemb.kbe.fragment.FragPart`.
+        ref_frag_idx_per_edge :
+            list of fragment indices where edge site AOs are center site.
+            Read more detailed description in :class:`quemb.kbe.fragment.FragPart`.
+        rel_AO_per_edge :
             list of lists of indices for edge site AOs within the fragment,
-            by default None
-            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
+            Read more detailed description in :class:`quemb.kbe.fragment.FragPart`.
         relAO_in_ref_per_edge :
             list of lists of indices within the fragment specified
-            in :python:`center` that points to the edge site AOs,
-            by default :python:`None`
-            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
-        centerweight_and_relAO_per_center :
-            weight used for energy contributions, by default None
-        eri_file : str, optional
-            two-electron integrals stored as h5py file, by default 'eri_file.h5'
-        relAO_per_origin : list, optional
+            in :python:`center` that points to the edge site AOs.
+            Read more detailed description in :class:`quemb.kbe.fragment.FragPart`.
+        relAO_per_origin :
             indices of the origin in the fragment, by default None
+        weight_and_relAO_per_center :
+            weight used for energy contributions, by default None
+        eri_file :
+            two-electron integrals stored as h5py file, by default 'eri_file.h5'
+        unitcell_nkpt:
+        unitcell:
         """
-
         self.AO_in_frag = AO_in_frag
         self.unitcell = unitcell
         self.unitcell_nkpt = unitcell_nkpt
@@ -104,7 +101,7 @@ class Frags:
         self.relAO_per_edge = relAO_per_edge
         self.relAO_in_ref_per_edge = relAO_in_ref_per_edge
         self.relAO_per_origin = relAO_per_origin
-        self.centerweight_and_relAO_per_center = centerweight_and_relAO_per_center
+        self.weight_and_relAO_per_center = weight_and_relAO_per_center
         self.ifrag = ifrag
 
         self.TA: Matrix[float64]
@@ -214,8 +211,8 @@ class Frags:
         h1_eo /= float(nk)
         e1 = 2.0 * einsum("ij,ij->i", h1_eo[: self.n_frag], rdm1_eo[: self.n_frag])
         e_h1 = 0.0
-        for i in self.centerweight_and_relAO_per_center[1]:
-            e_h1 += self.centerweight_and_relAO_per_center[0] * e1[i]
+        for i in self.weight_and_relAO_per_center[1]:
+            e_h1 += self.weight_and_relAO_per_center[0] * e1[i]
 
     def cons_h1(self, h1):
         """
@@ -453,19 +450,19 @@ class Frags:
         e1_ = 0.0
         e2_ = 0.0
         ec_ = 0.0
-        for i in self.centerweight_and_relAO_per_center[1]:
-            etmp += self.centerweight_and_relAO_per_center[0] * e_[i]
-            e1_ += self.centerweight_and_relAO_per_center[0] * e1[i]
-            e2_ += self.centerweight_and_relAO_per_center[0] * e2[i]
-            ec_ += self.centerweight_and_relAO_per_center[0] * ec[i]
+        for i in self.weight_and_relAO_per_center[1]:
+            etmp += self.weight_and_relAO_per_center[0] * e_[i]
+            e1_ += self.weight_and_relAO_per_center[0] * e1[i]
+            e2_ += self.weight_and_relAO_per_center[0] * e2[i]
+            ec_ += self.weight_and_relAO_per_center[0] * ec[i]
 
         self.ebe_hf = etmp
         if return_e1:
             e_h1 = 0.0
             e_coul = 0.0
-            for i in self.centerweight_and_relAO_per_center[1]:
-                e_h1 += self.centerweight_and_relAO_per_center[0] * e1[i]
-                e_coul += self.centerweight_and_relAO_per_center[0] * (e2[i] + ec[i])
+            for i in self.weight_and_relAO_per_center[1]:
+                e_h1 += self.weight_and_relAO_per_center[0] * e1[i]
+                e_coul += self.weight_and_relAO_per_center[0] * (e2[i] + ec[i])
             return (e_h1, e_coul, e1 + e2 + ec)
 
         return e1 + e2 + ec

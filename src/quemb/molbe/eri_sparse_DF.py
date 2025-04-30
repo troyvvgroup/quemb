@@ -1,3 +1,5 @@
+# Author(s): Oskar Weser
+
 from __future__ import annotations
 
 from collections import defaultdict
