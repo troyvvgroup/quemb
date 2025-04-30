@@ -665,8 +665,8 @@ def get_complement(
 
 
 def to_numba_input(
-    exch_reachable: Mapping[_T_orb_idx, Collection[_T_orb_idx]],
-) -> List[Vector[_T_orb_idx]]:
+    exch_reachable: Mapping[_T_start_orb, Collection[_T_target_orb]],
+) -> List[Vector[_T_target_orb]]:
     """Convert the reachable orbitals to a list of numpy arrays.
 
     This contains the same information but is a far more efficient layout for numba.
@@ -1020,7 +1020,7 @@ def find_screening_radius(
 
 
 @njit
-def _first_contract_with_TA(
+def _first_contract_with_TA_with_screening(
     TA: Matrix[np.float64],
     int_mu_nu_P: SemiSparseSym3DTensor,
     AO_reachable_by_MO: list[Vector[OrbitalIdx]],
@@ -1034,6 +1034,25 @@ def _first_contract_with_TA(
             for nu in int_mu_nu_P.exch_reachable[mu]:
                 tmp += TA[nu, i] * int_mu_nu_P[mu, nu]  # type: ignore[index]
             g[mu, i] = tmp  # type: ignore[index]
+    return g
+
+
+@njit
+def _first_contract_with_TA(
+    TA: Matrix[np.float64],
+    int_mu_nu_P: SemiSparseSym3DTensor,
+    AO_reachable_by_MO: list[Vector[OrbitalIdx]],
+) -> MutableSemiSparse3DTensor:
+    assert TA.shape[0] == int_mu_nu_P.nao
+    g = MutableSemiSparse3DTensor((int_mu_nu_P.nao, TA.shape[1], int_mu_nu_P.naux))
+
+    for i in range(g.shape[1]):
+        for mu in range(g.shape[0]):
+            tmp = np.zeros(int_mu_nu_P.naux, dtype="f8")
+            for nu in int_mu_nu_P.exch_reachable[mu]:
+                tmp += TA[nu, i] * int_mu_nu_P[mu, nu]  # type: ignore[index]
+            if np.abs(tmp).sum() > 1e-6:
+                g[mu, i] = tmp  # type: ignore[index]
     return g
 
 
