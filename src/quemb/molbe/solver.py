@@ -505,11 +505,7 @@ def be_func(
         )
 
         if eeval:
-            if solver == "CCSD" and not relax_density:
-                rdm2s = make_rdm2_urlx(fobj.t1, fobj.t2, with_dm1=not use_cumulant)
-            elif solver == "MP2":
-                rdm2s = fobj._mc.make_rdm2()
-            elif solver == "FCI" or "SCI":
+            if solver == "FCI" or "SCI":
                 if solver == "FCI":
                     rdm2s = mc.make_rdm2(civec, mc.norb, mc.nelec)
                 if use_cumulant:
