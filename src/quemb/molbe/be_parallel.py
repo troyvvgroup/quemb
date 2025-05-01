@@ -2,6 +2,7 @@
 
 import os
 from multiprocessing import Pool
+from warnings import warn
 
 from numpy import asarray, diag_indices, einsum, float64, zeros_like
 from numpy.linalg import multi_dot
@@ -155,7 +156,7 @@ def run_solver(
         unused(efci)
         rdm1_tmp = mc_.make_rdm1(civec, mc_.norb, mc_.nelec)
 
-    elif solver == "HCI":
+    elif solver == "HCI":  # TODO
         # pylint: disable-next=E0611
         from pyscf import hci  # type: ignore[attr-defined]  # noqa: PLC0415
 
@@ -181,7 +182,7 @@ def run_solver(
         rdm1_tmp = rdm1a_ + rdm1b_
         rdm2s = rdm2aa + rdm2ab + rdm2ab.transpose(2, 3, 0, 1) + rdm2bb
 
-    elif solver == "SHCI":
+    elif solver == "SHCI":  # TODO
         # pylint: disable-next=E0401,E0611
         from pyscf.shciscf import shci  # type: ignore[attr-defined]  # noqa: PLC0415
 
@@ -212,9 +213,9 @@ def run_solver(
         assert isinstance(solver_args, SHCI_ArgsUser)
         SHCI_args = _SHCI_Args.from_user_input(solver_args)
 
-        frag_scratch = WorkDir(scratch_dir / dname)
+        assert isinstance(dname, str)
 
-        nao, nmo = mf_.mo_coeff.shape
+        nmo = mf_.mo_coeff.shape[1]
         nelec = (nocc, nocc)
         cas = mcscf.CASCI(mf_, nmo, nelec)
         h1, ecore = cas.get_h1eff(mo_coeff=mf_.mo_coeff)
@@ -223,14 +224,42 @@ def run_solver(
             4 * ((nmo),)
         )
 
+        if SHCI_args.return_frag_data:
+            warn(
+                "If return_frag_data is True, RDMs and other data"
+                "are written into a directory which is not"
+                "cleaned: cleanup_at_end is False"
+            )
+            iter = 0
+            frag_name = (
+                scratch_dir.__fspath__() + "-frag_data/" + dname + "_iter" + str(iter)
+            )
+            while os.path.exists(frag_name):
+                iter += 1
+                frag_name = (
+                    scratch_dir.__fspath__()
+                    + "-frag_data/"
+                    + dname
+                    + "_iter"
+                    + str(iter)
+                )
+            frag_scratch = WorkDir(frag_name, cleanup_at_end=False)
+            print("Fragment Scratch Directory:", frag_scratch.__fspath__())
+        else:
+            frag_scratch = WorkDir(scratch_dir / dname)
         ci = cornell_shci.SHCI()
         ci.runtimedir = frag_scratch
         ci.restart = True
-        ci.config["var_only"] = True
-        ci.config["eps_vars"] = [solver_args.hci_cutoff]
-        ci.config["get_1rdm_csv"] = True
-        ci.config["get_2rdm_csv"] = True
+        # var_only being True means no perturbation is added to the fragment
+        # This is advised
+        ci.config["var_only"] = not SHCI_args.hci_pt
+        ci.config["eps_vars"] = [SHCI_args.hci_cutoff]
+        # Returning the 1RDM and 2RDM as csv can be helpful,
+        # but is false by default to save disc space
+        ci.config["get_1rdm_csv"] = SHCI_args.return_frag_data
+        ci.config["get_2rdm_csv"] = SHCI_args.return_frag_data
         ci.kernel(h1, eri, nmo, nelec)
+        # We always return 1 and 2rdms, for now
         rdm1_tmp, rdm2s = ci.make_rdm12(0, nmo, nelec)
 
     else:
@@ -240,8 +269,9 @@ def run_solver(
     rdm1 = multi_dot((mf_.mo_coeff, rdm1_tmp, mf_.mo_coeff.T)) * 0.5
 
     if eeval:
-        if solver == "FCI":
-            rdm2s = mc_.make_rdm2(civec, mc_.norb, mc_.nelec)
+        if solver == "FCI or SCI":
+            if solver == "FCI":
+                rdm2s = mc_.make_rdm2(civec, mc_.norb, mc_.nelec)
             if use_cumulant:
                 hf_dm = zeros_like(rdm1_tmp)
                 hf_dm[diag_indices(nocc)] += 2.0
