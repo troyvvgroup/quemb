@@ -12,7 +12,7 @@ from collections.abc import (
     Sequence,
     Set,
 )
-from itertools import chain, takewhile
+from itertools import chain, count, takewhile
 from typing import Final, TypeVar, cast
 
 import h5py
@@ -41,7 +41,7 @@ from quemb.molbe.pfrag import Frags
 from quemb.shared.helper import (
     jitclass,
     njit,
-    ravel,
+    ravel_Fortran,
     ravel_symmetric,
 )
 from quemb.shared.numba_helpers import SortedIntSet, Type_SortedIntSet
@@ -461,6 +461,7 @@ class SemiSparse3DTensor:
             ],
             dtype=int64,
         )
+        assert (self._keys[:-1] < self._keys[1:]).all()
 
     def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[np.float64]:
         look_up_idx = np.searchsorted(self._keys, self._idx(key[0], key[1]))
@@ -479,7 +480,7 @@ class SemiSparse3DTensor:
 
     def _idx(self, a: OrbitalIdx, b: OrbitalIdx) -> int:
         """Return compound index"""
-        return ravel(a, b, n_cols=self.shape[1])  # type: ignore[return-value]
+        return ravel_Fortran(a, b, n_rows=self.shape[0])  # type: ignore[return-value]
 
 
 def _traverse_reachable(
@@ -1091,8 +1092,6 @@ def _first_contract_with_TA(
             tmp = np.zeros(int_mu_nu_P.naux, dtype="f8")
             for nu in int_mu_nu_P.exch_reachable[mu]:
                 tmp += TA[nu, i] * int_mu_nu_P[mu, nu]  # type: ignore[index]
-            if np.abs(tmp).sum() > 1e-6:
-                g[mu, i] = tmp  # type: ignore[index]
     return g
 
 
@@ -1172,6 +1171,13 @@ def get_AO_MO_pair_with_offset(
             for i_AO in sorted(reachable_AOs)
         )
     ]
+
+
+def get_AO_reachable_by_MO_with_offset(
+    AO_reachable_by_MO: Mapping[MOIdx, Collection[AOIdx]],
+) -> Mapping[MOIdx, list[tuple[int, AOIdx]]]:
+    counter = count()
+    return {k: [(next(counter), x) for x in v] for k, v in AO_reachable_by_MO.items()}
 
 
 def _last_working_transform_sparse_DF_integral(

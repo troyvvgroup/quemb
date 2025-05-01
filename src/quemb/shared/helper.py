@@ -219,7 +219,7 @@ def ravel_symmetric(a: _T_Integral, b: _T_Integral) -> _T_Integral:
 
 
 @njit
-def ravel(a: _T_Integral, b: _T_Integral, n_cols: _T_Integral) -> _T_Integral:
+def ravel_C(a: _T_Integral, b: _T_Integral, n_cols: _T_Integral) -> _T_Integral:
     """Flatten the index a, b assuming row-mayor/C indexing
 
     The resulting indexation for a 3 by 4 matrix looks like this::
@@ -233,10 +233,31 @@ def ravel(a: _T_Integral, b: _T_Integral, n_cols: _T_Integral) -> _T_Integral:
     ----------
     a :
     b :
-    n_rows :
+    n_cols :
     """
     assert b < n_cols  # type: ignore[operator]
     return (a * n_cols) + b  # type: ignore[return-value,operator]
+
+
+@njit
+def ravel_Fortran(a: _T_Integral, b: _T_Integral, n_rows: _T_Integral) -> _T_Integral:
+    """Flatten the index a, b assuming column-mayor/Fortran indexing
+
+    The resulting indexation for a 3 by 4 matrix looks like this::
+
+        0   3   6   9
+        1   4   7  10
+        2   5   8  11
+
+
+    Parameters
+    ----------
+    a :
+    b :
+    n_rows :
+    """
+    assert a < n_rows  # type: ignore[operator]
+    return a + (b * n_rows)  # type: ignore[return-value,operator]
 
 
 @njit
