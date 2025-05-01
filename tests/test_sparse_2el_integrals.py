@@ -9,7 +9,6 @@ from pyscf.lib import einsum
 from quemb.molbe import BE, fragmentate
 from quemb.molbe.eri_sparse_DF import (
     SparseInt2,
-    _get_sparse_ints_3c2e,
     _invert_dict,
     find_screening_radius,
     get_atom_per_AO,
@@ -17,6 +16,7 @@ from quemb.molbe.eri_sparse_DF import (
     get_dense_integrals,
     get_reachable,
     get_sparse_DF_integrals,
+    get_sparse_ints_3c2e,
     traverse_nonzero,
 )
 from quemb.shared.helper import get_calling_function_name
@@ -49,7 +49,7 @@ def test_semi_sparse_3d_tensor() -> None:
     auxbasis = "weigend"
     mol = m.to_pyscf(basis=basis, charge=0)
     auxmol = df.addons.make_auxmol(mol, auxbasis)
-    sparse_ints_3c2e = _get_sparse_ints_3c2e(mol, auxmol)
+    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol)
 
     ints_3c2e = df.incore.aux_e2(mol, auxmol, intor="int3c2e")
 

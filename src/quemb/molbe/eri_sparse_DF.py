@@ -196,7 +196,7 @@ def get_sparse_DF_integrals(
         for different elements. Compare to the :python:`modify_element_data`
         argument of :meth:`~chemcoord.Cartesian.get_bonds`.
     """
-    ints_3c2e = _get_sparse_ints_3c2e(mol, auxmol, screening_radius)
+    ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, screening_radius)
     ints_2c2e = auxmol.intor("int2c2e")
     df_coeffs_data = solve(ints_2c2e, ints_3c2e.unique_dense_data.T).T
     df_coef = SemiSparseSym3DTensor(
@@ -408,6 +408,7 @@ class MutableSemiSparse3DTensor:
         ("_keys", int64[::1]),
         ("unique_dense_data", float64[:, ::1]),
         ("shape", UniTuple(int64, 3)),
+        ("AO_reachable_by_MO_with_offsets", ListType(int64[:, ::1])),
         ("MO_reachable_by_AO", ListType(int64[::1])),
         ("AO_reachable_by_MO", ListType(int64[::1])),
     ]
@@ -436,6 +437,7 @@ class SemiSparse3DTensor:
     unique_dense_data: Matrix[np.float64]
     shape: tuple[int, int, int]
     naux: int
+    AO_reachable_by_MO_with_offsets: list[Matrix[np.int64]]
     MO_reachable_by_AO: list[Vector[MOIdx]]
     AO_reachable_by_MO: list[Vector[AOIdx]]
 
@@ -443,11 +445,13 @@ class SemiSparse3DTensor:
         self,
         unique_dense_data: Matrix[np.float64],
         shape: tuple[Integral, Integral, Integral],
+        AO_reachable_by_MO_with_offsets: list[Matrix[np.int64]],
         MO_reachable_by_AO: list[Vector[MOIdx]],
         AO_reachable_by_MO: list[Vector[AOIdx]],
     ) -> None:
         self.shape = shape  # type: ignore[assignment]
         self.naux = shape[-1]  # type: ignore[assignment]
+        self.AO_reachable_by_MO_with_offsets = AO_reachable_by_MO_with_offsets  # type: ignore[assignment]
         self.MO_reachable_by_AO = MO_reachable_by_AO  # type: ignore[assignment]
         self.AO_reachable_by_MO = AO_reachable_by_MO  # type: ignore[assignment]
 
@@ -776,7 +780,7 @@ def get_blocks(reachable: Sequence[_T]) -> list[tuple[_T, _T]]:
     ]
 
 
-def _get_sparse_ints_3c2e(
+def get_sparse_ints_3c2e(
     mol: Mole,
     auxmol: Mole,
     screening_radius: Real | Callable[[Real], Real] | Mapping[str, Real] | None = None,
@@ -1027,11 +1031,12 @@ def find_screening_radius(
 
 
 # TODO make parallel = True
-@njit
+@njit(parallel=True)
 def _first_contract_with_TA_with_screening_but_dense(
     TA: Matrix[np.float64],
     int_mu_nu_P: SemiSparseSym3DTensor,
     AO_MO_pair_with_offset: list[tuple[int, AOIdx, MOIdx]],
+    AO_reachable_by_MO_with_offset: list[Matrix[np.int64]],
     MO_reachable_by_AO: list[Vector[MOIdx]],
     AO_reachable_by_MO: list[Vector[AOIdx]],
 ) -> SemiSparse3DTensor:
@@ -1043,16 +1048,17 @@ def _first_contract_with_TA_with_screening_but_dense(
     n_unique = len(AO_MO_pair_with_offset)
     g_unique = np.zeros((n_unique, int_mu_nu_P.naux), dtype="f8")
 
-    offset = 0
-    for i in range(TA.shape[1]):
-        for mu in AO_reachable_by_MO[i]:
-            for nu in int_mu_nu_P.exch_reachable[mu]:
-                g_unique[offset] += TA[nu, i] * int_mu_nu_P[mu, nu]  # type: ignore[index]
-            offset += 1
+    # We cannot directly loop if we want to parallelise
+    for counter in prange(len(AO_MO_pair_with_offset)):
+        offset, mu, i = AO_MO_pair_with_offset[counter]
+        for nu_counter in prange(len(int_mu_nu_P.exch_reachable[mu])):
+            nu = int_mu_nu_P.exch_reachable[mu][nu_counter]
+            g_unique[offset] += TA[nu, i] * int_mu_nu_P[mu, nu]  # type: ignore[index]
 
     return SemiSparse3DTensor(
         g_unique,
         (TA.shape[0], TA.shape[1], int_mu_nu_P.naux),
+        AO_reachable_by_MO_with_offset,
         MO_reachable_by_AO,
         AO_reachable_by_MO,
     )
@@ -1113,6 +1119,25 @@ def _second_contract_with_TA(
     return g
 
 
+@njit(parallel=True)
+def _fast_second_contract_with_TA(
+    TA: Matrix[np.float64], int_mu_i_P: SemiSparse3DTensor
+) -> Tensor3D[np.float64]:
+    assert TA.shape[0] == int_mu_i_P.shape[0]
+    assert TA.shape[1] == int_mu_i_P.shape[1]
+
+    g = np.zeros((TA.shape[1], TA.shape[1], int_mu_i_P.naux), dtype=np.float64)
+
+    for i in prange(g.shape[0]):  # type: ignore[attr-defined]
+        for j in prange(min(g.shape[1], i + 1)):  # type: ignore[attr-defined]
+            # for nu in int_mu_i_P.AO_reachable_by_MO[i]:
+            for offset, nu in int_mu_i_P.AO_reachable_by_MO_with_offsets[i]:
+                g[i, j, :] += TA[nu, j] * int_mu_i_P.unique_dense_data[offset]
+
+            g[j, i, :] = g[i, j, :]
+    return g
+
+
 def transform_sparse_DF_integral(
     mf: scf.hf.SCF,
     Fobjs: Sequence[Frags],
@@ -1120,7 +1145,7 @@ def transform_sparse_DF_integral(
     auxbasis: str | None = None,
     screen_radius: Mapping[str, float] | None = None,
 ) -> None:
-    eris = _slow_transform_sparse_DF_integral(
+    eris = _fast_transform_sparse_DF_integral(
         mf,
         Fobjs,
         auxbasis,
@@ -1139,9 +1164,7 @@ def _slow_transform_sparse_DF_integral(
     auxmol = addons.make_auxmol(mf.mol, auxbasis=auxbasis)
     if screen_radius is None:
         screen_radius = find_screening_radius(mol, auxmol, threshold=1e-4)
-    sparse_ints_3c2e, sparse_df_coef = get_sparse_DF_integrals(
-        mol, auxmol, screen_radius
-    )
+    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, screen_radius)
     ints_mu_nu_P = sparse_ints_3c2e.to_dense()
     ints_2c2e = auxmol.intor("int2c2e")
 
@@ -1190,9 +1213,7 @@ def _last_working_transform_sparse_DF_integral(
     auxmol = addons.make_auxmol(mf.mol, auxbasis=auxbasis)
     if screen_radius is None:
         screen_radius = find_screening_radius(mol, auxmol, threshold=1e-4)
-    sparse_ints_3c2e, sparse_df_coef = get_sparse_DF_integrals(
-        mol, auxmol, screen_radius
-    )
+    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, screen_radius)
     ints_2c2e = auxmol.intor("int2c2e")
 
     atom_per_AO = get_atom_per_AO(mol)
@@ -1236,9 +1257,7 @@ def _fast_transform_sparse_DF_integral(
     auxmol = addons.make_auxmol(mf.mol, auxbasis=auxbasis)
     if screen_radius is None:
         screen_radius = find_screening_radius(mol, auxmol, threshold=1e-4)
-    sparse_ints_3c2e, sparse_df_coef = get_sparse_DF_integrals(
-        mol, auxmol, screen_radius
-    )
+    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, screen_radius)
     ints_2c2e = auxmol.intor("int2c2e")
 
     atom_per_AO = get_atom_per_AO(mol)
@@ -1258,20 +1277,14 @@ def _fast_transform_sparse_DF_integral(
             TA,
             sparse_ints_3c2e,
             List(get_AO_MO_pair_with_offset(AO_reachable_per_SchmidtMO)),
+            to_numba_input(
+                get_AO_reachable_by_MO_with_offset(AO_reachable_per_SchmidtMO)
+            ),
             to_numba_input(_invert_dict(AO_reachable_per_SchmidtMO)),
             to_numba_input(AO_reachable_per_SchmidtMO),
         )
 
-        g = np.zeros(
-            (TA.shape[1], TA.shape[1], sparse_int_mu_i_P.naux), dtype=np.float64
-        )
-
-        for i in prange(g.shape[0]):  # type: ignore[attr-defined]
-            for j in prange(min(g.shape[1], i + 1)):  # type: ignore[attr-defined]
-                for nu in sparse_int_mu_i_P.AO_reachable_by_MO[i]:
-                    g[i, j, :] += TA[nu, j] * sparse_int_mu_i_P[nu, i]
-
-                g[j, i, :] = g[i, j, :]
+        g = _fast_second_contract_with_TA(TA, sparse_int_mu_i_P)
 
         ints_i_j_P.append(g)
 
