@@ -31,7 +31,7 @@ from pyscf.df import addons
 from pyscf.gto import Mole
 from pyscf.gto.moleintor import getints
 from pyscf.lib import einsum
-from scipy.linalg import solve
+from scipy.linalg import cholesky, solve, solve_triangular
 from scipy.optimize import bisect
 
 from quemb.molbe.chemfrag import (
@@ -1166,6 +1166,7 @@ def _transform_sparse_DF_integral(
         screen_radius = find_screening_radius(mol, auxmol, threshold=1e-4)
     sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, screen_radius)
     ints_2c2e = auxmol.intor("int2c2e")
+    low_triang_PQ = cholesky(ints_2c2e, lower=True)
 
     atom_per_AO = get_atom_per_AO(mol)
 
@@ -1175,11 +1176,10 @@ def _transform_sparse_DF_integral(
         )
         for fragobj in Fobjs
     ]
-    Ds_i_j_P = [solve(ints_2c2e, int_i_j_P.T).T for int_i_j_P in ints_i_j_P]
 
     return [
-        einsum("ijP,klP->ijkl", ints, df_coef)
-        for ints, df_coef in zip(ints_i_j_P, Ds_i_j_P)
+        restore("1", eval_via_cholesky(ijP, low_triang_PQ), len(ijP))
+        for ijP in ints_i_j_P
     ]
 
 
@@ -1208,6 +1208,16 @@ def get_fragment_ints3c2e(
     )
 
     return _second_contract_with_TA(TA, sparse_int_mu_i_P)
+
+
+def eval_via_cholesky(
+    ijP: Tensor3D[np.float64], low_triang_PQ: Matrix[np.float64]
+) -> Matrix[np.float64]:
+    b = ijP.reshape(ijP.shape[0] ** 2, ijP.shape[2]).T
+    bb = solve_triangular(
+        low_triang_PQ, b, lower=True, overwrite_b=False, check_finite=False
+    )
+    return bb.T @ bb
 
 
 def write_eris(
