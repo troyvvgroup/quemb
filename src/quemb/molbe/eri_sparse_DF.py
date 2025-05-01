@@ -1169,36 +1169,45 @@ def _transform_sparse_DF_integral(
 
     atom_per_AO = get_atom_per_AO(mol)
 
-    ints_i_j_P = []
-    for fragidx, fragobj in enumerate(Fobjs):
-        TA = fragobj.TA
-
-        AO_reachable_per_SchmidtMO = get_reachable(
-            mol,
-            get_atom_per_MO(atom_per_AO, TA, epsilon=1e-8),
-            atom_per_AO,
-            screen_radius,
+    ints_i_j_P = [
+        get_fragment_ints3c2e(
+            screen_radius, mol, sparse_ints_3c2e, atom_per_AO, fragobj.TA
         )
-
-        sparse_int_mu_i_P = _first_contract_with_TA(
-            TA,
-            sparse_ints_3c2e,
-            List(get_AO_MO_pair_with_offset(AO_reachable_per_SchmidtMO)),
-            _nb_get_AO_reachable_by_MO_with_offset(AO_reachable_per_SchmidtMO),
-            to_numba_input(_invert_dict(AO_reachable_per_SchmidtMO)),
-            to_numba_input(AO_reachable_per_SchmidtMO),
-        )
-
-        g = _second_contract_with_TA(TA, sparse_int_mu_i_P)
-
-        ints_i_j_P.append(g)
-
+        for fragobj in Fobjs
+    ]
     Ds_i_j_P = [solve(ints_2c2e, int_i_j_P.T).T for int_i_j_P in ints_i_j_P]
 
     return [
         einsum("ijP,klP->ijkl", ints, df_coef)
         for ints, df_coef in zip(ints_i_j_P, Ds_i_j_P)
     ]
+
+
+def get_fragment_ints3c2e(
+    screen_radius: Mapping[str, float],
+    mol: Mole,
+    sparse_ints_3c2e: SemiSparseSym3DTensor,
+    atom_per_AO: Mapping[AOIdx, Set[AtomIdx]],
+    TA: Matrix[np.float64],
+    epsilon: float = 1e-8,
+) -> Tensor3D[np.float64]:
+    AO_reachable_per_SchmidtMO = get_reachable(
+        mol,
+        get_atom_per_MO(atom_per_AO, TA, epsilon=epsilon),
+        atom_per_AO,
+        screen_radius,
+    )
+
+    sparse_int_mu_i_P = _first_contract_with_TA(
+        TA,
+        sparse_ints_3c2e,
+        List(get_AO_MO_pair_with_offset(AO_reachable_per_SchmidtMO)),
+        _nb_get_AO_reachable_by_MO_with_offset(AO_reachable_per_SchmidtMO),
+        to_numba_input(_invert_dict(AO_reachable_per_SchmidtMO)),
+        to_numba_input(AO_reachable_per_SchmidtMO),
+    )
+
+    return _second_contract_with_TA(TA, sparse_int_mu_i_P)
 
 
 def write_eris(
