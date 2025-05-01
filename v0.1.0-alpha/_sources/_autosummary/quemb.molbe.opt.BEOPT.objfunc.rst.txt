@@ -1,0 +1,6 @@
+quemb.molbe.opt.BEOPT.objfunc
+=============================
+
+.. currentmodule:: quemb.molbe.opt
+
+.. automethod:: BEOPT.objfunc

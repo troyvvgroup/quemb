@@ -1,0 +1,6 @@
+quemb.molbe.pfrag.Frags.update\_ebe\_hf
+=======================================
+
+.. currentmodule:: quemb.molbe.pfrag
+
+.. automethod:: Frags.update_ebe_hf

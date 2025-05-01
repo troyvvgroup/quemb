@@ -1,0 +1,33 @@
+quemb.kbe.pbe.BE
+================
+
+.. currentmodule:: quemb.kbe.pbe
+
+.. autoclass:: BE
+
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~BE.__init__
+      ~BE.ewald_sum
+      ~BE.get_be_error_jacobian
+      ~BE.initialize
+      ~BE.localize
+      ~BE.oneshot
+      ~BE.optimize
+      ~BE.print_ini
+      ~BE.read_heff
+      ~BE.save
+      ~BE.update_fock
+      ~BE.write_heff
+   
+   

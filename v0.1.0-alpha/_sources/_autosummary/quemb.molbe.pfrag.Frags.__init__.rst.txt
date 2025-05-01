@@ -1,0 +1,6 @@
+quemb.molbe.pfrag.Frags.\_\_init\_\_
+====================================
+
+.. currentmodule:: quemb.molbe.pfrag
+
+.. automethod:: Frags.__init__

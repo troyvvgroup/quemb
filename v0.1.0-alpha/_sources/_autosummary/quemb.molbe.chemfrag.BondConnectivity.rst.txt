@@ -1,0 +1,38 @@
+quemb.molbe.chemfrag.BondConnectivity
+=====================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. autoclass:: BondConnectivity
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: BondConnectivity.bonds_atoms
+   .. autoattribute:: BondConnectivity.motifs
+   .. autoattribute:: BondConnectivity.bonds_motifs
+   .. autoattribute:: BondConnectivity.H_atoms
+   .. autoattribute:: BondConnectivity.H_per_motif
+   .. autoattribute:: BondConnectivity.atoms_per_motif
+   .. autoattribute:: BondConnectivity.treat_H_different
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~BondConnectivity.__init__
+      ~BondConnectivity.from_cartesian
+      ~BondConnectivity.from_cell
+      ~BondConnectivity.from_mole
+      ~BondConnectivity.get_BE_fragment
+      ~BondConnectivity.get_all_BE_fragments
+   
+   

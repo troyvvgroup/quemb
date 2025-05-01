@@ -1,0 +1,38 @@
+quemb.molbe.ube
+===============
+
+.. automodule:: quemb.molbe.ube
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      initialize_pot
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: custom-class-template.rst
+   
+      UBE
+   
+   
+
+   
+   
+   
+
+
+

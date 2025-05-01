@@ -1,0 +1,6 @@
+quemb.shared.manage\_scratch.WorkDir.from\_environment
+======================================================
+
+.. currentmodule:: quemb.shared.manage_scratch
+
+.. automethod:: WorkDir.from_environment

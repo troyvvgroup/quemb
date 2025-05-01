@@ -1,0 +1,41 @@
+quemb.molbe.autofrag.FragmentMap
+================================
+
+.. currentmodule:: quemb.molbe.autofrag
+
+.. autoclass:: FragmentMap
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: FragmentMap.AO_per_frag
+   .. autoattribute:: FragmentMap.fs
+   .. autoattribute:: FragmentMap.AO_per_edge
+   .. autoattribute:: FragmentMap.ref_frag_idx_per_edge
+   .. autoattribute:: FragmentMap.relAO_per_origin
+   .. autoattribute:: FragmentMap.weight_and_relAO_per_center
+   .. autoattribute:: FragmentMap.sites
+   .. autoattribute:: FragmentMap.dnames
+   .. autoattribute:: FragmentMap.motifs_per_frag
+   .. autoattribute:: FragmentMap.origin_per_frag
+   .. autoattribute:: FragmentMap.edge_atoms
+   .. autoattribute:: FragmentMap.adjacency_mat
+   .. autoattribute:: FragmentMap.adjacency_graph
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~FragmentMap.__init__
+      ~FragmentMap.remove_nonnunique_frags
+      ~FragmentMap.to_FragPart
+   
+   

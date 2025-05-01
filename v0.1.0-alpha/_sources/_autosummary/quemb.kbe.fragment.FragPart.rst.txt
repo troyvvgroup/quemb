@@ -1,0 +1,49 @@
+quemb.kbe.fragment.FragPart
+===========================
+
+.. currentmodule:: quemb.kbe.fragment
+
+.. autoclass:: FragPart
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: FragPart.unitcell
+   .. autoattribute:: FragPart.mol
+   .. autoattribute:: FragPart.frag_type
+   .. autoattribute:: FragPart.AO_per_frag
+   .. autoattribute:: FragPart.AO_per_edge_per_frag
+   .. autoattribute:: FragPart.ref_frag_idx_per_edge_per_frag
+   .. autoattribute:: FragPart.weight_and_relAO_per_center_per_frag
+   .. autoattribute:: FragPart.relAO_per_edge_per_frag
+   .. autoattribute:: FragPart.relAO_in_ref_per_edge_per_frag
+   .. autoattribute:: FragPart.relAO_per_origin_per_frag
+   .. autoattribute:: FragPart.n_BE
+   .. autoattribute:: FragPart.natom
+   .. autoattribute:: FragPart.frozen_core
+   .. autoattribute:: FragPart.self_match
+   .. autoattribute:: FragPart.allcen
+   .. autoattribute:: FragPart.iao_valence_basis
+   .. autoattribute:: FragPart.kpt
+   .. autoattribute:: FragPart.n_frag
+   .. autoattribute:: FragPart.ncore
+   .. autoattribute:: FragPart.no_core_idx
+   .. autoattribute:: FragPart.core_list
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~FragPart.__init__
+      ~FragPart.all_centers_are_origins
+      ~FragPart.to_Frags
+   
+   

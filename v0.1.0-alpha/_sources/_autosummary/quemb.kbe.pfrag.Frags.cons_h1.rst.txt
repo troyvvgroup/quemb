@@ -1,0 +1,6 @@
+quemb.kbe.pfrag.Frags.cons\_h1
+==============================
+
+.. currentmodule:: quemb.kbe.pfrag
+
+.. automethod:: Frags.cons_h1

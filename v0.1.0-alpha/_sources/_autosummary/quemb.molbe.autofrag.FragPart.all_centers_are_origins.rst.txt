@@ -1,0 +1,6 @@
+quemb.molbe.autofrag.FragPart.all\_centers\_are\_origins
+========================================================
+
+.. currentmodule:: quemb.molbe.autofrag
+
+.. automethod:: FragPart.all_centers_are_origins

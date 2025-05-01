@@ -1,0 +1,6 @@
+quemb.shared.external.lo\_helper.symm\_orth
+===========================================
+
+.. currentmodule:: quemb.shared.external.lo_helper
+
+.. autofunction:: symm_orth

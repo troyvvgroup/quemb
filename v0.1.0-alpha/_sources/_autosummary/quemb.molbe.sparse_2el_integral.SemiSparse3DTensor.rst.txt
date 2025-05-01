@@ -1,0 +1,32 @@
+quemb.molbe.sparse\_2el\_integral.SemiSparse3DTensor
+====================================================
+
+.. currentmodule:: quemb.molbe.sparse_2el_integral
+
+.. autoclass:: SemiSparse3DTensor
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: SemiSparse3DTensor.class_type
+   .. autoattribute:: SemiSparse3DTensor.unique_dense_data
+   .. autoattribute:: SemiSparse3DTensor.shape
+   .. autoattribute:: SemiSparse3DTensor.naux
+   .. autoattribute:: SemiSparse3DTensor.exch_reachable
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~SemiSparse3DTensor.__init__
+      ~SemiSparse3DTensor.to_dense
+   
+   

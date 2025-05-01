@@ -1,0 +1,6 @@
+quemb.molbe.fragment.fragmentate
+================================
+
+.. currentmodule:: quemb.molbe.fragment
+
+.. autofunction:: fragmentate

@@ -1,0 +1,30 @@
+quemb.shared.helper.Timer
+=========================
+
+.. currentmodule:: quemb.shared.helper
+
+.. autoclass:: Timer
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: Timer.message
+   .. autoattribute:: Timer.start
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~Timer.__init__
+      ~Timer.elapsed
+      ~Timer.str_elapsed
+   
+   

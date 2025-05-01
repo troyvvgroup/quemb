@@ -1,0 +1,6 @@
+quemb.molbe.chemfrag.PurelyStructureFragmented.get\_string
+==========================================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. automethod:: PurelyStructureFragmented.get_string

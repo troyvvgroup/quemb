@@ -1,0 +1,6 @@
+quemb.kbe.autofrag.be\_reduce
+=============================
+
+.. currentmodule:: quemb.kbe.autofrag
+
+.. autofunction:: be_reduce

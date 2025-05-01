@@ -1,0 +1,6 @@
+quemb.molbe.chemfrag.PurelyStructureFragmented.get\_autocratically\_matched
+===========================================================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. automethod:: PurelyStructureFragmented.get_autocratically_matched

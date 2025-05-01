@@ -1,0 +1,6 @@
+quemb.shared.external.lo\_helper.reorder\_by\_atom\_
+====================================================
+
+.. currentmodule:: quemb.shared.external.lo_helper
+
+.. autofunction:: reorder_by_atom_

@@ -1,0 +1,6 @@
+quemb.molbe.autofrag.FragmentMap.\_\_init\_\_
+=============================================
+
+.. currentmodule:: quemb.molbe.autofrag
+
+.. automethod:: FragmentMap.__init__

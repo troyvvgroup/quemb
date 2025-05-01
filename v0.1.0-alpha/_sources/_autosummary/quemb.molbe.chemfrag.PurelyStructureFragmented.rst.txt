@@ -1,0 +1,42 @@
+quemb.molbe.chemfrag.PurelyStructureFragmented
+==============================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. autoclass:: PurelyStructureFragmented
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: PurelyStructureFragmented.mol
+   .. autoattribute:: PurelyStructureFragmented.motifs_per_frag
+   .. autoattribute:: PurelyStructureFragmented.centers_per_frag
+   .. autoattribute:: PurelyStructureFragmented.edges_per_frag
+   .. autoattribute:: PurelyStructureFragmented.origin_per_frag
+   .. autoattribute:: PurelyStructureFragmented.atoms_per_frag
+   .. autoattribute:: PurelyStructureFragmented.ref_frag_idx_per_edge
+   .. autoattribute:: PurelyStructureFragmented.conn_data
+   .. autoattribute:: PurelyStructureFragmented.n_BE
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~PurelyStructureFragmented.__init__
+      ~PurelyStructureFragmented.from_conn_data
+      ~PurelyStructureFragmented.from_mole
+      ~PurelyStructureFragmented.get_autocratically_matched
+      ~PurelyStructureFragmented.get_string
+      ~PurelyStructureFragmented.is_ordered
+      ~PurelyStructureFragmented.shared_centers_exist
+      ~PurelyStructureFragmented.write_geom
+   
+   

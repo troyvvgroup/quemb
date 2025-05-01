@@ -1,0 +1,23 @@
+quemb.kbe.lo.Mixin\_k\_Localize
+===============================
+
+.. currentmodule:: quemb.kbe.lo
+
+.. autoclass:: Mixin_k_Localize
+
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~Mixin_k_Localize.__init__
+      ~Mixin_k_Localize.localize
+   
+   

@@ -1,0 +1,6 @@
+quemb.molbe.mbe.BE.optimize
+===========================
+
+.. currentmodule:: quemb.molbe.mbe
+
+.. automethod:: BE.optimize

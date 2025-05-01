@@ -1,0 +1,6 @@
+quemb.shared.numba\_helpers.extend\_with
+========================================
+
+.. currentmodule:: quemb.shared.numba_helpers
+
+.. autofunction:: extend_with

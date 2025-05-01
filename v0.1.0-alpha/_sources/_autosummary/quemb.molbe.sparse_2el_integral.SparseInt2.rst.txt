@@ -1,0 +1,28 @@
+quemb.molbe.sparse\_2el\_integral.SparseInt2
+============================================
+
+.. currentmodule:: quemb.molbe.sparse_2el_integral
+
+.. autoclass:: SparseInt2
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: SparseInt2.class_type
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~SparseInt2.__init__
+      ~SparseInt2.idx
+   
+   

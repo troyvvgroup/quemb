@@ -1,0 +1,43 @@
+quemb.molbe.chemfrag.Fragmented
+===============================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. autoclass:: Fragmented
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: Fragmented.mol
+   .. autoattribute:: Fragmented.conn_data
+   .. autoattribute:: Fragmented.frag_structure
+   .. autoattribute:: Fragmented.AO_per_atom
+   .. autoattribute:: Fragmented.AO_per_frag
+   .. autoattribute:: Fragmented.AO_per_motif
+   .. autoattribute:: Fragmented.AO_per_edge_per_frag
+   .. autoattribute:: Fragmented.relAO_per_motif_per_frag
+   .. autoattribute:: Fragmented.relAO_per_edge_per_frag
+   .. autoattribute:: Fragmented.relAO_per_center_per_frag
+   .. autoattribute:: Fragmented.relAO_per_origin_per_frag
+   .. autoattribute:: Fragmented.relAO_in_ref_per_edge_per_frag
+   .. autoattribute:: Fragmented.frozen_core
+   .. autoattribute:: Fragmented.iao_valence_mol
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~Fragmented.__init__
+      ~Fragmented.from_frag_structure
+      ~Fragmented.from_mole
+      ~Fragmented.get_FragPart
+   
+   

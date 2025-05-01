@@ -1,0 +1,38 @@
+﻿quemb.shared
+============
+
+.. automodule:: quemb.shared
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+
+.. rubric:: Modules
+
+.. autosummary::
+   :toctree:
+   :template: custom-module-template.rst
+   :recursive:
+
+   config
+   external
+   helper
+   io
+   manage_scratch
+   numba_helpers
+   typing
+

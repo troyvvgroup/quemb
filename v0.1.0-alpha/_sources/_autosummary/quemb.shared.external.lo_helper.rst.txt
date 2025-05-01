@@ -1,0 +1,37 @@
+quemb.shared.external.lo\_helper
+================================
+
+.. automodule:: quemb.shared.external.lo_helper
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      cano_orth
+      dot_gen
+      get_aoind_by_atom
+      get_cano_orth_mat
+      get_symm_mat_pow
+      get_symm_orth_mat
+      reorder_by_atom_
+      symm_orth
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

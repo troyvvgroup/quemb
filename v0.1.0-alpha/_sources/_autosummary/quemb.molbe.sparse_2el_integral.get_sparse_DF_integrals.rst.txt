@@ -1,0 +1,6 @@
+quemb.molbe.sparse\_2el\_integral.get\_sparse\_DF\_integrals
+============================================================
+
+.. currentmodule:: quemb.molbe.sparse_2el_integral
+
+.. autofunction:: get_sparse_DF_integrals

@@ -1,0 +1,41 @@
+quemb.kbe.misc.storePBE
+=======================
+
+.. currentmodule:: quemb.kbe.misc
+
+.. autoclass:: storePBE
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: storePBE.Nocc
+   .. autoattribute:: storePBE.hf_veff
+   .. autoattribute:: storePBE.hcore
+   .. autoattribute:: storePBE.S
+   .. autoattribute:: storePBE.C
+   .. autoattribute:: storePBE.hf_dm
+   .. autoattribute:: storePBE.hf_etot
+   .. autoattribute:: storePBE.W
+   .. autoattribute:: storePBE.lmo_coeff
+   .. autoattribute:: storePBE.enuc
+   .. autoattribute:: storePBE.ek
+   .. autoattribute:: storePBE.E_core
+   .. autoattribute:: storePBE.C_core
+   .. autoattribute:: storePBE.P_core
+   .. autoattribute:: storePBE.core_veff
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~storePBE.__init__
+   
+   

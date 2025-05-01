@@ -1,0 +1,6 @@
+quemb.shared.external.optqn.FrankQN.get\_Bnfn
+=============================================
+
+.. currentmodule:: quemb.shared.external.optqn
+
+.. automethod:: FrankQN.get_Bnfn

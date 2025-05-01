@@ -1,0 +1,6 @@
+quemb.kbe.pbe.BE.initialize
+===========================
+
+.. currentmodule:: quemb.kbe.pbe
+
+.. automethod:: BE.initialize

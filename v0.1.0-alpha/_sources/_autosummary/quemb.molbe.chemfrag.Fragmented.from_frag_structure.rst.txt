@@ -1,0 +1,6 @@
+quemb.molbe.chemfrag.Fragmented.from\_frag\_structure
+=====================================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. automethod:: Fragmented.from_frag_structure

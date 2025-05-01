@@ -1,0 +1,38 @@
+quemb.kbe.fragment
+==================
+
+.. automodule:: quemb.kbe.fragment
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      fragmentate
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: custom-class-template.rst
+   
+      FragPart
+   
+   
+
+   
+   
+   
+
+
+

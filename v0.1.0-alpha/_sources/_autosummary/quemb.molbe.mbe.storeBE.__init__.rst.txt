@@ -1,0 +1,6 @@
+quemb.molbe.mbe.storeBE.\_\_init\_\_
+====================================
+
+.. currentmodule:: quemb.molbe.mbe
+
+.. automethod:: storeBE.__init__

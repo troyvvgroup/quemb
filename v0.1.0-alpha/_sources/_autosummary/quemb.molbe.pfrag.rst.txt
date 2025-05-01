@@ -1,0 +1,38 @@
+quemb.molbe.pfrag
+=================
+
+.. automodule:: quemb.molbe.pfrag
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      schmidt_decomposition
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: custom-class-template.rst
+   
+      Frags
+   
+   
+
+   
+   
+   
+
+
+

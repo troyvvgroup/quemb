@@ -1,0 +1,41 @@
+quemb.kbe.pbe
+=============
+
+.. automodule:: quemb.kbe.pbe
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      eritransform_parallel
+      initialize_pot
+      parallel_fock_wrapper
+      parallel_scf_wrapper
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: custom-class-template.rst
+   
+      BE
+   
+   
+
+   
+   
+   
+
+
+

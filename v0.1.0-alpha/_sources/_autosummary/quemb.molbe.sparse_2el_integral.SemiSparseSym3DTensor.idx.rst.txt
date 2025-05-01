@@ -1,0 +1,6 @@
+quemb.molbe.sparse\_2el\_integral.SemiSparseSym3DTensor.idx
+===========================================================
+
+.. currentmodule:: quemb.molbe.sparse_2el_integral
+
+.. automethod:: SemiSparseSym3DTensor.idx

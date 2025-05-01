@@ -1,0 +1,6 @@
+quemb.molbe.be\_parallel.be\_func\_parallel\_u
+==============================================
+
+.. currentmodule:: quemb.molbe.be_parallel
+
+.. autofunction:: be_func_parallel_u

@@ -1,0 +1,6 @@
+quemb.kbe.misc.storePBE.\_\_init\_\_
+====================================
+
+.. currentmodule:: quemb.kbe.misc
+
+.. automethod:: storePBE.__init__

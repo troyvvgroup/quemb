@@ -1,0 +1,6 @@
+quemb.kbe.lo.Mixin\_k\_Localize.\_\_init\_\_
+============================================
+
+.. currentmodule:: quemb.kbe.lo
+
+.. automethod:: Mixin_k_Localize.__init__

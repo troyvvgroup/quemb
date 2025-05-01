@@ -1,0 +1,6 @@
+quemb.kbe.pbe.BE.oneshot
+========================
+
+.. currentmodule:: quemb.kbe.pbe
+
+.. automethod:: BE.oneshot

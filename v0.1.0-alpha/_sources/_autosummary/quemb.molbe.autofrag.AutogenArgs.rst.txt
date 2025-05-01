@@ -1,0 +1,27 @@
+quemb.molbe.autofrag.AutogenArgs
+================================
+
+.. currentmodule:: quemb.molbe.autofrag
+
+.. autoclass:: AutogenArgs
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: AutogenArgs.iao_valence_only
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~AutogenArgs.__init__
+   
+   

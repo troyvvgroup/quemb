@@ -1,0 +1,6 @@
+quemb.molbe.solver.SHCI\_ArgsUser.\_\_init\_\_
+==============================================
+
+.. currentmodule:: quemb.molbe.solver
+
+.. automethod:: SHCI_ArgsUser.__init__

@@ -1,0 +1,43 @@
+quemb.molbe.chemfrag
+====================
+
+.. automodule:: quemb.molbe.chemfrag
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      chemgen
+      restrict_keys
+      union_of_seqs
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: custom-class-template.rst
+   
+      BondConnectivity
+      ChemGenArgs
+      Fragmented
+      PurelyStructureFragmented
+   
+   
+
+   
+   
+   
+
+
+

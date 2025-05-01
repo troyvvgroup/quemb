@@ -1,0 +1,6 @@
+quemb.kbe.solver.schmidt\_decomp\_svd
+=====================================
+
+.. currentmodule:: quemb.kbe.solver
+
+.. autofunction:: schmidt_decomp_svd

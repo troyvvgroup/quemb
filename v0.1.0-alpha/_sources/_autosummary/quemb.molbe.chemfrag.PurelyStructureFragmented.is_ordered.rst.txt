@@ -1,0 +1,6 @@
+quemb.molbe.chemfrag.PurelyStructureFragmented.is\_ordered
+==========================================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. automethod:: PurelyStructureFragmented.is_ordered

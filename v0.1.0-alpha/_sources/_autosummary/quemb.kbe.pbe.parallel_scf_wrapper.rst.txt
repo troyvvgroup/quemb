@@ -1,0 +1,6 @@
+quemb.kbe.pbe.parallel\_scf\_wrapper
+====================================
+
+.. currentmodule:: quemb.kbe.pbe
+
+.. autofunction:: parallel_scf_wrapper
