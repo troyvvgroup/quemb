@@ -428,7 +428,7 @@ def be_func(
                 iter = 0
                 frag_name = (
                     scratch_dir.__fspath__()
-                    + "-fragdata/"
+                    + "-frag_data/"
                     + fobj.dname
                     + "_iter"
                     + str(iter)
