@@ -269,7 +269,7 @@ def run_solver(
     rdm1 = multi_dot((mf_.mo_coeff, rdm1_tmp, mf_.mo_coeff.T)) * 0.5
 
     if eeval:
-        if solver == "FCI or SCI":
+        if solver == "FCI" or solver == "SCI":
             if solver == "FCI":
                 rdm2s = mc_.make_rdm2(civec, mc_.norb, mc_.nelec)
             if use_cumulant:

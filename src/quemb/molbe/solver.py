@@ -505,7 +505,7 @@ def be_func(
         )
 
         if eeval:
-            if solver == "FCI" or "SCI":
+            if solver == "FCI" or solver == "SCI":
                 if solver == "FCI":
                     rdm2s = mc.make_rdm2(civec, mc.norb, mc.nelec)
                 if use_cumulant:
