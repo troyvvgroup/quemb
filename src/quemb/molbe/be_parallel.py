@@ -360,6 +360,7 @@ def run_solver_u(
         ]
     else:
         h1_ab = [fobj_a.h1, fobj_b.h1]
+
     e_f = get_frag_energy_u(
         (fobj_a._mo_coeffs, fobj_b._mo_coeffs),
         (fobj_a.nsocc, fobj_b.nsocc),
