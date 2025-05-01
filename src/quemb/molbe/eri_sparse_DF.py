@@ -174,7 +174,7 @@ class SparseInt2:
 def get_sparse_DF_integrals(
     mol: Mole,
     auxmol: Mole,
-    screening_cutoff: Real | Callable[[Real], Real] | Mapping[str, Real] | None = None,
+    screening_radius: Real | Callable[[Real], Real] | Mapping[str, Real] | None = None,
 ) -> tuple[SemiSparseSym3DTensor, SemiSparseSym3DTensor]:
     """Return the 3-center 2-electron integrals in a sparse format with density fitting
 
@@ -186,7 +186,7 @@ def get_sparse_DF_integrals(
         The molecule.
     auxmol :
         The molecule with auxiliary basis functions.
-    screening_cutoff :
+    screening_radius :
         The screening cutoff is given by the overlap of van der Waals radii.
         By default, the radii are determined by :func:`find_screening_radius`.
         Alternatively, a fixed radius, callable or a dictionary can be passed.
@@ -196,7 +196,7 @@ def get_sparse_DF_integrals(
         for different elements. Compare to the :python:`modify_element_data`
         argument of :meth:`~chemcoord.Cartesian.get_bonds`.
     """
-    ints_3c2e = _get_sparse_ints_3c2e(mol, auxmol, screening_cutoff)
+    ints_3c2e = _get_sparse_ints_3c2e(mol, auxmol, screening_radius)
     ints_2c2e = auxmol.intor("int2c2e")
     df_coeffs_data = solve(ints_2c2e, ints_3c2e.unique_dense_data.T).T
     df_coef = SemiSparseSym3DTensor(
@@ -623,7 +623,7 @@ def get_reachable(
     mol: Mole,
     atoms_per_start_orb: Mapping[_T_start_orb, Set[AtomIdx]],
     atoms_per_target_orb: Mapping[_T_target_orb, Set[AtomIdx]],
-    screening_cutoff: Real | Callable[[Real], Real] | Mapping[str, Real] = 5,
+    screening_radius: Real | Callable[[Real], Real] | Mapping[str, Real] = 5,
 ) -> dict[_T_start_orb, list[_T_target_orb]]:
     """Return the sorted orbitals that can by reached for each orbital after screening.
 
@@ -635,7 +635,7 @@ def get_reachable(
         The atoms per orbital. For AOs this is the atom the AO is centered on,
         i.e. a set containing only one element,
         but for delocalised MOs there can be more than one atom.
-    screening_cutoff :
+    screening_radius :
         The screening cutoff is given by the overlap of van der Waals radii.
         By default, all radii are set to 5 Å, i.e. the screening distance is 10 Å.
         Alternatively, a callable or a dictionary can be passed.
@@ -648,7 +648,7 @@ def get_reachable(
     m = Cartesian.from_pyscf(mol)
 
     screen_conn = m.get_bonds(
-        modify_element_data=screening_cutoff, self_bonding_allowed=True
+        modify_element_data=screening_radius, self_bonding_allowed=True
     )
 
     return _flatten(
@@ -779,17 +779,17 @@ def get_blocks(reachable: Sequence[_T]) -> list[tuple[_T, _T]]:
 def _get_sparse_ints_3c2e(
     mol: Mole,
     auxmol: Mole,
-    screening_cutoff: Real | Callable[[Real], Real] | Mapping[str, Real] | None = None,
+    screening_radius: Real | Callable[[Real], Real] | Mapping[str, Real] | None = None,
 ) -> SemiSparseSym3DTensor:
     """Return the 3-center 2-electron integrals in a sparse format."""
 
-    if screening_cutoff is None:
-        screening_cutoff = find_screening_radius(mol, auxmol)
+    if screening_radius is None:
+        screening_radius = find_screening_radius(mol, auxmol)
 
     atom_per_AO = get_atom_per_AO(mol)
     exch_reachable = cast(
         Mapping[AOIdx, Set[AOIdx]],
-        get_reachable(mol, atom_per_AO, atom_per_AO, screening_cutoff),
+        get_reachable(mol, atom_per_AO, atom_per_AO, screening_radius),
     )
     exch_reachable_unique = account_for_symmetry(exch_reachable)
 
@@ -944,7 +944,7 @@ def _find_screening_cutoff_distance_aux(
         naux = auxmol.nao
 
         sparse_ints_3c2e, sparse_df_coef = get_sparse_DF_integrals(
-            mol, auxmol, screening_cutoff=0.01
+            mol, auxmol, screening_radius=0.01
         )
 
         ints_3c2e = df.incore.aux_e2(mol, auxmol, intor="int3c2e")
