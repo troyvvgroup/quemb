@@ -409,7 +409,6 @@ class MutableSemiSparse3DTensor:
         ("unique_dense_data", float64[:, ::1]),
         ("shape", UniTuple(int64, 3)),
         ("AO_reachable_by_MO_with_offsets", ListType(int64[:, ::1])),
-        ("MO_reachable_by_AO", ListType(int64[::1])),
         ("AO_reachable_by_MO", ListType(int64[::1])),
     ]
 )
@@ -438,7 +437,6 @@ class SemiSparse3DTensor:
     shape: tuple[int, int, int]
     naux: int
     AO_reachable_by_MO_with_offsets: list[Matrix[np.int64]]
-    MO_reachable_by_AO: list[Vector[MOIdx]]
     AO_reachable_by_MO: list[Vector[AOIdx]]
 
     def __init__(
@@ -446,13 +444,11 @@ class SemiSparse3DTensor:
         unique_dense_data: Matrix[np.float64],
         shape: tuple[Integral, Integral, Integral],
         AO_reachable_by_MO_with_offsets: list[Matrix[np.int64]],
-        MO_reachable_by_AO: list[Vector[MOIdx]],
         AO_reachable_by_MO: list[Vector[AOIdx]],
     ) -> None:
         self.shape = shape  # type: ignore[assignment]
         self.naux = shape[-1]  # type: ignore[assignment]
         self.AO_reachable_by_MO_with_offsets = AO_reachable_by_MO_with_offsets  # type: ignore[assignment]
-        self.MO_reachable_by_AO = MO_reachable_by_AO  # type: ignore[assignment]
         self.AO_reachable_by_MO = AO_reachable_by_MO  # type: ignore[assignment]
 
         self.unique_dense_data = unique_dense_data
@@ -532,7 +528,7 @@ def _invert_dict(
     for old_key, new_keys in D.items():
         for new_key in new_keys:
             inverted_D[new_key].add(old_key)
-    return {key: inverted_D[key] for key in sorted(inverted_D.keys())}  # type: ignore[type-var]
+    return {key: sorted(inverted_D[key]) for key in sorted(inverted_D.keys())}  # type: ignore[type-var]
 
 
 def get_orbs_per_atom(
@@ -1036,14 +1032,9 @@ def _first_contract_with_TA(
     int_mu_nu_P: SemiSparseSym3DTensor,
     AO_MO_pair_with_offset: list[tuple[int, AOIdx, MOIdx]],
     AO_reachable_by_MO_with_offset: list[Matrix[np.int64]],
-    MO_reachable_by_AO: list[Vector[MOIdx]],
     AO_reachable_by_MO: list[Vector[AOIdx]],
 ) -> SemiSparse3DTensor:
-    assert (
-        TA.shape[0] == int_mu_nu_P.nao
-        and TA.shape[0] == len(MO_reachable_by_AO)
-        and TA.shape[1] == len(AO_reachable_by_MO)
-    )
+    assert TA.shape[0] == int_mu_nu_P.nao and TA.shape[1] == len(AO_reachable_by_MO)
     n_unique = len(AO_MO_pair_with_offset)
     g_unique = np.zeros((n_unique, int_mu_nu_P.naux), dtype="f8")
 
@@ -1058,7 +1049,6 @@ def _first_contract_with_TA(
         g_unique,
         (TA.shape[0], TA.shape[1], int_mu_nu_P.naux),
         AO_reachable_by_MO_with_offset,
-        MO_reachable_by_AO,
         AO_reachable_by_MO,
     )
 
@@ -1203,7 +1193,6 @@ def get_fragment_ints3c2e(
         sparse_ints_3c2e,
         List(get_AO_MO_pair_with_offset(AO_reachable_per_SchmidtMO)),
         _nb_get_AO_reachable_by_MO_with_offset(AO_reachable_per_SchmidtMO),
-        to_numba_input(_invert_dict(AO_reachable_per_SchmidtMO)),
         to_numba_input(AO_reachable_per_SchmidtMO),
     )
 
