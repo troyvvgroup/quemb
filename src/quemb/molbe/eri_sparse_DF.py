@@ -433,7 +433,7 @@ class MutableSemiSparse3DTensor:
         ("_keys", int64[::1]),
         ("unique_dense_data", float64[:, ::1]),
         ("shape", UniTuple(int64, 3)),
-        ("AO_reachable_by_MO_with_offsets", ListType(int64[:, ::1])),
+        ("AO_reachable_by_MO_with_offsets", ListType(ListType(UniTuple(int64, 2)))),
         ("AO_reachable_by_MO", ListType(int64[::1])),
     ]
 )
@@ -461,7 +461,7 @@ class SemiSparse3DTensor:
     unique_dense_data: Matrix[np.float64]
     shape: tuple[int, int, int]
     naux: int
-    AO_reachable_by_MO_with_offsets: list[Matrix[np.int64]]
+    AO_reachable_by_MO_with_offsets: list[list[tuple[int, AOIdx]]]
     AO_reachable_by_MO: list[Vector[AOIdx]]
 
     def __init__(
@@ -469,7 +469,7 @@ class SemiSparse3DTensor:
         unique_dense_data: Matrix[np.float64],
         keys: Vector[np.int64],
         shape: tuple[Integral, Integral, Integral],
-        AO_reachable_by_MO_with_offsets: list[Matrix[np.int64]],
+        AO_reachable_by_MO_with_offsets: list[list[tuple[int, AOIdx]]],
         AO_reachable_by_MO: list[Vector[AOIdx]],
     ) -> None:
         self.shape = shape  # type: ignore[assignment]
@@ -1165,14 +1165,11 @@ def get_AO_MO_pair_with_offset(
 
 def _nb_get_AO_reachable_by_MO_with_offset(
     AO_reachable_by_MO: Mapping[MOIdx, Collection[AOIdx]],
-) -> List[Matrix[np.int64]]:
+) -> List[List[int, AOIdx]]:
     assert list(AO_reachable_by_MO.keys()) == list(range(len(AO_reachable_by_MO)))
     counter = count()
     return List(
-        [
-            np.array([(next(counter), x) for x in v], dtype=np.int64)
-            for v in AO_reachable_by_MO.values()
-        ]
+        [List([(next(counter), x) for x in v]) for v in AO_reachable_by_MO.values()]
     )
 
 
