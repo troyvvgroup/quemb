@@ -340,7 +340,7 @@ class SemiSparseSym3DTensor:
             [
                 List(
                     [
-                        (np.searchsorted(self._keys, self.idx(p, q)), q)
+                        (np.searchsorted(self._keys, self.idx(p, q)), q)  # type: ignore[arg-type]
                         for q in self.exch_reachable[p]
                     ]
                 )
@@ -546,7 +546,7 @@ def _invert_dict(
     for old_key, new_keys in D.items():
         for new_key in new_keys:
             inverted_D[new_key].add(old_key)
-    return {key: sorted(inverted_D[key]) for key in sorted(inverted_D.keys())}  # type: ignore[type-var]
+    return {key: inverted_D[key] for key in sorted(inverted_D.keys())}  # type: ignore[type-var]
 
 
 def get_orbs_per_atom(
@@ -693,12 +693,17 @@ def to_numba_input(
     """Convert the reachable orbitals to a list of numpy arrays.
 
     This contains the same information but is a far more efficient layout for numba.
+    Ensures that the start orbs are contiguos and sorted and the target orbs are sorted
+    (but not necessarily contiguos).
     """
-    assert list(exch_reachable.keys()) == list(range(len(exch_reachable)))
+    sorted_exch_reachable = {
+        k: exch_reachable[k] for k in sorted(exch_reachable.keys())
+    }  # type: ignore[type-var]
+    assert list(sorted_exch_reachable.keys()) == list(range(len(sorted_exch_reachable)))
     return List(
         [
             np.array(sorted(orbitals), dtype=np.int64)  # type: ignore[type-var]
-            for orbitals in exch_reachable.values()
+            for orbitals in sorted_exch_reachable.values()
         ]
     )
 
