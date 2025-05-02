@@ -21,7 +21,7 @@ from quemb.molbe.eri_sparse_DF import (
 )
 from quemb.shared.helper import get_calling_function_name
 
-from ._expected_data_for_sparse_2el_integrals import get_expected
+from ._expected_data_for_eri_sparse_DF import get_expected
 
 expected = get_expected()
 
