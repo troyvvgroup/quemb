@@ -697,8 +697,9 @@ def to_numba_input(
     (but not necessarily contiguos).
     """
     sorted_exch_reachable = {
-        k: exch_reachable[k] for k in sorted(exch_reachable.keys())
-    }  # type: ignore[type-var]
+        k: exch_reachable[k]
+        for k in sorted(exch_reachable.keys())  # type: ignore[type-var]
+    }
     assert list(sorted_exch_reachable.keys()) == list(range(len(sorted_exch_reachable)))
     return List(
         [
@@ -1054,7 +1055,7 @@ def _first_contract_with_TA(
     TA: Matrix[np.float64],
     int_mu_nu_P: SemiSparseSym3DTensor,
     AO_MO_pair_with_offset: list[tuple[int, AOIdx, MOIdx]],
-    AO_reachable_by_MO_with_offset: list[Matrix[np.int64]],
+    AO_reachable_by_MO_with_offset: list[list[tuple[int, AOIdx]]],
     AO_reachable_by_MO: list[Vector[AOIdx]],
 ) -> SemiSparse3DTensor:
     assert TA.shape[0] == int_mu_nu_P.nao and TA.shape[1] == len(AO_reachable_by_MO)

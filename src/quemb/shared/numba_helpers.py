@@ -151,6 +151,9 @@ class PreIncr:
     def __init__(self) -> None:
         self.count = -1
 
-    def incr(self) -> int:
+    # We cannot annotate the return type of this function, because of a strange bug in
+    #  sphinx-autodoc-typehints.
+    #  https://github.com/tox-dev/sphinx-autodoc-typehints/issues/532
+    def incr(self):
         self.count += 1
         return self.count
