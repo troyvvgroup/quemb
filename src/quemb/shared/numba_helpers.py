@@ -139,3 +139,18 @@ class SortedIntSet:
 
 
 Type_SortedIntSet = typeof(SortedIntSet())
+
+
+@jitclass
+class PreIncr:
+    count: int
+    """Implement a simple pre-incr class, that increments and returns a value.
+    more or less equivalent to C's :code:`++i`. Starts with -1,
+    i.e. the first returned value is 0."""
+
+    def __init__(self) -> None:
+        self.count = -1
+
+    def incr(self) -> int:
+        self.count += 1
+        return self.count

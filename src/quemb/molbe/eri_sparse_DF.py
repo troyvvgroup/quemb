@@ -44,7 +44,7 @@ from quemb.shared.helper import (
     ravel_Fortran,
     ravel_symmetric,
 )
-from quemb.shared.numba_helpers import SortedIntSet, Type_SortedIntSet
+from quemb.shared.numba_helpers import PreIncr, SortedIntSet, Type_SortedIntSet
 from quemb.shared.typing import (
     AOIdx,
     AtomIdx,
@@ -260,7 +260,9 @@ def get_dense_integrals(
         ("shape", UniTuple(int64, 3)),
         ("unique_dense_data", float64[:, ::1]),
         ("exch_reachable", ListType(int64[::1])),
+        ("exch_reachable_with_offsets", ListType(ListType(UniTuple(int64, 2)))),
         ("exch_reachable_unique", ListType(int64[::1])),
+        ("exch_reachable_unique_with_offsets", ListType(ListType(UniTuple(int64, 2)))),
     ]
 )
 class SemiSparseSym3DTensor:
@@ -297,7 +299,9 @@ class SemiSparseSym3DTensor:
     naux: int
     shape: tuple[int, int, int]
     exch_reachable: list[Vector[OrbitalIdx]]
+    exch_reachable_with_offsets: list[list[tuple[int, OrbitalIdx]]]
     exch_reachable_unique: list[Vector[OrbitalIdx]]
+    exch_reachable_unique_with_offsets: list[list[tuple[int, OrbitalIdx]]]
 
     def __init__(
         self,
@@ -321,6 +325,27 @@ class SemiSparseSym3DTensor:
                 for q in self.exch_reachable_unique[p]
             ],
             dtype=int64,
+        )
+        assert (self._keys[:-1] < self._keys[1:]).all()
+
+        counter = PreIncr()
+        self.exch_reachable_unique_with_offsets = List(
+            [
+                List([(counter.incr(), q) for q in self.exch_reachable_unique[p]])
+                for p in range(self.nao)
+            ]
+        )
+        counter = PreIncr()
+        self.exch_reachable_with_offsets = List(
+            [
+                List(
+                    [
+                        (np.searchsorted(self._keys, self.idx(p, q)), q)
+                        for q in self.exch_reachable[p]
+                    ]
+                )
+                for p in range(self.nao)
+            ]
         )
 
     def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[np.float64]:
@@ -442,6 +467,7 @@ class SemiSparse3DTensor:
     def __init__(
         self,
         unique_dense_data: Matrix[np.float64],
+        keys: Vector[np.int64],
         shape: tuple[Integral, Integral, Integral],
         AO_reachable_by_MO_with_offsets: list[Matrix[np.int64]],
         AO_reachable_by_MO: list[Vector[AOIdx]],
@@ -453,15 +479,7 @@ class SemiSparse3DTensor:
 
         self.unique_dense_data = unique_dense_data
 
-        self._keys = np.array(  # type: ignore[call-overload]
-            [
-                self._idx(mu, i)  # type: ignore[arg-type]
-                for i in range(self.shape[1])
-                for mu in self.AO_reachable_by_MO[i]
-            ],
-            dtype=int64,
-        )
-        assert (self._keys[:-1] < self._keys[1:]).all()
+        self._keys = keys
 
     def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[np.float64]:
         look_up_idx = np.searchsorted(self._keys, self._idx(key[0], key[1]))
@@ -1036,17 +1054,27 @@ def _first_contract_with_TA(
 ) -> SemiSparse3DTensor:
     assert TA.shape[0] == int_mu_nu_P.nao and TA.shape[1] == len(AO_reachable_by_MO)
     n_unique = len(AO_MO_pair_with_offset)
-    g_unique = np.zeros((n_unique, int_mu_nu_P.naux), dtype="f8")
+    g_unique = np.zeros((n_unique, int_mu_nu_P.naux), dtype=np.float64)
+    keys = np.empty(n_unique, dtype=np.int64)
 
-    # We cannot directly loop if we want to parallelise
-    for counter in prange(len(AO_MO_pair_with_offset)):  # type: ignore[attr-defined]
-        offset, mu, i = AO_MO_pair_with_offset[counter]
+    # We cannot directly loop as in
+    # ``for offset, mu, i in AO_MO_pair_with_offset```
+    # if we want to parallelise,
+    # hence we need the explicit counter variables.
+    for outer_counter in prange(len(AO_MO_pair_with_offset)):  # type: ignore[attr-defined]
+        offset, mu, i = AO_MO_pair_with_offset[outer_counter]
+        keys[offset] = ravel_Fortran(mu, i, TA.shape[0])
         for nu_counter in prange(len(int_mu_nu_P.exch_reachable[mu])):  # type: ignore[attr-defined]
-            nu = int_mu_nu_P.exch_reachable[mu][nu_counter]
-            g_unique[offset] += TA[nu, i] * int_mu_nu_P[mu, nu]  # type: ignore[index]
+            inner_offset, nu = int_mu_nu_P.exch_reachable_with_offsets[mu][nu_counter]
+            # In an un-optimized, but readable way it would be written as:
+            # g_unique[offset] += TA[nu, i] * int_mu_nu_P[mu, nu]
+            # but we know ahead of time the offset in the `unique_dense_data`
+            # and don't want to compute the lookup.
+            g_unique[offset] += TA[nu, i] * int_mu_nu_P.unique_dense_data[inner_offset]  # type: ignore[index]
 
     return SemiSparse3DTensor(
         g_unique,
+        keys,
         (TA.shape[0], TA.shape[1], int_mu_nu_P.naux),
         AO_reachable_by_MO_with_offset,
         AO_reachable_by_MO,
@@ -1064,7 +1092,6 @@ def _second_contract_with_TA(
 
     for i in prange(g.shape[0]):  # type: ignore[attr-defined]
         for j in prange(min(g.shape[1], i + 1)):  # type: ignore[attr-defined]
-            # for nu in int_mu_i_P.AO_reachable_by_MO[i]:
             for offset, nu in int_mu_i_P.AO_reachable_by_MO_with_offsets[i]:
                 g[i, j, :] += TA[nu, j] * int_mu_i_P.unique_dense_data[offset]
 
