@@ -15,7 +15,7 @@ from quemb.molbe.eri_sparse_DF import (
     get_atom_per_MO,
     get_dense_integrals,
     get_reachable,
-    get_sparse_DF_integrals,
+    get_sparse_D_ints_and_coeffs,
     get_sparse_ints_3c2e,
     traverse_nonzero,
 )
@@ -68,7 +68,7 @@ def test_sparse_density_fitting() -> None:
     nao = mol.nao
     naux = auxmol.nao
 
-    sparse_ints_3c2e, sparse_df_coef = get_sparse_DF_integrals(
+    sparse_ints_3c2e, sparse_df_coef = get_sparse_D_ints_and_coeffs(
         mol, auxmol, find_screening_radius(mol, auxmol, threshold=1e-11)
     )
 

@@ -171,14 +171,19 @@ class SparseInt2:
         return ravel_symmetric(ravel_symmetric(a, b), ravel_symmetric(c, d))
 
 
-def get_sparse_DF_integrals(
+def get_sparse_D_ints_and_coeffs(
     mol: Mole,
     auxmol: Mole,
     screening_radius: Real | Callable[[Real], Real] | Mapping[str, Real] | None = None,
 ) -> tuple[SemiSparseSym3DTensor, SemiSparseSym3DTensor]:
-    """Return the 3-center 2-electron integrals in a sparse format with density fitting
+    """Return the 3-center 2-electron integrals and fitting coefficients in a
+    semi-sparse format for the AO basis
 
-    One can obtain :python:`g[p, q, r, s] == ints_3c2e[p, q, :] @ df_coef[r, s, :]`.
+    One can obtain :python:`g[p, q, r, s] == ints_3c2e[p, q] @ df_coef[r, s]`.
+
+    The datastructures use sparsity in the :python:`p, q` and in the :python:`r, s`
+    pairs but the dimension along the auxiliary basis is densely stored.
+
 
     Parameters
     ----------
@@ -266,7 +271,8 @@ def get_dense_integrals(
     ]
 )
 class SemiSparseSym3DTensor:
-    r"""Special datastructure for semi-sparse and partially symmetric 3-indexed tensors.
+    r"""Specialised datastructure for immutable, semi-sparse, and partially symmetric
+    3-indexed tensors.
 
     For a tensor, :math:`T_{ijk}`, to be stored in this datastructure we assume
 
@@ -289,18 +295,46 @@ class SemiSparseSym3DTensor:
 
         (\mu \nu | P) == (\nu, \mu | P)
 
-    Note that this class is immutable which enables to store the unique, non-zero data
-    in a dense manner, which has some performance benefits.
+    Note that this class is immutable which enables to store the unique (symmetry),
+    non-zero data in a dense manner, which has some performance benefits.
     """
 
     _keys: Vector[np.int64]
+    #: The non-zero data that also accounts for symmetry.
     unique_dense_data: Matrix[np.float64]
+    #: number of AOs
     nao: int
+    #: number of auxiliary functions
     naux: int
+    #: number of AOs, number of AOs, number of auxiliary functions.
     shape: tuple[int, int, int]
+    #: For a given :python:`p` the :python:`exch_reachable[p]`
+    #: returns all :python:`q` that are assumed unrelevant
+    #: for (p q | r s) after screening.
+    #: Note that (p q | P ) might still be non-zero.
     exch_reachable: list[Vector[OrbitalIdx]]
-    exch_reachable_with_offsets: list[list[tuple[int, OrbitalIdx]]]
+    #: This is the same as :python:`exch_reachable` except it is accounting for symmetry
+    #: :python:`p >= q`
     exch_reachable_unique: list[Vector[OrbitalIdx]]
+
+    #: The following datastructures also return the offset to index
+    #: the :python:`unique_dense_data` directly and enables very fast
+    #: loops without having to compute the offset.
+    #:
+    #: .. code-block:: python
+    #:
+    #:    for offset, q in self.exch_reachable_with_offsets[p]:
+    #:        self.unique_dense_data[offset] == self[p, q]  # True
+    exch_reachable_with_offsets: list[list[tuple[int, OrbitalIdx]]]
+    #: The following datastructures also return the offset to index
+    #: the :python:`unique_dense_data` directly and enables very fast
+    #: loops without having to compute the offset.
+    #: It only returns :python:`q`` with :python:`p >= q`
+    #:
+    #: .. code-block:: python
+    #:
+    #:    for offset, q in self.exch_reachable_unique_with_offsets[p]:
+    #:        self.unique_dense_data[offset] == self[p, q]  # True
     exch_reachable_unique_with_offsets: list[list[tuple[int, OrbitalIdx]]]
 
     def __init__(
@@ -391,6 +425,29 @@ _UniTuple_int64_2 = UniTuple(int64, 2)
     ]
 )
 class MutableSemiSparse3DTensor:
+    r"""Specialised datastructure for semi-sparse 3-indexed tensors.
+
+    For a tensor, :math:`T_{ijk}`, to be stored in this datastructure we assume
+
+    - sparsity along the :math:`i, j` indices, i.e. :math:`T_{ijk} = 0`
+      for many :math:`i, j`
+    - dense storage along the :math:`k` index
+
+    It can be used for example to store the partially contracted
+    3-center, 2-electron integrals
+    :math:`(\mu i | P)`, with AO :math:`\mu`, localised MO :math:`i`,
+    and auxiliary basis indices :math:`P`.
+    Semi-sparsely, because it is assumed that there are many
+    exchange pairs :math:`\mu, i` which are zero, while the integral along
+    the auxiliary basis :math:`P` is stored densely as numpy array.
+
+    2-fold permutational symmetry for the :math:`\mu, i` pairs is not assumed.
+
+    Note that this class is mutable which makes it more flexible in practice, but also
+    less performant for certain operations. If possible, it is recommended to use
+    :class:`SemiSparse3DTensor`.
+    """
+
     def __init__(
         self,
         shape: tuple[int, int, int],
@@ -438,7 +495,7 @@ class MutableSemiSparse3DTensor:
     ]
 )
 class SemiSparse3DTensor:
-    r"""Special datastructure for semi-sparse and partially symmetric 3-indexed tensors.
+    r"""Specialised datastructure for immutable and semi-sparse 3-indexed tensors.
 
     For a tensor, :math:`T_{ijk}`, to be stored in this datastructure we assume
 
@@ -446,23 +503,48 @@ class SemiSparse3DTensor:
       for many :math:`i, j`
     - dense storage along the :math:`k` index
 
-    It can be used for example to store the 3-center, 2-electron integrals
-    :math:`(\mu i | P)`, with AOs :math:`\mu`, MOs :math:`i`,
+    It can be used for example to store the partially contracted
+    3-center, 2-electron integrals
+    :math:`(\mu i | P)`, with AO :math:`\mu`, localised MO :math:`i`,
     and auxiliary basis indices :math:`P`.
     Semi-sparsely, because it is assumed that there are many
-    exchange pairs :math:`\mu, \nu` which are zero, while the integral along
+    exchange pairs :math:`\mu, i` which are zero, while the integral along
     the auxiliary basis :math:`P` is stored densely as numpy array.
 
-    Note that this class is immutable which enables to store the unique, non-zero data
+    2-fold permutational symmetry for the :math:`\mu, i` pairs is not assumed.
+
+    Note that this class is immutable which enables to store the non-zero data
     in a dense manner, which has some performance benefits.
     """
 
+    #: We know there are no collisions and roll our own "dictionary".
+    #: These are the ascendingly sorted lookup keys to access the non-zero data.
+    #: For a given :python:`offset, mu, nu` triple, we have.
+    #:
+    #: .. code-block:: python
+    #:
+    #:    self._keys[offset] == self._idx(mu, nu)
+    #:    self.dense_data[offset] == self[mu, nu]
     _keys: Vector[np.int64]
-    unique_dense_data: Matrix[np.float64]
+    dense_data: Matrix[np.float64]
+    #: number of AOs, number of MOs, number of auxiliary functions.
     shape: tuple[int, int, int]
+    #: number of auxiliary functions
     naux: int
-    AO_reachable_by_MO_with_offsets: list[list[tuple[int, AOIdx]]]
+    #: For a given MO index :python:`i` the :python:`self.AO_reachable_by_MO[i]`
+    #: returns all :python:`mu` that are assumed unrelevant
+    #: for (mu i | * *) after screening.
+    #: Note that (p i | P ) might still be non-zero.
     AO_reachable_by_MO: list[Vector[AOIdx]]
+    #: The following datastructures also return the offset to index
+    #: the :python:`dense_data` directly and enables very fast
+    #: loops without having to compute the offset.
+    #:
+    #: .. code-block:: python
+    #:
+    #:    for offset, mu in self.AO_reachable_by_MO[i]:
+    #:        self.dense_data[offset] == self[mu, i]  # True
+    AO_reachable_by_MO_with_offsets: list[list[tuple[int, AOIdx]]]
 
     def __init__(
         self,
@@ -477,13 +559,13 @@ class SemiSparse3DTensor:
         self.AO_reachable_by_MO_with_offsets = AO_reachable_by_MO_with_offsets  # type: ignore[assignment]
         self.AO_reachable_by_MO = AO_reachable_by_MO  # type: ignore[assignment]
 
-        self.unique_dense_data = unique_dense_data
+        self.dense_data = unique_dense_data
 
         self._keys = keys
 
     def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[np.float64]:
         look_up_idx = np.searchsorted(self._keys, self._idx(key[0], key[1]))
-        return self.unique_dense_data[look_up_idx]
+        return self.dense_data[look_up_idx]
 
     # We cannot annotate the return type of this function, because of a strange bug in
     #  sphinx-autodoc-typehints.
@@ -741,7 +823,6 @@ def _jit_account_for_symmetry(
     ----------
     reachable :
     """
-    # TODO: make an early return for performance reasons
     return List(
         [np.array([q for q in qs if p >= q]) for (p, qs) in enumerate(reachable)]
     )
@@ -967,7 +1048,7 @@ def _find_screening_cutoff_distance_aux(
         nao = mol.nao
         naux = auxmol.nao
 
-        sparse_ints_3c2e, sparse_df_coef = get_sparse_DF_integrals(
+        sparse_ints_3c2e, sparse_df_coef = get_sparse_D_ints_and_coeffs(
             mol, auxmol, screening_radius=0.01
         )
 
@@ -1099,7 +1180,7 @@ def _second_contract_with_TA(
     for i in prange(g.shape[0]):  # type: ignore[attr-defined]
         for j in prange(min(g.shape[1], i + 1)):  # type: ignore[attr-defined]
             for offset, nu in int_mu_i_P.AO_reachable_by_MO_with_offsets[i]:
-                g[i, j, :] += TA[nu, j] * int_mu_i_P.unique_dense_data[offset]
+                g[i, j, :] += TA[nu, j] * int_mu_i_P.dense_data[offset]
 
             g[j, i, :] = g[i, j, :]
     return g
@@ -1198,7 +1279,7 @@ def _transform_sparse_DF_integral(
     ]
 
     return [
-        restore("1", eval_via_cholesky(ijP, low_triang_PQ), len(ijP))
+        restore("1", _eval_via_cholesky(ijP, low_triang_PQ), len(ijP))
         for ijP in ints_i_j_P
     ]
 
@@ -1229,7 +1310,7 @@ def get_fragment_ints3c2e(
     return _second_contract_with_TA(TA, sparse_int_mu_i_P)
 
 
-def eval_via_cholesky(
+def _eval_via_cholesky(
     ijP: Tensor3D[np.float64], low_triang_PQ: Matrix[np.float64]
 ) -> Matrix[np.float64]:
     b = ijP.reshape(ijP.shape[0] ** 2, ijP.shape[2]).T
