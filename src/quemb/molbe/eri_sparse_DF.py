@@ -488,7 +488,7 @@ class MutableSemiSparse3DTensor:
 @jitclass(
     [
         ("_keys", int64[::1]),
-        ("unique_dense_data", float64[:, ::1]),
+        ("dense_data", float64[:, ::1]),
         ("shape", UniTuple(int64, 3)),
         ("AO_reachable_by_MO_with_offsets", ListType(ListType(UniTuple(int64, 2)))),
         ("AO_reachable_by_MO", ListType(int64[::1])),
