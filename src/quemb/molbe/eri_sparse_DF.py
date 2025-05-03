@@ -329,7 +329,7 @@ class SemiSparseSym3DTensor:
     #: The following datastructures also return the offset to index
     #: the :python:`unique_dense_data` directly and enables very fast
     #: loops without having to compute the offset.
-    #: It only returns :python:`q`` with :python:`p >= q`
+    #: It only returns :python:`q` with :python:`p >= q`
     #:
     #: .. code-block:: python
     #:
@@ -533,8 +533,8 @@ class SemiSparse3DTensor:
     naux: int
     #: For a given MO index :python:`i` the :python:`self.AO_reachable_by_MO[i]`
     #: returns all :python:`mu` that are assumed unrelevant
-    #: for (mu i | * *) after screening.
-    #: Note that (p i | P ) might still be non-zero.
+    #: for :math:`(\mu i | r s)` after screening.
+    #: Note that :math:`(p i | P )` might still be non-zero.
     AO_reachable_by_MO: list[Vector[AOIdx]]
     #: The following datastructures also return the offset to index
     #: the :python:`dense_data` directly and enables very fast
