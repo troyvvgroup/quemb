@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 import scipy
 from chemcoord import Cartesian
 from pyscf import df, scf
@@ -19,7 +20,7 @@ from quemb.molbe.eri_sparse_DF import (
     get_sparse_ints_3c2e,
     traverse_nonzero,
 )
-from quemb.shared.helper import get_calling_function_name
+from quemb.shared.helper import clean_overlap, get_calling_function_name
 
 from ._expected_data_for_eri_sparse_DF import get_expected
 
@@ -122,16 +123,8 @@ def test_invert_dict() -> None:
     assert _invert_dict(X) == expected
 
 
-def test_MO_screening() -> None:
-    mol = M("xyz/E-polyacetylene/20.xyz", basis="sto-3g")
-    auxbasis = "weigend"
-    auxmol = make_auxmol(mol, auxbasis=auxbasis)
-
-    mf = scf.RHF(mol)
-    mf.kernel()
-
-    fobj = fragmentate(frag_type="chemgen", n_BE=2, mol=mol, print_frags=False)
-    my_be = BE(mf, fobj, auxbasis=auxbasis, int_transform="int-direct-DF")
+def test_MO_screening(ikosan) -> None:
+    mol, auxmol, mf, fobj, my_be = ikosan
 
     atom_per_AO = get_atom_per_AO(mol)
 
@@ -176,3 +169,32 @@ def test_MO_screening() -> None:
         for i_MO in AO_reachable_by_MO:
             for i_AO in AO_reachable_by_MO[i_MO]:
                 assert i_MO in MO_reachable_by_AO[i_AO]
+
+
+def test_reuse_schmidt_fragment_MOs(ikosan) -> None:
+    mol, auxmol, mf, fobj, my_be = ikosan
+
+    S = mol.intor("int1e_ovlp")
+    for fobj in my_be.Fobjs:
+        assert (
+            clean_overlap(
+                my_be.all_fragment_MO_TA[:, fobj.frag_TA_offset].T
+                @ S
+                @ fobj.TA[:, : fobj.n_f]
+            )
+            == np.eye(fobj.n_f)
+        ).all()
+
+
+@pytest.fixture(scope="session")
+def ikosan():
+    mol = M("xyz/E-polyacetylene/20.xyz", basis="sto-3g")
+    auxbasis = "weigend"
+    auxmol = make_auxmol(mol, auxbasis=auxbasis)
+
+    mf = scf.RHF(mol)
+    mf.kernel()
+
+    fobj = fragmentate(frag_type="chemgen", n_BE=2, mol=mol, print_frags=False)
+    my_be = BE(mf, fobj, auxbasis=auxbasis, int_transform="int-direct-DF")
+    return mol, auxmol, mf, fobj, my_be
