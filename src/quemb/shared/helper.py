@@ -7,10 +7,11 @@ from time import time
 from typing import Any, TypeVar, overload
 
 import numba as nb
+import numpy as np
 from attr import define, field
 from ordered_set import OrderedSet
 
-from quemb.shared.typing import Integral, T
+from quemb.shared.typing import Integral, Matrix, T
 
 _Function = TypeVar("_Function", bound=Callable)
 _T_Integral = TypeVar("_T_Integral", bound=Integral)
@@ -329,3 +330,15 @@ def get_calling_function_name() -> str:
     """Do stack inspection shenanigan to obtain the name
     of the calling function"""
     return inspect.stack()[1][3]
+
+
+def clean_overlap(M: Matrix[np.float64], epsilon: float = 1e-12) -> Matrix[np.int64]:
+    """We assume that M is a (not necessarily square) overlap matrix
+    between ortho-normal vectors. We clean for floating point noise and return
+    an integer matrix with only 0s and 1s."""
+    M = M.copy()
+    very_small = np.abs(M) < epsilon
+    M[very_small] = 0
+    assert (np.abs(1 - M[~very_small]) < epsilon).all()
+    M[~very_small] = 1
+    return M.astype(np.int64)

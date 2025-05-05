@@ -19,7 +19,7 @@ from quemb.molbe.fragment import FragPart
 from quemb.molbe.lo import MixinLocalize
 from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
 from quemb.molbe.opt import BEOPT
-from quemb.molbe.pfrag import Frags
+from quemb.molbe.pfrag import Frags, union_of_frag_MOs_and_index
 from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.config import settings
 from quemb.shared.external.optqn import (
@@ -833,6 +833,12 @@ class BE(MixinLocalize):
             fobjs_.sd(self.W, self.lmo_coeff, self.Nocc, thr_bath=self.thr_bath)
 
             self.Fobjs.append(fobjs_)
+
+        self.all_fragment_MO_TA, frag_TA_index_per_frag = union_of_frag_MOs_and_index(
+            self.Fobjs, self.mf.mol.intor("int1e_ovlp"), epsilon=1e-10
+        )
+        for fobj, frag_TA_offset in zip(self.Fobjs, frag_TA_index_per_frag):
+            fobj.frag_TA_offset = frag_TA_offset
 
         eritransform_timer = Timer("Time to transform ERIs")
 
