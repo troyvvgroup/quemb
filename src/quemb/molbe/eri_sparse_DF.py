@@ -1251,7 +1251,10 @@ def _nb_get_AO_reachable_by_MO_with_offset(
     assert list(AO_reachable_by_MO.keys()) == list(range(len(AO_reachable_by_MO)))
     counter = count()
     return List(
-        [List([(next(counter), x) for x in v]) for v in AO_reachable_by_MO.values()]
+        [
+            List([(next(counter), AO) for AO in AOs])
+            for AOs in AO_reachable_by_MO.values()
+        ]
     )
 
 
@@ -1273,7 +1276,11 @@ def _transform_sparse_DF_integral(
 
     ints_i_j_P = [
         get_fragment_ints3c2e(
-            screen_radius, mol, sparse_ints_3c2e, atom_per_AO, fragobj.TA
+            mol,
+            sparse_ints_3c2e,
+            atom_per_AO,
+            fragobj.TA,
+            screen_radius,
         )
         for fragobj in Fobjs
     ]
@@ -1285,16 +1292,16 @@ def _transform_sparse_DF_integral(
 
 
 def get_fragment_ints3c2e(
-    screen_radius: Mapping[str, float],
     mol: Mole,
     sparse_ints_3c2e: SemiSparseSym3DTensor,
     atom_per_AO: Mapping[AOIdx, Set[AtomIdx]],
     TA: Matrix[np.float64],
-    epsilon: float = 1e-8,
+    screen_radius: Mapping[str, float],
+    MO_coeff_epsilon: float = 1e-8,
 ) -> Tensor3D[np.float64]:
     AO_reachable_per_SchmidtMO = get_reachable(
         mol,
-        get_atom_per_MO(atom_per_AO, TA, epsilon=epsilon),
+        get_atom_per_MO(atom_per_AO, TA, epsilon=MO_coeff_epsilon),
         atom_per_AO,
         screen_radius,
     )
