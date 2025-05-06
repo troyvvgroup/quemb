@@ -1131,8 +1131,22 @@ def find_screening_radius(
         }
 
 
+def _1st_contract_with_TA(
+    TA: Matrix[np.float64],
+    int_mu_nu_P: SemiSparseSym3DTensor,
+    AO_reachable_per_SchmidtMO: Mapping[MOIdx, Sequence[AOIdx]],
+) -> SemiSparse3DTensor:
+    return _jit_1st_contract_with_TA(
+        TA,
+        int_mu_nu_P,
+        List(get_AO_MO_pair_with_offset(AO_reachable_per_SchmidtMO)),
+        _nb_get_AO_reachable_by_MO_with_offset(AO_reachable_per_SchmidtMO),
+        to_numba_input(AO_reachable_per_SchmidtMO),
+    )
+
+
 @njit(parallel=True)
-def _first_contract_with_TA(
+def _jit_1st_contract_with_TA(
     TA: Matrix[np.float64],
     int_mu_nu_P: SemiSparseSym3DTensor,
     AO_MO_pair_with_offset: list[tuple[int, AOIdx, MOIdx]],
@@ -1169,7 +1183,7 @@ def _first_contract_with_TA(
 
 
 @njit(parallel=True)
-def _second_contract_with_TA(
+def _sym_2nd_contract_with_TA(
     TA: Matrix[np.float64], int_mu_i_P: SemiSparse3DTensor
 ) -> Tensor3D[np.float64]:
     assert TA.shape[0] == int_mu_i_P.shape[0]
@@ -1306,15 +1320,11 @@ def get_fragment_ints3c2e(
         screen_radius,
     )
 
-    sparse_int_mu_i_P = _first_contract_with_TA(
-        TA,
-        sparse_ints_3c2e,
-        List(get_AO_MO_pair_with_offset(AO_reachable_per_SchmidtMO)),
-        _nb_get_AO_reachable_by_MO_with_offset(AO_reachable_per_SchmidtMO),
-        to_numba_input(AO_reachable_per_SchmidtMO),
+    sparse_int_mu_i_P = _1st_contract_with_TA(
+        TA, sparse_ints_3c2e, AO_reachable_per_SchmidtMO
     )
 
-    return _second_contract_with_TA(TA, sparse_int_mu_i_P)
+    return _sym_2nd_contract_with_TA(TA, sparse_int_mu_i_P)
 
 
 def _eval_via_cholesky(
