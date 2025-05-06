@@ -11,6 +11,8 @@ from quemb.molbe import BE, fragmentate
 from quemb.molbe.eri_sparse_DF import (
     SparseInt2,
     _invert_dict,
+    _transform_sparse_DF_integral,
+    _use_shared_data_transform_sparse_DF_integral,
     find_screening_radius,
     get_atom_per_AO,
     get_atom_per_MO,
@@ -184,6 +186,23 @@ def test_reuse_schmidt_fragment_MOs(ikosan) -> None:
             )
             == np.eye(fobj.n_f)
         ).all()
+
+
+def test_int_transformation_with_reuse(ikosan) -> None:
+    mol, auxmol, mf, fobj, my_be = ikosan
+
+    screen_radius = {"C": 2.4156341552734375, "H": 2.3355426025390624}
+
+    ref_integrals = _transform_sparse_DF_integral(
+        mf, my_be.Fobjs, auxmol.basis, screen_radius
+    )
+    new_integrals = _use_shared_data_transform_sparse_DF_integral(
+        mf, my_be.Fobjs, my_be.all_fragment_MO_TA, auxmol.basis, screen_radius
+    )
+    assert all(
+        np.allclose(old, new, rtol=0, atol=1e-10)
+        for old, new in zip(ref_integrals, new_integrals)
+    )
 
 
 @pytest.fixture(scope="session")

@@ -1437,7 +1437,7 @@ def contract_DF(
         ("g", float64[:, :, :, ::1]),
     ]
 )
-class _FragmentMOIntegralData:  # type: ignore[operator]
+class FragmentMOIntegralData:  # type: ignore[operator]
     """Dataclass to store shared data about fragment orbital integrals."""
 
     def __init__(
@@ -1465,7 +1465,7 @@ def get_shared_integral_data(
     atom_per_AO: Mapping[AOIdx, Set[AtomIdx]],
     screen_radius: Mapping[str, float],
     MO_coeff_epsilon: float = 1e-8,
-) -> _FragmentMOIntegralData:
+) -> FragmentMOIntegralData:
     AO_reachable_per_fragmentMO = get_reachable(
         mol,
         get_atom_per_MO(atom_per_AO, global_fragment_TA, epsilon=MO_coeff_epsilon),
@@ -1488,7 +1488,7 @@ def get_shared_integral_data(
         len(global_i_j_P),
     )
 
-    return _FragmentMOIntegralData(
+    return FragmentMOIntegralData(
         TA=global_fragment_TA,
         mu_i_P=global_mu_i_P,
         i_j_P=global_i_j_P,
@@ -1499,7 +1499,7 @@ def get_shared_integral_data(
 
 def _compute_fragment_eri_with_shared_data(
     mol: Mole,
-    shared_data: _FragmentMOIntegralData,
+    shared_data: FragmentMOIntegralData,
     fobj: Frags,
     PQ: Matrix[np.float64],
     low_cholesky_PQ: Matrix[np.float64],
