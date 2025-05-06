@@ -1539,20 +1539,20 @@ def _compute_fragment_eri_with_shared_data(
     int_i_a_P = contract_with_TA_2nd(TA[:, :n_f], int_mu_a_P)
     Dcoeff_i_a_P = cast(Tensor3D[np.float64], solve(PQ, int_i_a_P.T, assume_a="pos").T)
 
-    _fill_off_diagonals_aikl(
+    _fill_offdiagonals_aikl(
         g, fobj.frag_TA_offset, int_i_a_P, shared_data.Dcoeff_i_j_P, n_f, n_b
     )
-    _fill_off_diagonals_aibl(g, int_i_a_P, Dcoeff_i_a_P, n_f, n_b)
-    _fill_off_diagonals_abkl(
+    _fill_offdiagonals_aibl(g, int_i_a_P, Dcoeff_i_a_P, n_f, n_b)
+    _fill_offdiagonals_abkl(
         g, fobj.frag_TA_offset, int_a_b_P, shared_data.Dcoeff_i_j_P, n_f, n_b
     )
-    _fill_off_diagonals_abcl(g, Dcoeff_i_a_P, int_a_b_P, n_f, n_b)
+    _fill_offdiagonals_abcl(g, Dcoeff_i_a_P, int_a_b_P, n_f, n_b)
 
     return g
 
 
 @njit(parallel=True)
-def _fill_off_diagonals_aikl(
+def _fill_offdiagonals_aikl(
     g: Tensor4D[np.float64],
     frag_TA_offset: Vector[np.int64],
     int_i_a_P: Tensor3D[np.float64],
@@ -1576,7 +1576,7 @@ def _fill_off_diagonals_aikl(
 
 
 @njit(parallel=True)
-def _fill_off_diagonals_aibl(
+def _fill_offdiagonals_aibl(
     g: Tensor4D[np.float64],
     int_i_a_P: Tensor3D[np.float64],
     Dcoeff_i_a_P: Tensor3D[np.float64],
@@ -1598,7 +1598,7 @@ def _fill_off_diagonals_aibl(
 
 
 @njit(parallel=True)
-def _fill_off_diagonals_abkl(
+def _fill_offdiagonals_abkl(
     g: Tensor4D[np.float64],
     frag_TA_offset: Vector[np.int64],
     int_a_b_P: Tensor3D[np.float64],
@@ -1623,7 +1623,7 @@ def _fill_off_diagonals_abkl(
 
 
 @njit(parallel=True)
-def _fill_off_diagonals_abcl(
+def _fill_offdiagonals_abcl(
     g: Tensor4D[np.float64],
     Dcoeff_i_a_P: Tensor3D[np.float64],
     int_a_b_P: Tensor3D[np.float64],
