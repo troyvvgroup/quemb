@@ -111,7 +111,7 @@ def _aux_e2(  # type: ignore[no-untyped-def]
     )
 
 
-@njit
+@njit(inline="always")
 def assign_with_symmtry(
     g: Tensor4D[np.float64], i: int, j: int, k: int, l: int, val: float
 ) -> None:
@@ -1567,43 +1567,65 @@ def _fill_off_diagonals(
     n_f: int,
     n_b: int,
 ) -> None:
-    for a in prange(n_f, n_f + n_b):  # type: ignore[attr-defined]
-        for i in prange(n_f):  # type: ignore[attr-defined]
-            for k in prange(n_f):  # type: ignore[attr-defined]
-                for l in prange(k + 1):  # type: ignore[attr-defined]
+    idx = frag_TA_offset
+    for a in range(n_b):  # type: ignore[attr-defined]
+        for i in range(n_f):  # type: ignore[attr-defined]
+            for k in range(n_f):  # type: ignore[attr-defined]
+                for l in range(k + 1):  # type: ignore[attr-defined]
                     val = (
-                        int_i_a_P[i, a - n_f, :]
+                        int_i_a_P[i, a, :]
                         @ shared_data.Dcoeff_i_j_P[
                             frag_TA_offset[k], frag_TA_offset[l], :
                         ]
                     )
-                    assign_with_symmtry(g, a, i, k, l, val)
+                    g[a + n_f, i, k, l] = val
+                    g[a + n_f, i, l, k] = val
+                    g[i, a + n_f, k, l] = val
+                    g[i, a + n_f, l, k] = val
+                    g[k, l, a + n_f, i] = val
+                    g[l, k, a + n_f, i] = val
+                    g[k, l, i, a + n_f] = val
+                    g[l, k, i, a + n_f] = val
 
-    for a in prange(n_f, n_f + n_b):  # type: ignore[attr-defined]
+    for a in prange(n_b):  # type: ignore[attr-defined]
         for i in prange(n_f):  # type: ignore[attr-defined]
-            for b in prange(n_f, n_f + n_b):  # type: ignore[attr-defined]
+            for b in prange(n_b):  # type: ignore[attr-defined]
                 for l in prange(n_f):  # type: ignore[attr-defined]
-                    val = int_i_a_P[i, a - n_f, :] @ Dcoeff_i_a_P[l, b - n_f, :]
-                    assign_with_symmtry(g, a, i, b, l, val)
+                    assign_with_symmtry(
+                        g,
+                        a + n_f,
+                        i,
+                        b + n_f,
+                        l,
+                        int_i_a_P[i, a, :] @ Dcoeff_i_a_P[l, b, :],
+                    )
 
-    for a in prange(n_f, n_f + n_b):  # type: ignore[attr-defined]
-        for b in prange(n_f, a + 1):  # type: ignore[attr-defined]
+    for a in prange(n_b):  # type: ignore[attr-defined]
+        for b in prange(a + 1):  # type: ignore[attr-defined]
             for k in prange(n_f):  # type: ignore[attr-defined]
                 for l in prange(k + 1):  # type: ignore[attr-defined]
-                    val = (
-                        int_a_b_P[a - n_f, b - n_f, :]
-                        @ shared_data.Dcoeff_i_j_P[
-                            frag_TA_offset[k], frag_TA_offset[l], :
-                        ]
+                    assign_with_symmtry(
+                        g,
+                        a + n_f,
+                        b + n_f,
+                        k,
+                        l,
+                        int_a_b_P[a, b, :]
+                        @ shared_data.Dcoeff_i_j_P[idx[k], idx[l], :],
                     )
-                    assign_with_symmtry(g, a, b, k, l, val)
 
-    for a in prange(n_f, n_f + n_b):  # type: ignore[attr-defined]
-        for b in prange(n_f, a + 1):  # type: ignore[attr-defined]
-            for c in prange(n_f, n_f + n_b):  # type: ignore[attr-defined]
+    for a in prange(n_b):  # type: ignore[attr-defined]
+        for b in prange(a + 1):  # type: ignore[attr-defined]
+            for c in prange(n_b):  # type: ignore[attr-defined]
                 for l in prange(n_f):  # type: ignore[attr-defined]
-                    val = int_a_b_P[a - n_f, b - n_f, :] @ Dcoeff_i_a_P[l, c - n_f, :]
-                    assign_with_symmtry(g, a, b, c, l, val)
+                    assign_with_symmtry(
+                        g,
+                        a + n_f,
+                        b + n_f,
+                        c + n_f,
+                        l,
+                        int_a_b_P[a, b, :] @ Dcoeff_i_a_P[l, c, :],
+                    )
 
 
 def _use_shared_data_transform_sparse_DF_integral(
