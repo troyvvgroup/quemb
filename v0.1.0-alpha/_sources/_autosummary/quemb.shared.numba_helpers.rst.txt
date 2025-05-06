@@ -22,6 +22,15 @@ quemb.shared.numba\_helpers
 
    
    
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: custom-class-template.rst
+   
+      PreIncr
+      SortedIntSet
+   
    
 
    

@@ -1,0 +1,6 @@
+quemb.molbe.eri\_sparse\_DF.get\_atom\_per\_MO
+==============================================
+
+.. currentmodule:: quemb.molbe.eri_sparse_DF
+
+.. autofunction:: get_atom_per_MO

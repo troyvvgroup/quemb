@@ -1,0 +1,29 @@
+quemb.shared.numba\_helpers.SortedIntSet
+========================================
+
+.. currentmodule:: quemb.shared.numba_helpers
+
+.. autoclass:: SortedIntSet
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: SortedIntSet.class_type
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~SortedIntSet.__init__
+      ~SortedIntSet.add
+      ~SortedIntSet.remove
+   
+   

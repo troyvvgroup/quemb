@@ -1,0 +1,6 @@
+quemb.molbe.eri\_sparse\_DF.get\_sparse\_ints\_3c2e
+===================================================
+
+.. currentmodule:: quemb.molbe.eri_sparse_DF
+
+.. autofunction:: get_sparse_ints_3c2e

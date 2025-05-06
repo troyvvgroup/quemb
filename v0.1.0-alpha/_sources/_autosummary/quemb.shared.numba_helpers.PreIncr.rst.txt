@@ -1,0 +1,29 @@
+quemb.shared.numba\_helpers.PreIncr
+===================================
+
+.. currentmodule:: quemb.shared.numba_helpers
+
+.. autoclass:: PreIncr
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: PreIncr.class_type
+   .. autoattribute:: PreIncr.count
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~PreIncr.__init__
+      ~PreIncr.incr
+   
+   

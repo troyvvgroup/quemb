@@ -1,0 +1,37 @@
+quemb.molbe.eri\_sparse\_DF.SemiSparseSym3DTensor
+=================================================
+
+.. currentmodule:: quemb.molbe.eri_sparse_DF
+
+.. autoclass:: SemiSparseSym3DTensor
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: SemiSparseSym3DTensor.class_type
+   .. autoattribute:: SemiSparseSym3DTensor.unique_dense_data
+   .. autoattribute:: SemiSparseSym3DTensor.nao
+   .. autoattribute:: SemiSparseSym3DTensor.naux
+   .. autoattribute:: SemiSparseSym3DTensor.shape
+   .. autoattribute:: SemiSparseSym3DTensor.exch_reachable
+   .. autoattribute:: SemiSparseSym3DTensor.exch_reachable_unique
+   .. autoattribute:: SemiSparseSym3DTensor.exch_reachable_with_offsets
+   .. autoattribute:: SemiSparseSym3DTensor.exch_reachable_unique_with_offsets
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~SemiSparseSym3DTensor.__init__
+      ~SemiSparseSym3DTensor.idx
+      ~SemiSparseSym3DTensor.to_dense
+   
+   

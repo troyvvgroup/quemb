@@ -32,6 +32,7 @@
    be_parallel
    chemfrag
    eri_onthefly
+   eri_sparse_DF
    fragment
    helper
    lo
@@ -40,6 +41,5 @@
    opt
    pfrag
    solver
-   sparse_2el_integral
    ube
 

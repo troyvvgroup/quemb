@@ -1,0 +1,6 @@
+quemb.molbe.eri\_sparse\_DF.SparseInt2.idx
+==========================================
+
+.. currentmodule:: quemb.molbe.eri_sparse_DF
+
+.. automethod:: SparseInt2.idx

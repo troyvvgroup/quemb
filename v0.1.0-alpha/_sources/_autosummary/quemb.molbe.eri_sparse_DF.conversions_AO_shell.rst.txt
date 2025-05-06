@@ -1,0 +1,6 @@
+quemb.molbe.eri\_sparse\_DF.conversions\_AO\_shell
+==================================================
+
+.. currentmodule:: quemb.molbe.eri_sparse_DF
+
+.. autofunction:: conversions_AO_shell

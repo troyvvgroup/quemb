@@ -20,13 +20,16 @@ quemb.shared.helper
       delete_multiple_files
       ensure
       gauss_sum
+      get_calling_function_name
       get_flexible_n_eri
       jitclass
       ncore_
       njit
-      ravel
+      ravel_C
+      ravel_Fortran
       ravel_symmetric
       symmetric_different_size
+      union_of_seqs
       unused
    
    

@@ -1,0 +1,28 @@
+quemb.molbe.eri\_sparse\_DF.MutableSemiSparse3DTensor
+=====================================================
+
+.. currentmodule:: quemb.molbe.eri_sparse_DF
+
+.. autoclass:: MutableSemiSparse3DTensor
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: MutableSemiSparse3DTensor.class_type
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~MutableSemiSparse3DTensor.__init__
+      ~MutableSemiSparse3DTensor.to_dense
+   
+   

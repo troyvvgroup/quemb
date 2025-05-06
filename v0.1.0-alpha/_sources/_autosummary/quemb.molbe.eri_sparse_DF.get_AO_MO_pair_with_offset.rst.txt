@@ -1,0 +1,6 @@
+quemb.molbe.eri\_sparse\_DF.get\_AO\_MO\_pair\_with\_offset
+===========================================================
+
+.. currentmodule:: quemb.molbe.eri_sparse_DF
+
+.. autofunction:: get_AO_MO_pair_with_offset

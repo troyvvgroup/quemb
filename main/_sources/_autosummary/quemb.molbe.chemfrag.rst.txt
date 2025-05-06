@@ -16,7 +16,6 @@ quemb.molbe.chemfrag
    
       chemgen
       restrict_keys
-      union_of_seqs
    
    
 
