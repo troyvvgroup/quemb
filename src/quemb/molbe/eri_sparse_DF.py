@@ -1131,12 +1131,12 @@ def find_screening_radius(
         }
 
 
-def _1st_contract_with_TA(
+def contract_with_TA_1st(
     TA: Matrix[np.float64],
     int_mu_nu_P: SemiSparseSym3DTensor,
     AO_reachable_per_SchmidtMO: Mapping[MOIdx, Sequence[AOIdx]],
 ) -> SemiSparse3DTensor:
-    return _jit_1st_contract_with_TA(
+    return _jit_contract_with_TA_1st(
         TA,
         int_mu_nu_P,
         List(get_AO_MO_pair_with_offset(AO_reachable_per_SchmidtMO)),
@@ -1146,7 +1146,7 @@ def _1st_contract_with_TA(
 
 
 @njit(parallel=True)
-def _jit_1st_contract_with_TA(
+def _jit_contract_with_TA_1st(
     TA: Matrix[np.float64],
     int_mu_nu_P: SemiSparseSym3DTensor,
     AO_MO_pair_with_offset: list[tuple[int, AOIdx, MOIdx]],
@@ -1183,9 +1183,30 @@ def _jit_1st_contract_with_TA(
 
 
 @njit(parallel=True)
-def _sym_2nd_contract_with_TA(
+def contract_with_TA_2nd_sym(
     TA: Matrix[np.float64], int_mu_i_P: SemiSparse3DTensor
 ) -> Tensor3D[np.float64]:
+    r"""Contract the first dimension of ``int_mu_i_P``
+    with the first dimension of ``TA``.
+    We assume the result to be symmetric in the first two dimensions.
+
+    If the result is known to be non-symmetric use
+    :func:`contract_with_TA_2nd` instead.
+
+    Can be used to e.g. compute contractions to purely fragment,
+    or purely bath integrals.
+
+    .. math::
+
+        (i j | P) = \sum_{\mu} T_{\mu,i} (\mu j | P) \\
+        (a b | P) = \sum_{\mu} T_{\mu,a} (\mu b | P)
+
+    Returns
+    -------
+    Tensor3D :
+        A dense 3D tensor :math:`(i j | P)`, symmetric in the first two (MO) dimensions.
+        The last dimension is along the auxiliary basis.
+    """
     assert TA.shape[0] == int_mu_i_P.shape[0]
     assert TA.shape[1] == int_mu_i_P.shape[1]
 
@@ -1197,6 +1218,42 @@ def _sym_2nd_contract_with_TA(
                 g[i, j, :] += TA[nu, j] * int_mu_i_P.dense_data[offset]
 
             g[j, i, :] = g[i, j, :]
+    return g
+
+
+@njit(parallel=True)
+def contract_with_TA_2nd(
+    TA: Matrix[np.float64], int_mu_i_P: SemiSparse3DTensor
+) -> Tensor3D[np.float64]:
+    r"""Contract the first dimension of ``int_mu_i_P``
+    with the first dimension of ``TA``.
+    If the result is known to be symmetric use
+    :func:`contract_with_TA_2nd_sym` instead.
+
+    Can be used to e.g. compute contractions of mixed fragment-bath
+    integrals.
+
+    .. math::
+
+        (i a | P) = \sum_{\mu} T_{\mu,i} (\mu a | P) \\
+        (a i | P) = \sum_{\mu} T_{\mu,a} (\mu i | P)
+
+    Returns
+    -------
+    Tensor3D :
+        A dense 3D tensor :math:`(i a | P)`, which can have
+        different lengths along the first two dimensions,
+        e.g. fragment and bath orbitals.
+        The last dimension is along the auxiliary basis.
+    """
+    assert TA.shape[0] == int_mu_i_P.shape[0]
+
+    g = np.zeros((TA.shape[1], int_mu_i_P.shape[1], int_mu_i_P.naux), dtype=np.float64)
+
+    for a in prange(g.shape[0]):  # type: ignore[attr-defined]
+        for i in prange(g.shape[1]):  # type: ignore[attr-defined]
+            for offset, mu in int_mu_i_P.AO_reachable_by_MO_with_offsets[i]:
+                g[a, i, :] += TA[mu, a] * int_mu_i_P.dense_data[offset]
     return g
 
 
@@ -1320,11 +1377,11 @@ def get_fragment_ints3c2e(
         screen_radius,
     )
 
-    sparse_int_mu_i_P = _1st_contract_with_TA(
+    sparse_int_mu_i_P = contract_with_TA_1st(
         TA, sparse_ints_3c2e, AO_reachable_per_SchmidtMO
     )
 
-    return _sym_2nd_contract_with_TA(TA, sparse_int_mu_i_P)
+    return contract_with_TA_2nd_sym(TA, sparse_int_mu_i_P)
 
 
 def _eval_via_cholesky(
