@@ -1539,9 +1539,13 @@ def _compute_fragment_eri_with_shared_data(
     int_i_a_P = contract_with_TA_2nd(TA[:, :n_f], int_mu_a_P)
     Dcoeff_i_a_P = cast(Tensor3D[np.float64], solve(PQ, int_i_a_P.T, assume_a="pos").T)
 
-    _fill_off_diagonals_aikl(g, shared_data, fobj.frag_TA_offset, int_i_a_P, n_f, n_b)
+    _fill_off_diagonals_aikl(
+        g, fobj.frag_TA_offset, int_i_a_P, shared_data.Dcoeff_i_j_P, n_f, n_b
+    )
     _fill_off_diagonals_aibl(g, int_i_a_P, Dcoeff_i_a_P, n_f, n_b)
-    _fill_off_diagonals_abkl(g, shared_data, fobj.frag_TA_offset, int_a_b_P, n_f, n_b)
+    _fill_off_diagonals_abkl(
+        g, fobj.frag_TA_offset, int_a_b_P, shared_data.Dcoeff_i_j_P, n_f, n_b
+    )
     _fill_off_diagonals_abcl(g, Dcoeff_i_a_P, int_a_b_P, n_f, n_b)
 
     return g
@@ -1550,9 +1554,9 @@ def _compute_fragment_eri_with_shared_data(
 @njit(parallel=True)
 def _fill_off_diagonals_aikl(
     g: Tensor4D[np.float64],
-    shared_data: _FragmentMOIntegralData,
     frag_TA_offset: Vector[np.int64],
     int_i_a_P: Tensor3D[np.float64],
+    Dcoeff_i_j_P: Tensor3D[np.float64],
     n_f: int,
     n_b: int,
 ) -> None:
@@ -1567,8 +1571,7 @@ def _fill_off_diagonals_aikl(
                         i,
                         k,
                         l,
-                        int_i_a_P[i, a, :]
-                        @ shared_data.Dcoeff_i_j_P[idx[k], idx[l], :],
+                        int_i_a_P[i, a, :] @ Dcoeff_i_j_P[idx[k], idx[l], :],  # type: ignore[arg-type]
                     )
 
 
@@ -1590,16 +1593,16 @@ def _fill_off_diagonals_aibl(
                         i,
                         b + n_f,
                         l,
-                        int_i_a_P[i, a, :] @ Dcoeff_i_a_P[l, b, :],
+                        int_i_a_P[i, a, :] @ Dcoeff_i_a_P[l, b, :],  # type: ignore[arg-type]
                     )
 
 
 @njit(parallel=True)
 def _fill_off_diagonals_abkl(
     g: Tensor4D[np.float64],
-    shared_data: _FragmentMOIntegralData,
     frag_TA_offset: Vector[np.int64],
     int_a_b_P: Tensor3D[np.float64],
+    Dcoeff_i_j_P: Tensor3D[np.float64],
     n_f: int,
     n_b: int,
 ) -> None:
@@ -1615,8 +1618,7 @@ def _fill_off_diagonals_abkl(
                         b + n_f,
                         k,
                         l,
-                        int_a_b_P[a, b, :]
-                        @ shared_data.Dcoeff_i_j_P[idx[k], idx[l], :],
+                        int_a_b_P[a, b, :] @ Dcoeff_i_j_P[idx[k], idx[l], :],  # type: ignore[arg-type]
                     )
 
 
@@ -1638,7 +1640,7 @@ def _fill_off_diagonals_abcl(
                         b + n_f,
                         c + n_f,
                         l,
-                        int_a_b_P[a, b, :] @ Dcoeff_i_a_P[l, c, :],
+                        int_a_b_P[a, b, :] @ Dcoeff_i_a_P[l, c, :],  # type: ignore[arg-type]
                     )
 
 
