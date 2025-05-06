@@ -1459,7 +1459,8 @@ class _FragmentMOIntegralData:  # type: ignore[operator]
 def get_shared_integral_data(
     mol: Mole,
     global_fragment_TA: Matrix[np.float64],
-    ints_2c2e: Matrix[np.float64],
+    PQ: Matrix[np.float64],
+    low_cholesky_PQ: Matrix[np.float64],
     sparse_ints_3c2e: SemiSparseSym3DTensor,
     atom_per_AO: Mapping[AOIdx, Set[AtomIdx]],
     screen_radius: Mapping[str, float],
@@ -1478,15 +1479,14 @@ def get_shared_integral_data(
 
     global_i_j_P = contract_with_TA_2nd_sym(global_fragment_TA, global_mu_i_P)
     global_D_i_j_P = cast(
-        Tensor3D[np.float64], solve(ints_2c2e, global_i_j_P.T, assume_a="pos").T
+        Tensor3D[np.float64], solve(PQ, global_i_j_P.T, assume_a="pos").T
     )
 
     global_g = restore(
         "1",
-        _eval_via_cholesky(global_i_j_P, cholesky(ints_2c2e, lower=True)),  # type: ignore[arg-type]
+        _eval_via_cholesky(global_i_j_P, low_cholesky_PQ),  # type: ignore[arg-type]
         len(global_i_j_P),
     )
-    assert np.allclose(global_g, contract_DF(global_i_j_P, global_D_i_j_P))
 
     return _FragmentMOIntegralData(
         TA=global_fragment_TA,
@@ -1501,7 +1501,8 @@ def _compute_fragment_eri_with_shared_data(
     mol: Mole,
     shared_data: _FragmentMOIntegralData,
     fobj: Frags,
-    ints_2c2e: Matrix[np.float64],
+    PQ: Matrix[np.float64],
+    low_cholesky_PQ: Matrix[np.float64],
     sparse_ints_3c2e: SemiSparseSym3DTensor,
     atom_per_AO: Mapping[AOIdx, Set[AtomIdx]],
     screen_radius: Mapping[str, float],
@@ -1526,67 +1527,59 @@ def _compute_fragment_eri_with_shared_data(
         atom_per_AO,
         screen_radius,
     )
-    low_PQ = cholesky(ints_2c2e, lower=True)
-
     int_mu_a_P = contract_with_TA_1st(
         TA[:, n_f:], sparse_ints_3c2e, AO_reachable_per_fragmentMO
     )
     int_a_b_P = contract_with_TA_2nd_sym(TA[:, n_f:], int_mu_a_P)
 
     g[n_f:, n_f:, n_f:, n_f:] = restore(
-        "1", _eval_via_cholesky(int_a_b_P, low_PQ), len(int_a_b_P)
+        "1", _eval_via_cholesky(int_a_b_P, low_cholesky_PQ), len(int_a_b_P)
     )
 
     int_i_a_P = contract_with_TA_2nd(TA[:, :n_f], int_mu_a_P)
-    Dcoeff_i_a_P = cast(
-        Tensor3D[np.float64], solve(ints_2c2e, int_i_a_P.T, assume_a="pos").T
-    )
+    Dcoeff_i_a_P = cast(Tensor3D[np.float64], solve(PQ, int_i_a_P.T, assume_a="pos").T)
 
-    _fill_off_diagonals(
-        g,
-        shared_data,
-        fobj.frag_TA_offset,
-        int_i_a_P,
-        Dcoeff_i_a_P,
-        int_a_b_P,
-        n_f,
-        n_b,
-    )
+    _fill_off_diagonals_aikl(g, shared_data, fobj.frag_TA_offset, int_i_a_P, n_f, n_b)
+    _fill_off_diagonals_aibl(g, int_i_a_P, Dcoeff_i_a_P, n_f, n_b)
+    _fill_off_diagonals_abkl(g, shared_data, fobj.frag_TA_offset, int_a_b_P, n_f, n_b)
+    _fill_off_diagonals_abcl(g, Dcoeff_i_a_P, int_a_b_P, n_f, n_b)
 
     return g
 
 
 @njit(parallel=True)
-def _fill_off_diagonals(
+def _fill_off_diagonals_aikl(
     g: Tensor4D[np.float64],
     shared_data: _FragmentMOIntegralData,
     frag_TA_offset: Vector[np.int64],
     int_i_a_P: Tensor3D[np.float64],
-    Dcoeff_i_a_P: Tensor3D[np.float64],
-    int_a_b_P: Tensor3D[np.float64],
     n_f: int,
     n_b: int,
 ) -> None:
     idx = frag_TA_offset
-    for a in range(n_b):  # type: ignore[attr-defined]
+    for a in prange(n_b):  # type: ignore[attr-defined]
         for i in range(n_f):  # type: ignore[attr-defined]
             for k in range(n_f):  # type: ignore[attr-defined]
                 for l in range(k + 1):  # type: ignore[attr-defined]
-                    val = (
+                    assign_with_symmtry(
+                        g,
+                        a + n_f,
+                        i,
+                        k,
+                        l,
                         int_i_a_P[i, a, :]
-                        @ shared_data.Dcoeff_i_j_P[
-                            frag_TA_offset[k], frag_TA_offset[l], :
-                        ]
+                        @ shared_data.Dcoeff_i_j_P[idx[k], idx[l], :],
                     )
-                    g[a + n_f, i, k, l] = val
-                    g[a + n_f, i, l, k] = val
-                    g[i, a + n_f, k, l] = val
-                    g[i, a + n_f, l, k] = val
-                    g[k, l, a + n_f, i] = val
-                    g[l, k, a + n_f, i] = val
-                    g[k, l, i, a + n_f] = val
-                    g[l, k, i, a + n_f] = val
 
+
+@njit(parallel=True)
+def _fill_off_diagonals_aibl(
+    g: Tensor4D[np.float64],
+    int_i_a_P: Tensor3D[np.float64],
+    Dcoeff_i_a_P: Tensor3D[np.float64],
+    n_f: int,
+    n_b: int,
+) -> None:
     for a in prange(n_b):  # type: ignore[attr-defined]
         for i in prange(n_f):  # type: ignore[attr-defined]
             for b in prange(n_b):  # type: ignore[attr-defined]
@@ -1599,6 +1592,18 @@ def _fill_off_diagonals(
                         l,
                         int_i_a_P[i, a, :] @ Dcoeff_i_a_P[l, b, :],
                     )
+
+
+@njit(parallel=True)
+def _fill_off_diagonals_abkl(
+    g: Tensor4D[np.float64],
+    shared_data: _FragmentMOIntegralData,
+    frag_TA_offset: Vector[np.int64],
+    int_a_b_P: Tensor3D[np.float64],
+    n_f: int,
+    n_b: int,
+) -> None:
+    idx = frag_TA_offset
 
     for a in prange(n_b):  # type: ignore[attr-defined]
         for b in prange(a + 1):  # type: ignore[attr-defined]
@@ -1614,6 +1619,15 @@ def _fill_off_diagonals(
                         @ shared_data.Dcoeff_i_j_P[idx[k], idx[l], :],
                     )
 
+
+@njit(parallel=True)
+def _fill_off_diagonals_abcl(
+    g: Tensor4D[np.float64],
+    Dcoeff_i_a_P: Tensor3D[np.float64],
+    int_a_b_P: Tensor3D[np.float64],
+    n_f: int,
+    n_b: int,
+) -> None:
     for a in prange(n_b):  # type: ignore[attr-defined]
         for b in prange(a + 1):  # type: ignore[attr-defined]
             for c in prange(n_b):  # type: ignore[attr-defined]
@@ -1640,14 +1654,16 @@ def _use_shared_data_transform_sparse_DF_integral(
     if screen_radius is None:
         screen_radius = find_screening_radius(mol, auxmol, threshold=1e-4)
     sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, screen_radius)
-    ints_2c2e = auxmol.intor("int2c2e")
+    PQ = auxmol.intor("int2c2e")
+    low_cholesky_PQ = cholesky(PQ, lower=True)
 
     atom_per_AO = get_atom_per_AO(mol)
 
     shared_data = get_shared_integral_data(
         mol,
         all_fragment_MO_TA,
-        ints_2c2e,
+        PQ,
+        low_cholesky_PQ,
         sparse_ints_3c2e,
         atom_per_AO,
         screen_radius,
@@ -1658,7 +1674,8 @@ def _use_shared_data_transform_sparse_DF_integral(
             mol,
             shared_data,
             fobj,
-            ints_2c2e,
+            PQ,
+            low_cholesky_PQ,
             sparse_ints_3c2e,
             atom_per_AO,
             screen_radius,
