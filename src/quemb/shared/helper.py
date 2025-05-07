@@ -220,6 +220,34 @@ def ravel_symmetric(a: _T_Integral, b: _T_Integral) -> _T_Integral:
 
 
 @njit
+def unravel_symmetric(i: _T_Integral) -> tuple[_T_Integral, _T_Integral]:
+    a = int((np.sqrt(8 * i + 1) - 1) // 2)
+    offset = gauss_sum(a)
+    b = i - offset
+    if b > a:
+        a, b = b, a
+    return a, b
+
+
+@njit
+def ravel_eri_idx(a: int, b: int, c: int, d: int) -> int:
+    """Return compound index given four indices using Yoshimine sort and
+    assuming 8-fold permutational symmetry"""
+    return ravel_symmetric(ravel_symmetric(a, b), ravel_symmetric(c, d))
+
+
+@njit
+def unravel_eri_idx(
+    i: _T_Integral,
+) -> tuple[_T_Integral, _T_Integral, _T_Integral, _T_Integral]:
+    """Invert :func:`ravel_eri_idx"""
+    ab, cd = unravel_symmetric(i)
+    a, b = unravel_symmetric(ab)
+    c, d = unravel_symmetric(cd)
+    return a, b, c, d
+
+
+@njit
 def ravel_C(a: _T_Integral, b: _T_Integral, n_cols: _T_Integral) -> _T_Integral:
     """Flatten the index a, b assuming row-mayor/C indexing
 

@@ -41,6 +41,7 @@ from quemb.molbe.pfrag import Frags
 from quemb.shared.helper import (
     jitclass,
     njit,
+    ravel_eri_idx,
     ravel_Fortran,
     ravel_symmetric,
 )
@@ -173,11 +174,11 @@ class SparseInt2:
         self._data = Dict.empty(uint64, float64)
 
     def __getitem__(self, key: tuple[int, int, int, int]) -> float:
-        idx = self.idx(*key)
+        idx = ravel_eri_idx(*key)
         return self._data.get(idx, 0.0)
 
     def __setitem__(self, key: tuple[int, int, int, int], value: float) -> None:
-        self._data[self.idx(*key)] = value
+        self._data[ravel_eri_idx(*key)] = value
 
     # We cannot annotate the return type of this function, because of a strange bug in
     #  sphinx-autodoc-typehints.
@@ -187,15 +188,10 @@ class SparseInt2:
         g_dense = np.empty((n_MO, n_MO, n_MO, n_MO), dtype=np.float64)
         for i, p in enumerate(idx):
             for j, q in enumerate(idx[: i + 1]):
-                for k, r in enumerate(idx):
+                for k, r in enumerate(idx[: i + 1]):
                     for l, s in enumerate(idx[: k + 1] if i > k else idx[: j + 1]):
                         assign_with_symmtry(g_dense, i, j, k, l, self[p, q, r, s])  # type: ignore[index]
         return g_dense
-
-    @staticmethod
-    def idx(a: int, b: int, c: int, d: int) -> int:
-        """Return compound index given four indices using Yoshimine sort"""
-        return ravel_symmetric(ravel_symmetric(a, b), ravel_symmetric(c, d))
 
 
 def get_sparse_D_ints_and_coeffs(
@@ -1292,13 +1288,14 @@ def contract_with_TA_2nd_sym_to_sparse(
 
 
 @njit(parallel=True)
-def contract_with_TA_2nd(
+def contract_with_TA_2nd_to_dense(
     TA: Matrix[np.float64], int_mu_i_P: SemiSparse3DTensor
 ) -> Tensor3D[np.float64]:
     r"""Contract the first dimension of ``int_mu_i_P``
     with the first dimension of ``TA``.
     If the result is known to be symmetric use
-    :func:`contract_with_TA_2nd_sym` instead.
+    :func:`contract_with_TA_2nd_sym_to_dense` or
+    :func:`contract_with_TA_2nd_sym_to_sparse` instead.
 
     Can be used to e.g. compute contractions of mixed fragment-bath
     integrals.
@@ -1500,9 +1497,9 @@ def contract_DF_sparse(
     g = SparseInt2()
 
     for i in prange(n_mo):  # type: ignore[attr-defined]
-        for j in prange(i + 1):  # type: ignore[attr-defined]
+        for j in ijP.exch_reachable_unique[i]:
             for k in prange(i + 1):  # type: ignore[attr-defined]
-                for l in prange(k + 1 if i > k else j + 1):  # type: ignore[attr-defined]
+                for l in ijP.exch_reachable_unique[k]:
                     g[i, j, k, l] = float(ijP[i, j] @ Dcoeff_ijP[k, l])
     return g
 
@@ -1618,7 +1615,7 @@ def _compute_fragment_eri_with_shared_data(
         "1", _eval_via_cholesky(int_a_b_P, low_cholesky_PQ), len(int_a_b_P)
     )
 
-    int_i_a_P = contract_with_TA_2nd(TA[:, :n_f], int_mu_a_P)
+    int_i_a_P = contract_with_TA_2nd_to_dense(TA[:, :n_f], int_mu_a_P)
     Dcoeff_i_a_P = cast(Tensor3D[np.float64], solve(PQ, int_i_a_P.T, assume_a="pos").T)
 
     _fill_offdiagonals_aikl(
