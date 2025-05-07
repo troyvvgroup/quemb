@@ -127,7 +127,7 @@ def assign_with_symmtry(
 
 
 @jitclass
-class SparseInt2:
+class MutableSparseInt2:
     """Sparsely stores the 2-electron integrals using chemist's notation.
 
     This is a :python:`jitclass` which can be used with numba functions.
@@ -179,6 +179,79 @@ class SparseInt2:
 
     def __setitem__(self, key: tuple[int, int, int, int], value: float) -> None:
         self._data[ravel_eri_idx(*key)] = value
+
+    # We cannot annotate the return type of this function, because of a strange bug in
+    #  sphinx-autodoc-typehints.
+    #  https://github.com/tox-dev/sphinx-autodoc-typehints/issues/532
+    def to_dense(self, idx):  # type: ignore[no-untyped-def]
+        n_MO = len(idx)
+        g_dense = np.empty((n_MO, n_MO, n_MO, n_MO), dtype=np.float64)
+        for i, p in enumerate(idx):
+            for j, q in enumerate(idx[: i + 1]):
+                for k, r in enumerate(idx[: i + 1]):
+                    for l, s in enumerate(idx[: k + 1] if i > k else idx[: j + 1]):
+                        assign_with_symmtry(g_dense, i, j, k, l, self[p, q, r, s])  # type: ignore[index]
+        return g_dense
+
+
+@jitclass(
+    [
+        ("_keys", ListType(int64)),
+        ("unique_dense_data", float64[::1]),
+        ("exch_reachable", ListType(int64[::1])),
+        ("exch_reachable_unique", ListType(int64[::1])),
+    ]
+)
+class SparseInt2:
+    """Sparsely stores the 2-electron integrals using chemist's notation.
+
+    This is a :python:`jitclass` which can be used with numba functions.
+
+    8-fold permutational symmetry is assumed for the spatial integrals, i.e.
+
+    .. math::
+
+        g_{ijkl} = g_{klij} = g_{jikl} = g_{jilk} = g_{lkji} = g_{lkij} = g_{ilkj} = g_{ikjl}
+
+    There is no boundary checking! It will not crash, but just return 0.0
+    if you try to access an index that is not in the dictionary.
+
+    The 2-electron integrals are stored in a dictionary.
+    The keys of the dictionary are tuples of the form (i, j, k, l)
+    where i, j, k, l are the indices of the basis functions.
+    The values of the dictionary are the 2-electron integrals.
+
+    Examples
+    --------
+
+    >>> g = TwoElIntegral()
+    >>> g[1, 2, 3, 4] = 3
+
+    We can test all possible permutations:
+
+    >>> assert g[1, 2, 3, 4] == 3
+    >>> assert g[1, 2, 4, 3] == 3
+    >>> assert g[2, 1, 3, 4] == 3
+    >>> assert g[2, 1, 4, 3] == 3
+    >>> assert g[3, 4, 1, 2] == 3
+    >>> assert g[4, 3, 1, 2] == 3
+    >>> assert g[3, 4, 2, 1] == 3
+    >>> assert g[4, 3, 2, 1] == 3
+
+    A non-existing index returns 0.0:
+
+    >>> assert g[1, 2, 3, 10] == 0
+    """  # noqa: E501
+
+    def __init__(self, _keys, unique_dense_data, exch_reachable, exch_reachable_unique):
+        self._keys = _keys
+        self.unique_dense_data = unique_dense_data
+        self.exch_reachable = exch_reachable
+        self.exch_reachable_unique = exch_reachable_unique
+
+    def __getitem__(self, key: tuple[int, int, int, int]) -> float:
+        look_up_idx = np.searchsorted(self._keys, ravel_eri_idx(*key))
+        return self.unique_dense_data[look_up_idx]
 
     # We cannot annotate the return type of this function, because of a strange bug in
     #  sphinx-autodoc-typehints.
@@ -1492,9 +1565,9 @@ def contract_DF_dense(
 @njit(parallel=False)
 def contract_DF_sparse(
     ijP: SemiSparseSym3DTensor, Dcoeff_ijP: SemiSparseSym3DTensor
-) -> SparseInt2:
+) -> MutableSparseInt2:
     n_mo = ijP.shape[0]
-    g = SparseInt2()
+    g = MutableSparseInt2()
 
     for i in prange(n_mo):  # type: ignore[attr-defined]
         for j in ijP.exch_reachable_unique[i]:
@@ -1510,7 +1583,7 @@ def contract_DF_sparse(
         ("mu_i_P", SemiSparse3DTensor.class_type.instance_type),  # type:ignore[attr-defined]
         ("i_j_P", SemiSparseSym3DTensor.class_type.instance_type),  # type:ignore[attr-defined]
         ("Dcoeff_i_j_P", SemiSparseSym3DTensor.class_type.instance_type),  # type:ignore[attr-defined]
-        ("g", SparseInt2.class_type.instance_type),  # type:ignore[attr-defined]
+        ("g", MutableSparseInt2.class_type.instance_type),  # type:ignore[attr-defined]
     ]
 )
 class FragmentMOIntegralData:  # type: ignore[operator]
@@ -1522,7 +1595,7 @@ class FragmentMOIntegralData:  # type: ignore[operator]
         mu_i_P: SemiSparse3DTensor,
         i_j_P: SemiSparseSym3DTensor,
         Dcoeff_i_j_P: SemiSparseSym3DTensor,
-        g: SparseInt2,
+        g: MutableSparseInt2,
     ) -> None:
         #: The TA matrix for all fragment orbitals.
         self.TA = TA

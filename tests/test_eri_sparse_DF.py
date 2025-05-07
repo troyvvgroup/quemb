@@ -9,7 +9,7 @@ from pyscf.lib import einsum
 
 from quemb.molbe import BE, fragmentate
 from quemb.molbe.eri_sparse_DF import (
-    SparseInt2,
+    MutableSparseInt2,
     _invert_dict,
     _transform_sparse_DF_integral,
     _use_shared_data_transform_sparse_DF_integral,
@@ -30,7 +30,7 @@ expected = get_expected()
 
 
 def test_basic_indexing() -> None:
-    g = SparseInt2()
+    g = MutableSparseInt2()
     g[1, 2, 3, 4] = 3
 
     # test all possible permutations
