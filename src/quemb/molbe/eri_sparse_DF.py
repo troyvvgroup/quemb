@@ -217,7 +217,7 @@ def get_sparse_D_ints_and_coeffs(
     """
     ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, screening_radius)
     ints_2c2e = auxmol.intor("int2c2e")
-    df_coeffs_data = solve(ints_2c2e, ints_3c2e.unique_dense_data.T).T
+    df_coeffs_data = solve(ints_2c2e, ints_3c2e.unique_dense_data.T, assume_a="pos").T
     df_coef = SemiSparseSym3DTensor(
         df_coeffs_data,
         ints_3c2e.nao,
@@ -1061,7 +1061,7 @@ def _find_screening_cutoff_distance_aux(
 
         ints_3c2e = df.incore.aux_e2(mol, auxmol, intor="int3c2e")
         ints_2c2e = auxmol.intor("int2c2e")
-        df_coef = solve(ints_2c2e, ints_3c2e.reshape(nao * nao, naux).T)
+        df_coef = solve(ints_2c2e, ints_3c2e.reshape(nao * nao, naux).T, assume_a="pos")
         df_coef = df_coef.reshape((naux, nao, nao), order="F")
 
         df_eri = einsum("ijP,Pkl->ijkl", ints_3c2e, df_coef)
@@ -1302,7 +1302,9 @@ def _slow_transform_sparse_DF_integral(
         int_mu_i_P = transf @ ints_mu_nu_P
         ints_i_j_P.append(transf @ np.moveaxis(int_mu_i_P, 1, 0))
 
-    Ds_i_j_P = [solve(ints_2c2e, int_i_j_P.T).T for int_i_j_P in ints_i_j_P]
+    Ds_i_j_P = [
+        solve(ints_2c2e, int_i_j_P.T, assume_a="pos").T for int_i_j_P in ints_i_j_P
+    ]
 
     return [
         einsum("ijP,klP->ijkl", ints, df_coef)
@@ -1413,7 +1415,7 @@ def write_eris(
 
 
 @njit(parallel=True)
-def contract_DF(
+def contract_DF_dense(
     ijP: Tensor3D[np.float64], Dcoeff_ijP: Tensor3D[np.float64]
 ) -> Tensor4D[np.float64]:
     n_mo = len(ijP)
@@ -1424,6 +1426,21 @@ def contract_DF(
                 for l in prange(k + 1 if i > k else j + 1):  # type: ignore[attr-defined]
                     val = ijP[i, j, :] @ Dcoeff_ijP[k, l, :]
                     assign_with_symmtry(g, i, j, k, l, val)  # type: ignore[arg-type]
+    return g
+
+
+@njit(parallel=False)
+def contract_DF_sparse(
+    ijP: SemiSparseSym3DTensor, Dcoeff_ijP: SemiSparseSym3DTensor
+) -> SparseInt2:
+    n_mo = ijP.shape[0]
+    g = SparseInt2()
+
+    for i in prange(n_mo):  # type: ignore[attr-defined]
+        for j in prange(i + 1):  # type: ignore[attr-defined]
+            for k in prange(i + 1):  # type: ignore[attr-defined]
+                for l in prange(k + 1 if i > k else j + 1):  # type: ignore[attr-defined]
+                    g[i, j, k, l] = float(ijP[i, j] @ Dcoeff_ijP[k, l])
     return g
 
 
