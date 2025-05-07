@@ -12,7 +12,7 @@ from collections.abc import (
     Sequence,
     Set,
 )
-from itertools import chain, count, takewhile
+from itertools import chain, count, product, takewhile
 from typing import Final, TypeVar, cast
 
 import h5py
@@ -178,6 +178,19 @@ class SparseInt2:
 
     def __setitem__(self, key: tuple[int, int, int, int], value: float) -> None:
         self._data[self.idx(*key)] = value
+
+    # We cannot annotate the return type of this function, because of a strange bug in
+    #  sphinx-autodoc-typehints.
+    #  https://github.com/tox-dev/sphinx-autodoc-typehints/issues/532
+    def to_dense(self, idx):  # type: ignore[no-untyped-def]
+        n_MO = len(idx)
+        g_dense = np.empty((n_MO, n_MO, n_MO, n_MO), dtype=np.float64)
+        for i, p in enumerate(idx):
+            for j, q in enumerate(idx[: i + 1]):
+                for k, r in enumerate(idx):
+                    for l, s in enumerate(idx[: k + 1] if i > k else idx[: j + 1]):
+                        assign_with_symmtry(g_dense, i, j, k, l, self[p, q, r, s])  # type: ignore[index]
+        return g_dense
 
     @staticmethod
     def idx(a: int, b: int, c: int, d: int) -> int:
@@ -1228,6 +1241,56 @@ def contract_with_TA_2nd_sym_to_dense(
     return g
 
 
+@njit
+def contract_with_TA_2nd_sym_to_sparse(
+    TA: Matrix[np.float64],
+    int_mu_i_P: SemiSparse3DTensor,
+    i_reachable_by_j: List[Vector[np.int64]],
+) -> SemiSparseSym3DTensor:
+    r"""Contract the first dimension of ``int_mu_i_P``
+    with the first dimension of ``TA``.
+    We assume the result to be symmetric in the first two dimensions.
+
+    If the result is known to be non-symmetric use
+    :func:`contract_with_TA_2nd` instead.
+
+    Can be used to e.g. compute contractions to purely fragment,
+    or purely bath integrals.
+
+    .. math::
+
+        (i j | P) = \sum_{\mu} T_{\mu,i} (\mu j | P) \\
+        (a b | P) = \sum_{\mu} T_{\mu,a} (\mu b | P)
+
+    Returns
+    -------
+    Tensor3D :
+        A dense 3D tensor :math:`(i j | P)`, symmetric in the first two (MO) dimensions.
+        The last dimension is along the auxiliary basis.
+    """
+    assert TA.shape[0] == int_mu_i_P.shape[0]
+    assert TA.shape[1] == int_mu_i_P.shape[1]
+
+    i_reachable_by_j_unique = _jit_account_for_symmetry(i_reachable_by_j)
+    n_unique = sum([len(x) for x in i_reachable_by_j_unique])
+    n_MO = TA.shape[1]
+
+    unique_dense_data = np.zeros((n_unique, int_mu_i_P.naux), dtype=np.float64)
+
+    i_j_offset = 0
+    for i in prange(n_MO):  # type: ignore[attr-defined]
+        for j in i_reachable_by_j_unique[i]:
+            for mu_i_offset, nu in int_mu_i_P.AO_reachable_by_MO_with_offsets[i]:
+                unique_dense_data[i_j_offset, :] += (
+                    TA[nu, j] * int_mu_i_P.dense_data[mu_i_offset]
+                )
+            i_j_offset += 1
+
+    return SemiSparseSym3DTensor(
+        unique_dense_data, n_MO, int_mu_i_P.naux, i_reachable_by_j
+    )
+
+
 @njit(parallel=True)
 def contract_with_TA_2nd(
     TA: Matrix[np.float64], int_mu_i_P: SemiSparse3DTensor
@@ -1448,9 +1511,9 @@ def contract_DF_sparse(
     [
         ("TA", float64[:, :]),
         ("mu_i_P", SemiSparse3DTensor.class_type.instance_type),  # type:ignore[attr-defined]
-        ("i_j_P", float64[:, :, ::1]),
-        ("Dcoeff_i_j_P", float64[:, :, ::1]),
-        ("g", float64[:, :, :, ::1]),
+        ("i_j_P", SemiSparseSym3DTensor.class_type.instance_type),  # type:ignore[attr-defined]
+        ("Dcoeff_i_j_P", SemiSparseSym3DTensor.class_type.instance_type),  # type:ignore[attr-defined]
+        ("g", SparseInt2.class_type.instance_type),  # type:ignore[attr-defined]
     ]
 )
 class FragmentMOIntegralData:  # type: ignore[operator]
@@ -1460,9 +1523,9 @@ class FragmentMOIntegralData:  # type: ignore[operator]
         self,
         TA: Matrix[np.float64],
         mu_i_P: SemiSparse3DTensor,
-        i_j_P: Tensor3D[np.float64],
-        Dcoeff_i_j_P: Tensor3D[np.float64],
-        g: Tensor4D[np.float64],
+        i_j_P: SemiSparseSym3DTensor,
+        Dcoeff_i_j_P: SemiSparseSym3DTensor,
+        g: SparseInt2,
     ) -> None:
         #: The TA matrix for all fragment orbitals.
         self.TA = TA
@@ -1472,13 +1535,22 @@ class FragmentMOIntegralData:  # type: ignore[operator]
         self.g = g
 
 
+def get_ij_pairs(
+    Fobjs: Sequence[Frags],
+) -> dict[MOIdx, set[MOIdx]]:
+    i_reachable_by_j: dict[MOIdx, set[MOIdx]] = defaultdict(set)
+    for a, b in chain(*(product(frag.frag_TA_offset, repeat=2) for frag in Fobjs)):
+        i_reachable_by_j[cast(MOIdx, int(a))].add(cast(MOIdx, int(b)))
+    return dict(i_reachable_by_j)
+
+
 def get_shared_integral_data(
     mol: Mole,
     global_fragment_TA: Matrix[np.float64],
     PQ: Matrix[np.float64],
-    low_cholesky_PQ: Matrix[np.float64],
     sparse_ints_3c2e: SemiSparseSym3DTensor,
     atom_per_AO: Mapping[AOIdx, Set[AtomIdx]],
+    i_reachable_j: Mapping[MOIdx, Set[MOIdx]],
     screen_radius: Mapping[str, float],
     MO_coeff_epsilon: float = 1e-8,
 ) -> FragmentMOIntegralData:
@@ -1493,16 +1565,17 @@ def get_shared_integral_data(
         global_fragment_TA, sparse_ints_3c2e, AO_reachable_per_fragmentMO
     )
 
-    global_i_j_P = contract_with_TA_2nd_sym_to_dense(global_fragment_TA, global_mu_i_P)
-    global_D_i_j_P = cast(
-        Tensor3D[np.float64], solve(PQ, global_i_j_P.T, assume_a="pos").T
+    global_i_j_P = contract_with_TA_2nd_sym_to_sparse(
+        global_fragment_TA, global_mu_i_P, to_numba_input(i_reachable_j)
+    )
+    global_D_i_j_P = SemiSparseSym3DTensor(
+        solve(PQ, global_i_j_P.unique_dense_data.T, assume_a="pos").T,  # type: ignore[arg-type]
+        global_i_j_P.nao,
+        global_i_j_P.naux,
+        global_i_j_P.exch_reachable,  # type: ignore[arg-type]
     )
 
-    global_g = restore(
-        "1",
-        _eval_via_cholesky(global_i_j_P, low_cholesky_PQ),  # type: ignore[arg-type]
-        len(global_i_j_P),
-    )
+    global_g = contract_DF_sparse(global_i_j_P, global_D_i_j_P)
 
     return FragmentMOIntegralData(
         TA=global_fragment_TA,
@@ -1528,14 +1601,7 @@ def _compute_fragment_eri_with_shared_data(
     assert TA.shape[1] == n_f + n_b
     n_MO = n_f + n_b
     g = np.zeros((n_MO, n_MO, n_MO, n_MO), dtype=np.float64)
-    g[:n_f, :n_f, :n_f, :n_f] = shared_data.g[
-        np.ix_(
-            fobj.frag_TA_offset,
-            fobj.frag_TA_offset,
-            fobj.frag_TA_offset,
-            fobj.frag_TA_offset,
-        )
-    ]
+    g[:n_f, :n_f, :n_f, :n_f] = shared_data.g.to_dense(fobj.frag_TA_offset)
 
     AO_reachable_per_fragmentMO = get_reachable(
         mol,
@@ -1572,7 +1638,7 @@ def _fill_offdiagonals_aikl(
     g: Tensor4D[np.float64],
     frag_TA_offset: Vector[np.int64],
     int_i_a_P: Tensor3D[np.float64],
-    Dcoeff_i_j_P: Tensor3D[np.float64],
+    Dcoeff_i_j_P: SemiSparseSym3DTensor,
     n_f: int,
     n_b: int,
 ) -> None:
@@ -1587,7 +1653,7 @@ def _fill_offdiagonals_aikl(
                         i,
                         k,
                         l,
-                        int_i_a_P[i, a, :] @ Dcoeff_i_j_P[idx[k], idx[l], :],  # type: ignore[arg-type]
+                        int_i_a_P[i, a, :] @ Dcoeff_i_j_P[idx[k], idx[l]],  # type: ignore[arg-type]
                     )
 
 
@@ -1618,7 +1684,7 @@ def _fill_offdiagonals_abkl(
     g: Tensor4D[np.float64],
     frag_TA_offset: Vector[np.int64],
     int_a_b_P: Tensor3D[np.float64],
-    Dcoeff_i_j_P: Tensor3D[np.float64],
+    Dcoeff_i_j_P: SemiSparseSym3DTensor,
     n_f: int,
     n_b: int,
 ) -> None:
@@ -1634,7 +1700,7 @@ def _fill_offdiagonals_abkl(
                         b + n_f,
                         k,
                         l,
-                        int_a_b_P[a, b, :] @ Dcoeff_i_j_P[idx[k], idx[l], :],  # type: ignore[arg-type]
+                        int_a_b_P[a, b, :] @ Dcoeff_i_j_P[idx[k], idx[l]],  # type: ignore[arg-type]
                     )
 
 
@@ -1681,9 +1747,9 @@ def _use_shared_data_transform_sparse_DF_integral(
         mol,
         all_fragment_MO_TA,
         PQ,
-        low_cholesky_PQ,
         sparse_ints_3c2e,
         atom_per_AO,
+        get_ij_pairs(Fobjs),
         screen_radius,
     )
 
