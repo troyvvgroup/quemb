@@ -44,6 +44,7 @@ from quemb.shared.helper import (
     ravel_eri_idx,
     ravel_Fortran,
     ravel_symmetric,
+    unravel_eri_idx,
 )
 from quemb.shared.numba_helpers import PreIncr, SortedIntSet, Type_SortedIntSet
 from quemb.shared.typing import (
@@ -243,7 +244,13 @@ class SparseInt2:
     >>> assert g[1, 2, 3, 10] == 0
     """  # noqa: E501
 
-    def __init__(self, _keys, unique_dense_data, exch_reachable, exch_reachable_unique):
+    def __init__(
+        self,
+        _keys: List[int64],
+        unique_dense_data: Matrix[np.float64],
+        exch_reachable: List[int64],
+        exch_reachable_unique: List[int64],
+    ) -> None:
         self._keys = _keys
         self.unique_dense_data = unique_dense_data
         self.exch_reachable = exch_reachable
@@ -1562,19 +1569,43 @@ def contract_DF_dense(
     return g
 
 
-@njit(parallel=False)
+@njit(parallel=True)
+def _get_indices(keys: List[int64]) -> Matrix[np.int64]:
+    indices = np.empty((len(keys), 4), dtype=np.int64)
+    for i in prange(len(keys)):  # type: ignore[attr-defined]
+        indices[i] = unravel_eri_idx(keys[i])
+    return indices
+
+
+@njit
+def _get_keys(ijP: SemiSparseSym3DTensor) -> tuple[List[int64], Matrix[np.int64]]:
+    n_mo = ijP.shape[0]
+    keys = List.empty_list(int64)
+    for i in range(n_mo):  # type: ignore[attr-defined]
+        for j in ijP.exch_reachable_unique[i]:
+            for k in range(i + 1):  # type: ignore[attr-defined]
+                if i > k:
+                    idx = len(ijP.exch_reachable_unique[k])
+                else:
+                    idx = np.searchsorted(ijP.exch_reachable_unique[k], j, side="right")  # type: ignore[assignment]
+
+                for l in ijP.exch_reachable_unique[k][:idx]:
+                    keys.append(ravel_eri_idx(i, j, k, l))  # type: ignore[arg-type]
+    return keys, _get_indices(keys)
+
+
+@njit(parallel=True)
 def contract_DF_sparse(
     ijP: SemiSparseSym3DTensor, Dcoeff_ijP: SemiSparseSym3DTensor
-) -> MutableSparseInt2:
-    n_mo = ijP.shape[0]
-    g = MutableSparseInt2()
+) -> SparseInt2:
+    keys, indices = _get_keys(ijP)
+    unique_g = np.empty(len(indices), dtype=np.float64)
 
-    for i in prange(n_mo):  # type: ignore[attr-defined]
-        for j in ijP.exch_reachable_unique[i]:
-            for k in prange(i + 1):  # type: ignore[attr-defined]
-                for l in ijP.exch_reachable_unique[k]:
-                    g[i, j, k, l] = float(ijP[i, j] @ Dcoeff_ijP[k, l])
-    return g
+    for counter in prange(len(indices)):  # type: ignore[attr-defined]
+        p, q, r, s = indices[counter]
+        unique_g[counter] = float(ijP[p, q] @ Dcoeff_ijP[r, s])
+
+    return SparseInt2(keys, unique_g, ijP.exch_reachable, ijP.exch_reachable_unique)
 
 
 @jitclass(
@@ -1583,7 +1614,7 @@ def contract_DF_sparse(
         ("mu_i_P", SemiSparse3DTensor.class_type.instance_type),  # type:ignore[attr-defined]
         ("i_j_P", SemiSparseSym3DTensor.class_type.instance_type),  # type:ignore[attr-defined]
         ("Dcoeff_i_j_P", SemiSparseSym3DTensor.class_type.instance_type),  # type:ignore[attr-defined]
-        ("g", MutableSparseInt2.class_type.instance_type),  # type:ignore[attr-defined]
+        ("g", SparseInt2.class_type.instance_type),  # type:ignore[attr-defined]
     ]
 )
 class FragmentMOIntegralData:  # type: ignore[operator]
@@ -1595,7 +1626,7 @@ class FragmentMOIntegralData:  # type: ignore[operator]
         mu_i_P: SemiSparse3DTensor,
         i_j_P: SemiSparseSym3DTensor,
         Dcoeff_i_j_P: SemiSparseSym3DTensor,
-        g: MutableSparseInt2,
+        g: SparseInt2,
     ) -> None:
         #: The TA matrix for all fragment orbitals.
         self.TA = TA

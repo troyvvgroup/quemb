@@ -220,7 +220,7 @@ def ravel_symmetric(a: _T_Integral, b: _T_Integral) -> _T_Integral:
 
 
 @njit
-def unravel_symmetric(i: _T_Integral) -> tuple[_T_Integral, _T_Integral]:
+def unravel_symmetric(i: Integral) -> tuple[int, int]:
     a = int((np.sqrt(8 * i + 1) - 1) // 2)
     offset = gauss_sum(a)
     b = i - offset
@@ -237,9 +237,7 @@ def ravel_eri_idx(a: int, b: int, c: int, d: int) -> int:
 
 
 @njit
-def unravel_eri_idx(
-    i: _T_Integral,
-) -> tuple[_T_Integral, _T_Integral, _T_Integral, _T_Integral]:
+def unravel_eri_idx(i: _T_Integral) -> tuple[int, int, int, int]:
     """Invert :func:`ravel_eri_idx"""
     ab, cd = unravel_symmetric(i)
     a, b = unravel_symmetric(ab)
