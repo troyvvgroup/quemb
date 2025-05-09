@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 import scipy
 from chemcoord import Cartesian
 from pyscf import df, scf
@@ -8,8 +9,10 @@ from pyscf.lib import einsum
 
 from quemb.molbe import BE, fragmentate
 from quemb.molbe.eri_sparse_DF import (
-    SparseInt2,
+    MutableSparseInt2,
     _invert_dict,
+    _transform_sparse_DF_integral,
+    _use_shared_data_transform_sparse_DF_integral,
     find_screening_radius,
     get_atom_per_AO,
     get_atom_per_MO,
@@ -19,7 +22,7 @@ from quemb.molbe.eri_sparse_DF import (
     get_sparse_ints_3c2e,
     traverse_nonzero,
 )
-from quemb.shared.helper import get_calling_function_name
+from quemb.shared.helper import clean_overlap, get_calling_function_name
 
 from ._expected_data_for_eri_sparse_DF import get_expected
 
@@ -27,7 +30,7 @@ expected = get_expected()
 
 
 def test_basic_indexing() -> None:
-    g = SparseInt2()
+    g = MutableSparseInt2()
     g[1, 2, 3, 4] = 3
 
     # test all possible permutations
@@ -122,16 +125,8 @@ def test_invert_dict() -> None:
     assert _invert_dict(X) == expected
 
 
-def test_MO_screening() -> None:
-    mol = M("xyz/E-polyacetylene/20.xyz", basis="sto-3g")
-    auxbasis = "weigend"
-    auxmol = make_auxmol(mol, auxbasis=auxbasis)
-
-    mf = scf.RHF(mol)
-    mf.kernel()
-
-    fobj = fragmentate(frag_type="chemgen", n_BE=2, mol=mol, print_frags=False)
-    my_be = BE(mf, fobj, auxbasis=auxbasis, int_transform="int-direct-DF")
+def test_MO_screening(ikosan) -> None:
+    mol, auxmol, mf, fobj, my_be = ikosan
 
     atom_per_AO = get_atom_per_AO(mol)
 
@@ -176,3 +171,49 @@ def test_MO_screening() -> None:
         for i_MO in AO_reachable_by_MO:
             for i_AO in AO_reachable_by_MO[i_MO]:
                 assert i_MO in MO_reachable_by_AO[i_AO]
+
+
+def test_reuse_schmidt_fragment_MOs(ikosan) -> None:
+    mol, auxmol, mf, fobj, my_be = ikosan
+
+    S = mol.intor("int1e_ovlp")
+    for fobj in my_be.Fobjs:
+        assert (
+            clean_overlap(
+                my_be.all_fragment_MO_TA[:, fobj.frag_TA_offset].T
+                @ S
+                @ fobj.TA[:, : fobj.n_f]
+            )
+            == np.eye(fobj.n_f)
+        ).all()
+
+
+def test_int_transformation_with_reuse(ikosan) -> None:
+    mol, auxmol, mf, fobj, my_be = ikosan
+
+    screen_radius = {"C": 2.4156341552734375, "H": 2.3355426025390624}
+
+    ref_integrals = _transform_sparse_DF_integral(
+        mf, my_be.Fobjs, auxmol.basis, screen_radius
+    )
+    new_integrals = _use_shared_data_transform_sparse_DF_integral(
+        mf, my_be.Fobjs, my_be.all_fragment_MO_TA, auxmol.basis, screen_radius
+    )
+    assert all(
+        np.allclose(old, new, rtol=0, atol=1e-10)
+        for old, new in zip(ref_integrals, new_integrals)
+    )
+
+
+@pytest.fixture(scope="session")
+def ikosan():
+    mol = M("xyz/E-polyacetylene/20.xyz", basis="sto-3g")
+    auxbasis = "weigend"
+    auxmol = make_auxmol(mol, auxbasis=auxbasis)
+
+    mf = scf.RHF(mol)
+    mf.kernel()
+
+    fobj = fragmentate(frag_type="chemgen", n_BE=2, mol=mol, print_frags=False)
+    my_be = BE(mf, fobj, auxbasis=auxbasis, int_transform="int-direct-DF")
+    return mol, auxmol, mf, fobj, my_be
