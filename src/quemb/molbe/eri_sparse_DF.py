@@ -309,7 +309,9 @@ def get_sparse_D_ints_and_coeffs(
         for different elements. Compare to the :python:`modify_element_data`
         argument of :meth:`~chemcoord.Cartesian.get_bonds`.
     """
-    ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, screening_radius)
+    if screening_radius is None:
+        screening_radius = find_screening_radius(mol, auxmol)
+    ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, get_screened(mol, screening_radius))
     ints_2c2e = auxmol.intor("int2c2e")
     df_coeffs_data = solve(ints_2c2e, ints_3c2e.unique_dense_data.T, assume_a="pos").T
     df_coef = SemiSparseSym3DTensor(
@@ -822,11 +824,17 @@ def conversions_AO_shell(
     return shell_id_to_AO, AO_to_shell_id
 
 
+def get_screened(
+    mol: Mole, screening_radius: Real | Callable[[Real], Real] | Mapping[str, Real]
+) -> dict[AtomIdx, set[AtomIdx]]:
+    m = Cartesian.from_pyscf(mol)
+    return m.get_bonds(modify_element_data=screening_radius, self_bonding_allowed=True)
+
+
 def get_reachable(
-    mol: Mole,
     atoms_per_start_orb: Mapping[_T_start_orb, Set[AtomIdx]],
     atoms_per_target_orb: Mapping[_T_target_orb, Set[AtomIdx]],
-    screening_radius: Real | Callable[[Real], Real] | Mapping[str, Real] = 5,
+    screened_connection: Mapping[AtomIdx, Set[AtomIdx]],
 ) -> dict[_T_start_orb, list[_T_target_orb]]:
     """Return the sorted orbitals that can by reached for each orbital after screening.
 
@@ -848,17 +856,11 @@ def get_reachable(
         for different elements. Compare to the :python:`modify_element_data`
         argument of :meth:`~chemcoord.Cartesian.get_bonds`.
     """
-    m = Cartesian.from_pyscf(mol)
-
-    screen_conn = m.get_bonds(
-        modify_element_data=screening_radius, self_bonding_allowed=True
-    )
-
     return _flatten(
         get_orbs_reachable_by_orb(
             atoms_per_start_orb,
             get_orbs_reachable_by_atom(
-                get_orbs_per_atom(atoms_per_target_orb), screen_conn
+                get_orbs_per_atom(atoms_per_target_orb), screened_connection
             ),
         )
     )
@@ -987,17 +989,14 @@ def get_blocks(reachable: Sequence[_T]) -> list[tuple[_T, _T]]:
 def get_sparse_ints_3c2e(
     mol: Mole,
     auxmol: Mole,
-    screening_radius: Real | Callable[[Real], Real] | Mapping[str, Real] | None = None,
+    screened_connection: Mapping[AtomIdx, Set[AtomIdx]],
 ) -> SemiSparseSym3DTensor:
     """Return the 3-center 2-electron integrals in a sparse format."""
-
-    if screening_radius is None:
-        screening_radius = find_screening_radius(mol, auxmol)
 
     atom_per_AO = get_atom_per_AO(mol)
     exch_reachable = cast(
         Mapping[AOIdx, Set[AOIdx]],
-        get_reachable(mol, atom_per_AO, atom_per_AO, screening_radius),
+        get_reachable(atom_per_AO, atom_per_AO, screened_connection),
     )
     exch_reachable_unique = account_for_symmetry(exch_reachable)
 
@@ -1113,7 +1112,7 @@ def _calc_residual(mol: Mole) -> dict[tuple[AOIdx, AOIdx], float]:
     """
     atom_per_AO = get_atom_per_AO(mol)
     screened_away = account_for_symmetry(
-        get_complement(get_reachable(mol, atom_per_AO, atom_per_AO, 0.0))
+        get_complement(get_reachable(atom_per_AO, atom_per_AO, get_screened(mol, 0.0)))
     )
     g = mol.intor("int2e")
     return {
@@ -1132,7 +1131,7 @@ def _calc_aux_residual(
     """
     atom_per_AO = get_atom_per_AO(mol)
     screened_away = account_for_symmetry(
-        get_complement(get_reachable(mol, atom_per_AO, atom_per_AO, 0.0))
+        get_complement(get_reachable(atom_per_AO, atom_per_AO, get_screened(mol, 0.0)))
     )
     ints_3c2e = df.incore.aux_e2(mol, auxmol, intor="int3c2e")
     return {
@@ -1438,7 +1437,8 @@ def _slow_transform_sparse_DF_integral(
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
     if screen_radius is None:
         screen_radius = find_screening_radius(mol, auxmol, threshold=1e-4)
-    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, screen_radius)
+    screened = get_screened(mol, screen_radius)
+    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, screened)
     ints_mu_nu_P = sparse_ints_3c2e.to_dense()
     ints_2c2e = auxmol.intor("int2c2e")
 
@@ -1490,54 +1490,49 @@ def _transform_sparse_DF_integral(
     Fobjs: Sequence[Frags],
     auxbasis: str | None = None,
     screen_radius: Mapping[str, float] | None = None,
-) -> list[Matrix[np.float64]]:
+) -> Iterator[Matrix[np.float64]]:
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
     if screen_radius is None:
         screen_radius = find_screening_radius(mol, auxmol, threshold=1e-4)
-    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, screen_radius)
+    screen_connection = get_screened(mol, screen_radius)
+    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, screen_connection)
     ints_2c2e = auxmol.intor("int2c2e")
     low_triang_PQ = cholesky(ints_2c2e, lower=True)
 
     atom_per_AO = get_atom_per_AO(mol)
 
-    ints_i_j_P = [
+    ints_i_j_P = (
         get_fragment_ints3c2e(
-            mol,
             sparse_ints_3c2e,
             atom_per_AO,
             fragobj.TA,
-            screen_radius,
+            screen_connection,
         )
         for fragobj in Fobjs
-    ]
+    )
 
-    return [
+    return (
         restore("1", _eval_via_cholesky(ijP, low_triang_PQ), len(ijP))
         for ijP in ints_i_j_P
-    ]
+    )
 
 
 def get_fragment_ints3c2e(
-    mol: Mole,
     sparse_ints_3c2e: SemiSparseSym3DTensor,
     atom_per_AO: Mapping[AOIdx, Set[AtomIdx]],
     TA: Matrix[np.float64],
-    screen_radius: Mapping[str, float],
+    screen_connection: Mapping[AtomIdx, Set[AtomIdx]],
     MO_coeff_epsilon: float = 1e-8,
 ) -> Tensor3D[np.float64]:
     AO_reachable_per_SchmidtMO = get_reachable(
-        mol,
         get_atom_per_MO(atom_per_AO, TA, epsilon=MO_coeff_epsilon),
         atom_per_AO,
-        screen_radius,
+        screen_connection,
     )
-
-    sparse_int_mu_i_P = contract_with_TA_1st(
-        TA, sparse_ints_3c2e, AO_reachable_per_SchmidtMO
+    return contract_with_TA_2nd_to_sym_dense(
+        TA, contract_with_TA_1st(TA, sparse_ints_3c2e, AO_reachable_per_SchmidtMO)
     )
-
-    return contract_with_TA_2nd_to_sym_dense(TA, sparse_int_mu_i_P)
 
 
 def _eval_via_cholesky(
@@ -1552,7 +1547,7 @@ def _eval_via_cholesky(
 
 def write_eris(
     Fobjs: Sequence[Frags],
-    eris: Sequence[Matrix[np.float64]],
+    eris: Iterator[Matrix[np.float64]],
     file_eri_handler: h5py.File,
 ) -> None:
     for fragidx, eri in enumerate(eris):
@@ -1625,19 +1620,17 @@ def get_ij_pairs(
 
 
 def _get_shared_ijP(
-    mol: Mole,
     global_fragment_TA: Matrix[np.float64],
     sparse_ints_3c2e: SemiSparseSym3DTensor,
     atom_per_AO: Mapping[AOIdx, Set[AtomIdx]],
     i_reachable_j: Mapping[MOIdx, Set[MOIdx]],
-    screen_radius: Mapping[str, float],
+    screen_connection: Mapping[AtomIdx, Set[AtomIdx]],
     MO_coeff_epsilon: float = 1e-8,
 ) -> SemiSparseSym3DTensor:
     AO_reachable_per_fragmentMO = get_reachable(
-        mol,
         get_atom_per_MO(atom_per_AO, global_fragment_TA, epsilon=MO_coeff_epsilon),
         atom_per_AO,
-        screen_radius,
+        screen_connection,
     )
 
     global_mu_i_P = contract_with_TA_1st(
@@ -1650,13 +1643,12 @@ def _get_shared_ijP(
 
 
 def _compute_fragment_eri_with_shared_ijP(
-    mol: Mole,
     fobj: Frags,
     low_cholesky_PQ: Matrix[np.float64],
     sparse_ints_3c2e: SemiSparseSym3DTensor,
     shared_ijP: SemiSparseSym3DTensor,
     atom_per_AO: Mapping[AOIdx, Set[AtomIdx]],
-    screen_radius: Mapping[str, float],
+    screen_connection: Mapping[AtomIdx, Set[AtomIdx]],
     MO_coeff_epsilon: float = 1e-8,
 ) -> Tensor4D[np.float64]:
     TA, n_f, n_b = fobj.TA, fobj.n_f, fobj.n_b
@@ -1664,10 +1656,9 @@ def _compute_fragment_eri_with_shared_ijP(
     n_MO = n_f + n_b
 
     AO_reachable_per_fragmentMO = get_reachable(
-        mol,
         get_atom_per_MO(atom_per_AO, TA[:, n_f:], epsilon=MO_coeff_epsilon),
         atom_per_AO,
-        screen_radius,
+        screen_connection,
     )
     int_i_j_P = shared_ijP.to_dense(fobj.frag_TA_offset)
     int_mu_a_P = contract_with_TA_1st(
@@ -1694,36 +1685,35 @@ def _use_shared_ijP_transform_sparse_DF_integral(
     all_fragment_MO_TA: Matrix[np.float64],
     auxbasis: str | None = None,
     screen_radius: Mapping[str, float] | None = None,
-) -> list[Matrix[np.float64]]:
+) -> Iterator[Matrix[np.float64]]:
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
     if screen_radius is None:
         screen_radius = find_screening_radius(mol, auxmol, threshold=1e-4)
-    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, screen_radius)
+    screen_connection = get_screened(mol, screen_radius)
+    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, screen_connection)
     PQ = auxmol.intor("int2c2e")
     low_cholesky_PQ = cholesky(PQ, lower=True)
 
     atom_per_AO = get_atom_per_AO(mol)
 
     shared_ijP = _get_shared_ijP(
-        mol,
         all_fragment_MO_TA,
         sparse_ints_3c2e,
         atom_per_AO,
         get_ij_pairs(Fobjs),
-        screen_radius,
+        screen_connection,
     )
 
-    return [
+    return (
         _compute_fragment_eri_with_shared_ijP(
-            mol,
             fobj,
             low_cholesky_PQ,
             sparse_ints_3c2e,
             shared_ijP,
             atom_per_AO,
-            screen_radius,
+            screen_connection,
             MO_coeff_epsilon=1e-8,
         )
         for fobj in Fobjs
-    ]
+    )

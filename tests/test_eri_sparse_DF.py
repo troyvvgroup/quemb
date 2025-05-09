@@ -18,6 +18,7 @@ from quemb.molbe.eri_sparse_DF import (
     get_atom_per_MO,
     get_dense_integrals,
     get_reachable,
+    get_screened,
     get_sparse_D_ints_and_coeffs,
     get_sparse_ints_3c2e,
     traverse_nonzero,
@@ -52,7 +53,9 @@ def test_semi_sparse_3d_tensor() -> None:
     auxbasis = "weigend"
     mol = m.to_pyscf(basis=basis, charge=0)
     auxmol = df.addons.make_auxmol(mol, auxbasis)
-    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol)
+    sparse_ints_3c2e = get_sparse_ints_3c2e(
+        mol, auxmol, get_screened(mol, find_screening_radius(mol, auxmol))
+    )
 
     ints_3c2e = df.incore.aux_e2(mol, auxmol, intor="int3c2e")
 
@@ -130,24 +133,22 @@ def test_MO_screening(ikosan) -> None:
 
     atom_per_AO = get_atom_per_AO(mol)
 
-    screening_cutoff = find_screening_radius(mol, auxmol)
+    screened = get_screened(mol, find_screening_radius(mol, auxmol))
 
     SchmidtMO_reachable_per_AO_per_frag = [
         get_reachable(
-            mol,
             atom_per_AO,
             get_atom_per_MO(atom_per_AO, TA, epsilon=1e-8),
-            screening_cutoff,
+            screened,
         )
         for TA in (fobj.TA for fobj in my_be.Fobjs)
     ]
 
     AO_reachable_per_SchmidtMO_per_frag = [
         get_reachable(
-            mol,
             get_atom_per_MO(atom_per_AO, TA, epsilon=1e-8),
             atom_per_AO,
-            screening_cutoff,
+            screened,
         )
         for TA in (fobj.TA for fobj in my_be.Fobjs)
     ]
