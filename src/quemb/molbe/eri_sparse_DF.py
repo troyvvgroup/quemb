@@ -1423,7 +1423,7 @@ def transform_sparse_DF_integral(
         auxbasis,
         screen_radius,
     )
-    write_eris(Fobjs, eris, file_eri_handler)
+    _write_eris(Fobjs, eris, file_eri_handler)
 
 
 def _slow_transform_sparse_DF_integral(
@@ -1545,7 +1545,7 @@ def _eval_via_cholesky(
     return bb.T @ bb
 
 
-def write_eris(
+def _write_eris(
     Fobjs: Sequence[Frags],
     eris: Iterator[Matrix[np.float64]],
     file_eri_handler: h5py.File,

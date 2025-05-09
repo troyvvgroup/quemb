@@ -14,7 +14,11 @@ from typing_extensions import assert_never
 
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
-from quemb.molbe.eri_sparse_DF import transform_sparse_DF_integral
+from quemb.molbe.eri_sparse_DF import (
+    _transform_sparse_DF_integral,
+    _use_shared_ijP_transform_sparse_DF_integral,
+    _write_eris,
+)
 from quemb.molbe.fragment import FragPart
 from quemb.molbe.lo import MixinLocalize
 from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
@@ -30,7 +34,7 @@ from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix, PathLike
 
 IntTransforms: TypeAlias = Literal[
-    "in-core", "out-core-DF", "int-direct-DF", "sparse-DF"
+    "in-core", "out-core-DF", "int-direct-DF", "sparse-DF", "sparse-DF-shared-ijP"
 ]
 
 
@@ -873,13 +877,18 @@ class BE(MixinLocalize):
                 )
                 eri = None
             elif int_transform == "sparse-DF":
-                # Calculate ERIs on-the-fly to generate fragment ERIs
-                # TODO: Future feature to be implemented
-                # NOTE: Ideally, we want AO shell pair screening for this.
                 ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-                transform_sparse_DF_integral(
-                    self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis
+                eris = _transform_sparse_DF_integral(
+                    self.mf, self.Fobjs, auxbasis=self.auxbasis
                 )
+                _write_eris(self.Fobjs, eris, file_eri)
+                eri = None
+            elif int_transform == "sparse-DF-shared-ijP":
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                eris = _use_shared_ijP_transform_sparse_DF_integral(
+                    self.mf, self.Fobjs, self.all_fragment_MO_TA, auxbasis=self.auxbasis
+                )
+                _write_eris(self.Fobjs, eris, file_eri)
                 eri = None
             else:
                 assert_never(int_transform)
