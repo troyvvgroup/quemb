@@ -1281,7 +1281,7 @@ def _jit_contract_with_TA_1st(
 
 
 @njit(parallel=True)
-def contract_with_TA_2nd_sym_to_dense(
+def contract_with_TA_2nd_to_sym_dense(
     TA: Matrix[np.float64], int_mu_i_P: SemiSparse3DTensor
 ) -> Tensor3D[np.float64]:
     r"""Contract the first dimension of ``int_mu_i_P``
@@ -1289,7 +1289,7 @@ def contract_with_TA_2nd_sym_to_dense(
     We assume the result to be symmetric in the first two dimensions.
 
     If the result is known to be non-symmetric use
-    :func:`contract_with_TA_2nd` instead.
+    :func:`contract_with_TA_2nd_to_dense` instead.
 
     Can be used to e.g. compute contractions to purely fragment,
     or purely bath integrals.
@@ -1320,7 +1320,7 @@ def contract_with_TA_2nd_sym_to_dense(
 
 
 @njit
-def contract_with_TA_2nd_sym_to_sparse(
+def contract_with_TA_2nd_to_sym_sparse(
     TA: Matrix[np.float64],
     int_mu_i_P: SemiSparse3DTensor,
     i_reachable_by_j: List[Vector[np.int64]],
@@ -1330,7 +1330,7 @@ def contract_with_TA_2nd_sym_to_sparse(
     We assume the result to be symmetric in the first two dimensions.
 
     If the result is known to be non-symmetric use
-    :func:`contract_with_TA_2nd` instead.
+    :func:`contract_with_TA_2nd_to_dense` instead.
 
     Can be used to e.g. compute contractions to purely fragment,
     or purely bath integrals.
@@ -1376,8 +1376,8 @@ def contract_with_TA_2nd_to_dense(
     r"""Contract the first dimension of ``int_mu_i_P``
     with the first dimension of ``TA``.
     If the result is known to be symmetric use
-    :func:`contract_with_TA_2nd_sym_to_dense` or
-    :func:`contract_with_TA_2nd_sym_to_sparse` instead.
+    :func:`contract_with_TA_2nd_to_sym_dense` or
+    :func:`contract_with_TA_2nd_to_sym_sparse` instead.
 
     Can be used to e.g. compute contractions of mixed fragment-bath
     integrals.
@@ -1532,7 +1532,7 @@ def get_fragment_ints3c2e(
         TA, sparse_ints_3c2e, AO_reachable_per_SchmidtMO
     )
 
-    return contract_with_TA_2nd_sym_to_dense(TA, sparse_int_mu_i_P)
+    return contract_with_TA_2nd_to_sym_dense(TA, sparse_int_mu_i_P)
 
 
 def _eval_via_cholesky(
@@ -1668,7 +1668,7 @@ def get_shared_integral_data(
         global_fragment_TA, sparse_ints_3c2e, AO_reachable_per_fragmentMO
     )
 
-    global_i_j_P = contract_with_TA_2nd_sym_to_sparse(
+    global_i_j_P = contract_with_TA_2nd_to_sym_sparse(
         global_fragment_TA, global_mu_i_P, to_numba_input(i_reachable_j)
     )
     global_D_i_j_P = SemiSparseSym3DTensor(
@@ -1715,7 +1715,7 @@ def _compute_fragment_eri_with_shared_data(
     int_mu_a_P = contract_with_TA_1st(
         TA[:, n_f:], sparse_ints_3c2e, AO_reachable_per_fragmentMO
     )
-    int_a_b_P = contract_with_TA_2nd_sym_to_dense(TA[:, n_f:], int_mu_a_P)
+    int_a_b_P = contract_with_TA_2nd_to_sym_dense(TA[:, n_f:], int_mu_a_P)
 
     g[n_f:, n_f:, n_f:, n_f:] = restore(
         "1", _eval_via_cholesky(int_a_b_P, low_cholesky_PQ), len(int_a_b_P)

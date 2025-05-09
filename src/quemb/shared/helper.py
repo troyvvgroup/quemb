@@ -238,7 +238,7 @@ def ravel_eri_idx(a: int, b: int, c: int, d: int) -> int:
 
 @njit
 def unravel_eri_idx(i: _T_Integral) -> tuple[int, int, int, int]:
-    """Invert :func:`ravel_eri_idx"""
+    """Invert :func:`ravel_eri_idx`"""
     ab, cd = unravel_symmetric(i)
     a, b = unravel_symmetric(ab)
     c, d = unravel_symmetric(cd)
