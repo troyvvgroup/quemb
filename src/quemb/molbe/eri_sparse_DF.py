@@ -485,13 +485,15 @@ class SemiSparseSym3DTensor:
     # We cannot annotate the return type of this function, because of a strange bug in
     #  sphinx-autodoc-typehints.
     #  https://github.com/tox-dev/sphinx-autodoc-typehints/issues/532
-    def to_dense(self):  # type: ignore[no-untyped-def]
+    def to_dense(self, idx):  # type: ignore[no-untyped-def]
         """Convert to dense 3D tensor"""
-        g = np.zeros((self.nao, self.nao, self.naux))
-        for p in range(self.nao):
-            for q in self.exch_reachable_unique[p]:
-                g[p, q] = self[p, q]  # type: ignore[index]
-                g[q, p] = self[p, q]  # type: ignore[index]
+        n_MO = len(idx)
+        g = np.zeros((n_MO, n_MO, self.naux), dtype=np.float64)
+        # TODO: ensure that we can actually access these indices
+        for i, p in enumerate(idx):
+            for j, q in enumerate(idx[: i + 1]):
+                g[i, j] = self[p, q]  # type: ignore[index]
+                g[j, i] = g[i, j]  # type: ignore[index]
         return g
 
     @staticmethod
