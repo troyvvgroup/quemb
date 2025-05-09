@@ -114,9 +114,10 @@ def _aux_e2(  # type: ignore[no-untyped-def]
 
 
 @njit(inline="always")
-def assign_with_symmtry(
+def _assign_with_symmtry(
     g: Tensor4D[np.float64], i: int, j: int, k: int, l: int, val: float
 ) -> None:
+    """Assign to ERI using 8-fold symmetry"""
     g[i, j, k, l] = val
     g[i, j, l, k] = val
     g[j, i, k, l] = val
@@ -191,7 +192,7 @@ class MutableSparseInt2:
             for j, q in enumerate(idx[: i + 1]):
                 for k, r in enumerate(idx[: i + 1]):
                     for l, s in enumerate(idx[: k + 1] if i > k else idx[: j + 1]):
-                        assign_with_symmtry(g_dense, i, j, k, l, self[p, q, r, s])  # type: ignore[index]
+                        _assign_with_symmtry(g_dense, i, j, k, l, self[p, q, r, s])  # type: ignore[index]
         return g_dense
 
 
@@ -257,8 +258,12 @@ class SparseInt2:
         self.exch_reachable_unique = exch_reachable_unique
 
     def __getitem__(self, key: tuple[int, int, int, int]) -> float:
-        look_up_idx = np.searchsorted(self._keys, ravel_eri_idx(*key))
-        return self.unique_dense_data[look_up_idx]
+        ravelled_idx = ravel_eri_idx(*key)
+        look_up_idx = np.searchsorted(self._keys, ravelled_idx)
+        if self._keys[look_up_idx] == ravelled_idx:
+            return self.unique_dense_data[look_up_idx]
+        else:
+            return 0.0
 
     # We cannot annotate the return type of this function, because of a strange bug in
     #  sphinx-autodoc-typehints.
@@ -270,7 +275,7 @@ class SparseInt2:
             for j, q in enumerate(idx[: i + 1]):
                 for k, r in enumerate(idx[: i + 1]):
                     for l, s in enumerate(idx[: k + 1] if i > k else idx[: j + 1]):
-                        assign_with_symmtry(g_dense, i, j, k, l, self[p, q, r, s])  # type: ignore[index]
+                        _assign_with_symmtry(g_dense, i, j, k, l, self[p, q, r, s])  # type: ignore[index]
         return g_dense
 
 
@@ -352,7 +357,7 @@ def get_dense_integrals(
                     )
                 for sigma in ints_3c2e.exch_reachable_unique[rho][:idx]:
                     val = float(ints_3c2e[mu, nu] @ df_coef[rho, sigma])
-                    assign_with_symmtry(g, mu, nu, rho, sigma, val)
+                    _assign_with_symmtry(g, mu, nu, rho, sigma, val)
     return g
 
 
@@ -1567,7 +1572,7 @@ def contract_DF_dense(
             for k in prange(i + 1):  # type: ignore[attr-defined]
                 for l in prange(k + 1 if i > k else j + 1):  # type: ignore[attr-defined]
                     val = ijP[i, j, :] @ Dcoeff_ijP[k, l, :]
-                    assign_with_symmtry(g, i, j, k, l, val)  # type: ignore[arg-type]
+                    _assign_with_symmtry(g, i, j, k, l, val)  # type: ignore[arg-type]
     return g
 
 
@@ -1750,7 +1755,7 @@ def _fill_offdiagonals_aikl(
         for i in range(n_f):  # type: ignore[attr-defined]
             for k in range(n_f):  # type: ignore[attr-defined]
                 for l in range(k + 1):  # type: ignore[attr-defined]
-                    assign_with_symmtry(
+                    _assign_with_symmtry(
                         g,
                         a + n_f,
                         i,
@@ -1772,7 +1777,7 @@ def _fill_offdiagonals_aibl(
         for i in prange(n_f):  # type: ignore[attr-defined]
             for b in prange(n_b):  # type: ignore[attr-defined]
                 for l in prange(n_f):  # type: ignore[attr-defined]
-                    assign_with_symmtry(
+                    _assign_with_symmtry(
                         g,
                         a + n_f,
                         i,
@@ -1797,7 +1802,7 @@ def _fill_offdiagonals_abkl(
         for b in prange(a + 1):  # type: ignore[attr-defined]
             for k in prange(n_f):  # type: ignore[attr-defined]
                 for l in prange(k + 1):  # type: ignore[attr-defined]
-                    assign_with_symmtry(
+                    _assign_with_symmtry(
                         g,
                         a + n_f,
                         b + n_f,
@@ -1819,7 +1824,7 @@ def _fill_offdiagonals_abcl(
         for b in prange(a + 1):  # type: ignore[attr-defined]
             for c in prange(n_b):  # type: ignore[attr-defined]
                 for l in prange(n_f):  # type: ignore[attr-defined]
-                    assign_with_symmtry(
+                    _assign_with_symmtry(
                         g,
                         a + n_f,
                         b + n_f,
