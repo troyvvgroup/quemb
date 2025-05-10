@@ -486,8 +486,12 @@ class SemiSparseSym3DTensor:
         )
 
     def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[np.float64]:
-        look_up_idx = np.searchsorted(self._keys, self.idx(key[0], key[1]))
-        return self.unique_dense_data[look_up_idx]
+        ravelled_idx = self.idx(key[0], key[1])
+        look_up_idx = np.searchsorted(self._keys, ravelled_idx)
+        if self._keys[look_up_idx] == ravelled_idx:
+            return self.unique_dense_data[look_up_idx]
+        else:
+            raise KeyError(f"Key {key} does not exist.")
 
     # We cannot annotate the return type of this function, because of a strange bug in
     #  sphinx-autodoc-typehints.
