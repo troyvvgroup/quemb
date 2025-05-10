@@ -496,7 +496,19 @@ class SemiSparseSym3DTensor:
     # We cannot annotate the return type of this function, because of a strange bug in
     #  sphinx-autodoc-typehints.
     #  https://github.com/tox-dev/sphinx-autodoc-typehints/issues/532
-    def extract_dense(self, idx):  # type: ignore[no-untyped-def]
+    def to_dense(self):  # type: ignore[no-untyped-def]
+        """Convert to dense 3D tensor"""
+        g = np.zeros((self.nao, self.nao, self.naux))
+        for p in range(self.nao):
+            for q in self.exch_reachable_unique[p]:
+                g[p, q] = self[p, q]  # type: ignore[index]
+                g[q, p] = self[p, q]  # type: ignore[index]
+        return g
+
+    # We cannot annotate the return type of this function, because of a strange bug in
+    #  sphinx-autodoc-typehints.
+    #  https://github.com/tox-dev/sphinx-autodoc-typehints/issues/532
+    def _extract_dense(self, idx):  # type: ignore[no-untyped-def]
         """Convert to dense 3D tensor, but only for the slice of ``idx``."""
         n_MO = len(idx)
         g = np.zeros((n_MO, n_MO, self.naux), dtype=np.float64)
@@ -1443,7 +1455,7 @@ def _slow_transform_sparse_DF_integral(
         screen_radius = find_screening_radius(mol, auxmol, threshold=1e-4)
     screened = get_screened(mol, screen_radius)
     sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, screened)
-    ints_mu_nu_P = sparse_ints_3c2e.extract_dense()
+    ints_mu_nu_P = sparse_ints_3c2e.to_dense()
     ints_2c2e = auxmol.intor("int2c2e")
 
     ints_i_j_P = []
@@ -1664,7 +1676,7 @@ def _compute_fragment_eri_with_shared_ijP(
         atom_per_AO,
         screen_connection,
     )
-    int_i_j_P = shared_ijP.extract_dense(fobj.frag_TA_offset)
+    int_i_j_P = shared_ijP._extract_dense(fobj.frag_TA_offset)
     int_mu_a_P = contract_with_TA_1st(
         TA[:, n_f:], sparse_ints_3c2e, AO_reachable_per_fragmentMO
     )
