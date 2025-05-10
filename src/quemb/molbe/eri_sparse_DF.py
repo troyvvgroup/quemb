@@ -1658,6 +1658,25 @@ def _get_shared_ijP(
     )
 
 
+@njit(parallel=True)
+def _merge_fragment_bath_MOs(
+    int_i_j_P: Tensor3D[np.float64],
+    int_i_a_P: Tensor3D[np.float64],
+    int_a_b_P: Tensor3D[np.float64],
+) -> Tensor3D[np.float64]:
+    n_f, n_b, n_aux = int_i_a_P.shape
+    n_MO = n_f + n_b
+    int_p_q_P = np.empty((n_MO, n_MO, n_aux), dtype=np.float64)
+
+    int_p_q_P[:n_f, :n_f] = int_i_j_P
+    int_p_q_P[n_f:, n_f:] = int_a_b_P
+    for i in prange(n_f):  # type: ignore[attr-defined]
+        for idx_a, a in enumerate(range(n_f, n_f + n_b)):
+            int_p_q_P[i, a] = int_i_a_P[i, idx_a]
+            int_p_q_P[a, i] = int_p_q_P[i, a]
+    return int_p_q_P
+
+
 def _compute_fragment_eri_with_shared_ijP(
     fobj: Frags,
     low_cholesky_PQ: Matrix[np.float64],
@@ -1682,17 +1701,17 @@ def _compute_fragment_eri_with_shared_ijP(
     )
     int_i_a_P = contract_with_TA_2nd_to_dense(TA[:, :n_f], int_mu_a_P)
     int_a_b_P = contract_with_TA_2nd_to_sym_dense(TA[:, n_f:], int_mu_a_P)
+    # One of the few cases where we delete something, because it is memory-expensive
+    # and not needed anymore.
+    del int_mu_a_P
 
-    int_p_q_P = np.empty((n_MO, n_MO, int_mu_a_P.naux), dtype=np.float64)
-
-    int_p_q_P[:n_f, :n_f] = int_i_j_P
-    int_p_q_P[n_f:, n_f:] = int_a_b_P
-    for i in range(n_f):
-        for idx_a, a in enumerate(range(n_f, n_f + n_b)):
-            int_p_q_P[i, a] = int_i_a_P[i, idx_a]
-            int_p_q_P[a, i] = int_p_q_P[i, a]
-
-    return restore("1", _eval_via_cholesky(int_p_q_P, low_cholesky_PQ), n_MO)
+    return restore(
+        "1",
+        _eval_via_cholesky(
+            _merge_fragment_bath_MOs(int_i_j_P, int_i_a_P, int_a_b_P), low_cholesky_PQ
+        ),
+        n_MO,
+    )
 
 
 def _use_shared_ijP_transform_sparse_DF_integral(
