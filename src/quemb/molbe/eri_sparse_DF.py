@@ -372,6 +372,7 @@ def get_dense_integrals(
         ("exch_reachable_with_offsets", ListType(ListType(UniTuple(int64, 2)))),
         ("exch_reachable_unique", ListType(int64[::1])),
         ("exch_reachable_unique_with_offsets", ListType(ListType(UniTuple(int64, 2)))),
+        ("_data", DictType(int64, float64[::1])),
     ]
 )
 class SemiSparseSym3DTensor:
@@ -441,6 +442,8 @@ class SemiSparseSym3DTensor:
     #:        self.unique_dense_data[offset] == self[p, q]  # True
     exch_reachable_unique_with_offsets: list[list[tuple[int, OrbitalIdx]]]
 
+    _data: Mapping[int, Vector[np.float64]]
+
     def __init__(
         self,
         unique_dense_data: Matrix[np.float64],
@@ -485,13 +488,12 @@ class SemiSparseSym3DTensor:
             ]
         )
 
+        self._data = Dict.empty(int64, float64[::1])
+        for i, k in enumerate(self._keys):
+            self._data[k] = self.unique_dense_data[i, :]
+
     def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[np.float64]:
-        ravelled_idx = self.idx(key[0], key[1])
-        look_up_idx = np.searchsorted(self._keys, ravelled_idx)
-        if self._keys[look_up_idx] == ravelled_idx:
-            return self.unique_dense_data[look_up_idx]
-        else:
-            raise KeyError(f"Key {key} does not exist.")
+        return self._data[self.idx(key[0], key[1])]
 
     # We cannot annotate the return type of this function, because of a strange bug in
     #  sphinx-autodoc-typehints.
@@ -613,6 +615,7 @@ class MutableSemiSparse3DTensor:
         ("shape", UniTuple(int64, 3)),
         ("AO_reachable_by_MO_with_offsets", ListType(ListType(UniTuple(int64, 2)))),
         ("AO_reachable_by_MO", ListType(int64[::1])),
+        ("_data", DictType(int64, float64[::1])),
     ]
 )
 class SemiSparse3DTensor:
@@ -667,6 +670,8 @@ class SemiSparse3DTensor:
     #:        self.dense_data[offset] == self[mu, i]  # True
     AO_reachable_by_MO_with_offsets: list[list[tuple[int, AOIdx]]]
 
+    _data: Mapping[int, Vector[np.float64]]
+
     def __init__(
         self,
         unique_dense_data: Matrix[np.float64],
@@ -684,9 +689,12 @@ class SemiSparse3DTensor:
 
         self._keys = keys
 
+        self._data = Dict.empty(int64, float64[::1])
+        for i, k in enumerate(self._keys):
+            self._data[k] = self.dense_data[i, :]
+
     def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[np.float64]:
-        look_up_idx = np.searchsorted(self._keys, self._idx(key[0], key[1]))
-        return self.dense_data[look_up_idx]
+        return self._data[self.idx(key[0], key[1])]
 
     # We cannot annotate the return type of this function, because of a strange bug in
     #  sphinx-autodoc-typehints.
@@ -1576,7 +1584,7 @@ def _transform_sparse_DF_integral_S_screening(
     S_abs = calculate_abs_overlap(mol)
     print(S_abs_timer.str_elapsed())
 
-    ints_i_j_P = (
+    ints_p_q_P = (
         _get_fragment_ints3c2_S_screening(
             sparse_ints_3c2e,
             fragobj.TA,
@@ -1587,8 +1595,8 @@ def _transform_sparse_DF_integral_S_screening(
     )
 
     return (
-        restore("1", _eval_via_cholesky(ijP, low_triang_PQ), len(ijP))
-        for ijP in ints_i_j_P
+        restore("1", _eval_via_cholesky(pqP, low_triang_PQ), len(pqP))
+        for pqP in ints_p_q_P
     )
 
 
@@ -1709,14 +1717,15 @@ def _eval_via_cholesky_shared(
 
     g[:, n_f_offset:] = bb.T @ bb[:, n_f_offset:]
     g[n_f_offset:, :] = g[:, n_f_offset:].T
-    g[:n_f_offset, :n_f_offset] = restore(
-        "4", g_ijkl.to_dense(fobj.frag_TA_offset), n_f
-    )
 
-    # dense_g_ijkl, argsort_result = _custom_to_dense(g_ijkl, fobj.frag_TA_offset)
-    # final_idx = np.argsort(argsort_result)
-    # dense_g_ijkl = dense_g_ijkl[np.ix_(final_idx, final_idx, final_idx, final_idx)]
-    # g[: n_f_offset, : n_f_offset] = restore("4", dense_g_ijkl, n_f)
+    # g[:n_f_offset, :n_f_offset] = restore(
+    #     "4", g_ijkl.to_dense(fobj.frag_TA_offset), n_f
+    # )
+
+    dense_g_ijkl, argsort_result = _custom_to_dense(g_ijkl, fobj.frag_TA_offset)
+    final_idx = np.argsort(argsort_result)
+    dense_g_ijkl = dense_g_ijkl[np.ix_(final_idx, final_idx, final_idx, final_idx)]
+    g[:n_f_offset, :n_f_offset] = restore("4", dense_g_ijkl, n_f)
 
     return g
 
