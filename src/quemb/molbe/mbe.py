@@ -16,6 +16,7 @@ from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
 from quemb.molbe.eri_sparse_DF import (
     _transform_sparse_DF_integral,
+    _transform_sparse_DF_integral_S_screening,
     _use_shared_ijP_transform_sparse_DF_integral,
     _write_eris,
 )
@@ -34,7 +35,12 @@ from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix, PathLike
 
 IntTransforms: TypeAlias = Literal[
-    "in-core", "out-core-DF", "int-direct-DF", "sparse-DF", "sparse-DF-shared-ijP"
+    "in-core",
+    "out-core-DF",
+    "int-direct-DF",
+    "sparse-DF",
+    "sparse-DF-S-screening",
+    "sparse-DF-shared-ijP",
 ]
 
 
@@ -880,6 +886,13 @@ class BE(MixinLocalize):
                 ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
                 eris = _transform_sparse_DF_integral(
                     self.mf, self.Fobjs, auxbasis=self.auxbasis
+                )
+                _write_eris(self.Fobjs, eris, file_eri)
+                eri = None
+            elif int_transform == "sparse-DF-S-screening":
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                eris = _transform_sparse_DF_integral_S_screening(
+                    self.mf, self.Fobjs, auxbasis=self.auxbasis, MO_coeff_epsilon=1e-4
                 )
                 _write_eris(self.Fobjs, eris, file_eri)
                 eri = None

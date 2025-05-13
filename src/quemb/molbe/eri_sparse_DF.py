@@ -25,7 +25,7 @@ from numba.types import (  # type: ignore[attr-defined]
     ListType,
     UniTuple,
 )
-from pyscf import df, gto, scf
+from pyscf import df, dft, gto, scf
 from pyscf.ao2mo.addons import restore
 from pyscf.df.addons import make_auxmol
 from pyscf.gto import Mole
@@ -39,6 +39,7 @@ from quemb.molbe.chemfrag import (
 )
 from quemb.molbe.pfrag import Frags
 from quemb.shared.helper import (
+    Timer,
     jitclass,
     njit,
     ravel_eri_idx,
@@ -114,7 +115,7 @@ def _aux_e2(  # type: ignore[no-untyped-def]
 
 
 @njit(inline="always")
-def _assign_with_symmtry(
+def _assign_with_symmetry(
     g: Tensor4D[np.float64], i: int, j: int, k: int, l: int, val: float
 ) -> None:
     """Assign to ERI using 8-fold symmetry"""
@@ -192,7 +193,7 @@ class MutableSparseInt2:
             for j, q in enumerate(idx[: i + 1]):
                 for k, r in enumerate(idx[: i + 1]):
                     for l, s in enumerate(idx[: k + 1] if i > k else idx[: j + 1]):
-                        _assign_with_symmtry(g_dense, i, j, k, l, self[p, q, r, s])  # type: ignore[index]
+                        _assign_with_symmetry(g_dense, i, j, k, l, self[p, q, r, s])  # type: ignore[index]
         return g_dense
 
 
@@ -202,6 +203,7 @@ class MutableSparseInt2:
         ("unique_dense_data", float64[::1]),
         ("exch_reachable", ListType(int64[::1])),
         ("exch_reachable_unique", ListType(int64[::1])),
+        ("_data", DictType(int64, float64)),
     ]
 )
 class SparseInt2:
@@ -248,22 +250,20 @@ class SparseInt2:
     def __init__(
         self,
         _keys: List[int64],
-        unique_dense_data: Matrix[np.float64],
-        exch_reachable: List[int64],
-        exch_reachable_unique: List[int64],
+        unique_dense_data: Vector[np.float64],
+        exch_reachable: List[Vector[int64]],
+        exch_reachable_unique: List[Vector[int64]],
     ) -> None:
         self._keys = _keys
         self.unique_dense_data = unique_dense_data
         self.exch_reachable = exch_reachable
         self.exch_reachable_unique = exch_reachable_unique
+        self._data = Dict.empty(int64, float64)
+        for k, v in zip(self._keys, self.unique_dense_data):
+            self._data[k] = v
 
     def __getitem__(self, key: tuple[int, int, int, int]) -> float:
-        ravelled_idx = ravel_eri_idx(*key)
-        look_up_idx = np.searchsorted(self._keys, ravelled_idx)
-        if self._keys[look_up_idx] == ravelled_idx:
-            return self.unique_dense_data[look_up_idx]
-        else:
-            return 0.0
+        return self._data.get(ravel_eri_idx(*key), 0.0)
 
     # We cannot annotate the return type of this function, because of a strange bug in
     #  sphinx-autodoc-typehints.
@@ -275,7 +275,7 @@ class SparseInt2:
             for j, q in enumerate(idx[: i + 1]):
                 for k, r in enumerate(idx[: i + 1]):
                     for l, s in enumerate(idx[: k + 1] if i > k else idx[: j + 1]):
-                        _assign_with_symmtry(g_dense, i, j, k, l, self[p, q, r, s])  # type: ignore[index]
+                        _assign_with_symmetry(g_dense, i, j, k, l, self[p, q, r, s])  # type: ignore[index]
         return g_dense
 
 
@@ -359,7 +359,7 @@ def get_dense_integrals(
                     )
                 for sigma in ints_3c2e.exch_reachable_unique[rho][:idx]:
                     val = float(ints_3c2e[mu, nu] @ df_coef[rho, sigma])
-                    _assign_with_symmtry(g, mu, nu, rho, sigma, val)
+                    _assign_with_symmetry(g, mu, nu, rho, sigma, val)
     return g
 
 
@@ -812,6 +812,28 @@ def get_atom_per_MO(
     return {
         i_MO: set().union(*(atom_per_AO[AO] for AO in AO_indices))
         for i_MO, AO_indices in large_enough.items()
+    }
+
+
+def _modify_overlap(
+    AO_per_atom: Mapping[AOIdx, Set[AtomIdx]], S: Matrix[np.float64]
+) -> Matrix[np.float64]:
+    S_mod = S.copy()
+    for AOs_on_one_atom in AO_per_atom.values():
+        idx = list(AOs_on_one_atom)
+        S_mod[np.ix_(idx, idx)] = 1
+    return S_mod
+
+
+def _get_AO_per_MO(
+    TA: Matrix[np.float64],
+    S_mod: Matrix[np.float64],
+    epsilon: float,
+) -> dict[MOIdx, Vector[AOIdx]]:
+    n_MO = TA.shape[-1]
+    return {
+        i_MO: cast(Vector[AOIdx], (np.abs(S_mod @ TA[:, i_MO]) >= epsilon).nonzero()[0])
+        for i_MO in cast(Sequence[MOIdx], range(n_MO))
     }
 
 
@@ -1534,6 +1556,42 @@ def _transform_sparse_DF_integral(
     )
 
 
+def _transform_sparse_DF_integral_S_screening(
+    mf: scf.hf.SCF,
+    Fobjs: Sequence[Frags],
+    auxbasis: str | None = None,
+    screen_radius: Mapping[str, float] | None = None,
+    MO_coeff_epsilon: float = 1e-8,
+) -> Iterator[Matrix[np.float64]]:
+    mol = mf.mol
+    auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
+    if screen_radius is None:
+        screen_radius = find_screening_radius(mol, auxmol, threshold=1e-4)
+    screen_connection = get_screened(mol, screen_radius)
+    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, screen_connection)
+    ints_2c2e = auxmol.intor("int2c2e")
+    low_triang_PQ = cholesky(ints_2c2e, lower=True)
+
+    S_abs_timer = Timer("Time to compute S_abs")
+    S_abs = calculate_abs_overlap(mol)
+    print(S_abs_timer.str_elapsed())
+
+    ints_i_j_P = (
+        _get_fragment_ints3c2_S_screening(
+            sparse_ints_3c2e,
+            fragobj.TA,
+            S_abs,
+            MO_coeff_epsilon,
+        )
+        for fragobj in Fobjs
+    )
+
+    return (
+        restore("1", _eval_via_cholesky(ijP, low_triang_PQ), len(ijP))
+        for ijP in ints_i_j_P
+    )
+
+
 def get_fragment_ints3c2e(
     sparse_ints_3c2e: SemiSparseSym3DTensor,
     atom_per_AO: Mapping[AOIdx, Set[AtomIdx]],
@@ -1551,14 +1609,116 @@ def get_fragment_ints3c2e(
     )
 
 
+def _get_fragment_ints3c2_S_screening(
+    sparse_ints_3c2e: SemiSparseSym3DTensor,
+    TA: Matrix[np.float64],
+    S_abs: Matrix[np.float64],
+    MO_coeff_epsilon: float,
+) -> Tensor3D[np.float64]:
+    AO_reachable_per_SchmidtMO = _get_AO_per_MO(TA, S_abs, MO_coeff_epsilon)
+    return contract_with_TA_2nd_to_sym_dense(
+        TA, contract_with_TA_1st(TA, sparse_ints_3c2e, AO_reachable_per_SchmidtMO)
+    )
+
+
+@njit(parallel=True)
+def _account_for_symmetry(pqP: Tensor3D[np.float64]) -> Matrix[np.float64]:
+    """(n_orb, n_orb | n_aux) -> (n_aux | sym n_orb pairs)"""
+    n_orb, naux = len(pqP), pqP.shape[-1]
+    sym_bb = np.empty((naux, ravel_symmetric(n_orb - 1, n_orb - 1) + 1))
+
+    for i in prange(n_orb):  # type: ignore[attr-defined]
+        for j in prange(i + 1):  # type: ignore[attr-defined]
+            sym_bb[:, ravel_symmetric(i, j)] = pqP[i, j, :]
+    return sym_bb
+
+
 def _eval_via_cholesky(
-    ijP: Tensor3D[np.float64], low_triang_PQ: Matrix[np.float64]
+    pqP: Tensor3D[np.float64], low_triang_PQ: Matrix[np.float64]
 ) -> Matrix[np.float64]:
-    b = ijP.reshape(ijP.shape[0] ** 2, ijP.shape[2]).T
     bb = solve_triangular(
-        low_triang_PQ, b, lower=True, overwrite_b=False, check_finite=False
+        low_triang_PQ,
+        _account_for_symmetry(pqP),
+        lower=True,
+        overwrite_b=False,
+        check_finite=False,
     )
     return bb.T @ bb
+
+
+_UniTuple_int64_2 = UniTuple(int64, 2)
+_T_ = ListType(_UniTuple_int64_2)
+
+
+@njit
+def _precalculate_offsets(exch_reachable, sorted_idx):
+    result = List.empty_list(_T_)
+    for i in range(len(exch_reachable)):
+        result.append(List.empty_list(_UniTuple_int64_2))
+        for counter, j in enumerate(exch_reachable[i]):
+            if j in sorted_idx:
+                result[-1].append((j, counter))
+    return result
+
+
+@njit(parallel=True)
+def _custom_to_dense(g_ijkl, idx):  # type: ignore[no-untyped-def]
+    n_MO = len(idx)
+    g_dense = np.empty((n_MO, n_MO, n_MO, n_MO), dtype=np.float64)
+    argsort_result = np.argsort(idx)
+    sorted_idx = idx[argsort_result]
+    exch_reachable = _precalculate_offsets(g_ijkl.exch_reachable, sorted_idx)
+    for i in prange(len(sorted_idx)):
+        p = sorted_idx[i]
+        for j in prange(i + 1):
+            q = sorted_idx[j]
+            for k, r in enumerate(sorted_idx[: i + 1]):
+                ravelled_idx = ravel_eri_idx(p, q, r, exch_reachable[r][0][0])
+                look_up_idx = np.searchsorted(g_ijkl._keys, ravelled_idx)
+                for l, (s, offset) in enumerate(exch_reachable[r]):
+                    if (i > k and s > r) or (i == k and s > q):
+                        break
+                    _assign_with_symmetry(
+                        g_dense,
+                        i,
+                        j,
+                        k,
+                        l,
+                        g_ijkl.unique_dense_data[look_up_idx + offset],
+                    )  # type: ignore[index]
+    return g_dense, argsort_result
+
+
+def _eval_via_cholesky_shared(
+    pqP: Tensor3D[np.float64],
+    g_ijkl: SparseInt2,
+    fobj: Frags,
+    low_triang_PQ: Matrix[np.float64],
+) -> Matrix[np.float64]:
+    bb = solve_triangular(
+        low_triang_PQ,
+        _account_for_symmetry(pqP),
+        lower=True,
+        overwrite_b=False,
+        check_finite=False,
+    )
+    n_f, n_orb = fobj.n_f, len(pqP)
+    orb_offset = ravel_symmetric(n_orb - 1, n_orb - 1) + 1
+    n_f_offset = ravel_symmetric(n_f - 1, n_f - 1) + 1
+    g = np.empty((orb_offset, orb_offset))
+
+    g[:, n_f_offset:] = bb.T @ bb[:, n_f_offset:]
+    g[n_f_offset:, :] = g[:, n_f_offset:].T
+    g[:n_f_offset, :n_f_offset] = restore(
+        "4", g_ijkl.to_dense(fobj.frag_TA_offset), n_f
+    )
+
+    # dense_g_ijkl, argsort_result = _custom_to_dense(g_ijkl, fobj.frag_TA_offset)
+    # final_idx = np.argsort(argsort_result)
+    # dense_g_ijkl = dense_g_ijkl[np.ix_(final_idx, final_idx, final_idx, final_idx)]
+    # g[: n_f_offset, : n_f_offset] = restore("4", dense_g_ijkl, n_f)
+
+    return g
 
 
 def _write_eris(
@@ -1583,7 +1743,7 @@ def contract_DF_dense(
             for k in prange(i + 1):  # type: ignore[attr-defined]
                 for l in prange(k + 1 if i > k else j + 1):  # type: ignore[attr-defined]
                     val = ijP[i, j, :] @ Dcoeff_ijP[k, l, :]
-                    _assign_with_symmtry(g, i, j, k, l, val)  # type: ignore[arg-type]
+                    _assign_with_symmetry(g, i, j, k, l, val)  # type: ignore[arg-type]
     return g
 
 
@@ -1714,6 +1874,43 @@ def _compute_fragment_eri_with_shared_ijP(
     )
 
 
+def _compute_fragment_eri_with_more_shared_ijP(
+    fobj: Frags,
+    low_cholesky_PQ: Matrix[np.float64],
+    sparse_ints_3c2e: SemiSparseSym3DTensor,
+    shared_ijP: SemiSparseSym3DTensor,
+    atom_per_AO: Mapping[AOIdx, Set[AtomIdx]],
+    screen_connection: Mapping[AtomIdx, Set[AtomIdx]],
+    MO_coeff_epsilon: float = 1e-8,
+) -> Tensor4D[np.float64]:
+    TA, n_f, n_b = fobj.TA, fobj.n_f, fobj.n_b
+    assert TA.shape[1] == n_f + n_b
+    n_MO = n_f + n_b
+
+    AO_reachable_per_fragmentMO = get_reachable(
+        get_atom_per_MO(atom_per_AO, TA[:, n_f:], epsilon=MO_coeff_epsilon),
+        atom_per_AO,
+        screen_connection,
+    )
+    int_i_j_P = shared_ijP._extract_dense(fobj.frag_TA_offset)
+    int_mu_a_P = contract_with_TA_1st(
+        TA[:, n_f:], sparse_ints_3c2e, AO_reachable_per_fragmentMO
+    )
+    int_i_a_P = contract_with_TA_2nd_to_dense(TA[:, :n_f], int_mu_a_P)
+    int_a_b_P = contract_with_TA_2nd_to_sym_dense(TA[:, n_f:], int_mu_a_P)
+    # One of the few cases where we delete something, because it is memory-expensive
+    # and not needed anymore.
+    del int_mu_a_P
+
+    return restore(
+        "1",
+        _eval_via_cholesky(
+            _merge_fragment_bath_MOs(int_i_j_P, int_i_a_P, int_a_b_P), low_cholesky_PQ
+        ),
+        n_MO,
+    )
+
+
 def _use_shared_ijP_transform_sparse_DF_integral(
     mf: scf.hf.SCF,
     Fobjs: Sequence[Frags],
@@ -1752,3 +1949,19 @@ def _use_shared_ijP_transform_sparse_DF_integral(
         )
         for fobj in Fobjs
     )
+
+
+def calculate_abs_overlap(mol: Mole, grid_level: int = 0) -> Matrix[np.float64]:
+    r"""
+    Calculates the overlap matrix S_ij = \int |phi_i(r)| |phi_j(r)| dr
+    using numerical integration on a DFT grid.
+    Args:
+        mol (gto.Mole): PySCF Mole object.
+    Returns:
+        numpy.ndarray: The modified overlap matrix.
+    """
+    grids = dft.gen_grid.Grids(mol)
+    grids.level = grid_level
+    grids.build()
+    AO_abs_val = np.abs(dft.numint.eval_ao(mol, grids.coords, deriv=0))
+    return (AO_abs_val * grids.weights[:, np.newaxis]).T @ AO_abs_val
