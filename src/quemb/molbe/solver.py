@@ -430,7 +430,7 @@ def be_func(
                 frag_name = (
                     Path(f"{scratch_dir}-frag_data") / f"{fobj.dname}_iter{iter}"
                 )
-                while os.path.exists(frag_name):
+                while frag_name.exists():
                     iter += 1
                     frag_name = (
                         Path(f"{scratch_dir}-frag_data") / f"{fobj.dname}_iter{iter}"
