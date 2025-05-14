@@ -1,5 +1,3 @@
-import inspect
-
 import numpy as np
 import pytest
 from chemcoord import Cartesian
@@ -16,15 +14,9 @@ from quemb.molbe.chemfrag import (
 )
 from quemb.molbe.fragment import fragmentate
 from quemb.molbe.mbe import BE
+from quemb.shared.helper import get_calling_function_name
 
 from ._expected_data_for_chemfrag import get_expected, get_graphene_cell
-
-
-def get_calling_function_name() -> str:
-    """Do stack inspection shenanigan to obtain the name
-    of the calling function"""
-    return inspect.stack()[1][3]
-
 
 expected = get_expected()
 

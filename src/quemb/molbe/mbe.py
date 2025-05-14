@@ -14,6 +14,7 @@ from typing_extensions import assert_never
 
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
+from quemb.molbe.eri_sparse_DF import transform_sparse_DF_integral
 from quemb.molbe.fragment import FragPart
 from quemb.molbe.lo import MixinLocalize
 from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
@@ -869,7 +870,11 @@ class BE(MixinLocalize):
                 # Calculate ERIs on-the-fly to generate fragment ERIs
                 # TODO: Future feature to be implemented
                 # NOTE: Ideally, we want AO shell pair screening for this.
-                raise NotImplementedError
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                transform_sparse_DF_integral(
+                    self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis
+                )
+                eri = None
             else:
                 assert_never(int_transform)
         else:

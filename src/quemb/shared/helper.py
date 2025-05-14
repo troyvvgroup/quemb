@@ -1,4 +1,5 @@
-from collections.abc import Callable, Iterable
+import inspect
+from collections.abc import Callable, Iterable, Sequence
 from inspect import signature
 from itertools import islice
 from pathlib import Path
@@ -7,6 +8,7 @@ from typing import Any, TypeVar, overload
 
 import numba as nb
 from attr import define, field
+from ordered_set import OrderedSet
 
 from quemb.shared.typing import Integral, T
 
@@ -217,7 +219,7 @@ def ravel_symmetric(a: _T_Integral, b: _T_Integral) -> _T_Integral:
 
 
 @njit
-def ravel(a: _T_Integral, b: _T_Integral, n_cols: _T_Integral) -> _T_Integral:
+def ravel_C(a: _T_Integral, b: _T_Integral, n_cols: _T_Integral) -> _T_Integral:
     """Flatten the index a, b assuming row-mayor/C indexing
 
     The resulting indexation for a 3 by 4 matrix looks like this::
@@ -231,10 +233,31 @@ def ravel(a: _T_Integral, b: _T_Integral, n_cols: _T_Integral) -> _T_Integral:
     ----------
     a :
     b :
-    n_rows :
+    n_cols :
     """
     assert b < n_cols  # type: ignore[operator]
     return (a * n_cols) + b  # type: ignore[return-value,operator]
+
+
+@njit
+def ravel_Fortran(a: _T_Integral, b: _T_Integral, n_rows: _T_Integral) -> _T_Integral:
+    """Flatten the index a, b assuming column-mayor/Fortran indexing
+
+    The resulting indexation for a 3 by 4 matrix looks like this::
+
+        0   3   6   9
+        1   4   7  10
+        2   5   8  11
+
+
+    Parameters
+    ----------
+    a :
+    b :
+    n_rows :
+    """
+    assert a < n_rows  # type: ignore[operator]
+    return a + (b * n_rows)  # type: ignore[return-value,operator]
 
 
 @njit
@@ -285,3 +308,24 @@ def get_flexible_n_eri(
     return symmetric_different_size(
         symmetric_different_size(p_max, q_max), symmetric_different_size(r_max, s_max)
     )
+
+
+def union_of_seqs(*seqs: Sequence[T]) -> OrderedSet[T]:
+    """Merge multiple sequences into a single :class:`OrderedSet`.
+
+    This preserves the order of the elements in each sequence,
+    and of the arguments to this function, but removes duplicates.
+    (Always the first occurrence of an element is kept.)
+
+    .. code-block:: python
+
+        merge_seq([1, 2], [2, 3], [1, 4]) -> OrderedSet([1, 2, 3, 4])
+    """
+    # mypy wrongly complains that the arg type is not valid, which it is.
+    return OrderedSet().union(*seqs)  # type: ignore[arg-type]
+
+
+def get_calling_function_name() -> str:
+    """Do stack inspection shenanigan to obtain the name
+    of the calling function"""
+    return inspect.stack()[1][3]
