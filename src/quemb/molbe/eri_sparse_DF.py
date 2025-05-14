@@ -247,6 +247,12 @@ class SparseInt2:
     >>> assert g[1, 2, 3, 10] == 0
     """  # noqa: E501
 
+    _keys: list[np.int64]
+    unique_dense_data: Vector[np.float64]
+    exch_reachable: list[Vector[np.int64]]
+    exch_reachable_unique: list[Vector[np.int64]]
+    _data: Mapping[np.int64, np.float64]
+
     def __init__(
         self,
         _keys: List[int64],
@@ -260,10 +266,10 @@ class SparseInt2:
         self.exch_reachable_unique = exch_reachable_unique
         self._data = Dict.empty(int64, float64)
         for k, v in zip(self._keys, self.unique_dense_data):
-            self._data[k] = v
+            self._data[k] = v  # type: ignore[index]
 
     def __getitem__(self, key: tuple[int, int, int, int]) -> float:
-        return self._data.get(ravel_eri_idx(*key), 0.0)
+        return self._data.get(ravel_eri_idx(*key), 0.0)  # type: ignore[call-overload]
 
     # We cannot annotate the return type of this function, because of a strange bug in
     #  sphinx-autodoc-typehints.
@@ -490,7 +496,7 @@ class SemiSparseSym3DTensor:
 
         self._data = Dict.empty(int64, float64[::1])
         for i, k in enumerate(self._keys):
-            self._data[k] = self.unique_dense_data[i, :]
+            self._data[k] = self.unique_dense_data[i, :]  # type: ignore[index]
 
     def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[np.float64]:
         return self._data[self.idx(key[0], key[1])]
@@ -691,10 +697,10 @@ class SemiSparse3DTensor:
 
         self._data = Dict.empty(int64, float64[::1])
         for i, k in enumerate(self._keys):
-            self._data[k] = self.dense_data[i, :]
+            self._data[k] = self.dense_data[i, :]  # type: ignore[index]
 
     def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[np.float64]:
-        return self._data[self.idx(key[0], key[1])]
+        return self._data[self._idx(key[0], key[1])]
 
     # We cannot annotate the return type of this function, because of a strange bug in
     #  sphinx-autodoc-typehints.
@@ -772,7 +778,8 @@ def get_orbs_reachable_by_atom(
 ) -> dict[AtomIdx, dict[AtomIdx, Set[_T_orb_idx]]]:
     return {
         i_atom: {
-            j_atom: orb_per_atom.get(j_atom, set()) for j_atom in sorted(connected)
+            j_atom: orb_per_atom.get(j_atom, set())
+            for j_atom in sorted(connected)  # type: ignore[type-var]
         }
         for i_atom, connected in screened.items()
     }
@@ -837,10 +844,12 @@ def _get_AO_per_MO(
     TA: Matrix[np.float64],
     S_mod: Matrix[np.float64],
     epsilon: float,
-) -> dict[MOIdx, Vector[AOIdx]]:
+) -> dict[MOIdx, Sequence[AOIdx]]:
     n_MO = TA.shape[-1]
     return {
-        i_MO: cast(Vector[AOIdx], (np.abs(S_mod @ TA[:, i_MO]) >= epsilon).nonzero()[0])
+        i_MO: cast(
+            Sequence[AOIdx], (np.abs(S_mod @ TA[:, i_MO]) >= epsilon).nonzero()[0]
+        )
         for i_MO in cast(Sequence[MOIdx], range(n_MO))
     }
 
@@ -1658,7 +1667,9 @@ _T_ = ListType(_UniTuple_int64_2)
 
 
 @njit
-def _precalculate_offsets(exch_reachable, sorted_idx):
+def _precalculate_offsets(
+    exch_reachable: list[Vector[np.int64]], sorted_idx: Vector[np.int64]
+) -> List[_UniTuple_int64_2]:
     result = List.empty_list(_T_)
     for i in range(len(exch_reachable)):
         result.append(List.empty_list(_UniTuple_int64_2))
@@ -1676,7 +1687,7 @@ def _custom_to_dense(
     g_dense = np.empty((n_MO, n_MO, n_MO, n_MO), dtype=np.float64)
     argsort_result = np.argsort(idx)
     sorted_idx = idx[argsort_result]
-    exch_reachable = _precalculate_offsets(g_ijkl.exch_reachable, sorted_idx)
+    exch_reachable = _precalculate_offsets(g_ijkl.exch_reachable, sorted_idx)  # type: ignore[arg-type]
     for i in prange(len(sorted_idx)):  # type: ignore[attr-defined]
         p = sorted_idx[i]
         for j in prange(i + 1):  # type: ignore[attr-defined]
@@ -1695,7 +1706,7 @@ def _custom_to_dense(
                         l,
                         g_ijkl.unique_dense_data[look_up_idx + offset],
                     )  # type: ignore[index]
-    return g_dense, argsort_result
+    return g_dense, argsort_result  # type: ignore[return-value]
 
 
 def _eval_via_cholesky_shared(
