@@ -2,6 +2,7 @@
 
 import os
 from multiprocessing import Pool
+from pathlib import Path
 from warnings import warn
 
 from numpy import asarray, diag_indices, einsum, float64, zeros_like
@@ -231,20 +232,12 @@ def run_solver(
                 "cleaned: cleanup_at_end is False"
             )
             iter = 0
-            frag_name = (
-                scratch_dir.__fspath__() + "-frag_data/" + dname + "_iter" + str(iter)
-            )
-            while os.path.exists(frag_name):
+            frag_name = Path(f"{scratch_dir}-frag_data") / f"{dname}_iter{iter}"
+            while frag_name.exists():
                 iter += 1
-                frag_name = (
-                    scratch_dir.__fspath__()
-                    + "-frag_data/"
-                    + dname
-                    + "_iter"
-                    + str(iter)
-                )
+                frag_name = Path(f"{scratch_dir}-frag_data") / f"{dname}_iter{iter}"
             frag_scratch = WorkDir(frag_name, cleanup_at_end=False)
-            print("Fragment Scratch Directory:", frag_scratch.__fspath__())
+            print("Fragment Scratch Directory:", frag_scratch)
         else:
             frag_scratch = WorkDir(scratch_dir / dname)
         ci = cornell_shci.SHCI()

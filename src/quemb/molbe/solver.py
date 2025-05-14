@@ -2,6 +2,7 @@
 
 import os
 from abc import ABC
+from pathlib import Path
 from typing import Final, Literal, TypeAlias
 from warnings import warn
 
@@ -427,23 +428,15 @@ def be_func(
                 )
                 iter = 0
                 frag_name = (
-                    scratch_dir.__fspath__()
-                    + "-frag_data/"
-                    + fobj.dname
-                    + "_iter"
-                    + str(iter)
+                    Path(f"{scratch_dir}-frag_data") / f"{fobj.dname}_iter{iter}"
                 )
                 while os.path.exists(frag_name):
                     iter += 1
                     frag_name = (
-                        scratch_dir.__fspath__()
-                        + "-frag_data/"
-                        + fobj.dname
-                        + "_iter"
-                        + str(iter)
+                        Path(f"{scratch_dir}-frag_data") / f"{fobj.dname}_iter{iter}"
                     )
                 frag_scratch = WorkDir(frag_name, cleanup_at_end=False)
-                print("Fragment Scratch Directory:", frag_scratch.__fspath__())
+                print("Fragment Scratch Directory:", frag_scratch)
             else:
                 frag_scratch = WorkDir(scratch_dir / fobj.dname)
             ci = cornell_shci.SHCI()
