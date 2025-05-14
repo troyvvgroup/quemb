@@ -1974,12 +1974,12 @@ def _use_shared_ijP_transform_sparse_DF_integral(
 
 def calculate_abs_overlap(mol: Mole, grid_level: int = 0) -> Matrix[np.float64]:
     r"""
-    Calculates the overlap matrix S_ij = \int |phi_i(r)| |phi_j(r)| dr
+    Calculates the overlap matrix :math:`S_ij = \int |phi_i(r)| |phi_j(r)| dr`
     using numerical integration on a DFT grid.
-    Args:
-        mol (gto.Mole): PySCF Mole object.
-    Returns:
-        numpy.ndarray: The modified overlap matrix.
+
+    Parameters
+    -----------
+        mol :
     """
     grids = dft.gen_grid.Grids(mol)
     grids.level = grid_level
