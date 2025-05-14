@@ -53,9 +53,12 @@ def test_semi_sparse_3d_tensor() -> None:
     auxbasis = "weigend"
     mol = m.to_pyscf(basis=basis, charge=0)
     auxmol = df.addons.make_auxmol(mol, auxbasis)
-    sparse_ints_3c2e = get_sparse_ints_3c2e(
-        mol, auxmol, get_screened(mol, find_screening_radius(mol, auxmol))
+
+    atom_per_AO = get_atom_per_AO(mol)
+    exch_reachable = get_reachable(
+        atom_per_AO, atom_per_AO, get_screened(mol, find_screening_radius(mol, auxmol))
     )
+    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, exch_reachable)
 
     ints_3c2e = df.incore.aux_e2(mol, auxmol, intor="int3c2e")
 

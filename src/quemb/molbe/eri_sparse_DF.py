@@ -317,7 +317,11 @@ def get_sparse_D_ints_and_coeffs(
     """
     if screening_radius is None:
         screening_radius = find_screening_radius(mol, auxmol)
-    ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, get_screened(mol, screening_radius))
+    atom_per_AO = get_atom_per_AO(mol)
+    exch_reachable = get_reachable(
+        atom_per_AO, atom_per_AO, get_screened(mol, screening_radius)
+    )
+    ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, exch_reachable)
     ints_2c2e = auxmol.intor("int2c2e")
     df_coeffs_data = solve(ints_2c2e, ints_3c2e.unique_dense_data.T, assume_a="pos").T
     df_coef = SemiSparseSym3DTensor(
@@ -842,15 +846,24 @@ def _modify_overlap(
 
 def _get_AO_per_MO(
     TA: Matrix[np.float64],
-    S_mod: Matrix[np.float64],
+    S_abs: Matrix[np.float64],
     epsilon: float,
 ) -> dict[MOIdx, Sequence[AOIdx]]:
     n_MO = TA.shape[-1]
     return {
-        i_MO: cast(
-            Sequence[AOIdx], (np.abs(S_mod @ TA[:, i_MO]) >= epsilon).nonzero()[0]
-        )
+        i_MO: cast(Sequence[AOIdx], (S_abs @ TA[:, i_MO] >= epsilon).nonzero()[0])
         for i_MO in cast(Sequence[MOIdx], range(n_MO))
+    }
+
+
+def _get_AO_per_AO(
+    S_abs: Matrix[np.float64],
+    epsilon: float,
+) -> dict[AOIdx, Sequence[AOIdx]]:
+    n_AO = len(S_abs)
+    return {
+        i_AO: cast(Sequence[AOIdx], (S_abs[:, i_AO] >= epsilon).nonzero()[0])
+        for i_AO in cast(Sequence[AOIdx], range(n_AO))
     }
 
 
@@ -1044,15 +1057,9 @@ def get_blocks(reachable: Sequence[_T]) -> list[tuple[_T, _T]]:
 def get_sparse_ints_3c2e(
     mol: Mole,
     auxmol: Mole,
-    screened_connection: Mapping[AtomIdx, Set[AtomIdx]],
+    exch_reachable: Mapping[AOIdx, Sequence[AOIdx]],
 ) -> SemiSparseSym3DTensor:
     """Return the 3-center 2-electron integrals in a sparse format."""
-
-    atom_per_AO = get_atom_per_AO(mol)
-    exch_reachable = cast(
-        Mapping[AOIdx, Set[AOIdx]],
-        get_reachable(atom_per_AO, atom_per_AO, screened_connection),
-    )
     exch_reachable_unique = account_for_symmetry(exch_reachable)
 
     screened_unique_integrals = np.empty(
@@ -1492,8 +1499,11 @@ def _slow_transform_sparse_DF_integral(
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
     if screen_radius is None:
         screen_radius = find_screening_radius(mol, auxmol, threshold=1e-4)
-    screened = get_screened(mol, screen_radius)
-    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, screened)
+    atom_per_AO = get_atom_per_AO(mol)
+    exch_reachable = get_reachable(
+        atom_per_AO, atom_per_AO, get_screened(mol, screen_radius)
+    )
+    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, exch_reachable)
     ints_mu_nu_P = sparse_ints_3c2e.to_dense()
     ints_2c2e = auxmol.intor("int2c2e")
 
@@ -1550,8 +1560,10 @@ def _transform_sparse_DF_integral(
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
     if screen_radius is None:
         screen_radius = find_screening_radius(mol, auxmol, threshold=1e-4)
-    screen_connection = get_screened(mol, screen_radius)
-    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, screen_connection)
+    atom_per_AO = get_atom_per_AO(mol)
+    screened = get_screened(mol, screen_radius)
+    exch_reachable = get_reachable(atom_per_AO, atom_per_AO, screened)
+    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, exch_reachable)
     ints_2c2e = auxmol.intor("int2c2e")
     low_triang_PQ = cholesky(ints_2c2e, lower=True)
 
@@ -1562,7 +1574,7 @@ def _transform_sparse_DF_integral(
             sparse_ints_3c2e,
             atom_per_AO,
             fragobj.TA,
-            screen_connection,
+            screened,
         )
         for fragobj in Fobjs
     )
@@ -1584,8 +1596,11 @@ def _transform_sparse_DF_integral_S_screening(
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
     if screen_radius is None:
         screen_radius = find_screening_radius(mol, auxmol, threshold=1e-4)
-    screen_connection = get_screened(mol, screen_radius)
-    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, screen_connection)
+    atom_per_AO = get_atom_per_AO(mol)
+    exch_reachable = get_reachable(
+        atom_per_AO, atom_per_AO, get_screened(mol, screen_radius)
+    )
+    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, exch_reachable)
     ints_2c2e = auxmol.intor("int2c2e")
     low_triang_PQ = cholesky(ints_2c2e, lower=True)
 
@@ -1964,8 +1979,10 @@ def _use_shared_ijP_transform_sparse_DF_integral(
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
     if screen_radius is None:
         screen_radius = find_screening_radius(mol, auxmol, threshold=1e-4)
-    screen_connection = get_screened(mol, screen_radius)
-    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, screen_connection)
+    screened = get_screened(mol, screen_radius)
+    atom_per_AO = get_atom_per_AO(mol)
+    exch_reachable = get_reachable(atom_per_AO, atom_per_AO, screened)
+    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, exch_reachable)
     PQ = auxmol.intor("int2c2e")
     low_cholesky_PQ = cholesky(PQ, lower=True)
 
@@ -1976,7 +1993,7 @@ def _use_shared_ijP_transform_sparse_DF_integral(
         sparse_ints_3c2e,
         atom_per_AO,
         get_ij_pairs(Fobjs),
-        screen_connection,
+        screened,
     )
 
     return (
@@ -1986,7 +2003,7 @@ def _use_shared_ijP_transform_sparse_DF_integral(
             sparse_ints_3c2e,
             shared_ijP,
             atom_per_AO,
-            screen_connection,
+            screened,
             MO_coeff_epsilon=1e-8,
         )
         for fobj in Fobjs
