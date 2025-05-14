@@ -1654,7 +1654,6 @@ def _eval_via_cholesky(
     return bb.T @ bb
 
 
-_UniTuple_int64_2 = UniTuple(int64, 2)
 _T_ = ListType(_UniTuple_int64_2)
 
 
@@ -1670,15 +1669,17 @@ def _precalculate_offsets(exch_reachable, sorted_idx):
 
 
 @njit(parallel=True)
-def _custom_to_dense(g_ijkl, idx):  # type: ignore[no-untyped-def]
+def _custom_to_dense(
+    g_ijkl: SparseInt2, idx: Vector[np.int64]
+) -> tuple[Tensor4D[np.float64], Vector[np.int64]]:
     n_MO = len(idx)
     g_dense = np.empty((n_MO, n_MO, n_MO, n_MO), dtype=np.float64)
     argsort_result = np.argsort(idx)
     sorted_idx = idx[argsort_result]
     exch_reachable = _precalculate_offsets(g_ijkl.exch_reachable, sorted_idx)
-    for i in prange(len(sorted_idx)):
+    for i in prange(len(sorted_idx)):  # type: ignore[attr-defined]
         p = sorted_idx[i]
-        for j in prange(i + 1):
+        for j in prange(i + 1):  # type: ignore[attr-defined]
             q = sorted_idx[j]
             for k, r in enumerate(sorted_idx[: i + 1]):
                 ravelled_idx = ravel_eri_idx(p, q, r, exch_reachable[r][0][0])

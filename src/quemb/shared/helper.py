@@ -230,7 +230,9 @@ def unravel_symmetric(i: Integral) -> tuple[int, int]:
 
 
 @njit
-def ravel_eri_idx(a: int, b: int, c: int, d: int) -> int:
+def ravel_eri_idx(
+    a: _T_Integral, b: _T_Integral, c: _T_Integral, d: _T_Integral
+) -> _T_Integral:
     """Return compound index given four indices using Yoshimine sort and
     assuming 8-fold permutational symmetry"""
     return ravel_symmetric(ravel_symmetric(a, b), ravel_symmetric(c, d))
