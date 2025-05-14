@@ -2,7 +2,9 @@
 
 import os
 from abc import ABC
+from pathlib import Path
 from typing import Final, Literal, TypeAlias
+from warnings import warn
 
 from attrs import Factory, define, field
 from numpy import (
@@ -188,10 +190,11 @@ class _DMRG_Args:
 
 @define(frozen=True)
 class SHCI_ArgsUser(UserSolverArgs):
-    hci_pt: Final[bool] = False
     hci_cutoff: Final[float] = 0.001
-    ci_coeff_cutoff: Final[float | None] = None
-    select_cutoff: Final[float | None] = None
+    hci_pt: Final[bool] = False
+    return_frag_data: Final[bool] = False
+    # ci_coeff_cutoff: Final[float | None] = None  # TODO SOLVER
+    # select_cutoff: Final[float | None] = None  # TODO SOLVER
 
 
 @define(frozen=True)
@@ -203,13 +206,15 @@ class _SHCI_Args:
     Use :func:`from_user_input` to properly initialize.
     """
 
-    hci_pt: Final[bool]
     hci_cutoff: Final[float]
-    ci_coeff_cutoff: Final[float]
-    select_cutoff: Final[float]
+    hci_pt: Final[bool]
+    return_frag_data: Final[bool]
+    # ci_coeff_cutoff: Final[float]  # TODO SOLVER
+    # select_cutoff: Final[float]  # TODO SOLVER
 
     @classmethod
     def from_user_input(cls, args: SHCI_ArgsUser):
+        """
         if (args.select_cutoff is None) and (args.ci_coeff_cutoff is None):
             select_cutoff = args.hci_cutoff
             ci_coeff_cutoff = args.hci_cutoff
@@ -221,12 +226,15 @@ class _SHCI_Args:
                 "Solver args `ci_coeff_cutoff` and `select_cutoff` must both "
                 "be specified or both be `None`!"
             )
-
+        """
+        if args.hci_pt:
+            warn("hci_pt is set True: note that the perturbed SCI solver is untested")
         return cls(
             hci_pt=args.hci_pt,
             hci_cutoff=args.hci_cutoff,
-            ci_coeff_cutoff=ci_coeff_cutoff,
-            select_cutoff=select_cutoff,
+            return_frag_data=args.return_frag_data,
+            # ci_coeff_cutoff=ci_coeff_cutoff,
+            # select_cutoff=select_cutoff,
         )
 
 
@@ -239,7 +247,6 @@ def be_func(
     solver_args: UserSolverArgs | None,
     scratch_dir: WorkDir,
     only_chem: bool = False,
-    nproc: int = 4,
     eeval: bool = False,
     relax_density: bool = False,
     return_vec: bool = False,
@@ -260,13 +267,11 @@ def be_func(
     Nocc :
         Number of occupied orbitals.
     solver :
-        Quantum chemistry solver to use.
+        Quantum chemistry solver to use ('MP2', 'CCSD', 'FCI', 'SCI). TODO 'HCI', 'SHCI'
     enuc :
         Nuclear energy.
     only_chem :
         Whether to only optimize the chemical potential. Defaults to False.
-    nproc :
-        Number of processors. Defaults to 4. This is only neccessary for 'SHCI' solver
     eeval :
         Whether to evaluate the energy. Defaults to False.
     relax_density :
@@ -275,7 +280,6 @@ def be_func(
         Whether to return the error vector. Defaults to False.
     use_cumulant :
         Whether to use the cumulant-based energy expression. Defaults to True.
-
     eeval :
         Whether to evaluate the energy. Defaults to False.
     return_vec :
@@ -297,8 +301,7 @@ def be_func(
             fobj.update_heff(pot, only_chem=only_chem)
 
         assert fobj.fock is not None and fobj.heff is not None
-        # Compute the one-electron Hamiltonian
-        h1_ = fobj.fock + fobj.heff
+
         # Perform SCF calculation
         fobj.scf()
 
@@ -335,13 +338,14 @@ def be_func(
             _, civec = mc.kernel()
             rdm1_tmp = mc.make_rdm1(civec, mc.norb, mc.nelec)
 
-        elif solver == "HCI":
+        elif solver == "HCI":  # TODO
             # pylint: disable-next=E0611
+            raise NotImplementedError("HCI solver not implemented")
+            """
             from pyscf import hci  # type: ignore[attr-defined]  # noqa: PLC0415
 
             assert isinstance(solver_args, SHCI_ArgsUser)
             SHCI_args = _SHCI_Args.from_user_input(solver_args)
-
             nmo = fobj._mf.mo_coeff.shape[1]
 
             eri = ao2mo.kernel(
@@ -365,9 +369,11 @@ def be_func(
             )
             rdm1_tmp = rdm1a_ + rdm1b_
             rdm2s = rdm2aa + rdm2ab + rdm2ab.transpose(2, 3, 0, 1) + rdm2bb
-
-        elif solver == "SHCI":
+            """
+        elif solver == "SHCI":  # TODO
             # pylint: disable-next=E0611,E0401
+            raise NotImplementedError("SHCI solver not implemented")
+            """
             from pyscf.shciscf import (  # type: ignore[attr-defined]  # noqa: PLC0415
                 shci,
             )
@@ -383,6 +389,7 @@ def be_func(
             nelec = (fobj.nsocc, fobj.nsocc)
             mch = shci.SHCISCF(fobj._mf, nmo, nelec, orbpath=fobj.dname)
             mch.fcisolver.mpiprefix = "mpirun -np " + str(nproc)
+            # need to pass nproc through be_func
             if SHCI_args.hci_pt:
                 mch.fcisolver.stochastic = False
                 mch.fcisolver.epsilon2 = SHCI_args.hci_cutoff
@@ -397,10 +404,16 @@ def be_func(
             mch.fcisolver.scratchDirectory = scratch_dir
             mch.mc1step()
             rdm1_tmp, rdm2s = mch.fcisolver.make_rdm12(0, nmo, nelec)
+            """
 
         elif solver == "SCI":
             # pylint: disable-next=E0611
             from pyscf import cornell_shci  # noqa: PLC0415  # optional module
+
+            assert isinstance(solver_args, SHCI_ArgsUser)
+            SHCI_args = _SHCI_Args.from_user_input(solver_args)
+
+            assert isinstance(fobj.dname, str)
 
             nmo = fobj._mf.mo_coeff.shape[1]
             nelec = (fobj.nsocc, fobj.nsocc)
@@ -411,14 +424,38 @@ def be_func(
                 fobj._mf._eri, fobj._mf.mo_coeff, aosym="s4", compact=False
             ).reshape(4 * ((nmo),))
 
+            if SHCI_args.return_frag_data:
+                warn(
+                    "If return_frag_data is True, RDMs and other data"
+                    "are written into a directory which is not"
+                    "cleaned: cleanup_at_end is False"
+                )
+                iter = 0
+                frag_name = (
+                    Path(f"{scratch_dir}-frag_data") / f"{fobj.dname}_iter{iter}"
+                )
+                while frag_name.exists():
+                    iter += 1
+                    frag_name = (
+                        Path(f"{scratch_dir}-frag_data") / f"{fobj.dname}_iter{iter}"
+                    )
+                frag_scratch = WorkDir(frag_name, cleanup_at_end=False)
+                print("Fragment Scratch Directory:", frag_scratch)
+            else:
+                frag_scratch = WorkDir(scratch_dir / fobj.dname)
             ci = cornell_shci.SHCI()
-            ci.runtimedir = fobj.dname
+            ci.runtimedir = frag_scratch
             ci.restart = True
-            ci.config["var_only"] = True
+            # var_only being True means no perturbation is added to the fragment
+            # This is advised
+            ci.config["var_only"] = not SHCI_args.hci_pt
             ci.config["eps_vars"] = [SHCI_args.hci_cutoff]
-            ci.config["get_1rdm_csv"] = True
-            ci.config["get_2rdm_csv"] = True
+            # Returning the 1RDM and 2RDM as csv can be helpful,
+            # but is false by default to save disc space
+            ci.config["get_1rdm_csv"] = SHCI_args.return_frag_data
+            ci.config["get_2rdm_csv"] = SHCI_args.return_frag_data
             ci.kernel(h1, eri, nmo, nelec)
+            # We always return 1 and 2rdms, for now
             rdm1_tmp, rdm2s = ci.make_rdm12(0, nmo, nelec)
 
         elif solver in ["block2", "DMRG", "DMRGCI", "DMRGSCF"]:
@@ -465,8 +502,9 @@ def be_func(
         )
 
         if eeval:
-            if solver == "FCI":
-                rdm2s = mc.make_rdm2(civec, mc.norb, mc.nelec)
+            if solver == "FCI" or solver == "SCI":
+                if solver == "FCI":
+                    rdm2s = mc.make_rdm2(civec, mc.norb, mc.nelec)
                 if use_cumulant:
                     assert fobj.nsocc is not None
                     hf_dm = zeros_like(rdm1_tmp)
@@ -504,7 +542,6 @@ def be_func(
             )
             total_e = [sum(x) for x in zip(total_e, e_f)]
             fobj.update_ebe_hf()
-
     if eeval:
         Ecorr = sum(total_e)
         if not return_vec:
