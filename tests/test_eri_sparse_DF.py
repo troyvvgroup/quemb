@@ -12,7 +12,7 @@ from quemb.molbe.eri_sparse_DF import (
     MutableSparseInt2,
     _invert_dict,
     _transform_sparse_DF_integral,
-    _use_shared_ijP_transform_sparse_DF_integral,
+    _transform_sparse_DF_use_shared_ijP,
     find_screening_radius,
     get_atom_per_AO,
     get_atom_per_MO,
@@ -200,7 +200,7 @@ def test_int_transformation_with_reuse(ikosan) -> None:
     ref_integrals = _transform_sparse_DF_integral(
         mf, my_be.Fobjs, auxmol.basis, screen_radius
     )
-    new_integrals = _use_shared_ijP_transform_sparse_DF_integral(
+    new_integrals = _transform_sparse_DF_use_shared_ijP(
         mf, my_be.Fobjs, my_be.all_fragment_MO_TA, auxmol.basis, screen_radius
     )
     assert all(

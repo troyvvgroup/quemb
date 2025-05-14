@@ -850,8 +850,9 @@ def _get_AO_per_MO(
     epsilon: float,
 ) -> dict[MOIdx, Sequence[AOIdx]]:
     n_MO = TA.shape[-1]
+    X = np.abs(S_abs @ TA)
     return {
-        i_MO: cast(Sequence[AOIdx], (S_abs @ TA[:, i_MO] >= epsilon).nonzero()[0])
+        i_MO: cast(Sequence[AOIdx], (X[:, i_MO] >= epsilon).nonzero()[0])
         for i_MO in cast(Sequence[MOIdx], range(n_MO))
     }
 
@@ -1488,7 +1489,33 @@ def transform_sparse_DF_integral(
     _write_eris(Fobjs, eris, file_eri_handler)
 
 
-def _slow_transform_sparse_DF_integral(
+def get_AO_MO_pair_with_offset(
+    AO_reachable_by_MO: Mapping[MOIdx, Collection[AOIdx]],
+) -> list[tuple[int, AOIdx, MOIdx]]:
+    return [
+        (offset, mu, i)
+        for offset, (mu, i) in enumerate(
+            (i_AO, i_MO)
+            for i_MO, reachable_AOs in AO_reachable_by_MO.items()
+            for i_AO in sorted(reachable_AOs)  # type: ignore[type-var]
+        )
+    ]
+
+
+def _nb_get_AO_reachable_by_MO_with_offset(
+    AO_reachable_by_MO: Mapping[MOIdx, Collection[AOIdx]],
+) -> List[List[int, AOIdx]]:
+    assert list(AO_reachable_by_MO.keys()) == list(range(len(AO_reachable_by_MO)))
+    counter = count()
+    return List(
+        [
+            List([(next(counter), AO) for AO in AOs])
+            for AOs in AO_reachable_by_MO.values()
+        ]
+    )
+
+
+def _transform_sparse_DF_slow(
     mf: scf.hf.SCF,
     Fobjs: Sequence[Frags],
     auxbasis: str | None = None,
@@ -1522,32 +1549,6 @@ def _slow_transform_sparse_DF_integral(
         einsum("ijP,klP->ijkl", ints, df_coef)
         for ints, df_coef in zip(ints_i_j_P, Ds_i_j_P)
     ]
-
-
-def get_AO_MO_pair_with_offset(
-    AO_reachable_by_MO: Mapping[MOIdx, Collection[AOIdx]],
-) -> list[tuple[int, AOIdx, MOIdx]]:
-    return [
-        (offset, mu, i)
-        for offset, (mu, i) in enumerate(
-            (i_AO, i_MO)
-            for i_MO, reachable_AOs in AO_reachable_by_MO.items()
-            for i_AO in sorted(reachable_AOs)  # type: ignore[type-var]
-        )
-    ]
-
-
-def _nb_get_AO_reachable_by_MO_with_offset(
-    AO_reachable_by_MO: Mapping[MOIdx, Collection[AOIdx]],
-) -> List[List[int, AOIdx]]:
-    assert list(AO_reachable_by_MO.keys()) == list(range(len(AO_reachable_by_MO)))
-    counter = count()
-    return List(
-        [
-            List([(next(counter), AO) for AO in AOs])
-            for AOs in AO_reachable_by_MO.values()
-        ]
-    )
 
 
 def _transform_sparse_DF_integral(
@@ -1585,7 +1586,7 @@ def _transform_sparse_DF_integral(
     )
 
 
-def _transform_sparse_DF_integral_S_screening(
+def _transform_sparse_DF_integral_S_screening_MO(
     mf: scf.hf.SCF,
     Fobjs: Sequence[Frags],
     auxbasis: str | None = None,
@@ -1624,6 +1625,126 @@ def _transform_sparse_DF_integral_S_screening(
     )
 
 
+def _transform_sparse_DF_integral_S_screening_everything(
+    mf: scf.hf.SCF,
+    Fobjs: Sequence[Frags],
+    auxbasis: str | None = None,
+    AO_coeff_epsilon: float = 1e-8,
+    MO_coeff_epsilon: float = 1e-8,
+) -> Iterator[Matrix[np.float64]]:
+    mol = mf.mol
+    auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
+
+    S_abs_timer = Timer("Time to compute S_abs")
+    S_abs = calculate_abs_overlap(mol)
+    print(S_abs_timer.str_elapsed())
+
+    exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
+
+    sparsity = (
+        np.array([len(x) for x in exch_reachable.values()])
+        / len(S_abs)
+    )  # fmt: skip
+    print(sparsity)
+    print(sparsity.mean())
+    print("=" * 50)
+    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, exch_reachable)
+    ints_2c2e = auxmol.intor("int2c2e")
+    low_triang_PQ = cholesky(ints_2c2e, lower=True)
+
+    ints_p_q_P = [
+        _get_fragment_ints3c2_S_screening(
+            sparse_ints_3c2e,
+            fragobj.TA,
+            S_abs,
+            MO_coeff_epsilon,
+        )
+        for fragobj in Fobjs
+    ]
+
+    return [
+        restore("1", _eval_via_cholesky(pqP, low_triang_PQ), len(pqP))
+        for pqP in ints_p_q_P
+    ]
+
+
+def _transform_sparse_DF_use_shared_ijP(
+    mf: scf.hf.SCF,
+    Fobjs: Sequence[Frags],
+    all_fragment_MO_TA: Matrix[np.float64],
+    auxbasis: str | None = None,
+    screen_radius: Mapping[str, float] | None = None,
+) -> Iterator[Matrix[np.float64]]:
+    mol = mf.mol
+    auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
+    if screen_radius is None:
+        screen_radius = find_screening_radius(mol, auxmol, threshold=1e-4)
+    screened = get_screened(mol, screen_radius)
+    atom_per_AO = get_atom_per_AO(mol)
+    exch_reachable = get_reachable(atom_per_AO, atom_per_AO, screened)
+    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, exch_reachable)
+    PQ = auxmol.intor("int2c2e")
+    low_cholesky_PQ = cholesky(PQ, lower=True)
+
+    atom_per_AO = get_atom_per_AO(mol)
+
+    shared_ijP = _get_shared_ijP(
+        all_fragment_MO_TA,
+        sparse_ints_3c2e,
+        atom_per_AO,
+        get_ij_pairs(Fobjs),
+        screened,
+    )
+
+    return (
+        _compute_fragment_eri_with_shared_ijP(
+            fobj,
+            low_cholesky_PQ,
+            sparse_ints_3c2e,
+            shared_ijP,
+            atom_per_AO,
+            screened,
+            MO_coeff_epsilon=1e-8,
+        )
+        for fobj in Fobjs
+    )
+
+
+# TODO next
+# def _transform_sparse_DF_screening_and_sharing(
+#     mf: scf.hf.SCF,
+#     Fobjs: Sequence[Frags],
+#     auxbasis: str | None = None,
+#     MO_coeff_epsilon: float = 1e-8,
+# ) -> Iterator[Matrix[np.float64]]:
+#     mol = mf.mol
+#     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
+
+#     S_abs_timer = Timer("Time to compute S_abs")
+#     S_abs = calculate_abs_overlap(mol)
+#     print(S_abs_timer.str_elapsed())
+
+#     exch_reachable = _get_AO_per_AO(S_abs, MO_coeff_epsilon)
+#     sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, exch_reachable)
+#     ints_2c2e = auxmol.intor("int2c2e")
+#     low_triang_PQ = cholesky(ints_2c2e, lower=True)
+
+#     ints_p_q_P = (
+#         _get_fragment_ints3c2_S_screening(
+#             sparse_ints_3c2e,
+#             fragobj.TA,
+#             S_abs,
+#             MO_coeff_epsilon,
+#         )
+#         for fragobj in Fobjs
+#     )
+
+#     return (
+#         restore("1", _eval_via_cholesky(pqP, low_triang_PQ), len(pqP))
+#         for pqP in ints_p_q_P
+#     )
+
+
 def _compute_fragment_eri(
     sparse_ints_3c2e: SemiSparseSym3DTensor,
     atom_per_AO: Mapping[AOIdx, Set[AtomIdx]],
@@ -1657,11 +1778,11 @@ def _get_fragment_ints3c2_S_screening(
     AO_reachable_per_SchmidtMO = _get_AO_per_MO(TA, S_abs, MO_coeff_epsilon)
     sparsity = (
         np.array([len(x) for x in AO_reachable_per_SchmidtMO.values()])
-        / sparse_ints_3c2e.nao
+        / TA.shape[0]
     )  # fmt: skip
     print(sparsity)
     print(sparsity.mean())
-    print("-" * 50)
+    print("->" * 50)
     return contract_with_TA_2nd_to_sym_dense(
         TA, contract_with_TA_1st(TA, sparse_ints_3c2e, AO_reachable_per_SchmidtMO)
     )
@@ -1965,48 +2086,6 @@ def _compute_fragment_eri_with_more_shared_ijP(
             _merge_fragment_bath_MOs(int_i_j_P, int_i_a_P, int_a_b_P), low_cholesky_PQ
         ),
         n_MO,
-    )
-
-
-def _use_shared_ijP_transform_sparse_DF_integral(
-    mf: scf.hf.SCF,
-    Fobjs: Sequence[Frags],
-    all_fragment_MO_TA: Matrix[np.float64],
-    auxbasis: str | None = None,
-    screen_radius: Mapping[str, float] | None = None,
-) -> Iterator[Matrix[np.float64]]:
-    mol = mf.mol
-    auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
-    if screen_radius is None:
-        screen_radius = find_screening_radius(mol, auxmol, threshold=1e-4)
-    screened = get_screened(mol, screen_radius)
-    atom_per_AO = get_atom_per_AO(mol)
-    exch_reachable = get_reachable(atom_per_AO, atom_per_AO, screened)
-    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, exch_reachable)
-    PQ = auxmol.intor("int2c2e")
-    low_cholesky_PQ = cholesky(PQ, lower=True)
-
-    atom_per_AO = get_atom_per_AO(mol)
-
-    shared_ijP = _get_shared_ijP(
-        all_fragment_MO_TA,
-        sparse_ints_3c2e,
-        atom_per_AO,
-        get_ij_pairs(Fobjs),
-        screened,
-    )
-
-    return (
-        _compute_fragment_eri_with_shared_ijP(
-            fobj,
-            low_cholesky_PQ,
-            sparse_ints_3c2e,
-            shared_ijP,
-            atom_per_AO,
-            screened,
-            MO_coeff_epsilon=1e-8,
-        )
-        for fobj in Fobjs
     )
 
 
