@@ -1558,7 +1558,7 @@ def _transform_sparse_DF_integral(
     atom_per_AO = get_atom_per_AO(mol)
 
     ints_i_j_P = (
-        get_fragment_ints3c2e(
+        _compute_fragment_eri(
             sparse_ints_3c2e,
             atom_per_AO,
             fragobj.TA,
@@ -1609,7 +1609,7 @@ def _transform_sparse_DF_integral_S_screening(
     )
 
 
-def get_fragment_ints3c2e(
+def _compute_fragment_eri(
     sparse_ints_3c2e: SemiSparseSym3DTensor,
     atom_per_AO: Mapping[AOIdx, Set[AtomIdx]],
     TA: Matrix[np.float64],
@@ -1621,6 +1621,13 @@ def get_fragment_ints3c2e(
         atom_per_AO,
         screen_connection,
     )
+    sparsity = (
+        np.array([len(x) for x in AO_reachable_per_SchmidtMO.values()])
+        / len(atom_per_AO)
+    )  # fmt: skip
+    print(sparsity)
+    print(sparsity.mean())
+    print("-" * 50)
     return contract_with_TA_2nd_to_sym_dense(
         TA, contract_with_TA_1st(TA, sparse_ints_3c2e, AO_reachable_per_SchmidtMO)
     )
@@ -1633,6 +1640,13 @@ def _get_fragment_ints3c2_S_screening(
     MO_coeff_epsilon: float,
 ) -> Tensor3D[np.float64]:
     AO_reachable_per_SchmidtMO = _get_AO_per_MO(TA, S_abs, MO_coeff_epsilon)
+    sparsity = (
+        np.array([len(x) for x in AO_reachable_per_SchmidtMO.values()])
+        / sparse_ints_3c2e.nao
+    )  # fmt: skip
+    print(sparsity)
+    print(sparsity.mean())
+    print("-" * 50)
     return contract_with_TA_2nd_to_sym_dense(
         TA, contract_with_TA_1st(TA, sparse_ints_3c2e, AO_reachable_per_SchmidtMO)
     )
@@ -1913,6 +1927,13 @@ def _compute_fragment_eri_with_more_shared_ijP(
         atom_per_AO,
         screen_connection,
     )
+    sparsity = (
+        np.array([len(x) for x in AO_reachable_per_fragmentMO.values()])
+        / len(atom_per_AO)
+    )  # fmt: skip
+    print(sparsity)
+    print(sparsity.mean())
+    print("-" * 50)
     int_i_j_P = shared_ijP._extract_dense(fobj.frag_TA_offset)
     int_mu_a_P = contract_with_TA_1st(
         TA[:, n_f:], sparse_ints_3c2e, AO_reachable_per_fragmentMO
