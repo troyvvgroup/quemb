@@ -11,10 +11,9 @@ quemb.molbe.solver.SHCI\_ArgsUser
    .. rubric:: Attributes
 
    
-   .. autoattribute:: SHCI_ArgsUser.hci_pt
    .. autoattribute:: SHCI_ArgsUser.hci_cutoff
-   .. autoattribute:: SHCI_ArgsUser.ci_coeff_cutoff
-   .. autoattribute:: SHCI_ArgsUser.select_cutoff
+   .. autoattribute:: SHCI_ArgsUser.hci_pt
+   .. autoattribute:: SHCI_ArgsUser.return_frag_data
    
    
 
