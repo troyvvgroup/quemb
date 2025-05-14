@@ -5,7 +5,7 @@ from multiprocessing import Pool
 from pathlib import Path
 from warnings import warn
 
-from numpy import asarray, diag_indices, einsum, float64, zeros_like
+from numpy import diag_indices, einsum, float64, zeros_like
 from numpy.linalg import multi_dot
 from pyscf import ao2mo, fci, mcscf
 
@@ -51,8 +51,6 @@ def run_solver(
     eri_file: str = "eri_file.h5",
     veff: Matrix[float64] | None = None,
     veff0: Matrix[float64] | None = None,
-    ompnum: int = 4,
-    writeh1: bool = False,
     eeval: bool = True,
     ret_vec: bool = False,
     use_cumulant: bool = True,
@@ -98,10 +96,6 @@ def run_solver(
         Veff matrix to be passed to energy, if non-cumulant energy.
     veff0 :
         Veff0 matrix, passed to energy, the hf_veff in the fragment Schmidt space
-    ompnum :
-        Number of OpenMP threads. Default is 4.
-    writeh1 :
-        If True, write the one-electron integrals to a file. Default is False.
     use_cumulant :
         If True, use the cumulant approximation for RDM2. Default is True.
     eeval :
@@ -159,6 +153,8 @@ def run_solver(
 
     elif solver == "HCI":  # TODO
         # pylint: disable-next=E0611
+        raise NotImplementedError("HCI solver not implemented")
+        """
         from pyscf import hci  # type: ignore[attr-defined]  # noqa: PLC0415
 
         assert isinstance(solver_args, SHCI_ArgsUser)
@@ -177,14 +173,17 @@ def run_solver(
         h1_ = multi_dot((mf_.mo_coeff.T, h1, mf_.mo_coeff))
         eci, civec = ci_.kernel(h1_, eri, nmo, nelec)
         unused(eci)
-        civec = asarray(civec)
+        civec = asarray(civec) # import numpy.asarray
 
         (rdm1a_, rdm1b_), (rdm2aa, rdm2ab, rdm2bb) = ci_.make_rdm12s(civec, nmo, nelec)
         rdm1_tmp = rdm1a_ + rdm1b_
         rdm2s = rdm2aa + rdm2ab + rdm2ab.transpose(2, 3, 0, 1) + rdm2bb
+        """
 
     elif solver == "SHCI":  # TODO
         # pylint: disable-next=E0401,E0611
+        raise NotImplementedError("SHCI solver not implemented")
+        """
         from pyscf.shciscf import shci  # type: ignore[attr-defined]  # noqa: PLC0415
 
         frag_scratch = WorkDir(scratch_dir / dname)
@@ -195,17 +194,18 @@ def run_solver(
         nao, nmo = mf_.mo_coeff.shape
         nelec = (nocc, nocc)
         mch = shci.SHCISCF(mf_, nmo, nelec, orbpath=frag_scratch)
-        mch.fcisolver.mpiprefix = "mpirun -np " + str(ompnum)
+        mch.fcisolver.mpiprefix = "mpirun -np " + str(ompnum) # need to pass in ompnum
         mch.fcisolver.stochastic = True  # this is for PT and doesnt add PT to rdm
         mch.fcisolver.nPTiter = 0
         mch.fcisolver.sweep_iter = [0]
         mch.fcisolver.DoRDM = True
         mch.fcisolver.sweep_epsilon = [solver_args.hci_cutoff]
         mch.fcisolver.scratchDirectory = frag_scratch
-        if not writeh1:
+        if not writeh1: # writeh1 specifies whether to write the 1e integrals
             mch.fcisolver.restart = True
         mch.mc1step()
         rdm1_tmp, rdm2s = mch.fcisolver.make_rdm12(0, nmo, nelec)
+        """
 
     elif solver == "SCI":
         # pylint: disable-next=E0611
@@ -420,7 +420,6 @@ def be_func_parallel(
     use_cumulant: bool = True,
     eeval: bool = False,
     return_vec: bool = False,
-    writeh1: bool = False,
 ):
     """
     Embarrassingly Parallel High-Level Computation
@@ -461,8 +460,6 @@ def be_func_parallel(
         Use cumulant energy expression. Defaults to True
     return_vec :
         Whether to return the error vector. Defaults to False.
-    writeh1 :
-        Whether to write the one-electron integrals. Defaults to False.
 
     Returns
     -------
@@ -504,8 +501,6 @@ def be_func_parallel(
                     fobj.eri_file,
                     fobj.veff if not use_cumulant else None,
                     fobj.veff0,
-                    ompnum,
-                    writeh1,
                     eeval,
                     return_vec,
                     use_cumulant,

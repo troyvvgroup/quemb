@@ -192,9 +192,9 @@ class _DMRG_Args:
 class SHCI_ArgsUser(UserSolverArgs):
     hci_cutoff: Final[float] = 0.001
     hci_pt: Final[bool] = False
-    ci_coeff_cutoff: Final[float | None] = None  # TODO SOLVER
-    select_cutoff: Final[float | None] = None  # TODO SOLVER
     return_frag_data: Final[bool] = False
+    # ci_coeff_cutoff: Final[float | None] = None  # TODO SOLVER
+    # select_cutoff: Final[float | None] = None  # TODO SOLVER
 
 
 @define(frozen=True)
@@ -208,12 +208,13 @@ class _SHCI_Args:
 
     hci_cutoff: Final[float]
     hci_pt: Final[bool]
-    ci_coeff_cutoff: Final[float]  # TODO SOLVER
-    select_cutoff: Final[float]  # TODO SOLVER
     return_frag_data: Final[bool]
+    # ci_coeff_cutoff: Final[float]  # TODO SOLVER
+    # select_cutoff: Final[float]  # TODO SOLVER
 
     @classmethod
     def from_user_input(cls, args: SHCI_ArgsUser):
+        """
         if (args.select_cutoff is None) and (args.ci_coeff_cutoff is None):
             select_cutoff = args.hci_cutoff
             ci_coeff_cutoff = args.hci_cutoff
@@ -225,14 +226,15 @@ class _SHCI_Args:
                 "Solver args `ci_coeff_cutoff` and `select_cutoff` must both "
                 "be specified or both be `None`!"
             )
+        """
         if args.hci_pt:
             warn("hci_pt is set True: note that the perturbed SCI solver is untested")
         return cls(
             hci_pt=args.hci_pt,
             hci_cutoff=args.hci_cutoff,
-            ci_coeff_cutoff=ci_coeff_cutoff,
-            select_cutoff=select_cutoff,
             return_frag_data=args.return_frag_data,
+            # ci_coeff_cutoff=ci_coeff_cutoff,
+            # select_cutoff=select_cutoff,
         )
 
 
@@ -245,7 +247,6 @@ def be_func(
     solver_args: UserSolverArgs | None,
     scratch_dir: WorkDir,
     only_chem: bool = False,
-    nproc: int = 4,
     eeval: bool = False,
     relax_density: bool = False,
     return_vec: bool = False,
@@ -271,8 +272,6 @@ def be_func(
         Nuclear energy.
     only_chem :
         Whether to only optimize the chemical potential. Defaults to False.
-    nproc :
-        Number of processors. Defaults to 4. This is only neccessary for 'SHCI' solver
     eeval :
         Whether to evaluate the energy. Defaults to False.
     relax_density :
@@ -302,8 +301,7 @@ def be_func(
             fobj.update_heff(pot, only_chem=only_chem)
 
         assert fobj.fock is not None and fobj.heff is not None
-        # Compute the one-electron Hamiltonian
-        h1_ = fobj.fock + fobj.heff
+
         # Perform SCF calculation
         fobj.scf()
 
@@ -342,6 +340,8 @@ def be_func(
 
         elif solver == "HCI":  # TODO
             # pylint: disable-next=E0611
+            raise NotImplementedError("HCI solver not implemented")
+            """
             from pyscf import hci  # type: ignore[attr-defined]  # noqa: PLC0415
 
             assert isinstance(solver_args, SHCI_ArgsUser)
@@ -369,9 +369,11 @@ def be_func(
             )
             rdm1_tmp = rdm1a_ + rdm1b_
             rdm2s = rdm2aa + rdm2ab + rdm2ab.transpose(2, 3, 0, 1) + rdm2bb
-
+            """
         elif solver == "SHCI":  # TODO
             # pylint: disable-next=E0611,E0401
+            raise NotImplementedError("SHCI solver not implemented")
+            """
             from pyscf.shciscf import (  # type: ignore[attr-defined]  # noqa: PLC0415
                 shci,
             )
@@ -387,6 +389,7 @@ def be_func(
             nelec = (fobj.nsocc, fobj.nsocc)
             mch = shci.SHCISCF(fobj._mf, nmo, nelec, orbpath=fobj.dname)
             mch.fcisolver.mpiprefix = "mpirun -np " + str(nproc)
+            # need to pass nproc through be_func
             if SHCI_args.hci_pt:
                 mch.fcisolver.stochastic = False
                 mch.fcisolver.epsilon2 = SHCI_args.hci_cutoff
@@ -401,6 +404,7 @@ def be_func(
             mch.fcisolver.scratchDirectory = scratch_dir
             mch.mc1step()
             rdm1_tmp, rdm2s = mch.fcisolver.make_rdm12(0, nmo, nelec)
+            """
 
         elif solver == "SCI":
             # pylint: disable-next=E0611
