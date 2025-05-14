@@ -577,20 +577,15 @@ def be_func_u(
 
         full_uhf, eris = make_uhf_obj(fobj_a, fobj_b, frozen=frozen)
         if solver == "UCCSD":
-            if relax_density:
-                ucc, rdm1_tmp, rdm2s = solve_uccsd(
-                    full_uhf,
-                    eris,
-                    relax=relax_density,
-                    rdm_return=True,
-                    rdm2_return=True,
-                    frozen=frozen,
-                )
-            else:
-                ucc = solve_uccsd(
-                    full_uhf, eris, relax=relax_density, rdm_return=False, frozen=frozen
-                )
-                rdm1_tmp = make_rdm1_uccsd(ucc, relax=relax_density)
+            ucc, rdm1_tmp, rdm2s = solve_uccsd(
+                full_uhf,
+                eris,
+                relax=relax_density,
+                use_cumulant=use_cumulant,
+                rdm_return=True,
+                rdm2_return=True,
+                frozen=frozen,
+            )
         else:
             raise ValueError("Solver not implemented")
 
@@ -606,8 +601,6 @@ def be_func_u(
         )
 
         if eeval:
-            if solver == "UCCSD" and not relax_density:
-                rdm2s = make_rdm2_uccsd(ucc, with_dm1=not use_cumulant)
             fobj_a.rdm2__ = rdm2s[0].copy()
             fobj_b.rdm2__ = rdm2s[1].copy()
 
