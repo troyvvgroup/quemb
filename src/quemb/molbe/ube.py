@@ -221,25 +221,18 @@ class UBE(BE):  # 🍠
                     thr_bath=self.thr_bath,
                 )
 
-            if eri_ is None and self.mf.with_df is not None:
-                # NOT IMPLEMENTED: should not be called, as no unrestricted DF tested
-                # for density-fitted integrals; if mf is provided, pyscf.ao2mo uses DF
-                # object in an outcore fashion
-                eri_a = ao2mo.kernel(self.mf.mol, fobj_a.TA, compact=True)
-                eri_b = ao2mo.kernel(self.mf.mol, fobj_b.TA, compact=True)
-            else:
-                eri_a = ao2mo.incore.full(
-                    eri_, fobj_a.TA, compact=True
-                )  # otherwise, do an incore ao2mo
-                eri_b = ao2mo.incore.full(eri_, fobj_b.TA, compact=True)
+            assert eri_ is not None, "eri_ is None: set incore_anyway for UHF"
 
-                Csd_A = fobj_a.TA  # may have to add in nibath here
-                Csd_B = fobj_b.TA
+            eri_a = ao2mo.incore.full(eri_, fobj_a.TA, compact=True)
+            eri_b = ao2mo.incore.full(eri_, fobj_b.TA, compact=True)
 
-                # cross-spin ERI term
-                eri_ab = ao2mo.incore.general(
-                    eri_, (Csd_A, Csd_A, Csd_B, Csd_B), compact=True
-                )
+            Csd_A = fobj_a.TA  # may have to add in nibath here
+            Csd_B = fobj_b.TA
+
+            # cross-spin ERI term
+            eri_ab = ao2mo.incore.general(
+                eri_, (Csd_A, Csd_A, Csd_B, Csd_B), compact=True
+            )
 
             file_eri.create_dataset(fobj_a.dname[0], data=eri_a)
             file_eri.create_dataset(fobj_a.dname[1], data=eri_b)
