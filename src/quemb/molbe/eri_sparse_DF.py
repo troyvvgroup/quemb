@@ -1556,6 +1556,7 @@ def _transform_sparse_DF_integral(
     Fobjs: Sequence[Frags],
     auxbasis: str | None = None,
     screen_radius: Mapping[str, float] | None = None,
+    MO_coeff_epsilon: float = 1e-8,
 ) -> Iterator[Matrix[np.float64]]:
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
@@ -1564,6 +1565,14 @@ def _transform_sparse_DF_integral(
     atom_per_AO = get_atom_per_AO(mol)
     screened = get_screened(mol, screen_radius)
     exch_reachable = get_reachable(atom_per_AO, atom_per_AO, screened)
+    sparsity = (
+        np.array([len(x) for x in exch_reachable.values()])
+        / len(atom_per_AO)
+    )  # fmt: skip
+    print(sparsity)
+    print(sparsity.mean())
+    print("=" * 50)
+
     sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, exch_reachable)
     ints_2c2e = auxmol.intor("int2c2e")
     low_triang_PQ = cholesky(ints_2c2e, lower=True)
@@ -1576,6 +1585,7 @@ def _transform_sparse_DF_integral(
             atom_per_AO,
             fragobj.TA,
             screened,
+            MO_coeff_epsilon,
         )
         for fragobj in Fobjs
     )
@@ -1629,8 +1639,8 @@ def _transform_sparse_DF_integral_S_screening_everything(
     mf: scf.hf.SCF,
     Fobjs: Sequence[Frags],
     auxbasis: str | None = None,
-    AO_coeff_epsilon: float = 1e-8,
-    MO_coeff_epsilon: float = 1e-8,
+    AO_coeff_epsilon: float = 1e-10,
+    MO_coeff_epsilon: float = 1e-4,
 ) -> Iterator[Matrix[np.float64]]:
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
@@ -1674,6 +1684,7 @@ def _transform_sparse_DF_use_shared_ijP(
     all_fragment_MO_TA: Matrix[np.float64],
     auxbasis: str | None = None,
     screen_radius: Mapping[str, float] | None = None,
+    MO_coeff_epsilon: float = 1e-8,
 ) -> Iterator[Matrix[np.float64]]:
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
@@ -1688,15 +1699,20 @@ def _transform_sparse_DF_use_shared_ijP(
 
     atom_per_AO = get_atom_per_AO(mol)
 
-    shared_ijP = _get_shared_ijP(
-        all_fragment_MO_TA,
-        sparse_ints_3c2e,
+    AO_reachable_per_fragmentMO = get_reachable(
+        get_atom_per_MO(atom_per_AO, all_fragment_MO_TA, epsilon=MO_coeff_epsilon),
         atom_per_AO,
-        get_ij_pairs(Fobjs),
         screened,
     )
 
-    return (
+    shared_ijP = _get_shared_ijP(
+        all_fragment_MO_TA,
+        sparse_ints_3c2e,
+        get_ij_pairs(Fobjs),
+        AO_reachable_per_fragmentMO,
+    )
+
+    return [
         _compute_fragment_eri_with_shared_ijP(
             fobj,
             low_cholesky_PQ,
@@ -1707,42 +1723,132 @@ def _transform_sparse_DF_use_shared_ijP(
             MO_coeff_epsilon=1e-8,
         )
         for fobj in Fobjs
-    )
+    ]
 
 
 # TODO next
-# def _transform_sparse_DF_screening_and_sharing(
-#     mf: scf.hf.SCF,
-#     Fobjs: Sequence[Frags],
-#     auxbasis: str | None = None,
-#     MO_coeff_epsilon: float = 1e-8,
-# ) -> Iterator[Matrix[np.float64]]:
-#     mol = mf.mol
-#     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
+def _transform_sparse_DF_S_screening_shared_ijP(
+    mf: scf.hf.SCF,
+    Fobjs: Sequence[Frags],
+    all_fragment_MO_TA: Matrix[np.float64],
+    auxbasis: str | None = None,
+    AO_coeff_epsilon: float = 1e-8,
+    MO_coeff_epsilon: float = 1e-8,
+) -> Iterator[Matrix[np.float64]]:
+    mol = mf.mol
+    auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
-#     S_abs_timer = Timer("Time to compute S_abs")
-#     S_abs = calculate_abs_overlap(mol)
-#     print(S_abs_timer.str_elapsed())
+    S_abs_timer = Timer("Time to compute S_abs")
+    S_abs = calculate_abs_overlap(mol)
+    print(S_abs_timer.str_elapsed())
 
-#     exch_reachable = _get_AO_per_AO(S_abs, MO_coeff_epsilon)
-#     sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, exch_reachable)
-#     ints_2c2e = auxmol.intor("int2c2e")
-#     low_triang_PQ = cholesky(ints_2c2e, lower=True)
+    exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
 
-#     ints_p_q_P = (
-#         _get_fragment_ints3c2_S_screening(
-#             sparse_ints_3c2e,
-#             fragobj.TA,
-#             S_abs,
-#             MO_coeff_epsilon,
-#         )
-#         for fragobj in Fobjs
-#     )
+    sparsity = (
+        np.array([len(x) for x in exch_reachable.values()])
+        / len(S_abs)
+    )  # fmt: skip
+    print(sparsity)
+    print(sparsity.mean())
+    print("=" * 50)
+    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, exch_reachable)
+    ints_2c2e = auxmol.intor("int2c2e")
+    low_triang_PQ = cholesky(ints_2c2e, lower=True)
 
-#     return (
-#         restore("1", _eval_via_cholesky(pqP, low_triang_PQ), len(pqP))
-#         for pqP in ints_p_q_P
-#     )
+    shared_ijP = _get_shared_ijP(
+        all_fragment_MO_TA,
+        sparse_ints_3c2e,
+        get_ij_pairs(Fobjs),
+        _get_AO_per_MO(all_fragment_MO_TA, S_abs, MO_coeff_epsilon),
+    )
+    # shared_D_ijP = SemiSparseSym3DTensor(
+    #     solve(PQ, shared_ijP.unique_dense_data.T, assume_a="pos").T,
+    #     shared_ijP.nao,
+    #     shared_ijP.naux,
+    #     shared_ijP.exch_reachable,  # type: ignore[arg-type]
+    # )
+
+    # global_g = contract_DF_sparse(shared_ijP, shared_D_ijP)
+
+    ints_p_q_P = [
+        _compute_fragment_eri_with_more_shared_ijP_S_screening(
+            fragobj,
+            sparse_ints_3c2e,
+            shared_ijP,
+            S_abs,
+            MO_coeff_epsilon,
+        )
+        for fragobj in Fobjs
+    ]
+
+    return [
+        restore("1", _eval_via_cholesky(pqP, low_triang_PQ), len(pqP))
+        for pqP in ints_p_q_P
+    ]
+
+
+def _transform_sparse_DF_S_screening_shared_ijP_and_g(
+    mf: scf.hf.SCF,
+    Fobjs: Sequence[Frags],
+    all_fragment_MO_TA: Matrix[np.float64],
+    auxbasis: str | None = None,
+    AO_coeff_epsilon: float = 1e-8,
+    MO_coeff_epsilon: float = 1e-8,
+) -> Iterator[Matrix[np.float64]]:
+    mol = mf.mol
+    auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
+
+    S_abs_timer = Timer("Time to compute S_abs")
+    S_abs = calculate_abs_overlap(mol)
+    print(S_abs_timer.str_elapsed())
+
+    exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
+
+    sparsity = (
+        np.array([len(x) for x in exch_reachable.values()])
+        / len(S_abs)
+    )  # fmt: skip
+    print(sparsity)
+    print(sparsity.mean())
+    print("=" * 50)
+    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, exch_reachable)
+    ints_2c2e = auxmol.intor("int2c2e")
+    low_triang_PQ = cholesky(ints_2c2e, lower=True)
+
+    shared_ijP = _get_shared_ijP(
+        all_fragment_MO_TA,
+        sparse_ints_3c2e,
+        get_ij_pairs(Fobjs),
+        _get_AO_per_MO(all_fragment_MO_TA, S_abs, MO_coeff_epsilon),
+    )
+    shared_D_ijP = SemiSparseSym3DTensor(
+        solve(ints_2c2e, shared_ijP.unique_dense_data.T, assume_a="pos").T,
+        shared_ijP.nao,
+        shared_ijP.naux,
+        shared_ijP.exch_reachable,  # type: ignore[arg-type]
+    )
+
+    global_g = contract_DF_sparse(shared_ijP, shared_D_ijP)
+
+    ints_p_q_P = [
+        _compute_fragment_eri_with_more_shared_ijP_S_screening(
+            fragobj,
+            sparse_ints_3c2e,
+            shared_ijP,
+            S_abs,
+            MO_coeff_epsilon,
+        )
+        for fragobj in Fobjs
+    ]
+
+    return [
+        restore(
+            "1",
+            _eval_via_cholesky_shared(pqP, global_g, fragobj, low_triang_PQ),
+            len(pqP),
+        )
+        for fragobj, pqP in zip(Fobjs, ints_p_q_P)
+    ]
 
 
 def _compute_fragment_eri(
@@ -1803,14 +1909,16 @@ def _account_for_symmetry(pqP: Tensor3D[np.float64]) -> Matrix[np.float64]:
 def _eval_via_cholesky(
     pqP: Tensor3D[np.float64], low_triang_PQ: Matrix[np.float64]
 ) -> Matrix[np.float64]:
+    symmetrised = _account_for_symmetry(pqP)
     bb = solve_triangular(
         low_triang_PQ,
-        _account_for_symmetry(pqP),
+        symmetrised,
         lower=True,
         overwrite_b=False,
         check_finite=False,
     )
-    return bb.T @ bb
+    result = bb.T @ bb
+    return result
 
 
 _T_ = ListType(_UniTuple_int64_2)
@@ -1859,6 +1967,24 @@ def _custom_to_dense(
     return g_dense, argsort_result  # type: ignore[return-value]
 
 
+@njit(parallel=True)
+def new_custom_to_dense(
+    g_ijkl: SparseInt2, idx: Vector[np.int64]
+) -> Tensor4D[np.float64]:  # type: ignore[no-untyped-def]
+    n_MO = len(idx)
+    g_dense = np.empty((n_MO, n_MO, n_MO, n_MO), dtype=np.float64)
+    for i in prange(n_MO):
+        p = idx[i]
+        for j in prange(i + 1):
+            q = idx[j]
+            for k in prange(i + 1):
+                r = idx[k]
+                for l in prange(k + 1 if i > k else j + 1):
+                    s = idx[l]
+                    _assign_with_symmetry(g_dense, i, j, k, l, g_ijkl[p, q, r, s])  # type: ignore[index]
+    return g_dense
+
+
 def _eval_via_cholesky_shared(
     pqP: Tensor3D[np.float64],
     g_ijkl: SparseInt2,
@@ -1884,10 +2010,14 @@ def _eval_via_cholesky_shared(
     #     "4", g_ijkl.to_dense(fobj.frag_TA_offset), n_f
     # )
 
-    dense_g_ijkl, argsort_result = _custom_to_dense(g_ijkl, fobj.frag_TA_offset)
-    final_idx = np.argsort(argsort_result)
-    dense_g_ijkl = dense_g_ijkl[np.ix_(final_idx, final_idx, final_idx, final_idx)]
-    g[:n_f_offset, :n_f_offset] = restore("4", dense_g_ijkl, n_f)
+    g[:n_f_offset, :n_f_offset] = restore(
+        "4", new_custom_to_dense(g_ijkl, fobj.frag_TA_offset), n_f
+    )
+
+    # dense_g_ijkl, argsort_result = _custom_to_dense(g_ijkl, fobj.frag_TA_offset)
+    # final_idx = np.argsort(argsort_result)
+    # dense_g_ijkl = dense_g_ijkl[np.ix_(final_idx, final_idx, final_idx, final_idx)]
+    # g[:n_f_offset, :n_f_offset] = restore("4", dense_g_ijkl, n_f)
 
     return g
 
@@ -1969,17 +2099,9 @@ def get_ij_pairs(
 def _get_shared_ijP(
     global_fragment_TA: Matrix[np.float64],
     sparse_ints_3c2e: SemiSparseSym3DTensor,
-    atom_per_AO: Mapping[AOIdx, Set[AtomIdx]],
     i_reachable_j: Mapping[MOIdx, Set[MOIdx]],
-    screen_connection: Mapping[AtomIdx, Set[AtomIdx]],
-    MO_coeff_epsilon: float = 1e-8,
+    AO_reachable_per_fragmentMO: Mapping[MOIdx, Sequence[AOIdx]],
 ) -> SemiSparseSym3DTensor:
-    AO_reachable_per_fragmentMO = get_reachable(
-        get_atom_per_MO(atom_per_AO, global_fragment_TA, epsilon=MO_coeff_epsilon),
-        atom_per_AO,
-        screen_connection,
-    )
-
     global_mu_i_P = contract_with_TA_1st(
         global_fragment_TA, sparse_ints_3c2e, AO_reachable_per_fragmentMO
     )
@@ -2045,27 +2167,20 @@ def _compute_fragment_eri_with_shared_ijP(
     )
 
 
-def _compute_fragment_eri_with_more_shared_ijP(
+def _compute_fragment_eri_with_more_shared_ijP_S_screening(
     fobj: Frags,
-    low_cholesky_PQ: Matrix[np.float64],
     sparse_ints_3c2e: SemiSparseSym3DTensor,
     shared_ijP: SemiSparseSym3DTensor,
-    atom_per_AO: Mapping[AOIdx, Set[AtomIdx]],
-    screen_connection: Mapping[AtomIdx, Set[AtomIdx]],
+    S_abs: Matrix[np.float64],
     MO_coeff_epsilon: float = 1e-8,
-) -> Tensor4D[np.float64]:
+) -> Tensor3D[np.float64]:
     TA, n_f, n_b = fobj.TA, fobj.n_f, fobj.n_b
     assert TA.shape[1] == n_f + n_b
-    n_MO = n_f + n_b
 
-    AO_reachable_per_fragmentMO = get_reachable(
-        get_atom_per_MO(atom_per_AO, TA[:, n_f:], epsilon=MO_coeff_epsilon),
-        atom_per_AO,
-        screen_connection,
-    )
+    AO_reachable_per_fragmentMO = _get_AO_per_MO(TA[:, n_f:], S_abs, MO_coeff_epsilon)
     sparsity = (
         np.array([len(x) for x in AO_reachable_per_fragmentMO.values()])
-        / len(atom_per_AO)
+        / sparse_ints_3c2e.nao
     )  # fmt: skip
     print(sparsity)
     print(sparsity.mean())
@@ -2079,14 +2194,7 @@ def _compute_fragment_eri_with_more_shared_ijP(
     # One of the few cases where we delete something, because it is memory-expensive
     # and not needed anymore.
     del int_mu_a_P
-
-    return restore(
-        "1",
-        _eval_via_cholesky(
-            _merge_fragment_bath_MOs(int_i_j_P, int_i_a_P, int_a_b_P), low_cholesky_PQ
-        ),
-        n_MO,
-    )
+    return _merge_fragment_bath_MOs(int_i_j_P, int_i_a_P, int_a_b_P)
 
 
 def calculate_abs_overlap(mol: Mole, grid_level: int = 0) -> Matrix[np.float64]:
