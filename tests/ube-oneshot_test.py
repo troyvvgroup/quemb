@@ -20,7 +20,7 @@ class TestOneShot_Unrestricted(unittest.TestCase):
         "This test is known to fail.",
     )
     def test_hexene_anion_sto3g_frz_ben(self):
-        # Linear Equidistant (r=1Å) H8 Chain, STO-3G
+        # Hexene anion with frozen core, STO-3G
         mol = gto.M()
         mol.atom = os.path.join(os.path.dirname(__file__), "xyz/hexene.xyz")
         mol.basis = "sto-3g"
@@ -42,7 +42,7 @@ class TestOneShot_Unrestricted(unittest.TestCase):
         "This test is known to fail.",
     )
     def test_hexene_cation_sto3g_frz_ben(self):
-        # Linear Equidistant (r=1Å) H8 Chain, cc-pVDZ
+        # Hexene cation with frozen core, STO-3G
         mol = gto.M()
         mol.atom = os.path.join(os.path.dirname(__file__), "xyz/hexene.xyz")
         mol.basis = "sto-3g"
@@ -64,7 +64,7 @@ class TestOneShot_Unrestricted(unittest.TestCase):
         "This test is known to fail.",
     )
     def test_hexene_anion_sto3g_unfrz_ben(self):
-        # Octane, STO-3G
+        # Hexene anion without frozen core, STO-3G
         mol = gto.M()
         mol.atom = os.path.join(os.path.dirname(__file__), "xyz/hexene.xyz")
         mol.basis = "sto-3g"
@@ -86,6 +86,7 @@ class TestOneShot_Unrestricted(unittest.TestCase):
         "This test is known to fail.",
     )
     def test_hexene_cation_sto3g_unfrz_ben(self):
+        # Hexene cation without frozen core, STO-3G
         mol = gto.M()
         mol.atom = os.path.join(os.path.dirname(__file__), "xyz/hexene.xyz")
         mol.basis = "sto-3g"
@@ -107,7 +108,7 @@ class TestOneShot_Unrestricted(unittest.TestCase):
     ):
         mf = scf.UHF(mol)
         mf.kernel()
-        fobj = fragmentate(frag_type="autogen", n_BE=n_BE, mol=mol, frozen_core=frz)
+        fobj = fragmentate(frag_type="chemgen", n_BE=n_BE, mol=mol, frozen_core=frz)
         mybe = UBE(mf, fobj)
         mybe.oneshot(solver="UCCSD", nproc=1)
         self.assertAlmostEqual(
