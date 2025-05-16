@@ -42,6 +42,7 @@ class UBE(BE):  # 🍠
         pop_method: str | None = None,
         compute_hf: bool = True,
         thr_bath: float = 1.0e-10,
+        equal_bath: bool = True,
     ) -> None:
         """Initialize Unrestricted BE Object (ube🍠)
 
@@ -65,11 +66,17 @@ class UBE(BE):  # 🍠
         pop_method :
             Method for calculating orbital population, by default 'meta-lowdin'
             See pyscf.lo for more details and options
-        thr_bath : float,
+        thr_bath :
             Threshold for bath orbitals in Schmidt decomposition
+        equal_bath :
+            Whether to use a bath with the same number of alpha and beta orbitals.
+            Using equal_bath = False will require custom compiled functions in
+            PySCF to perform integral transformations. Default is True
         """
+
         self.unrestricted = True
         self.thr_bath = thr_bath
+        self.equal_bath = equal_bath
 
         self.fobj = fobj
 
@@ -193,33 +200,45 @@ class UBE(BE):  # 🍠
             if self.frozen_core:
                 fobj_a.core_veff = self.core_veff[0]
                 fobj_b.core_veff = self.core_veff[1]
-                fobj_a.sd(
-                    self.W[0],
-                    self.lmo_coeff_a,
-                    self.Nocc[0],
-                    thr_bath=self.thr_bath,
-                )
-                fobj_b.sd(
-                    self.W[1],
-                    self.lmo_coeff_b,
-                    self.Nocc[1],
-                    thr_bath=self.thr_bath,
-                )
             else:
                 fobj_a.core_veff = None
                 fobj_b.core_veff = None
-                fobj_a.sd(
-                    self.W,
-                    self.lmo_coeff_a,
-                    self.Nocc[0],
-                    thr_bath=self.thr_bath,
-                )
-                fobj_b.sd(
-                    self.W,
-                    self.lmo_coeff_b,
-                    self.Nocc[1],
-                    thr_bath=self.thr_bath,
-                )
+
+            fobj_a.sd(
+                self.W[0] if self.frozen_core else self.W,
+                self.lmo_coeff_a,
+                self.Nocc[0],
+                thr_bath=self.thr_bath,
+            )
+            fobj_b.sd(
+                self.W[1] if self.frozen_core else self.W,
+                self.lmo_coeff_b,
+                self.Nocc[1],
+                thr_bath=self.thr_bath,
+            )
+
+            if self.equal_bath:
+                # Enforce the same number of alpha and beta orbitals
+                # by augmenting the bath
+                tot_alpha = fobj_a.n_f + fobj_a.n_b
+                tot_beta = fobj_b.n_f + fobj_b.n_b
+
+                if tot_alpha > tot_beta:
+                    fobj_b.sd(
+                        self.W[1] if self.frozen_core else self.W,
+                        self.lmo_coeff_b,
+                        self.Nocc[1],
+                        thr_bath=self.thr_bath,
+                        norb=fobj_a.n_b,
+                    )
+                elif tot_beta > tot_alpha:
+                    fobj_a.sd(
+                        self.W[0] if self.frozen_core else self.W,
+                        self.lmo_coeff_a,
+                        self.Nocc[0],
+                        thr_bath=self.thr_bath,
+                        norb=fobj_b.n_b,
+                    )
 
             assert fobj_a.TA is not None and fobj_b.TA is not None
             assert eri_ is not None, "eri_ is None: set incore_anyway for UHF"
