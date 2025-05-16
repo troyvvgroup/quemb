@@ -20,6 +20,7 @@ from quemb.molbe.eri_sparse_DF import (
     _transform_sparse_DF_integral_S_screening_MO,
     _transform_sparse_DF_S_screening_shared_ijP,
     _transform_sparse_DF_S_screening_shared_ijP_and_g,
+    _transform_sparse_DF_S_screening_shared_ijP_and_g_fast,
     _transform_sparse_DF_use_shared_ijP,
     _write_eris,
 )
@@ -47,6 +48,8 @@ IntTransforms: TypeAlias = Literal[
     "sparse-DF-S-screening-shared-ijP",  # screen AOs and MOs via S_abs and share ijP
     # screen AOs and MOs via S_abs and share ijP and g_ijkl
     "sparse-DF-S-screening-shared-ijP-g",
+    # screen AOs and MOs via S_abs and share ijP and g_ijkl, different (faster?)
+    "sparse-DF-S-screening-shared-ijP-g-faster",
     "sparse-DF-shared-ijP",
 ]
 
@@ -949,6 +952,20 @@ class BE(MixinLocalize):
                 )
                 _write_eris(self.Fobjs, eris, file_eri)
                 eri = None
+
+            elif int_transform == "sparse-DF-S-screening-shared-ijP-g-faster":
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                eris = _transform_sparse_DF_S_screening_shared_ijP_and_g_fast(
+                    self.mf,
+                    self.Fobjs,
+                    self.all_fragment_MO_TA,
+                    auxbasis=self.auxbasis,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                )
+                _write_eris(self.Fobjs, eris, file_eri)
+                eri = None
+
             elif int_transform == "sparse-DF-shared-ijP":
                 ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
                 eris = _transform_sparse_DF_use_shared_ijP(

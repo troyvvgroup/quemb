@@ -35,6 +35,7 @@ from scipy.linalg import cholesky, solve, solve_triangular
 from scipy.optimize import bisect
 
 from quemb.molbe._eri_sparse_DF_helper import (
+    extract_g,
     identify_contiguous_blocks,
 )
 from quemb.molbe.chemfrag import (
@@ -1823,6 +1824,72 @@ def _transform_sparse_DF_S_screening_shared_ijP_and_g(
     ]
 
 
+def _transform_sparse_DF_S_screening_shared_ijP_and_g_fast(
+    mf: scf.hf.SCF,
+    Fobjs: Sequence[Frags],
+    all_fragment_MO_TA: Matrix[np.float64],
+    auxbasis: str | None = None,
+    AO_coeff_epsilon: float = 1e-8,
+    MO_coeff_epsilon: float = 1e-8,
+) -> list[Matrix[np.float64]]:
+    mol = mf.mol
+    auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
+
+    S_abs_timer = Timer("Time to compute S_abs")
+    S_abs = calculate_abs_overlap(mol)
+    print(S_abs_timer.str_elapsed())
+
+    exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
+
+    sparsity = (
+        np.array([len(x) for x in exch_reachable.values()])
+        / len(S_abs)
+    )  # fmt: skip
+    print(sparsity)
+    print(sparsity.mean())
+    print("=" * 50)
+    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, exch_reachable)
+    ints_2c2e = auxmol.intor("int2c2e")
+    low_triang_PQ = cholesky(ints_2c2e, lower=True)
+
+    shared_ijP = _get_shared_ijP(
+        all_fragment_MO_TA,
+        sparse_ints_3c2e,
+        get_ij_pairs(Fobjs),
+        _get_AO_per_MO(all_fragment_MO_TA, S_abs, MO_coeff_epsilon),
+    )
+    bb = solve_triangular(
+        low_triang_PQ,
+        shared_ijP.unique_dense_data.T,
+        lower=True,
+        overwrite_b=False,
+        check_finite=False,
+    )
+    global_g = bb.T @ bb
+
+    ints_p_q_P = [
+        _compute_fragment_eri_with_more_shared_ijP_S_screening(
+            fragobj,
+            sparse_ints_3c2e,
+            shared_ijP,
+            S_abs,
+            MO_coeff_epsilon,
+        )
+        for fragobj in Fobjs
+    ]
+
+    return [
+        restore(
+            "1",
+            _faster_eval_via_cholesky_shared(
+                pqP, shared_ijP, global_g, fragobj, low_triang_PQ
+            ),
+            len(pqP),
+        )
+        for fragobj, pqP in zip(Fobjs, ints_p_q_P)
+    ]
+
+
 def _compute_fragment_eri(
     sparse_ints_3c2e: SemiSparseSym3DTensor,
     atom_per_AO: Mapping[AOIdx, Set[AtomIdx]],
@@ -1990,6 +2057,35 @@ def _eval_via_cholesky_shared(
     # final_idx = np.argsort(argsort_result)
     # dense_g_ijkl = dense_g_ijkl[np.ix_(final_idx, final_idx, final_idx, final_idx)]
     # g[:n_f_offset, :n_f_offset] = restore("4", dense_g_ijkl, n_f)
+
+    return g
+
+
+def _faster_eval_via_cholesky_shared(
+    pqP: Tensor3D[np.float64],
+    ijP: SemiSparseSym3DTensor,
+    g_ijkl: Matrix[np.float64],
+    fobj: Frags,
+    low_triang_PQ: Matrix[np.float64],
+) -> Matrix[np.float64]:
+    bb = solve_triangular(
+        low_triang_PQ,
+        _account_for_symmetry(pqP),
+        lower=True,
+        overwrite_b=False,
+        check_finite=False,
+    )
+    n_f, n_orb = fobj.n_f, len(pqP)
+    orb_offset = ravel_symmetric(n_orb - 1, n_orb - 1) + 1
+    n_f_offset = ravel_symmetric(n_f - 1, n_f - 1) + 1
+    g = np.empty((orb_offset, orb_offset))
+
+    g[:, n_f_offset:] = bb.T @ bb[:, n_f_offset:]
+    g[n_f_offset:, :] = g[:, n_f_offset:].T
+
+    g[:n_f_offset, :n_f_offset] = restore(
+        "4", extract_g(ijP._keys, ijP.exch_reachable, g_ijkl, fobj.frag_TA_offset), n_f
+    )
 
     return g
 
