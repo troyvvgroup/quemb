@@ -109,7 +109,6 @@ class BEOPT:
                 self.solver,
                 self.enuc,
                 only_chem=self.only_chem,
-                nproc=self.ompnum,
                 relax_density=self.relax_density,
                 scratch_dir=self.scratch_dir,
                 solver_args=self.solver_args,
