@@ -61,8 +61,7 @@ class UBE(BE):  # 🍠
         eri_file :
             h5py file with ERIs
         lo_method :
-            Method for orbital localization. Supports 'lowdin', 'boys', and 'wannier',
-            by default "lowdin"
+            Method for orbital localization, by default "lowdin"
         pop_method :
             Method for calculating orbital population, by default 'meta-lowdin'
             See pyscf.lo for more details and options
