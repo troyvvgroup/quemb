@@ -1557,7 +1557,7 @@ def _transform_sparse_DF_integral(
     auxbasis: str | None = None,
     screen_radius: Mapping[str, float] | None = None,
     MO_coeff_epsilon: float = 1e-8,
-) -> Iterator[Matrix[np.float64]]:
+) -> list[Matrix[np.float64]]:
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
     if screen_radius is None:
@@ -1579,7 +1579,7 @@ def _transform_sparse_DF_integral(
 
     atom_per_AO = get_atom_per_AO(mol)
 
-    ints_i_j_P = (
+    ints_i_j_P = [
         _compute_fragment_eri(
             sparse_ints_3c2e,
             atom_per_AO,
@@ -1588,12 +1588,12 @@ def _transform_sparse_DF_integral(
             MO_coeff_epsilon,
         )
         for fragobj in Fobjs
-    )
+    ]
 
-    return (
+    return [
         restore("1", _eval_via_cholesky(ijP, low_triang_PQ), len(ijP))
         for ijP in ints_i_j_P
-    )
+    ]
 
 
 def _transform_sparse_DF_integral_S_screening_MO(
@@ -1602,7 +1602,7 @@ def _transform_sparse_DF_integral_S_screening_MO(
     auxbasis: str | None = None,
     screen_radius: Mapping[str, float] | None = None,
     MO_coeff_epsilon: float = 1e-8,
-) -> Iterator[Matrix[np.float64]]:
+) -> list[Matrix[np.float64]]:
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
     if screen_radius is None:
@@ -1619,7 +1619,7 @@ def _transform_sparse_DF_integral_S_screening_MO(
     S_abs = calculate_abs_overlap(mol)
     print(S_abs_timer.str_elapsed())
 
-    ints_p_q_P = (
+    ints_p_q_P = [
         _get_fragment_ints3c2_S_screening(
             sparse_ints_3c2e,
             fragobj.TA,
@@ -1627,12 +1627,12 @@ def _transform_sparse_DF_integral_S_screening_MO(
             MO_coeff_epsilon,
         )
         for fragobj in Fobjs
-    )
+    ]
 
-    return (
+    return [
         restore("1", _eval_via_cholesky(pqP, low_triang_PQ), len(pqP))
         for pqP in ints_p_q_P
-    )
+    ]
 
 
 def _transform_sparse_DF_integral_S_screening_everything(
@@ -2024,7 +2024,7 @@ def _eval_via_cholesky_shared(
 
 def _write_eris(
     Fobjs: Sequence[Frags],
-    eris: Iterator[Matrix[np.float64]],
+    eris: Sequence[Matrix[np.float64]],
     file_eri_handler: h5py.File,
 ) -> None:
     for fragidx, eri in enumerate(eris):
