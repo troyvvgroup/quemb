@@ -6,7 +6,6 @@ import h5py
 import numpy as np
 import scipy.linalg
 from numpy import (
-    argsort,
     array,
     diag_indices,
     einsum,
@@ -465,26 +464,20 @@ def schmidt_decomposition(
 
     # Identify significant environment orbitals based on eigenvalue threshold
     Bidx = []
-
+    for i in range(len(Eval)):
+        if thr_bath < np.abs(Eval[i]) < 1.0 - thr_bath:
+            Bidx.append(i)
     # Set the number of orbitals to be taken from the environment orbitals
     # Based on an eigenvalue threshold ordering
     if norb is not None:
-        n_frag_ind = len(Frag_sites1)
-        n_bath_ind = norb - n_frag_ind
-        ind_sort = argsort(np.abs(Eval))
-        first_el = [x for x in ind_sort if x < 1.0 - thr_bath][-1 * n_bath_ind]
-        for i in range(len(Eval)):
-            if np.abs(Eval[i]) >= first_el:
-                Bidx.append(i)
-    else:
-        for i in range(len(Eval)):
-            if thr_bath < np.abs(Eval[i]) < 1.0 - thr_bath:
-                Bidx.append(i)
+        # add extra correlated orbital from environment
+        # this will likely have Eval = 1
+        more_corr = Bidx[-1] + 1
+        Bidx.append(more_corr)
 
     # Initialize the transformation matrix (TA)
     TA = zeros([Tot_sites, len(AO_in_frag) + len(Bidx)])
     TA[AO_in_frag, : len(AO_in_frag)] = eye(len(AO_in_frag))  # Fragment part
     TA[Env_sites1, len(AO_in_frag) :] = Evec[:, Bidx]  # Environment part
 
-    # return TA, norbs_frag, norbs_bath
     return TA, Frag_sites1.shape[0], len(Bidx)
