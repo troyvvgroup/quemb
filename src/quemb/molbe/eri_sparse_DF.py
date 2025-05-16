@@ -35,7 +35,6 @@ from scipy.linalg import cholesky, solve, solve_triangular
 from scipy.optimize import bisect
 
 from quemb.molbe._eri_sparse_DF_helper import (
-    extract_g,
     identify_contiguous_blocks,
 )
 from quemb.molbe.chemfrag import (
@@ -45,13 +44,19 @@ from quemb.molbe.pfrag import Frags
 from quemb.shared.helper import (
     Timer,
     jitclass,
+    n_eri,
     njit,
     ravel_eri_idx,
     ravel_Fortran,
     ravel_symmetric,
     unravel_eri_idx,
 )
-from quemb.shared.numba_helpers import PreIncr, SortedIntSet, Type_SortedIntSet
+from quemb.shared.numba_helpers import (
+    PreIncr,
+    SortedIntSet,
+    Type_SortedIntSet,
+    to_numba_dict,
+)
 from quemb.shared.typing import (
     AOIdx,
     AtomIdx,
@@ -1858,6 +1863,9 @@ def _transform_sparse_DF_S_screening_shared_ijP_and_g_fast(
         get_ij_pairs(Fobjs),
         _get_AO_per_MO(all_fragment_MO_TA, S_abs, MO_coeff_epsilon),
     )
+    ravelled_ij_to_offset = to_numba_dict(
+        {k: i for i, k in enumerate(shared_ijP._keys)}
+    )
     bb = solve_triangular(
         low_triang_PQ,
         shared_ijP.unique_dense_data.T,
@@ -1882,7 +1890,7 @@ def _transform_sparse_DF_S_screening_shared_ijP_and_g_fast(
         restore(
             "1",
             _faster_eval_via_cholesky_shared(
-                pqP, shared_ijP, global_g, fragobj, low_triang_PQ
+                pqP, ravelled_ij_to_offset, global_g, fragobj, low_triang_PQ
             ),
             len(pqP),
         )
@@ -2061,9 +2069,55 @@ def _eval_via_cholesky_shared(
     return g
 
 
+@njit(parallel=True)
+def _index_into_vector(new_integrals, final_offsets, sorted_idx):
+    g = np.empty(n_eri(len(sorted_idx)))
+    counter = 0
+    for i in prange(len(final_offsets)):
+        pq = final_offsets[i]
+        for j in prange(i + 1):
+            rs = final_offsets[j]
+            g[counter] = new_integrals[pq, rs]
+            counter += 1
+    return g
+
+
+@njit(parallel=True)
+def _my_ix_(g, new_idx):
+    n = len(g)
+    result = np.empty_like(g)
+    for i in prange(n):
+        for j in prange(n):
+            for k in prange(n):
+                result[i, j, k, :] = g[new_idx[i], new_idx[j], new_idx[k], new_idx]
+    return result
+
+
+def _extract_g(new_integrals, extract_idx, keys_to_offset):
+    argsort_result = np.argsort(extract_idx)
+    sorted_idx = extract_idx[argsort_result]
+    inv_sorting = np.argsort(argsort_result)
+
+    final_offsets = np.array(
+        [
+            keys_to_offset[ravel_symmetric(p, q)]
+            for i, p in enumerate(sorted_idx)
+            for q in sorted_idx[: i + 1]
+        ]
+    )
+    return _my_ix_(
+        restore(
+            "1",
+            _index_into_vector(new_integrals, final_offsets, sorted_idx),
+            len(extract_idx),
+        ),
+        inv_sorting,
+    )
+
+
 def _faster_eval_via_cholesky_shared(
     pqP: Tensor3D[np.float64],
-    ijP: SemiSparseSym3DTensor,
+    ravelled_ij_to_offset: Mapping[int, int],
     g_ijkl: Matrix[np.float64],
     fobj: Frags,
     low_triang_PQ: Matrix[np.float64],
@@ -2084,7 +2138,7 @@ def _faster_eval_via_cholesky_shared(
     g[n_f_offset:, :] = g[:, n_f_offset:].T
 
     g[:n_f_offset, :n_f_offset] = restore(
-        "4", extract_g(ijP._keys, ijP.exch_reachable, g_ijkl, fobj.frag_TA_offset), n_f
+        "4", _extract_g(g_ijkl, fobj.frag_TA_offset, ravelled_ij_to_offset), n_f
     )
 
     return g

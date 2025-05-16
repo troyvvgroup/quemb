@@ -248,6 +248,11 @@ def unravel_eri_idx(i: _T_Integral) -> tuple[int, int, int, int]:
 
 
 @njit
+def n_eri(n):
+    return ravel_eri_idx(n - 1, n - 1, n - 1, n - 1) + 1
+
+
+@njit
 def ravel_C(a: _T_Integral, b: _T_Integral, n_cols: _T_Integral) -> _T_Integral:
     """Flatten the index a, b assuming row-mayor/C indexing
 

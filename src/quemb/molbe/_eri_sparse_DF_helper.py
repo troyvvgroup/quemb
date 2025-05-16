@@ -69,7 +69,7 @@ def identify_contiguous_blocks(X: Sequence[_T]) -> list[tuple[int, int]]:
     return result
 
 
-@njit(parallel=True)
+@njit(parallel=False)
 def idx_extract_block(keys, block_start, block_end, jit_ij_pairs):
     """Extract g[block_start : block_end, block_start : block_end,
     block_start : block_end,  block_start : block_end]"""
@@ -96,7 +96,7 @@ def idx_extract_block(keys, block_start, block_end, jit_ij_pairs):
     return idx
 
 
-@njit(parallel=True)
+@njit(parallel=False)
 def _get_diag_out_idx(blocks_offset, i):
     block_start, block_end = blocks_offset[i]
     idx = np.empty(n_symmetric(block_end - block_start), dtype=np.int64)
@@ -122,7 +122,7 @@ def _get_diag_out_idx(blocks_offset, i):
     return idx
 
 
-@njit(parallel=True)
+@njit(parallel=False)
 def idx_extract_offdiag(
     keys, block_start_1, block_end_1, block_start_2, block_end_2, ji_ij_pairs
 ):
@@ -160,7 +160,7 @@ def idx_extract_offdiag(
     return new_idx
 
 
-@njit(parallel=True)
+@njit(parallel=False)
 def _get_offdiag_out_idx(blocks_offset, i, j):
     block_start_1, block_end_1, block_start_2, block_end_2 = (
         *blocks_offset[i],
@@ -201,7 +201,7 @@ def _get_offdiag_out_idx(blocks_offset, i, j):
     return new_idx
 
 
-@njit(parallel=True)
+@njit(parallel=False)
 def block_diag_assign_ix(g_lhs, rows_out, g_rhs, rows_rhs):
     for row_counter in prange(len(rows_rhs)):
         for col_counter in prange(row_counter + 1):
@@ -210,7 +210,7 @@ def block_diag_assign_ix(g_lhs, rows_out, g_rhs, rows_rhs):
             g_lhs[rows_out[col_counter], rows_out[row_counter]] = val
 
 
-@njit(parallel=True)
+@njit(parallel=False)
 def off_diag_assign_ix(g_lhs, rows_out, cols_out, g_rhs, rows_rhs, cols_rhs):
     for row_counter in prange(len(rows_rhs)):
         for col_counter in prange(len(cols_rhs)):
