@@ -1641,7 +1641,7 @@ def _transform_sparse_DF_integral_S_screening_everything(
     auxbasis: str | None = None,
     AO_coeff_epsilon: float = 1e-10,
     MO_coeff_epsilon: float = 1e-4,
-) -> Iterator[Matrix[np.float64]]:
+) -> list[Matrix[np.float64]]:
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
@@ -1685,7 +1685,7 @@ def _transform_sparse_DF_use_shared_ijP(
     auxbasis: str | None = None,
     screen_radius: Mapping[str, float] | None = None,
     MO_coeff_epsilon: float = 1e-8,
-) -> Iterator[Matrix[np.float64]]:
+) -> list[Matrix[np.float64]]:
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
     if screen_radius is None:
@@ -1734,7 +1734,7 @@ def _transform_sparse_DF_S_screening_shared_ijP(
     auxbasis: str | None = None,
     AO_coeff_epsilon: float = 1e-8,
     MO_coeff_epsilon: float = 1e-8,
-) -> Iterator[Matrix[np.float64]]:
+) -> list[Matrix[np.float64]]:
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
@@ -1794,7 +1794,7 @@ def _transform_sparse_DF_S_screening_shared_ijP_and_g(
     auxbasis: str | None = None,
     AO_coeff_epsilon: float = 1e-8,
     MO_coeff_epsilon: float = 1e-8,
-) -> Iterator[Matrix[np.float64]]:
+) -> list[Matrix[np.float64]]:
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
@@ -1973,13 +1973,13 @@ def new_custom_to_dense(
 ) -> Tensor4D[np.float64]:  # type: ignore[no-untyped-def]
     n_MO = len(idx)
     g_dense = np.empty((n_MO, n_MO, n_MO, n_MO), dtype=np.float64)
-    for i in prange(n_MO):
+    for i in prange(n_MO):  # type: ignore[attr-defined]
         p = idx[i]
-        for j in prange(i + 1):
+        for j in prange(i + 1):  # type: ignore[attr-defined]
             q = idx[j]
-            for k in prange(i + 1):
+            for k in prange(i + 1):  # type: ignore[attr-defined]
                 r = idx[k]
-                for l in prange(k + 1 if i > k else j + 1):
+                for l in prange(k + 1 if i > k else j + 1):  # type: ignore[attr-defined]
                     s = idx[l]
                     _assign_with_symmetry(g_dense, i, j, k, l, g_ijkl[p, q, r, s])  # type: ignore[index]
     return g_dense
