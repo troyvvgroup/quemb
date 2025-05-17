@@ -2069,13 +2069,13 @@ def _eval_via_cholesky_shared(
     return g
 
 
-@njit(parallel=True)
+@njit(parallel=False)
 def _index_into_vector(new_integrals, final_offsets, sorted_idx):
     g = np.empty(n_eri(len(sorted_idx)))
     counter = 0
-    for i in prange(len(final_offsets)):
+    for i in range(len(final_offsets)):
         pq = final_offsets[i]
-        for j in prange(i + 1):
+        for j in range(i + 1):
             rs = final_offsets[j]
             g[counter] = new_integrals[pq, rs]
             counter += 1
