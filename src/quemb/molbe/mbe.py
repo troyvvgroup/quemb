@@ -14,12 +14,21 @@ from typing_extensions import assert_never
 
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
-from quemb.molbe.eri_sparse_DF import transform_sparse_DF_integral
+from quemb.molbe.eri_sparse_DF import (
+    _transform_sparse_DF_integral,
+    _transform_sparse_DF_integral_S_screening_everything,
+    _transform_sparse_DF_integral_S_screening_MO,
+    _transform_sparse_DF_S_screening_shared_ijP,
+    _transform_sparse_DF_S_screening_shared_ijP_and_g,
+    _transform_sparse_DF_S_screening_shared_ijP_and_g_fast,
+    _transform_sparse_DF_use_shared_ijP,
+    _write_eris,
+)
 from quemb.molbe.fragment import FragPart
 from quemb.molbe.lo import MixinLocalize
 from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
 from quemb.molbe.opt import BEOPT
-from quemb.molbe.pfrag import Frags
+from quemb.molbe.pfrag import Frags, union_of_frag_MOs_and_index
 from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.config import settings
 from quemb.shared.external.optqn import (
@@ -30,7 +39,18 @@ from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix, PathLike
 
 IntTransforms: TypeAlias = Literal[
-    "in-core", "out-core-DF", "int-direct-DF", "sparse-DF"
+    "in-core",
+    "out-core-DF",
+    "int-direct-DF",
+    "sparse-DF",
+    "sparse-DF-S-screening-onlyMO",  # screen the MOs via S_abs
+    "sparse-DF-S-screening",  # screen AOs and MOs via S_abs
+    "sparse-DF-S-screening-shared-ijP",  # screen AOs and MOs via S_abs and share ijP
+    # screen AOs and MOs via S_abs and share ijP and g_ijkl
+    "sparse-DF-S-screening-shared-ijP-g",
+    # screen AOs and MOs via S_abs and share ijP and g_ijkl, different (faster?)
+    "sparse-DF-S-screening-shared-ijP-g-faster",
+    "sparse-DF-shared-ijP",
 ]
 
 
@@ -91,6 +111,8 @@ class BE(MixinLocalize):
         scratch_dir: WorkDir | None = None,
         int_transform: IntTransforms = "in-core",
         auxbasis: str | None = None,
+        MO_coeff_epsilon: float = 1e-4,
+        AO_coeff_epsilon: float = 1e-10,
     ) -> None:
         r"""
         Constructor for BE object.
@@ -163,6 +185,9 @@ class BE(MixinLocalize):
             self.P_core = store_.P_core
             self.core_veff = store_.core_veff
             self.mo_energy = store_.mo_energy
+
+        self.MO_coeff_epsilon = MO_coeff_epsilon
+        self.AO_coeff_epsilon = AO_coeff_epsilon
 
         self.unrestricted = False
         self.nproc = nproc
@@ -834,6 +859,12 @@ class BE(MixinLocalize):
 
             self.Fobjs.append(fobjs_)
 
+        self.all_fragment_MO_TA, frag_TA_index_per_frag = union_of_frag_MOs_and_index(
+            self.Fobjs, self.mf.mol.intor("int1e_ovlp"), epsilon=1e-10
+        )
+        for fobj, frag_TA_offset in zip(self.Fobjs, frag_TA_index_per_frag):
+            fobj.frag_TA_offset = frag_TA_offset
+
         eritransform_timer = Timer("Time to transform ERIs")
 
         if not restart:
@@ -867,13 +898,80 @@ class BE(MixinLocalize):
                 )
                 eri = None
             elif int_transform == "sparse-DF":
-                # Calculate ERIs on-the-fly to generate fragment ERIs
-                # TODO: Future feature to be implemented
-                # NOTE: Ideally, we want AO shell pair screening for this.
                 ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-                transform_sparse_DF_integral(
-                    self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis
+                eris = _transform_sparse_DF_integral(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
                 )
+                _write_eris(self.Fobjs, eris, file_eri)
+                eri = None
+            elif int_transform == "sparse-DF-S-screening-onlyMO":
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                eris = _transform_sparse_DF_integral_S_screening_MO(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                )
+                _write_eris(self.Fobjs, eris, file_eri)
+                eri = None
+            elif int_transform == "sparse-DF-S-screening":
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                eris = _transform_sparse_DF_integral_S_screening_everything(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                )
+                _write_eris(self.Fobjs, eris, file_eri)
+                eri = None
+            elif int_transform == "sparse-DF-S-screening-shared-ijP":
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                eris = _transform_sparse_DF_S_screening_shared_ijP(
+                    self.mf,
+                    self.Fobjs,
+                    self.all_fragment_MO_TA,
+                    auxbasis=self.auxbasis,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                )
+                _write_eris(self.Fobjs, eris, file_eri)
+                eri = None
+            elif int_transform == "sparse-DF-S-screening-shared-ijP-g":
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                eris = _transform_sparse_DF_S_screening_shared_ijP_and_g(
+                    self.mf,
+                    self.Fobjs,
+                    self.all_fragment_MO_TA,
+                    auxbasis=self.auxbasis,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                )
+                _write_eris(self.Fobjs, eris, file_eri)
+                eri = None
+
+            elif int_transform == "sparse-DF-S-screening-shared-ijP-g-faster":
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                eris = _transform_sparse_DF_S_screening_shared_ijP_and_g_fast(
+                    self.mf,
+                    self.Fobjs,
+                    self.all_fragment_MO_TA,
+                    auxbasis=self.auxbasis,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                )
+                _write_eris(self.Fobjs, eris, file_eri)
+                eri = None
+
+            elif int_transform == "sparse-DF-shared-ijP":
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                eris = _transform_sparse_DF_use_shared_ijP(
+                    self.mf, self.Fobjs, self.all_fragment_MO_TA, auxbasis=self.auxbasis
+                )
+                _write_eris(self.Fobjs, eris, file_eri)
                 eri = None
             else:
                 assert_never(int_transform)
