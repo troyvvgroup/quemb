@@ -124,6 +124,9 @@ class Timer:
     message: str = "Elapsed time"
     start: float = field(init=False, factory=time)
 
+    def __attrs_post_init__(self) -> None:
+        print(f"Timer with message '{self.message}' started.")
+
     def elapsed(self) -> float:
         return time() - self.start
 
