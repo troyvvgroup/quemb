@@ -1039,11 +1039,12 @@ def get_sparse_ints_3c2e(
     exch_reachable: Mapping[AOIdx, Sequence[AOIdx]],
 ) -> SemiSparseSym3DTensor:
     """Return the 3-center 2-electron integrals in a sparse format."""
+    AO_timer = Timer("Time to compute sparse (mu nu | P)")
     exch_reachable_unique = account_for_symmetry(exch_reachable)
 
-    screened_unique_integrals = np.empty(
-        (sum(len(v) for v in exch_reachable_unique.values()), auxmol.nao), order="C"
-    )
+    n_unique = sum(len(v) for v in exch_reachable_unique.values())
+    print(f"Memory for AO integrals is: {n_unique * auxmol.nao * 8 * 2**-30} Gb")
+    screened_unique_integrals = np.empty((n_unique, auxmol.nao), order="C")
 
     shell_id_to_AO, AO_to_shell_id = conversions_AO_shell(mol)
     shell_reachable_by_shell = account_for_symmetry(
@@ -1089,6 +1090,8 @@ def get_sparse_ints_3c2e(
                     screened_unique_integrals[
                         np.searchsorted(keys, ravel_symmetric(p, q)), :
                     ] = integrals[i, j, ::1]
+
+    print(AO_timer.str_elapsed())
 
     return SemiSparseSym3DTensor(
         screened_unique_integrals, mol.nao, auxmol.nao, to_numba_input(exch_reachable)
@@ -1534,7 +1537,7 @@ def _transform_sparse_DF_integral(
     Fobjs: Sequence[Frags],
     auxbasis: str | None = None,
     screen_radius: Mapping[str, float] | None = None,
-    MO_coeff_epsilon: float = 1e-8,
+    MO_coeff_epsilon: float = 1e-4,
 ) -> list[Matrix[np.float64]]:
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
@@ -1579,7 +1582,7 @@ def _transform_sparse_DF_integral_S_screening_MO(
     Fobjs: Sequence[Frags],
     auxbasis: str | None = None,
     screen_radius: Mapping[str, float] | None = None,
-    MO_coeff_epsilon: float = 1e-8,
+    MO_coeff_epsilon: float = 1e-4,
 ) -> list[Matrix[np.float64]]:
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
@@ -1662,7 +1665,7 @@ def _transform_sparse_DF_use_shared_ijP(
     all_fragment_MO_TA: Matrix[np.float64],
     auxbasis: str | None = None,
     screen_radius: Mapping[str, float] | None = None,
-    MO_coeff_epsilon: float = 1e-8,
+    MO_coeff_epsilon: float = 1e-4,
 ) -> list[Matrix[np.float64]]:
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
@@ -1698,7 +1701,7 @@ def _transform_sparse_DF_use_shared_ijP(
             shared_ijP,
             atom_per_AO,
             screened,
-            MO_coeff_epsilon=1e-8,
+            MO_coeff_epsilon=1e-4,
         )
         for fobj in Fobjs
     ]
@@ -1710,8 +1713,8 @@ def _transform_sparse_DF_S_screening_shared_ijP(
     Fobjs: Sequence[Frags],
     all_fragment_MO_TA: Matrix[np.float64],
     auxbasis: str | None = None,
-    AO_coeff_epsilon: float = 1e-8,
-    MO_coeff_epsilon: float = 1e-8,
+    AO_coeff_epsilon: float = 1e-10,
+    MO_coeff_epsilon: float = 1e-4,
 ) -> list[Matrix[np.float64]]:
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
@@ -1770,8 +1773,8 @@ def _transform_sparse_DF_S_screening_shared_ijP_and_g(
     Fobjs: Sequence[Frags],
     all_fragment_MO_TA: Matrix[np.float64],
     auxbasis: str | None = None,
-    AO_coeff_epsilon: float = 1e-8,
-    MO_coeff_epsilon: float = 1e-8,
+    AO_coeff_epsilon: float = 1e-10,
+    MO_coeff_epsilon: float = 1e-4,
 ) -> list[Matrix[np.float64]]:
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
@@ -2259,7 +2262,7 @@ def _compute_fragment_eri_with_shared_ijP(
     shared_ijP: SemiSparseSym3DTensor,
     atom_per_AO: Mapping[AOIdx, Set[AtomIdx]],
     screen_connection: Mapping[AtomIdx, Set[AtomIdx]],
-    MO_coeff_epsilon: float = 1e-8,
+    MO_coeff_epsilon: float = 1e-4,
 ) -> Tensor4D[np.float64]:
     TA, n_f, n_b = fobj.TA, fobj.n_f, fobj.n_b
     assert TA.shape[1] == n_f + n_b
@@ -2294,7 +2297,7 @@ def _compute_fragment_eri_with_more_shared_ijP_S_screening(
     sparse_ints_3c2e: SemiSparseSym3DTensor,
     shared_ijP: SemiSparseSym3DTensor,
     S_abs: Matrix[np.float64],
-    MO_coeff_epsilon: float = 1e-8,
+    MO_coeff_epsilon: float,
 ) -> Tensor3D[np.float64]:
     TA, n_f, n_b = fobj.TA, fobj.n_f, fobj.n_b
     assert TA.shape[1] == n_f + n_b
