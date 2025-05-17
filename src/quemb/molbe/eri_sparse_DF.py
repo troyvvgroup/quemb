@@ -45,6 +45,7 @@ from quemb.shared.helper import (
     Timer,
     jitclass,
     n_eri,
+    n_symmetric,
     njit,
     ravel_eri_idx,
     ravel_Fortran,
@@ -1043,7 +1044,15 @@ def get_sparse_ints_3c2e(
     exch_reachable_unique = account_for_symmetry(exch_reachable)
 
     n_unique = sum(len(v) for v in exch_reachable_unique.values())
-    print(f"Memory for AO integrals is: {n_unique * auxmol.nao * 8 * 2**-30} Gb")
+    print(
+        "Semi-Sparse Memory for (mu nu | P) integrals is: "
+        f"{n_unique * auxmol.nao * 8 * 2**-30} Gb"
+    )
+    print(
+        "Dense Memory for (mu nu | P) would be: "
+        f"{n_symmetric(mol.nao) * auxmol.nao * 8 * 2**-30} Gb"
+    )
+    print(f"Sparsity factor is: {(1 - n_unique / mol.nao**2) * 100} %")
     screened_unique_integrals = np.empty((n_unique, auxmol.nao), order="C")
 
     shell_id_to_AO, AO_to_shell_id = conversions_AO_shell(mol)
@@ -1643,7 +1652,7 @@ def _transform_sparse_DF_integral_S_screening_everything(
     ints_2c2e = auxmol.intor("int2c2e")
     low_triang_PQ = cholesky(ints_2c2e, lower=True)
 
-    ints_p_q_P = [
+    ints_p_q_P = (
         _get_fragment_ints3c2_S_screening(
             sparse_ints_3c2e,
             fragobj.TA,
@@ -1651,12 +1660,12 @@ def _transform_sparse_DF_integral_S_screening_everything(
             MO_coeff_epsilon,
         )
         for fragobj in Fobjs
-    ]
+    )
 
-    return [
+    return (
         restore("1", _eval_via_cholesky(pqP, low_triang_PQ), len(pqP))
         for pqP in ints_p_q_P
-    ]
+    )
 
 
 def _transform_sparse_DF_use_shared_ijP(

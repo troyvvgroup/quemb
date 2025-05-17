@@ -223,6 +223,12 @@ def ravel_symmetric(a: _T_Integral, b: _T_Integral) -> _T_Integral:
 
 
 @njit
+def n_symmetric(n: _T_Integral) -> _T_Integral:
+    "The number if symmetry-equivalent pairs i <= j, for i <= n and j <= n"
+    return ravel_symmetric(n - 1, n - 1) + 1
+
+
+@njit
 def unravel_symmetric(i: Integral) -> tuple[int, int]:
     a = int((np.sqrt(8 * i + 1) - 1) // 2)
     offset = gauss_sum(a)
