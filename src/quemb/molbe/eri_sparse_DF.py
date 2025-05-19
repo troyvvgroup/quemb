@@ -1686,10 +1686,13 @@ def _transform_sparse_DF_integral_S_screening_everything(
             fragobj.TA.shape[1],
         )
 
-    with ThreadPoolExecutor(max_workers=n_threads) as executor:
-        lambdas = [executor.submit(f, fragobj) for fragobj in Fobjs]
+    if n_threads > 1:
+        with ThreadPoolExecutor(max_workers=n_threads) as executor:
+            lambdas = [executor.submit(f, fragobj) for fragobj in Fobjs]
 
-        return [x.result() for x in lambdas]
+            return (x.result() for x in lambdas)
+    else:
+        return (f(fragobj) for fragobj in Fobjs)
 
 
 def _transform_sparse_DF_use_shared_ijP(
