@@ -1116,6 +1116,11 @@ def get_sparse_ints_3c2e(
 
     print(AO_timer.str_elapsed())
 
+    assert not np.isnan(screened_unique_integrals).any(), (
+        np.isnan(screened_unique_integrals).sum(),
+        screened_unique_integrals.size,
+    )
+
     return SemiSparseSym3DTensor(
         screened_unique_integrals, mol.nao, auxmol.nao, to_numba_input(exch_reachable)
     )
@@ -1304,7 +1309,7 @@ def find_screening_radius(
 def contract_with_TA_1st(
     TA: Matrix[np.float64],
     int_mu_nu_P: SemiSparseSym3DTensor,
-    AO_reachable_per_SchmidtMO: List[Vector[np.int64]],
+    AO_reachable_per_SchmidtMO: list[Vector[AOIdx]],
 ) -> SemiSparse3DTensor:
     return _jit_contract_with_TA_1st(
         TA,
@@ -1789,7 +1794,9 @@ def _transform_sparse_DF_S_screening_shared_ijP(
 
     ints_p_q_P = [
         _compute_fragment_eri_with_more_shared_ijP_S_screening(
-            fragobj,
+            fragobj.TA,
+            fragobj.n_f,
+            fragobj.frag_TA_offset,
             sparse_ints_3c2e,
             shared_ijP,
             S_abs,
@@ -1872,9 +1879,10 @@ def _transform_sparse_DF_S_screening_shared_ijP_and_g_fast(
     mf: scf.hf.SCF,
     Fobjs: Sequence[Frags],
     all_fragment_MO_TA: Matrix[np.float64],
-    auxbasis: str | None = None,
-    AO_coeff_epsilon: float = 1e-8,
-    MO_coeff_epsilon: float = 1e-8,
+    auxbasis: str | None,
+    AO_coeff_epsilon: float,
+    MO_coeff_epsilon: float,
+    n_threads: int,
 ) -> list[Matrix[np.float64]]:
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
@@ -1899,12 +1907,13 @@ def _transform_sparse_DF_S_screening_shared_ijP_and_g_fast(
     shared_ijP = _get_shared_ijP(
         all_fragment_MO_TA,
         sparse_ints_3c2e,
-        get_ij_pairs(Fobjs),
-        _get_AO_per_MO(all_fragment_MO_TA, S_abs, MO_coeff_epsilon),
+        to_numba_input(get_ij_pairs(Fobjs)),
+        _jit_get_AO_per_MO(all_fragment_MO_TA, S_abs, MO_coeff_epsilon),
     )
     ravelled_ij_to_offset = to_numba_dict(
         {k: i for i, k in enumerate(shared_ijP._keys)}
     )
+    assert not np.isnan(shared_ijP.unique_dense_data.T).any()
     bb = solve_triangular(
         low_triang_PQ,
         shared_ijP.unique_dense_data.T,
@@ -1912,29 +1921,36 @@ def _transform_sparse_DF_S_screening_shared_ijP_and_g_fast(
         overwrite_b=False,
         check_finite=False,
     )
+    assert not np.isnan(bb).any()
     global_g = bb.T @ bb
+    assert not np.isnan(global_g).any()
 
-    ints_p_q_P = [
-        _compute_fragment_eri_with_more_shared_ijP_S_screening(
-            fragobj,
+    def f(fragobj):
+        pqP = _compute_fragment_eri_with_more_shared_ijP_S_screening(
+            fragobj.TA,
+            fragobj.n_f,
+            fragobj.frag_TA_offset,
             sparse_ints_3c2e,
             shared_ijP,
             S_abs,
             MO_coeff_epsilon,
         )
-        for fragobj in Fobjs
-    ]
-
-    return [
-        restore(
+        assert not np.isnan(pqP).any()
+        return restore(
             "1",
             _faster_eval_via_cholesky_shared(
                 pqP, ravelled_ij_to_offset, global_g, fragobj, low_triang_PQ
             ),
             len(pqP),
         )
-        for fragobj, pqP in zip(Fobjs, ints_p_q_P)
-    ]
+
+    if n_threads > 1:
+        with ThreadPoolExecutor(max_workers=n_threads) as executor:
+            lambdas = [executor.submit(f, fragobj) for fragobj in Fobjs]
+
+            return (x.result() for x in lambdas)
+    else:
+        return (f(fragobj) for fragobj in Fobjs)
 
 
 def _compute_fragment_eri(
@@ -2181,6 +2197,7 @@ def _faster_eval_via_cholesky_shared(
     g[:n_f_offset, :n_f_offset] = restore(
         "4", _extract_g(g_ijkl, fobj.frag_TA_offset, ravelled_ij_to_offset), n_f
     )
+    assert not np.isnan(g).any()
 
     return g
 
@@ -2262,16 +2279,21 @@ def get_ij_pairs(
 def _get_shared_ijP(
     global_fragment_TA: Matrix[np.float64],
     sparse_ints_3c2e: SemiSparseSym3DTensor,
-    i_reachable_j: Mapping[MOIdx, Set[MOIdx]],
-    AO_reachable_per_fragmentMO: Mapping[MOIdx, Sequence[AOIdx]],
+    i_reachable_j: list[Vector[MOIdx]],
+    AO_reachable_per_fragmentMO: list[Vector[AOIdx]],
 ) -> SemiSparseSym3DTensor:
+    assert not np.isnan(global_fragment_TA).any()
+    assert not np.isnan(sparse_ints_3c2e.unique_dense_data).any()
     global_mu_i_P = contract_with_TA_1st(
         global_fragment_TA, sparse_ints_3c2e, AO_reachable_per_fragmentMO
     )
+    assert not np.isnan(global_mu_i_P.dense_data).any()
 
-    return contract_with_TA_2nd_to_sym_sparse(
-        global_fragment_TA, global_mu_i_P, to_numba_input(i_reachable_j)
+    ijP = contract_with_TA_2nd_to_sym_sparse(
+        global_fragment_TA, global_mu_i_P, i_reachable_j
     )
+    assert not np.isnan(ijP.unique_dense_data).any()
+    return ijP
 
 
 @njit(parallel=True, nogil=True)
@@ -2330,33 +2352,31 @@ def _compute_fragment_eri_with_shared_ijP(
     )
 
 
+@njit(nogil=True)
 def _compute_fragment_eri_with_more_shared_ijP_S_screening(
-    fobj: Frags,
+    TA: Matrix[np.float64],
+    n_f: int,
+    frag_TA_offset: Vector[np.int64],
     sparse_ints_3c2e: SemiSparseSym3DTensor,
     shared_ijP: SemiSparseSym3DTensor,
     S_abs: Matrix[np.float64],
     MO_coeff_epsilon: float,
 ) -> Tensor3D[np.float64]:
-    TA, n_f, n_b = fobj.TA, fobj.n_f, fobj.n_b
-    assert TA.shape[1] == n_f + n_b
-
-    AO_reachable_per_fragmentMO = _get_AO_per_MO(TA[:, n_f:], S_abs, MO_coeff_epsilon)
+    AO_reachable_per_fragmentMO = _jit_get_AO_per_MO(
+        TA[:, n_f:], S_abs, MO_coeff_epsilon
+    )
     sparsity = (
-        np.array([len(x) for x in AO_reachable_per_fragmentMO.values()])
-        / sparse_ints_3c2e.nao
-    )  # fmt: skip
+        np.array([len(x) for x in AO_reachable_per_fragmentMO]) / sparse_ints_3c2e.nao
+    )
     print(sparsity)
     print(sparsity.mean())
     print("-" * 50)
-    int_i_j_P = shared_ijP._extract_dense(fobj.frag_TA_offset)
+    int_i_j_P = shared_ijP._extract_dense(frag_TA_offset)
     int_mu_a_P = contract_with_TA_1st(
         TA[:, n_f:], sparse_ints_3c2e, AO_reachable_per_fragmentMO
     )
     int_i_a_P = contract_with_TA_2nd_to_dense(TA[:, :n_f], int_mu_a_P)
     int_a_b_P = contract_with_TA_2nd_to_sym_dense(TA[:, n_f:], int_mu_a_P)
-    # One of the few cases where we delete something, because it is memory-expensive
-    # and not needed anymore.
-    del int_mu_a_P
     return _merge_fragment_bath_MOs(int_i_j_P, int_i_a_P, int_a_b_P)
 
 

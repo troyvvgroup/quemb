@@ -965,6 +965,7 @@ class BE(MixinLocalize):
                     auxbasis=self.auxbasis,
                     MO_coeff_epsilon=self.MO_coeff_epsilon,
                     AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.int_n_threads,
                 )
                 _write_eris(self.Fobjs, eris, file_eri)
                 eri = None
