@@ -12,7 +12,8 @@ from collections.abc import (
     Sequence,
     Set,
 )
-from itertools import chain, count, product, takewhile
+from concurrent.futures import ThreadPoolExecutor
+from itertools import chain, product, takewhile
 from typing import Final, TypeVar, cast
 
 import h5py
@@ -198,7 +199,7 @@ class MutableSparseInt2:
     #  https://github.com/tox-dev/sphinx-autodoc-typehints/issues/532
     def to_dense(self, idx):  # type: ignore[no-untyped-def]
         n_MO = len(idx)
-        g_dense = np.empty((n_MO, n_MO, n_MO, n_MO), dtype=np.float64)
+        g_dense = np.full((n_MO, n_MO, n_MO, n_MO), fill_value=np.nan, dtype=np.float64)
         for i, p in enumerate(idx):
             for j, q in enumerate(idx[: i + 1]):
                 for k, r in enumerate(idx[: i + 1]):
@@ -286,7 +287,7 @@ class SparseInt2:
     #  https://github.com/tox-dev/sphinx-autodoc-typehints/issues/532
     def to_dense(self, idx):  # type: ignore[no-untyped-def]
         n_MO = len(idx)
-        g_dense = np.empty((n_MO, n_MO, n_MO, n_MO), dtype=np.float64)
+        g_dense = np.full((n_MO, n_MO, n_MO, n_MO), fill_value=np.nan, dtype=np.float64)
         for i, p in enumerate(idx):
             for j, q in enumerate(idx[: i + 1]):
                 for k, r in enumerate(idx[: i + 1]):
@@ -343,7 +344,7 @@ def get_sparse_D_ints_and_coeffs(
     return ints_3c2e, df_coef
 
 
-@njit(parallel=True)
+@njit(parallel=True, nogil=True)
 def get_dense_integrals(
     ints_3c2e: SemiSparseSym3DTensor, df_coef: SemiSparseSym3DTensor
 ) -> Tensor4D[np.float64]:
@@ -547,7 +548,7 @@ class SemiSparseSym3DTensor:
         return ravel_symmetric(a, b)  # type: ignore[return-value]
 
 
-@njit
+@njit(nogil=True)
 def _get_list_of_sortedset(n: int) -> list[SortedIntSet]:
     L = List.empty_list(Type_SortedIntSet)
     for _ in range(n):
@@ -867,6 +868,17 @@ def _get_AO_per_MO(
     }
 
 
+@njit(nogil=True)
+def _jit_get_AO_per_MO(
+    TA: Matrix[np.float64],
+    S_abs: Matrix[np.float64],
+    epsilon: float,
+) -> List[Vector[np.int64]]:
+    n_MO = TA.shape[-1]
+    X = np.abs(S_abs @ TA)
+    return List([(X[:, i_MO] >= epsilon).nonzero()[0] for i_MO in range(n_MO)])
+
+
 def _get_AO_per_AO(
     S_abs: Matrix[np.float64],
     epsilon: float,
@@ -995,7 +1007,7 @@ def account_for_symmetry(
     }
 
 
-@njit
+@njit(nogil=True)
 def _jit_account_for_symmetry(
     reachable: list[Vector[_T_orb_idx]],
 ) -> list[Vector[_T_orb_idx]]:
@@ -1052,8 +1064,10 @@ def get_sparse_ints_3c2e(
         "Dense Memory for (mu nu | P) would be: "
         f"{n_symmetric(mol.nao) * auxmol.nao * 8 * 2**-30} Gb"
     )
-    print(f"Sparsity factor is: {(1 - n_unique / mol.nao**2) * 100} %")
-    screened_unique_integrals = np.empty((n_unique, auxmol.nao), order="C")
+    print(f"Sparsity factor is: {(1 - n_unique / n_symmetric(mol.nao)) * 100} %")
+    screened_unique_integrals = np.full(
+        (n_unique, auxmol.nao), fill_value=np.nan, dtype=np.float64, order="C"
+    )
 
     shell_id_to_AO, AO_to_shell_id = conversions_AO_shell(mol)
     shell_reachable_by_shell = account_for_symmetry(
@@ -1130,7 +1144,7 @@ def _flatten(
     }
 
 
-@njit(parallel=True)
+@njit(parallel=True, nogil=True)
 def _count_non_zero_2el(
     exch_reachable: list[Vector[OrbitalIdx]],
     n_AO: int | None = None,
@@ -1286,21 +1300,22 @@ def find_screening_radius(
         }
 
 
+@njit(nogil=True)
 def contract_with_TA_1st(
     TA: Matrix[np.float64],
     int_mu_nu_P: SemiSparseSym3DTensor,
-    AO_reachable_per_SchmidtMO: Mapping[MOIdx, Sequence[AOIdx]],
+    AO_reachable_per_SchmidtMO: List[Vector[np.int64]],
 ) -> SemiSparse3DTensor:
     return _jit_contract_with_TA_1st(
         TA,
         int_mu_nu_P,
-        List(get_AO_MO_pair_with_offset(AO_reachable_per_SchmidtMO)),
-        _nb_get_AO_reachable_by_MO_with_offset(AO_reachable_per_SchmidtMO),
-        to_numba_input(AO_reachable_per_SchmidtMO),
+        _jit_get_AO_MO_pair_with_offset(AO_reachable_per_SchmidtMO),
+        _jit_get_AO_reachable_by_MO_with_offset(AO_reachable_per_SchmidtMO),
+        AO_reachable_per_SchmidtMO,
     )
 
 
-@njit(parallel=True)
+@njit(parallel=True, nogil=True)
 def _jit_contract_with_TA_1st(
     TA: Matrix[np.float64],
     int_mu_nu_P: SemiSparseSym3DTensor,
@@ -1311,7 +1326,7 @@ def _jit_contract_with_TA_1st(
     assert TA.shape[0] == int_mu_nu_P.nao and TA.shape[1] == len(AO_reachable_by_MO)
     n_unique = len(AO_MO_pair_with_offset)
     g_unique = np.zeros((n_unique, int_mu_nu_P.naux), dtype=np.float64)
-    keys = np.empty(n_unique, dtype=np.int64)
+    keys = np.full(n_unique, fill_value=np.nan, dtype=np.int64)
 
     # We cannot directly loop as in
     # ``for offset, mu, i in AO_MO_pair_with_offset```
@@ -1337,7 +1352,7 @@ def _jit_contract_with_TA_1st(
     )
 
 
-@njit(parallel=True)
+@njit(parallel=True, nogil=True)
 def contract_with_TA_2nd_to_sym_dense(
     TA: Matrix[np.float64], int_mu_i_P: SemiSparse3DTensor
 ) -> Tensor3D[np.float64]:
@@ -1376,7 +1391,7 @@ def contract_with_TA_2nd_to_sym_dense(
     return g
 
 
-@njit
+@njit(nogil=True)
 def contract_with_TA_2nd_to_sym_sparse(
     TA: Matrix[np.float64],
     int_mu_i_P: SemiSparse3DTensor,
@@ -1426,7 +1441,7 @@ def contract_with_TA_2nd_to_sym_sparse(
     )
 
 
-@njit(parallel=True)
+@njit(parallel=True, nogil=True)
 def contract_with_TA_2nd_to_dense(
     TA: Matrix[np.float64], int_mu_i_P: SemiSparse3DTensor
 ) -> Tensor3D[np.float64]:
@@ -1479,29 +1494,32 @@ def transform_sparse_DF_integral(
     _write_eris(Fobjs, eris, file_eri_handler)
 
 
-def get_AO_MO_pair_with_offset(
-    AO_reachable_by_MO: Mapping[MOIdx, Collection[AOIdx]],
+@njit(nogil=True)
+def _jit_get_AO_MO_pair_with_offset(
+    AO_reachable_by_MO: List[Vector[np.int64]],
 ) -> list[tuple[int, AOIdx, MOIdx]]:
-    return [
-        (offset, mu, i)
-        for offset, (mu, i) in enumerate(
-            (i_AO, i_MO)
-            for i_MO, reachable_AOs in AO_reachable_by_MO.items()
-            for i_AO in sorted(reachable_AOs)  # type: ignore[type-var]
-        )
-    ]
-
-
-def _nb_get_AO_reachable_by_MO_with_offset(
-    AO_reachable_by_MO: Mapping[MOIdx, Collection[AOIdx]],
-) -> List[List[int, AOIdx]]:
-    assert list(AO_reachable_by_MO.keys()) == list(range(len(AO_reachable_by_MO)))
-    counter = count()
     return List(
         [
-            List([(next(counter), AO) for AO in AOs])
-            for AOs in AO_reachable_by_MO.values()
+            (offset, mu, i)
+            for offset, (mu, i) in enumerate(
+                [
+                    (i_AO, i_MO)
+                    for i_MO, reachable_AOs in enumerate(AO_reachable_by_MO)
+                    for i_AO in sorted(reachable_AOs)  # type: ignore[type-var]
+                ]
+            )
         ]
+    )
+
+
+@njit(nogil=True)
+def _jit_get_AO_reachable_by_MO_with_offset(
+    AO_reachable_by_MO: List[Vector[np.int64]],
+) -> List[List[int, AOIdx]]:
+    # assert list(AO_reachable_by_MO.keys()) == list(range(len(AO_reachable_by_MO)))
+    counter = PreIncr()
+    return List(
+        [List([(counter.incr(), AO) for AO in AOs]) for AOs in AO_reachable_by_MO]
     )
 
 
@@ -1652,20 +1670,25 @@ def _transform_sparse_DF_integral_S_screening_everything(
     ints_2c2e = auxmol.intor("int2c2e")
     low_triang_PQ = cholesky(ints_2c2e, lower=True)
 
-    ints_p_q_P = (
-        _get_fragment_ints3c2_S_screening(
-            sparse_ints_3c2e,
-            fragobj.TA,
-            S_abs,
-            MO_coeff_epsilon,
+    def f(fragobj):
+        return restore(
+            "1",
+            _eval_via_cholesky(
+                _get_fragment_ints3c2_S_screening(
+                    sparse_ints_3c2e,
+                    fragobj.TA,
+                    S_abs,
+                    MO_coeff_epsilon,
+                ),
+                low_triang_PQ,
+            ),
+            fragobj.TA.shape[1],
         )
-        for fragobj in Fobjs
-    )
 
-    return (
-        restore("1", _eval_via_cholesky(pqP, low_triang_PQ), len(pqP))
-        for pqP in ints_p_q_P
-    )
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        lambdas = [executor.submit(f, fragobj) for fragobj in Fobjs]
+
+        return [x.result() for x in lambdas]
 
 
 def _transform_sparse_DF_use_shared_ijP(
@@ -1934,17 +1957,15 @@ def _compute_fragment_eri(
     )
 
 
+@njit(nogil=True)
 def _get_fragment_ints3c2_S_screening(
     sparse_ints_3c2e: SemiSparseSym3DTensor,
     TA: Matrix[np.float64],
     S_abs: Matrix[np.float64],
     MO_coeff_epsilon: float,
 ) -> Tensor3D[np.float64]:
-    AO_reachable_per_SchmidtMO = _get_AO_per_MO(TA, S_abs, MO_coeff_epsilon)
-    sparsity = (
-        np.array([len(x) for x in AO_reachable_per_SchmidtMO.values()])
-        / TA.shape[0]
-    )  # fmt: skip
+    AO_reachable_per_SchmidtMO = _jit_get_AO_per_MO(TA, S_abs, MO_coeff_epsilon)
+    sparsity = np.array([len(x) for x in AO_reachable_per_SchmidtMO]) / TA.shape[0]
     print(sparsity)
     print(sparsity.mean())
     print("->" * 50)
@@ -1953,11 +1974,15 @@ def _get_fragment_ints3c2_S_screening(
     )
 
 
-@njit(parallel=True)
+@njit(parallel=True, nogil=True)
 def _account_for_symmetry(pqP: Tensor3D[np.float64]) -> Matrix[np.float64]:
     """(n_orb, n_orb | n_aux) -> (n_aux | sym n_orb pairs)"""
     n_orb, naux = len(pqP), pqP.shape[-1]
-    sym_bb = np.empty((naux, ravel_symmetric(n_orb - 1, n_orb - 1) + 1))
+    sym_bb = np.full(
+        (naux, ravel_symmetric(n_orb - 1, n_orb - 1) + 1),
+        fill_value=np.nan,
+        dtype=np.float64,
+    )
 
     for i in prange(n_orb):  # type: ignore[attr-defined]
         for j in prange(i + 1):  # type: ignore[attr-defined]
@@ -1983,7 +2008,7 @@ def _eval_via_cholesky(
 _T_ = ListType(_UniTuple_int64_2)
 
 
-@njit
+@njit(nogil=True)
 def _precalculate_offsets(
     exch_reachable: list[Vector[np.int64]], sorted_idx: Vector[np.int64]
 ) -> List[_UniTuple_int64_2]:
@@ -1996,12 +2021,12 @@ def _precalculate_offsets(
     return result
 
 
-@njit(parallel=True)
+@njit(parallel=True, nogil=True)
 def _custom_to_dense(
     g_ijkl: SparseInt2, idx: Vector[np.int64]
 ) -> tuple[Tensor4D[np.float64], Vector[np.int64]]:
     n_MO = len(idx)
-    g_dense = np.empty((n_MO, n_MO, n_MO, n_MO), dtype=np.float64)
+    g_dense = np.full((n_MO, n_MO, n_MO, n_MO), fill_value=np.nan, dtype=np.float64)
     argsort_result = np.argsort(idx)
     sorted_idx = idx[argsort_result]
     exch_reachable = _precalculate_offsets(g_ijkl.exch_reachable, sorted_idx)  # type: ignore[arg-type]
@@ -2026,12 +2051,12 @@ def _custom_to_dense(
     return g_dense, argsort_result  # type: ignore[return-value]
 
 
-@njit(parallel=True)
+@njit(parallel=True, nogil=True)
 def new_custom_to_dense(
     g_ijkl: SparseInt2, idx: Vector[np.int64]
 ) -> Tensor4D[np.float64]:  # type: ignore[no-untyped-def]
     n_MO = len(idx)
-    g_dense = np.empty((n_MO, n_MO, n_MO, n_MO), dtype=np.float64)
+    g_dense = np.full((n_MO, n_MO, n_MO, n_MO), fill_value=np.nan, dtype=np.float64)
     for i in prange(n_MO):  # type: ignore[attr-defined]
         p = idx[i]
         for j in prange(i + 1):  # type: ignore[attr-defined]
@@ -2060,7 +2085,7 @@ def _eval_via_cholesky_shared(
     n_f, n_orb = fobj.n_f, len(pqP)
     orb_offset = ravel_symmetric(n_orb - 1, n_orb - 1) + 1
     n_f_offset = ravel_symmetric(n_f - 1, n_f - 1) + 1
-    g = np.empty((orb_offset, orb_offset))
+    g = np.full((orb_offset, orb_offset), fill_value=np.nan, dtype=np.float64)
 
     g[:, n_f_offset:] = bb.T @ bb[:, n_f_offset:]
     g[n_f_offset:, :] = g[:, n_f_offset:].T
@@ -2081,9 +2106,9 @@ def _eval_via_cholesky_shared(
     return g
 
 
-@njit(parallel=False)
+@njit(parallel=False, nogil=True)
 def _index_into_vector(new_integrals, final_offsets, sorted_idx):
-    g = np.empty(n_eri(len(sorted_idx)))
+    g = np.full(n_eri(len(sorted_idx)), fill_value=np.nan, dtype=np.float64)
     counter = 0
     for i in range(len(final_offsets)):
         pq = final_offsets[i]
@@ -2094,10 +2119,10 @@ def _index_into_vector(new_integrals, final_offsets, sorted_idx):
     return g
 
 
-@njit(parallel=True)
+@njit(parallel=True, nogil=True)
 def _my_ix_(g, new_idx):
     n = len(g)
-    result = np.empty_like(g)
+    result = np.full_like(g, fill_value=np.nan)
     for i in prange(n):
         for j in prange(n):
             for k in prange(n):
@@ -2144,7 +2169,7 @@ def _faster_eval_via_cholesky_shared(
     n_f, n_orb = fobj.n_f, len(pqP)
     orb_offset = ravel_symmetric(n_orb - 1, n_orb - 1) + 1
     n_f_offset = ravel_symmetric(n_f - 1, n_f - 1) + 1
-    g = np.empty((orb_offset, orb_offset))
+    g = np.full((orb_offset, orb_offset), fill_value=np.nan, dtype=np.float64)
 
     g[:, n_f_offset:] = bb.T @ bb[:, n_f_offset:]
     g[n_f_offset:, :] = g[:, n_f_offset:].T
@@ -2167,12 +2192,12 @@ def _write_eris(
         )
 
 
-@njit(parallel=True)
+@njit(parallel=True, nogil=True)
 def contract_DF_dense(
     ijP: Tensor3D[np.float64], Dcoeff_ijP: Tensor3D[np.float64]
 ) -> Tensor4D[np.float64]:
     n_mo = len(ijP)
-    g = np.empty((n_mo, n_mo, n_mo, n_mo), dtype=np.float64)
+    g = np.full((n_mo, n_mo, n_mo, n_mo), fill_value=np.nan, dtype=np.float64)
     for i in prange(n_mo):  # type: ignore[attr-defined]
         for j in prange(i + 1):  # type: ignore[attr-defined]
             for k in prange(i + 1):  # type: ignore[attr-defined]
@@ -2182,15 +2207,15 @@ def contract_DF_dense(
     return g
 
 
-@njit(parallel=True)
+@njit(parallel=True, nogil=True)
 def _get_indices(keys: List[int64]) -> Matrix[np.int64]:
-    indices = np.empty((len(keys), 4), dtype=np.int64)
+    indices = np.full((len(keys), 4), fill_value=np.nan, dtype=np.int64)
     for i in prange(len(keys)):  # type: ignore[attr-defined]
         indices[i] = unravel_eri_idx(keys[i])
     return indices
 
 
-@njit
+@njit(nogil=True)
 def _get_keys(ijP: SemiSparseSym3DTensor) -> tuple[List[int64], Matrix[np.int64]]:
     n_mo = ijP.shape[0]
     keys = List.empty_list(int64)
@@ -2207,12 +2232,12 @@ def _get_keys(ijP: SemiSparseSym3DTensor) -> tuple[List[int64], Matrix[np.int64]
     return keys, _get_indices(keys)
 
 
-@njit(parallel=True)
+@njit(parallel=True, nogil=True)
 def contract_DF_sparse(
     ijP: SemiSparseSym3DTensor, Dcoeff_ijP: SemiSparseSym3DTensor
 ) -> SparseInt2:
     keys, indices = _get_keys(ijP)
-    unique_g = np.empty(len(indices), dtype=np.float64)
+    unique_g = np.full(len(indices), fill_value=np.nan, dtype=np.float64)
 
     for counter in prange(len(indices)):  # type: ignore[attr-defined]
         p, q, r, s = indices[counter]
@@ -2245,7 +2270,7 @@ def _get_shared_ijP(
     )
 
 
-@njit(parallel=True)
+@njit(parallel=True, nogil=True)
 def _merge_fragment_bath_MOs(
     int_i_j_P: Tensor3D[np.float64],
     int_i_a_P: Tensor3D[np.float64],
@@ -2253,7 +2278,7 @@ def _merge_fragment_bath_MOs(
 ) -> Tensor3D[np.float64]:
     n_f, n_b, n_aux = int_i_a_P.shape
     n_MO = n_f + n_b
-    int_p_q_P = np.empty((n_MO, n_MO, n_aux), dtype=np.float64)
+    int_p_q_P = np.full((n_MO, n_MO, n_aux), fill_value=np.nan, dtype=np.float64)
 
     int_p_q_P[:n_f, :n_f] = int_i_j_P
     int_p_q_P[n_f:, n_f:] = int_a_b_P
