@@ -7,10 +7,11 @@ from time import time
 from typing import Any, TypeVar, overload
 
 import numba as nb
+import numpy as np
 from attr import define, field
 from ordered_set import OrderedSet
 
-from quemb.shared.typing import Integral, T
+from quemb.shared.typing import Integral, Matrix, T
 
 _Function = TypeVar("_Function", bound=Callable)
 _T_Integral = TypeVar("_T_Integral", bound=Integral)
@@ -123,6 +124,9 @@ class Timer:
     message: str = "Elapsed time"
     start: float = field(init=False, factory=time)
 
+    def __attrs_post_init__(self) -> None:
+        print(f"Timer with message '{self.message}' started.")
+
     def elapsed(self) -> float:
         return time() - self.start
 
@@ -216,6 +220,45 @@ def ravel_symmetric(a: _T_Integral, b: _T_Integral) -> _T_Integral:
     b :
     """
     return gauss_sum(a) + b if a > b else gauss_sum(b) + a  # type: ignore[return-value,operator]
+
+
+@njit
+def n_symmetric(n: _T_Integral) -> _T_Integral:
+    "The number if symmetry-equivalent pairs i <= j, for i <= n and j <= n"
+    return ravel_symmetric(n - 1, n - 1) + 1
+
+
+@njit
+def unravel_symmetric(i: Integral) -> tuple[int, int]:
+    a = int((np.sqrt(8 * i + 1) - 1) // 2)
+    offset = gauss_sum(a)
+    b = i - offset
+    if b > a:
+        a, b = b, a
+    return a, b
+
+
+@njit
+def ravel_eri_idx(
+    a: _T_Integral, b: _T_Integral, c: _T_Integral, d: _T_Integral
+) -> _T_Integral:
+    """Return compound index given four indices using Yoshimine sort and
+    assuming 8-fold permutational symmetry"""
+    return ravel_symmetric(ravel_symmetric(a, b), ravel_symmetric(c, d))
+
+
+@njit
+def unravel_eri_idx(i: _T_Integral) -> tuple[int, int, int, int]:
+    """Invert :func:`ravel_eri_idx`"""
+    ab, cd = unravel_symmetric(i)
+    a, b = unravel_symmetric(ab)
+    c, d = unravel_symmetric(cd)
+    return a, b, c, d
+
+
+@njit
+def n_eri(n):
+    return ravel_eri_idx(n - 1, n - 1, n - 1, n - 1) + 1
 
 
 @njit
@@ -329,3 +372,15 @@ def get_calling_function_name() -> str:
     """Do stack inspection shenanigan to obtain the name
     of the calling function"""
     return inspect.stack()[1][3]
+
+
+def clean_overlap(M: Matrix[np.float64], epsilon: float = 1e-12) -> Matrix[np.int64]:
+    """We assume that M is a (not necessarily square) overlap matrix
+    between ortho-normal vectors. We clean for floating point noise and return
+    an integer matrix with only 0s and 1s."""
+    M = M.copy()
+    very_small = np.abs(M) < epsilon
+    M[very_small] = 0
+    assert (np.abs(1 - M[~very_small]) < epsilon).all()
+    M[~very_small] = 1
+    return M.astype(np.int64)

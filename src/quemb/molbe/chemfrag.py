@@ -208,7 +208,7 @@ class BondConnectivity:
 
         if bonds_atoms is not None:
             processed_bonds_atoms = {
-                AtomIdx(k): OrderedSet([AtomIdx(j) for j in sorted(v)])
+                cast(AtomIdx, k): OrderedSet([cast(AtomIdx, j) for j in sorted(v)])
                 for k, v in bonds_atoms.items()
             }
         else:
@@ -216,7 +216,7 @@ class BondConnectivity:
             # at least 0.55 Å
             # or 20 % larger than the tabulated value.
             processed_bonds_atoms = {
-                k: OrderedSet(sorted(v))
+                k: OrderedSet(sorted(v))  # type: ignore[type-var]
                 for k, v in m.get_bonds(
                     modify_element_data=(lambda r: np.maximum(0.55, 1.2 * r))
                     if vdW_radius is None
@@ -536,7 +536,7 @@ def _cleanup_if_subset(
     # stay at the first position. The rest of the motifs should be sorted.
     # We also remove the swallowed centers, i.e. only origins are left.
     cleaned_fragments = {
-        cast(OriginIdx, i_center): union_of_seqs([i_center], sorted(motifs[1:]))
+        cast(OriginIdx, i_center): union_of_seqs([i_center], sorted(motifs[1:]))  # type: ignore[type-var]
         for i_center, motifs in fragment_indices.items()
         if i_center not in subset_of_others
     }
@@ -625,7 +625,8 @@ class PurelyStructureFragmented(Generic[_T_chemsystem]):
         )
         centers_per_frag = {
             i_origin: union_of_seqs(
-                [i_origin], sorted(fragments.swallowed_centers.get(i_origin, []))
+                [i_origin],
+                sorted(fragments.swallowed_centers.get(i_origin, [])),  # type: ignore[type-var]
             )
             for i_origin in fragments.motif_per_frag
         }
@@ -927,7 +928,7 @@ class PurelyStructureFragmented(Generic[_T_chemsystem]):
                                 Set[EdgeIdx], becomes_an_edge[cast(FragmentIdx, i_frag)]
                             )
                         )
-                    )
+                    )  # type: ignore[type-var]
                 )
                 for i_frag, edges in enumerate(self.edges_per_frag)
             ],
@@ -940,7 +941,7 @@ class PurelyStructureFragmented(Generic[_T_chemsystem]):
                             cast(FragmentIdx, i_frag), set()
                         )
                     }
-                )
+                )  # type: ignore[type-var]
                 for i_frag, edges in enumerate(self.ref_frag_idx_per_edge)
             ],
         )
@@ -1331,7 +1332,7 @@ class Fragmented(Generic[_T_chemsystem]):
             len(
                 valence_frags.AO_per_atom[
                     # We take exemplary the first H atom
-                    self.frag_structure.conn_data.H_atoms[0]
+                    self.frag_structure.conn_data.H_atoms[0]  # type: ignore[call-overload]
                 ]
             )
             if self.frag_structure.conn_data.H_atoms
