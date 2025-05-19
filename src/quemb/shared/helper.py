@@ -125,7 +125,10 @@ class Timer:
     start: float = field(init=False, factory=time)
 
     def __attrs_post_init__(self) -> None:
-        print(f"Timer with message '{self.message}' started.")
+        from quemb.shared.config import settings
+
+        if settings.PRINT_LEVEL >= 10:
+            print(f"Timer with message '{self.message}' started.")
 
     def elapsed(self) -> float:
         return time() - self.start
@@ -225,7 +228,7 @@ def ravel_symmetric(a: _T_Integral, b: _T_Integral) -> _T_Integral:
 @njit
 def n_symmetric(n: _T_Integral) -> _T_Integral:
     "The number if symmetry-equivalent pairs i <= j, for i <= n and j <= n"
-    return ravel_symmetric(n - 1, n - 1) + 1
+    return ravel_symmetric(n - 1, n - 1) + 1  # type: ignore[return-value]
 
 
 @njit

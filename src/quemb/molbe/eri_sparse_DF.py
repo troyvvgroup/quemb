@@ -42,6 +42,7 @@ from quemb.molbe.chemfrag import (
     _get_AOidx_per_atom,
 )
 from quemb.molbe.pfrag import Frags
+from quemb.shared.config import settings
 from quemb.shared.helper import (
     Timer,
     jitclass,
@@ -1052,29 +1053,43 @@ def get_sparse_ints_3c2e(
     exch_reachable: Mapping[AOIdx, Sequence[AOIdx]],
 ) -> SemiSparseSym3DTensor:
     """Return the 3-center 2-electron integrals in a sparse format."""
+
+    def to_shell_reachable_by_shell(
+        exch_reachable: Mapping[AOIdx, Sequence[AOIdx]],
+        AO_to_shell_id: Mapping[AOIdx, ShellIdx],
+    ) -> Mapping[ShellIdx, list[ShellIdx]]:
+        """Also accepts `exch_reachable_unique` to return
+        symmetry-aware reachable shell mappings"""
+        shell_reachable_by_shell: dict[ShellIdx, set[ShellIdx]] = defaultdict(set)
+
+        for k, v in exch_reachable.items():
+            shell_reachable_by_shell[AO_to_shell_id[k]] |= {
+                AO_to_shell_id[orb] for orb in v
+            }
+        return {k: sorted(v) for k, v in shell_reachable_by_shell.items()}  # type: ignore[type-var]
+
     AO_timer = Timer("Time to compute sparse (mu nu | P)")
     exch_reachable_unique = account_for_symmetry(exch_reachable)
 
     n_unique = sum(len(v) for v in exch_reachable_unique.values())
-    print(
-        "Semi-Sparse Memory for (mu nu | P) integrals is: "
-        f"{n_unique * auxmol.nao * 8 * 2**-30} Gb"
-    )
-    print(
-        "Dense Memory for (mu nu | P) would be: "
-        f"{n_symmetric(mol.nao) * auxmol.nao * 8 * 2**-30} Gb"
-    )
-    print(f"Sparsity factor is: {(1 - n_unique / n_symmetric(mol.nao)) * 100} %")
+
+    if settings.PRINT_LEVEL >= 10:
+        print(
+            "Semi-Sparse Memory for (mu nu | P) integrals is: "
+            f"{n_unique * auxmol.nao * 8 * 2**-30} Gb"
+        )
+        print(
+            "Dense Memory for (mu nu | P) would be: "
+            f"{n_symmetric(mol.nao) * auxmol.nao * 8 * 2**-30} Gb"
+        )
+        print(f"Sparsity factor is: {(1 - n_unique / n_symmetric(mol.nao)) * 100} %")
     screened_unique_integrals = np.full(
         (n_unique, auxmol.nao), fill_value=np.nan, dtype=np.float64, order="C"
     )
 
     shell_id_to_AO, AO_to_shell_id = conversions_AO_shell(mol)
-    shell_reachable_by_shell = account_for_symmetry(
-        {
-            AO_to_shell_id[k]: sorted({AO_to_shell_id[orb] for orb in v})  # type: ignore[type-var]
-            for k, v in exch_reachable_unique.items()
-        }
+    shell_reachable_by_shell = to_shell_reachable_by_shell(
+        exch_reachable_unique, AO_to_shell_id
     )
     keys = np.array(
         [
@@ -1083,6 +1098,9 @@ def get_sparse_ints_3c2e(
         ],
         dtype=np.int64,
     )
+    key_to_offset = {k: i for i, k in enumerate(keys)}
+
+    assert len(keys) == n_unique
 
     for i_shell, reachable in shell_reachable_by_shell.items():
         for start_block, stop_block in get_blocks(reachable):
@@ -1110,16 +1128,15 @@ def get_sparse_ints_3c2e(
                         min(shell_id_to_AO[stop_block][-1] + 1, p + 1),  # type: ignore[index]
                     )
                 ):
-                    screened_unique_integrals[
-                        np.searchsorted(keys, ravel_symmetric(p, q)), :
-                    ] = integrals[i, j, ::1]
+                    if ravel_symmetric(p, q) in key_to_offset:
+                        screened_unique_integrals[
+                            key_to_offset[ravel_symmetric(p, q)], :  # type: ignore[arg-type]
+                        ] = integrals[i, j, ::1]
 
-    print(AO_timer.str_elapsed())
+    if settings.PRINT_LEVEL >= 10:
+        print(AO_timer.str_elapsed())
 
-    assert not np.isnan(screened_unique_integrals).any(), (
-        np.isnan(screened_unique_integrals).sum(),
-        screened_unique_integrals.size,
-    )
+    assert not np.isnan(screened_unique_integrals).any()
 
     return SemiSparseSym3DTensor(
         screened_unique_integrals, mol.nao, auxmol.nao, to_numba_input(exch_reachable)
@@ -1578,13 +1595,15 @@ def _transform_sparse_DF_integral(
     atom_per_AO = get_atom_per_AO(mol)
     screened = get_screened(mol, screen_radius)
     exch_reachable = get_reachable(atom_per_AO, atom_per_AO, screened)
-    sparsity = (
-        np.array([len(x) for x in exch_reachable.values()])
-        / len(atom_per_AO)
-    )  # fmt: skip
-    print(sparsity)
-    print(sparsity.mean())
-    print("=" * 50)
+
+    if settings.PRINT_LEVEL >= 10:
+        sparsity = (
+            np.array([len(x) for x in exch_reachable.values()])
+            / len(atom_per_AO)
+        )  # fmt: skip
+        print(sparsity)
+        print(sparsity.mean())
+        print("=" * 50)
 
     sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, exch_reachable)
     ints_2c2e = auxmol.intor("int2c2e")
@@ -1630,7 +1649,8 @@ def _transform_sparse_DF_integral_S_screening_MO(
 
     S_abs_timer = Timer("Time to compute S_abs")
     S_abs = calculate_abs_overlap(mol)
-    print(S_abs_timer.str_elapsed())
+    if settings.PRINT_LEVEL >= 10:
+        print(S_abs_timer.str_elapsed())
 
     ints_p_q_P = [
         _get_fragment_ints3c2_S_screening(
@@ -1973,7 +1993,10 @@ def _compute_fragment_eri(
     print(sparsity.mean())
     print("-" * 50)
     return contract_with_TA_2nd_to_sym_dense(
-        TA, contract_with_TA_1st(TA, sparse_ints_3c2e, AO_reachable_per_SchmidtMO)
+        TA,
+        contract_with_TA_1st(
+            TA, sparse_ints_3c2e, to_numba_input(AO_reachable_per_SchmidtMO)
+        ),
     )
 
 
@@ -2380,7 +2403,7 @@ def _compute_fragment_eri_with_more_shared_ijP_S_screening(
     return _merge_fragment_bath_MOs(int_i_j_P, int_i_a_P, int_a_b_P)
 
 
-def calculate_abs_overlap(mol: Mole, grid_level: int = 0) -> Matrix[np.float64]:
+def calculate_abs_overlap(mol: Mole, grid_level: int = 2) -> Matrix[np.float64]:
     r"""
     Calculates the overlap matrix :math:`S_ij = \int |phi_i(r)| |phi_j(r)| dr`
     using numerical integration on a DFT grid.
@@ -2393,4 +2416,6 @@ def calculate_abs_overlap(mol: Mole, grid_level: int = 0) -> Matrix[np.float64]:
     grids.level = grid_level
     grids.build()
     AO_abs_val = np.abs(dft.numint.eval_ao(mol, grids.coords, deriv=0))
-    return (AO_abs_val * grids.weights[:, np.newaxis]).T @ AO_abs_val
+    result = (AO_abs_val * grids.weights[:, np.newaxis]).T @ AO_abs_val
+    assert np.allclose(result, result.T)
+    return result
