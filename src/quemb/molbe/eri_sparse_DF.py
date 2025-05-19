@@ -1803,14 +1803,6 @@ def _transform_sparse_DF_S_screening_shared_ijP(
         get_ij_pairs(Fobjs),
         _get_AO_per_MO(all_fragment_MO_TA, S_abs, MO_coeff_epsilon),
     )
-    # shared_D_ijP = SemiSparseSym3DTensor(
-    #     solve(PQ, shared_ijP.unique_dense_data.T, assume_a="pos").T,
-    #     shared_ijP.nao,
-    #     shared_ijP.naux,
-    #     shared_ijP.exch_reachable,  # type: ignore[arg-type]
-    # )
-
-    # global_g = contract_DF_sparse(shared_ijP, shared_D_ijP)
 
     ints_p_q_P = [
         _compute_fragment_eri_with_more_shared_ijP_S_screening(
@@ -2210,12 +2202,18 @@ def _faster_eval_via_cholesky_shared(
         check_finite=False,
     )
     n_f, n_orb = fobj.n_f, len(pqP)
-    orb_offset = ravel_symmetric(n_orb - 1, n_orb - 1) + 1
-    n_f_offset = ravel_symmetric(n_f - 1, n_f - 1) + 1
-    g = np.full((orb_offset, orb_offset), fill_value=np.nan, dtype=np.float64)
 
-    g[:, n_f_offset:] = bb.T @ bb[:, n_f_offset:]
-    g[n_f_offset:, :] = g[:, n_f_offset:].T
+    @njit(nogil=True)
+    def _jit_inner_function(bb, n_f, n_orb):
+        orb_offset = ravel_symmetric(n_orb - 1, n_orb - 1) + 1
+        n_f_offset = ravel_symmetric(n_f - 1, n_f - 1) + 1
+        g = np.full((orb_offset, orb_offset), fill_value=np.nan, dtype=np.float64)
+
+        g[:, n_f_offset:] = bb.T @ bb[:, n_f_offset:]
+        g[n_f_offset:, :] = g[:, n_f_offset:].T
+        return n_f_offset, g
+
+    n_f_offset, g = _jit_inner_function(bb, n_f, n_orb)
 
     g[:n_f_offset, :n_f_offset] = restore(
         "4", _extract_g(g_ijkl, fobj.frag_TA_offset, ravelled_ij_to_offset), n_f
