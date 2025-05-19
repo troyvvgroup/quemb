@@ -113,6 +113,7 @@ class BE(MixinLocalize):
         auxbasis: str | None = None,
         MO_coeff_epsilon: float = 1e-4,
         AO_coeff_epsilon: float = 1e-10,
+        int_n_threads: int = 1,
     ) -> None:
         r"""
         Constructor for BE object.
@@ -188,6 +189,7 @@ class BE(MixinLocalize):
 
         self.MO_coeff_epsilon = MO_coeff_epsilon
         self.AO_coeff_epsilon = AO_coeff_epsilon
+        self.int_n_threads = int_n_threads
 
         self.unrestricted = False
         self.nproc = nproc
@@ -925,6 +927,7 @@ class BE(MixinLocalize):
                     auxbasis=self.auxbasis,
                     MO_coeff_epsilon=self.MO_coeff_epsilon,
                     AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.int_n_threads,
                 )
                 _write_eris(self.Fobjs, eris, file_eri)
                 eri = None

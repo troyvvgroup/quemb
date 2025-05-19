@@ -1646,9 +1646,10 @@ def _transform_sparse_DF_integral_S_screening_MO(
 def _transform_sparse_DF_integral_S_screening_everything(
     mf: scf.hf.SCF,
     Fobjs: Sequence[Frags],
-    auxbasis: str | None = None,
-    AO_coeff_epsilon: float = 1e-10,
-    MO_coeff_epsilon: float = 1e-4,
+    auxbasis: str | None,
+    AO_coeff_epsilon: float,
+    MO_coeff_epsilon: float,
+    n_threads: int,
 ) -> list[Matrix[np.float64]]:
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
@@ -1685,7 +1686,7 @@ def _transform_sparse_DF_integral_S_screening_everything(
             fragobj.TA.shape[1],
         )
 
-    with ThreadPoolExecutor(max_workers=10) as executor:
+    with ThreadPoolExecutor(max_workers=n_threads) as executor:
         lambdas = [executor.submit(f, fragobj) for fragobj in Fobjs]
 
         return [x.result() for x in lambdas]
