@@ -1773,9 +1773,10 @@ def _transform_sparse_DF_S_screening_shared_ijP(
     mf: scf.hf.SCF,
     Fobjs: Sequence[Frags],
     all_fragment_MO_TA: Matrix[np.float64],
-    auxbasis: str | None = None,
-    AO_coeff_epsilon: float = 1e-10,
-    MO_coeff_epsilon: float = 1e-4,
+    auxbasis: str | None,
+    AO_coeff_epsilon: float,
+    MO_coeff_epsilon: float,
+    n_threads: int,
 ) -> list[Matrix[np.float64]]:
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
@@ -1800,12 +1801,12 @@ def _transform_sparse_DF_S_screening_shared_ijP(
     shared_ijP = _get_shared_ijP(
         all_fragment_MO_TA,
         sparse_ints_3c2e,
-        get_ij_pairs(Fobjs),
-        _get_AO_per_MO(all_fragment_MO_TA, S_abs, MO_coeff_epsilon),
+        to_numba_input(get_ij_pairs(Fobjs)),
+        _jit_get_AO_per_MO(all_fragment_MO_TA, S_abs, MO_coeff_epsilon),
     )
 
-    ints_p_q_P = [
-        _compute_fragment_eri_with_more_shared_ijP_S_screening(
+    def f(fragobj):
+        pqP = _compute_fragment_eri_with_more_shared_ijP_S_screening(
             fragobj.TA,
             fragobj.n_f,
             fragobj.frag_TA_offset,
@@ -1814,13 +1815,15 @@ def _transform_sparse_DF_S_screening_shared_ijP(
             S_abs,
             MO_coeff_epsilon,
         )
-        for fragobj in Fobjs
-    ]
+        return restore("1", _eval_via_cholesky(pqP, low_triang_PQ), len(pqP))
 
-    return [
-        restore("1", _eval_via_cholesky(pqP, low_triang_PQ), len(pqP))
-        for pqP in ints_p_q_P
-    ]
+    if n_threads > 1:
+        with ThreadPoolExecutor(max_workers=n_threads) as executor:
+            lambdas = [executor.submit(f, fragobj) for fragobj in Fobjs]
+
+            return [x.result() for x in lambdas]
+    else:
+        return [f(fragobj) for fragobj in Fobjs]
 
 
 def _transform_sparse_DF_S_screening_shared_ijP_and_g(
@@ -1948,12 +1951,8 @@ def _transform_sparse_DF_S_screening_shared_ijP_and_g_fast(
             MO_coeff_epsilon,
         )
         assert not np.isnan(pqP).any()
-        return restore(
-            "1",
-            _faster_eval_via_cholesky_shared(
-                pqP, ravelled_ij_to_offset, global_g, fragobj, low_triang_PQ
-            ),
-            len(pqP),
+        return _faster_eval_via_cholesky_shared(
+            pqP, ravelled_ij_to_offset, global_g, fragobj, low_triang_PQ
         )
 
     if n_threads > 1:
@@ -2025,19 +2024,36 @@ def _account_for_symmetry(pqP: Tensor3D[np.float64]) -> Matrix[np.float64]:
     return sym_bb
 
 
+@njit(nogil=True)
+def _v_forward_substitution(
+    L: Matrix[np.float64], b: Vector[np.float64]
+) -> Vector[np.float64]:
+    n = L.shape[0]
+    x = np.zeros_like(b)
+    for i in range(n):
+        sum_ = 0.0
+        for j in range(i):
+            sum_ += L[i, j] * x[j]
+        x[i] = (b[i] - sum_) / L[i, i]
+    return x
+
+
+@njit(nogil=True, parallel=True)
+def forward_substitution(
+    L: Matrix[np.float64], B: Matrix[np.float64]
+) -> Vector[np.float64]:
+    result = np.empty_like(B)
+    for i in prange(B.shape[1]):  # type: ignore[attr-defined]
+        result[:, i] = _v_forward_substitution(L, B[:, i])
+    return result
+
+
+@njit(nogil=True)
 def _eval_via_cholesky(
     pqP: Tensor3D[np.float64], low_triang_PQ: Matrix[np.float64]
 ) -> Matrix[np.float64]:
-    symmetrised = _account_for_symmetry(pqP)
-    bb = solve_triangular(
-        low_triang_PQ,
-        symmetrised,
-        lower=True,
-        overwrite_b=False,
-        check_finite=False,
-    )
-    result = bb.T @ bb
-    return result
+    bb = forward_substitution(low_triang_PQ, _account_for_symmetry(pqP))
+    return bb.T @ bb
 
 
 _T_ = ListType(_UniTuple_int64_2)
@@ -2194,17 +2210,11 @@ def _faster_eval_via_cholesky_shared(
     fobj: Frags,
     low_triang_PQ: Matrix[np.float64],
 ) -> Matrix[np.float64]:
-    bb = solve_triangular(
-        low_triang_PQ,
-        _account_for_symmetry(pqP),
-        lower=True,
-        overwrite_b=False,
-        check_finite=False,
-    )
     n_f, n_orb = fobj.n_f, len(pqP)
 
     @njit(nogil=True)
-    def _jit_inner_function(bb, n_f, n_orb):
+    def _jit_inner_function(low_triang_PQ, pqP, n_f, n_orb):
+        bb = forward_substitution(low_triang_PQ, _account_for_symmetry(pqP))
         orb_offset = ravel_symmetric(n_orb - 1, n_orb - 1) + 1
         n_f_offset = ravel_symmetric(n_f - 1, n_f - 1) + 1
         g = np.full((orb_offset, orb_offset), fill_value=np.nan, dtype=np.float64)
@@ -2213,7 +2223,7 @@ def _faster_eval_via_cholesky_shared(
         g[n_f_offset:, :] = g[:, n_f_offset:].T
         return n_f_offset, g
 
-    n_f_offset, g = _jit_inner_function(bb, n_f, n_orb)
+    n_f_offset, g = _jit_inner_function(low_triang_PQ, pqP, n_f, n_orb)
 
     g[:n_f_offset, :n_f_offset] = restore(
         "4", _extract_g(g_ijkl, fobj.frag_TA_offset, ravelled_ij_to_offset), n_f
@@ -2230,7 +2240,7 @@ def _write_eris(
 ) -> None:
     for fragidx, eri in enumerate(eris):
         file_eri_handler.create_dataset(
-            Fobjs[fragidx].dname, data=restore("4", eri, len(eri))
+            Fobjs[fragidx].dname, data=restore("4", eri, Fobjs[fragidx].TA.shape[1])
         )
 
 
@@ -2297,6 +2307,7 @@ def get_ij_pairs(
     return dict(i_reachable_by_j)
 
 
+@njit(nogil=True)
 def _get_shared_ijP(
     global_fragment_TA: Matrix[np.float64],
     sparse_ints_3c2e: SemiSparseSym3DTensor,
