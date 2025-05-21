@@ -2048,12 +2048,19 @@ def forward_substitution(
     return result
 
 
-@njit(nogil=True)
 def _eval_via_cholesky(
     pqP: Tensor3D[np.float64], low_triang_PQ: Matrix[np.float64]
 ) -> Matrix[np.float64]:
-    bb = forward_substitution(low_triang_PQ, _account_for_symmetry(pqP))
-    return bb.T @ bb
+    symmetrised = _account_for_symmetry(pqP)
+    bb = solve_triangular(
+        low_triang_PQ,
+        symmetrised,
+        lower=True,
+        overwrite_b=False,
+        check_finite=False,
+    )
+    result = bb.T @ bb
+    return result
 
 
 _T_ = ListType(_UniTuple_int64_2)
