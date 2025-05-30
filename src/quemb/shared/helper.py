@@ -128,7 +128,7 @@ class Timer:
         from quemb.shared.config import settings
 
         if settings.PRINT_LEVEL >= 10:
-            print(f"Timer with message '{self.message}' started.")
+            print(f"Timer with message '{self.message}' started.", flush=True)
 
     def elapsed(self) -> float:
         return time() - self.start
