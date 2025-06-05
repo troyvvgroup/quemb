@@ -921,15 +921,15 @@ class BE(MixinLocalize):
                 eri = None
             elif int_transform == "sparse-DF-S-screening":
                 ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-                eris = _transform_sparse_DF_integral_S_screening_everything(
+                _transform_sparse_DF_integral_S_screening_everything(
                     self.mf,
                     self.Fobjs,
                     auxbasis=self.auxbasis,
+                    file_eri_handler=file_eri,
                     MO_coeff_epsilon=self.MO_coeff_epsilon,
                     AO_coeff_epsilon=self.AO_coeff_epsilon,
                     n_threads=self.int_n_threads,
                 )
-                _write_eris(self.Fobjs, eris, file_eri)
                 eri = None
             elif int_transform == "sparse-DF-S-screening-shared-ijP":
                 ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")

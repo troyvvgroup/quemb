@@ -1672,10 +1672,11 @@ def _transform_sparse_DF_integral_S_screening_everything(
     mf: scf.hf.SCF,
     Fobjs: Sequence[Frags],
     auxbasis: str | None,
+    file_eri_handler: h5py.File,
     AO_coeff_epsilon: float,
     MO_coeff_epsilon: float,
     n_threads: int,
-) -> list[Matrix[np.float64]]:
+) -> None:
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
@@ -1696,9 +1697,9 @@ def _transform_sparse_DF_integral_S_screening_everything(
     ints_2c2e = auxmol.intor("int2c2e")
     low_triang_PQ = cholesky(ints_2c2e, lower=True)
 
-    def f(fragobj):
-        return restore(
-            "1",
+    def f(fragobj: Frags, file_eri_handler: h5py.File) -> None:
+        eri = restore(
+            "4",
             _eval_via_cholesky(
                 _get_fragment_ints3c2_S_screening(
                     sparse_ints_3c2e,
@@ -1710,14 +1711,20 @@ def _transform_sparse_DF_integral_S_screening_everything(
             ),
             fragobj.TA.shape[1],
         )
+        file_eri_handler.create_dataset(fragobj.dname, data=eri)
 
     if n_threads > 1:
         with ThreadPoolExecutor(max_workers=n_threads) as executor:
-            lambdas = [executor.submit(f, fragobj) for fragobj in Fobjs]
-
-            return (x.result() for x in lambdas)
+            futures = [
+                executor.submit(f, fragobj, file_eri_handler) for fragobj in Fobjs
+            ]
+            # You must call future.result() if you want to catch exceptions
+            # raised during execution. Otherwise, errors may silently fail.
+            for future in futures:
+                future.result()
     else:
-        return (f(fragobj) for fragobj in Fobjs)
+        for fragobj in Fobjs:
+            f(fragobj, file_eri_handler)
 
 
 def _transform_sparse_DF_use_shared_ijP(
