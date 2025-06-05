@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 from copy import deepcopy
-from typing import Final, Literal, Self, TypeAlias
+from typing import Final, Literal, TypeAlias
 from warnings import warn
 
 import networkx as nx
@@ -13,6 +13,7 @@ from numpy.linalg import norm
 from pyscf import gto
 from pyscf.gto import Mole
 from pyscf.pbc.gto import Cell
+from typing_extensions import Self
 
 from quemb.molbe.helper import are_equal, get_core
 from quemb.molbe.pfrag import Frags
