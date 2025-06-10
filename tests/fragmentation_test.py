@@ -1273,12 +1273,16 @@ class TestBE_Fragmentation(unittest.TestCase):
         mf = scf.RHF(mol)
         mf.kernel()
 
-        fobj = fragmentate(mol, n_BE=2, frag_type="graphgen", print_frags=False)
+        fobj = fragmentate(
+            mol, n_BE=2, frag_type="graphgen", print_frags=False, order_by_size=False
+        )
         mybe = BE(mf, fobj)
 
         assert np.isclose(mf.e_tot, mybe.ebe_hf)
 
-        fobj = fragmentate(mol, n_BE=3, frag_type="graphgen", print_frags=False)
+        fobj = fragmentate(
+            mol, n_BE=3, frag_type="graphgen", print_frags=False, order_by_size=False
+        )
         mybe = BE(mf, fobj)
 
         assert np.isclose(mf.e_tot, mybe.ebe_hf)
@@ -1293,7 +1297,9 @@ class TestBE_Fragmentation(unittest.TestCase):
     ):
         Es = {"target": target}
         for frag_type in ["autogen", "graphgen"]:
-            fobj = fragmentate(frag_type=frag_type, n_BE=n_BE, mol=mf.mol)
+            fobj = fragmentate(
+                frag_type=frag_type, n_BE=n_BE, mol=mf.mol, order_by_size=False
+            )
             mbe = BE(mf, fobj)
             mbe.oneshot(solver="CCSD")
             Es.update({frag_type: mbe.ebe_tot - mbe.ebe_hf})
@@ -1319,7 +1325,9 @@ class TestBE_Fragmentation(unittest.TestCase):
         frag_type,
         target,
     ):
-        fobj = fragmentate(frag_type=frag_type, n_BE=n_BE, mol=mf.mol)
+        fobj = fragmentate(
+            frag_type=frag_type, n_BE=n_BE, mol=mf.mol, order_by_size=False
+        )
         try:
             assert fobj.AO_per_frag == target["AO_per_frag"]
             assert fobj.AO_per_edge_per_frag == target["AO_per_edge_per_frag"]
