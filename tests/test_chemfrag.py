@@ -252,12 +252,15 @@ def test_molecule_with_autocratic_matching():
     mf = scf.RHF(mol)
     mf.kernel()
 
-    fobj = fragmentate(mol, n_BE=2, frag_type="chemgen", print_frags=False)
+    fobj = fragmentate(
+        mol, n_BE=2, frag_type="chemgen", print_frags=False, order_by_size=True
+    )
     mybe = BE(mf, fobj)
-
     assert np.isclose(mf.e_tot, mybe.ebe_hf)
 
-    fobj = fragmentate(mol, n_BE=3, frag_type="chemgen", print_frags=False)
+    fobj = fragmentate(
+        mol, n_BE=3, frag_type="chemgen", print_frags=False, order_by_size=True
+    )
     mybe = BE(mf, fobj)
 
     assert np.isclose(mf.e_tot, mybe.ebe_hf)

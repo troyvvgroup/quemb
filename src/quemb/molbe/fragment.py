@@ -30,7 +30,7 @@ def fragmentate(
     n_BE: int = 2,
     frag_prefix: str = "f",
     frozen_core: bool = False,
-    order_by_size: bool = True,
+    order_by_size: bool = False,
     additional_args: AdditionalArgs | None = None,
 ) -> FragPart:
     """Fragment/partitioning definition
