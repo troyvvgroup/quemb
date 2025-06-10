@@ -133,18 +133,13 @@ def fragmentate(
             'It is advised to use "chemgen" instead.'
         )
     if order_by_size:
-        if frag_type == "graphgen":
-            # As soon as motifs_per_frag is defined for graphgen, remove this error.
-            raise NotImplementedError("order_by_size does not work for graphgen yet.")
         result = _order_by_decreasing_size(result)
     return result
 
 
 def _order_by_decreasing_size(fragments: FragPart) -> FragPart:
     """Order by decreasing fragment size"""
-    idx = np.argsort(
-        [-len(motifs) for motifs in fragments.motifs_per_frag], stable=True
-    )
+    idx = np.argsort([-len(motifs) for motifs in fragments.AO_per_frag], stable=True)
     return fragments.reindex(idx)  # type: ignore[arg-type]
 
 
