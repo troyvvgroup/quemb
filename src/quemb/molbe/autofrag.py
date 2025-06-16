@@ -13,6 +13,7 @@ from numpy.linalg import norm
 from pyscf import gto
 from pyscf.gto import Mole
 from pyscf.pbc.gto import Cell
+from typing_extensions import Self
 
 from quemb.molbe.helper import are_equal, get_core
 from quemb.molbe.pfrag import Frags
@@ -30,6 +31,7 @@ from quemb.shared.typing import (
     PathLike,
     RelAOIdx,
     RelAOIdxInRef,
+    T,
     Vector,
 )
 
@@ -173,6 +175,38 @@ class FragPart:
             weight_and_relAO_per_center=self.weight_and_relAO_per_center_per_frag[I],
             relAO_per_origin=self.relAO_per_origin_per_frag[I],
             unrestricted=unrestricted,
+        )
+
+    def reindex(self, idx: Sequence[int] | Vector) -> Self:
+        def _get_elements(seq: Sequence[T], idx: Sequence[int] | Vector) -> list[T]:
+            return [seq[i] for i in idx]  # type: ignore[index]
+
+        return self.__class__(
+            mol=self.mol,
+            frag_type=self.frag_type,
+            n_BE=self.n_BE,
+            AO_per_frag=_get_elements(self.AO_per_frag, idx),
+            AO_per_edge_per_frag=_get_elements(self.AO_per_edge_per_frag, idx),
+            ref_frag_idx_per_edge_per_frag=_get_elements(
+                self.ref_frag_idx_per_edge_per_frag, idx
+            ),
+            relAO_per_edge_per_frag=_get_elements(self.relAO_per_edge_per_frag, idx),
+            relAO_in_ref_per_edge_per_frag=_get_elements(
+                self.relAO_in_ref_per_edge_per_frag, idx
+            ),
+            relAO_per_origin_per_frag=_get_elements(
+                self.relAO_per_origin_per_frag, idx
+            ),
+            weight_and_relAO_per_center_per_frag=_get_elements(
+                self.weight_and_relAO_per_center_per_frag, idx
+            ),
+            motifs_per_frag=_get_elements(self.motifs_per_frag, idx),
+            origin_per_frag=_get_elements(self.origin_per_frag, idx),
+            H_per_motif=self.H_per_motif,
+            add_center_atom=_get_elements(self.add_center_atom, idx),
+            frozen_core=self.frozen_core,
+            iao_valence_basis=self.iao_valence_basis,
+            iao_valence_only=self.iao_valence_only,
         )
 
 

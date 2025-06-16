@@ -3,6 +3,7 @@
 from typing import TypeAlias
 from warnings import warn
 
+import numpy as np
 from pyscf.gto.mole import Mole
 from typing_extensions import assert_never
 
@@ -29,6 +30,7 @@ def fragmentate(
     n_BE: int = 2,
     frag_prefix: str = "f",
     frozen_core: bool = False,
+    order_by_size: bool = False,
     additional_args: AdditionalArgs | None = None,
 ) -> FragPart:
     """Fragment/partitioning definition
@@ -64,6 +66,9 @@ def fragmentate(
     frag_prefix:
         Prefix to be appended to the fragment datanames. Useful for managing
         fragment scratch directories.
+    order_by_size:
+        Order the fragments by descending size.
+        This can be beneficial for better load-balancing.
     additional_args:
         Additional arguments for different fragmentation functions.
     """
@@ -127,7 +132,15 @@ def fragmentate(
             "Strange number of centers detected. "
             'It is advised to use "chemgen" instead.'
         )
+    if order_by_size:
+        result = _order_by_decreasing_size(result)
     return result
+
+
+def _order_by_decreasing_size(fragments: FragPart) -> FragPart:
+    """Order by decreasing fragment size"""
+    idx = np.argsort([-len(motifs) for motifs in fragments.AO_per_frag], stable=True)
+    return fragments.reindex(idx)  # type: ignore[arg-type]
 
 
 def _correct_number_of_centers(fragpart: FragPart) -> bool:
