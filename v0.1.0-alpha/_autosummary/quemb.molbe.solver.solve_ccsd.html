@@ -213,6 +213,7 @@
 <li class="toctree-l4 has-children"><a class="reference internal" href="quemb.molbe.autofrag.FragPart.html">quemb.molbe.autofrag.FragPart</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><div class="visually-hidden">Toggle navigation of quemb.molbe.autofrag.FragPart</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.autofrag.FragPart.__init__.html">quemb.molbe.autofrag.FragPart.__init__</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.autofrag.FragPart.all_centers_are_origins.html">quemb.molbe.autofrag.FragPart.all_centers_are_origins</a></li>
+<li class="toctree-l5"><a class="reference internal" href="quemb.molbe.autofrag.FragPart.reindex.html">quemb.molbe.autofrag.FragPart.reindex</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.autofrag.FragPart.to_Frags.html">quemb.molbe.autofrag.FragPart.to_Frags</a></li>
 </ul>
 </li>
@@ -804,15 +805,15 @@ the one- and two-particle density matrices, and the CCSD object.</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>mf</strong> (<a class="reference external" href="https://pyscf.org/pyscf_api_docs/pyscf.scf.html#pyscf.scf.hf.RHF" title="(in PySCF v2.9)"><em>RHF</em></a>) – Mean-field object from PySCF.</p></li>
 <li><p><strong>frozen</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.13)"><em>list</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em>, </em><em>optional</em>) – List of frozen orbitals or number of frozen core orbitals. Defaults to None.</p></li>
-<li><p><strong>mo_coeff</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.2)"><em>ndarray</em></a><em>, </em><em>optional</em>) – Molecular orbital coefficients. Defaults to None.</p></li>
+<li><p><strong>mo_coeff</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.3)"><em>ndarray</em></a><em>, </em><em>optional</em>) – Molecular orbital coefficients. Defaults to None.</p></li>
 <li><p><strong>relax</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em>, </em><em>optional</em>) – Whether to use relaxed density matrices. Defaults to False.</p></li>
 <li><p><strong>use_cumulant</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em>, </em><em>optional</em>) – Whether to use cumulant-based energy expression. When using the cumulant, the
 one-particle density matrix is not included in the two-particle density matrix
 calculation (with_dm1 = False). Defaults to True.</p></li>
 <li><p><strong>rdm_return</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em>, </em><em>optional</em>) – Whether to return the one-particle density matrix. Defaults to False.</p></li>
 <li><p><strong>rdm2_return</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><em>bool</em></a><em>, </em><em>optional</em>) – Whether to return the two-particle density matrix. Defaults to False.</p></li>
-<li><p><strong>mo_occ</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.2)"><em>ndarray</em></a><em>, </em><em>optional</em>) – Molecular orbital occupations. Defaults to None.</p></li>
-<li><p><strong>mo_energy</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.2)"><em>ndarray</em></a><em>, </em><em>optional</em>) – Molecular orbital energies. Defaults to None.</p></li>
+<li><p><strong>mo_occ</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.3)"><em>ndarray</em></a><em>, </em><em>optional</em>) – Molecular orbital occupations. Defaults to None.</p></li>
+<li><p><strong>mo_energy</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.3)"><em>ndarray</em></a><em>, </em><em>optional</em>) – Molecular orbital energies. Defaults to None.</p></li>
 <li><p><strong>verbose</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><em>int</em></a><em>, </em><em>optional</em>) – Verbosity level. Defaults to 0.</p></li>
 </ul>
 </dd>

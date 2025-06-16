@@ -44,6 +44,7 @@ quemb.molbe.autofrag.FragPart
    
       ~FragPart.__init__
       ~FragPart.all_centers_are_origins
+      ~FragPart.reindex
       ~FragPart.to_Frags
    
    

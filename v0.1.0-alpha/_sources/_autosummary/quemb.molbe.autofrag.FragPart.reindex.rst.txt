@@ -1,0 +1,6 @@
+quemb.molbe.autofrag.FragPart.reindex
+=====================================
+
+.. currentmodule:: quemb.molbe.autofrag
+
+.. automethod:: FragPart.reindex
