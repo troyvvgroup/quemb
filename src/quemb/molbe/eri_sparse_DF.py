@@ -1697,7 +1697,7 @@ def _transform_sparse_DF_integral_S_screening_everything(
     ints_2c2e = auxmol.intor("int2c2e")
     low_triang_PQ = cholesky(ints_2c2e, lower=True)
 
-    def f(fragobj: Frags, file_eri_handler: h5py.File) -> None:
+    def f(fragobj: Frags) -> None:
         eri = restore(
             "4",
             _eval_via_cholesky(
@@ -1715,16 +1715,14 @@ def _transform_sparse_DF_integral_S_screening_everything(
 
     if n_threads > 1:
         with ThreadPoolExecutor(max_workers=n_threads) as executor:
-            futures = [
-                executor.submit(f, fragobj, file_eri_handler) for fragobj in Fobjs
-            ]
+            futures = [executor.submit(f, fragobj) for fragobj in Fobjs]
             # You must call future.result() if you want to catch exceptions
             # raised during execution. Otherwise, errors may silently fail.
             for future in futures:
                 future.result()
     else:
         for fragobj in Fobjs:
-            f(fragobj, file_eri_handler)
+            f(fragobj)
 
 
 def _transform_sparse_DF_use_shared_ijP(
