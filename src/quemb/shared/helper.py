@@ -138,13 +138,13 @@ class Timer:
 
 
 @overload
-def njit(f: _Function) -> _Function: ...
+def njit(f: _Function, *, nogil: bool) -> _Function: ...
 @overload
-def njit(**kwargs: Any) -> Callable[[_Function], _Function]: ...
+def njit(*, nogil: bool, **kwargs: Any) -> Callable[[_Function], _Function]: ...
 
 
 def njit(
-    f: _Function | None = None, **kwargs: Any
+    f: _Function | None = None, *, nogil: bool, **kwargs: Any
 ) -> _Function | Callable[[_Function], _Function]:
     """Type-safe jit wrapper that caches the compiled function
 
@@ -166,9 +166,9 @@ def njit(
     In addition to type safety, this wrapper also sets :code:`cache=True` by default.
     """
     if f is None:
-        return nb.njit(cache=True, **kwargs)
+        return nb.njit(cache=True, nogil=nogil, **kwargs)
     else:
-        return nb.njit(f, cache=True, **kwargs)
+        return nb.njit(f, cache=True, nogil=nogil, **kwargs)
 
 
 @overload
@@ -195,7 +195,7 @@ def jitclass(
     return nb.experimental.jitclass(cls_or_spec, spec)
 
 
-@njit
+@njit(nogil=True)
 def gauss_sum(n: _T_Integral) -> _T_Integral:
     r"""Return the sum :math:`\sum_{i=1}^n i`
 
@@ -206,7 +206,7 @@ def gauss_sum(n: _T_Integral) -> _T_Integral:
     return (n * (n + 1)) // 2  # type: ignore[return-value]
 
 
-@njit
+@njit(nogil=True)
 def ravel_symmetric(a: _T_Integral, b: _T_Integral) -> _T_Integral:
     """Flatten the index a, b assuming symmetry.
 
@@ -225,13 +225,13 @@ def ravel_symmetric(a: _T_Integral, b: _T_Integral) -> _T_Integral:
     return gauss_sum(a) + b if a > b else gauss_sum(b) + a  # type: ignore[return-value,operator]
 
 
-@njit
+@njit(nogil=True)
 def n_symmetric(n: _T_Integral) -> _T_Integral:
     "The number if symmetry-equivalent pairs i <= j, for i <= n and j <= n"
     return ravel_symmetric(n - 1, n - 1) + 1  # type: ignore[return-value]
 
 
-@njit
+@njit(nogil=True)
 def unravel_symmetric(i: Integral) -> tuple[int, int]:
     a = int((np.sqrt(8 * i + 1) - 1) // 2)
     offset = gauss_sum(a)
@@ -241,7 +241,7 @@ def unravel_symmetric(i: Integral) -> tuple[int, int]:
     return a, b
 
 
-@njit
+@njit(nogil=True)
 def ravel_eri_idx(
     a: _T_Integral, b: _T_Integral, c: _T_Integral, d: _T_Integral
 ) -> _T_Integral:
@@ -250,7 +250,7 @@ def ravel_eri_idx(
     return ravel_symmetric(ravel_symmetric(a, b), ravel_symmetric(c, d))
 
 
-@njit
+@njit(nogil=True)
 def unravel_eri_idx(i: _T_Integral) -> tuple[int, int, int, int]:
     """Invert :func:`ravel_eri_idx`"""
     ab, cd = unravel_symmetric(i)
@@ -259,12 +259,12 @@ def unravel_eri_idx(i: _T_Integral) -> tuple[int, int, int, int]:
     return a, b, c, d
 
 
-@njit
+@njit(nogil=True)
 def n_eri(n):
     return ravel_eri_idx(n - 1, n - 1, n - 1, n - 1) + 1
 
 
-@njit
+@njit(nogil=True)
 def ravel_C(a: _T_Integral, b: _T_Integral, n_cols: _T_Integral) -> _T_Integral:
     """Flatten the index a, b assuming row-mayor/C indexing
 
@@ -285,7 +285,7 @@ def ravel_C(a: _T_Integral, b: _T_Integral, n_cols: _T_Integral) -> _T_Integral:
     return (a * n_cols) + b  # type: ignore[return-value,operator]
 
 
-@njit
+@njit(nogil=True)
 def ravel_Fortran(a: _T_Integral, b: _T_Integral, n_rows: _T_Integral) -> _T_Integral:
     """Flatten the index a, b assuming column-mayor/Fortran indexing
 
@@ -306,7 +306,7 @@ def ravel_Fortran(a: _T_Integral, b: _T_Integral, n_rows: _T_Integral) -> _T_Int
     return a + (b * n_rows)  # type: ignore[return-value,operator]
 
 
-@njit
+@njit(nogil=True)
 def symmetric_different_size(m: _T_Integral, n: _T_Integral) -> _T_Integral:
     r"""Return the number of unique elements in a symmetric matrix of different row
     and column length
@@ -333,7 +333,7 @@ def symmetric_different_size(m: _T_Integral, n: _T_Integral) -> _T_Integral:
     return gauss_sum(m) + m * (n - m)  # type: ignore[operator,return-value]
 
 
-@njit
+@njit(nogil=True)
 def get_flexible_n_eri(
     p_max: _T_Integral, q_max: _T_Integral, r_max: _T_Integral, s_max: _T_Integral
 ) -> _T_Integral:

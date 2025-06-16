@@ -126,7 +126,7 @@ def _aux_e2(  # type: ignore[no-untyped-def]
     )
 
 
-@njit(inline="always")
+@njit(nogil=True, inline="always")
 def _assign_with_symmetry(
     g: Tensor4D[np.float64], i: int, j: int, k: int, l: int, val: float
 ) -> None:
@@ -345,7 +345,7 @@ def get_sparse_D_ints_and_coeffs(
     return ints_3c2e, df_coef
 
 
-@njit(parallel=True, nogil=True)
+@njit(nogil=True, parallel=True)
 def get_dense_integrals(
     ints_3c2e: SemiSparseSym3DTensor, df_coef: SemiSparseSym3DTensor
 ) -> Tensor4D[np.float64]:
@@ -1166,7 +1166,7 @@ def _flatten(
     }
 
 
-@njit(parallel=True, nogil=True)
+@njit(nogil=True, parallel=True)
 def _count_non_zero_2el(
     exch_reachable: list[Vector[OrbitalIdx]],
     n_AO: int | None = None,
@@ -1337,7 +1337,7 @@ def contract_with_TA_1st(
     )
 
 
-@njit(parallel=True, nogil=True)
+@njit(nogil=True, parallel=True)
 def _jit_contract_with_TA_1st(
     TA: Matrix[np.float64],
     int_mu_nu_P: SemiSparseSym3DTensor,
@@ -1357,7 +1357,7 @@ def _jit_contract_with_TA_1st(
     for outer_counter in prange(len(AO_MO_pair_with_offset)):  # type: ignore[attr-defined]
         offset, mu, i = AO_MO_pair_with_offset[outer_counter]
         keys[offset] = ravel_Fortran(mu, i, TA.shape[0])
-        for nu_counter in prange(len(int_mu_nu_P.exch_reachable[mu])):  # type: ignore[attr-defined]
+        for nu_counter in range(len(int_mu_nu_P.exch_reachable[mu])):  # type: ignore[attr-defined]
             inner_offset, nu = int_mu_nu_P.exch_reachable_with_offsets[mu][nu_counter]
             # In an un-optimized, but readable way it would be written as:
             # g_unique[offset] += TA[nu, i] * int_mu_nu_P[mu, nu]
@@ -1374,7 +1374,7 @@ def _jit_contract_with_TA_1st(
     )
 
 
-@njit(parallel=True, nogil=True)
+@njit(nogil=True, parallel=True)
 def contract_with_TA_2nd_to_sym_dense(
     TA: Matrix[np.float64], int_mu_i_P: SemiSparse3DTensor
 ) -> Tensor3D[np.float64]:
@@ -1404,7 +1404,8 @@ def contract_with_TA_2nd_to_sym_dense(
 
     g = np.zeros((TA.shape[1], TA.shape[1], int_mu_i_P.naux), dtype=np.float64)
 
-    for i in prange(g.shape[0]):  # type: ignore[attr-defined]
+    for counter in prange(g.shape[0]):  # type: ignore[attr-defined]
+        i = g.shape[0] - counter - 1
         for j in prange(min(g.shape[1], i + 1)):  # type: ignore[attr-defined]
             for offset, nu in int_mu_i_P.AO_reachable_by_MO_with_offsets[i]:
                 g[i, j, :] += TA[nu, j] * int_mu_i_P.dense_data[offset]
@@ -1463,7 +1464,7 @@ def contract_with_TA_2nd_to_sym_sparse(
     )
 
 
-@njit(parallel=True, nogil=True)
+@njit(nogil=True, parallel=True)
 def contract_with_TA_2nd_to_dense(
     TA: Matrix[np.float64], int_mu_i_P: SemiSparse3DTensor
 ) -> Tensor3D[np.float64]:
@@ -2013,7 +2014,7 @@ def _get_fragment_ints3c2_S_screening(
     )
 
 
-@njit(parallel=True, nogil=True)
+@njit(nogil=True, parallel=True)
 def _account_for_symmetry(pqP: Tensor3D[np.float64]) -> Matrix[np.float64]:
     """(n_orb, n_orb | n_aux) -> (n_aux | sym n_orb pairs)"""
     n_orb, naux = len(pqP), pqP.shape[-1]
@@ -2084,7 +2085,7 @@ def _precalculate_offsets(
     return result
 
 
-@njit(parallel=True, nogil=True)
+@njit(nogil=True, parallel=True)
 def _custom_to_dense(
     g_ijkl: SparseInt2, idx: Vector[np.int64]
 ) -> tuple[Tensor4D[np.float64], Vector[np.int64]]:
@@ -2114,7 +2115,7 @@ def _custom_to_dense(
     return g_dense, argsort_result  # type: ignore[return-value]
 
 
-@njit(parallel=True, nogil=True)
+@njit(nogil=True, parallel=True)
 def new_custom_to_dense(
     g_ijkl: SparseInt2, idx: Vector[np.int64]
 ) -> Tensor4D[np.float64]:  # type: ignore[no-untyped-def]
@@ -2182,7 +2183,7 @@ def _index_into_vector(new_integrals, final_offsets, sorted_idx):
     return g
 
 
-@njit(parallel=True, nogil=True)
+@njit(nogil=True, parallel=True)
 def _my_ix_(g, new_idx):
     n = len(g)
     result = np.full_like(g, fill_value=np.nan)
@@ -2256,7 +2257,7 @@ def _write_eris(
         )
 
 
-@njit(parallel=True, nogil=True)
+@njit(nogil=True, parallel=True)
 def contract_DF_dense(
     ijP: Tensor3D[np.float64], Dcoeff_ijP: Tensor3D[np.float64]
 ) -> Tensor4D[np.float64]:
@@ -2271,7 +2272,7 @@ def contract_DF_dense(
     return g
 
 
-@njit(parallel=True, nogil=True)
+@njit(nogil=True, parallel=True)
 def _get_indices(keys: List[int64]) -> Matrix[np.int64]:
     indices = np.full((len(keys), 4), fill_value=np.nan, dtype=np.int64)
     for i in prange(len(keys)):  # type: ignore[attr-defined]
@@ -2296,7 +2297,7 @@ def _get_keys(ijP: SemiSparseSym3DTensor) -> tuple[List[int64], Matrix[np.int64]
     return keys, _get_indices(keys)
 
 
-@njit(parallel=True, nogil=True)
+@njit(nogil=True, parallel=True)
 def contract_DF_sparse(
     ijP: SemiSparseSym3DTensor, Dcoeff_ijP: SemiSparseSym3DTensor
 ) -> SparseInt2:
@@ -2340,7 +2341,7 @@ def _get_shared_ijP(
     return ijP
 
 
-@njit(parallel=True, nogil=True)
+@njit(nogil=True, parallel=True)
 def _merge_fragment_bath_MOs(
     int_i_j_P: Tensor3D[np.float64],
     int_i_a_P: Tensor3D[np.float64],
