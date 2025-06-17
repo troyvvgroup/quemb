@@ -219,9 +219,13 @@ class UBE(BE):  # 🍠
             if self.equal_bath:
                 # Enforce the same number of alpha and beta orbitals
                 # by augmenting the bath
+                print("self.equal_bath true")
                 tot_alpha = fobj_a.n_f + fobj_a.n_b
                 tot_beta = fobj_b.n_f + fobj_b.n_b
-
+                print("tot_alpha", tot_alpha)
+                print("tot_beta", tot_beta)
+                print("fobj_a.n_b,", fobj_a.n_b)
+                print("fobj_b.n_b,", fobj_b.n_b)
                 if tot_alpha > tot_beta:
                     fobj_b.sd(
                         self.W[1] if self.frozen_core else self.W,
@@ -238,7 +242,14 @@ class UBE(BE):  # 🍠
                         thr_bath=self.thr_bath,
                         norb=fobj_b.n_b,
                     )
-
+                print("tot_alphab", tot_alpha)
+                print("tot_betab", tot_beta)
+                print("fobj_a.n_b,", fobj_a.n_b)
+                print("fobj_b.n_b,", fobj_b.n_b)
+                tot_alpha = fobj_a.n_f + fobj_a.n_b
+                tot_beta = fobj_b.n_f + fobj_b.n_b
+                print("tot_alphac", tot_alpha)
+                print("tot_betac", tot_beta)
             assert fobj_a.TA is not None and fobj_b.TA is not None
             assert eri_ is not None, "eri_ is None: set incore_anyway for UHF"
 

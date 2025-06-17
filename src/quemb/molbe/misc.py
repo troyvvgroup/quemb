@@ -260,6 +260,7 @@ def be2puffin(
     checkfile=None,
     ecp=None,
     frag_type="chemgen",
+    opt="soscf",
 ):
     """Front-facing API bridge tailored for SCINE Puffin
 
@@ -364,36 +365,56 @@ def be2puffin(
                         "Using QM/MM Point Charges: Assuming QM structure in Angstrom "
                         "and MM Coordinates in Bohr !!!"
                     )
-                    mf1 = scf.UHF(mol).set(
-                        max_cycle=200
-                    )  # using SOSCF is more reliable
-                    # mf1 = scf.UHF(mol).set(max_cycle = 200, level_shift = (0.3, 0.2))
-                    # using level shift helps, but not always. level_shift and
-                    # scf.addons.dynamic_level_shift do not seem to work with QM/MM
-                    # note: from the SCINE database, the structure is in Angstrom but
-                    # the MM point charges are in Bohr !!
-                    mf = qmmm.mm_charge(
-                        mf1, pts_and_charges[0], pts_and_charges[1], unit="bohr"
-                    ).newton()  # mf object, coordinates, charges
+                    mf1 = scf.UHF(mol).set(max_cycle=200)
+                    if opt.upper() == "SOSCF":
+                        # using SOSCF is more reliable
+                        # note: from the SCINE database, the structure is in Angstrom
+                        # but the MM point charges are in Bohr !!
+                        mf = qmmm.mm_charge(
+                            mf1, pts_and_charges[0], pts_and_charges[1], unit="bohr"
+                        ).newton()  # mf object, coordinates, charges
+                    elif opt.upper() == "DAMP":
+                        mf = qmmm.mm_charge(
+                            mf1, pts_and_charges[0], pts_and_charges[1], unit="bohr"
+                        )
+                        mf.damp = 0.5
+                        mf.diis_start_cycle = 5
                 else:
-                    mf = scf.UHF(mol).set(max_cycle=200, level_shift=(0.3, 0.2))
+                    if opt.upper() == "SOSCF":
+                        mf = scf.UHF(mol).set(max_cycle=200).newton()
+                    elif opt.upper() == "DAMP":
+                        mf = scf.UHF(mol).set(max_cycle=200)
+                        mf.damp = 0.5
+                        mf.diis_start_cycle = 5
             else:
-                mf = scf.UHF(mol).set(max_cycle=200).newton()
+                if opt.upper() == "SOSCF":
+                    mf = scf.UHF(mol).set(max_cycle=200).newton()
+                elif opt.upper() == "DAMP":
+                    mf = scf.UHF(mol).set(max_cycle=200)
+                    mf.damp = 0.5
+                    mf.diis_start_cycle = 5
         else:  # restricted
             if pts_and_charges:  # running QM/MM
                 print(
                     "Using QM/MM Point Charges: Assuming QM structure in Angstrom and "
                     "MM Coordinates in Bohr !!!"
                 )
-                mf1 = scf.RHF(mol).set(max_cycle=200)
-                mf = qmmm.mm_charge(
-                    mf1, pts_and_charges[0], pts_and_charges[1], unit="bohr"
-                ).newton()
                 if use_df or jk is not None:
                     raise ValueError(
                         "Setting use_df to false and jk to none: have not tested DF "
                         "and QM/MM from point charges at the same time"
                     )
+                mf1 = scf.RHF(mol).set(max_cycle=200)
+                if opt.upper() == "SOSCF":
+                    mf = qmmm.mm_charge(
+                        mf1, pts_and_charges[0], pts_and_charges[1], unit="bohr"
+                    ).newton()
+                elif opt.upper() == "DAMP":
+                    mf = qmmm.mm_charge(
+                        mf1, pts_and_charges[0], pts_and_charges[1], unit="bohr"
+                    )
+                    mf.damp = 0.5
+                    mf.diis_start_cycle = 5
             elif use_df and jk is None:
                 mf = scf.RHF(mol).density_fit(auxbasis=df_aux_basis)
             else:
@@ -459,12 +480,22 @@ def be2puffin(
                 "Using QM/MM Point Charges: Assuming QM structure in Angstrom and "
                 "MM Coordinates in Bohr !!!"
             )
-            mf = qmmm.mm_charge(
-                mf,
-                pts_and_charges[0],
-                pts_and_charges[1],
-                unit="bohr",
-            ).newton()
+            if opt.upper() == "SOSCF":
+                mf = qmmm.mm_charge(
+                    mf,
+                    pts_and_charges[0],
+                    pts_and_charges[1],
+                    unit="bohr",
+                ).newton()
+            elif opt.upper() == "DAMP":
+                mf = qmmm.mm_charge(
+                    mf,
+                    pts_and_charges[0],
+                    pts_and_charges[1],
+                    unit="bohr",
+                )
+                mf.damp = 0.5
+                mf.diis_start_cycle = 5
         time_post_mf = time.time()
         print("Chkfile electronic energy:", mf.energy_elec(), flush=True)
         print("Chkfile e_tot:", mf.e_tot, flush=True)
@@ -491,7 +522,7 @@ def be2puffin(
     # Run oneshot embedding and return system energy
 
     mybe.oneshot(solver=solver, nproc=nproc, ompnum=ompnum)
-    return mybe.ebe_tot - mybe.ebe_hf
+    return mybe.ebe_tot - mybe.uhf_full_e
 
 
 def print_energy_cumulant(ecorr, e_V_Kapprox, e_F_dg, e_hf):

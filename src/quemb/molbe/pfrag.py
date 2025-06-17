@@ -472,8 +472,8 @@ def schmidt_decomposition(
     if norb is not None:
         # add extra correlated orbital from environment
         # this will likely have Eval = 1
-        more_corr = Bidx[-1] + 1
-        Bidx.append(more_corr)
+        while len(Bidx) < norb:
+            Bidx.append(Bidx[-1] + 1)
 
     # Initialize the transformation matrix (TA)
     TA = zeros([Tot_sites, len(AO_in_frag) + len(Bidx)])
