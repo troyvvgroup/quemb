@@ -110,12 +110,12 @@ class TestOneShot_Unrestricted(unittest.TestCase):
         mybe = UBE(mf, fobj, equal_bath=True)
         mybe.oneshot(solver="UCCSD", nproc=1)
         self.assertAlmostEqual(
-            mybe.ebe_tot - mybe.uhf_full_e,
+            mybe.ebe_tot - mybe.hf_etot,
             exp_result,
             msg="Unrestricted One-Shot Energy for "
             + test_name
             + " is incorrect by"
-            + str(mybe.ebe_tot - mybe.uhf_full_e - exp_result),
+            + str(mybe.ebe_tot - mybe.hf_etot - exp_result),
             delta=delta,
         )
 

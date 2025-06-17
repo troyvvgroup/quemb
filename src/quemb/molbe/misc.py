@@ -523,7 +523,7 @@ def be2puffin(
 
     mybe.oneshot(solver=solver, nproc=nproc, ompnum=ompnum)
     if unrestricted:
-        return mybe.ebe_tot - mybe.uhf_full_e
+        return mybe.ebe_tot - mybe.hf_etot
     else:
         return mybe.ebe_tot - mybe.ebe_hf
 
