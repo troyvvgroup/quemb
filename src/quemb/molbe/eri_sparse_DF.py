@@ -2175,7 +2175,7 @@ def _eval_via_cholesky_shared(
     return g
 
 
-@njit(parallel=False, nogil=True)
+@njit(nogil=True, parallel=False)
 def _index_into_vector(new_integrals, final_offsets, sorted_idx):
     g = np.full(n_eri(len(sorted_idx)), fill_value=np.nan, dtype=np.float64)
     counter = 0
