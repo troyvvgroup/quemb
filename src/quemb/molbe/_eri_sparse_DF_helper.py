@@ -210,7 +210,7 @@ def block_diag_assign_ix(g_lhs, rows_out, g_rhs, rows_rhs):
             g_lhs[rows_out[col_counter], rows_out[row_counter]] = val
 
 
-@njit(parallel=False)
+@njit(nogil=True, parallel=False)
 def off_diag_assign_ix(g_lhs, rows_out, cols_out, g_rhs, rows_rhs, cols_rhs):
     for row_counter in prange(len(rows_rhs)):
         for col_counter in prange(len(cols_rhs)):
