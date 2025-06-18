@@ -1348,7 +1348,7 @@ def _jit_contract_with_TA_1st(
     assert TA.shape[0] == int_mu_nu_P.nao and TA.shape[1] == len(AO_reachable_by_MO)
     n_unique = len(AO_MO_pair_with_offset)
 
-    print(f"Memory for (mu i | P): {n_unique * int_mu_nu_P.naux * 8 * 2**-30} Gb")
+    print("Memory for (mu i | P): Gb", n_unique * int_mu_nu_P.naux * 8 * 2**-30)
     g_unique = np.zeros((n_unique, int_mu_nu_P.naux), dtype=np.float64)
     keys = np.full(n_unique, fill_value=np.nan, dtype=np.int64)
 
@@ -1404,8 +1404,7 @@ def contract_with_TA_2nd_to_sym_dense(
     assert TA.shape[0] == int_mu_i_P.shape[0]
     assert TA.shape[1] == int_mu_i_P.shape[1]
 
-
-    print(f"Memory for (i j | P): {TA.shape[1]**2 * int_mu_i_P.naux * 8 * 2**-30} Gb")
+    print("Memory for (i j | P): Gb", TA.shape[1] ** 2 * int_mu_i_P.naux * 8 * 2**-30)
 
     g = np.zeros((TA.shape[1], TA.shape[1], int_mu_i_P.naux), dtype=np.float64)
 
