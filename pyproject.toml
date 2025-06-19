@@ -2,7 +2,7 @@
 requires = [
     "setuptools>=61",
     "wheel",
-    "pybind11",  # for C++ extension
+    "pybind11"
 ]
 build-backend = "setuptools.build_meta"
 
@@ -14,7 +14,7 @@ readme = "README.md"
 requires-python = ">=3.10,<3.13"
 license = "Apache-2.0"
 authors = [
-    {name = "Your Name", email = "your@email.com"}  # replace with maintainer info
+    {name = "Your Name", email = "your@email.com"}
 ]
 dependencies = [
     "numpy>=1.22.0",
@@ -27,7 +27,6 @@ dependencies = [
     "pyyaml",
     "numba",
     "ordered-set",
-    # Git-based dependencies
     "libdmet @ git+https://github.com/gkclab/libdmet_preview.git",
     "chemcoord @ git+https://github.com/mcocdawc/chemcoord.git"
 ]
@@ -36,12 +35,8 @@ dependencies = [
 "Homepage" = "https://vanvoorhisgroup.mit.edu/quemb"
 "Download" = "https://github.com/troyvvgroup/quemb"
 
-
 [tool.setuptools]
 package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
-# [tool.setuptools.ext-modules]
-# This section is left blank for now, will be added when we define the pybind11 extension later.
