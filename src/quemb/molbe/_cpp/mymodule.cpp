@@ -5,7 +5,7 @@
 namespace py = pybind11;
 
 // Function that sums all elements of a 2D NumPy array
-double sum_array(py::array_t<double> array) {
+auto sum_array(py::array_t<double> array) {
     // Request buffer info from NumPy array
     py::buffer_info buf = array.request();
 
@@ -20,6 +20,8 @@ double sum_array(py::array_t<double> array) {
     // Use Eigen to compute the sum
     return mat.sum();
 }
+
+
 
 // Binding code
 PYBIND11_MODULE(mymodule, m) {
