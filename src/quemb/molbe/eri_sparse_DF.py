@@ -14,10 +14,11 @@ from collections.abc import (
 )
 from concurrent.futures import ThreadPoolExecutor
 from itertools import chain, product, takewhile
-from typing import Final, TypeVar, cast
+from typing import Final, Self, TypeVar, cast
 
 import h5py
 import numpy as np
+from attrs import define
 from chemcoord import Cartesian
 from numba import float64, int64, prange, uint64  # type: ignore[attr-defined]
 from numba.typed import Dict, List
@@ -2445,3 +2446,61 @@ def calculate_abs_overlap(mol: Mole, grid_level: int = 2) -> Matrix[np.float64]:
     result = (AO_abs_val * grids.weights[:, np.newaxis]).T @ AO_abs_val
     assert np.allclose(result, result.T)
     return result
+
+
+@define
+class pySemiSparseSym3DTensor:
+    r"""Specialised datastructure for immutable, semi-sparse, and partially symmetric
+    3-indexed tensors.
+
+    For a tensor, :math:`T_{ijk}`, to be stored in this datastructure we assume
+
+    - 2-fold permutational symmetry for the :math:`i, j` indices,
+      i.e. :math:`T_{ijk} = T_{jik}`
+    - sparsity along the :math:`i, j` indices, i.e. :math:`T_{ijk} = 0`
+      for many :math:`i, j`
+    - dense storage along the :math:`k` index
+
+    It can be used for example to store the 3-center, 2-electron integrals
+    :math:`(\mu \nu | P)`, with AOs :math:`\mu, \nu` and auxiliary basis indices
+    :math:`P`.
+    Semi-sparsely, because it is assumed that there are many
+    exchange pairs :math:`\mu, \nu` which are zero, while the integral along
+    the auxiliary basis :math:`P` is stored densely as numpy array.
+
+    2-fold permutational symmetry for the :math:`\mu, \nu` pairs is assumed, i.e.
+
+    .. math::
+
+        (\mu \nu | P) == (\nu, \mu | P)
+
+    Note that this class is immutable which enables to store the unique (symmetry),
+    non-zero data in a dense manner, which has some performance benefits.
+    """
+
+    _keys: Vector[np.int64]
+    unique_dense_data: Matrix[np.float64]
+    nao: int
+    naux: int
+    shape: tuple[int, int, int]
+    exch_reachable: list[Vector[OrbitalIdx]]
+    exch_reachable_unique: list[Vector[OrbitalIdx]]
+    exch_reachable_with_offsets: list[list[tuple[int, OrbitalIdx]]]
+    exch_reachable_unique_with_offsets: list[list[tuple[int, OrbitalIdx]]]
+    _data: Mapping[int, Vector[np.float64]]
+
+    @classmethod
+    def from_jitclass(cls, jitclass_obj: SemiSparseSym3DTensor) -> Self:
+        """Convert a numba JIT class to a python class."""
+        return cls(
+            jitclass_obj._keys,
+            jitclass_obj.unique_dense_data,
+            jitclass_obj.nao,
+            jitclass_obj.naux,
+            jitclass_obj.shape,
+            list(jitclass_obj.exch_reachable),
+            list(jitclass_obj.exch_reachable_unique),
+            [tuple(x) for x in jitclass_obj.exch_reachable_with_offsets],
+            [tuple(x) for x in jitclass_obj.exch_reachable_unique_with_offsets],
+            jitclass_obj._data,
+        )
