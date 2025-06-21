@@ -1,10 +1,13 @@
 #pragma once
+#include <Eigen/Dense>
 #include <tuple>
 #include <cmath>
 #include <cassert>
 #include <algorithm>
 
 using int_t = int64_t;
+using OrbitalIdx = std::size_t;
+
 
 // Sum of integers from 1 to n
 constexpr int_t gauss_sum(int_t n) {
@@ -71,4 +74,9 @@ constexpr int_t get_flexible_n_eri(int_t p_max, int_t q_max, int_t r_max, int_t 
         symmetric_different_size(p_max, q_max),
         symmetric_different_size(r_max, s_max)
     );
+}
+
+// Convert OrbitalIdx to Eigen::Index
+constexpr inline Eigen::Index to_eigen(OrbitalIdx idx) noexcept {
+    return static_cast<Eigen::Index>(idx);
 }
