@@ -44,7 +44,7 @@ class GraphGenArgs:
     """
 
     connectivity: Final[Literal["euclidean"]] = "euclidean"
-    cutoff: Final[float] = 20.0
+    cutoff: Final[float] = 0.0
     remove_nonnunique_frags: Final[bool] = True
 
 
@@ -249,7 +249,7 @@ class GraphGenUtility:
 
 def graphgen(
     mol: gto.Mole,
-    n_BE: str | int = "BE2",
+    n_BE: str | int = 2,
     frozen_core: bool = True,
     remove_nonunique_frags: bool = True,
     frag_prefix: str = "f",
@@ -297,7 +297,7 @@ def graphgen(
         Atoms with an edge weight beyond `cutoff` will be excluded from the
         `shortest_path` calculation. This is crucial when handling very large
         systems, where computing the shortest paths from all to all becomes
-        non-trivial. Defaults to 20.0.
+        non-trivial. Defaults to 0.0.
     Returns
     -------
     dict :

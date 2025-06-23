@@ -87,7 +87,7 @@ def fragmentate(
             connectivity=additional_args.connectivity,
             iao_valence_basis=iao_valence_basis,
             cutoff=additional_args.cutoff,
-        ).to_FragPart(mol, n_BE, frozen_core)
+        )
     elif frag_type == "autogen":
         if additional_args is None:
             additional_args = AutogenArgs()
