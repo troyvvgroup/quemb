@@ -11,11 +11,10 @@ from quemb.molbe.autofrag import (
     AutogenArgs,
     FragPart,
     FragType,
-    GraphGenArgs,
     autogen,
-    graphgen,
 )
 from quemb.molbe.chemfrag import ChemGenArgs, chemgen
+from quemb.molbe.graphfrag import GraphGenArgs, graphgen
 
 AdditionalArgs: TypeAlias = AutogenArgs | ChemGenArgs | GraphGenArgs
 
