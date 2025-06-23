@@ -4,9 +4,10 @@
 #include <cmath>
 #include <cassert>
 #include <algorithm>
+#include <vector>
 
 using int_t = int64_t;
-using OrbitalIdx = std::size_t;
+using OrbitalIdx = Eigen::Index;
 
 
 // Sum of integers from 1 to n
@@ -77,6 +78,22 @@ constexpr int_t get_flexible_n_eri(int_t p_max, int_t q_max, int_t r_max, int_t 
 }
 
 // Convert OrbitalIdx to Eigen::Index
-constexpr inline Eigen::Index to_eigen(OrbitalIdx idx) noexcept {
+constexpr inline Eigen::Index cast_orbidx(std::size_t idx) noexcept {
     return static_cast<Eigen::Index>(idx);
+}
+
+std::vector<std::vector<OrbitalIdx>> extract_unique(
+    const std::vector<std::vector<OrbitalIdx>>& exch_reachable
+) {
+    std::vector<std::vector<OrbitalIdx>> result;
+    result.resize(exch_reachable.size());
+
+    for (OrbitalIdx mu = 0; mu < cast_orbidx(exch_reachable.size()); ++mu) {
+        for (OrbitalIdx nu : exch_reachable[mu]) {
+            if (mu > nu) break;  // assumes nu are sorted: symmetry → upper triangle only
+            result[mu].push_back(nu);
+        }
+    }
+
+    return result;
 }

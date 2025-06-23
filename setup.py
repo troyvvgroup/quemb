@@ -7,6 +7,13 @@ ext_modules = [
         ["src/quemb/molbe/_cpp/mymodule.cpp"],
         include_dirs=["third-party/eigen-3.3.9"],  # Your Eigen headers path
         cxx_std=17,
+        extra_compile_args=[
+            "-O3",
+            "-march=native",
+            "-ffast-math",
+            "-fopenmp",
+        ],
+        extra_link_args=["-fopenmp"],
     ),
 ]
 
