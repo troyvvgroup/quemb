@@ -1330,8 +1330,6 @@ class TestBE_Fragmentation(unittest.TestCase):
             frag_type=frag_type, n_BE=n_BE, mol=mf.mol, order_by_size=False
         )
         try:
-            print(fobj.AO_per_frag)
-            print(target["AO_per_frag"])
             assert fobj.AO_per_frag == target["AO_per_frag"]
             assert fobj.AO_per_edge_per_frag == target["AO_per_edge_per_frag"]
             assert (

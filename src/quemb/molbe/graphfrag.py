@@ -537,27 +537,7 @@ def graphgen(
             )
             for st in GraphGenUtility.graph_to_string(sg):
                 print(st, flush=True)
-    """
-    return {
-        "mol": mol,
-        "frag_type": "graphgen",
-        "n_BE": fragment_type_order,
-        "fsites": fsites,
-        "edge_sites": edge_sites,
-        "center": center,
-        "edge_idx": MISSING,
-        "center_idx": MISSING,
-        "centerf_idx": centerf_idx,
-        "ebe_weight": ebe_weight,
-        "Frag_atom": Frag_atom,
-        "center_atom": center_atom,
-        "hlist_atom": MISSING,
-        "add_center_atom": MISSING,
-        "frozen_core": frozen_core,
-        "iao_valence_basis": iao_valence_basis,
-        "iao_valence_only": False,
-    }
-    """
+
     MISSING = []  # type: ignore[var-annotated]
     MISSING_PER_FRAG = [[] for _ in range(len(fsites))]  # type: ignore[var-annotated]
     return FragPart(
