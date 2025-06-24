@@ -76,6 +76,7 @@ class GraphGenUtility:
         Frag_atom: list[Sequence[int]],
         edge_list: list[Sequence],
         fsites_by_atom: list[Sequence[Sequence[int]]],
+        add_center_atom: list[Sequence[int]],
     ) -> None:
         """Remove all fragments which are strict subsets of another.
         Remove all fragments whose AO indices can be identified as subsets of
@@ -110,6 +111,12 @@ class GraphGenUtility:
                                     + list(deepcopy(center_atom[bdx]))
                                 )
                             )
+                            add_center_atom[adx] = tuple(
+                                set(
+                                    list(add_center_atom[adx])
+                                    + list(deepcopy(center_atom[bdx]))
+                                )
+                            )
             if subsets:
                 sorted_subsets = sorted(subsets, reverse=True)
                 for bdx in sorted_subsets:
@@ -125,6 +132,7 @@ class GraphGenUtility:
                         del center_atom[bdx]
                         del Frag_atom[bdx]
                         del edge_list[bdx]
+                        del add_center_atom[bdx]
         return None
 
     @staticmethod
@@ -375,12 +383,14 @@ def graphgen(
     adjacency_mat: np.ndarray = np.zeros((natm, natm), np.float64)
     adjacency_graph: nx.Graph = nx.Graph()
     edge_list: list[Sequence] = list()
+    add_center_atom: list[Sequence] = list()
     adx_map: dict = {
         adx: {
             "bas": bas,
             "label": mol.atom_symbol(adx),
             "coord": mol.atom_coord(adx),
             "shortest_paths": dict(),
+            "attached_hydrogens": list(),
         }
         for adx, bas in enumerate(mol.aoslice_by_atom())
     }
@@ -415,6 +425,10 @@ def graphgen(
                 adjacency_mat[adx, bdx] = dr**2
                 if dr <= cutoff:
                     adjacency_graph.add_edge(adx, bdx, weight=dr**2)
+                # For bookkeeping, keep track of attached Hydrogens:
+                if dr <= 2.5 and adx_map[bdx]["label"]=="H":
+                    if adx_map[adx]["label"]!="H":
+                        adx_map[adx]["attached_hydrogens"].append(bdx)
 
         # For a given center site (adx), find the set of shortest
         # paths to all other sites. The number of nodes visited
@@ -423,6 +437,7 @@ def graphgen(
         for adx, map in adx_map.items():
             center_atom.append((adx,))
             center.append(deepcopy(sites[adx]))
+            add_center_atom.append(list())
             fsites_temp = deepcopy(list(sites[adx]))
             fatoms_temp = [adx]
             edges_temp: list[tuple[int, int]] = []
@@ -478,6 +493,7 @@ def graphgen(
             Frag_atom=Frag_atom,
             edge_list=edge_list,
             fsites_by_atom=fsites_by_atom,
+            add_center_atom=add_center_atom,
         )
 
     # Define the 'edges' for fragment A as the intersect of its sites
@@ -505,6 +521,28 @@ def graphgen(
         centerf_idx_entry = tuple(fsites[adx].index(cdx) for cdx in c)
         centerf_idx.append(centerf_idx_entry)
         ebe_weight.append((1.0, tuple(centerf_idx_entry)))
+    
+    # Other miscellaneous fragment bookkeeping:
+    H_per_motif: list[Sequence] = [map["attached_hydrogens"] for map in adx_map.values()]
+
+    relAO_per_edge_per_frag = [
+        [[fsites[fidx].index(ao_idx) for ao_idx in edge] for edge in frag]
+        for fidx, frag in enumerate(edge_sites)
+    ]
+
+    ref_frag_idx_per_edge_per_frag = []
+    for frag_edges in edge_sites:
+        _flattened_edges = [e for es in frag_edges for e in es]
+        ref_idx = []
+        for frag_idx, frag_centers in enumerate(center):
+            if bool(set(frag_centers) & set(_flattened_edges)):
+                ref_idx.append(frag_idx)
+        ref_frag_idx_per_edge_per_frag.append(ref_idx)
+                    
+    relAO_in_ref_per_edge_per_frag = [
+        [centerf_idx[frag_idx] for frag_idx in frag]
+        for frag in ref_frag_idx_per_edge_per_frag
+    ]
 
     # Finally, set fragment data names for scratch and bookkeeping:
     for adx, _ in enumerate(fsites_by_atom):
@@ -538,23 +576,21 @@ def graphgen(
             for st in GraphGenUtility.graph_to_string(sg):
                 print(st, flush=True)
 
-    MISSING = []  # type: ignore[var-annotated]
-    MISSING_PER_FRAG = [[] for _ in range(len(fsites))]  # type: ignore[var-annotated]
     return FragPart(
         mol=mol,
         n_BE=fragment_type_order,
         frag_type="graphgen",
         AO_per_frag=fsites,  # type: ignore[arg-type]
         AO_per_edge_per_frag=edge_sites,  # type: ignore[arg-type]
-        ref_frag_idx_per_edge_per_frag=center,  # type: ignore[arg-type]
-        relAO_per_edge_per_frag=MISSING_PER_FRAG,  # type: ignore[arg-type]
-        relAO_in_ref_per_edge_per_frag=MISSING_PER_FRAG,
+        ref_frag_idx_per_edge_per_frag=ref_frag_idx_per_edge_per_frag,  # type: ignore[arg-type]
+        relAO_per_edge_per_frag=relAO_per_edge_per_frag,  # type: ignore[arg-type]
+        relAO_in_ref_per_edge_per_frag=relAO_in_ref_per_edge_per_frag,
         relAO_per_origin_per_frag=centerf_idx,  # type: ignore[arg-type]
         weight_and_relAO_per_center_per_frag=ebe_weight,  # type: ignore[arg-type]
         motifs_per_frag=Frag_atom,  # type: ignore[arg-type]
         origin_per_frag=center_atom,  # type: ignore[arg-type]
-        H_per_motif=MISSING,
-        add_center_atom=MISSING,
+        H_per_motif=H_per_motif,
+        add_center_atom=add_center_atom,
         frozen_core=frozen_core,
         iao_valence_basis=iao_valence_basis,
         iao_valence_only=False,
