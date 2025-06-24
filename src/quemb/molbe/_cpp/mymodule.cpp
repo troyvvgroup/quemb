@@ -1,3 +1,4 @@
+#define EIGEN_USE_OPENMP
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <pybind11/eigen.h>
@@ -236,13 +237,18 @@ SemiSparse3DTensor contract_with_TA_1st(
     std::unordered_map<std::size_t, std::size_t> offsets;
     offsets.reserve(n_unique);
 
+    // Modifying the offsets map to store the offsets for each (mu, i) pair
+    // cannot be parallelized.
     for (OrbitalIdx i = 0; i < nmo; ++i) {
         for (const auto& [offset, mu] : AO_by_MO_with_offsets[i]) {
             offsets[ravel_Fortran(mu, i, nao)] = offset;
+        }
+    }
+    # pragma omp parallel for
+    for (OrbitalIdx i = 0; i < nmo; ++i) {
+        for (const auto& [offset, mu] : AO_by_MO_with_offsets[i]) {
             for (const auto& [inner_offset, nu] : int_mu_nu_P.exch_reachable_with_offsets()[mu]) {
-                // g_unique.col(offset) += TA(nu, i) * int_mu_nu_P.dense_data().col(inner_offset);
-                // g_unique.col(offset) += TA(nu, i) * int_mu_nu_P.get_aux_vector(mu, nu);
-                g_unique.col(offset) += TA(nu, i) * int_mu_nu_P.get_aux_vector(mu, nu);
+                g_unique.col(offset) += TA(nu, i) * int_mu_nu_P.dense_data().col(inner_offset);
             }
         }
     }
@@ -282,7 +288,7 @@ Tensor3D copy_from_numpy(py::array_t<double, py::array::f_style> arr) {
     return tensor;
 }
 
-Tensor3D contract_with_TA_2nd_to_sym_dense(
+Matrix contract_with_TA_2nd_to_sym_dense(
     const Eigen::MatrixXd& TA,
     const SemiSparse3DTensor& int_mu_i_P
 ) {
@@ -291,27 +297,22 @@ Tensor3D contract_with_TA_2nd_to_sym_dense(
     assert(TA.rows() == nao && "TA.shape[0] must match int_mu_i_P.shape[1]");
     assert(TA.cols() == nmo && "TA.shape[1] must match int_mu_i_P.shape[2]");
 
-    // Result tensor: (P | i, j)
-    Eigen::Tensor<double, 3, Eigen::ColMajor> g(naux, nmo, nmo);
-    g.setZero();
+    const auto n_sym_pairs = to_eigen(ravel_symmetric(nmo - 1, nmo - 1) + 1);
 
+    Matrix sym_P_pq(naux, n_sym_pairs);
+
+    # pragma omp parallel for
     for (OrbitalIdx i = 0; i < nmo; ++i) {
         for (OrbitalIdx j = 0; j <= i; ++j) {
             Eigen::VectorXd tmp = Eigen::VectorXd::Zero(naux);
-
             for (const auto& [offset, mu] : int_mu_i_P.exch_reachable_with_offsets()[i]) {
                 tmp += TA(mu, j) * int_mu_i_P.dense_data().col(offset);
             }
-            // Set both g(i, j, :) and g(j, i, :) for symmetry
-            #pragma omp simd
-            for (OrbitalIdx P = 0; P < naux; ++P) {
-                g(P, i, j) = tmp(P);
-                g(P, j, i) = tmp(P);
-            }
+            sym_P_pq.col(ravel_symmetric(i, j)) = tmp;
         }
     }
 
-    return g;
+    return sym_P_pq;
 }
 
 Eigen::MatrixXd account_for_symmetry(const Tensor3D& P_pq) {
@@ -321,7 +322,7 @@ Eigen::MatrixXd account_for_symmetry(const Tensor3D& P_pq) {
     // Number of unique symmetric pairs (upper triangle including diagonal)
     const auto n_sym_pairs = to_eigen(ravel_symmetric(norb - 1, norb - 1) + 1);
 
-    Eigen::MatrixXd sym_bb = Eigen::MatrixXd::Constant(naux, n_sym_pairs, std::numeric_limits<double>::quiet_NaN());
+    Eigen::MatrixXd sym_P_pq = Eigen::MatrixXd::Constant(naux, n_sym_pairs, std::numeric_limits<double>::quiet_NaN());
 
     // Loop over symmetric (i, j) with i >= j
     for (OrbitalIdx i = 0; i < norb; ++i) {
@@ -330,21 +331,17 @@ Eigen::MatrixXd account_for_symmetry(const Tensor3D& P_pq) {
             // Copy the entire naux-length vector for this pair (i,j) from P_pq (over P)
             for (OrbitalIdx P = 0; P < naux; ++P) {
                 // Access P_pq(P, i, j)
-                sym_bb(P, sym_idx) = P_pq(P, i, j);
+                sym_P_pq(P, sym_idx) = P_pq(P, i, j);
             }
         }
     }
-    return sym_bb;
+    return sym_P_pq;
 }
 
-Matrix project_via_cholesky(const Tensor3D& P_pq, const Matrix& L_PQ) {
-    // Step 1: Reshape to (P | symmetric pq)
-    Matrix sym_P_pq = account_for_symmetry(P_pq);  // shape: [naux, npairs]
-
-    // Step 2: Solve L * X = sym_P_pq  →  X = L⁻¹ sym_P_pq
+Matrix project_via_cholesky(const Matrix& sym_P_pq, const Matrix& L_PQ) {
+    // Step 1: Solve L * X = sym_P_pq  →  X = L⁻¹ sym_P_pq
     Matrix X = L_PQ.triangularView<Eigen::Lower>().solve(sym_P_pq);
-
-    // Step 3: Return Xᵀ X
+    // Step 2: Return Xᵀ X
     return X.transpose() * X;
 }
 
@@ -355,7 +352,7 @@ Matrix transform_integral(
     const Matrix& L_PQ) {
 
     const SemiSparse3DTensor contracted_tensor = contract_with_TA_1st(TA, int_mu_nu_P, AO_by_MO);
-    const Tensor3D P_pq = contract_with_TA_2nd_to_sym_dense(TA, contracted_tensor);
+    const Matrix P_pq = contract_with_TA_2nd_to_sym_dense(TA, contracted_tensor);
 
     return project_via_cholesky(P_pq, L_PQ);
 }
