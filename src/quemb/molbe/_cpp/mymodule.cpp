@@ -264,7 +264,7 @@ py::array_t<double> copy_to_numpy(const Eigen::Tensor<double, 3, Eigen::ColMajor
     return arr;
 }
 
-Eigen::Tensor<double, 3, Eigen::ColMajor> copy_from_numpy(py::array_t<double, py::array::f_style> arr) {
+Tensor3D copy_from_numpy(py::array_t<double, py::array::f_style> arr) {
     // Acquire GIL if needed (not strictly necessary here, but good practice)
     py::gil_scoped_acquire gil;
 
@@ -282,7 +282,7 @@ Eigen::Tensor<double, 3, Eigen::ColMajor> copy_from_numpy(py::array_t<double, py
     return tensor;
 }
 
-py::array_t<double> contract_with_TA_2nd_to_sym_dense(
+Tensor3D contract_with_TA_2nd_to_sym_dense(
     const Eigen::MatrixXd& TA,
     const SemiSparse3DTensor& int_mu_i_P
 ) {
@@ -311,7 +311,7 @@ py::array_t<double> contract_with_TA_2nd_to_sym_dense(
         }
     }
 
-    return copy_to_numpy(g);
+    return g;
 }
 
 Eigen::MatrixXd account_for_symmetry(const Tensor3D& P_pq) {
@@ -337,18 +337,6 @@ Eigen::MatrixXd account_for_symmetry(const Tensor3D& P_pq) {
     return sym_bb;
 }
 
-
-Matrix py_project_via_cholesky(py::array_t<double, py::array::f_style> arr, const Matrix& L_PQ) {
-    // Step 1: Reshape to (P | symmetric pq)
-    Matrix sym_P_pq = account_for_symmetry(copy_from_numpy(arr));  // shape: [naux, npairs]
-
-    // Step 2: Solve L * X = sym_P_pq  →  X = L⁻¹ sym_P_pq
-    Matrix X = L_PQ.triangularView<Eigen::Lower>().solve(sym_P_pq);
-
-    // Step 3: Return Xᵀ X
-    return X.transpose() * X;
-}
-
 Matrix project_via_cholesky(const Tensor3D& P_pq, const Matrix& L_PQ) {
     // Step 1: Reshape to (P | symmetric pq)
     Matrix sym_P_pq = account_for_symmetry(P_pq);  // shape: [naux, npairs]
@@ -358,6 +346,18 @@ Matrix project_via_cholesky(const Tensor3D& P_pq, const Matrix& L_PQ) {
 
     // Step 3: Return Xᵀ X
     return X.transpose() * X;
+}
+
+Matrix transform_integral(
+    const Matrix& TA,
+    const SemiSparseSym3DTensor& int_mu_nu_P,
+    const std::vector<std::vector<OrbitalIdx>>& AO_by_MO,
+    const Matrix& L_PQ) {
+
+    const SemiSparse3DTensor contracted_tensor = contract_with_TA_1st(TA, int_mu_nu_P, AO_by_MO);
+    const Tensor3D P_pq = contract_with_TA_2nd_to_sym_dense(TA, contracted_tensor);
+
+    return project_via_cholesky(P_pq, L_PQ);
 }
 
 
@@ -471,9 +471,11 @@ PYBIND11_MODULE(mymodule, m) {
           py::call_guard<py::gil_scoped_release>(),
           "Account for symmetry in the provided 3D tensor P_pq and return a matrix of symmetric pairs");
 
-    m.def("project_via_cholesky", &py_project_via_cholesky,
-          py::arg("P_pq"),
+    m.def("transform_integral", &transform_integral,
+          py::arg("TA"),
+          py::arg("int_mu_nu_P"),
+          py::arg("AO_by_MO"),
           py::arg("L_PQ"),
           py::call_guard<py::gil_scoped_release>(),
-          "Project the provided 3D tensor P_pq via the Cholesky factor L_PQ and return the result Xᵀ X");
+          "Transform the integral using TA, int_mu_nu_P, AO_by_MO, and L_PQ, returning the transformed matrix Xᵀ X");
 }
