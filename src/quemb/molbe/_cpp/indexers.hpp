@@ -90,10 +90,9 @@ std::vector<std::vector<OrbitalIdx>> extract_unique(
 
     for (OrbitalIdx mu = 0; mu < cast_orbidx(exch_reachable.size()); ++mu) {
         for (OrbitalIdx nu : exch_reachable[mu]) {
-            if (mu > nu) break;  // assumes nu are sorted: symmetry → upper triangle only
+            if (nu > mu) break; // assumes mu, nu are sorted
             result[mu].push_back(nu);
         }
     }
-
     return result;
 }

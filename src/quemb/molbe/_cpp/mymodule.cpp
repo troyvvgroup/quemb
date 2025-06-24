@@ -5,6 +5,7 @@
 #include <pybind11/functional.h>
 #include <Eigen/Dense>
 #include <unsupported/Eigen/CXX11/Tensor>
+#include <unsupported/Eigen/CXX11/TensorSymmetry>
 #include <omp.h>
 #include <tuple>
 #include <vector>
@@ -234,17 +235,16 @@ SemiSparse3DTensor contract_with_TA_1st(
     std::unordered_map<std::size_t, std::size_t> offsets;
     offsets.reserve(n_unique);
 
-    // #pragma omp parallel for
     for (OrbitalIdx i = 0; i < nmo; ++i) {
-        const auto& ta_col_i = TA.col(i);  // reference once per outer iteration
         for (const auto& [offset, mu] : AO_by_MO_with_offsets[i]) {
             offsets[ravel_Fortran(mu, i, nao)] = offset;
             for (const auto& [inner_offset, nu] : int_mu_nu_P.exch_reachable_with_offsets()[mu]) {
-                g_unique.col(offset) += ta_col_i(nu) * int_mu_nu_P.dense_data().col(inner_offset);
+                // g_unique.col(offset) += TA(nu, i) * int_mu_nu_P.dense_data().col(inner_offset);
+                // g_unique.col(offset) += TA(nu, i) * int_mu_nu_P.get_aux_vector(mu, nu);
+                g_unique.col(offset) += TA(nu, i) * int_mu_nu_P.get_aux_vector(mu, nu);
             }
         }
     }
-
     return SemiSparse3DTensor(
         std::move(g_unique),
         std::make_tuple(naux, nao, nmo),
@@ -254,7 +254,24 @@ SemiSparse3DTensor contract_with_TA_1st(
     );
 }
 
-Eigen::Tensor<double, 3> contract_with_TA_2nd_to_sym_dense(
+py::array_t<double> copy_to_numpy(const Eigen::Tensor<double, 3, Eigen::ColMajor>& g) {
+    py::gil_scoped_acquire gil;
+    auto shape = g.dimensions();
+    py::array_t<double, py::array::f_style> arr({shape[0], shape[1], shape[2]});
+    // Copy the data into the numpy array
+    std::memcpy(arr.mutable_data(), g.data(), sizeof(double) * g.size());
+    return arr;
+}
+
+// py::array_t<double> flatten_copy(const Eigen::Tensor<double, 3>& tensor) {
+//     py::gil_scoped_acquire gil;
+//     auto size = tensor.size();  // total number of elements
+//     py::array_t<double> arr(size);
+//     std::memcpy(arr.mutable_data(), tensor.data(), sizeof(double) * size);
+//     return arr;
+// }
+
+auto contract_with_TA_2nd_to_sym_dense(
     const Eigen::MatrixXd& TA,
     const SemiSparse3DTensor& int_mu_i_P
 ) {
@@ -263,21 +280,17 @@ Eigen::Tensor<double, 3> contract_with_TA_2nd_to_sym_dense(
     assert(TA.rows() == nao && "TA.shape[0] must match int_mu_i_P.shape[1]");
     assert(TA.cols() == nmo && "TA.shape[1] must match int_mu_i_P.shape[2]");
 
-    // Print estimated memory usage in GiB
-    std::cout << "Memory for (i j | P): Gb "
-              << (double)(nmo * nmo * naux * sizeof(double)) * std::pow(2, -30)
-              << std::endl;
-
     // Result tensor: (P | i, j)
-    Eigen::Tensor<double, 3> g(naux, nmo, nmo);
+    Eigen::Tensor<double, 3, Eigen::ColMajor> g(naux, nmo, nmo);
     g.setZero();
 
     for (OrbitalIdx i = 0; i < nmo; ++i) {
         for (OrbitalIdx j = 0; j <= i; ++j) {
             Eigen::VectorXd tmp = Eigen::VectorXd::Zero(naux);
 
-            for (const auto& [offset, nu] : int_mu_i_P.exch_reachable_with_offsets()[i]) {
-                tmp += TA(nu, j) * int_mu_i_P.dense_data().col(offset);
+            for (const auto& [offset, mu] : int_mu_i_P.exch_reachable_with_offsets()[i]) {
+                // tmp += TA(mu, j) * int_mu_i_P.dense_data().col(offset);
+                tmp += TA(mu, j) * int_mu_i_P.get_aux_vector(mu, i);
             }
 
             // Set both g(i, j, :) and g(j, i, :) for symmetry
@@ -288,9 +301,8 @@ Eigen::Tensor<double, 3> contract_with_TA_2nd_to_sym_dense(
         }
     }
 
-    return g;
+    return copy_to_numpy(g);
 }
-
 
 
 
@@ -392,4 +404,9 @@ PYBIND11_MODULE(mymodule, m) {
           py::arg("AO_reachable_by_MO"),
           py::call_guard<py::gil_scoped_release>(),
           "Get AO reachable by MO with offsets based on the provided AO_reachable_by_MO structure");
+
+    m.def("extract_unique", &extract_unique,
+          py::arg("exch_reachable"),
+          py::call_guard<py::gil_scoped_release>(),
+          "Extract unique reachable AOs from the provided exch_reachable structure");
 }
