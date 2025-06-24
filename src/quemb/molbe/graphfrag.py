@@ -69,10 +69,10 @@ class GraphGenUtility:
     @staticmethod
     def remove_nonnunique_frags(
         natm: int,
-        fsites: list[Sequence[int]],
+        AO_per_frag: list[Sequence[int]],
         center: list[Sequence[int]],
-        center_atom: list[Sequence[int]],
-        Frag_atom: list[Sequence[int]],
+        origin_per_frag: list[Sequence[int]],
+        motifs_per_frag: list[Sequence[int]],
         edge_list: list[Sequence],
         fsites_by_atom: list[Sequence[Sequence[int]]],
         add_center_atom: list[Sequence[int]],
@@ -92,8 +92,8 @@ class GraphGenUtility:
         """
         for _ in range(0, natm):
             subsets = set()
-            for adx, basa in enumerate(fsites):
-                for bdx, basb in enumerate(fsites):
+            for adx, basa in enumerate(AO_per_frag):
+                for bdx, basb in enumerate(AO_per_frag):
                     if adx == bdx:
                         pass
                     elif set(basb).issubset(set(basa)):
@@ -104,32 +104,32 @@ class GraphGenUtility:
                             center[adx] = tuple(
                                 set(list(center[adx]) + list(deepcopy(center[bdx])))
                             )
-                            center_atom[adx] = tuple(
+                            origin_per_frag[adx] = tuple(
                                 set(
-                                    list(center_atom[adx])
-                                    + list(deepcopy(center_atom[bdx]))
+                                    list(origin_per_frag[adx])
+                                    + list(deepcopy(origin_per_frag[bdx]))
                                 )
                             )
                             add_center_atom[adx] = tuple(
                                 set(
                                     list(add_center_atom[adx])
-                                    + list(deepcopy(center_atom[bdx]))
+                                    + list(deepcopy(origin_per_frag[bdx]))
                                 )
                             )
             if subsets:
                 sorted_subsets = sorted(subsets, reverse=True)
                 for bdx in sorted_subsets:
-                    if len(fsites) == 1:
+                    if len(AO_per_frag) == 1:
                         # If all fragments are identified as subsets,
                         # this stops the loop from deleting the final fragment.
                         break
                     else:
                         # Otherwise, delete the subset fragment.
                         del center[bdx]
-                        del fsites[bdx]
+                        del AO_per_frag[bdx]
                         del fsites_by_atom[bdx]
-                        del center_atom[bdx]
-                        del Frag_atom[bdx]
+                        del origin_per_frag[bdx]
+                        del motifs_per_frag[bdx]
                         del edge_list[bdx]
                         del add_center_atom[bdx]
         return None
@@ -140,7 +140,7 @@ class GraphGenUtility:
         edge_list: list[Sequence],
         adx_map: dict,
         adjacency_graph: nx.Graph,
-        center_atom: list[Sequence[int]],
+        origin_per_frag: list[Sequence[int]],
         dnames: list[str],
         outname: str = "AdjGraph",
         cmap: str = "cubehelix",
@@ -174,8 +174,8 @@ class GraphGenUtility:
             nx.draw_networkx_nodes(
                 G,
                 pos,
-                nodelist=center_atom[fdx],
-                node_color=[color for _ in center_atom[fdx]],  # type: ignore[misc]
+                nodelist=origin_per_frag[fdx],
+                node_color=[color for _ in origin_per_frag[fdx]],  # type: ignore[misc]
                 edgecolors="tab:gray",
                 node_size=850,
                 alpha=1.0,
@@ -183,7 +183,7 @@ class GraphGenUtility:
             nx.draw_networkx_nodes(
                 G,
                 pos,
-                nodelist=center_atom[fdx],
+                nodelist=origin_per_frag[fdx],
                 node_color="whitesmoke",  # type: ignore[arg-type]
                 edgecolors=color,
                 node_size=700,
@@ -209,9 +209,9 @@ class GraphGenUtility:
 
     @staticmethod
     def get_subgraphs(
-        Frag_atom: list[Sequence[int]],
+        motifs_per_frag: list[Sequence[int]],
         edge_list: list[Sequence],
-        center_atom: list[Sequence[int]],
+        origin_per_frag: list[Sequence[int]],
         adx_map: dict,
         fdx: int | None = None,
         options: dict = {},
@@ -226,10 +226,10 @@ class GraphGenUtility:
         if fdx is not None:
             f_labels = []
             subgraph: nx.Graph = nx.Graph(**options)
-            nodelist = Frag_atom[fdx]
+            nodelist = motifs_per_frag[fdx]
             edgelist = edge_list[fdx]
             for adx in nodelist:
-                if adx in center_atom[fdx]:
+                if adx in origin_per_frag[fdx]:
                     f_labels.append((adx, {"label": f"[{labels[adx]}]"}))
                 else:
                     f_labels.append((adx, {"label": labels[adx]}))
@@ -242,9 +242,9 @@ class GraphGenUtility:
             for fdx, edge in enumerate(edge_list):
                 f_labels = []
                 subgraph_dict[fdx] = nx.Graph(**options)
-                nodelist = Frag_atom[fdx]
+                nodelist = motifs_per_frag[fdx]
                 for adx in nodelist:
-                    if adx in center_atom[fdx]:
+                    if adx in origin_per_frag[fdx]:
                         f_labels.append((adx, {"label": f"[{labels[adx]}]"}))
                     else:
                         f_labels.append((adx, {"label": labels[adx]}))
@@ -321,16 +321,16 @@ def graphgen(
         cutoff = 4.5 * fragment_type_order
 
     natm: int = mol.natm
-    fsites: list[Sequence[int]] = list(tuple())
+    AO_per_frag: list[Sequence[int]] = list(tuple())
     fsites_by_atom: list[Sequence[Sequence[int]]] = list(tuple(tuple()))
-    edge_sites: list[Sequence[Sequence[int]]] = list(tuple(tuple()))
+    AO_per_edge_per_frag: list[Sequence[Sequence[int]]] = list(tuple(tuple()))
     center: list[Sequence[int]] = list(tuple())
-    centerf_idx: list[Sequence[int]] = list(tuple())
-    ebe_weight: list[Sequence] = list(tuple())
+    relAO_per_origin_per_frag: list[Sequence[int]] = list(tuple())
+    weight_and_relAO_per_center_per_frag: list[Sequence] = list(tuple())
     sites: list[Sequence] = list(tuple())
     dnames: list[str] = list()
-    Frag_atom: list[Sequence[int]] = list()
-    center_atom: list[Sequence[int]] = list()
+    motifs_per_frag: list[Sequence[int]] = list()
+    origin_per_frag: list[Sequence[int]] = list()
     edge_atoms: list[Sequence[int]] = list()
     adjacency_mat: np.ndarray = np.zeros((natm, natm), np.float64)
     adjacency_graph: nx.Graph = nx.Graph()
@@ -387,7 +387,7 @@ def graphgen(
         # on that path gives the degree of separation of the
         # sites.
         for adx, map in adx_map.items():
-            center_atom.append((adx,))
+            origin_per_frag.append((adx,))
             center.append(deepcopy(sites[adx]))
             add_center_atom.append(list())
             fsites_temp = deepcopy(list(sites[adx]))
@@ -422,10 +422,10 @@ def graphgen(
                     fatoms_temp.append(bdx)
                     edges_temp = edges_temp + list(nx.utils.pairwise(path))
 
-            fsites.append(tuple(fsites_temp))
+            AO_per_frag.append(tuple(fsites_temp))
             fsites_by_atom.append(tuple(fs_temp))
             edge_list.append(edges_temp)
-            Frag_atom.append(tuple(fatoms_temp))
+            motifs_per_frag.append(tuple(fatoms_temp))
 
     elif connectivity.lower() in ["resistance_distance", "resistance"]:
         raise NotImplementedError("Work in progress...")
@@ -439,10 +439,10 @@ def graphgen(
     if remove_nonunique_frags:
         GraphGenUtility.remove_nonnunique_frags(
             natm=natm,
-            fsites=fsites,
+            AO_per_frag=AO_per_frag,
             center=center,
-            center_atom=center_atom,
-            Frag_atom=Frag_atom,
+            origin_per_frag=origin_per_frag,
+            motifs_per_frag=motifs_per_frag,
             edge_list=edge_list,
             fsites_by_atom=fsites_by_atom,
             add_center_atom=add_center_atom,
@@ -460,19 +460,19 @@ def graphgen(
                 for f in fs:
                     overlap = set(f).intersection(set(c))
                     if overlap:
-                        f_temp = set(Frag_atom[adx])
-                        c_temp = set(center_atom[bdx])
+                        f_temp = set(motifs_per_frag[adx])
+                        c_temp = set(origin_per_frag[bdx])
                         edge_temp.add(tuple(overlap))
                         eatoms_temp.add(tuple(i for i in f_temp.intersection(c_temp)))
-        edge_sites.append(tuple(edge_temp))
+        AO_per_edge_per_frag.append(tuple(edge_temp))
         edge_atoms.extend(tuple(eatoms_temp))
 
-    # Update relative center site indices (centerf_idx) and weights
+    # Update relative center site indices (relAO_per_origin_per_frag) and weights
     # for center site contributions to the energy (ebe_weights):
     for adx, c in enumerate(center):
-        centerf_idx_entry = tuple(fsites[adx].index(cdx) for cdx in c)
-        centerf_idx.append(centerf_idx_entry)
-        ebe_weight.append((1.0, tuple(centerf_idx_entry)))
+        centerf_idx_entry = tuple(AO_per_frag[adx].index(cdx) for cdx in c)
+        relAO_per_origin_per_frag.append(centerf_idx_entry)
+        weight_and_relAO_per_center_per_frag.append((1.0, tuple(centerf_idx_entry)))
 
     # Other miscellaneous fragment bookkeeping:
     H_per_motif: list[Sequence] = [
@@ -480,12 +480,12 @@ def graphgen(
     ]
 
     relAO_per_edge_per_frag = [
-        [[fsites[fidx].index(ao_idx) for ao_idx in edge] for edge in frag]
-        for fidx, frag in enumerate(edge_sites)
+        [[AO_per_frag[fidx].index(ao_idx) for ao_idx in edge] for edge in frag]
+        for fidx, frag in enumerate(AO_per_edge_per_frag)
     ]
 
     ref_frag_idx_per_edge_per_frag = []
-    for frag_edges in edge_sites:
+    for frag_edges in AO_per_edge_per_frag:
         _flattened_edges = [e for es in frag_edges for e in es]
         ref_idx = []
         for frag_idx, frag_centers in enumerate(center):
@@ -494,7 +494,7 @@ def graphgen(
         ref_frag_idx_per_edge_per_frag.append(ref_idx)
 
     relAO_in_ref_per_edge_per_frag = [
-        [centerf_idx[frag_idx] for frag_idx in frag]
+        [relAO_per_origin_per_frag[frag_idx] for frag_idx in frag]
         for frag in ref_frag_idx_per_edge_per_frag
     ]
 
@@ -508,7 +508,7 @@ def graphgen(
             edge_list=edge_list,
             adx_map=adx_map,
             adjacency_graph=adjacency_graph,
-            center_atom=center_atom,
+            origin_per_frag=origin_per_frag,
             dnames=dnames,
             outname=f"AdjGraph_BE{fragment_type_order}",
         )
@@ -518,9 +518,9 @@ def graphgen(
         print(title, "-" * (80 - len(title)))
         print("(Center sites within a fragment are [bracketed])")
         subgraphs = GraphGenUtility.get_subgraphs(
-            Frag_atom=Frag_atom,
+            motifs_per_frag=motifs_per_frag,
             edge_list=edge_list,
-            center_atom=center_atom,
+            origin_per_frag=origin_per_frag,
             adx_map=adx_map,
         )
         for fdx, sg in subgraphs.items():
@@ -534,15 +534,15 @@ def graphgen(
         mol=mol,
         n_BE=fragment_type_order,
         frag_type="graphgen",
-        AO_per_frag=fsites,  # type: ignore[arg-type]
-        AO_per_edge_per_frag=edge_sites,  # type: ignore[arg-type]
+        AO_per_frag=AO_per_frag,  # type: ignore[arg-type]
+        AO_per_edge_per_frag=AO_per_edge_per_frag,  # type: ignore[arg-type]
         ref_frag_idx_per_edge_per_frag=ref_frag_idx_per_edge_per_frag,  # type: ignore[arg-type]
         relAO_per_edge_per_frag=relAO_per_edge_per_frag,  # type: ignore[arg-type]
         relAO_in_ref_per_edge_per_frag=relAO_in_ref_per_edge_per_frag,  # type: ignore[arg-type]
-        relAO_per_origin_per_frag=centerf_idx,  # type: ignore[arg-type]
-        weight_and_relAO_per_center_per_frag=ebe_weight,  # type: ignore[arg-type]
-        motifs_per_frag=Frag_atom,  # type: ignore[arg-type]
-        origin_per_frag=center_atom,  # type: ignore[arg-type]
+        relAO_per_origin_per_frag=relAO_per_origin_per_frag,  # type: ignore[arg-type]
+        weight_and_relAO_per_center_per_frag=weight_and_relAO_per_center_per_frag,  # type: ignore[arg-type]
+        motifs_per_frag=motifs_per_frag,  # type: ignore[arg-type]
+        origin_per_frag=origin_per_frag,  # type: ignore[arg-type]
         H_per_motif=H_per_motif,  # type: ignore[arg-type]
         add_center_atom=add_center_atom,  # type: ignore[arg-type]
         frozen_core=frozen_core,
