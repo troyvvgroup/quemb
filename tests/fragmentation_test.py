@@ -11,7 +11,7 @@ from pyscf import gto, scf
 import numpy as np
 
 from quemb.molbe import BE, fragmentate
-from _expected_data_for_fragmentation_test import get_expected
+from ._expected_data_for_fragmentation_test import get_expected
 
 
 class TestBE_Fragmentation(unittest.TestCase):

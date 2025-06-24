@@ -176,7 +176,7 @@ class GraphGenUtility:
                 G,
                 pos,
                 nodelist=center_atom[fdx],
-                node_color=[color for _ in center_atom[fdx]],  # type: ignore[arg-type]
+                node_color=[color for _ in center_atom[fdx]],  # type: ignore[misc]
                 edgecolors="tab:gray",
                 node_size=850,
                 alpha=1.0,
