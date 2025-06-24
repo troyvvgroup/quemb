@@ -20,6 +20,7 @@
 
 namespace py = pybind11;
 
+
 class SemiSparseSym3DTensor {
 public:
     SemiSparseSym3DTensor(
@@ -51,7 +52,7 @@ public:
         _exch_reachable_unique = extract_unique(_exch_reachable);
 
         std::size_t counter = 0;
-        for (OrbitalIdx mu = 0; mu < cast_orbidx(_exch_reachable_unique.size()); ++mu) {
+        for (OrbitalIdx mu = 0; mu < to_eigen(_exch_reachable_unique.size()); ++mu) {
             for (auto nu : _exch_reachable_unique[mu]) {
                 _offsets[ravel_symmetric(mu, nu)] = counter++;
             }
@@ -60,7 +61,7 @@ public:
         // Initialize exch_reachable_with_offsets
         _exch_reachable_with_offsets.resize(_exch_reachable.size());
         _exch_reachable_unique_with_offsets.resize(_exch_reachable_unique.size());
-        for (OrbitalIdx mu = 0; mu < cast_orbidx(_exch_reachable.size()); ++mu) {
+        for (OrbitalIdx mu = 0; mu < to_eigen(_exch_reachable.size()); ++mu) {
             std::vector<std::pair<std::size_t, OrbitalIdx>> pairs;
             std::vector<std::pair<std::size_t, OrbitalIdx>> pairs_unique;
             for (auto nu : _exch_reachable[mu]) {
@@ -132,7 +133,7 @@ public:
         _AO_reachable_by_MO_with_offsets.resize(_AO_reachable_by_MO.size());
 
         std::size_t counter = 0;
-        for (OrbitalIdx i_MO = 0; i_MO < cast_orbidx(_AO_reachable_by_MO.size()); ++i_MO) {
+        for (OrbitalIdx i_MO = 0; i_MO < to_eigen(_AO_reachable_by_MO.size()); ++i_MO) {
             std::vector<std::pair<std::size_t, OrbitalIdx>> pairs;
             for (OrbitalIdx nu : _AO_reachable_by_MO[i_MO]) {
                 const std::size_t flat = ravel_Fortran(i_MO, nu, nao);
@@ -187,7 +188,7 @@ std::vector<std::vector<OrbitalIdx>> get_AO_per_MO(
     // For each molecular orbital i_MO
     for (std::size_t i_MO = 0; i_MO < n_MO; ++i_MO) {
         // Check which AO indices satisfy X(row, i_MO) >= epsilon
-        for (OrbitalIdx i_AO = 0; cast_orbidx(i_AO) < X.rows(); ++i_AO) {
+        for (OrbitalIdx i_AO = 0; to_eigen(i_AO) < X.rows(); ++i_AO) {
             if (X(i_AO, i_MO) >= epsilon) {
                 result[i_MO].push_back(i_AO);
             }
@@ -263,15 +264,25 @@ py::array_t<double> copy_to_numpy(const Eigen::Tensor<double, 3, Eigen::ColMajor
     return arr;
 }
 
-// py::array_t<double> flatten_copy(const Eigen::Tensor<double, 3>& tensor) {
-//     py::gil_scoped_acquire gil;
-//     auto size = tensor.size();  // total number of elements
-//     py::array_t<double> arr(size);
-//     std::memcpy(arr.mutable_data(), tensor.data(), sizeof(double) * size);
-//     return arr;
-// }
+Eigen::Tensor<double, 3, Eigen::ColMajor> copy_from_numpy(py::array_t<double, py::array::f_style> arr) {
+    // Acquire GIL if needed (not strictly necessary here, but good practice)
+    py::gil_scoped_acquire gil;
 
-auto contract_with_TA_2nd_to_sym_dense(
+    // Check input dimensions
+    if (arr.ndim() != 3) {
+        throw std::runtime_error("Input numpy array must have 3 dimensions");
+    }
+
+    auto shape = arr.shape();
+    Eigen::Tensor<double, 3, Eigen::ColMajor> tensor(shape[0], shape[1], shape[2]);
+
+    // Copy the data
+    std::memcpy(tensor.data(), arr.data(), sizeof(double) * tensor.size());
+
+    return tensor;
+}
+
+py::array_t<double> contract_with_TA_2nd_to_sym_dense(
     const Eigen::MatrixXd& TA,
     const SemiSparse3DTensor& int_mu_i_P
 ) {
@@ -289,11 +300,10 @@ auto contract_with_TA_2nd_to_sym_dense(
             Eigen::VectorXd tmp = Eigen::VectorXd::Zero(naux);
 
             for (const auto& [offset, mu] : int_mu_i_P.exch_reachable_with_offsets()[i]) {
-                // tmp += TA(mu, j) * int_mu_i_P.dense_data().col(offset);
-                tmp += TA(mu, j) * int_mu_i_P.get_aux_vector(mu, i);
+                tmp += TA(mu, j) * int_mu_i_P.dense_data().col(offset);
             }
-
             // Set both g(i, j, :) and g(j, i, :) for symmetry
+            #pragma omp simd
             for (OrbitalIdx P = 0; P < naux; ++P) {
                 g(P, i, j) = tmp(P);
                 g(P, j, i) = tmp(P);
@@ -302,6 +312,52 @@ auto contract_with_TA_2nd_to_sym_dense(
     }
 
     return copy_to_numpy(g);
+}
+
+Eigen::MatrixXd account_for_symmetry(const Tensor3D& P_pq) {
+    const OrbitalIdx naux = to_eigen(P_pq.dimension(0));
+    const OrbitalIdx norb = to_eigen(P_pq.dimension(1));
+
+    // Number of unique symmetric pairs (upper triangle including diagonal)
+    const auto n_sym_pairs = to_eigen(ravel_symmetric(norb - 1, norb - 1) + 1);
+
+    Eigen::MatrixXd sym_bb = Eigen::MatrixXd::Constant(naux, n_sym_pairs, std::numeric_limits<double>::quiet_NaN());
+
+    // Loop over symmetric (i, j) with i >= j
+    for (OrbitalIdx i = 0; i < norb; ++i) {
+        for (OrbitalIdx j = 0; j <= i; ++j) {
+            const OrbitalIdx sym_idx = ravel_symmetric(i, j);
+            // Copy the entire naux-length vector for this pair (i,j) from P_pq (over P)
+            for (OrbitalIdx P = 0; P < naux; ++P) {
+                // Access P_pq(P, i, j)
+                sym_bb(P, sym_idx) = P_pq(P, i, j);
+            }
+        }
+    }
+    return sym_bb;
+}
+
+
+Matrix py_project_via_cholesky(py::array_t<double, py::array::f_style> arr, const Matrix& L_PQ) {
+    // Step 1: Reshape to (P | symmetric pq)
+    Matrix sym_P_pq = account_for_symmetry(copy_from_numpy(arr));  // shape: [naux, npairs]
+
+    // Step 2: Solve L * X = sym_P_pq  →  X = L⁻¹ sym_P_pq
+    Matrix X = L_PQ.triangularView<Eigen::Lower>().solve(sym_P_pq);
+
+    // Step 3: Return Xᵀ X
+    return X.transpose() * X;
+}
+
+Matrix project_via_cholesky(const Tensor3D& P_pq, const Matrix& L_PQ) {
+    // Step 1: Reshape to (P | symmetric pq)
+    Matrix sym_P_pq = account_for_symmetry(P_pq);  // shape: [naux, npairs]
+
+    // Step 2: Solve L * X = sym_P_pq  →  X = L⁻¹ sym_P_pq
+    Matrix X = L_PQ.triangularView<Eigen::Lower>().solve(sym_P_pq);
+
+    // Step 3: Return Xᵀ X
+    return X.transpose() * X;
 }
 
 
@@ -409,4 +465,15 @@ PYBIND11_MODULE(mymodule, m) {
           py::arg("exch_reachable"),
           py::call_guard<py::gil_scoped_release>(),
           "Extract unique reachable AOs from the provided exch_reachable structure");
+
+    m.def("account_for_symmetry", &account_for_symmetry,
+          py::arg("P_pq"),
+          py::call_guard<py::gil_scoped_release>(),
+          "Account for symmetry in the provided 3D tensor P_pq and return a matrix of symmetric pairs");
+
+    m.def("project_via_cholesky", &py_project_via_cholesky,
+          py::arg("P_pq"),
+          py::arg("L_PQ"),
+          py::call_guard<py::gil_scoped_release>(),
+          "Project the provided 3D tensor P_pq via the Cholesky factor L_PQ and return the result Xᵀ X");
 }
