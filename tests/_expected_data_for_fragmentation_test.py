@@ -1,7 +1,6 @@
-
 def get_expected(key: str):
     expected_data = {
-        "test_autogen_h_linear_be1" : {
+        "test_autogen_h_linear_be1": {
             "AO_per_frag": [[0], [1], [2], [3], [4], [5], [6], [7]],
             "AO_per_edge_per_frag": [[], [], [], [], [], [], [], []],
             "ref_frag_idx_per_edge_per_frag": [[], [], [], [], [], [], [], []],
@@ -17,8 +16,7 @@ def get_expected(key: str):
                 (1.0, [0]),
             ],
         },
-
-        "test_autogen_h_linear_be2" : {
+        "test_autogen_h_linear_be2": {
             "AO_per_frag": [
                 [1, 0, 2],
                 [2, 1, 3],
@@ -53,8 +51,7 @@ def get_expected(key: str):
                 (1.0, [0, 1]),
             ],
         },
-
-        "test_autogen_h_linear_be3" : {
+        "test_autogen_h_linear_be3": {
             "AO_per_frag": [
                 [2, 0, 1, 3, 4],
                 [3, 2, 1, 4, 5],
@@ -81,8 +78,7 @@ def get_expected(key: str):
                 (1.0, [0, 1, 2]),
             ],
         },
-
-        "test_autogen_octane_be1" : {
+        "test_autogen_octane_be1": {
             "AO_per_frag": [
                 [0, 1, 2, 3, 4, 11, 13],
                 [5, 6, 7, 8, 9, 10, 12],
@@ -116,8 +112,7 @@ def get_expected(key: str):
                 (1.0, [0, 1, 2, 3, 4, 5, 6, 7]),
             ],
         },
-        
-        "test_autogen_octane_be2" : {
+        "test_autogen_octane_be2": {
             "AO_per_frag": [
                 [
                     0,
@@ -293,8 +288,7 @@ def get_expected(key: str):
                 (1.0, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]),
             ],
         },
-
-        "test_autogen_octane_be3" : {
+        "test_autogen_octane_be3": {
             "AO_per_frag": [
                 [
                     0,
@@ -534,8 +528,7 @@ def get_expected(key: str):
                 ),
             ],
         },
-        
-        "test_graphgen_h_linear_be1" : {
+        "test_graphgen_h_linear_be1": {
             "AO_per_frag": [(0,), (1,), (2,), (3,), (4,), (5,), (6,), (7,)],
             "AO_per_edge_per_frag": [(), (), (), (), (), (), (), ()],
             "ref_frag_idx_per_edge_per_frag": [[], [], [], [], [], [], [], []],
@@ -560,8 +553,7 @@ def get_expected(key: str):
                 (1.0, (0,)),
             ],
         },
-
-        "test_graphgen_h_linear_be2" : {
+        "test_graphgen_h_linear_be2": {
             "AO_per_frag": [
                 (1, 0, 2),
                 (2, 1, 3),
@@ -578,7 +570,14 @@ def get_expected(key: str):
                 ((6,), (4,)),
                 ((5,),),
             ],
-            "ref_frag_idx_per_edge_per_frag": [[1], [0, 2], [1, 3], [2, 4], [3, 5], [4]],
+            "ref_frag_idx_per_edge_per_frag": [
+                [1],
+                [0, 2],
+                [1, 3],
+                [2, 4],
+                [3, 5],
+                [4],
+            ],
             "relAO_per_origin_per_frag": [(1, 0), (0,), (0,), (0,), (0,), (0, 2)],
             "weight_and_relAO_per_center_per_frag": [
                 (1.0, (1, 0)),
@@ -589,8 +588,7 @@ def get_expected(key: str):
                 (1.0, (0, 2)),
             ],
         },
-        
-        "test_graphgen_h_linear_be3" : {
+        "test_graphgen_h_linear_be3": {
             "AO_per_frag": [
                 (2, 0, 1, 3, 4),
                 (3, 1, 2, 4, 5),
@@ -612,8 +610,7 @@ def get_expected(key: str):
                 (1.0, (0, 3, 4)),
             ],
         },
-
-        "test_graphgen_octane_be1" : {
+        "test_graphgen_octane_be1": {
             "AO_per_frag": [
                 (0, 1, 2, 3, 4),
                 (5, 6, 7, 8, 9),
@@ -671,7 +668,32 @@ def get_expected(key: str):
                 (),
             ],
             "ref_frag_idx_per_edge_per_frag": [
-                [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], []
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
             ],
             "relAO_per_origin_per_frag": [
                 (0, 1, 2, 3, 4),
@@ -730,8 +752,7 @@ def get_expected(key: str):
                 (1.0, (0,)),
             ],
         },
-        
-        "test_graphgen_octane_be2" : {
+        "test_graphgen_octane_be2": {
             "AO_per_frag": [
                 (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 13, 19, 20, 21, 22, 23),
                 (5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 10, 12, 14, 15, 16, 17, 18),
@@ -753,7 +774,14 @@ def get_expected(key: str):
                 ((33, 34, 35, 36, 37),),
             ],
             "ref_frag_idx_per_edge_per_frag": [
-                [1, 3], [0, 2], [1, 4], [0, 5], [2, 6], [3, 7], [4], [5],
+                [1, 3],
+                [0, 2],
+                [1, 4],
+                [0, 5],
+                [2, 6],
+                [3, 7],
+                [4],
+                [5],
             ],
             "relAO_per_origin_per_frag": [
                 (0, 1, 2, 3, 4, 10, 11),
@@ -776,8 +804,7 @@ def get_expected(key: str):
                 (1.0, (0, 1, 2, 3, 4, 10, 11, 12)),
             ],
         },
-        
-        "test_graphgen_octane_be3" : {
+        "test_graphgen_octane_be3": {
             "AO_per_frag": [
                 (
                     0,
@@ -928,7 +955,14 @@ def get_expected(key: str):
                 ((24,), (26,), (14, 15, 16, 17, 18)),
                 ((25,), (19, 20, 21, 22, 23), (27,)),
             ],
-            "ref_frag_idx_per_edge_per_frag": [[1, 3], [0, 2], [1, 4], [0, 5], [2], [3]],
+            "ref_frag_idx_per_edge_per_frag": [
+                [1, 3],
+                [0, 2],
+                [1, 4],
+                [0, 5],
+                [2],
+                [3],
+            ],
             "relAO_per_origin_per_frag": [
                 (0, 1, 2, 3, 4, 11, 13),
                 (0, 1, 2, 3, 4, 10, 12),
@@ -946,11 +980,8 @@ def get_expected(key: str):
                 (1.0, (0, 1, 2, 3, 4, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21)),
             ],
         },
-        
-        "test_graphgen_autogen_h_linear_be2" : -0.13198886164212092,
-        
-        "test_graphgen_autogen_octane_be2" : -0.5499456086311243,
-
+        "test_graphgen_autogen_h_linear_be2": -0.13198886164212092,
+        "test_graphgen_autogen_octane_be2": -0.5499456086311243,
     }
-    
+
     return expected_data[key]

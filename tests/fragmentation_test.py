@@ -145,7 +145,7 @@ class TestBE_Fragmentation(unittest.TestCase):
 
         mf = scf.RHF(mol)
 
-        target = get_expected("test_graphgen_h_linear_be1") 
+        target = get_expected("test_graphgen_h_linear_be1")
 
         self.run_indices_test(
             mf,
@@ -361,7 +361,7 @@ class TestBE_Fragmentation(unittest.TestCase):
             frag_type=frag_type, n_BE=n_BE, mol=mf.mol, order_by_size=False
         )
         print(fobj.frag_type)
-        print("AO_per_frag",fobj.AO_per_frag)
+        print("AO_per_frag", fobj.AO_per_frag)
         print("AO_per_edge_per_frag", fobj.AO_per_edge_per_frag)
         print("motifs_per_frag", fobj.motifs_per_frag)
         print("relAO_per_edge_per_frag", fobj.relAO_per_edge_per_frag)

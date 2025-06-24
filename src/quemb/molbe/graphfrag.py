@@ -426,8 +426,8 @@ def graphgen(
                 if dr <= cutoff:
                     adjacency_graph.add_edge(adx, bdx, weight=dr**2)
                 # For bookkeeping, keep track of attached Hydrogens:
-                if dr <= 2.5 and adx_map[bdx]["label"]=="H":
-                    if adx_map[adx]["label"]!="H":
+                if dr <= 2.5 and adx_map[bdx]["label"] == "H":
+                    if adx_map[adx]["label"] != "H":
                         adx_map[adx]["attached_hydrogens"].append(bdx)
 
         # For a given center site (adx), find the set of shortest
@@ -521,9 +521,11 @@ def graphgen(
         centerf_idx_entry = tuple(fsites[adx].index(cdx) for cdx in c)
         centerf_idx.append(centerf_idx_entry)
         ebe_weight.append((1.0, tuple(centerf_idx_entry)))
-    
+
     # Other miscellaneous fragment bookkeeping:
-    H_per_motif: list[Sequence] = [map["attached_hydrogens"] for map in adx_map.values()]
+    H_per_motif: list[Sequence] = [
+        map["attached_hydrogens"] for map in adx_map.values()
+    ]
 
     relAO_per_edge_per_frag = [
         [[fsites[fidx].index(ao_idx) for ao_idx in edge] for edge in frag]
@@ -538,7 +540,7 @@ def graphgen(
             if bool(set(frag_centers) & set(_flattened_edges)):
                 ref_idx.append(frag_idx)
         ref_frag_idx_per_edge_per_frag.append(ref_idx)
-                    
+
     relAO_in_ref_per_edge_per_frag = [
         [centerf_idx[frag_idx] for frag_idx in frag]
         for frag in ref_frag_idx_per_edge_per_frag
@@ -584,13 +586,13 @@ def graphgen(
         AO_per_edge_per_frag=edge_sites,  # type: ignore[arg-type]
         ref_frag_idx_per_edge_per_frag=ref_frag_idx_per_edge_per_frag,  # type: ignore[arg-type]
         relAO_per_edge_per_frag=relAO_per_edge_per_frag,  # type: ignore[arg-type]
-        relAO_in_ref_per_edge_per_frag=relAO_in_ref_per_edge_per_frag,
+        relAO_in_ref_per_edge_per_frag=relAO_in_ref_per_edge_per_frag,  # type: ignore[arg-type]
         relAO_per_origin_per_frag=centerf_idx,  # type: ignore[arg-type]
         weight_and_relAO_per_center_per_frag=ebe_weight,  # type: ignore[arg-type]
         motifs_per_frag=Frag_atom,  # type: ignore[arg-type]
         origin_per_frag=center_atom,  # type: ignore[arg-type]
-        H_per_motif=H_per_motif,
-        add_center_atom=add_center_atom,
+        H_per_motif=H_per_motif,  # type: ignore[arg-type]
+        add_center_atom=add_center_atom,  # type: ignore[arg-type]
         frozen_core=frozen_core,
         iao_valence_basis=iao_valence_basis,
         iao_valence_only=False,
