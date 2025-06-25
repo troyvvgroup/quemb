@@ -366,7 +366,7 @@ Matrix transform_integral(const SemiSparseSym3DTensor &int_P_mu_nu, const Matrix
 }
 
 // Binding code
-PYBIND11_MODULE(mymodule, m)
+PYBIND11_MODULE(eri_sparse_DF, m)
 {
     m.doc() = "Minimal pybind11 + Eigen example";
 
@@ -444,7 +444,7 @@ PYBIND11_MODULE(mymodule, m)
     m.def("extract_unique", &extract_unique, py::arg("exch_reachable"), py::call_guard<py::gil_scoped_release>(),
           "Extract unique reachable AOs from the provided exch_reachable structure");
 
-    m.def("transform_integral", &transform_integral, py::arg("TA"), py::arg("int_P_mu_nu"), py::arg("AO_by_MO"),
-          py::arg("L_PQ"), py::call_guard<py::gil_scoped_release>(),
+    m.def("transform_integral", &transform_integral, py::arg("int_P_mu_nu"), py::arg("TA"), py::arg("S_abs"),
+          py::arg("L_PQ"), py::arg("MO_coeff_epsilon"), py::call_guard<py::gil_scoped_release>(),
           "Transform the integral using TA, int_P_mu_nu, AO_by_MO, and L_PQ, returning the transformed matrix");
 }

@@ -11,7 +11,6 @@ from quemb.molbe import BE, fragmentate
 from quemb.molbe.eri_sparse_DF import (
     MutableSparseInt2,
     _invert_dict,
-    _transform_sparse_DF_integral,
     _transform_sparse_DF_use_shared_ijP,
     find_screening_radius,
     get_atom_per_AO,
@@ -20,7 +19,8 @@ from quemb.molbe.eri_sparse_DF import (
     get_reachable,
     get_screened,
     get_sparse_D_ints_and_coeffs,
-    get_sparse_ints_3c2e,
+    get_sparse_P_mu_nu,
+    transform_sparse_DF_integral_nb,
     traverse_nonzero,
 )
 from quemb.shared.helper import clean_overlap, get_calling_function_name
@@ -58,7 +58,7 @@ def test_semi_sparse_3d_tensor() -> None:
     exch_reachable = get_reachable(
         atom_per_AO, atom_per_AO, get_screened(mol, find_screening_radius(mol, auxmol))
     )
-    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, exch_reachable)
+    sparse_ints_3c2e = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
 
     ints_3c2e = df.incore.aux_e2(mol, auxmol, intor="int3c2e")
 
@@ -197,7 +197,7 @@ def test_int_transformation_with_reuse(ikosan) -> None:
 
     screen_radius = {"C": 2.4156341552734375, "H": 2.3355426025390624}
 
-    ref_integrals = _transform_sparse_DF_integral(
+    ref_integrals = transform_sparse_DF_integral_nb(
         mf, my_be.Fobjs, auxmol.basis, screen_radius
     )
     new_integrals = _transform_sparse_DF_use_shared_ijP(

@@ -13,14 +13,13 @@ from collections.abc import (
     Set,
 )
 from concurrent.futures import ThreadPoolExecutor
-from itertools import chain, product, takewhile
-from typing import Final, Self, TypeVar, cast
+from itertools import chain, takewhile
+from typing import Final, TypeVar, cast
 
 import h5py
 import numpy as np
-from attrs import define
 from chemcoord import Cartesian
-from numba import float64, int64, prange, uint64  # type: ignore[attr-defined]
+from numba import float64, int64, prange  # type: ignore[attr-defined]
 from numba.typed import Dict, List
 from numba.types import (  # type: ignore[attr-defined]
     DictType,
@@ -36,6 +35,7 @@ from pyscf.lib import einsum
 from scipy.linalg import cholesky, solve, solve_triangular
 from scipy.optimize import bisect
 
+import quemb.molbe._cpp.eri_sparse_DF as cpp_transforms
 from quemb.molbe._eri_sparse_DF_helper import (
     identify_contiguous_blocks,
 )
@@ -47,19 +47,15 @@ from quemb.shared.config import settings
 from quemb.shared.helper import (
     Timer,
     jitclass,
-    n_eri,
     n_symmetric,
     njit,
-    ravel_eri_idx,
     ravel_Fortran,
     ravel_symmetric,
-    unravel_eri_idx,
 )
 from quemb.shared.numba_helpers import (
     PreIncr,
     SortedIntSet,
     Type_SortedIntSet,
-    to_numba_dict,
 )
 from quemb.shared.typing import (
     AOIdx,
@@ -142,162 +138,6 @@ def _assign_with_symmetry(
     g[l, k, j, i] = val
 
 
-@jitclass
-class MutableSparseInt2:
-    """Sparsely stores the 2-electron integrals using chemist's notation.
-
-    This is a :python:`jitclass` which can be used with numba functions.
-
-    8-fold permutational symmetry is assumed for the spatial integrals, i.e.
-
-    .. math::
-
-        g_{ijkl} = g_{klij} = g_{jikl} = g_{jilk} = g_{lkji} = g_{lkij} = g_{ilkj} = g_{ikjl}
-
-    There is no boundary checking! It will not crash, but just return 0.0
-    if you try to access an index that is not in the dictionary.
-
-    The 2-electron integrals are stored in a dictionary.
-    The keys of the dictionary are tuples of the form (i, j, k, l)
-    where i, j, k, l are the indices of the basis functions.
-    The values of the dictionary are the 2-electron integrals.
-
-    Examples
-    --------
-
-    >>> g = TwoElIntegral()
-    >>> g[1, 2, 3, 4] = 3
-
-    We can test all possible permutations:
-
-    >>> assert g[1, 2, 3, 4] == 3
-    >>> assert g[1, 2, 4, 3] == 3
-    >>> assert g[2, 1, 3, 4] == 3
-    >>> assert g[2, 1, 4, 3] == 3
-    >>> assert g[3, 4, 1, 2] == 3
-    >>> assert g[4, 3, 1, 2] == 3
-    >>> assert g[3, 4, 2, 1] == 3
-    >>> assert g[4, 3, 2, 1] == 3
-
-    A non-existing index returns 0.0:
-
-    >>> assert g[1, 2, 3, 10] == 0
-    """  # noqa: E501
-
-    _data: DictType(uint64, float64)  # type: ignore[valid-type]
-
-    def __init__(self) -> None:
-        self._data = Dict.empty(uint64, float64)
-
-    def __getitem__(self, key: tuple[int, int, int, int]) -> float:
-        idx = ravel_eri_idx(*key)
-        return self._data.get(idx, 0.0)
-
-    def __setitem__(self, key: tuple[int, int, int, int], value: float) -> None:
-        self._data[ravel_eri_idx(*key)] = value
-
-    # We cannot annotate the return type of this function, because of a strange bug in
-    #  sphinx-autodoc-typehints.
-    #  https://github.com/tox-dev/sphinx-autodoc-typehints/issues/532
-    def to_dense(self, idx):  # type: ignore[no-untyped-def]
-        n_MO = len(idx)
-        g_dense = np.full((n_MO, n_MO, n_MO, n_MO), fill_value=np.nan, dtype=np.float64)
-        for i, p in enumerate(idx):
-            for j, q in enumerate(idx[: i + 1]):
-                for k, r in enumerate(idx[: i + 1]):
-                    for l, s in enumerate(idx[: k + 1] if i > k else idx[: j + 1]):
-                        _assign_with_symmetry(g_dense, i, j, k, l, self[p, q, r, s])  # type: ignore[index]
-        return g_dense
-
-
-@jitclass(
-    [
-        ("_keys", ListType(int64)),
-        ("unique_dense_data", float64[::1]),
-        ("exch_reachable", ListType(int64[::1])),
-        ("exch_reachable_unique", ListType(int64[::1])),
-        ("_data", DictType(int64, float64)),
-    ]
-)
-class SparseInt2:
-    """Sparsely stores the 2-electron integrals using chemist's notation.
-
-    This is a :python:`jitclass` which can be used with numba functions.
-
-    8-fold permutational symmetry is assumed for the spatial integrals, i.e.
-
-    .. math::
-
-        g_{ijkl} = g_{klij} = g_{jikl} = g_{jilk} = g_{lkji} = g_{lkij} = g_{ilkj} = g_{ikjl}
-
-    There is no boundary checking! It will not crash, but just return 0.0
-    if you try to access an index that is not in the dictionary.
-
-    The 2-electron integrals are stored in a dictionary.
-    The keys of the dictionary are tuples of the form (i, j, k, l)
-    where i, j, k, l are the indices of the basis functions.
-    The values of the dictionary are the 2-electron integrals.
-
-    Examples
-    --------
-
-    >>> g = TwoElIntegral()
-    >>> g[1, 2, 3, 4] = 3
-
-    We can test all possible permutations:
-
-    >>> assert g[1, 2, 3, 4] == 3
-    >>> assert g[1, 2, 4, 3] == 3
-    >>> assert g[2, 1, 3, 4] == 3
-    >>> assert g[2, 1, 4, 3] == 3
-    >>> assert g[3, 4, 1, 2] == 3
-    >>> assert g[4, 3, 1, 2] == 3
-    >>> assert g[3, 4, 2, 1] == 3
-    >>> assert g[4, 3, 2, 1] == 3
-
-    A non-existing index returns 0.0:
-
-    >>> assert g[1, 2, 3, 10] == 0
-    """  # noqa: E501
-
-    _keys: list[np.int64]
-    unique_dense_data: Vector[np.float64]
-    exch_reachable: list[Vector[np.int64]]
-    exch_reachable_unique: list[Vector[np.int64]]
-    _data: Mapping[np.int64, np.float64]
-
-    def __init__(
-        self,
-        _keys: List[int64],
-        unique_dense_data: Vector[np.float64],
-        exch_reachable: List[Vector[int64]],
-        exch_reachable_unique: List[Vector[int64]],
-    ) -> None:
-        self._keys = _keys
-        self.unique_dense_data = unique_dense_data
-        self.exch_reachable = exch_reachable
-        self.exch_reachable_unique = exch_reachable_unique
-        self._data = Dict.empty(int64, float64)
-        for k, v in zip(self._keys, self.unique_dense_data):
-            self._data[k] = v  # type: ignore[index]
-
-    def __getitem__(self, key: tuple[int, int, int, int]) -> float:
-        return self._data.get(ravel_eri_idx(*key), 0.0)  # type: ignore[call-overload]
-
-    # We cannot annotate the return type of this function, because of a strange bug in
-    #  sphinx-autodoc-typehints.
-    #  https://github.com/tox-dev/sphinx-autodoc-typehints/issues/532
-    def to_dense(self, idx):  # type: ignore[no-untyped-def]
-        n_MO = len(idx)
-        g_dense = np.full((n_MO, n_MO, n_MO, n_MO), fill_value=np.nan, dtype=np.float64)
-        for i, p in enumerate(idx):
-            for j, q in enumerate(idx[: i + 1]):
-                for k, r in enumerate(idx[: i + 1]):
-                    for l, s in enumerate(idx[: k + 1] if i > k else idx[: j + 1]):
-                        _assign_with_symmetry(g_dense, i, j, k, l, self[p, q, r, s])  # type: ignore[index]
-        return g_dense
-
-
 def get_sparse_D_ints_and_coeffs(
     mol: Mole,
     auxmol: Mole,
@@ -334,7 +174,7 @@ def get_sparse_D_ints_and_coeffs(
     exch_reachable = get_reachable(
         atom_per_AO, atom_per_AO, get_screened(mol, screening_radius)
     )
-    ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, exch_reachable)
+    ints_3c2e = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
     ints_2c2e = auxmol.intor("int2c2e")
     df_coeffs_data = solve(ints_2c2e, ints_3c2e.unique_dense_data.T, assume_a="pos").T
     df_coef = SemiSparseSym3DTensor(
@@ -1048,7 +888,7 @@ def get_blocks(reachable: Sequence[_T]) -> list[tuple[_T, _T]]:
     ]
 
 
-def get_sparse_ints_3c2e(
+def get_sparse_P_mu_nu(
     mol: Mole,
     auxmol: Mole,
     exch_reachable: Mapping[AOIdx, Sequence[AOIdx]],
@@ -1506,22 +1346,6 @@ def contract_with_TA_2nd_to_dense(
     return g
 
 
-def transform_sparse_DF_integral(
-    mf: scf.hf.SCF,
-    Fobjs: Sequence[Frags],
-    file_eri_handler: h5py.File,
-    auxbasis: str | None = None,
-    screen_radius: Mapping[str, float] | None = None,
-) -> None:
-    eris = _transform_sparse_DF_integral(
-        mf,
-        Fobjs,
-        auxbasis,
-        screen_radius,
-    )
-    _write_eris(Fobjs, eris, file_eri_handler)
-
-
 @njit(nogil=True)
 def _jit_get_AO_MO_pair_with_offset(
     AO_reachable_by_MO: List[Vector[np.int64]],
@@ -1566,7 +1390,7 @@ def _transform_sparse_DF_slow(
     exch_reachable = get_reachable(
         atom_per_AO, atom_per_AO, get_screened(mol, screen_radius)
     )
-    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, exch_reachable)
+    sparse_ints_3c2e = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
     ints_mu_nu_P = sparse_ints_3c2e.to_dense()
     ints_2c2e = auxmol.intor("int2c2e")
 
@@ -1587,94 +1411,7 @@ def _transform_sparse_DF_slow(
     ]
 
 
-def _transform_sparse_DF_integral(
-    mf: scf.hf.SCF,
-    Fobjs: Sequence[Frags],
-    auxbasis: str | None = None,
-    screen_radius: Mapping[str, float] | None = None,
-    MO_coeff_epsilon: float = 1e-4,
-) -> list[Matrix[np.float64]]:
-    mol = mf.mol
-    auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
-    if screen_radius is None:
-        screen_radius = find_screening_radius(mol, auxmol, threshold=1e-4)
-    atom_per_AO = get_atom_per_AO(mol)
-    screened = get_screened(mol, screen_radius)
-    exch_reachable = get_reachable(atom_per_AO, atom_per_AO, screened)
-
-    if settings.PRINT_LEVEL >= 10:
-        sparsity = (
-            np.array([len(x) for x in exch_reachable.values()])
-            / len(atom_per_AO)
-        )  # fmt: skip
-        print(sparsity)
-        print(sparsity.mean())
-        print("=" * 50)
-
-    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, exch_reachable)
-    ints_2c2e = auxmol.intor("int2c2e")
-    low_triang_PQ = cholesky(ints_2c2e, lower=True)
-
-    atom_per_AO = get_atom_per_AO(mol)
-
-    ints_i_j_P = [
-        _compute_fragment_eri(
-            sparse_ints_3c2e,
-            atom_per_AO,
-            fragobj.TA,
-            screened,
-            MO_coeff_epsilon,
-        )
-        for fragobj in Fobjs
-    ]
-
-    return [
-        restore("1", _eval_via_cholesky(ijP, low_triang_PQ), len(ijP))
-        for ijP in ints_i_j_P
-    ]
-
-
-def _transform_sparse_DF_integral_S_screening_MO(
-    mf: scf.hf.SCF,
-    Fobjs: Sequence[Frags],
-    auxbasis: str | None = None,
-    screen_radius: Mapping[str, float] | None = None,
-    MO_coeff_epsilon: float = 1e-4,
-) -> list[Matrix[np.float64]]:
-    mol = mf.mol
-    auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
-    if screen_radius is None:
-        screen_radius = find_screening_radius(mol, auxmol, threshold=1e-4)
-    atom_per_AO = get_atom_per_AO(mol)
-    exch_reachable = get_reachable(
-        atom_per_AO, atom_per_AO, get_screened(mol, screen_radius)
-    )
-    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, exch_reachable)
-    ints_2c2e = auxmol.intor("int2c2e")
-    low_triang_PQ = cholesky(ints_2c2e, lower=True)
-
-    S_abs_timer = Timer("Time to compute S_abs")
-    S_abs = calculate_abs_overlap(mol)
-    if settings.PRINT_LEVEL >= 10:
-        print(S_abs_timer.str_elapsed())
-
-    ints_p_q_P = [
-        _get_fragment_ints3c2_S_screening(
-            sparse_ints_3c2e,
-            fragobj.TA,
-            S_abs,
-            MO_coeff_epsilon,
-        )
-        for fragobj in Fobjs
-    ]
-
-    return [
-        restore("1", _eval_via_cholesky(pqP, low_triang_PQ), len(pqP))
-        for pqP in ints_p_q_P
-    ]
-
-
-def _transform_sparse_DF_integral_S_screening_everything(
+def transform_sparse_DF_integral_nb(
     mf: scf.hf.SCF,
     Fobjs: Sequence[Frags],
     auxbasis: str | None,
@@ -1692,28 +1429,19 @@ def _transform_sparse_DF_integral_S_screening_everything(
 
     exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
 
-    sparsity = (
-        np.array([len(x) for x in exch_reachable.values()])
-        / len(S_abs)
-    )  # fmt: skip
-    print(sparsity)
-    print(sparsity.mean())
-    print("=" * 50)
-    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, exch_reachable)
-    ints_2c2e = auxmol.intor("int2c2e")
-    low_triang_PQ = cholesky(ints_2c2e, lower=True)
+    sparse_P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
+    PQ = auxmol.intor("int2c2e")
+    low_triang_PQ = cholesky(PQ, lower=True)
 
     def f(fragobj: Frags) -> None:
         eri = restore(
             "4",
-            _eval_via_cholesky(
-                _get_fragment_ints3c2_S_screening(
-                    sparse_ints_3c2e,
-                    fragobj.TA,
-                    S_abs,
-                    MO_coeff_epsilon,
-                ),
+            _transform_fragment_integral(
+                sparse_P_mu_nu,
+                fragobj.TA,
+                S_abs,
                 low_triang_PQ,
+                MO_coeff_epsilon,
             ),
             fragobj.TA.shape[1],
         )
@@ -1731,291 +1459,81 @@ def _transform_sparse_DF_integral_S_screening_everything(
             f(fragobj)
 
 
-def _transform_sparse_DF_use_shared_ijP(
+def transform_sparse_DF_integral_cpp(
     mf: scf.hf.SCF,
     Fobjs: Sequence[Frags],
-    all_fragment_MO_TA: Matrix[np.float64],
-    auxbasis: str | None = None,
-    screen_radius: Mapping[str, float] | None = None,
-    MO_coeff_epsilon: float = 1e-4,
-) -> list[Matrix[np.float64]]:
+    auxbasis: str | None,
+    file_eri_handler: h5py.File,
+    AO_coeff_epsilon: float,
+    MO_coeff_epsilon: float,
+    n_threads: int,
+) -> None:
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
-    if screen_radius is None:
-        screen_radius = find_screening_radius(mol, auxmol, threshold=1e-4)
-    screened = get_screened(mol, screen_radius)
-    atom_per_AO = get_atom_per_AO(mol)
-    exch_reachable = get_reachable(atom_per_AO, atom_per_AO, screened)
-    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, exch_reachable)
+
+    S_abs_timer = Timer("Time to compute S_abs")
+    S_abs = calculate_abs_overlap(mol)
+    print(S_abs_timer.str_elapsed())
+
+    exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
+
+    py_P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
+    mu_nu_P = cpp_transforms.SemiSparseSym3DTensor(
+        np.asfortranarray(py_P_mu_nu.unique_dense_data.T),
+        tuple(reversed(py_P_mu_nu.shape)),
+        py_P_mu_nu.exch_reachable,
+    )
     PQ = auxmol.intor("int2c2e")
-    low_cholesky_PQ = cholesky(PQ, lower=True)
+    low_triang_PQ = cholesky(PQ, lower=True)
 
-    atom_per_AO = get_atom_per_AO(mol)
-
-    AO_reachable_per_fragmentMO = get_reachable(
-        get_atom_per_MO(atom_per_AO, all_fragment_MO_TA, epsilon=MO_coeff_epsilon),
-        atom_per_AO,
-        screened,
-    )
-
-    shared_ijP = _get_shared_ijP(
-        all_fragment_MO_TA,
-        sparse_ints_3c2e,
-        get_ij_pairs(Fobjs),
-        AO_reachable_per_fragmentMO,
-    )
-
-    return [
-        _compute_fragment_eri_with_shared_ijP(
-            fobj,
-            low_cholesky_PQ,
-            sparse_ints_3c2e,
-            shared_ijP,
-            atom_per_AO,
-            screened,
-            MO_coeff_epsilon=1e-4,
+    def f(fragobj: Frags) -> None:
+        eri = restore(
+            "4",
+            cpp_transforms.transform_integral(
+                mu_nu_P,
+                fragobj.TA,
+                S_abs,
+                low_triang_PQ,
+                MO_coeff_epsilon,
+            ),
+            fragobj.TA.shape[1],
         )
-        for fobj in Fobjs
-    ]
-
-
-# TODO next
-def _transform_sparse_DF_S_screening_shared_ijP(
-    mf: scf.hf.SCF,
-    Fobjs: Sequence[Frags],
-    all_fragment_MO_TA: Matrix[np.float64],
-    auxbasis: str | None,
-    AO_coeff_epsilon: float,
-    MO_coeff_epsilon: float,
-    n_threads: int,
-) -> list[Matrix[np.float64]]:
-    mol = mf.mol
-    auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
-
-    S_abs_timer = Timer("Time to compute S_abs")
-    S_abs = calculate_abs_overlap(mol)
-    print(S_abs_timer.str_elapsed())
-
-    exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
-
-    sparsity = (
-        np.array([len(x) for x in exch_reachable.values()])
-        / len(S_abs)
-    )  # fmt: skip
-    print(sparsity)
-    print(sparsity.mean())
-    print("=" * 50)
-    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, exch_reachable)
-    ints_2c2e = auxmol.intor("int2c2e")
-    low_triang_PQ = cholesky(ints_2c2e, lower=True)
-
-    shared_ijP = _get_shared_ijP(
-        all_fragment_MO_TA,
-        sparse_ints_3c2e,
-        to_numba_input(get_ij_pairs(Fobjs)),
-        _jit_get_AO_per_MO(all_fragment_MO_TA, S_abs, MO_coeff_epsilon),
-    )
-
-    def f(fragobj):
-        pqP = _compute_fragment_eri_with_more_shared_ijP_S_screening(
-            fragobj.TA,
-            fragobj.n_f,
-            fragobj.frag_TA_offset,
-            sparse_ints_3c2e,
-            shared_ijP,
-            S_abs,
-            MO_coeff_epsilon,
-        )
-        return restore("1", _eval_via_cholesky(pqP, low_triang_PQ), len(pqP))
+        file_eri_handler.create_dataset(fragobj.dname, data=eri)
 
     if n_threads > 1:
         with ThreadPoolExecutor(max_workers=n_threads) as executor:
-            lambdas = [executor.submit(f, fragobj) for fragobj in Fobjs]
-
-            return [x.result() for x in lambdas]
+            futures = [executor.submit(f, fragobj) for fragobj in Fobjs]
+            # You must call future.result() if you want to catch exceptions
+            # raised during execution. Otherwise, errors may silently fail.
+            for future in futures:
+                future.result()
     else:
-        return [f(fragobj) for fragobj in Fobjs]
-
-
-def _transform_sparse_DF_S_screening_shared_ijP_and_g(
-    mf: scf.hf.SCF,
-    Fobjs: Sequence[Frags],
-    all_fragment_MO_TA: Matrix[np.float64],
-    auxbasis: str | None = None,
-    AO_coeff_epsilon: float = 1e-10,
-    MO_coeff_epsilon: float = 1e-4,
-) -> list[Matrix[np.float64]]:
-    mol = mf.mol
-    auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
-
-    S_abs_timer = Timer("Time to compute S_abs")
-    S_abs = calculate_abs_overlap(mol)
-    print(S_abs_timer.str_elapsed())
-
-    exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
-
-    sparsity = (
-        np.array([len(x) for x in exch_reachable.values()])
-        / len(S_abs)
-    )  # fmt: skip
-    print(sparsity)
-    print(sparsity.mean())
-    print("=" * 50)
-    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, exch_reachable)
-    ints_2c2e = auxmol.intor("int2c2e")
-    low_triang_PQ = cholesky(ints_2c2e, lower=True)
-
-    shared_ijP = _get_shared_ijP(
-        all_fragment_MO_TA,
-        sparse_ints_3c2e,
-        get_ij_pairs(Fobjs),
-        _get_AO_per_MO(all_fragment_MO_TA, S_abs, MO_coeff_epsilon),
-    )
-    shared_D_ijP = SemiSparseSym3DTensor(
-        solve(ints_2c2e, shared_ijP.unique_dense_data.T, assume_a="pos").T,
-        shared_ijP.nao,
-        shared_ijP.naux,
-        shared_ijP.exch_reachable,  # type: ignore[arg-type]
-    )
-
-    global_g = contract_DF_sparse(shared_ijP, shared_D_ijP)
-
-    ints_p_q_P = [
-        _compute_fragment_eri_with_more_shared_ijP_S_screening(
-            fragobj,
-            sparse_ints_3c2e,
-            shared_ijP,
-            S_abs,
-            MO_coeff_epsilon,
-        )
-        for fragobj in Fobjs
-    ]
-
-    return [
-        restore(
-            "1",
-            _eval_via_cholesky_shared(pqP, global_g, fragobj, low_triang_PQ),
-            len(pqP),
-        )
-        for fragobj, pqP in zip(Fobjs, ints_p_q_P)
-    ]
-
-
-def _transform_sparse_DF_S_screening_shared_ijP_and_g_fast(
-    mf: scf.hf.SCF,
-    Fobjs: Sequence[Frags],
-    all_fragment_MO_TA: Matrix[np.float64],
-    auxbasis: str | None,
-    AO_coeff_epsilon: float,
-    MO_coeff_epsilon: float,
-    n_threads: int,
-) -> list[Matrix[np.float64]]:
-    mol = mf.mol
-    auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
-
-    S_abs_timer = Timer("Time to compute S_abs")
-    S_abs = calculate_abs_overlap(mol)
-    print(S_abs_timer.str_elapsed())
-
-    exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
-
-    sparsity = (
-        np.array([len(x) for x in exch_reachable.values()])
-        / len(S_abs)
-    )  # fmt: skip
-    print(sparsity)
-    print(sparsity.mean())
-    print("=" * 50)
-    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, exch_reachable)
-    ints_2c2e = auxmol.intor("int2c2e")
-    low_triang_PQ = cholesky(ints_2c2e, lower=True)
-
-    shared_ijP = _get_shared_ijP(
-        all_fragment_MO_TA,
-        sparse_ints_3c2e,
-        to_numba_input(get_ij_pairs(Fobjs)),
-        _jit_get_AO_per_MO(all_fragment_MO_TA, S_abs, MO_coeff_epsilon),
-    )
-    ravelled_ij_to_offset = to_numba_dict(
-        {k: i for i, k in enumerate(shared_ijP._keys)}
-    )
-    assert not np.isnan(shared_ijP.unique_dense_data.T).any()
-    bb = solve_triangular(
-        low_triang_PQ,
-        shared_ijP.unique_dense_data.T,
-        lower=True,
-        overwrite_b=False,
-        check_finite=False,
-    )
-    assert not np.isnan(bb).any()
-    global_g = bb.T @ bb
-    assert not np.isnan(global_g).any()
-
-    def f(fragobj):
-        pqP = _compute_fragment_eri_with_more_shared_ijP_S_screening(
-            fragobj.TA,
-            fragobj.n_f,
-            fragobj.frag_TA_offset,
-            sparse_ints_3c2e,
-            shared_ijP,
-            S_abs,
-            MO_coeff_epsilon,
-        )
-        assert not np.isnan(pqP).any()
-        return _faster_eval_via_cholesky_shared(
-            pqP, ravelled_ij_to_offset, global_g, fragobj, low_triang_PQ
-        )
-
-    if n_threads > 1:
-        with ThreadPoolExecutor(max_workers=n_threads) as executor:
-            lambdas = [executor.submit(f, fragobj) for fragobj in Fobjs]
-
-            return (x.result() for x in lambdas)
-    else:
-        return (f(fragobj) for fragobj in Fobjs)
-
-
-def _compute_fragment_eri(
-    sparse_ints_3c2e: SemiSparseSym3DTensor,
-    atom_per_AO: Mapping[AOIdx, Set[AtomIdx]],
-    TA: Matrix[np.float64],
-    screen_connection: Mapping[AtomIdx, Set[AtomIdx]],
-    MO_coeff_epsilon: float = 1e-8,
-) -> Tensor3D[np.float64]:
-    AO_reachable_per_SchmidtMO = get_reachable(
-        get_atom_per_MO(atom_per_AO, TA, epsilon=MO_coeff_epsilon),
-        atom_per_AO,
-        screen_connection,
-    )
-    sparsity = (
-        np.array([len(x) for x in AO_reachable_per_SchmidtMO.values()])
-        / len(atom_per_AO)
-    )  # fmt: skip
-    print(sparsity)
-    print(sparsity.mean())
-    print("-" * 50)
-    return contract_with_TA_2nd_to_sym_dense(
-        TA,
-        contract_with_TA_1st(
-            TA, sparse_ints_3c2e, to_numba_input(AO_reachable_per_SchmidtMO)
-        ),
-    )
+        for fragobj in Fobjs:
+            f(fragobj)
 
 
 @njit(nogil=True)
-def _get_fragment_ints3c2_S_screening(
+def _get_P_ij(
     sparse_ints_3c2e: SemiSparseSym3DTensor,
     TA: Matrix[np.float64],
     S_abs: Matrix[np.float64],
     MO_coeff_epsilon: float,
 ) -> Tensor3D[np.float64]:
     AO_reachable_per_SchmidtMO = _jit_get_AO_per_MO(TA, S_abs, MO_coeff_epsilon)
-    sparsity = np.array([len(x) for x in AO_reachable_per_SchmidtMO]) / TA.shape[0]
-    print(sparsity)
-    print(sparsity.mean())
-    print("->" * 50)
     return contract_with_TA_2nd_to_sym_dense(
         TA, contract_with_TA_1st(TA, sparse_ints_3c2e, AO_reachable_per_SchmidtMO)
+    )
+
+
+def _transform_fragment_integral(
+    sparse_ints_3c2e: SemiSparseSym3DTensor,
+    TA: Matrix[np.float64],
+    S_abs: Matrix[np.float64],
+    low_triang_PQ: Matrix[np.float64],
+    MO_coeff_epsilon: float,
+) -> Matrix[np.float64]:
+    return _eval_via_cholesky(
+        _get_P_ij(sparse_ints_3c2e, TA, S_abs, MO_coeff_epsilon), low_triang_PQ
     )
 
 
@@ -2030,33 +1548,9 @@ def _account_for_symmetry(pqP: Tensor3D[np.float64]) -> Matrix[np.float64]:
     )
 
     for i in prange(n_orb):  # type: ignore[attr-defined]
-        for j in prange(i + 1):  # type: ignore[attr-defined]
+        for j in range(i + 1):  # type: ignore[attr-defined]
             sym_bb[:, ravel_symmetric(i, j)] = pqP[i, j, :]
     return sym_bb
-
-
-@njit(nogil=True)
-def _v_forward_substitution(
-    L: Matrix[np.float64], b: Vector[np.float64]
-) -> Vector[np.float64]:
-    n = L.shape[0]
-    x = np.zeros_like(b)
-    for i in range(n):
-        sum_ = 0.0
-        for j in range(i):
-            sum_ += L[i, j] * x[j]
-        x[i] = (b[i] - sum_) / L[i, i]
-    return x
-
-
-@njit(nogil=True, parallel=True)
-def forward_substitution(
-    L: Matrix[np.float64], B: Matrix[np.float64]
-) -> Vector[np.float64]:
-    result = np.empty_like(B)
-    for i in prange(B.shape[1]):  # type: ignore[attr-defined]
-        result[:, i] = _v_forward_substitution(L, B[:, i])
-    return result
 
 
 def _eval_via_cholesky(
@@ -2077,359 +1571,6 @@ def _eval_via_cholesky(
 _T_ = ListType(_UniTuple_int64_2)
 
 
-@njit(nogil=True)
-def _precalculate_offsets(
-    exch_reachable: list[Vector[np.int64]], sorted_idx: Vector[np.int64]
-) -> List[_UniTuple_int64_2]:
-    result = List.empty_list(_T_)
-    for i in range(len(exch_reachable)):
-        result.append(List.empty_list(_UniTuple_int64_2))
-        for counter, j in enumerate(exch_reachable[i]):
-            if j in sorted_idx:
-                result[-1].append((j, counter))
-    return result
-
-
-@njit(nogil=True, parallel=True)
-def _custom_to_dense(
-    g_ijkl: SparseInt2, idx: Vector[np.int64]
-) -> tuple[Tensor4D[np.float64], Vector[np.int64]]:
-    n_MO = len(idx)
-    g_dense = np.full((n_MO, n_MO, n_MO, n_MO), fill_value=np.nan, dtype=np.float64)
-    argsort_result = np.argsort(idx)
-    sorted_idx = idx[argsort_result]
-    exch_reachable = _precalculate_offsets(g_ijkl.exch_reachable, sorted_idx)  # type: ignore[arg-type]
-    for i in prange(len(sorted_idx)):  # type: ignore[attr-defined]
-        p = sorted_idx[i]
-        for j in prange(i + 1):  # type: ignore[attr-defined]
-            q = sorted_idx[j]
-            for k, r in enumerate(sorted_idx[: i + 1]):
-                ravelled_idx = ravel_eri_idx(p, q, r, exch_reachable[r][0][0])
-                look_up_idx = np.searchsorted(g_ijkl._keys, ravelled_idx)
-                for l, (s, offset) in enumerate(exch_reachable[r]):
-                    if (i > k and s > r) or (i == k and s > q):
-                        break
-                    _assign_with_symmetry(
-                        g_dense,
-                        i,
-                        j,
-                        k,
-                        l,
-                        g_ijkl.unique_dense_data[look_up_idx + offset],
-                    )  # type: ignore[index]
-    return g_dense, argsort_result  # type: ignore[return-value]
-
-
-@njit(nogil=True, parallel=True)
-def new_custom_to_dense(
-    g_ijkl: SparseInt2, idx: Vector[np.int64]
-) -> Tensor4D[np.float64]:  # type: ignore[no-untyped-def]
-    n_MO = len(idx)
-    g_dense = np.full((n_MO, n_MO, n_MO, n_MO), fill_value=np.nan, dtype=np.float64)
-    for i in prange(n_MO):  # type: ignore[attr-defined]
-        p = idx[i]
-        for j in prange(i + 1):  # type: ignore[attr-defined]
-            q = idx[j]
-            for k in prange(i + 1):  # type: ignore[attr-defined]
-                r = idx[k]
-                for l in prange(k + 1 if i > k else j + 1):  # type: ignore[attr-defined]
-                    s = idx[l]
-                    _assign_with_symmetry(g_dense, i, j, k, l, g_ijkl[p, q, r, s])  # type: ignore[index]
-    return g_dense
-
-
-def _eval_via_cholesky_shared(
-    pqP: Tensor3D[np.float64],
-    g_ijkl: SparseInt2,
-    fobj: Frags,
-    low_triang_PQ: Matrix[np.float64],
-) -> Matrix[np.float64]:
-    bb = solve_triangular(
-        low_triang_PQ,
-        _account_for_symmetry(pqP),
-        lower=True,
-        overwrite_b=False,
-        check_finite=False,
-    )
-    n_f, n_orb = fobj.n_f, len(pqP)
-    orb_offset = ravel_symmetric(n_orb - 1, n_orb - 1) + 1
-    n_f_offset = ravel_symmetric(n_f - 1, n_f - 1) + 1
-    g = np.full((orb_offset, orb_offset), fill_value=np.nan, dtype=np.float64)
-
-    g[:, n_f_offset:] = bb.T @ bb[:, n_f_offset:]
-    g[n_f_offset:, :] = g[:, n_f_offset:].T
-
-    # g[:n_f_offset, :n_f_offset] = restore(
-    #     "4", g_ijkl.to_dense(fobj.frag_TA_offset), n_f
-    # )
-
-    g[:n_f_offset, :n_f_offset] = restore(
-        "4", new_custom_to_dense(g_ijkl, fobj.frag_TA_offset), n_f
-    )
-
-    # dense_g_ijkl, argsort_result = _custom_to_dense(g_ijkl, fobj.frag_TA_offset)
-    # final_idx = np.argsort(argsort_result)
-    # dense_g_ijkl = dense_g_ijkl[np.ix_(final_idx, final_idx, final_idx, final_idx)]
-    # g[:n_f_offset, :n_f_offset] = restore("4", dense_g_ijkl, n_f)
-
-    return g
-
-
-@njit(nogil=True, parallel=False)
-def _index_into_vector(new_integrals, final_offsets, sorted_idx):
-    g = np.full(n_eri(len(sorted_idx)), fill_value=np.nan, dtype=np.float64)
-    counter = 0
-    for i in range(len(final_offsets)):
-        pq = final_offsets[i]
-        for j in range(i + 1):
-            rs = final_offsets[j]
-            g[counter] = new_integrals[pq, rs]
-            counter += 1
-    return g
-
-
-@njit(nogil=True, parallel=True)
-def _my_ix_(g, new_idx):
-    n = len(g)
-    result = np.full_like(g, fill_value=np.nan)
-    for i in prange(n):
-        for j in prange(n):
-            for k in prange(n):
-                result[i, j, k, :] = g[new_idx[i], new_idx[j], new_idx[k], new_idx]
-    return result
-
-
-def _extract_g(new_integrals, extract_idx, keys_to_offset):
-    argsort_result = np.argsort(extract_idx)
-    sorted_idx = extract_idx[argsort_result]
-    inv_sorting = np.argsort(argsort_result)
-
-    final_offsets = np.array(
-        [
-            keys_to_offset[ravel_symmetric(p, q)]
-            for i, p in enumerate(sorted_idx)
-            for q in sorted_idx[: i + 1]
-        ]
-    )
-    return _my_ix_(
-        restore(
-            "1",
-            _index_into_vector(new_integrals, final_offsets, sorted_idx),
-            len(extract_idx),
-        ),
-        inv_sorting,
-    )
-
-
-def _faster_eval_via_cholesky_shared(
-    pqP: Tensor3D[np.float64],
-    ravelled_ij_to_offset: Mapping[int, int],
-    g_ijkl: Matrix[np.float64],
-    fobj: Frags,
-    low_triang_PQ: Matrix[np.float64],
-) -> Matrix[np.float64]:
-    n_f, n_orb = fobj.n_f, len(pqP)
-
-    @njit(nogil=True)
-    def _jit_inner_function(low_triang_PQ, pqP, n_f, n_orb):
-        bb = forward_substitution(low_triang_PQ, _account_for_symmetry(pqP))
-        orb_offset = ravel_symmetric(n_orb - 1, n_orb - 1) + 1
-        n_f_offset = ravel_symmetric(n_f - 1, n_f - 1) + 1
-        g = np.full((orb_offset, orb_offset), fill_value=np.nan, dtype=np.float64)
-
-        g[:, n_f_offset:] = bb.T @ bb[:, n_f_offset:]
-        g[n_f_offset:, :] = g[:, n_f_offset:].T
-        return n_f_offset, g
-
-    n_f_offset, g = _jit_inner_function(low_triang_PQ, pqP, n_f, n_orb)
-
-    g[:n_f_offset, :n_f_offset] = restore(
-        "4", _extract_g(g_ijkl, fobj.frag_TA_offset, ravelled_ij_to_offset), n_f
-    )
-    assert not np.isnan(g).any()
-
-    return g
-
-
-def _write_eris(
-    Fobjs: Sequence[Frags],
-    eris: Sequence[Matrix[np.float64]],
-    file_eri_handler: h5py.File,
-) -> None:
-    for fragidx, eri in enumerate(eris):
-        file_eri_handler.create_dataset(
-            Fobjs[fragidx].dname, data=restore("4", eri, Fobjs[fragidx].TA.shape[1])
-        )
-
-
-@njit(nogil=True, parallel=True)
-def contract_DF_dense(
-    ijP: Tensor3D[np.float64], Dcoeff_ijP: Tensor3D[np.float64]
-) -> Tensor4D[np.float64]:
-    n_mo = len(ijP)
-    g = np.full((n_mo, n_mo, n_mo, n_mo), fill_value=np.nan, dtype=np.float64)
-    for i in prange(n_mo):  # type: ignore[attr-defined]
-        for j in prange(i + 1):  # type: ignore[attr-defined]
-            for k in prange(i + 1):  # type: ignore[attr-defined]
-                for l in prange(k + 1 if i > k else j + 1):  # type: ignore[attr-defined]
-                    val = ijP[i, j, :] @ Dcoeff_ijP[k, l, :]
-                    _assign_with_symmetry(g, i, j, k, l, val)  # type: ignore[arg-type]
-    return g
-
-
-@njit(nogil=True, parallel=True)
-def _get_indices(keys: List[int64]) -> Matrix[np.int64]:
-    indices = np.full((len(keys), 4), fill_value=np.nan, dtype=np.int64)
-    for i in prange(len(keys)):  # type: ignore[attr-defined]
-        indices[i] = unravel_eri_idx(keys[i])
-    return indices
-
-
-@njit(nogil=True)
-def _get_keys(ijP: SemiSparseSym3DTensor) -> tuple[List[int64], Matrix[np.int64]]:
-    n_mo = ijP.shape[0]
-    keys = List.empty_list(int64)
-    for i in range(n_mo):  # type: ignore[attr-defined]
-        for j in ijP.exch_reachable_unique[i]:
-            for k in range(i + 1):  # type: ignore[attr-defined]
-                if i > k:
-                    idx = len(ijP.exch_reachable_unique[k])
-                else:
-                    idx = np.searchsorted(ijP.exch_reachable_unique[k], j, side="right")  # type: ignore[assignment]
-
-                for l in ijP.exch_reachable_unique[k][:idx]:
-                    keys.append(ravel_eri_idx(i, j, k, l))  # type: ignore[arg-type]
-    return keys, _get_indices(keys)
-
-
-@njit(nogil=True, parallel=True)
-def contract_DF_sparse(
-    ijP: SemiSparseSym3DTensor, Dcoeff_ijP: SemiSparseSym3DTensor
-) -> SparseInt2:
-    keys, indices = _get_keys(ijP)
-    unique_g = np.full(len(indices), fill_value=np.nan, dtype=np.float64)
-
-    for counter in prange(len(indices)):  # type: ignore[attr-defined]
-        p, q, r, s = indices[counter]
-        unique_g[counter] = float(ijP[p, q] @ Dcoeff_ijP[r, s])
-
-    return SparseInt2(keys, unique_g, ijP.exch_reachable, ijP.exch_reachable_unique)
-
-
-def get_ij_pairs(
-    Fobjs: Sequence[Frags],
-) -> dict[MOIdx, set[MOIdx]]:
-    i_reachable_by_j: dict[MOIdx, set[MOIdx]] = defaultdict(set)
-    for a, b in chain(*(product(frag.frag_TA_offset, repeat=2) for frag in Fobjs)):
-        i_reachable_by_j[cast(MOIdx, int(a))].add(cast(MOIdx, int(b)))
-    return dict(i_reachable_by_j)
-
-
-@njit(nogil=True)
-def _get_shared_ijP(
-    global_fragment_TA: Matrix[np.float64],
-    sparse_ints_3c2e: SemiSparseSym3DTensor,
-    i_reachable_j: list[Vector[MOIdx]],
-    AO_reachable_per_fragmentMO: list[Vector[AOIdx]],
-) -> SemiSparseSym3DTensor:
-    assert not np.isnan(global_fragment_TA).any()
-    assert not np.isnan(sparse_ints_3c2e.unique_dense_data).any()
-    global_mu_i_P = contract_with_TA_1st(
-        global_fragment_TA, sparse_ints_3c2e, AO_reachable_per_fragmentMO
-    )
-    assert not np.isnan(global_mu_i_P.dense_data).any()
-
-    ijP = contract_with_TA_2nd_to_sym_sparse(
-        global_fragment_TA, global_mu_i_P, i_reachable_j
-    )
-    assert not np.isnan(ijP.unique_dense_data).any()
-    return ijP
-
-
-@njit(nogil=True, parallel=True)
-def _merge_fragment_bath_MOs(
-    int_i_j_P: Tensor3D[np.float64],
-    int_i_a_P: Tensor3D[np.float64],
-    int_a_b_P: Tensor3D[np.float64],
-) -> Tensor3D[np.float64]:
-    n_f, n_b, n_aux = int_i_a_P.shape
-    n_MO = n_f + n_b
-    int_p_q_P = np.full((n_MO, n_MO, n_aux), fill_value=np.nan, dtype=np.float64)
-
-    int_p_q_P[:n_f, :n_f] = int_i_j_P
-    int_p_q_P[n_f:, n_f:] = int_a_b_P
-    for i in prange(n_f):  # type: ignore[attr-defined]
-        for idx_a, a in enumerate(range(n_f, n_f + n_b)):
-            int_p_q_P[i, a] = int_i_a_P[i, idx_a]
-            int_p_q_P[a, i] = int_p_q_P[i, a]
-    return int_p_q_P
-
-
-def _compute_fragment_eri_with_shared_ijP(
-    fobj: Frags,
-    low_cholesky_PQ: Matrix[np.float64],
-    sparse_ints_3c2e: SemiSparseSym3DTensor,
-    shared_ijP: SemiSparseSym3DTensor,
-    atom_per_AO: Mapping[AOIdx, Set[AtomIdx]],
-    screen_connection: Mapping[AtomIdx, Set[AtomIdx]],
-    MO_coeff_epsilon: float = 1e-4,
-) -> Tensor4D[np.float64]:
-    TA, n_f, n_b = fobj.TA, fobj.n_f, fobj.n_b
-    assert TA.shape[1] == n_f + n_b
-    n_MO = n_f + n_b
-
-    AO_reachable_per_fragmentMO = get_reachable(
-        get_atom_per_MO(atom_per_AO, TA[:, n_f:], epsilon=MO_coeff_epsilon),
-        atom_per_AO,
-        screen_connection,
-    )
-    int_i_j_P = shared_ijP._extract_dense(fobj.frag_TA_offset)
-    int_mu_a_P = contract_with_TA_1st(
-        TA[:, n_f:], sparse_ints_3c2e, AO_reachable_per_fragmentMO
-    )
-    int_i_a_P = contract_with_TA_2nd_to_dense(TA[:, :n_f], int_mu_a_P)
-    int_a_b_P = contract_with_TA_2nd_to_sym_dense(TA[:, n_f:], int_mu_a_P)
-    # One of the few cases where we delete something, because it is memory-expensive
-    # and not needed anymore.
-    del int_mu_a_P
-
-    return restore(
-        "1",
-        _eval_via_cholesky(
-            _merge_fragment_bath_MOs(int_i_j_P, int_i_a_P, int_a_b_P), low_cholesky_PQ
-        ),
-        n_MO,
-    )
-
-
-@njit(nogil=True)
-def _compute_fragment_eri_with_more_shared_ijP_S_screening(
-    TA: Matrix[np.float64],
-    n_f: int,
-    frag_TA_offset: Vector[np.int64],
-    sparse_ints_3c2e: SemiSparseSym3DTensor,
-    shared_ijP: SemiSparseSym3DTensor,
-    S_abs: Matrix[np.float64],
-    MO_coeff_epsilon: float,
-) -> Tensor3D[np.float64]:
-    AO_reachable_per_fragmentMO = _jit_get_AO_per_MO(
-        TA[:, n_f:], S_abs, MO_coeff_epsilon
-    )
-    sparsity = (
-        np.array([len(x) for x in AO_reachable_per_fragmentMO]) / sparse_ints_3c2e.nao
-    )
-    print(sparsity)
-    print(sparsity.mean())
-    print("-" * 50)
-    int_i_j_P = shared_ijP._extract_dense(frag_TA_offset)
-    int_mu_a_P = contract_with_TA_1st(
-        TA[:, n_f:], sparse_ints_3c2e, AO_reachable_per_fragmentMO
-    )
-    int_i_a_P = contract_with_TA_2nd_to_dense(TA[:, :n_f], int_mu_a_P)
-    int_a_b_P = contract_with_TA_2nd_to_sym_dense(TA[:, n_f:], int_mu_a_P)
-    return _merge_fragment_bath_MOs(int_i_j_P, int_i_a_P, int_a_b_P)
-
-
 def calculate_abs_overlap(mol: Mole, grid_level: int = 2) -> Matrix[np.float64]:
     r"""
     Calculates the overlap matrix :math:`S_ij = \int |phi_i(r)| |phi_j(r)| dr`
@@ -2446,61 +1587,3 @@ def calculate_abs_overlap(mol: Mole, grid_level: int = 2) -> Matrix[np.float64]:
     result = (AO_abs_val * grids.weights[:, np.newaxis]).T @ AO_abs_val
     assert np.allclose(result, result.T)
     return result
-
-
-@define
-class pySemiSparseSym3DTensor:
-    r"""Specialised datastructure for immutable, semi-sparse, and partially symmetric
-    3-indexed tensors.
-
-    For a tensor, :math:`T_{ijk}`, to be stored in this datastructure we assume
-
-    - 2-fold permutational symmetry for the :math:`i, j` indices,
-      i.e. :math:`T_{ijk} = T_{jik}`
-    - sparsity along the :math:`i, j` indices, i.e. :math:`T_{ijk} = 0`
-      for many :math:`i, j`
-    - dense storage along the :math:`k` index
-
-    It can be used for example to store the 3-center, 2-electron integrals
-    :math:`(\mu \nu | P)`, with AOs :math:`\mu, \nu` and auxiliary basis indices
-    :math:`P`.
-    Semi-sparsely, because it is assumed that there are many
-    exchange pairs :math:`\mu, \nu` which are zero, while the integral along
-    the auxiliary basis :math:`P` is stored densely as numpy array.
-
-    2-fold permutational symmetry for the :math:`\mu, \nu` pairs is assumed, i.e.
-
-    .. math::
-
-        (\mu \nu | P) == (\nu, \mu | P)
-
-    Note that this class is immutable which enables to store the unique (symmetry),
-    non-zero data in a dense manner, which has some performance benefits.
-    """
-
-    _keys: Vector[np.int64]
-    unique_dense_data: Matrix[np.float64]
-    nao: int
-    naux: int
-    shape: tuple[int, int, int]
-    exch_reachable: list[Vector[OrbitalIdx]]
-    exch_reachable_unique: list[Vector[OrbitalIdx]]
-    exch_reachable_with_offsets: list[list[tuple[int, OrbitalIdx]]]
-    exch_reachable_unique_with_offsets: list[list[tuple[int, OrbitalIdx]]]
-    _data: Mapping[int, Vector[np.float64]]
-
-    @classmethod
-    def from_jitclass(cls, jitclass_obj: SemiSparseSym3DTensor) -> Self:
-        """Convert a numba JIT class to a python class."""
-        return cls(
-            jitclass_obj._keys,
-            jitclass_obj.unique_dense_data,
-            jitclass_obj.nao,
-            jitclass_obj.naux,
-            jitclass_obj.shape,
-            list(jitclass_obj.exch_reachable),
-            list(jitclass_obj.exch_reachable_unique),
-            [tuple(x) for x in jitclass_obj.exch_reachable_with_offsets],
-            [tuple(x) for x in jitclass_obj.exch_reachable_unique_with_offsets],
-            jitclass_obj._data,
-        )
