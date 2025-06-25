@@ -108,7 +108,6 @@ class UBE(BE):  # 🍠
         self.pot = initialize_pot(self.fobj.n_frag, self.fobj.relAO_per_edge_per_frag)
 
         self.eri_file = Path(eri_file)
-        self.ek = 0.0
         self.frozen_core = fobj.frozen_core
         self.ncore = 0
         self.E_core = 0
@@ -341,8 +340,7 @@ class UBE(BE):  # 🍠
         )
         if compute_hf:
             hf_err = self.hf_etot - (E_hf + self.enuc + self.E_core)
-
-            self.ebe_hf = E_hf + self.enuc + self.E_core - self.ek
+            self.ebe_hf = E_hf + self.enuc + self.E_core
             print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
             if abs(hf_err) > 1.0e-5:
                 warn("Large HF-in-HF energy error")

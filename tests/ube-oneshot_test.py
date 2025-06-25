@@ -33,7 +33,7 @@ class TestOneShot_Unrestricted(unittest.TestCase):
             mol, 1, "Hexene Anion Frz (BE1)", True, -0.35753375
         )
         self.molecular_unrestricted_oneshot_test(
-            mol, 2, "Hexene Anion Frz (BE2)", True, -0.34617257, delta=1e-4
+            mol, 2, "Hexene Anion Frz (BE2)", True, -0.34617685, delta=1e-4
         )
         """ Cut for expense
         self.molecular_unrestricted_oneshot_test(
@@ -73,7 +73,7 @@ class TestOneShot_Unrestricted(unittest.TestCase):
             mol, 1, "Hexene Anion Unfrz (BE1)", False, -0.38478279
         )
         self.molecular_unrestricted_oneshot_test(
-            mol, 2, "Hexene Anion Unfrz (BE2)", False, -0.39053331, delta=1e-4
+            mol, 2, "Hexene Anion Unfrz (BE2)", False, -0.39052993, delta=1e-4
         )
         """ Cut for expense
         self.molecular_unrestricted_oneshot_test(
@@ -93,7 +93,7 @@ class TestOneShot_Unrestricted(unittest.TestCase):
             mol, 1, "Hexene Cation Frz (BE1)", False, -0.39471433
         )
         self.molecular_unrestricted_oneshot_test(
-            mol, 2, "Hexene Cation Frz (BE2)", False, -0.39846793, delta=1e-4
+            mol, 2, "Hexene Cation Frz (BE2)", False, -0.39849056, delta=1e-4
         )
         """ Cut for expense
         self.molecular_unrestricted_oneshot_test(
