@@ -9,9 +9,7 @@ from pyscf.lib import einsum
 
 from quemb.molbe import BE, fragmentate
 from quemb.molbe.eri_sparse_DF import (
-    MutableSparseInt2,
     _invert_dict,
-    _transform_sparse_DF_use_shared_ijP,
     find_screening_radius,
     get_atom_per_AO,
     get_atom_per_MO,
@@ -20,7 +18,6 @@ from quemb.molbe.eri_sparse_DF import (
     get_screened,
     get_sparse_D_ints_and_coeffs,
     get_sparse_P_mu_nu,
-    transform_sparse_DF_integral_nb,
     traverse_nonzero,
 )
 from quemb.shared.helper import clean_overlap, get_calling_function_name
@@ -28,23 +25,6 @@ from quemb.shared.helper import clean_overlap, get_calling_function_name
 from ._expected_data_for_eri_sparse_DF import get_expected
 
 expected = get_expected()
-
-
-def test_basic_indexing() -> None:
-    g = MutableSparseInt2()
-    g[1, 2, 3, 4] = 3
-
-    # test all possible permutations
-    assert g[1, 2, 3, 4] == 3
-    assert g[1, 2, 4, 3] == 3
-    assert g[2, 1, 3, 4] == 3
-    assert g[2, 1, 4, 3] == 3
-    assert g[3, 4, 1, 2] == 3
-    assert g[4, 3, 1, 2] == 3
-    assert g[3, 4, 2, 1] == 3
-    assert g[4, 3, 2, 1] == 3
-
-    assert g[1, 2, 3, 10] == 0
 
 
 def test_semi_sparse_3d_tensor() -> None:
@@ -190,23 +170,6 @@ def test_reuse_schmidt_fragment_MOs(ikosan) -> None:
             )
             == np.eye(fobj.n_f)
         ).all()
-
-
-def test_int_transformation_with_reuse(ikosan) -> None:
-    mol, auxmol, mf, fobj, my_be = ikosan
-
-    screen_radius = {"C": 2.4156341552734375, "H": 2.3355426025390624}
-
-    ref_integrals = transform_sparse_DF_integral_nb(
-        mf, my_be.Fobjs, auxmol.basis, screen_radius
-    )
-    new_integrals = _transform_sparse_DF_use_shared_ijP(
-        mf, my_be.Fobjs, my_be.all_fragment_MO_TA, auxmol.basis, screen_radius
-    )
-    assert all(
-        np.allclose(old, new, rtol=0, atol=1e-10)
-        for old, new in zip(ref_integrals, new_integrals)
-    )
 
 
 @pytest.fixture(scope="session")

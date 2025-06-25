@@ -8,7 +8,6 @@
 
 #include <Eigen/Dense>
 #include <unsupported/Eigen/CXX11/Tensor>
-#include <unsupported/Eigen/CXX11/TensorSymmetry>
 
 #include <pybind11/eigen.h>
 #include <pybind11/functional.h>
@@ -255,6 +254,7 @@ std::vector<std::vector<std::pair<std::size_t, OrbitalIdx>>> get_AO_reachable_by
 SemiSparse3DTensor contract_with_TA_1st(const Matrix &TA, const SemiSparseSym3DTensor &int_P_mu_nu,
                                         const std::vector<std::vector<OrbitalIdx>> &AO_by_MO) noexcept
 {
+    PROFILE_FUNCTION();
     const OrbitalIdx nao = TA.rows();
     const OrbitalIdx nmo = TA.cols();
     const OrbitalIdx naux = std::get<0>(int_P_mu_nu.get_shape());
@@ -294,17 +294,14 @@ py::array_t<double> copy_to_numpy(const Tensor3D &g) noexcept
     py::gil_scoped_acquire gil;
     auto shape = g.dimensions();
     py::array_t<double, py::array::f_style> arr({shape[0], shape[1], shape[2]});
-    // Copy the data into the numpy array
     std::memcpy(arr.mutable_data(), g.data(), sizeof(double) * g.size());
     return arr;
 }
 
 Tensor3D copy_from_numpy(py::array_t<double, py::array::f_style> arr)
 {
-    // Acquire GIL if needed (not strictly necessary here, but good practice)
     py::gil_scoped_acquire gil;
 
-    // Check input dimensions
     if (arr.ndim() != 3) {
         throw std::runtime_error("Input numpy array must have 3 dimensions");
     }
@@ -312,14 +309,14 @@ Tensor3D copy_from_numpy(py::array_t<double, py::array::f_style> arr)
     auto shape = arr.shape();
     Tensor3D tensor(shape[0], shape[1], shape[2]);
 
-    // Copy the data
     std::memcpy(tensor.data(), arr.data(), sizeof(double) * tensor.size());
 
     return tensor;
 }
 
-Matrix contract_with_TA_2nd_to_sym_dense(const Matrix &TA, const SemiSparse3DTensor &int_mu_i_P) noexcept
+Matrix contract_with_TA_2nd_to_sym_dense(const SemiSparse3DTensor &int_mu_i_P, const Matrix &TA) noexcept
 {
+    PROFILE_FUNCTION();
     const auto [naux, nao, nmo] = int_mu_i_P.get_shape();
 
     assert(TA.rows() == nao && "TA.shape[0] must match int_mu_i_P.shape[1]");
@@ -348,8 +345,11 @@ Matrix contract_with_TA_2nd_to_sym_dense(const Matrix &TA, const SemiSparse3DTen
 // L_PQ is the Cholesky factor of the (P | Q) matrix, which is lower triangular.
 Matrix eval_via_cholesky(const Matrix &sym_P_pq, const Matrix &L_PQ) noexcept
 {
+    PROFILE_FUNCTION();
     // Step 1: Solve L * X = sym_P_pq  →  X = L⁻¹ sym_P_pq
-    Matrix X = L_PQ.triangularView<Eigen::Lower>().solve(sym_P_pq);
+    Timer cholesky_timer{"Cholesky solve"};
+    const Matrix X = L_PQ.triangularView<Eigen::Lower>().solve(sym_P_pq);
+    cholesky_timer.print("Cholesky solve completed");
     // Step 2: Return Xᵀ X
     return X.transpose() * X;
 }
@@ -360,7 +360,7 @@ Matrix transform_integral(const SemiSparseSym3DTensor &int_P_mu_nu, const Matrix
 {
     const auto AO_by_MO = get_AO_per_MO(TA, S_abs, MO_coeff_epsilon);
     const SemiSparse3DTensor int_P_mu_i = contract_with_TA_1st(TA, int_P_mu_nu, AO_by_MO);
-    const Matrix P_pq = contract_with_TA_2nd_to_sym_dense(TA, int_P_mu_i);
+    const Matrix P_pq = contract_with_TA_2nd_to_sym_dense(int_P_mu_i, TA);
 
     return eval_via_cholesky(P_pq, L_PQ);
 }
@@ -430,7 +430,7 @@ PYBIND11_MODULE(eri_sparse_DF, m)
     m.def("contract_with_TA_1st", &contract_with_TA_1st, py::arg("TA"), py::arg("int_P_mu_nu"), py::arg("AO_by_MO"),
           py::call_guard<py::gil_scoped_release>());
 
-    m.def("contract_with_TA_2nd_to_sym_dense", &contract_with_TA_2nd_to_sym_dense, py::arg("TA"), py::arg("int_mu_i_P"),
+    m.def("contract_with_TA_2nd_to_sym_dense", &contract_with_TA_2nd_to_sym_dense, py::arg("int_mu_i_P"), py::arg("TA"),
           py::call_guard<py::gil_scoped_release>(), "Contract with TA to get a symmetric dense tensor (P | i, j)");
 
     m.def("get_AO_per_MO", &get_AO_per_MO, py::arg("TA"), py::arg("S_abs"), py::arg("epsilon"),
