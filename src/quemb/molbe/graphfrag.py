@@ -283,30 +283,40 @@ def graphgen(
     Parameters
     ----------
     mol :
-        The molecule object.
+        The gto.Mole object.
     n_BE :
         The order of nearest neighbors (with respect to the center atom)
-        included in a fragment. Supports all 'BEn', with 'n' in -
-        [1, 2, 3, 4, 5, 6, 7, 8, 9] having been tested.
+        included in a fragment. Supports all 'n' in 'BEn'. Defaults to 2.
     frozen_core:
         Whether to exclude core AO indices from the fragmentation process.
         True by default.
     remove_nonunique_frags:
         Whether to remove fragments which are strict subsets of another
-        fragment in the system. True by default.
+        fragment in the system. Defaults to True.
     frag_prefix:
         Prefix to be appended to the fragment datanames. Useful for managing
-        fragment scratch directories.
+        fragment scratch directories. Defaults to "f".
     connectivity:
         Keyword string specifying the distance metric to be used for edge
         weights in the fragment adjacency graph. Currently supports "euclidean"
         (which uses the square of the distance between atoms in real
-        space to determine connectivity within a fragment.)
+        space to determine connectivity within a fragment.) Defaults to
+        "euclidean".
     cutoff:
         Atoms with an edge weight beyond `cutoff` will be excluded from the
-        `shortest_path` calculation. This is crucial when handling very large
-        systems, where computing the shortest paths from all to all becomes
-        non-trivial. Defaults to 0.0.
+        `shortest_path` calculation. When set to 0.0, `cutoff` will be
+        determined dynamically based on the magnitude of `n_BE`. Defaults
+        to 0.0.
+        NOTE: For very large systems a smaller `cutoff` often significantly
+        improves runtime, but can sometimes affect the fragmentation pattern
+        if set *too* small.
+    export_graph_to:
+        If not `None`, specifies the path to which the fragment connectivity
+        graph will be saved. Defaults to None.
+    print_frags:
+        Whether to print simplified string representations of fragment
+        connectivity graphs. Defaults to True.
+
     """
     assert mol is not None
     if iao_valence_basis is not None:
@@ -321,21 +331,47 @@ def graphgen(
         cutoff = 4.5 * fragment_type_order
 
     natm: int = mol.natm
+
+    # Used to be `fsites`
     AO_per_frag: list[Sequence[int]] = list(tuple())
+
+    # Similar to `AO_per_frag`: Ao indices per fragment per atom.
     fsites_by_atom: list[Sequence[Sequence[int]]] = list(tuple(tuple()))
+
+    # Used to be `edge_sites`
     AO_per_edge_per_frag: list[Sequence[Sequence[int]]] = list(tuple(tuple()))
+
+    # Center site AO indices per fragment.
     center: list[Sequence[int]] = list(tuple())
+
+    # Used to be `centerf_idx`
     relAO_per_origin_per_frag: list[Sequence[int]] = list(tuple())
+
+    # Used to be `ebe_weight`
     weight_and_relAO_per_center_per_frag: list[Sequence] = list(tuple())
     sites: list[Sequence] = list(tuple())
     dnames: list[str] = list()
     motifs_per_frag: list[Sequence[int]] = list()
     origin_per_frag: list[Sequence[int]] = list()
+
+    # List of edge atom indices per fragment
     edge_atoms: list[Sequence[int]] = list()
+
+    # The full molecular adjacency matrix
     adjacency_mat: np.ndarray = np.zeros((natm, natm), np.float64)
+
+    # The molecular adjacency graph, constructed from `adjacency_mat`
     adjacency_graph: nx.Graph = nx.Graph()
+
+    # List of graph edges to added to `adjacency_graph`
     edge_list: list[Sequence] = list()
+
+    # Center atom indices that have been added to each fragment via
+    # `remove_nonnunique_frags`
     add_center_atom: list[Sequence] = list()
+
+    # Dictionary mapping atom index (adx) to relevant atomic info.
+    # Each entry to `adx_map` is a node in the adjacency graph.
     adx_map: dict = {
         adx: {
             "bas": bas,
@@ -354,6 +390,8 @@ def graphgen(
         start_ = map["bas"][2]
         stop_ = map["bas"][3]
         if frozen_core:
+            # When frozen_core=True, offset all AO indices by the
+            # number of core orbitals per atom.
             _, _, core_list = get_core(mol)
             start_ -= _core_offset
             ncore_ = int(core_list[adx])
@@ -361,13 +399,15 @@ def graphgen(
             _core_offset += ncore_
             sites.append(tuple([i for i in range(start_, stop_)]))
         else:
+            # When frozen_core=False, each 'site' is all AO indices
+            # per atom.
             sites.append(tuple([i for i in range(start_, stop_)]))
 
     if connectivity.lower() in ["euclidean_distance", "euclidean"]:
         # Begin by constructing the adjacency matrix and adjacency graph
         # for the system. Each node corresponds to an atom, such that each
         # pair of nodes can be assigned an edge weighted by the square of
-        # their distance in real space.
+        # their euclidean distance.
         for adx in range(natm):
             for bdx in range(adx + 1, natm):
                 dr = GraphGenUtility.euclidean_distance(
@@ -377,15 +417,18 @@ def graphgen(
                 adjacency_mat[adx, bdx] = dr**2
                 if dr <= cutoff:
                     adjacency_graph.add_edge(adx, bdx, weight=dr**2)
-                # For bookkeeping, keep track of attached Hydrogens:
+                # For bookkeeping, also keep track of attached Hydrogens:
                 if dr <= 2.5 and adx_map[bdx]["label"] == "H":
                     if adx_map[adx]["label"] != "H":
                         adx_map[adx]["attached_hydrogens"].append(bdx)
 
-        # For a given center site (adx), find the set of shortest
-        # paths to all other sites. The number of nodes visited
+        # For each center site (adx), find the set of shortest
+        # paths to all(*) other sites. The number of nodes visited
         # on that path gives the degree of separation of the
         # sites.
+        # (*)-To save runtime, we only compute the shortest paths for
+        # sites within some cutoff radius from the center, specified
+        # by `cutoff`.)
         for adx, map in adx_map.items():
             origin_per_frag.append((adx,))
             center.append(deepcopy(sites[adx]))
@@ -437,6 +480,11 @@ def graphgen(
         raise AttributeError(f"Connectivity metric not recognized: '{connectivity}'")
 
     if remove_nonunique_frags:
+        # Up to this point, there are as many fragments as there are
+        # atoms in the system, and each fragment has just *1* center.
+        # Many of these fragments are redundant or non-unique, so it
+        # is convention to "absorb" them into nearby larger fragments.
+        # The redundant fragment are then deleted.
         GraphGenUtility.remove_nonnunique_frags(
             natm=natm,
             AO_per_frag=AO_per_frag,
@@ -449,7 +497,7 @@ def graphgen(
         )
 
     # Define the 'edges' for fragment A as the intersect of its sites
-    # with the set of all center sites outside of A:
+    # with the set of all center sites outside of A.
     for adx, fs in enumerate(fsites_by_atom):
         edge_temp: set[tuple] = set()
         eatoms_temp: set[tuple[int, ...]] = set()
@@ -467,23 +515,26 @@ def graphgen(
         AO_per_edge_per_frag.append(tuple(edge_temp))
         edge_atoms.extend(tuple(eatoms_temp))
 
-    # Update relative center site indices (relAO_per_origin_per_frag) and weights
-    # for center site contributions to the energy (ebe_weights):
+    # Update relative center site indices and weights
+    # for center site contributions to the energy.
     for adx, c in enumerate(center):
         centerf_idx_entry = tuple(AO_per_frag[adx].index(cdx) for cdx in c)
         relAO_per_origin_per_frag.append(centerf_idx_entry)
         weight_and_relAO_per_center_per_frag.append((1.0, tuple(centerf_idx_entry)))
 
-    # Other miscellaneous fragment bookkeeping:
+    # The atomic indices of any hydrogens attached to each atom.
+    # Exists for posterity.
     H_per_motif: list[Sequence] = [
         map["attached_hydrogens"] for map in adx_map.values()
     ]
 
+    # Exists for posterity.
     relAO_per_edge_per_frag = [
         [[AO_per_frag[fidx].index(ao_idx) for ao_idx in edge] for edge in frag]
         for fidx, frag in enumerate(AO_per_edge_per_frag)
     ]
 
+    # Exists for posterity.
     ref_frag_idx_per_edge_per_frag = []
     for frag_edges in AO_per_edge_per_frag:
         _flattened_edges = [e for es in frag_edges for e in es]
@@ -493,6 +544,7 @@ def graphgen(
                 ref_idx.append(frag_idx)
         ref_frag_idx_per_edge_per_frag.append(ref_idx)
 
+    # Exists for posterity.
     relAO_in_ref_per_edge_per_frag = [
         [relAO_per_origin_per_frag[frag_idx] for frag_idx in frag]
         for frag in ref_frag_idx_per_edge_per_frag
@@ -502,6 +554,9 @@ def graphgen(
     for adx, _ in enumerate(fsites_by_atom):
         dnames.append(frag_prefix + str(adx))
 
+    # Optionally export a visualization of fragment connectivity
+    # graphs. Useful for better understanding the shape and size
+    # of the generated fragments.
     if export_graph_to:
         GraphGenUtility.export_graph(
             outdir=export_graph_to,
@@ -513,6 +568,8 @@ def graphgen(
             outname=f"AdjGraph_BE{fragment_type_order}",
         )
 
+    # Print an ASCII representation of each fragment connectivity
+    # graph. All center sites are [bracketed].
     if print_frags:
         title = "VERBOSE: Fragment Connectivity Graphs"
         print(title, "-" * (80 - len(title)))
