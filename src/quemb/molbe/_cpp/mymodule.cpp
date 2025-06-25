@@ -252,12 +252,12 @@ std::vector<std::vector<std::pair<std::size_t, OrbitalIdx>>> get_AO_reachable_by
     return result;
 }
 
-SemiSparse3DTensor contract_with_TA_1st(const Matrix &TA, const SemiSparseSym3DTensor &int_mu_nu_P,
+SemiSparse3DTensor contract_with_TA_1st(const Matrix &TA, const SemiSparseSym3DTensor &int_P_mu_nu,
                                         const std::vector<std::vector<OrbitalIdx>> &AO_by_MO) noexcept
 {
     const OrbitalIdx nao = TA.rows();
     const OrbitalIdx nmo = TA.cols();
-    const OrbitalIdx naux = std::get<0>(int_mu_nu_P.get_shape());
+    const OrbitalIdx naux = std::get<0>(int_P_mu_nu.get_shape());
 
     const auto AO_by_MO_with_offsets = get_AO_reachable_by_MO_with_offset(AO_by_MO);
 
@@ -280,8 +280,8 @@ SemiSparse3DTensor contract_with_TA_1st(const Matrix &TA, const SemiSparseSym3DT
 #pragma omp parallel for
     for (OrbitalIdx i = 0; i < nmo; ++i) {
         for (const auto &[offset, mu] : AO_by_MO_with_offsets[i]) {
-            for (const auto &[inner_offset, nu] : int_mu_nu_P.exch_reachable_with_offsets()[mu]) {
-                g_unique.col(offset) += TA(nu, i) * int_mu_nu_P.dense_data().col(inner_offset);
+            for (const auto &[inner_offset, nu] : int_P_mu_nu.exch_reachable_with_offsets()[mu]) {
+                g_unique.col(offset) += TA(nu, i) * int_P_mu_nu.dense_data().col(inner_offset);
             }
         }
     }
@@ -343,7 +343,10 @@ Matrix contract_with_TA_2nd_to_sym_dense(const Matrix &TA, const SemiSparse3DTen
     return sym_P_pq;
 }
 
-Matrix project_via_cholesky(const Matrix &sym_P_pq, const Matrix &L_PQ) noexcept
+// Computes the integral (p q | r s) from (P | pq) using the Cholesky factorization of (P | Q).
+// sym_P_pq is the (P | pq) matrix and uses a fused indexing scheme for pq, accounting for symmetry of p and q.
+// L_PQ is the Cholesky factor of the (P | Q) matrix, which is lower triangular.
+Matrix eval_via_cholesky(const Matrix &sym_P_pq, const Matrix &L_PQ) noexcept
 {
     // Step 1: Solve L * X = sym_P_pq  →  X = L⁻¹ sym_P_pq
     Matrix X = L_PQ.triangularView<Eigen::Lower>().solve(sym_P_pq);
@@ -351,14 +354,14 @@ Matrix project_via_cholesky(const Matrix &sym_P_pq, const Matrix &L_PQ) noexcept
     return X.transpose() * X;
 }
 
-Matrix transform_integral(const Matrix &TA, const SemiSparseSym3DTensor &int_mu_nu_P,
+Matrix transform_integral(const Matrix &TA, const SemiSparseSym3DTensor &int_P_mu_nu,
                           const std::vector<std::vector<OrbitalIdx>> &AO_by_MO, const Matrix &L_PQ) noexcept
 {
 
-    const SemiSparse3DTensor contracted_tensor = contract_with_TA_1st(TA, int_mu_nu_P, AO_by_MO);
-    const Matrix P_pq = contract_with_TA_2nd_to_sym_dense(TA, contracted_tensor);
+    const SemiSparse3DTensor int_P_mu_i = contract_with_TA_1st(TA, int_P_mu_nu, AO_by_MO);
+    const Matrix P_pq = contract_with_TA_2nd_to_sym_dense(TA, int_P_mu_i);
 
-    return project_via_cholesky(P_pq, L_PQ);
+    return eval_via_cholesky(P_pq, L_PQ);
 }
 
 // Binding code
@@ -423,7 +426,7 @@ PYBIND11_MODULE(mymodule, m)
         .def("get_aux_vector", &SemiSparse3DTensor::get_aux_vector, py::arg("mu"), py::arg("i"),
              "Return auxiliary vector for given AO and MO index");
 
-    m.def("contract_with_TA_1st", &contract_with_TA_1st, py::arg("TA"), py::arg("int_mu_nu_P"), py::arg("AO_by_MO"),
+    m.def("contract_with_TA_1st", &contract_with_TA_1st, py::arg("TA"), py::arg("int_P_mu_nu"), py::arg("AO_by_MO"),
           py::call_guard<py::gil_scoped_release>());
 
     m.def("contract_with_TA_2nd_to_sym_dense", &contract_with_TA_2nd_to_sym_dense, py::arg("TA"), py::arg("int_mu_i_P"),
@@ -440,7 +443,7 @@ PYBIND11_MODULE(mymodule, m)
     m.def("extract_unique", &extract_unique, py::arg("exch_reachable"), py::call_guard<py::gil_scoped_release>(),
           "Extract unique reachable AOs from the provided exch_reachable structure");
 
-    m.def("transform_integral", &transform_integral, py::arg("TA"), py::arg("int_mu_nu_P"), py::arg("AO_by_MO"),
+    m.def("transform_integral", &transform_integral, py::arg("TA"), py::arg("int_P_mu_nu"), py::arg("AO_by_MO"),
           py::arg("L_PQ"), py::call_guard<py::gil_scoped_release>(),
-          "Transform the integral using TA, int_mu_nu_P, AO_by_MO, and L_PQ, returning the transformed matrix Xᵀ X");
+          "Transform the integral using TA, int_P_mu_nu, AO_by_MO, and L_PQ, returning the transformed matrix");
 }
