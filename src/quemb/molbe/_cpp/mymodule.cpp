@@ -1,18 +1,20 @@
 #define EIGEN_USE_OPENMP
-#include <Eigen/Dense>
+
+#include <iostream>
 #include <map>
 #include <omp.h>
+#include <tuple>
+#include <vector>
+
+#include <Eigen/Dense>
+#include <unsupported/Eigen/CXX11/Tensor>
+#include <unsupported/Eigen/CXX11/TensorSymmetry>
+
 #include <pybind11/eigen.h>
 #include <pybind11/functional.h>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include <tuple>
-#include <unsupported/Eigen/CXX11/Tensor>
-#include <unsupported/Eigen/CXX11/TensorSymmetry>
-#include <vector>
-
-#include <iostream>
 
 #include "indexers.hpp"
 
