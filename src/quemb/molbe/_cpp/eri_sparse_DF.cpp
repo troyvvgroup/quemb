@@ -354,10 +354,11 @@ Matrix eval_via_cholesky(const Matrix &sym_P_pq, const Matrix &L_PQ) noexcept
     return X.transpose() * X;
 }
 
-Matrix transform_integral(const Matrix &TA, const SemiSparseSym3DTensor &int_P_mu_nu,
-                          const std::vector<std::vector<OrbitalIdx>> &AO_by_MO, const Matrix &L_PQ) noexcept
-{
+Matrix transform_integral(const SemiSparseSym3DTensor &int_P_mu_nu, const Matrix &TA, const Matrix &S_abs,
+                          const Matrix &L_PQ, const double MO_coeff_epsilon) noexcept
 
+{
+    const auto AO_by_MO = get_AO_per_MO(TA, S_abs, MO_coeff_epsilon);
     const SemiSparse3DTensor int_P_mu_i = contract_with_TA_1st(TA, int_P_mu_nu, AO_by_MO);
     const Matrix P_pq = contract_with_TA_2nd_to_sym_dense(TA, int_P_mu_i);
 
