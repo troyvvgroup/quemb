@@ -35,7 +35,7 @@ from pyscf.lib import einsum
 from scipy.linalg import cholesky, solve, solve_triangular
 from scipy.optimize import bisect
 
-import quemb.molbe._cpp.eri_sparse_DF as cpp_transforms
+import quemb.molbe._cpp.eri_sparse_DF as cpp_transforms  # type: ignore[import-not-found]
 from quemb.molbe.chemfrag import (
     _get_AOidx_per_atom,
 )
