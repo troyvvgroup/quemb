@@ -125,7 +125,7 @@ class Timer:
     start: float = field(init=False, factory=time)
 
     def __attrs_post_init__(self) -> None:
-        from quemb.shared.config import settings
+        from quemb.shared.config import settings  # noqa: PLC0415
 
         if settings.PRINT_LEVEL >= 10:
             print(f"Timer with message '{self.message}' started.", flush=True)
