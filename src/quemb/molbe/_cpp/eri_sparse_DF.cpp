@@ -85,7 +85,7 @@ class SemiSparseSym3DTensor
     {
         return _exch_reachable_unique_with_offsets;
     }
-    const auto &dense_data() const
+    const Matrix &dense_data() const
     {
         return _unique_dense_data;
     }
