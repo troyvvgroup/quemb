@@ -1,4 +1,4 @@
-exclude = ["third-party"]
+exclude = ["external"]
 
 [lint]
 # see the rules [here](https://docs.astral.sh/ruff/rules/)
