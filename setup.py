@@ -5,7 +5,7 @@ ext_modules = [
     Pybind11Extension(
         "quemb.molbe._cpp.eri_sparse_DF",
         ["src/quemb/molbe/_cpp/eri_sparse_DF.cpp"],
-        include_dirs=["third-party/eigen-3.3.9"],  # Your Eigen headers path
+        include_dirs=["third-party/eigen-3.3.9"],
         cxx_std=17,
         extra_compile_args=[
             "-O3",
