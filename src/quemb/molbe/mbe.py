@@ -368,6 +368,7 @@ class BE(MixinLocalize):
         rdm2AO = zeros((nao, nao, nao, nao))
 
         for fobjs in self.Fobjs:
+            rdm2 = fobjs.rdm2__.copy()
             if return_RDM2:
                 # Adjust the one-particle reduced density matrix (RDM1)
                 drdm1 = fobjs.rdm1__.copy()
@@ -380,7 +381,7 @@ class BE(MixinLocalize):
                 ) - 0.5 * einsum(
                     "ij,kl->iklj", drdm1, drdm1, dtype=numpy.float64, optimize=True
                 )
-                fobjs.rdm2__ -= dm_nc
+                rdm2 -= dm_nc
 
             # Generate the projection matrix
             cind = [fobjs.AO_in_frag[i] for i in fobjs.weight_and_relAO_per_center[1]]
@@ -405,7 +406,7 @@ class BE(MixinLocalize):
                 # Transform RDM2 to AO basis
                 rdm2s = einsum(
                     "ijkl,pi,qj,rk,sl->pqrs",
-                    fobjs.rdm2__,
+                    rdm2,
                     *([fobjs.mo_coeffs] * 4),
                     optimize=True,
                 )
