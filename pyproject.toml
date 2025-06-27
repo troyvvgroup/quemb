@@ -1,5 +1,5 @@
 [build-system]
-requires = ["scikit-build-core", "pybind11", "numpy"]
+requires = ["scikit-build-core", "pybind11", "numpy", "setuptools"]
 build-backend = "scikit_build_core.build"
 
 [project]
@@ -35,10 +35,10 @@ Download = "https://github.com/troyvvgroup/quemb"
 
 [tool.scikit-build]
 cmake.version = ">=3.18"
-wheel.packages = ["quemb"]
-# If your source tree uses src/ layout:
 cmake.source-dir = "."
 
-
-[tool.scikit-build.sdist]
-include = ["src", "CMakeLists.txt"]
+[tool.setuptools.packages.find]
+    where = ["./src"]
+    include = ["quemb*"]
+    exclude = []
+    namespaces = false
