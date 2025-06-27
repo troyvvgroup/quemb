@@ -1,10 +1,6 @@
 [build-system]
-requires = [
-    "setuptools>=61",
-    "wheel",
-    "pybind11"
-]
-build-backend = "setuptools.build_meta"
+requires = ["scikit-build-core", "pybind11", "numpy"]
+build-backend = "scikit_build_core.build"
 
 [project]
 name = "quemb"
@@ -29,15 +25,20 @@ dependencies = [
     "libdmet @ git+https://github.com/gkclab/libdmet_preview.git",
     "chemcoord @ git+https://github.com/mcocdawc/chemcoord.git"
 ]
+
 [project.license]
 text = "Apache-2.0"
 
 [project.urls]
-"Homepage" = "https://vanvoorhisgroup.mit.edu/quemb"
-"Download" = "https://github.com/troyvvgroup/quemb"
+Homepage = "https://vanvoorhisgroup.mit.edu/quemb"
+Download = "https://github.com/troyvvgroup/quemb"
 
-[tool.setuptools]
-package-dir = {"" = "src"}
+[tool.scikit-build]
+cmake.version = ">=3.18"
+wheel.packages = ["quemb"]
+# If your source tree uses src/ layout:
+cmake.source-dir = "."
 
-[tool.setuptools.packages.find]
-where = ["src"]
+
+[tool.scikit-build.sdist]
+include = ["src", "CMakeLists.txt"]
