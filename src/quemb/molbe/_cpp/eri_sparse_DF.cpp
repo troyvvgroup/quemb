@@ -358,6 +358,88 @@ Matrix eval_via_cholesky(const Matrix &sym_P_pq, const Matrix &L_PQ) noexcept
     return X.transpose() * X;
 }
 
+#include <Kokkos_Core.hpp>
+#include <cublas_v2.h>
+#include <stdexcept>
+
+using ExecSpace = Kokkos::DefaultExecutionSpace;
+using View2D = Kokkos::View<double **, Kokkos::LayoutLeft, ExecSpace>;
+
+// The GPU/cuBLAS function: input device views, output device view
+View2D eval_via_cholesky_cublas(const View2D &sym_P_pq, const View2D &L_PQ)
+{
+    const int n = sym_P_pq.extent(0);
+    const int m = sym_P_pq.extent(1);
+
+    View2D X("X", n, m);
+    View2D result("result", m, m);
+
+    cublasHandle_t handle;
+    cublasCreate(&handle);
+
+    double alpha = 1.0;
+
+    // Copy sym_P_pq to X because cublasDtrsm overwrites RHS
+    Kokkos::deep_copy(X, sym_P_pq);
+
+    cublasStatus_t status = cublasDtrsm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N,
+                                        CUBLAS_DIAG_NON_UNIT, n, m, &alpha, L_PQ.data(), n, X.data(), n);
+    if (status != CUBLAS_STATUS_SUCCESS)
+        throw std::runtime_error("cublasDtrsm failed");
+
+    // result = Xᵀ * X
+    status = cublasDgemm(handle, CUBLAS_OP_T, CUBLAS_OP_N, m, m, n, &alpha, X.data(), n, X.data(), n, &alpha,
+                         result.data(), m);
+    if (status != CUBLAS_STATUS_SUCCESS)
+        throw std::runtime_error("cublasDgemm failed");
+
+    cublasDestroy(handle);
+
+    return result;
+}
+
+// Wrapper to convert Eigen inputs/outputs to Kokkos device views and back
+Matrix eval_via_cholesky_gpu(const Matrix &sym_P_pq_eigen, const Matrix &L_PQ_eigen)
+{
+    Timer cholesky_timer{"eval_via_cholesky"};
+
+    const int n_aux = sym_P_pq_eigen.rows();
+    const int n_sym_pairs = sym_P_pq_eigen.cols();
+
+    // Create device views
+    View2D sym_view("sym", n_aux, n_sym_pairs);
+    View2D L_view("L", n_aux, n_aux);
+
+    // Copy Eigen data into host mirrors of device views
+    auto sym_host = Kokkos::create_mirror_view(sym_view);
+    auto L_host = Kokkos::create_mirror_view(L_view);
+
+    for (int i = 0; i < n_aux; ++i)
+        for (int j = 0; j < n_sym_pairs; ++j)
+            sym_host(i, j) = sym_P_pq_eigen(i, j);
+
+    for (int i = 0; i < n_aux; ++i)
+        for (int j = 0; j < n_aux; ++j)
+            L_host(i, j) = L_PQ_eigen(i, j);
+
+    Kokkos::deep_copy(sym_view, sym_host);
+    Kokkos::deep_copy(L_view, L_host);
+
+    // Call GPU/cuBLAS function
+    auto result_view = eval_via_cholesky_cublas(sym_view, L_view);
+
+    // Copy result back to host
+    auto result_host = Kokkos::create_mirror_view(result_view);
+    Kokkos::deep_copy(result_host, result_view);
+
+    Matrix result(n_sym_pairs, n_sym_pairs);
+    for (int i = 0; i < n_sym_pairs; ++i)
+        for (int j = 0; j < n_sym_pairs; ++j)
+            result(i, j) = result_host(i, j);
+
+    return result;
+}
+
 Matrix transform_integral(const SemiSparseSym3DTensor &int_P_mu_nu, const Matrix &TA, const Matrix &S_abs,
                           const Matrix &L_PQ, const double MO_coeff_epsilon) noexcept
 
@@ -366,12 +448,14 @@ Matrix transform_integral(const SemiSparseSym3DTensor &int_P_mu_nu, const Matrix
     const SemiSparse3DTensor int_P_mu_i = contract_with_TA_1st(TA, int_P_mu_nu, AO_by_MO);
     const Matrix P_pq = contract_with_TA_2nd_to_sym_dense(int_P_mu_i, TA);
 
-    return eval_via_cholesky(P_pq, L_PQ);
+    return eval_via_cholesky_gpu(P_pq, L_PQ);
 }
 
 // Binding code
 PYBIND11_MODULE(eri_sparse_DF, m)
 {
+    Kokkos::initialize();
+
     m.doc() = "Minimal pybind11 + Eigen example";
 
     py::class_<SemiSparseSym3DTensor>(m, "SemiSparseSym3DTensor")
@@ -451,4 +535,6 @@ PYBIND11_MODULE(eri_sparse_DF, m)
     m.def("transform_integral", &transform_integral, py::arg("int_P_mu_nu"), py::arg("TA"), py::arg("S_abs"),
           py::arg("L_PQ"), py::arg("MO_coeff_epsilon"), py::call_guard<py::gil_scoped_release>(),
           "Transform the integral using TA, int_P_mu_nu, AO_by_MO, and L_PQ, returning the transformed matrix");
+
+    m.add_object("_finalizer", pybind11::capsule([]() { Kokkos::finalize(); }));
 }

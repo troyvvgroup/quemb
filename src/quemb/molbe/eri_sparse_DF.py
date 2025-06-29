@@ -16,9 +16,11 @@ from concurrent.futures import ThreadPoolExecutor
 from itertools import chain, takewhile
 from typing import Final, TypeVar, cast
 
+import cupy as cp
 import h5py
 import numpy as np
 from chemcoord import Cartesian
+from cupyx.scipy.linalg import solve_triangular as cupy_solve_triangular
 from numba import float64, int64, prange  # type: ignore[attr-defined]
 from numba.typed import Dict, List
 from numba.types import (  # type: ignore[attr-defined]
@@ -1428,16 +1430,16 @@ def transform_sparse_DF_integral_nb(
 
     sparse_P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
     PQ = auxmol.intor("int2c2e")
-    low_triang_PQ = cholesky(PQ, lower=True)
+    low_triang_PQ_on_gpu = cp.asarray(cholesky(PQ, lower=True))
 
     def f(fragobj: Frags) -> None:
         eri = restore(
             "4",
-            _transform_fragment_integral(
+            _transform_fragment_integral_on_gpu(
                 sparse_P_mu_nu,
                 fragobj.TA,
                 S_abs,
-                low_triang_PQ,
+                low_triang_PQ_on_gpu,
                 MO_coeff_epsilon,
             ),
             fragobj.TA.shape[1],
@@ -1522,15 +1524,15 @@ def _get_P_ij(
     )
 
 
-def _transform_fragment_integral(
+def _transform_fragment_integral_on_gpu(
     sparse_ints_3c2e: SemiSparseSym3DTensor,
     TA: Matrix[np.float64],
     S_abs: Matrix[np.float64],
-    low_triang_PQ: Matrix[np.float64],
+    low_triang_PQ_on_gpu: Matrix[np.float64],
     MO_coeff_epsilon: float,
 ) -> Matrix[np.float64]:
-    return _eval_via_cholesky(
-        _get_P_ij(sparse_ints_3c2e, TA, S_abs, MO_coeff_epsilon), low_triang_PQ
+    return _eval_via_cholesky_gpu(
+        _get_P_ij(sparse_ints_3c2e, TA, S_abs, MO_coeff_epsilon), low_triang_PQ_on_gpu
     )
 
 
@@ -1563,6 +1565,29 @@ def _eval_via_cholesky(
     )
     result = bb.T @ bb
     return result
+
+
+def _eval_via_cholesky_gpu(
+    pqP: Tensor3D[np.float64],
+    low_triang_PQ_on_gpu: cp.array,
+) -> np.ndarray:
+    symmetrised = _account_for_symmetry(pqP)  # should return np.ndarray
+    symmetrised_on_gpu = cp.asarray(symmetrised, dtype=cp.float64)
+
+    # Double-check types if still unsure
+    assert isinstance(symmetrised_on_gpu, cp.ndarray)
+    assert isinstance(low_triang_PQ_on_gpu, cp.ndarray)
+
+    bb = cupy_solve_triangular(
+        low_triang_PQ_on_gpu,
+        symmetrised_on_gpu,
+        lower=True,
+        overwrite_b=False,
+        check_finite=False,
+    )
+
+    result = bb.T @ bb
+    return cp.asnumpy(result)
 
 
 _T_ = ListType(_UniTuple_int64_2)

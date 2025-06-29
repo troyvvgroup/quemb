@@ -1,6 +1,7 @@
 [build-system]
 requires = ["scikit-build-core", "pybind11", "numpy", "setuptools"]
 build-backend = "scikit_build_core.build"
+build-dir = "_skbuild"
 
 [project]
 name = "quemb"
