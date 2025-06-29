@@ -366,7 +366,7 @@ using ExecSpace = Kokkos::DefaultExecutionSpace;
 using View2D = Kokkos::View<double **, Kokkos::LayoutLeft, ExecSpace>;
 
 // The GPU/cuBLAS function: input device views, output device view
-View2D eval_via_cholesky_cublas(const View2D &sym_P_pq, const View2D &L_PQ)
+View2D eval_via_cholesky_kokkos(const View2D &sym_P_pq, const View2D &L_PQ)
 {
     const int n = sym_P_pq.extent(0);
     const int m = sym_P_pq.extent(1);
@@ -426,7 +426,7 @@ Matrix eval_via_cholesky_gpu(const Matrix &sym_P_pq_eigen, const Matrix &L_PQ_ei
     Kokkos::deep_copy(L_view, L_host);
 
     // Call GPU/cuBLAS function
-    auto result_view = eval_via_cholesky_cublas(sym_view, L_view);
+    auto result_view = eval_via_cholesky_kokkos(sym_view, L_view);
 
     // Copy result back to host
     auto result_host = Kokkos::create_mirror_view(result_view);
@@ -440,6 +440,69 @@ Matrix eval_via_cholesky_gpu(const Matrix &sym_P_pq_eigen, const Matrix &L_PQ_ei
     return result;
 }
 
+#define CUDA_CHECK_THROW(err)                                                                                          \
+    if ((err) != cudaSuccess)                                                                                          \
+        throw std::runtime_error(cudaGetErrorString(err));
+
+#define CUBLAS_CHECK_THROW(err)                                                                                        \
+    if ((err) != CUBLAS_STATUS_SUCCESS)                                                                                \
+        throw std::runtime_error("cuBLAS error");
+
+Matrix eval_via_cholesky_cuda(const Matrix &sym_P_pq, const Matrix &L_PQ)
+{
+    const int n_aux = L_PQ.rows();
+    const int n_sym_pairs = sym_P_pq.cols();
+
+    const size_t bytes_L_PQ = sizeof(double) * L_PQ.size();
+    const size_t bytes_sym_P_pq = sizeof(double) * sym_P_pq.size();
+    const size_t bytes_X = sizeof(double) * n_aux * n_sym_pairs;
+    const size_t bytes_res = sizeof(double) * n_sym_pairs * n_sym_pairs;
+
+    double *d_L_PQ = nullptr, *d_X = nullptr, *d_result = nullptr;
+
+    CUDA_CHECK_THROW(cudaMalloc(&d_L_PQ, bytes_L_PQ));
+    CUDA_CHECK_THROW(cudaMalloc(&d_X, bytes_X));
+    CUDA_CHECK_THROW(cudaMalloc(&d_result, bytes_res));
+
+    // Copy data to device
+    CUDA_CHECK_THROW(cudaMemcpy(d_L_PQ, L_PQ.data(), bytes_L_PQ, cudaMemcpyHostToDevice));
+    // We will solve: L * X = sym_P_pq  → X = L⁻¹ * sym_P_pq
+    // But X will be initialized with sym_P_pq and then overwritten by the solution.
+    CUDA_CHECK_THROW(cudaMemcpy(d_X, sym_P_pq.data(), bytes_sym_P_pq, cudaMemcpyHostToDevice));
+
+    // cuBLAS handle
+    cublasHandle_t handle;
+    CUBLAS_CHECK_THROW(cublasCreate(&handle));
+
+    const double alpha = 1.0;
+
+    // Solve: L * X = sym_P_pq  → X = L⁻¹ * sym_P_pq
+    // X is initialized with sym_P_pq and overwrite it with the solution.
+    CUBLAS_CHECK_THROW(cublasDtrsm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT,
+                                   n_aux, n_sym_pairs, &alpha, d_L_PQ, n_aux, d_X, n_aux));
+
+    // Compute: result = Xᵀ * X
+    CUBLAS_CHECK_THROW(
+        cublasDsyrk(handle, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_T, n_sym_pairs, n_aux, &alpha, d_X, n_aux, &alpha, d_result, n_sym_pairs));
+
+    // Transfer result to host
+    Matrix result(n_sym_pairs, n_sym_pairs);
+    CUDA_CHECK_THROW(cudaMemcpy(result.data(), d_result, bytes_res, cudaMemcpyDeviceToHost));
+
+    // Fill lower triangle
+    for (int i = 0; i < n_sym_pairs; ++i)
+        for (int j = i + 1; j < n_sym_pairs; ++j)
+            result(j, i) = result(i, j);
+
+    // Cleanup
+    cublasDestroy(handle);
+    cudaFree(d_L_PQ);
+    cudaFree(d_X);
+    cudaFree(d_result);
+
+    return result;
+}
+
 Matrix transform_integral(const SemiSparseSym3DTensor &int_P_mu_nu, const Matrix &TA, const Matrix &S_abs,
                           const Matrix &L_PQ, const double MO_coeff_epsilon) noexcept
 
@@ -448,7 +511,8 @@ Matrix transform_integral(const SemiSparseSym3DTensor &int_P_mu_nu, const Matrix
     const SemiSparse3DTensor int_P_mu_i = contract_with_TA_1st(TA, int_P_mu_nu, AO_by_MO);
     const Matrix P_pq = contract_with_TA_2nd_to_sym_dense(int_P_mu_i, TA);
 
-    return eval_via_cholesky_gpu(P_pq, L_PQ);
+    return eval_via_cholesky_cuda(P_pq, L_PQ);
+    // return eval_via_cholesky_gpu(P_pq, L_PQ);
 }
 
 // Binding code
