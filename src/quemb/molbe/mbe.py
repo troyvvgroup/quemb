@@ -16,7 +16,9 @@ from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
 from quemb.molbe.eri_sparse_DF import (
     transform_sparse_DF_integral_cpp,
+    transform_sparse_DF_integral_cpp_gpu,
     transform_sparse_DF_integral_nb,
+    transform_sparse_DF_integral_nb_gpu,
 )
 from quemb.molbe.fragment import FragPart
 from quemb.molbe.lo import MixinLocalize
@@ -36,8 +38,10 @@ IntTransforms: TypeAlias = Literal[
     "in-core",
     "out-core-DF",
     "int-direct-DF",
-    "sparse-DF",  # screen AOs and MOs via S_abs
+    "sparse-DF-cpp",  # screen AOs and MOs via S_abs
     "sparse-DF-nb",  # screen AOs and MOs via S_abs and use jitted numba
+    "sparse-DF-cpp-gpu",  # screen AOs and MOs via S_abs
+    "sparse-DF-nb-gpu",  # screen AOs and MOs via S_abs and use jitted numba
 ]
 
 
@@ -887,9 +891,21 @@ class BE(MixinLocalize):
                     self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis
                 )
                 eri = None
-            elif int_transform == "sparse-DF":
+            elif int_transform == "sparse-DF-cpp":
                 ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
                 transform_sparse_DF_integral_cpp(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    file_eri_handler=file_eri,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.int_n_threads,
+                )
+                eri = None
+            elif int_transform == "sparse-DF-cpp-gpu":
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                transform_sparse_DF_integral_cpp_gpu(
                     self.mf,
                     self.Fobjs,
                     auxbasis=self.auxbasis,
@@ -902,6 +918,18 @@ class BE(MixinLocalize):
             elif int_transform == "sparse-DF-nb":
                 ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
                 transform_sparse_DF_integral_nb(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    file_eri_handler=file_eri,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.int_n_threads,
+                )
+                eri = None
+            elif int_transform == "sparse-DF-nb-gpu":
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                transform_sparse_DF_integral_nb_gpu(
                     self.mf,
                     self.Fobjs,
                     auxbasis=self.auxbasis,

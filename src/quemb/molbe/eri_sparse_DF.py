@@ -1430,6 +1430,54 @@ def transform_sparse_DF_integral_nb(
 
     sparse_P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
     PQ = auxmol.intor("int2c2e")
+    low_triang_PQ = cholesky(PQ, lower=True)
+
+    def f(fragobj: Frags) -> None:
+        eri = restore(
+            "4",
+            _transform_fragment_integral(
+                sparse_P_mu_nu,
+                fragobj.TA,
+                S_abs,
+                low_triang_PQ,
+                MO_coeff_epsilon,
+            ),
+            fragobj.TA.shape[1],
+        )
+        file_eri_handler.create_dataset(fragobj.dname, data=eri)
+
+    if n_threads > 1:
+        with ThreadPoolExecutor(max_workers=n_threads) as executor:
+            futures = [executor.submit(f, fragobj) for fragobj in Fobjs]
+            # You must call future.result() if you want to catch exceptions
+            # raised during execution. Otherwise, errors may silently fail.
+            for future in futures:
+                future.result()
+    else:
+        for fragobj in Fobjs:
+            f(fragobj)
+
+
+def transform_sparse_DF_integral_nb_gpu(
+    mf: scf.hf.SCF,
+    Fobjs: Sequence[Frags],
+    auxbasis: str | None,
+    file_eri_handler: h5py.File,
+    AO_coeff_epsilon: float,
+    MO_coeff_epsilon: float,
+    n_threads: int,
+) -> None:
+    mol = mf.mol
+    auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
+
+    S_abs_timer = Timer("Time to compute S_abs")
+    S_abs = calculate_abs_overlap(mol)
+    print(S_abs_timer.str_elapsed())
+
+    exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
+
+    sparse_P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
+    PQ = auxmol.intor("int2c2e")
     low_triang_PQ_on_gpu = cp.asarray(cholesky(PQ, lower=True))
 
     def f(fragobj: Frags) -> None:
@@ -1483,12 +1531,65 @@ def transform_sparse_DF_integral_cpp(
         py_P_mu_nu.exch_reachable,
     )
     PQ = auxmol.intor("int2c2e")
-    low_triang_PQ = cpp_transforms.GPU_MatrixHandle(cholesky(PQ, lower=True))
+    low_triang_PQ = cholesky(PQ, lower=True)
 
     def f(fragobj: Frags) -> None:
         eri = restore(
             "4",
             cpp_transforms.transform_integral(
+                mu_nu_P,
+                fragobj.TA,
+                S_abs,
+                low_triang_PQ,
+                MO_coeff_epsilon,
+            ),
+            fragobj.TA.shape[1],
+        )
+        file_eri_handler.create_dataset(fragobj.dname, data=eri)
+
+    if n_threads > 1:
+        with ThreadPoolExecutor(max_workers=n_threads) as executor:
+            futures = [executor.submit(f, fragobj) for fragobj in Fobjs]
+            # You must call future.result() if you want to catch exceptions
+            # raised during execution. Otherwise, errors may silently fail.
+            for future in futures:
+                future.result()
+    else:
+        for fragobj in Fobjs:
+            f(fragobj)
+
+
+def transform_sparse_DF_integral_cpp_gpu(
+    mf: scf.hf.SCF,
+    Fobjs: Sequence[Frags],
+    auxbasis: str | None,
+    file_eri_handler: h5py.File,
+    AO_coeff_epsilon: float,
+    MO_coeff_epsilon: float,
+    n_threads: int,
+) -> None:
+    mol = mf.mol
+    auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
+
+    S_abs_timer = Timer("Time to compute S_abs")
+    S_abs = calculate_abs_overlap(mol)
+    print(S_abs_timer.str_elapsed())
+
+    exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
+
+    py_P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
+    mu_nu_P = cpp_transforms.SemiSparseSym3DTensor(
+        np.asfortranarray(py_P_mu_nu.unique_dense_data.T),
+        tuple(reversed(py_P_mu_nu.shape)),
+        py_P_mu_nu.exch_reachable,
+    )
+    PQ = auxmol.intor("int2c2e")
+    low_triang_PQ = cpp_transforms.GPU_MatrixHandle(cholesky(PQ, lower=True))
+
+    def f(fragobj: Frags) -> None:
+        eri = restore(
+            "4",
+            cpp_transforms.transform_integral_cuda(
                 mu_nu_P,
                 fragobj.TA,
                 S_abs,
@@ -1524,11 +1625,23 @@ def _get_P_ij(
     )
 
 
+def _transform_fragment_integral(
+    sparse_ints_3c2e: SemiSparseSym3DTensor,
+    TA: Matrix[np.float64],
+    S_abs: Matrix[np.float64],
+    low_triang_PQ: Matrix[np.float64],
+    MO_coeff_epsilon: float,
+) -> Matrix[np.float64]:
+    return _eval_via_cholesky(
+        _get_P_ij(sparse_ints_3c2e, TA, S_abs, MO_coeff_epsilon), low_triang_PQ
+    )
+
+
 def _transform_fragment_integral_on_gpu(
     sparse_ints_3c2e: SemiSparseSym3DTensor,
     TA: Matrix[np.float64],
     S_abs: Matrix[np.float64],
-    low_triang_PQ_on_gpu: Matrix[np.float64],
+    low_triang_PQ_on_gpu: cp.ndarray[np.float64],
     MO_coeff_epsilon: float,
 ) -> Matrix[np.float64]:
     return _eval_via_cholesky_gpu(
@@ -1569,7 +1682,7 @@ def _eval_via_cholesky(
 
 def _eval_via_cholesky_gpu(
     pqP: Tensor3D[np.float64],
-    low_triang_PQ_on_gpu: cp.array,
+    low_triang_PQ_on_gpu: cp.ndarray[np.float64],
 ) -> np.ndarray:
     symmetrised = _account_for_symmetry(pqP)  # should return np.ndarray
     symmetrised_on_gpu = cp.asarray(symmetrised, dtype=cp.float64)
