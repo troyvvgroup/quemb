@@ -110,32 +110,36 @@ std::vector<std::vector<OrbitalIdx>> extract_unique(const std::vector<std::vecto
     return result;
 }
 
-class Timer {
-public:
-    explicit Timer(const char* name)
-        : _name(name), _start(std::chrono::high_resolution_clock::now()) {}
+class Timer
+{
+  public:
+    explicit Timer(const char *name) : _name(name), _start(std::chrono::high_resolution_clock::now())
+    {
+    }
 
-    ~Timer() {
+    ~Timer()
+    {
         auto duration = elapsed_ms();
         std::cout << "[TIMER] " << _name << " finished in " << duration << " ms\n";
     }
 
-    void print(const std::string& message = "Checkpoint") const {
+    void print(const std::string &message = "Checkpoint") const
+    {
         auto duration = elapsed_ms();
         std::cout << "[TIMER] " << _name << " - " << message << ": " << duration << " ms\n";
     }
 
-private:
-    const char* _name;
+  private:
+    const char *_name;
     std::chrono::high_resolution_clock::time_point _start;
 
-    double elapsed_ms() const {
+    double elapsed_ms() const
+    {
         using namespace std::chrono;
         auto now = high_resolution_clock::now();
         return duration_cast<microseconds>(now - _start).count() * 1e-3;
     }
 };
-
 
 #define PROFILE_FUNCTION() Timer timer(__func__)
 #define PROFILE_SCOPE() Timer timer(std::string(__FILE__) + ":" + std::to_string(__LINE__) + " in " + __func__)
