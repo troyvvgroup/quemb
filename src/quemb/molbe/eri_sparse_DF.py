@@ -1483,7 +1483,7 @@ def transform_sparse_DF_integral_cpp(
         py_P_mu_nu.exch_reachable,
     )
     PQ = auxmol.intor("int2c2e")
-    low_triang_PQ = cholesky(PQ, lower=True)
+    low_triang_PQ = cpp_transforms.GPU_MatrixHandle(cholesky(PQ, lower=True))
 
     def f(fragobj: Frags) -> None:
         eri = restore(

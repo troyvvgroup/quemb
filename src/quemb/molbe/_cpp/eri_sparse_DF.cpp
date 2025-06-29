@@ -3,11 +3,18 @@
 #include <iostream>
 #include <map>
 #include <omp.h>
+#include <stdexcept>
 #include <tuple>
 #include <vector>
 
 #include <Eigen/Dense>
 #include <unsupported/Eigen/CXX11/Tensor>
+
+#include <cublas_v2.h>
+#include <cuda.h>
+#include <cuda_runtime_api.h>
+
+#include <Kokkos_Core.hpp>
 
 #include <pybind11/eigen.h>
 #include <pybind11/functional.h>
@@ -19,10 +26,65 @@
 
 namespace py = pybind11;
 
+#define CUDA_CHECK_THROW(err)                                                                                          \
+    if ((err) != cudaSuccess)                                                                                          \
+        throw std::runtime_error(cudaGetErrorString(err));
+
+#define CUBLAS_CHECK_THROW(err)                                                                                        \
+    if ((err) != CUBLAS_STATUS_SUCCESS)                                                                                \
+        throw std::runtime_error("cuBLAS error");
+
+// Exists to keep a handle to memory on the GPU.
+// Can also be exposed to e.g. Python to keep it across calls.
+class GPU_MatrixHandle
+{
+  public:
+    explicit GPU_MatrixHandle(const Eigen::MatrixXd &L_host)
+        : _n_rows(L_host.rows()), _n_cols(L_host.cols()), _size(_n_rows * _n_cols)
+    {
+        const size_t bytes = _size * sizeof(double);
+        CUDA_CHECK_THROW(cudaMalloc(reinterpret_cast<void**>(&d_L), bytes));
+        CUDA_CHECK_THROW(cudaMemcpy(d_L, L_host.data(), bytes, cudaMemcpyHostToDevice));
+    }
+
+    ~GPU_MatrixHandle()
+    {
+        if (d_L)
+            cudaFree(d_L);
+    }
+
+    const double *cdata() const noexcept
+    {
+        return d_L;
+    }
+    double *data() const noexcept
+    {
+        return d_L;
+    }
+    size_t size() const noexcept
+    {
+        return _size;
+    }
+    int_t rows() const noexcept
+    {
+        return _n_rows;
+    }
+    int_t cols() const noexcept
+    {
+        return _n_cols;
+    }
+
+  private:
+    double *d_L = nullptr;
+    int_t _n_rows;
+    int_t _n_cols;
+    size_t _size;
+};
+
 class SemiSparseSym3DTensor
 {
   public:
-    SemiSparseSym3DTensor(
+    explicit SemiSparseSym3DTensor(
         Matrix unique_dense_data, std::tuple<int, int, int> shape, std::vector<std::vector<OrbitalIdx>> exch_reachable,
         std::vector<std::vector<OrbitalIdx>> exch_reachable_unique,
         std::vector<std::vector<std::pair<std::size_t, OrbitalIdx>>> exch_reachable_with_offsets,
@@ -36,8 +98,8 @@ class SemiSparseSym3DTensor
     {
     }
 
-    SemiSparseSym3DTensor(Matrix unique_dense_data, std::tuple<int, int, int> shape,
-                          std::vector<std::vector<OrbitalIdx>> exch_reachable)
+    explicit SemiSparseSym3DTensor(Matrix unique_dense_data, std::tuple<int, int, int> shape,
+                                   std::vector<std::vector<OrbitalIdx>> exch_reachable)
         : _unique_dense_data(std::move(unique_dense_data)), _shape(std::move(shape)),
           _exch_reachable(std::move(exch_reachable))
     {
@@ -129,18 +191,18 @@ class SemiSparseSym3DTensor
 class SemiSparse3DTensor
 {
   public:
-    SemiSparse3DTensor(Matrix dense_data, std::tuple<int, int, int> shape,
-                       std::vector<std::vector<OrbitalIdx>> AO_reachable_by_MO,
-                       std::vector<std::vector<std::pair<std::size_t, OrbitalIdx>>> AO_reachable_by_MO_with_offsets,
-                       std::unordered_map<std::size_t, std::size_t> offsets)
+    explicit SemiSparse3DTensor(
+        Matrix dense_data, std::tuple<int, int, int> shape, std::vector<std::vector<OrbitalIdx>> AO_reachable_by_MO,
+        std::vector<std::vector<std::pair<std::size_t, OrbitalIdx>>> AO_reachable_by_MO_with_offsets,
+        std::unordered_map<std::size_t, std::size_t> offsets)
         : _dense_data(std::move(dense_data)), _shape(std::move(shape)),
           _AO_reachable_by_MO(std::move(AO_reachable_by_MO)),
           _AO_reachable_by_MO_with_offsets(std::move(AO_reachable_by_MO_with_offsets)), _offsets(std::move(offsets))
     {
     }
 
-    SemiSparse3DTensor(Matrix dense_data, std::tuple<int, int, int> shape,
-                       std::vector<std::vector<OrbitalIdx>> AO_reachable_by_MO)
+    explicit SemiSparse3DTensor(Matrix dense_data, std::tuple<int, int, int> shape,
+                                std::vector<std::vector<OrbitalIdx>> AO_reachable_by_MO)
         : _dense_data(std::move(dense_data)), _shape(std::move(shape)),
           _AO_reachable_by_MO(std::move(AO_reachable_by_MO))
     {
@@ -358,10 +420,6 @@ Matrix eval_via_cholesky(const Matrix &sym_P_pq, const Matrix &L_PQ) noexcept
     return X.transpose() * X;
 }
 
-#include <Kokkos_Core.hpp>
-#include <cublas_v2.h>
-#include <stdexcept>
-
 using ExecSpace = Kokkos::DefaultExecutionSpace;
 using View2D = Kokkos::View<double **, Kokkos::LayoutLeft, ExecSpace>;
 
@@ -440,32 +498,21 @@ Matrix eval_via_cholesky_gpu(const Matrix &sym_P_pq_eigen, const Matrix &L_PQ_ei
     return result;
 }
 
-#define CUDA_CHECK_THROW(err)                                                                                          \
-    if ((err) != cudaSuccess)                                                                                          \
-        throw std::runtime_error(cudaGetErrorString(err));
-
-#define CUBLAS_CHECK_THROW(err)                                                                                        \
-    if ((err) != CUBLAS_STATUS_SUCCESS)                                                                                \
-        throw std::runtime_error("cuBLAS error");
-
-Matrix eval_via_cholesky_cuda(const Matrix &sym_P_pq, const Matrix &L_PQ)
+Matrix eval_via_cholesky_cuda(const Matrix &sym_P_pq, const GPU_MatrixHandle &L_PQ)
 {
     const int n_aux = L_PQ.rows();
     const int n_sym_pairs = sym_P_pq.cols();
 
-    const size_t bytes_L_PQ = sizeof(double) * L_PQ.size();
     const size_t bytes_sym_P_pq = sizeof(double) * sym_P_pq.size();
     const size_t bytes_X = sizeof(double) * n_aux * n_sym_pairs;
     const size_t bytes_res = sizeof(double) * n_sym_pairs * n_sym_pairs;
 
-    double *d_L_PQ = nullptr, *d_X = nullptr, *d_result = nullptr;
+    double *d_X = nullptr, *d_result = nullptr;
 
-    CUDA_CHECK_THROW(cudaMalloc(&d_L_PQ, bytes_L_PQ));
-    CUDA_CHECK_THROW(cudaMalloc(&d_X, bytes_X));
-    CUDA_CHECK_THROW(cudaMalloc(&d_result, bytes_res));
+    CUDA_CHECK_THROW(cudaMalloc(reinterpret_cast<void**>(&d_X), bytes_X));
+    CUDA_CHECK_THROW(cudaMalloc(reinterpret_cast<void**>(&d_result), bytes_res));
 
     // Copy data to device
-    CUDA_CHECK_THROW(cudaMemcpy(d_L_PQ, L_PQ.data(), bytes_L_PQ, cudaMemcpyHostToDevice));
     // We will solve: L * X = sym_P_pq  → X = L⁻¹ * sym_P_pq
     // But X will be initialized with sym_P_pq and then overwritten by the solution.
     CUDA_CHECK_THROW(cudaMemcpy(d_X, sym_P_pq.data(), bytes_sym_P_pq, cudaMemcpyHostToDevice));
@@ -479,11 +526,11 @@ Matrix eval_via_cholesky_cuda(const Matrix &sym_P_pq, const Matrix &L_PQ)
     // Solve: L * X = sym_P_pq  → X = L⁻¹ * sym_P_pq
     // X is initialized with sym_P_pq and overwrite it with the solution.
     CUBLAS_CHECK_THROW(cublasDtrsm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT,
-                                   n_aux, n_sym_pairs, &alpha, d_L_PQ, n_aux, d_X, n_aux));
+                                   n_aux, n_sym_pairs, &alpha, L_PQ.cdata(), n_aux, d_X, n_aux));
 
     // Compute: result = Xᵀ * X
-    CUBLAS_CHECK_THROW(
-        cublasDsyrk(handle, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_T, n_sym_pairs, n_aux, &alpha, d_X, n_aux, &alpha, d_result, n_sym_pairs));
+    CUBLAS_CHECK_THROW(cublasDsyrk(handle, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_T, n_sym_pairs, n_aux, &alpha, d_X, n_aux,
+                                   &alpha, d_result, n_sym_pairs));
 
     // Transfer result to host
     Matrix result(n_sym_pairs, n_sym_pairs);
@@ -496,7 +543,6 @@ Matrix eval_via_cholesky_cuda(const Matrix &sym_P_pq, const Matrix &L_PQ)
 
     // Cleanup
     cublasDestroy(handle);
-    cudaFree(d_L_PQ);
     cudaFree(d_X);
     cudaFree(d_result);
 
@@ -504,7 +550,7 @@ Matrix eval_via_cholesky_cuda(const Matrix &sym_P_pq, const Matrix &L_PQ)
 }
 
 Matrix transform_integral(const SemiSparseSym3DTensor &int_P_mu_nu, const Matrix &TA, const Matrix &S_abs,
-                          const Matrix &L_PQ, const double MO_coeff_epsilon) noexcept
+                          const GPU_MatrixHandle &L_PQ, const double MO_coeff_epsilon) noexcept
 
 {
     const auto AO_by_MO = get_AO_per_MO(TA, S_abs, MO_coeff_epsilon);
@@ -521,6 +567,12 @@ PYBIND11_MODULE(eri_sparse_DF, m)
     Kokkos::initialize();
 
     m.doc() = "Minimal pybind11 + Eigen example";
+
+    py::class_<GPU_MatrixHandle>(m, "GPU_MatrixHandle")
+        .def(py::init<const Eigen::MatrixXd &>())
+        .def("__repr__", [](const GPU_MatrixHandle &self) {
+            return "<GPU_MatrixHandle of size " + std::to_string(self.size()) + ">";
+        });
 
     py::class_<SemiSparseSym3DTensor>(m, "SemiSparseSym3DTensor")
         // Minimal constructor

@@ -3,7 +3,7 @@
     {
       "name": "Linux",
       "includePath": [
-        "${workspaceFolder}/third-party/eigen-3.3.9",
+        "${workspaceFolder}/external/eigen",
         "${workspaceFolder}/src",  // if you include project headers
         "~/.venv/lib/python3.12/site-packages/pybind11/include",
         "~/.venv/lib/python3.12/site-packages/numpy/core/include",
