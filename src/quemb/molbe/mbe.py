@@ -859,7 +859,7 @@ class BE(MixinLocalize):
         for fobj, frag_TA_offset in zip(self.Fobjs, frag_TA_index_per_frag):
             fobj.frag_TA_offset = frag_TA_offset
 
-        eritransform_timer = Timer("Time to transform ERIs")
+        eritransform_timer = Timer(f"Time to transform ERIs ({int_transform})")
 
         if not restart:
             # Transform ERIs for each fragment and store in the file
