@@ -14,9 +14,8 @@ pybind11_add_module(eri_sparse_DF src/quemb/molbe/_cpp/eri_sparse_DF.cpp)
 
 # Link against the Eigen library
 target_include_directories(eri_sparse_DF PRIVATE ${CMAKE_SOURCE_DIR}/external/eigen)
-target_include_directories(eri_sparse_DF PRIVATE /usr/include)
 
-target_link_libraries(eri_sparse_DF PRIVATE CUDA::cublas)
+target_link_libraries(eri_sparse_DF PRIVATE CUDA::cublas CUDA::cuda_driver CUDA::cudart)
 target_link_libraries(eri_sparse_DF PRIVATE OpenMP::OpenMP_CXX)
 
 # Optional: Add compiler flags
