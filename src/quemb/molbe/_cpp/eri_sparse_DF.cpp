@@ -38,7 +38,7 @@ class GPU_MatrixHandle
 {
   public:
     explicit GPU_MatrixHandle(const Eigen::MatrixXd &L_host)
-        : _n_rows(L_host.rows()), _n_cols(L_host.cols()), _size(_n_rows * _n_cols)
+        : _n_rows(L_host.rows()), _n_cols(L_host.cols()), _size( _n_rows * _n_cols)
     {
         const size_t bytes = _size * sizeof(double);
         CUDA_CHECK_THROW(cudaMalloc(reinterpret_cast<void **>(&d_L), bytes));
@@ -411,6 +411,7 @@ Matrix contract_with_TA_2nd_to_sym_dense(const SemiSparse3DTensor &int_mu_i_P, c
 Matrix eval_via_cholesky(const Matrix &sym_P_pq, const Matrix &L_PQ) noexcept
 {
     Timer cholesky_timer{"eval_via_cholesky"};
+    int n;
     // Step 1: Solve L * X = sym_P_pq  →  X = L⁻¹ sym_P_pq
     const Matrix X = L_PQ.triangularView<Eigen::Lower>().solve(sym_P_pq);
     cholesky_timer.print("triangular solve completed");

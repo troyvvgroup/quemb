@@ -15,21 +15,12 @@ permissions:
 jobs:
   analysis:
     runs-on: ubuntu-latest
-    container:
-      image: nvidia/cuda:12.2.0-devel-ubuntu22.04
     strategy:
       matrix:
         python-version: ["3.12"]
 
 
     steps:
-    - name: Install Git
-      run: |
-        apt-get update && apt-get install -y git
-
-    - name: Configure Git safe directory
-      run: git config --global --add safe.directory /__w/quemb/quemb
-
     - uses: actions/checkout@v4
       with:
         submodules: recursive
