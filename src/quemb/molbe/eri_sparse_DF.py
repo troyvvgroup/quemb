@@ -1527,8 +1527,8 @@ def transform_sparse_DF_integral_cpp(
     py_P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
     mu_nu_P = cpp_transforms.SemiSparseSym3DTensor(
         np.asfortranarray(py_P_mu_nu.unique_dense_data.T),
-        tuple(reversed(py_P_mu_nu.shape)),
-        py_P_mu_nu.exch_reachable,
+        tuple(reversed(py_P_mu_nu.shape)),  # type: ignore[arg-type]
+        py_P_mu_nu.exch_reachable,  # type: ignore[arg-type]
     )
     PQ = auxmol.intor("int2c2e")
     low_triang_PQ = cholesky(PQ, lower=True)
@@ -1580,8 +1580,8 @@ def transform_sparse_DF_integral_cpp_gpu(
     py_P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
     mu_nu_P = cpp_transforms.SemiSparseSym3DTensor(
         np.asfortranarray(py_P_mu_nu.unique_dense_data.T),
-        tuple(reversed(py_P_mu_nu.shape)),
-        py_P_mu_nu.exch_reachable,
+        tuple(reversed(py_P_mu_nu.shape)),  # type: ignore[arg-type]
+        py_P_mu_nu.exch_reachable,  # type: ignore[arg-type]
     )
     PQ = auxmol.intor("int2c2e")
     low_triang_PQ = cpp_transforms.GPU_MatrixHandle(cholesky(PQ, lower=True))

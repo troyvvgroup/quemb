@@ -497,20 +497,25 @@ PYBIND11_MODULE(eri_sparse_DF, m)
     m.doc() = "Minimal pybind11 + Eigen example";
 
     py::class_<GPU_MatrixHandle>(m, "GPU_MatrixHandle")
-        .def(py::init<const Eigen::MatrixXd &>())
+        .def(py::init<const Eigen::MatrixXd &>(), py::arg("L_host"),
+             "Create a GPU_MatrixHandle from a host matrix.\n\n"
+             "This allocates memory on the GPU and copies the data from the host to the GPU.")
         .def("__repr__", [](const GPU_MatrixHandle &self) {
             return "<GPU_MatrixHandle of size " + std::to_string(self.size()) + ">";
         });
 
     py::class_<SemiSparseSym3DTensor>(m, "SemiSparseSym3DTensor")
         // Minimal constructor
-        .def(py::init<Matrix, std::tuple<int, int, int>, std::vector<std::vector<OrbitalIdx>>>())
+        .def(py::init<Matrix, std::tuple<int, int, int>, std::vector<std::vector<OrbitalIdx>>>(),
+             py::arg("unique_dense_data"), py::arg("shape"), py::arg("exch_reachable"))
         // Full constructor
         .def(
             py::init<Matrix, std::tuple<int, int, int>, std::vector<std::vector<OrbitalIdx>>,
                      std::vector<std::vector<OrbitalIdx>>, std::vector<std::vector<std::pair<std::size_t, OrbitalIdx>>>,
                      std::vector<std::vector<std::pair<std::size_t, OrbitalIdx>>>,
-                     std::unordered_map<std::size_t, std::size_t>>())
+                     std::unordered_map<std::size_t, std::size_t>>(),
+            py::arg("unique_dense_data"), py::arg("shape"), py::arg("exch_reachable"), py::arg("exch_reachable_unique"),
+            py::arg("exch_reachable_with_offsets"), py::arg("exch_reachable_unique_with_offsets"), py::arg("offsets"))
         .def_property_readonly("unique_dense_data", &SemiSparseSym3DTensor::dense_data)
         .def_property_readonly("shape", &SemiSparseSym3DTensor::get_shape)
         .def_property_readonly("exch_reachable", &SemiSparseSym3DTensor::exch_reachable)
@@ -518,7 +523,6 @@ PYBIND11_MODULE(eri_sparse_DF, m)
         .def_property_readonly("offsets", &SemiSparseSym3DTensor::get_offsets)
         .def_property_readonly("size", &SemiSparseSym3DTensor::get_size)
         .def_property_readonly("nonzero_size", &SemiSparseSym3DTensor::get_nonzero_size)
-        .def("get_aux_vector", &SemiSparseSym3DTensor::get_aux_vector)
         .def(
             "__getitem__",
             [](const SemiSparseSym3DTensor &self, std::tuple<OrbitalIdx, OrbitalIdx> idx) {
@@ -555,9 +559,15 @@ PYBIND11_MODULE(eri_sparse_DF, m)
         .def_property_readonly("size", &SemiSparse3DTensor::get_size)
         .def_property_readonly("nonzero_size", &SemiSparse3DTensor::get_nonzero_size)
 
-        // Method
-        .def("get_aux_vector", &SemiSparse3DTensor::get_aux_vector, py::arg("mu"), py::arg("i"),
-             "Return auxiliary vector for given AO and MO index");
+        .def(
+            "__getitem__",
+            [](const SemiSparse3DTensor &self, std::tuple<OrbitalIdx, OrbitalIdx> idx) {
+                OrbitalIdx mu = std::get<0>(idx);
+                OrbitalIdx i = std::get<1>(idx);
+                return self.get_aux_vector(mu, i);
+            },
+            py::return_value_policy::reference_internal // important to keep reference valid
+        );
 
     m.def("contract_with_TA_1st", &contract_with_TA_1st, py::arg("TA"), py::arg("int_P_mu_nu"), py::arg("AO_by_MO"),
           py::call_guard<py::gil_scoped_release>());

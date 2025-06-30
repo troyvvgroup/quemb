@@ -79,6 +79,10 @@
         "queue": "cpp",
         "*.expression": "cpp",
         "alignedvector3": "cpp",
-        "fft": "cpp"
+        "fft": "cpp",
+        "codecvt": "cpp",
+        "shared_mutex": "cpp",
+        "cfenv": "cpp",
+        "__nullptr": "cpp"
     }
 }

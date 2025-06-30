@@ -24,10 +24,11 @@ __all__ = [
 ]
 
 class GPU_MatrixHandle:
-    def __init__(self, arg0: Matrix[np.float64]) -> None: ...
+    def __init__(self, L_host: Matrix[np.float64]) -> None: ...
     def __repr__(self) -> str: ...
 
 class SemiSparse3DTensor:
+    def __getitem__(self, arg0: tuple[int, int]) -> Vector[np.float64]: ...
     @typing.overload
     def __init__(
         self,
@@ -44,10 +45,6 @@ class SemiSparse3DTensor:
         AO_reachable_by_MO_with_offsets: list[list[tuple[int, int]]],
         offsets: dict[int, int],
     ) -> None: ...
-    def get_aux_vector(self, mu: int, i: int) -> Vector[np.float64]:
-        """
-        Return auxiliary vector for given AO and MO index
-        """
     @property
     def AO_reachable_by_MO(self) -> list[list[int]]: ...
     @property
@@ -76,22 +73,21 @@ class SemiSparseSym3DTensor:
     @typing.overload
     def __init__(
         self,
-        arg0: Matrix[np.float64],
-        arg1: tuple[int, int, int],
-        arg2: list[list[int]],
+        unique_dense_data: Matrix[np.float64],
+        shape: tuple[int, int, int],
+        exch_reachable: list[list[int]],
     ) -> None: ...
     @typing.overload
     def __init__(
         self,
-        arg0: Matrix[np.float64],
-        arg1: tuple[int, int, int],
-        arg2: list[list[int]],
-        arg3: list[list[int]],
-        arg4: list[list[tuple[int, int]]],
-        arg5: list[list[tuple[int, int]]],
-        arg6: dict[int, int],
+        unique_dense_data: Matrix[np.float64],
+        shape: tuple[int, int, int],
+        exch_reachable: list[list[int]],
+        exch_reachable_unique: list[list[int]],
+        exch_reachable_with_offsets: list[list[tuple[int, int]]],
+        exch_reachable_unique_with_offsets: list[list[tuple[int, int]]],
+        offsets: dict[int, int],
     ) -> None: ...
-    def get_aux_vector(self, arg0: int, arg1: int) -> Vector[np.float64]: ...
     @property
     def exch_reachable(self) -> list[list[int]]: ...
     @property
