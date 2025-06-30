@@ -94,7 +94,7 @@ def test_sparse_DF_BE() -> None:
     mf.kernel()
 
     fobj = fragmentate(frag_type="chemgen", n_BE=2, mol=mol, print_frags=False)
-    sparse_DF_BE = BE(mf, fobj, auxbasis="weigend", int_transform="sparse-DF")
+    sparse_DF_BE = BE(mf, fobj, auxbasis="weigend", int_transform="sparse-DF-cpp")
     sparse_DF_BE.oneshot(solver="CCSD")
 
     assert np.isclose(
