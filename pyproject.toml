@@ -4,7 +4,6 @@ requires = [
     "pybind11",
     "numpy",
     "setuptools",
-    "pybind11-stubgen",
 ]
 build-backend = "scikit_build_core.build"
 build-dir = "_skbuild"
