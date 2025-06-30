@@ -589,10 +589,6 @@ def be_func_u(
         Whether to evaluate the energy. Defaults to False.
     relax_density : bool, optional
         Whether to relax the density. Defaults to False.
-    return_vec : bool, optional
-        Whether to return the error vector. Defaults to False.
-    ebe_hf : float, optional
-        Hartree-Fock energy. Defaults to 0.
     use_cumulant : bool, optional
         Whether to use the cumulant-based energy expression. Defaults to True.
     frozen : bool, optional

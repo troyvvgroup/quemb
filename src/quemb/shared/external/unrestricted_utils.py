@@ -65,7 +65,10 @@ def uccsd_restore_eris(symm, fobj_a, fobj_b):
         Vs = [None] * 3
         Vs[0] = ao2mo.restore(symm[0], fVs[Vsname[0]], nf[0])
         Vs[1] = ao2mo.restore(symm[1], fVs[Vsname[1]], nf[1])
-        Vs[2] = restore_eri_gen(symm[2], fVs[Vsname[2]][()], nf[0], nf[1])
+        if nf[0] == nf[1]:
+            Vs[2] = ao2mo.restore(symm[2], fVs[Vsname[2]][()], nf[0])
+        else:
+            Vs[2] = restore_eri_gen(symm[2], fVs[Vsname[2]][()], nf[0], nf[1])
 
     return Vs
 
