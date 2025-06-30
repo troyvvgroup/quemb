@@ -6,7 +6,6 @@ requires = [
     "setuptools",
 ]
 build-backend = "scikit_build_core.build"
-build-dir = "_skbuild"
 
 [project]
 name = "quemb"
