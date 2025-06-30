@@ -491,6 +491,10 @@ Matrix transform_integral(const SemiSparseSym3DTensor &int_P_mu_nu, const Matrix
     return eval_via_cholesky(P_pq, L_PQ);
 }
 
+
+// Automatically generate python type stub pages via
+// pip install --no-deps -vvv . && pybind11-stubgen quemb.molbe._cpp.eri_sparse_DF -o src/ --numpy-array-remove-parameters && ruff format && ruff check --fix
+
 // Binding code
 PYBIND11_MODULE(eri_sparse_DF, m)
 {
