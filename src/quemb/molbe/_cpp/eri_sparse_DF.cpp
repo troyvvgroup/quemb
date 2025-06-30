@@ -26,7 +26,6 @@
 
 namespace py = pybind11;
 
-
 #ifdef USE_CUDA
 #define CUDA_CHECK_THROW(err)                                                                                          \
     if ((err) != cudaSuccess)                                                                                          \
@@ -36,12 +35,11 @@ namespace py = pybind11;
     if ((err) != CUBLAS_STATUS_SUCCESS)                                                                                \
         throw std::runtime_error("cuBLAS error");
 
-
 class GPU_MatrixHandle
 {
   public:
     explicit GPU_MatrixHandle(const Eigen::MatrixXd &L_host)
-        : _n_rows(L_host.rows()), _n_cols(L_host.cols()), _size( _n_rows * _n_cols)
+        : _n_rows(L_host.rows()), _n_cols(L_host.cols()), _size(static_cast<size_t>(_n_rows * _n_cols))
     {
         const size_t bytes = _size * sizeof(double);
         CUDA_CHECK_THROW(cudaMalloc(reinterpret_cast<void **>(&d_L), bytes));
@@ -330,9 +328,12 @@ SemiSparse3DTensor contract_with_TA_1st(const Matrix &TA, const SemiSparseSym3DT
         n_unique += offsets.size();
     }
 
-    std::cout << "(P | mu i) [MEMORY] sparse " << naux * n_unique * sizeof(double) / std::pow(2, 30) << " GB" << "\n";
-    std::cout << "(P | mu i) [MEMORY] dense " << naux * nao * nmo * sizeof(double) / std::pow(2, 30) << " GB" << "\n";
-    std::cout << "(P | mu i) [MEMORY] sparsity " << (1 - static_cast<double>(n_unique) / (nao * nmo)) * 100 << " %"
+    std::cout << "(P | mu i) [MEMORY] sparse "
+              << static_cast<double>(naux * n_unique * sizeof(double)) / std::pow(2, 30) << " GB" << "\n";
+    std::cout << "(P | mu i) [MEMORY] dense "
+              << static_cast<double>(naux * nao * nmo * sizeof(double)) / std::pow(2, 30) << " GB" << "\n";
+    std::cout << "(P | mu i) [MEMORY] sparsity "
+              << (1. - static_cast<double>(n_unique) / static_cast<double>(nao * nmo)) * 100. << " %"
               << "\n";
 
     Matrix g_unique = Matrix::Zero(naux, n_unique);
@@ -425,8 +426,8 @@ Matrix eval_via_cholesky(const Matrix &sym_P_pq, const Matrix &L_PQ) noexcept
 #ifdef USE_CUDA
 Matrix eval_via_cholesky_cuda(const Matrix &sym_P_pq, const GPU_MatrixHandle &L_PQ)
 {
-    const int n_aux = L_PQ.rows();
-    const int n_sym_pairs = sym_P_pq.cols();
+    const int n_aux  = static_cast<int>(L_PQ.rows());
+    const int n_sym_pairs = static_cast<int>(sym_P_pq.cols());
 
     const size_t bytes_sym_P_pq = sizeof(double) * sym_P_pq.size();
     const size_t bytes_X = sizeof(double) * n_aux * n_sym_pairs;
@@ -499,9 +500,9 @@ Matrix transform_integral(const SemiSparseSym3DTensor &int_P_mu_nu, const Matrix
     return eval_via_cholesky(P_pq, L_PQ);
 }
 
-
 // Automatically generate python type stub pages via
-// pip install --no-deps -vvv . && pybind11-stubgen quemb.molbe._cpp.eri_sparse_DF -o src/ --numpy-array-remove-parameters && ruff format && ruff check --fix
+// pip install --no-deps -vvv . && pybind11-stubgen quemb.molbe._cpp.eri_sparse_DF -o src/
+// --numpy-array-remove-parameters && ruff format && ruff check --fix
 
 // Binding code
 PYBIND11_MODULE(eri_sparse_DF, m)

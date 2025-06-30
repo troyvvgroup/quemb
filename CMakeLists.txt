@@ -43,7 +43,7 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
         -Wunused
         -Woverloaded-virtual
         -Wconversion
-        -Wsign-conversion
+        -Wno-sign-conversion
         -Wnull-dereference
         -Wdouble-promotion
         -Wformat=2
@@ -53,6 +53,8 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
         -fsanitize=address
         -fsanitize=undefined
         -fno-omit-frame-pointer
+
+        -Werror
     )
 
     # Link-time flags for runtime sanitizers
