@@ -27,6 +27,9 @@ jobs:
       run: |
         apt-get update && apt-get install -y git
 
+    - name: Configure Git safe directory
+      run: git config --global --add safe.directory /__w/quemb/quemb
+
     - uses: actions/checkout@v4
       with:
         submodules: recursive
