@@ -35,14 +35,13 @@ constexpr int_t n_symmetric(int_t n)
 }
 
 // Invert symmetric raveled index (not constexpr due to sqrt)
-inline std::tuple<int_t, int_t> unravel_symmetric(int_t i)
+inline std::pair<int_t, int_t> unravel_symmetric(int_t i)
 {
-    int_t a = static_cast<int_t>((std::sqrt(8.0 * i + 1.0) - 1.0) / 2.0);
-    int_t offset = gauss_sum(a);
-    int_t b = i - offset;
-    if (b > a)
-        std::swap(a, b);
-    return {a, b};
+    const int_t a = static_cast<int_t>((std::sqrt(8.0 * i + 1.0) - 1.0) / 2.0);
+    const int_t offset = gauss_sum(a);
+    const int_t b = i - offset;
+    return (a <= b) ? std::make_pair(a, b) : std::make_pair(b, a);
+
 }
 
 // Ravel four indices using symmetric ravel
@@ -54,9 +53,9 @@ constexpr int_t ravel_eri_idx(int_t a, int_t b, int_t c, int_t d)
 // Invert raveled ERI index (not constexpr due to sqrt)
 inline std::tuple<int_t, int_t, int_t, int_t> unravel_eri_idx(int_t i)
 {
-    auto [ab, cd] = unravel_symmetric(i);
-    auto [a, b] = unravel_symmetric(ab);
-    auto [c, d] = unravel_symmetric(cd);
+    const auto [ab, cd] = unravel_symmetric(i);
+    const auto [a, b] = unravel_symmetric(ab);
+    const auto [c, d] = unravel_symmetric(cd);
     return {a, b, c, d};
 }
 
