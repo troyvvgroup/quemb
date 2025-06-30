@@ -13,6 +13,7 @@ target_include_directories(eri_sparse_DF SYSTEM PRIVATE ${CMAKE_SOURCE_DIR}/exte
 find_package(CUDAToolkit QUIET)
 if(CUDAToolkit_FOUND)
     target_link_libraries(eri_sparse_DF PRIVATE CUDA::cublas CUDA::cuda_driver CUDA::cudart)
+    target_compile_definitions(eri_sparse_DF PRIVATE USE_CUDA)
 endif()
 
 find_package(OpenMP REQUIRED)
@@ -52,8 +53,6 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
         -fsanitize=address
         -fsanitize=undefined
         -fno-omit-frame-pointer
-
-        -Werror
     )
 
     # Link-time flags for runtime sanitizers

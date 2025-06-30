@@ -10,9 +10,11 @@
 #include <Eigen/Dense>
 #include <unsupported/Eigen/CXX11/Tensor>
 
+#ifdef USE_CUDA
 #include <cublas_v2.h>
 #include <cuda.h>
 #include <cuda_runtime_api.h>
+#endif
 
 #include <pybind11/eigen.h>
 #include <pybind11/functional.h>
@@ -24,6 +26,8 @@
 
 namespace py = pybind11;
 
+
+#ifdef USE_CUDA
 #define CUDA_CHECK_THROW(err)                                                                                          \
     if ((err) != cudaSuccess)                                                                                          \
         throw std::runtime_error(cudaGetErrorString(err));
@@ -32,8 +36,7 @@ namespace py = pybind11;
     if ((err) != CUBLAS_STATUS_SUCCESS)                                                                                \
         throw std::runtime_error("cuBLAS error");
 
-// Light-weight handle to memory on the GPU.
-// Can also be exposed to e.g. Python to keep it across calls.
+
 class GPU_MatrixHandle
 {
   public:
@@ -78,6 +81,7 @@ class GPU_MatrixHandle
     int_t _n_cols;
     size_t _size;
 };
+#endif
 
 class SemiSparseSym3DTensor
 {
@@ -411,7 +415,6 @@ Matrix contract_with_TA_2nd_to_sym_dense(const SemiSparse3DTensor &int_mu_i_P, c
 Matrix eval_via_cholesky(const Matrix &sym_P_pq, const Matrix &L_PQ) noexcept
 {
     Timer cholesky_timer{"eval_via_cholesky"};
-    int n;
     // Step 1: Solve L * X = sym_P_pq  →  X = L⁻¹ sym_P_pq
     const Matrix X = L_PQ.triangularView<Eigen::Lower>().solve(sym_P_pq);
     cholesky_timer.print("triangular solve completed");
@@ -419,6 +422,7 @@ Matrix eval_via_cholesky(const Matrix &sym_P_pq, const Matrix &L_PQ) noexcept
     return X.transpose() * X;
 }
 
+#ifdef USE_CUDA
 Matrix eval_via_cholesky_cuda(const Matrix &sym_P_pq, const GPU_MatrixHandle &L_PQ)
 {
     const int n_aux = L_PQ.rows();
@@ -469,7 +473,9 @@ Matrix eval_via_cholesky_cuda(const Matrix &sym_P_pq, const GPU_MatrixHandle &L_
 
     return result;
 }
+#endif
 
+#ifdef USE_CUDA
 Matrix transform_integral_cuda(const SemiSparseSym3DTensor &int_P_mu_nu, const Matrix &TA, const Matrix &S_abs,
                                const GPU_MatrixHandle &L_PQ, const double MO_coeff_epsilon) noexcept
 
@@ -480,6 +486,7 @@ Matrix transform_integral_cuda(const SemiSparseSym3DTensor &int_P_mu_nu, const M
 
     return eval_via_cholesky_cuda(P_pq, L_PQ);
 }
+#endif
 
 Matrix transform_integral(const SemiSparseSym3DTensor &int_P_mu_nu, const Matrix &TA, const Matrix &S_abs,
                           const Matrix &L_PQ, const double MO_coeff_epsilon) noexcept
@@ -499,8 +506,11 @@ Matrix transform_integral(const SemiSparseSym3DTensor &int_P_mu_nu, const Matrix
 // Binding code
 PYBIND11_MODULE(eri_sparse_DF, m)
 {
-    m.doc() = "Minimal pybind11 + Eigen example";
+    m.doc() = "Perform the sparse DF ERI transformation using semi-sparse tensors.\n\n"
+              "This module provides functionality to transform ERIs using semi-sparse tensors "
+              "and optionally CUDA for GPU acceleration.";
 
+#ifdef USE_CUDA
     py::class_<GPU_MatrixHandle>(m, "GPU_MatrixHandle")
         .def(py::init<const Eigen::MatrixXd &>(), py::arg("L_host"),
              "Create a GPU_MatrixHandle from a host matrix.\n\n"
@@ -508,6 +518,7 @@ PYBIND11_MODULE(eri_sparse_DF, m)
         .def("__repr__", [](const GPU_MatrixHandle &self) {
             return "<GPU_MatrixHandle of size " + std::to_string(self.size()) + ">";
         });
+#endif
 
     py::class_<SemiSparseSym3DTensor>(m, "SemiSparseSym3DTensor")
         // Minimal constructor
@@ -597,9 +608,11 @@ PYBIND11_MODULE(eri_sparse_DF, m)
           "Transform the integral using TA, int_P_mu_nu, AO_by_MO, and L_PQ,\n"
           "returning the transformed matrix");
 
+#ifdef USE_CUDA
     m.def("transform_integral_cuda", &transform_integral_cuda, py::arg("int_P_mu_nu"), py::arg("TA"), py::arg("S_abs"),
           py::arg("L_PQ"), py::arg("MO_coeff_epsilon"), py::call_guard<py::gil_scoped_release>(),
           "Transform the integral using TA, int_P_mu_nu, AO_by_MO, and L_PQ,\n"
           "returning the transformed matrix.\n"
           "This uses CUDA for performance.");
+#endif
 }
