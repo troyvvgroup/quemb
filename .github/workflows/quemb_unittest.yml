@@ -15,6 +15,9 @@ permissions:
 jobs:
   analysis:
     runs-on: ubuntu-latest
+    container:
+      image: nvidia/cuda:12.2.0-devel-ubuntu22.04
+      options: --gpus all
     strategy:
       matrix:
         python-version: ["3.12"]
