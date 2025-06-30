@@ -581,17 +581,20 @@ PYBIND11_MODULE(eri_sparse_DF, m)
 
     m.def("get_AO_reachable_by_MO_with_offset", &get_AO_reachable_by_MO_with_offset, py::arg("AO_reachable_by_MO"),
           py::call_guard<py::gil_scoped_release>(),
-          "Get AO reachable by MO with offsets based on the provided AO_reachable_by_MO structure");
+          "Get AO reachable by MO with offsets based on the\n"
+          "provided AO_reachable_by_MO structure");
 
     m.def("extract_unique", &extract_unique, py::arg("exch_reachable"), py::call_guard<py::gil_scoped_release>(),
           "Extract unique reachable AOs from the provided exch_reachable structure");
 
     m.def("transform_integral", &transform_integral, py::arg("int_P_mu_nu"), py::arg("TA"), py::arg("S_abs"),
           py::arg("L_PQ"), py::arg("MO_coeff_epsilon"), py::call_guard<py::gil_scoped_release>(),
-          "Transform the integral using TA, int_P_mu_nu, AO_by_MO, and L_PQ, returning the transformed matrix");
+          "Transform the integral using TA, int_P_mu_nu, AO_by_MO, and L_PQ,\n"
+          "returning the transformed matrix");
 
     m.def("transform_integral_cuda", &transform_integral_cuda, py::arg("int_P_mu_nu"), py::arg("TA"), py::arg("S_abs"),
           py::arg("L_PQ"), py::arg("MO_coeff_epsilon"), py::call_guard<py::gil_scoped_release>(),
-          "Transform the integral using TA, int_P_mu_nu, AO_by_MO, and L_PQ, returning the transformed matrix. This "
-          "uses CUDA for performance.");
+          "Transform the integral using TA, int_P_mu_nu, AO_by_MO, and L_PQ,\n"
+          "returning the transformed matrix.\n"
+          "This uses CUDA for performance.");
 }
