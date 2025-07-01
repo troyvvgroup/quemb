@@ -40,7 +40,7 @@ class BEOPT:
     solver :
        High-level solver in bootstrap embedding. 'MP2', 'CCSD', 'FCI' are supported.
        Selected CI versions,
-       'HCI', 'SHCI', & 'SCI' are also supported. Defaults to 'MP2'
+       'HCI', 'SHCI', & 'SCI' are also supported. Defaults to 'CCSD'
     only_chem :
        Whether to perform chemical potential optimization only.
        Refer to bootstrap embedding literatures.

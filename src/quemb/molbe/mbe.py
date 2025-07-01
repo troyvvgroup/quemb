@@ -671,7 +671,7 @@ class BE(MixinLocalize):
         Parameters
         ----------
         solver :
-            High-level solver for the fragment, by default 'MP2'
+            High-level solver for the fragment, by default "CCSD"
         method :
             Optimization method, by default 'QN'
         only_chem :
