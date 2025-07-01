@@ -902,7 +902,7 @@ class BE(MixinLocalize):
                 )
                 eri = None
             elif int_transform == "sparse-DF-cpp-gpu":
-                from quemb.molbe.eri_sparse_DF import (
+                from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
                     transform_sparse_DF_integral_cpp_gpu,
                 )
 
@@ -930,7 +930,7 @@ class BE(MixinLocalize):
                 )
                 eri = None
             elif int_transform == "sparse-DF-nb-gpu":
-                from quemb.molbe.eri_sparse_DF import (
+                from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
                     transform_sparse_DF_integral_nb_gpu,
                 )
 
