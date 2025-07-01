@@ -16,11 +16,9 @@ from concurrent.futures import ThreadPoolExecutor
 from itertools import chain, takewhile
 from typing import Final, TypeVar, cast
 
-import cupy as cp
 import h5py
 import numpy as np
 from chemcoord import Cartesian
-from cupyx.scipy.linalg import solve_triangular as cupy_solve_triangular
 from numba import float64, int64, prange  # type: ignore[attr-defined]
 from numba.typed import Dict, List
 from numba.types import (  # type: ignore[attr-defined]
@@ -1458,54 +1456,6 @@ def transform_sparse_DF_integral_nb(
             f(fragobj)
 
 
-def transform_sparse_DF_integral_nb_gpu(
-    mf: scf.hf.SCF,
-    Fobjs: Sequence[Frags],
-    auxbasis: str | None,
-    file_eri_handler: h5py.File,
-    AO_coeff_epsilon: float,
-    MO_coeff_epsilon: float,
-    n_threads: int,
-) -> None:
-    mol = mf.mol
-    auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
-
-    S_abs_timer = Timer("Time to compute S_abs")
-    S_abs = calculate_abs_overlap(mol)
-    print(S_abs_timer.str_elapsed())
-
-    exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
-
-    sparse_P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
-    PQ = auxmol.intor("int2c2e")
-    low_triang_PQ_on_gpu = cp.asarray(cholesky(PQ, lower=True))
-
-    def f(fragobj: Frags) -> None:
-        eri = restore(
-            "4",
-            _transform_fragment_integral_on_gpu(
-                sparse_P_mu_nu,
-                fragobj.TA,
-                S_abs,
-                low_triang_PQ_on_gpu,
-                MO_coeff_epsilon,
-            ),
-            fragobj.TA.shape[1],
-        )
-        file_eri_handler.create_dataset(fragobj.dname, data=eri)
-
-    if n_threads > 1:
-        with ThreadPoolExecutor(max_workers=n_threads) as executor:
-            futures = [executor.submit(f, fragobj) for fragobj in Fobjs]
-            # You must call future.result() if you want to catch exceptions
-            # raised during execution. Otherwise, errors may silently fail.
-            for future in futures:
-                future.result()
-    else:
-        for fragobj in Fobjs:
-            f(fragobj)
-
-
 def transform_sparse_DF_integral_cpp(
     mf: scf.hf.SCF,
     Fobjs: Sequence[Frags],
@@ -1680,27 +1630,80 @@ def _eval_via_cholesky(
     return result
 
 
-def _eval_via_cholesky_gpu(
-    pqP: Tensor3D[np.float64],
-    low_triang_PQ_on_gpu: cp.ndarray[np.float64],
-) -> np.ndarray:
-    symmetrised = _account_for_symmetry(pqP)  # should return np.ndarray
-    symmetrised_on_gpu = cp.asarray(symmetrised, dtype=cp.float64)
+try:
+    import cupy as cp
+    from cupyx.scipy.linalg import solve_triangular as cupy_solve_triangular
 
-    # Double-check types if still unsure
-    assert isinstance(symmetrised_on_gpu, cp.ndarray)
-    assert isinstance(low_triang_PQ_on_gpu, cp.ndarray)
+    def transform_sparse_DF_integral_nb_gpu(
+        mf: scf.hf.SCF,
+        Fobjs: Sequence[Frags],
+        auxbasis: str | None,
+        file_eri_handler: h5py.File,
+        AO_coeff_epsilon: float,
+        MO_coeff_epsilon: float,
+        n_threads: int,
+    ) -> None:
+        mol = mf.mol
+        auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
-    bb = cupy_solve_triangular(
-        low_triang_PQ_on_gpu,
-        symmetrised_on_gpu,
-        lower=True,
-        overwrite_b=False,
-        check_finite=False,
-    )
+        S_abs_timer = Timer("Time to compute S_abs")
+        S_abs = calculate_abs_overlap(mol)
+        print(S_abs_timer.str_elapsed())
 
-    result = bb.T @ bb
-    return cp.asnumpy(result)
+        exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
+
+        sparse_P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
+        PQ = auxmol.intor("int2c2e")
+        low_triang_PQ_on_gpu = cp.asarray(cholesky(PQ, lower=True))
+
+        def f(fragobj: Frags) -> None:
+            eri = restore(
+                "4",
+                _transform_fragment_integral_on_gpu(
+                    sparse_P_mu_nu,
+                    fragobj.TA,
+                    S_abs,
+                    low_triang_PQ_on_gpu,
+                    MO_coeff_epsilon,
+                ),
+                fragobj.TA.shape[1],
+            )
+            file_eri_handler.create_dataset(fragobj.dname, data=eri)
+
+        if n_threads > 1:
+            with ThreadPoolExecutor(max_workers=n_threads) as executor:
+                futures = [executor.submit(f, fragobj) for fragobj in Fobjs]
+                # You must call future.result() if you want to catch exceptions
+                # raised during execution. Otherwise, errors may silently fail.
+                for future in futures:
+                    future.result()
+        else:
+            for fragobj in Fobjs:
+                f(fragobj)
+
+    def _eval_via_cholesky_gpu(
+        pqP: Tensor3D[np.float64],
+        low_triang_PQ_on_gpu: cp.ndarray[np.float64],
+    ) -> np.ndarray:
+        symmetrised = _account_for_symmetry(pqP)  # should return np.ndarray
+        symmetrised_on_gpu = cp.asarray(symmetrised, dtype=cp.float64)
+
+        # Double-check types if still unsure
+        assert isinstance(symmetrised_on_gpu, cp.ndarray)
+        assert isinstance(low_triang_PQ_on_gpu, cp.ndarray)
+
+        bb = cupy_solve_triangular(
+            low_triang_PQ_on_gpu,
+            symmetrised_on_gpu,
+            lower=True,
+            overwrite_b=False,
+            check_finite=False,
+        )
+
+        result = bb.T @ bb
+        return cp.asnumpy(result)
+except ImportError:
+    pass
 
 
 _T_ = ListType(_UniTuple_int64_2)
