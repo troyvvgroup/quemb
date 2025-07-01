@@ -112,6 +112,7 @@ class SemiSparseSym3DTensor
                 _offsets[ravel_symmetric(mu, nu)] = counter++;
             }
         }
+        _offsets = rebuild_unordered_map(_offsets);
 
         // Initialize exch_reachable_with_offsets
         _exch_reachable_with_offsets.resize(_exch_reachable.size());
@@ -220,6 +221,7 @@ class SemiSparse3DTensor
             }
             _AO_reachable_by_MO_with_offsets[i_MO] = std::move(pairs);
         }
+        _offsets = rebuild_unordered_map(_offsets);
     }
 
     const auto &exch_reachable() const
