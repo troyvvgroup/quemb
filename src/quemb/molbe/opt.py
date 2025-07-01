@@ -65,7 +65,7 @@ class BEOPT:
     Nocc: int
     enuc: float
     scratch_dir: WorkDir
-    solver: Solvers = "MP2"
+    solver: Solvers = "CCSD"
     nproc: int = 1
     ompnum: int = 4
     only_chem: bool = False

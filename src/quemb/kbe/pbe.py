@@ -282,7 +282,7 @@ class BE(Mixin_k_Localize):
 
     def optimize(
         self,
-        solver: Solvers = "MP2",
+        solver: Solvers = "CCSD",
         method: str = "QN",
         only_chem: bool = False,
         use_cumulant: bool = True,
@@ -631,7 +631,7 @@ class BE(Mixin_k_Localize):
 
     def oneshot(
         self,
-        solver: Solvers = "MP2",
+        solver: Solvers = "CCSD",
         use_cumulant: bool = True,
         nproc: int = 1,
         ompnum: int = 4,

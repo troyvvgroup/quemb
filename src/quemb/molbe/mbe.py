@@ -651,7 +651,7 @@ class BE(MixinLocalize):
 
     def optimize(
         self,
-        solver: Solvers = "MP2",
+        solver: Solvers = "CCSD",
         method: str = "QN",
         only_chem: bool = False,
         use_cumulant: bool = True,
@@ -926,7 +926,7 @@ class BE(MixinLocalize):
 
     def oneshot(
         self,
-        solver: Solvers = "MP2",
+        solver: Solvers = "CCSD",
         use_cumulant: bool = True,
         nproc: int = 1,
         ompnum: int = 4,
@@ -938,7 +938,7 @@ class BE(MixinLocalize):
         Parameters
         ----------
         solver :
-            High-level quantum chemistry method, by default 'MP2'. 'CCSD', 'FCI',
+            High-level quantum chemistry method, by default 'CCSD'. 'CCSD', 'FCI',
             and variants of selected CI are supported.
         use_cumulant :
             Whether to use the cumulant energy expression, by default True.
