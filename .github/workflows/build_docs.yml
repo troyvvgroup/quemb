@@ -32,6 +32,9 @@ jobs:
         pip install --upgrade --upgrade-strategy eager -r docs/requirements.txt
         pip install .
 
+    - name: Check if quemb imports
+      run: python -c "import quemb; print('quemb imported successfully')"
+
     - name: Test building docs & Archive the results
       run: |
         cd docs
