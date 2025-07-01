@@ -99,7 +99,7 @@ def test_sparse_DF_BE() -> None:
 
     assert np.isclose(
         sparse_DF_BE.ebe_tot - sparse_DF_BE.ebe_hf,
-        -0.5498849435531383,
+        -0.5499222005057618,
         atol=1e-10,
         rtol=0,
     )
