@@ -351,6 +351,7 @@ SemiSparse3DTensor contract_with_TA_1st(const Matrix &TA, const SemiSparseSym3DT
             offsets[ravel_Fortran(mu, i, nao)] = offset;
         }
     }
+    offsets = rebuild_unordered_map(offsets);
 #pragma omp parallel for
     for (OrbitalIdx i = 0; i < nmo; ++i) {
         for (const auto &[offset, mu] : AO_by_MO_with_offsets[i]) {
