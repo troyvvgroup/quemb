@@ -45,7 +45,7 @@ jobs:
     - name: Install dependencies
       run: |
         pip install -r tests/static_analysis_requirements.txt
-        pip install . --config-settings=cmake.args=-DCMAKE_BUILD_TYPE=Debug
+        pip install . --config-settings=cmake.args=-DCMAKE_BUILD_TYPE=RelWithDebInfo
 
 
     - name: Check formatting

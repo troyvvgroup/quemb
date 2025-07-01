@@ -63,6 +63,30 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
         -fsanitize=undefined
         -fno-omit-frame-pointer
     )
+elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+    target_compile_options(eri_sparse_DF PRIVATE
+        -g
+
+        # Warnings
+        -Wall
+        -Wextra
+        -Wpedantic
+        -Wshadow
+        -Wnon-virtual-dtor
+        -Wold-style-cast
+        -Wcast-align
+        -Wunused
+        -Woverloaded-virtual
+        -Wconversion
+        -Wno-sign-conversion
+        -Wnull-dereference
+        -Wdouble-promotion
+        -Wformat=2
+        -Wimplicit-fallthrough
+
+        -Werror
+    )
+
 endif()
 
 install(TARGETS eri_sparse_DF
