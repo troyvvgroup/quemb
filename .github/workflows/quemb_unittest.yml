@@ -45,7 +45,7 @@ jobs:
     - name: Install dependencies
       run: |
         pip install -r tests/static_analysis_requirements.txt
-        pip install .
+        pip install . --config-settings=cmake.args=-DCMAKE_BUILD_TYPE=Debug
 
 
     - name: Check formatting
@@ -93,7 +93,7 @@ jobs:
         PYSCFHOME=$(pip show pyscf-dmrgscf | grep 'Location' | tr ' ' '\n' | tail -n 1)
         wget https://raw.githubusercontent.com/pyscf/dmrgscf/master/pyscf/dmrgscf/settings.py.example
         mv settings.py.example ${PYSCFHOME}/pyscf/dmrgscf/settings.py
-        pip install .
+        pip install . --config-settings=cmake.args=-DCMAKE_BUILD_TYPE=Debug
 
 
     - name: Test with pytest
