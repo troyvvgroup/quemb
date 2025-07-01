@@ -1587,18 +1587,6 @@ def _transform_fragment_integral(
     )
 
 
-def _transform_fragment_integral_on_gpu(
-    sparse_ints_3c2e: SemiSparseSym3DTensor,
-    TA: Matrix[np.float64],
-    S_abs: Matrix[np.float64],
-    low_triang_PQ_on_gpu: cp.ndarray[np.float64],
-    MO_coeff_epsilon: float,
-) -> Matrix[np.float64]:
-    return _eval_via_cholesky_gpu(
-        _get_P_ij(sparse_ints_3c2e, TA, S_abs, MO_coeff_epsilon), low_triang_PQ_on_gpu
-    )
-
-
 @njit(nogil=True, parallel=True)
 def _account_for_symmetry(pqP: Tensor3D[np.float64]) -> Matrix[np.float64]:
     """(n_orb, n_orb | n_aux) -> (n_aux | sym n_orb pairs)"""
@@ -1631,8 +1619,22 @@ def _eval_via_cholesky(
 
 
 try:
-    import cupy as cp
-    from cupyx.scipy.linalg import solve_triangular as cupy_solve_triangular
+    import cupy as cp  # type: ignore
+    from cupyx.scipy.linalg import (
+        solve_triangular as cupy_solve_triangular,  # type: ignore
+    )
+
+    def _transform_fragment_integral_on_gpu(
+        sparse_ints_3c2e: SemiSparseSym3DTensor,
+        TA: Matrix[np.float64],
+        S_abs: Matrix[np.float64],
+        low_triang_PQ_on_gpu: cp.ndarray[np.float64],
+        MO_coeff_epsilon: float,
+    ) -> Matrix[np.float64]:
+        return _eval_via_cholesky_gpu(
+            _get_P_ij(sparse_ints_3c2e, TA, S_abs, MO_coeff_epsilon),
+            low_triang_PQ_on_gpu,
+        )
 
     def transform_sparse_DF_integral_nb_gpu(
         mf: scf.hf.SCF,
