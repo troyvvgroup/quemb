@@ -16,9 +16,7 @@ from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
 from quemb.molbe.eri_sparse_DF import (
     transform_sparse_DF_integral_cpp,
-    transform_sparse_DF_integral_cpp_gpu,
     transform_sparse_DF_integral_nb,
-    transform_sparse_DF_integral_nb_gpu,
 )
 from quemb.molbe.fragment import FragPart
 from quemb.molbe.lo import MixinLocalize
@@ -904,6 +902,10 @@ class BE(MixinLocalize):
                 )
                 eri = None
             elif int_transform == "sparse-DF-cpp-gpu":
+                from quemb.molbe.eri_sparse_DF import (
+                    transform_sparse_DF_integral_cpp_gpu,
+                )
+
                 ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
                 transform_sparse_DF_integral_cpp_gpu(
                     self.mf,
@@ -928,6 +930,10 @@ class BE(MixinLocalize):
                 )
                 eri = None
             elif int_transform == "sparse-DF-nb-gpu":
+                from quemb.molbe.eri_sparse_DF import (
+                    transform_sparse_DF_integral_nb_gpu,
+                )
+
                 ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
                 transform_sparse_DF_integral_nb_gpu(
                     self.mf,
