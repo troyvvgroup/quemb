@@ -1422,7 +1422,9 @@ def transform_sparse_DF_integral_nb(
 
     S_abs_timer = Timer("Time to compute S_abs")
     S_abs = calculate_abs_overlap(mol)
-    print(S_abs_timer.str_elapsed())
+
+    if settings.PRINT_LEVEL >= 10:
+        print(S_abs_timer.str_elapsed())
 
     exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
 
@@ -1465,6 +1467,7 @@ def transform_sparse_DF_integral_cpp(
     MO_coeff_epsilon: float,
     n_threads: int,
 ) -> None:
+    cpp_transforms.PRINT_LEVEL = settings.PRINT_LEVEL
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
@@ -1518,6 +1521,7 @@ def transform_sparse_DF_integral_cpp_gpu(
     MO_coeff_epsilon: float,
     n_threads: int,
 ) -> None:
+    cpp_transforms.PRINT_LEVEL = settings.PRINT_LEVEL
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 

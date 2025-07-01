@@ -16,6 +16,8 @@ using OrbitalIdx = Eigen::Index;
 using Matrix = Eigen::MatrixXd;
 using Tensor3D = Eigen::Tensor<double, 3, Eigen::ColMajor>;
 
+inline int PRINT_LEVEL = 0;
+
 // Utility: constrain to integral types and cast to int_t
 template <typename T> constexpr int_t to_int_t(const T value) noexcept
 {
@@ -141,8 +143,10 @@ class Timer
 
     ~Timer()
     {
-        const auto duration = elapsed_ms();
-        std::cout << "[TIMER] " << _name << " finished in " << duration << " ms\n";
+        if (PRINT_LEVEL > 5) {
+            const auto duration = elapsed_ms();
+            std::cout << "[TIMER] " << _name << " finished in " << duration << " ms\n";
+        };
     }
 
     void print(const std::string &message = "Checkpoint") const
@@ -165,7 +169,6 @@ class Timer
 
 #define PROFILE_FUNCTION() Timer timer(__func__)
 #define PROFILE_SCOPE() Timer timer(std::string(__FILE__) + ":" + std::to_string(__LINE__) + " in " + __func__)
-
 
 // Rebuilds an unordered_map to improve lookup performance by reducing collisions
 // and improving memory layout. This is useful if the original map grew inefficiently.

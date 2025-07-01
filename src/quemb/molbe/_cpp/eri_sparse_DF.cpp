@@ -330,13 +330,15 @@ SemiSparse3DTensor contract_with_TA_1st(const Matrix &TA, const SemiSparseSym3DT
         n_unique += offsets.size();
     }
 
-    std::cout << "(P | mu i) [MEMORY] sparse "
-              << static_cast<double>(naux * n_unique * sizeof(double)) / std::pow(2, 30) << " GB" << "\n";
-    std::cout << "(P | mu i) [MEMORY] dense "
-              << static_cast<double>(naux * nao * nmo * sizeof(double)) / std::pow(2, 30) << " GB" << "\n";
-    std::cout << "(P | mu i) [MEMORY] sparsity "
-              << (1. - static_cast<double>(n_unique) / static_cast<double>(nao * nmo)) * 100. << " %"
-              << "\n";
+    if (PRINT_LEVEL > 10) {
+        std::cout << "(P | mu i) [MEMORY] sparse "
+                  << static_cast<double>(naux * n_unique * sizeof(double)) / std::pow(2, 30) << " GB" << "\n";
+        std::cout << "(P | mu i) [MEMORY] dense "
+                  << static_cast<double>(naux * nao * nmo * sizeof(double)) / std::pow(2, 30) << " GB" << "\n";
+        std::cout << "(P | mu i) [MEMORY] sparsity "
+                  << (1. - static_cast<double>(n_unique) / static_cast<double>(nao * nmo)) * 100. << " %"
+                  << "\n";
+    };
 
     Matrix g_unique = Matrix::Zero(naux, n_unique);
     std::unordered_map<std::size_t, std::size_t> offsets;
@@ -420,7 +422,9 @@ Matrix eval_via_cholesky(const Matrix &sym_P_pq, const Matrix &L_PQ) noexcept
     Timer cholesky_timer{"eval_via_cholesky"};
     // Step 1: Solve L * X = sym_P_pq  →  X = L⁻¹ sym_P_pq
     const Matrix X = L_PQ.triangularView<Eigen::Lower>().solve(sym_P_pq);
-    cholesky_timer.print("triangular solve completed");
+    if (PRINT_LEVEL > 10) {
+        cholesky_timer.print("triangular solve completed");
+    };
     // Step 2: Return Xᵀ X
     return X.transpose() * X;
 }
@@ -428,7 +432,7 @@ Matrix eval_via_cholesky(const Matrix &sym_P_pq, const Matrix &L_PQ) noexcept
 #ifdef USE_CUDA
 Matrix eval_via_cholesky_cuda(const Matrix &sym_P_pq, const GPU_MatrixHandle &L_PQ)
 {
-    const int n_aux  = static_cast<int>(L_PQ.rows());
+    const int n_aux = static_cast<int>(L_PQ.rows());
     const int n_sym_pairs = static_cast<int>(sym_P_pq.cols());
 
     const size_t bytes_sym_P_pq = sizeof(double) * sym_P_pq.size();
@@ -510,8 +514,10 @@ Matrix transform_integral(const SemiSparseSym3DTensor &int_P_mu_nu, const Matrix
 PYBIND11_MODULE(eri_sparse_DF, m)
 {
     m.doc() = "Perform the sparse DF ERI transformation using semi-sparse tensors.\n\n"
-              "This module provides functionality to transform ERIs using semi-sparse tensors "
+              "This module provides functionality to transform ERIs using semi-sparse tensors\n"
               "and optionally CUDA for GPU acceleration.";
+
+    m.attr("PRINT_LEVEL") = py::cast(&PRINT_LEVEL, py::return_value_policy::reference);
 
 #ifdef USE_CUDA
     py::class_<GPU_MatrixHandle>(m, "GPU_MatrixHandle")

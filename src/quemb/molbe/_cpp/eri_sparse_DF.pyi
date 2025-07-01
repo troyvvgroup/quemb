@@ -1,5 +1,8 @@
 """
-Minimal pybind11 + Eigen example
+Perform the sparse DF ERI transformation using semi-sparse tensors.
+
+This module provides functionality to transform ERIs using semi-sparse tensors
+and optionally CUDA for GPU acceleration.
 """
 
 from __future__ import annotations
@@ -10,6 +13,7 @@ import numpy
 
 __all__ = [
     "GPU_MatrixHandle",
+    "PRINT_LEVEL",
     "SemiSparse3DTensor",
     "SemiSparseSym3DTensor",
     "contract_with_TA_1st",
@@ -160,3 +164,5 @@ def transform_integral_cuda(
     returning the transformed matrix.
     This uses CUDA for performance.
     """
+
+PRINT_LEVEL: int = 0
