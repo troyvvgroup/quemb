@@ -237,10 +237,10 @@ class BondConnectivity:
                     modify_atom_data=modify_atom_data,
                     modify_element_data=(lambda r: np.maximum(0.55, 1.2 * r))
                     if vdW_radius is None
-                    else vdW_radius
+                    else vdW_radius,
                 ).items()
             }
-        
+
         if treat_H_different:
             motifs = OrderedSet(m.loc[m.atom != "H", :].index)
         else:
@@ -266,7 +266,7 @@ class BondConnectivity:
                     if i_H_atoms & j_H_atoms:
                         return True
             return False
-        
+
         def identify_share_H() -> set[AtomIdx]:
             """Identify all hydrogens that are shared between motifs."""
             return {
@@ -416,27 +416,33 @@ class BondConnectivity:
             atom=[
                 (element, (coords + offset).tolist())
                 for offset in offsets
-                for element, coords in zip(
-                    cell.elements, cell.atom_coords(unit="Bohr")
-                )
+                for element, coords in zip(cell.elements, cell.atom_coords(unit="Bohr"))
             ],
             basis=cell.basis,
             unit="bohr",
         )
         # Reuse molecular code with periodic copies
         # These inputs should be duplicated with periodic copies.
-        modify_atom_data = {
-            idx + offset_idx * cell.natm: radius
-            for offset_idx, offset in enumerate(offsets)
-            for idx, radius in modify_atom_data.items()
-        } if modify_atom_data is not None else None
-        bonds_atoms = {
-            idx + offset_idx * cell.natm: OrderedSet(
-                j + offset_idx * cell.natm for j in connected
-            )
-            for offset_idx, offset in enumerate(offsets)
-            for idx, connected in bonds_atoms.items()
-        } if bonds_atoms is not None else None
+        modify_atom_data = (
+            {
+                idx + offset_idx * cell.natm: radius
+                for offset_idx, offset in enumerate(offsets)
+                for idx, radius in modify_atom_data.items()
+            }
+            if modify_atom_data is not None
+            else None
+        )
+        bonds_atoms = (
+            {
+                idx + offset_idx * cell.natm: OrderedSet(
+                    j + offset_idx * cell.natm for j in connected
+                )
+                for offset_idx, offset in enumerate(offsets)
+                for idx, connected in bonds_atoms.items()
+            }
+            if bonds_atoms is not None
+            else None
+        )
         supercell_connectivity = cls.from_cartesian(
             Cartesian.from_pyscf(supercell_mol),
             bonds_atoms=bonds_atoms,
