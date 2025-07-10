@@ -26,7 +26,7 @@ from numba.types import (  # type: ignore[attr-defined]
     ListType,
     UniTuple,
 )
-from pyscf import df, dft, gto, scf
+from pyscf import df, gto, scf
 from pyscf.ao2mo.addons import restore
 from pyscf.df.addons import make_auxmol
 from pyscf.gto import Mole
@@ -34,6 +34,7 @@ from pyscf.gto.moleintor import getints
 from pyscf.lib import einsum
 from scipy.linalg import cholesky, solve, solve_triangular
 from scipy.optimize import bisect
+from scipy.special import roots_hermite
 
 import quemb.molbe._cpp.eri_sparse_DF as cpp_transforms  # type: ignore[import-not-found]
 from quemb.molbe.chemfrag import (
@@ -43,11 +44,13 @@ from quemb.molbe.pfrag import Frags
 from quemb.shared.config import settings
 from quemb.shared.helper import (
     Timer,
+    gauss_sum,
     jitclass,
     n_symmetric,
     njit,
     ravel_Fortran,
     ravel_symmetric,
+    unravel_symmetric,
 )
 from quemb.shared.numba_helpers import (
     PreIncr,
@@ -1715,22 +1718,122 @@ except ImportError:
 _T_ = ListType(_UniTuple_int64_2)
 
 
-def calculate_abs_overlap(mol: Mole, grid_level: int = 2) -> Matrix[np.float64]:
-    r"""
-    Calculates the overlap matrix :math:`S_ij = \int |phi_i(r)| |phi_j(r)| dr`
-    using numerical integration on a DFT grid.
+@njit(cache=True, fastmath=True, nogil=True)
+def _primitive_overlap(
+    li, lj, ai, aj, ci, cj, Ra, Rb, roots, weights
+) -> Matrix[np.float64]:
+    norm_fac = ci * cj
+    # Unconventional normalization for Cartesian functions in PySCF
+    if li <= 1:
+        norm_fac *= ((2 * li + 1) / (4 * np.pi)) ** 0.5
+    if lj <= 1:
+        norm_fac *= ((2 * lj + 1) / (4 * np.pi)) ** 0.5
 
-    Parameters
-    -----------
-        mol :
-    """
-    grids = dft.gen_grid.Grids(mol)
-    grids.level = grid_level
-    grids.build()
-    AO_abs_val = np.abs(dft.numint.eval_ao(mol, grids.coords, deriv=0))
-    result = (AO_abs_val * grids.weights[:, np.newaxis]).T @ AO_abs_val
-    assert np.allclose(result, result.T)
-    return result
+    aij = ai + aj
+    Rab = Ra - Rb
+    Rp = (ai * Ra + aj * Rb) / aij
+    theta_ij = ai * aj / aij
+    scale = 1.0 / np.sqrt(aij)
+    norm_fac *= scale**3 * np.exp(-theta_ij * (Rab @ Rab))
+
+    nroots = len(weights)
+    x = roots * scale + Rp[:, None]
+    xa = x - Ra[:, None]
+    xb = x - Rb[:, None]
+
+    mu = np.empty((li + 1, 3, nroots))
+    nu = np.empty((lj + 1, 3, nroots))
+    mu[0, :, :] = 1.0
+    nu[0, :, :] = 1.0
+
+    for d in range(3):
+        for p in range(1, li + 1):
+            mu[p, d, :] = mu[p - 1, d, :] * xa[d, :]
+        for p in range(1, lj + 1):
+            nu[p, d, :] = nu[p - 1, d, :] * xb[d, :]
+
+    nfi = (li + 1) * (li + 2) // 2
+    nfj = (lj + 1) * (lj + 2) // 2
+    s = np.empty((nfi, nfj))
+
+    i = 0
+    for ix in range(li, -1, -1):
+        for iy in range(li - ix, -1, -1):
+            iz = li - ix - iy
+            j = 0
+            for jx in range(lj, -1, -1):
+                for jy in range(lj - jx, -1, -1):
+                    jz = lj - jx - jy
+
+                    Ix = 0.0
+                    Iy = 0.0
+                    Iz = 0.0
+                    for n in range(nroots):
+                        w = weights[n]
+                        Ix += abs(mu[ix, 0, n] * nu[jx, 0, n] * w)
+                        Iy += abs(mu[iy, 1, n] * nu[jy, 1, n] * w)
+                        Iz += abs(mu[iz, 2, n] * nu[jz, 2, n] * w)
+
+                    s[i, j] = Ix * Iy * Iz * norm_fac
+                    j += 1
+            i += 1
+    return s
+
+
+@njit(nogil=True, cache=True, parallel=True)
+def _primitive_overlap_matrix(
+    ls, exps, norm_coef, bas_coords, roots, weights
+) -> Matrix[np.float64]:
+    nbas = len(ls)
+    dims = [(l + 1) * (l + 2) // 2 for l in ls]
+    nao = sum(dims)
+    smat = np.zeros((nao, nao))
+
+    npairs = gauss_sum(nbas)
+
+    for idx in prange(npairs):
+        i, j = unravel_symmetric(idx)
+
+        i0 = sum(dims[:i])
+        j0 = sum(dims[:j])
+        ni = dims[i]
+        nj = dims[j]
+
+        s = _primitive_overlap(
+            ls[i],
+            ls[j],
+            exps[i],
+            exps[j],
+            norm_coef[i],
+            norm_coef[j],
+            bas_coords[i],
+            bas_coords[j],
+            roots,
+            weights,
+        )
+        smat[i0 : i0 + ni, j0 : j0 + nj] = s
+        if i != j:
+            smat[j0 : j0 + nj, i0 : i0 + ni] = s.T
+
+    return smat
+
+
+def calculate_abs_overlap(mol: Mole, nroots: int = 500) -> Matrix[np.float64]:
+    assert mol.cart
+    # Integrals are computed using primitive GTOs. ctr_mat transforms the
+    # primitive GTOs to the contracted GTOs.
+    pmol, ctr_mat = mol.decontract_basis(aggregate=True)
+    # Angular momentum for each shell
+    ls = np.array([pmol.bas_angular(i) for i in range(pmol.nbas)])
+    # need to access only one exponent for primitive gaussians
+    exps = np.array([pmol.bas_exp(i)[0] for i in range(pmol.nbas)])
+    # Normalization coefficients
+    norm_coef = gto.gto_norm(ls, exps)
+    # Position for each shell
+    bas_coords = np.array([pmol.bas_coord(i) for i in range(pmol.nbas)])
+    r, w = roots_hermite(nroots)
+    s = _primitive_overlap_matrix(ls, exps, norm_coef, bas_coords, r, w)
+    return ctr_mat.T @ s @ ctr_mat
 
 
 def identify_contiguous_blocks(X: Sequence[_T]) -> list[tuple[int, int]]:
