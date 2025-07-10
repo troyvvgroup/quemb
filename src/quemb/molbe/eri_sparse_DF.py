@@ -92,7 +92,7 @@ def _aux_e2(  # type: ignore[no-untyped-def]
     Fixes a bug in the original implementation :func:`pyscf.df.incore.aux_e2`
     that does not accept all valid slices.
     Replace with the original, as soon as https://github.com/pyscf/pyscf/pull/2734
-    is in the stable release.
+    is merged in the stable release.
     """
     if isinstance(auxmol_or_auxbasis, gto.MoleBase):
         auxmol = auxmol_or_auxbasis
