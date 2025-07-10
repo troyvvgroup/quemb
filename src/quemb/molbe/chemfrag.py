@@ -434,7 +434,7 @@ class BondConnectivity:
         )
         bonds_atoms = (
             {
-                idx + offset_idx * cell.natm: OrderedSet(
+                idx + offset_idx * cell.natm: set(
                     j + offset_idx * cell.natm for j in connected
                 )
                 for offset_idx, offset in enumerate(offsets)
