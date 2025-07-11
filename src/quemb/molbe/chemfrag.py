@@ -42,7 +42,7 @@ from typing_extensions import Self
 
 from quemb.molbe.autofrag import FragPart
 from quemb.molbe.helper import are_equal, get_core
-from quemb.shared.helper import unused
+from quemb.shared.helper import union_of_seqs, unused
 from quemb.shared.typing import (
     AOIdx,
     AtomIdx,
@@ -74,21 +74,6 @@ from quemb.shared.typing import (
 # However, this is (currently) not possible in Python, see this issue:
 # https://github.com/python/mypy/issues/3331
 # For now just stick to ``Sequence``.
-
-
-def union_of_seqs(*seqs: Sequence[T]) -> OrderedSet[T]:
-    """Merge multiple sequences into a single :class:`OrderedSet`.
-
-    This preserves the order of the elements in each sequence,
-    and of the arguments to this function, but removes duplicates.
-    (Always the first occurrence of an element is kept.)
-
-    .. code-block:: python
-
-        merge_seq([1, 2], [2, 3], [1, 4]) -> OrderedSet([1, 2, 3, 4])
-    """
-    # mypy wrongly complains that the arg type is not valid, which it is.
-    return OrderedSet().union(*seqs)  # type: ignore[arg-type]
 
 
 def _iloc(view: Iterable[T], n: int) -> T:
@@ -237,7 +222,7 @@ class BondConnectivity:
                     modify_atom_data=modify_atom_data,
                     modify_element_data=(lambda r: np.maximum(0.55, 1.2 * r))
                     if vdW_radius is None
-                    else vdW_radius,
+                    else vdW_radius
                 ).items()
             }
 
