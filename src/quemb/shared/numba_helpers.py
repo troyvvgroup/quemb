@@ -29,7 +29,7 @@ def to_numba_dict(py_dict: Mapping[Key, Val]) -> Dict[Key, Val]:
     return numba_dict
 
 
-@njit
+@njit(nogil=True)
 def extend_with(D_1: Dict, D_2: Dict) -> None:
     """Extend dictionary with values from :python:`D_2`
 
@@ -44,7 +44,7 @@ def extend_with(D_1: Dict, D_2: Dict) -> None:
         D_1[k] = v
 
 
-@njit
+@njit(nogil=True)
 def merge_dictionaries(dictionaries: Sequence[Dict]) -> Dict:
     """Merge a sequence of numba dictionaries
 

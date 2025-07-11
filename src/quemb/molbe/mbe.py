@@ -14,12 +14,15 @@ from typing_extensions import assert_never
 
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
-from quemb.molbe.eri_sparse_DF import transform_sparse_DF_integral
+from quemb.molbe.eri_sparse_DF import (
+    transform_sparse_DF_integral_cpp,
+    transform_sparse_DF_integral_nb,
+)
 from quemb.molbe.fragment import FragPart
 from quemb.molbe.lo import MixinLocalize
 from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
 from quemb.molbe.opt import BEOPT
-from quemb.molbe.pfrag import Frags
+from quemb.molbe.pfrag import Frags, union_of_frag_MOs_and_index
 from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.config import settings
 from quemb.shared.external.optqn import (
@@ -30,7 +33,13 @@ from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix, PathLike
 
 IntTransforms: TypeAlias = Literal[
-    "in-core", "out-core-DF", "int-direct-DF", "sparse-DF"
+    "in-core",
+    "out-core-DF",
+    "int-direct-DF",
+    "sparse-DF-cpp",  # screen AOs and MOs via S_abs
+    "sparse-DF-nb",  # screen AOs and MOs via S_abs and use jitted numba
+    "sparse-DF-cpp-gpu",  # screen AOs and MOs via S_abs
+    "sparse-DF-nb-gpu",  # screen AOs and MOs via S_abs and use jitted numba
 ]
 
 
@@ -91,6 +100,9 @@ class BE(MixinLocalize):
         scratch_dir: WorkDir | None = None,
         int_transform: IntTransforms = "in-core",
         auxbasis: str | None = None,
+        MO_coeff_epsilon: float = 1e-4,
+        AO_coeff_epsilon: float = 1e-10,
+        int_n_threads: int = 1,
     ) -> None:
         r"""
         Constructor for BE object.
@@ -163,6 +175,10 @@ class BE(MixinLocalize):
             self.P_core = store_.P_core
             self.core_veff = store_.core_veff
             self.mo_energy = store_.mo_energy
+
+        self.MO_coeff_epsilon = MO_coeff_epsilon
+        self.AO_coeff_epsilon = AO_coeff_epsilon
+        self.int_n_threads = int_n_threads
 
         self.unrestricted = False
         self.nproc = nproc
@@ -835,7 +851,13 @@ class BE(MixinLocalize):
 
             self.Fobjs.append(fobjs_)
 
-        eritransform_timer = Timer("Time to transform ERIs")
+        self.all_fragment_MO_TA, frag_TA_index_per_frag = union_of_frag_MOs_and_index(
+            self.Fobjs, self.mf.mol.intor("int1e_ovlp"), epsilon=1e-10
+        )
+        for fobj, frag_TA_offset in zip(self.Fobjs, frag_TA_index_per_frag):
+            fobj.frag_TA_offset = frag_TA_offset
+
+        eritransform_timer = Timer(f"Time to transform ERIs ({int_transform})")
 
         if not restart:
             # Transform ERIs for each fragment and store in the file
@@ -867,13 +889,60 @@ class BE(MixinLocalize):
                     self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis
                 )
                 eri = None
-            elif int_transform == "sparse-DF":
-                # Calculate ERIs on-the-fly to generate fragment ERIs
-                # TODO: Future feature to be implemented
-                # NOTE: Ideally, we want AO shell pair screening for this.
+            elif int_transform == "sparse-DF-cpp":
                 ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-                transform_sparse_DF_integral(
-                    self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis
+                transform_sparse_DF_integral_cpp(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    file_eri_handler=file_eri,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.int_n_threads,
+                )
+                eri = None
+            elif int_transform == "sparse-DF-cpp-gpu":
+                from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
+                    transform_sparse_DF_integral_cpp_gpu,
+                )
+
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                transform_sparse_DF_integral_cpp_gpu(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    file_eri_handler=file_eri,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.int_n_threads,
+                )
+                eri = None
+            elif int_transform == "sparse-DF-nb":
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                transform_sparse_DF_integral_nb(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    file_eri_handler=file_eri,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.int_n_threads,
+                )
+                eri = None
+            elif int_transform == "sparse-DF-nb-gpu":
+                from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
+                    transform_sparse_DF_integral_nb_gpu,
+                )
+
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                transform_sparse_DF_integral_nb_gpu(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    file_eri_handler=file_eri,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.int_n_threads,
                 )
                 eri = None
             else:
