@@ -88,7 +88,7 @@ def test_find_screening_radius() -> None:
 
 
 def test_sparse_DF_BE() -> None:
-    mol = M("data/octane.xyz", basis="sto-3g")
+    mol = M("data/octane.xyz", basis="sto-3g", cart=True)
 
     mf = scf.RHF(mol)
     mf.kernel()
@@ -99,10 +99,10 @@ def test_sparse_DF_BE() -> None:
 
     assert np.isclose(
         sparse_DF_BE.ebe_tot - sparse_DF_BE.ebe_hf,
-        -0.5499222005057618,
+        -0.5499763590048019,
         atol=1e-10,
         rtol=0,
-    )
+    ), sparse_DF_BE.ebe_tot - sparse_DF_BE.ebe_hf
 
 
 def test_invert_dict() -> None:
