@@ -222,7 +222,7 @@ class BondConnectivity:
                     modify_atom_data=modify_atom_data,
                     modify_element_data=(lambda r: np.maximum(0.55, 1.2 * r))
                     if vdW_radius is None
-                    else vdW_radius
+                    else vdW_radius,
                 ).items()
             }
 
