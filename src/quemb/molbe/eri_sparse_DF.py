@@ -1791,7 +1791,7 @@ def _primitive_overlap_matrix(
 
     npairs = gauss_sum(nbas)
 
-    for idx in prange(npairs):
+    for idx in prange(npairs):  # type: ignore[attr-defined]
         i, j = unravel_symmetric(idx)
 
         i0 = sum(dims[:i])
