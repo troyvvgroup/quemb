@@ -1718,7 +1718,7 @@ except ImportError:
 _T_ = ListType(_UniTuple_int64_2)
 
 
-@njit(cache=True, fastmath=True, nogil=True)
+@njit(fastmath=True, nogil=True)
 def _primitive_overlap(
     li, lj, ai, aj, ci, cj, Ra, Rb, roots, weights
 ) -> Matrix[np.float64]:
@@ -1780,7 +1780,7 @@ def _primitive_overlap(
     return s
 
 
-@njit(nogil=True, cache=True, parallel=True)
+@njit(nogil=True, parallel=True)
 def _primitive_overlap_matrix(
     ls, exps, norm_coef, bas_coords, roots, weights
 ) -> Matrix[np.float64]:
