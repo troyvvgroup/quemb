@@ -7,10 +7,11 @@ from time import time
 from typing import Any, TypeVar, overload
 
 import numba as nb
+import numpy as np
 from attr import define, field
 from ordered_set import OrderedSet
 
-from quemb.shared.typing import Integral, T
+from quemb.shared.typing import Integral, Matrix, T
 
 _Function = TypeVar("_Function", bound=Callable)
 _T_Integral = TypeVar("_T_Integral", bound=Integral)
@@ -123,6 +124,12 @@ class Timer:
     message: str = "Elapsed time"
     start: float = field(init=False, factory=time)
 
+    def __attrs_post_init__(self) -> None:
+        from quemb.shared.config import settings  # noqa: PLC0415
+
+        if settings.PRINT_LEVEL >= 10:
+            print(f"Timer with message '{self.message}' started.", flush=True)
+
     def elapsed(self) -> float:
         return time() - self.start
 
@@ -131,13 +138,13 @@ class Timer:
 
 
 @overload
-def njit(f: _Function) -> _Function: ...
+def njit(f: _Function, *, nogil: bool) -> _Function: ...
 @overload
-def njit(**kwargs: Any) -> Callable[[_Function], _Function]: ...
+def njit(*, nogil: bool, **kwargs: Any) -> Callable[[_Function], _Function]: ...
 
 
 def njit(
-    f: _Function | None = None, **kwargs: Any
+    f: _Function | None = None, *, nogil: bool, **kwargs: Any
 ) -> _Function | Callable[[_Function], _Function]:
     """Type-safe jit wrapper that caches the compiled function
 
@@ -159,9 +166,9 @@ def njit(
     In addition to type safety, this wrapper also sets :code:`cache=True` by default.
     """
     if f is None:
-        return nb.njit(cache=True, **kwargs)
+        return nb.njit(cache=True, nogil=nogil, **kwargs)
     else:
-        return nb.njit(f, cache=True, **kwargs)
+        return nb.njit(f, cache=True, nogil=nogil, **kwargs)
 
 
 @overload
@@ -188,7 +195,7 @@ def jitclass(
     return nb.experimental.jitclass(cls_or_spec, spec)
 
 
-@njit
+@njit(nogil=True)
 def gauss_sum(n: _T_Integral) -> _T_Integral:
     r"""Return the sum :math:`\sum_{i=1}^n i`
 
@@ -199,7 +206,7 @@ def gauss_sum(n: _T_Integral) -> _T_Integral:
     return (n * (n + 1)) // 2  # type: ignore[return-value]
 
 
-@njit
+@njit(nogil=True)
 def ravel_symmetric(a: _T_Integral, b: _T_Integral) -> _T_Integral:
     """Flatten the index a, b assuming symmetry.
 
@@ -218,7 +225,46 @@ def ravel_symmetric(a: _T_Integral, b: _T_Integral) -> _T_Integral:
     return gauss_sum(a) + b if a > b else gauss_sum(b) + a  # type: ignore[return-value,operator]
 
 
-@njit
+@njit(nogil=True)
+def n_symmetric(n: _T_Integral) -> _T_Integral:
+    "The number if symmetry-equivalent pairs i <= j, for i <= n and j <= n"
+    return ravel_symmetric(n - 1, n - 1) + 1  # type: ignore[return-value]
+
+
+@njit(nogil=True)
+def unravel_symmetric(i: Integral) -> tuple[int, int]:
+    a = int((np.sqrt(8 * i + 1) - 1) // 2)
+    offset = gauss_sum(a)
+    b = i - offset
+    if b > a:
+        a, b = b, a
+    return a, b
+
+
+@njit(nogil=True)
+def ravel_eri_idx(
+    a: _T_Integral, b: _T_Integral, c: _T_Integral, d: _T_Integral
+) -> _T_Integral:
+    """Return compound index given four indices using Yoshimine sort and
+    assuming 8-fold permutational symmetry"""
+    return ravel_symmetric(ravel_symmetric(a, b), ravel_symmetric(c, d))
+
+
+@njit(nogil=True)
+def unravel_eri_idx(i: _T_Integral) -> tuple[int, int, int, int]:
+    """Invert :func:`ravel_eri_idx`"""
+    ab, cd = unravel_symmetric(i)
+    a, b = unravel_symmetric(ab)
+    c, d = unravel_symmetric(cd)
+    return a, b, c, d
+
+
+@njit(nogil=True)
+def n_eri(n):
+    return ravel_eri_idx(n - 1, n - 1, n - 1, n - 1) + 1
+
+
+@njit(nogil=True)
 def ravel_C(a: _T_Integral, b: _T_Integral, n_cols: _T_Integral) -> _T_Integral:
     """Flatten the index a, b assuming row-mayor/C indexing
 
@@ -239,7 +285,7 @@ def ravel_C(a: _T_Integral, b: _T_Integral, n_cols: _T_Integral) -> _T_Integral:
     return (a * n_cols) + b  # type: ignore[return-value,operator]
 
 
-@njit
+@njit(nogil=True)
 def ravel_Fortran(a: _T_Integral, b: _T_Integral, n_rows: _T_Integral) -> _T_Integral:
     """Flatten the index a, b assuming column-mayor/Fortran indexing
 
@@ -260,7 +306,7 @@ def ravel_Fortran(a: _T_Integral, b: _T_Integral, n_rows: _T_Integral) -> _T_Int
     return a + (b * n_rows)  # type: ignore[return-value,operator]
 
 
-@njit
+@njit(nogil=True)
 def symmetric_different_size(m: _T_Integral, n: _T_Integral) -> _T_Integral:
     r"""Return the number of unique elements in a symmetric matrix of different row
     and column length
@@ -287,7 +333,7 @@ def symmetric_different_size(m: _T_Integral, n: _T_Integral) -> _T_Integral:
     return gauss_sum(m) + m * (n - m)  # type: ignore[operator,return-value]
 
 
-@njit
+@njit(nogil=True)
 def get_flexible_n_eri(
     p_max: _T_Integral, q_max: _T_Integral, r_max: _T_Integral, s_max: _T_Integral
 ) -> _T_Integral:
@@ -329,3 +375,15 @@ def get_calling_function_name() -> str:
     """Do stack inspection shenanigan to obtain the name
     of the calling function"""
     return inspect.stack()[1][3]
+
+
+def clean_overlap(M: Matrix[np.float64], epsilon: float = 1e-12) -> Matrix[np.int64]:
+    """We assume that M is a (not necessarily square) overlap matrix
+    between ortho-normal vectors. We clean for floating point noise and return
+    an integer matrix with only 0s and 1s."""
+    M = M.copy()
+    very_small = np.abs(M) < epsilon
+    M[very_small] = 0
+    assert (np.abs(1 - M[~very_small]) < epsilon).all()
+    M[~very_small] = 1
+    return M.astype(np.int64)
