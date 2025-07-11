@@ -617,7 +617,7 @@ class BE(Mixin_k_Localize):
 
         if compute_hf:
             E_hf /= self.unitcell_nkpt
-            hf_err = self.hf_etot - (E_hf + self.enuc + self.E_core)
+            hf_err = self.hf_etot - (E_hf + self.enuc + self.E_core - self.ek)
 
             self.ebe_hf = E_hf + self.enuc + self.E_core - self.ek
             print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
