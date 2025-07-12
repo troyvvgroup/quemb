@@ -40,8 +40,9 @@ def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
             (start index, end index) of the auxiliary basis functions to calculate the
             3-center integrals, i.e. (pq|L) with L ∈ [start, end) is returned
         """
-        if settings.PRINT_LEVEL > 10:
-            print("Start calculating (μν|P) for range", aux_range, flush=True)
+        logger.debug("Start calculating (μν|P) for range %s", aux_range)
+        #if settings.PRINT_LEVEL > 10:
+        #    print("Start calculating (μν|P) for range", aux_range, flush=True)
         p0, p1 = aux_range
         shls_slice = (
             0,
@@ -63,8 +64,9 @@ def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
             cintopt,
             out=None,
         )
-        if settings.PRINT_LEVEL > 10:
-            print("Finish calculating (μν|P) for range", aux_range, flush=True)
+        logger.debug("Finish calculating (μν|P) for range %s", aux_range)
+        #if settings.PRINT_LEVEL > 10:
+        #    print("Finish calculating (μν|P) for range", aux_range, flush=True)
         return ints
 
     def block_step_size(nfrag, naux, nao):
@@ -130,20 +132,23 @@ def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
         start = end
         end += ints.shape[2]
         for fragidx in range(len(Fobjs)):
-            if settings.PRINT_LEVEL > 10:
-                print("(μν|P) -> (ij|P) for frag #", fragidx, flush=True)
+            logger.debug("(μν|P) -> (ij|P) for frag #%d", fragidx)
+            #if settings.PRINT_LEVEL > 10:
+            #    print("(μν|P) -> (ij|P) for frag #", fragidx, flush=True)
             Lqp = transpose(ints, axes=(2, 1, 0))
             Lqi = Lqp @ Fobjs[fragidx].TA
             Liq = moveaxis(Lqi, 2, 1)
             pqL_frag[fragidx][start:end, :, :] = Liq @ Fobjs[fragidx].TA
     # Fit to get B_{ij}^{L}
     for fragidx in range(len(Fobjs)):
-        if settings.PRINT_LEVEL > 10:
-            print("Fitting B_{ij}^{L} for frag #", fragidx, flush=True)
+        logger.debug("Fitting B_{ij}^{L} for frag #%d", fragidx)
+        #if settings.PRINT_LEVEL > 10:
+        #    print("Fitting B_{ij}^{L} for frag #", fragidx, flush=True)
         b = pqL_frag[fragidx].reshape(auxmol.nao, -1)
         bb = solve_triangular(low, b, lower=True, overwrite_b=True, check_finite=False)
-        if settings.PRINT_LEVEL > 10:
-            print("Finished obtaining B_{ij}^{L} for frag #", fragidx, flush=True)
+        logger.debug("Finished obtaining B_{ij}^{L} for frag #%d", fragidx)
+        #if settings.PRINT_LEVEL > 10:
+        #    print("Finished obtaining B_{ij}^{L} for frag #", fragidx, flush=True)
         eri_nosym = bb.T @ bb
         eri = restore("4", eri_nosym, Fobjs[fragidx].nao)
         file_eri.create_dataset(Fobjs[fragidx].dname, data=eri)
