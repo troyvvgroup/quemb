@@ -8,7 +8,9 @@ from pyscf.gto import mole
 from pyscf.gto.moleintor import getints3c, make_cintopt, make_loc
 from scipy.linalg import cholesky, solve_triangular
 from quemb.shared.config import settings
+import logging
 logger = logging.getLogger(__name__)
+
 
 def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
     """Calculate AO density-fitted 3-center integrals on-the-fly and transform to
