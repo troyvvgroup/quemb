@@ -29,8 +29,10 @@ from cattrs import structure, unstructure
 from quemb.shared.helper import add_docstring
 
 logging.basicConfig(
-    level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    level=logging.CRITICAL + 1,  # Disables all logging
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
+
 
 DEFAULT_RC_PATH: Final = Path("~/.quembrc.yml")
 
