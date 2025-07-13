@@ -3,9 +3,6 @@
 
 from quemb.molbe import BE, fragmentate
 from quemb.molbe.misc import be2fcidump, libint2pyscf
-from quemb.shared.config import settings
-
-settings.PRINT_LEVEL = 3
 
 # Read in molecular integrals expressed in libint basis ordering
 # numpy.loadtxt takes care of the input under the hood
