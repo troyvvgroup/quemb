@@ -37,7 +37,6 @@ DEFAULT_RC_PATH: Final = Path("~/.quembrc.yml")
 
 @define
 class Settings:
-    PRINT_LEVEL: int = 5
     SCRATCH_ROOT: Path = Path(gettempdir())
     INTEGRAL_TRANSFORM_MAX_MEMORY: float = 50  # in GB
 
