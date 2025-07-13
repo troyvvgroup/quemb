@@ -95,15 +95,12 @@ def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
             ),
         )  # max(int(500*.24e6/8/nao),1)
 
-    if settings.PRINT_LEVEL > 2:
-        print(
-            "Evaluating fragment ERIs on-the-fly using density fitting...", flush=True
-        )
-        print(
-            "In this case, note that HF-in-HF error includes DF error on top of "
-            "numerical error from embedding.",
-            flush=True,
-        )
+    logger.debug("Evaluating fragment ERIs on-the-fly using density fitting...")
+    logger.info(
+        "In this case, note that HF-in-HF error includes DF error on top of "
+        "numerical error from embedding."
+    )
+
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
     j2c = auxmol.intor(mf.mol._add_suffix("int2c2e"), hermi=1)  # (L|M)
     low = cholesky(j2c, lower=True)
@@ -122,12 +119,10 @@ def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
             0, auxmol.nbas, block_step_size(len(Fobjs), auxmol.nbas, mf.mol.nao)
         )
     ]
-    if settings.PRINT_LEVEL > 4:
-        print("Aux Basis Block Info: ", blockranges, flush=True)
+    logger.debug("Aux Basis Block Info: %s", blockranges)
 
     for idx, ints in enumerate(lib.map_with_prefetch(calculate_pqL, blockranges)):
-        if settings.PRINT_LEVEL > 4:
-            print("Calculating pq|L block #", idx, blockranges[idx], flush=True)
+        logger.debug("Calculating pq|L block #%d %s", idx, blockranges[idx])
         # Transform pq (AO) to fragment space (ij)
         start = end
         end += ints.shape[2]
