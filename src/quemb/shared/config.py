@@ -17,6 +17,7 @@ for this python session.
 Creates ~/.quembrc.yml file that allows changes to persist.
 """
 
+import logging
 from pathlib import Path
 from tempfile import gettempdir
 from typing import Final
@@ -26,8 +27,6 @@ from attrs import define
 from cattrs import structure, unstructure
 
 from quemb.shared.helper import add_docstring
-
-import logging
 
 logging.basicConfig(
     level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
