@@ -15,6 +15,12 @@ for this python session.
 >>>
 >>> dump_settings()
 Creates ~/.quembrc.yml file that allows changes to persist.
+
+>>> logging.basicConfig(
+    level=logging.WARNING,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+Test explanation here.
 """
 
 import logging
