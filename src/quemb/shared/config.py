@@ -20,7 +20,9 @@ Creates ~/.quembrc.yml file that allows changes to persist.
     level=logging.WARNING,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
-Test explanation here.
+Sets the default logging level to WARNING, meaning that DEBUG and INFO logs won't be printed.
+To specify the logging level, for example to debug, use
+>>> logging.getLogger().setLevel(logging.DEBUG)
 """
 
 import logging
