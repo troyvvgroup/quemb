@@ -29,7 +29,7 @@ from cattrs import structure, unstructure
 from quemb.shared.helper import add_docstring
 
 logging.basicConfig(
-    level=logging.CRITICAL + 1,  # Disables all logging
+    level=logging.WARNING,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 
