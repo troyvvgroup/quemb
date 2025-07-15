@@ -25,8 +25,8 @@ Table of Contents
    :maxdepth: 1
 
    install
-   references
    api_reference
+   bibliography
 
 
 References
