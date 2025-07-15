@@ -16,6 +16,7 @@ quemb.shared.helper
    
       add_docstring
       add_init_docstring
+      clean_overlap
       copy_docstring
       delete_multiple_files
       ensure
@@ -23,13 +24,18 @@ quemb.shared.helper
       get_calling_function_name
       get_flexible_n_eri
       jitclass
+      n_eri
+      n_symmetric
       ncore_
       njit
       ravel_C
       ravel_Fortran
+      ravel_eri_idx
       ravel_symmetric
       symmetric_different_size
       union_of_seqs
+      unravel_eri_idx
+      unravel_symmetric
       unused
    
    

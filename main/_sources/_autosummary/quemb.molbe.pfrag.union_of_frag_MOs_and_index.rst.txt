@@ -1,0 +1,6 @@
+quemb.molbe.pfrag.union\_of\_frag\_MOs\_and\_index
+==================================================
+
+.. currentmodule:: quemb.molbe.pfrag
+
+.. autofunction:: union_of_frag_MOs_and_index

@@ -15,6 +15,7 @@ quemb.molbe.pfrag
       :toctree:
    
       schmidt_decomposition
+      union_of_frag_MOs_and_index
    
    
 

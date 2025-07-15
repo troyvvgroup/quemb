@@ -1,0 +1,6 @@
+quemb.shared.helper.unravel\_symmetric
+======================================
+
+.. currentmodule:: quemb.shared.helper
+
+.. autofunction:: unravel_symmetric
