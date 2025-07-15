@@ -1819,7 +1819,12 @@ def _primitive_overlap_matrix(
 
 
 def calculate_abs_overlap(mol: Mole, nroots: int = 500) -> Matrix[np.float64]:
-    assert mol.cart
+    if not mol.cart:
+        raise ValueError(
+            "Cartesian basis functions are required. "
+            "Please construct the ``Mole`` object with ``cart=True``."
+        )
+
     # Integrals are computed using primitive GTOs. ctr_mat transforms the
     # primitive GTOs to the contracted GTOs.
     pmol, ctr_mat = mol.decontract_basis(aggregate=True)
