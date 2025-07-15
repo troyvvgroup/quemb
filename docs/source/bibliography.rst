@@ -3,5 +3,5 @@ Bibliography
 
 
 
-.. bibliography::
+.. bibliography:: literature.bib
    :style: plain

@@ -6,6 +6,11 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
+from pathlib import Path
+
+# Get the directory where conf.py is located
+CONF_DIR = Path(__file__).parent
+
 
 project = "QuEmb"
 copyright = "2024, Van Voorhis Group"
@@ -97,4 +102,4 @@ smv_branch_whitelist = r"^main$"
 smv_remote_whitelist = r"^.*$"
 
 
-bibtex_bibfiles = ["./literature.bib"]
+bibtex_bibfiles = [str(CONF_DIR / "literature.bib")]
