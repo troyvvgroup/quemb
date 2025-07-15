@@ -20,6 +20,18 @@ while the ``quemb.kbe`` library is designed to handle periodic systems such as s
 References
 ==========
 
+The whole software package was published in :cite:`cho_quemb_2025`
+
+The method is based on the following works:
+
+- First work on BE :cite:`ye_bootstrap_2019`
+
+
+
+
+.. footbibliography::
+
+
 1. OR Meitei, T Van Voorhis, Periodic bootstrap embedding, `JCTC 19 3123 2023 <https://doi.org/10.1021/acs.jctc.3c00069>`_
 2. OR Meitei, T Van Voorhis, Electron correlation in 2D periodic systems, `arXiv:2308.06185 <https://arxiv.org/abs/2308.06185>`_
 3. HZ Ye, HK Tran, T Van Voorhis, Bootstrap embedding for large molecular systems, `JCTC 16 5035 2020 <https://doi.org/10.1021/acs.jctc.0c00438>`_
@@ -29,4 +41,5 @@ References
    :maxdepth: 1
 
    install
-   api_reference
+   references
+   .. api_reference

@@ -33,6 +33,7 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.githubpages",
     "sphinx_multiversion",
+    "sphinxcontrib.bibtex",
 ]
 
 autodoc_typehints_format = "short"
@@ -94,3 +95,6 @@ html_sidebars = {
 smv_tag_whitelist = r"^v\d+\.\d+\.\d+(-[a-zA-Z0-9\.]+)?$"
 smv_branch_whitelist = r"^main$"
 smv_remote_whitelist = r"^.*$"
+
+
+bibtex_bibfiles = ["./literature.bib"]
