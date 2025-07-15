@@ -1,7 +1,7 @@
 # Author(s): Oinam Romesh Meitei
 
 import pickle
-from typing import Literal, TypeAlias
+from typing import Final, Literal, TypeAlias
 from warnings import warn
 
 import h5py
@@ -14,12 +14,15 @@ from typing_extensions import assert_never
 
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
-from quemb.molbe.eri_sparse_DF import transform_sparse_DF_integral
+from quemb.molbe.eri_sparse_DF import (
+    transform_sparse_DF_integral_cpp,
+    transform_sparse_DF_integral_nb,
+)
 from quemb.molbe.fragment import FragPart
 from quemb.molbe.lo import MixinLocalize
 from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
 from quemb.molbe.opt import BEOPT
-from quemb.molbe.pfrag import Frags
+from quemb.molbe.pfrag import Frags, union_of_frag_MOs_and_index
 from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.config import settings
 from quemb.shared.external.optqn import (
@@ -30,7 +33,13 @@ from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix, PathLike
 
 IntTransforms: TypeAlias = Literal[
-    "in-core", "out-core-DF", "int-direct-DF", "sparse-DF"
+    "in-core",
+    "out-core-DF",
+    "int-direct-DF",
+    "sparse-DF-cpp",  # screen AOs and MOs via S_abs
+    "sparse-DF-nb",  # screen AOs and MOs via S_abs and use jitted numba
+    "sparse-DF-cpp-gpu",  # screen AOs and MOs via S_abs
+    "sparse-DF-nb-gpu",  # screen AOs and MOs via S_abs and use jitted numba
 ]
 
 
@@ -91,6 +100,8 @@ class BE(MixinLocalize):
         scratch_dir: WorkDir | None = None,
         int_transform: IntTransforms = "in-core",
         auxbasis: str | None = None,
+        MO_coeff_epsilon: float = 1e-4,
+        AO_coeff_epsilon: float = 1e-10,
     ) -> None:
         r"""
         Constructor for BE object.
@@ -135,13 +146,39 @@ class BE(MixinLocalize):
             - :python:`"int-direct-DF"`: Use a dense, DF representation of integrals,
               the required DF integrals :math:`(\mu, \nu | P)` are computed and fitted
               on-demand for each fragment.
-            - :python:`"sparse-DF"`:  Work in progress.
+            - :python:`"sparse-DF-cpp"`:
               Use a sparse, DF representation of integrals,
               and avoid recomputation of elements that are shared across fragments.
+              Uses a ``C++`` implementation for performance heavy code.
+            - :python:`"sparse-DF-nb"`:
+              Use a sparse, DF representation of integrals,
+              and avoid recomputation of elements that are shared across fragments.
+              Uses a numba implementation for performance heavy code.
+            - :python:`"sparse-DF-cpp-gpu"`:
+              Use a sparse, DF representation of integrals,
+              and avoid recomputation of elements that are shared across fragments.
+              Uses a ``C++`` + ``CUDDA`` implementation for performance heavy code,
+              only available when compiled with CUDABlas.
+            - :python:`"sparse-DF-nb-gpu"`:
+              Use a sparse, DF representation of integrals,
+              and avoid recomputation of elements that are shared across fragments.
+              Uses a numba implementation + ``cupy`` for performance heavy code.
+              Only available if ``cupy`` is installed.
         auxbasis :
             Auxiliary basis for density fitting, by default None
             (uses default auxiliary basis defined in PySCF).
             Only relevant for :python:`int_transform in {"int-direct-DF", "sparse-DF"}`.
+        MO_coeff_epsilon:
+            The cutoff value of the absolute overlap
+            :math:`\int |\phi_i| |\varphi_{\mu}|`
+            when a MO coefficient :math:`i` and an AO coefficient
+            :math:`\mu` are considered to be connected for sparsity screening.
+        AO_coeff_epsilon:
+            The cutoff value of the absolute overlap
+            :math:`\int |\varphi_{\mu}| |\varphi_{\nu}|`
+            when two AO coefficient :math:`\mu, \nu`
+            are considered to be connected for sparsity screening.
+            Here the absolute overlap matrix is used.
         """
         init_timer = Timer("Time to initialize BE object")
         if restart:
@@ -163,6 +200,13 @@ class BE(MixinLocalize):
             self.P_core = store_.P_core
             self.core_veff = store_.core_veff
             self.mo_energy = store_.mo_energy
+
+        self.MO_coeff_epsilon = MO_coeff_epsilon
+        self.AO_coeff_epsilon = AO_coeff_epsilon
+
+        # We hardcode it here, because in practice it is far better
+        # to use the parallelization in each fragment.
+        self.n_threads_integral_transform: Final = 1
 
         self.unrestricted = False
         self.nproc = nproc
@@ -822,6 +866,8 @@ class BE(MixinLocalize):
             Whether to compute Hartree-Fock energy.
         restart : bool, optional
             Whether to restart from a previous calculation, by default False.
+        int_transfrom :
+            Which integral transformation to perform.
         """
         if compute_hf:
             E_hf = 0.0
@@ -835,7 +881,13 @@ class BE(MixinLocalize):
 
             self.Fobjs.append(fobjs_)
 
-        eritransform_timer = Timer("Time to transform ERIs")
+        self.all_fragment_MO_TA, frag_TA_index_per_frag = union_of_frag_MOs_and_index(
+            self.Fobjs, self.mf.mol.intor("int1e_ovlp"), epsilon=1e-10
+        )
+        for fobj, frag_TA_offset in zip(self.Fobjs, frag_TA_index_per_frag):
+            fobj.frag_TA_offset = frag_TA_offset
+
+        eritransform_timer = Timer(f"Time to transform ERIs ({int_transform})")
 
         if not restart:
             # Transform ERIs for each fragment and store in the file
@@ -867,13 +919,60 @@ class BE(MixinLocalize):
                     self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis
                 )
                 eri = None
-            elif int_transform == "sparse-DF":
-                # Calculate ERIs on-the-fly to generate fragment ERIs
-                # TODO: Future feature to be implemented
-                # NOTE: Ideally, we want AO shell pair screening for this.
+            elif int_transform == "sparse-DF-cpp":
                 ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-                transform_sparse_DF_integral(
-                    self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis
+                transform_sparse_DF_integral_cpp(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    file_eri_handler=file_eri,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.n_threads_integral_transform,
+                )
+                eri = None
+            elif int_transform == "sparse-DF-cpp-gpu":
+                from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
+                    transform_sparse_DF_integral_cpp_gpu,
+                )
+
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                transform_sparse_DF_integral_cpp_gpu(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    file_eri_handler=file_eri,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.n_threads_integral_transform,
+                )
+                eri = None
+            elif int_transform == "sparse-DF-nb":
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                transform_sparse_DF_integral_nb(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    file_eri_handler=file_eri,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.n_threads_integral_transform,
+                )
+                eri = None
+            elif int_transform == "sparse-DF-nb-gpu":
+                from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
+                    transform_sparse_DF_integral_nb_gpu,
+                )
+
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                transform_sparse_DF_integral_nb_gpu(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    file_eri_handler=file_eri,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.n_threads_integral_transform,
                 )
                 eri = None
             else:
