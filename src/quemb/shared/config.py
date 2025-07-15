@@ -15,18 +15,8 @@ for this python session.
 >>>
 >>> dump_settings()
 Creates ~/.quembrc.yml file that allows changes to persist.
-
->>> logging.basicConfig(
-    level=logging.WARNING,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
-Sets the default logging level to WARNING.
-DEBUG and INFO logs won't be printed.
-To specify the logging level, for example to debug, use
->>> logging.getLogger().setLevel(logging.DEBUG)
 """
 
-import logging
 from pathlib import Path
 from tempfile import gettempdir
 from typing import Final
@@ -36,12 +26,6 @@ from attrs import define
 from cattrs import structure, unstructure
 
 from quemb.shared.helper import add_docstring
-
-logging.basicConfig(
-    level=logging.WARNING,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
-
 
 DEFAULT_RC_PATH: Final = Path("~/.quembrc.yml")
 

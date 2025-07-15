@@ -5,6 +5,7 @@ molecular systems.
 Author(s): Minsik Cho
 """
 
+import logging
 import os
 import unittest
 
@@ -63,4 +64,9 @@ class TestDF_ontheflyERI(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.DEBUG,  # Set desired level
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
     unittest.main()
+    

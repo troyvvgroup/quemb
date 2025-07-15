@@ -14,7 +14,6 @@ from quemb.shared.config import settings
 
 logger = logging.getLogger(__name__)
 
-
 def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
     """Calculate AO density-fitted 3-center integrals on-the-fly and transform to
     Schmidt space for given fragment objects
