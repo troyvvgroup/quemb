@@ -1,7 +1,7 @@
 # Author(s): Oinam Romesh Meitei
 
 import pickle
-from typing import Literal, TypeAlias
+from typing import Final, Literal, TypeAlias
 from warnings import warn
 
 import h5py
@@ -102,7 +102,6 @@ class BE(MixinLocalize):
         auxbasis: str | None = None,
         MO_coeff_epsilon: float = 1e-4,
         AO_coeff_epsilon: float = 1e-10,
-        int_n_threads: int = 1,
     ) -> None:
         r"""
         Constructor for BE object.
@@ -147,13 +146,39 @@ class BE(MixinLocalize):
             - :python:`"int-direct-DF"`: Use a dense, DF representation of integrals,
               the required DF integrals :math:`(\mu, \nu | P)` are computed and fitted
               on-demand for each fragment.
-            - :python:`"sparse-DF"`:  Work in progress.
+            - :python:`"sparse-DF-cpp"`:
               Use a sparse, DF representation of integrals,
               and avoid recomputation of elements that are shared across fragments.
+              Uses a ``C++`` implementation for performance heavy code.
+            - :python:`"sparse-DF-nb"`:
+              Use a sparse, DF representation of integrals,
+              and avoid recomputation of elements that are shared across fragments.
+              Uses a numba implementation for performance heavy code.
+            - :python:`"sparse-DF-cpp-gpu"`:
+              Use a sparse, DF representation of integrals,
+              and avoid recomputation of elements that are shared across fragments.
+              Uses a ``C++`` + ``CUDDA`` implementation for performance heavy code,
+              only available when compiled with CUDABlas.
+            - :python:`"sparse-DF-nb-gpu"`:
+              Use a sparse, DF representation of integrals,
+              and avoid recomputation of elements that are shared across fragments.
+              Uses a numba implementation + ``cupy`` for performance heavy code.
+              Only available if ``cupy`` is installed.
         auxbasis :
             Auxiliary basis for density fitting, by default None
             (uses default auxiliary basis defined in PySCF).
             Only relevant for :python:`int_transform in {"int-direct-DF", "sparse-DF"}`.
+        MO_coeff_epsilon:
+            The cutoff value of the absolute overlap
+            :math:`\int |\phi_i| |\varphi_{\mu}|`
+            when a MO coefficient :math:`i` and an AO coefficient
+            :math:`\mu` are considered to be connected for sparsity screening.
+        AO_coeff_epsilon:
+            The cutoff value of the absolute overlap
+            :math:`\int |\varphi_{\mu}| |\varphi_{\nu}|`
+            when two AO coefficient :math:`\mu, \nu`
+            are considered to be connected for sparsity screening.
+            Here the absolute overlap matrix is used.
         """
         init_timer = Timer("Time to initialize BE object")
         if restart:
@@ -178,7 +203,10 @@ class BE(MixinLocalize):
 
         self.MO_coeff_epsilon = MO_coeff_epsilon
         self.AO_coeff_epsilon = AO_coeff_epsilon
-        self.int_n_threads = int_n_threads
+
+        # We hardcode it here, because in practice it is far better
+        # to use the parallelization in each fragment.
+        self.n_threads_integral_transform: Final = 1
 
         self.unrestricted = False
         self.nproc = nproc
@@ -838,6 +866,8 @@ class BE(MixinLocalize):
             Whether to compute Hartree-Fock energy.
         restart : bool, optional
             Whether to restart from a previous calculation, by default False.
+        int_transfrom :
+            Which integral transformation to perform.
         """
         if compute_hf:
             E_hf = 0.0
@@ -898,7 +928,7 @@ class BE(MixinLocalize):
                     file_eri_handler=file_eri,
                     MO_coeff_epsilon=self.MO_coeff_epsilon,
                     AO_coeff_epsilon=self.AO_coeff_epsilon,
-                    n_threads=self.int_n_threads,
+                    n_threads=self.n_threads_integral_transform,
                 )
                 eri = None
             elif int_transform == "sparse-DF-cpp-gpu":
@@ -914,7 +944,7 @@ class BE(MixinLocalize):
                     file_eri_handler=file_eri,
                     MO_coeff_epsilon=self.MO_coeff_epsilon,
                     AO_coeff_epsilon=self.AO_coeff_epsilon,
-                    n_threads=self.int_n_threads,
+                    n_threads=self.n_threads_integral_transform,
                 )
                 eri = None
             elif int_transform == "sparse-DF-nb":
@@ -926,7 +956,7 @@ class BE(MixinLocalize):
                     file_eri_handler=file_eri,
                     MO_coeff_epsilon=self.MO_coeff_epsilon,
                     AO_coeff_epsilon=self.AO_coeff_epsilon,
-                    n_threads=self.int_n_threads,
+                    n_threads=self.n_threads_integral_transform,
                 )
                 eri = None
             elif int_transform == "sparse-DF-nb-gpu":
@@ -942,7 +972,7 @@ class BE(MixinLocalize):
                     file_eri_handler=file_eri,
                     MO_coeff_epsilon=self.MO_coeff_epsilon,
                     AO_coeff_epsilon=self.AO_coeff_epsilon,
-                    n_threads=self.int_n_threads,
+                    n_threads=self.n_threads_integral_transform,
                 )
                 eri = None
             else:
