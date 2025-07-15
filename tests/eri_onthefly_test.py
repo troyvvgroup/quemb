@@ -66,7 +66,6 @@ class TestDF_ontheflyERI(unittest.TestCase):
 if __name__ == "__main__":
     logging.basicConfig(
         level=logging.DEBUG,  # Set desired level
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
     unittest.main()
-    
