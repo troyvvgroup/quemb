@@ -31,7 +31,7 @@ class TestDF_ontheflyERI(unittest.TestCase):
         mf.direct_scf = True
         mf.kernel()
         fobj = fragmentate(frag_type="autogen", n_BE=2, mol=mol)
-        mybe = BE(mf, fobj, int_transform="int-direct-DF")
+        mybe = BE(mf, fobj, auxbasis="cc-pvtz-ri", int_transform="int-direct-DF")
         self.assertAlmostEqual(
             mybe.ebe_hf,
             mf.e_tot,
