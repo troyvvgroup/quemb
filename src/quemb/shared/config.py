@@ -15,6 +15,12 @@ for this python session.
 >>>
 >>> dump_settings()
 Creates ~/.quembrc.yml file that allows changes to persist.
+
+To specify the print level, do
+>>> logging.basicConfig(...)
+at runtime. Currently the options are DEBUG or INFO.
+For more information on how logging works, see
+https://docs.python.org/3/howto/logging.html
 """
 
 from pathlib import Path
