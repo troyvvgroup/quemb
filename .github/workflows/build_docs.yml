@@ -14,20 +14,27 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
       with:
         fetch-depth: 0 # get all refs for multiversion docs build
+        submodules: recursive
+
     - name: Set up Python 3.12
       uses: actions/setup-python@v5
       with:
         python-version: "3.12"
         cache: 'pip'
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install .
         pip install --upgrade --upgrade-strategy eager -r docs/requirements.txt
-        echo ${{ github.workspace }} > $(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")/quemb.pth
+        pip install .
+
+    - name: Check if quemb imports
+      run: python -c "import quemb; print('quemb imported successfully')"
+
     - name: Test building docs & Archive the results
       run: |
         cd docs
@@ -35,15 +42,18 @@ jobs:
         ls build/html
         tar czf docs.tar.gz --directory=build/html .
         cd ..
+
     - name: Redirect to docs for main
       run: |
         cp docs/index.html docs/build/html/
+
     - name: Upload docs as an artifact
       uses: actions/upload-artifact@v4
       with:
         name: docs
         path: docs/docs.tar.gz
         retention-days: 3
+
     - name: Publish docs to Github Pages
       if:   github.event_name == 'push' && github.ref == 'refs/heads/main'
       uses: peaceiris/actions-gh-pages@v4
