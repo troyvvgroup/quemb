@@ -834,7 +834,7 @@ def account_for_symmetry(
 ) -> dict[_T_start, list[_T_target]]:
     """Account for permutational symmetry and remove all q that are larger than p.
 
-    Paramaters
+    Parameters
     ----------
     reachable :
 
@@ -857,7 +857,7 @@ def _jit_account_for_symmetry(
 
     This is a jitted version of :func:`account_for_symmetry`.
 
-    Paramaters
+    Parameters
     ----------
     reachable :
     """
@@ -1819,6 +1819,23 @@ def _primitive_overlap_matrix(
 
 
 def calculate_abs_overlap(mol: Mole, nroots: int = 500) -> Matrix[np.float64]:
+    r"""Compute the absolute overlap
+
+    This is given by:
+
+    .. math::
+
+        S^{\mathrm{abs}}_{ij} = \int | \phi_i(r) | |\phi_j(r) | \, \mathrm{d} r
+
+    and can be used for screening.
+    Taken from `pyscf examples <https://github.com/pyscf/pyscf/blob/master/examples/1-advanced/40-mole_api_and_numba_jit.py>`_.
+
+    Parameters
+    ----------
+    mol :
+    nroots :
+        Number of roots for the Gauß-Hermite quadrature.
+    """
     if not mol.cart:
         raise ValueError(
             "Cartesian basis functions are required. "
