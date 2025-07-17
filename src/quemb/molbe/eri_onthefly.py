@@ -95,7 +95,7 @@ def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
             ),
         )  # max(int(500*.24e6/8/nao),1)
 
-    logger.debug("Evaluating fragment ERIs on-the-fly using density fitting...")
+    logger.info("Evaluating fragment ERIs on-the-fly using density fitting...")
     logger.info(
         "In this case, note that HF-in-HF error includes DF error on top of "
         "numerical error from embedding."
