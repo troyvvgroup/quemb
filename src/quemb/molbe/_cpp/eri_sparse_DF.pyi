@@ -13,7 +13,6 @@ import numpy
 
 __all__ = [
     "GPU_MatrixHandle",
-    "PRINT_LEVEL",
     "SemiSparse3DTensor",
     "SemiSparseSym3DTensor",
     "contract_with_TA_1st",
@@ -21,6 +20,8 @@ __all__ = [
     "extract_unique",
     "get_AO_per_MO",
     "get_AO_reachable_by_MO_with_offset",
+    "get_log_level",
+    "set_log_level",
     "transform_integral",
     "transform_integral_cuda",
 ]
@@ -140,6 +141,8 @@ def get_AO_reachable_by_MO_with_offset(
     provided AO_reachable_by_MO structure
     """
 
+def get_log_level() -> int: ...
+def set_log_level(log_level: int) -> None: ...
 def transform_integral(
     int_P_mu_nu: SemiSparseSym3DTensor,
     TA: numpy.ndarray,
@@ -164,5 +167,3 @@ def transform_integral_cuda(
     returning the transformed matrix.
     This uses CUDA for performance.
     """
-
-PRINT_LEVEL: int = 0
