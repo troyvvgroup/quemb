@@ -16,7 +16,29 @@ using OrbitalIdx = Eigen::Index;
 using Matrix = Eigen::MatrixXd;
 using Tensor3D = Eigen::Tensor<double, 3, Eigen::ColMajor>;
 
-inline int PRINT_LEVEL = 0;
+// Matches python logging levels
+// https://docs.python.org/3/library/logging.html#logging-levels
+enum class LogLevel : int {
+    NotSet   = 0,
+    Debug    = 10,
+    Info     = 20,
+    Warning  = 30,
+    Error    = 40,
+    Critical = 50
+};
+
+inline LogLevel LOG_LEVEL = LogLevel::NotSet;
+
+// Expose int getter of LogLevel
+inline int get_log_level() {
+    return static_cast<int>(LOG_LEVEL);
+}
+
+// Expose int setter of LogLevel
+inline void set_log_level(int lvl) {
+    LOG_LEVEL = static_cast<LogLevel>(lvl);
+}
+
 
 // Utility: constrain to integral types and cast to int_t
 template <typename T> constexpr int_t to_int_t(const T value) noexcept
@@ -143,7 +165,7 @@ class Timer
 
     ~Timer()
     {
-        if (PRINT_LEVEL > 5) {
+        if (LOG_LEVEL <= LogLevel::Info) {
             const auto duration = elapsed_ms();
             std::cout << "[TIMER] " << _name << " finished in " << duration << " ms\n";
         };

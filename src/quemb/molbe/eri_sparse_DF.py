@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from collections.abc import (
     Callable,
@@ -75,6 +76,8 @@ _T_target_orb = TypeVar("_T_target_orb", bound=OrbitalIdx)
 _T_start = TypeVar("_T_start", bound=np.integer)
 _T_target = TypeVar("_T_target", bound=np.integer)
 _T = TypeVar("_T", int, np.integer)
+
+logger = logging.getLogger(__name__)
 
 
 def _aux_e2(  # type: ignore[no-untyped-def]
@@ -911,16 +914,15 @@ def get_sparse_P_mu_nu(
 
     n_unique = sum(len(v) for v in exch_reachable_unique.values())
 
-    if settings.PRINT_LEVEL >= 10:
-        print(
-            "Semi-Sparse Memory for (mu nu | P) integrals is: "
-            f"{n_unique * auxmol.nao * 8 * 2**-30} Gb"
-        )
-        print(
-            "Dense Memory for (mu nu | P) would be: "
-            f"{n_symmetric(mol.nao) * auxmol.nao * 8 * 2**-30} Gb"
-        )
-        print(f"Sparsity factor is: {(1 - n_unique / n_symmetric(mol.nao)) * 100} %")
+    logger.info(
+        "Semi-Sparse Memory for (mu nu | P) integrals is: "
+        f"{n_unique * auxmol.nao * 8 * 2**-30} Gb"
+    )
+    logger.info(
+        "Dense Memory for (mu nu | P) would be: "
+        f"{n_symmetric(mol.nao) * auxmol.nao * 8 * 2**-30} Gb"
+    )
+    logger.info(f"Sparsity factor is: {(1 - n_unique / n_symmetric(mol.nao)) * 100} %")
     screened_unique_integrals = np.full(
         (n_unique, auxmol.nao), fill_value=np.nan, dtype=np.float64, order="C"
     )
@@ -971,8 +973,7 @@ def get_sparse_P_mu_nu(
                             key_to_offset[ravel_symmetric(p, q)], :  # type: ignore[arg-type]
                         ] = integrals[i, j, ::1]
 
-    if settings.PRINT_LEVEL >= 10:
-        print(AO_timer.str_elapsed())
+    logger.info(AO_timer.str_elapsed())
 
     assert not np.isnan(screened_unique_integrals).any()
 
@@ -1423,8 +1424,7 @@ def transform_sparse_DF_integral_nb(
     S_abs_timer = Timer("Time to compute S_abs")
     S_abs = calculate_abs_overlap(mol)
 
-    if settings.PRINT_LEVEL >= 10:
-        print(S_abs_timer.str_elapsed())
+    logger.info(S_abs_timer.str_elapsed())
 
     exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
 
@@ -1467,7 +1467,7 @@ def transform_sparse_DF_integral_cpp(
     MO_coeff_epsilon: float,
     n_threads: int,
 ) -> None:
-    cpp_transforms.PRINT_LEVEL = settings.PRINT_LEVEL
+    # cpp_transforms.LOG_LEVEL = settings.
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 

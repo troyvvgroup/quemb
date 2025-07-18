@@ -336,7 +336,7 @@ SemiSparse3DTensor contract_with_TA_1st(const Matrix &TA, const SemiSparseSym3DT
         n_unique += offsets.size();
     }
 
-    if (PRINT_LEVEL > 10) {
+    if (LOG_LEVEL <= LogLevel::Info) {
         std::cout << "(P | mu i) [MEMORY] sparse "
                   << static_cast<double>(naux * n_unique * sizeof(double)) / std::pow(2, 30) << " GB" << "\n";
         std::cout << "(P | mu i) [MEMORY] dense "
@@ -429,7 +429,7 @@ Matrix eval_via_cholesky(const Matrix &sym_P_pq, const Matrix &L_PQ) noexcept
     Timer cholesky_timer{"eval_via_cholesky"};
     // Step 1: Solve L * X = sym_P_pq  →  X = L⁻¹ sym_P_pq
     const Matrix X = L_PQ.triangularView<Eigen::Lower>().solve(sym_P_pq);
-    if (PRINT_LEVEL > 10) {
+    if (LOG_LEVEL <= LogLevel::Info) {
         cholesky_timer.print("triangular solve completed");
     };
     // Step 2: Return Xᵀ X
@@ -524,7 +524,9 @@ PYBIND11_MODULE(eri_sparse_DF, m)
               "This module provides functionality to transform ERIs using semi-sparse tensors\n"
               "and optionally CUDA for GPU acceleration.";
 
-    m.attr("PRINT_LEVEL") = py::cast(&PRINT_LEVEL, py::return_value_policy::reference);
+    // m.attr("LOG_LEVEL") = py::cast(&LOG_LEVEL, py::return_value_policy::reference);
+    m.def("get_log_level", &get_log_level);
+    m.def("set_log_level", &set_log_level);
 
 #ifdef USE_CUDA
     py::class_<GPU_MatrixHandle>(m, "GPU_MatrixHandle")
