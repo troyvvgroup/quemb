@@ -1830,6 +1830,11 @@ def calculate_abs_overlap(mol: Mole, nroots: int = 500) -> Matrix[np.float64]:
     and can be used for screening.
     Taken from `pyscf examples <https://github.com/pyscf/pyscf/blob/master/examples/1-advanced/40-mole_api_and_numba_jit.py>`_.
 
+    .. note::
+
+        This requires cartesian AOs, instead of spherical harmonics.
+        Use :python:`cart=True` when constructing your :python:`pyscf.gto.Mole` object.
+
     Parameters
     ----------
     mol :

@@ -164,6 +164,13 @@ class BE(MixinLocalize):
               and avoid recomputation of elements that are shared across fragments.
               Uses a numba implementation + ``cupy`` for performance heavy code.
               Only available if ``cupy`` is installed.
+
+            .. note::
+
+                The sparse density fitting requires cartesian AOs,
+                instead of spherical harmonics.
+                Use :python:`cart=True` when constructing :python:`pyscf.gto.Mole`.
+
         auxbasis :
             Auxiliary basis for density fitting, by default None
             (uses default auxiliary basis defined in PySCF).
