@@ -41,7 +41,6 @@ from quemb.molbe.chemfrag import (
     _get_AOidx_per_atom,
 )
 from quemb.molbe.pfrag import Frags
-from quemb.shared.config import settings
 from quemb.shared.helper import (
     Timer,
     jitclass,
@@ -1467,7 +1466,7 @@ def transform_sparse_DF_integral_cpp(
     MO_coeff_epsilon: float,
     n_threads: int,
 ) -> None:
-    # cpp_transforms.LOG_LEVEL = settings.
+    cpp_transforms.set_log_level(logging.getLogger().getEffectiveLevel())
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
@@ -1521,7 +1520,7 @@ def transform_sparse_DF_integral_cpp_gpu(
     MO_coeff_epsilon: float,
     n_threads: int,
 ) -> None:
-    cpp_transforms.PRINT_LEVEL = settings.PRINT_LEVEL
+    cpp_transforms.set_log_level(logging.getLogger().getEffectiveLevel())
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
