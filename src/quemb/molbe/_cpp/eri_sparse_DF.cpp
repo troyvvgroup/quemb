@@ -524,7 +524,6 @@ PYBIND11_MODULE(eri_sparse_DF, m)
               "This module provides functionality to transform ERIs using semi-sparse tensors\n"
               "and optionally CUDA for GPU acceleration.";
 
-    // m.attr("LOG_LEVEL") = py::cast(&LOG_LEVEL, py::return_value_policy::reference);
     m.def("get_log_level", &get_log_level);
     m.def("set_log_level", &set_log_level, py::arg("log_level"));
 
