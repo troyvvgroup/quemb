@@ -817,6 +817,13 @@ See examples below.</p>
 <span class="go">Creates ~/.quembrc.yml file that allows changes to persist.</span>
 </pre></div>
 </div>
+<p>To specify the print level, do
+&gt;&gt;&gt; import logging
+&gt;&gt;&gt; logger = logging.getLogger()
+&gt;&gt;&gt; logger.setLevel(logging.DEBUG)
+in your input file. Currently the options are DEBUG or INFO.
+For more information on how logging works, see
+<a class="reference external" href="https://docs.python.org/3/howto/logging.html">https://docs.python.org/3/howto/logging.html</a></p>
 <p class="rubric">Functions</p>
 <div class="table-wrapper autosummary longtable docutils container">
 <table class="autosummary longtable docutils align-default">
@@ -831,7 +838,7 @@ See examples below.</p>
 <div class="table-wrapper autosummary longtable docutils container">
 <table class="autosummary longtable docutils align-default">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="quemb.shared.config.Settings.html#quemb.shared.config.Settings" title="quemb.shared.config.Settings"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Settings</span></code></a>([PRINT_LEVEL, SCRATCH_ROOT, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="quemb.shared.config.Settings.html#quemb.shared.config.Settings" title="quemb.shared.config.Settings"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Settings</span></code></a>([SCRATCH_ROOT, ...])</p></td>
 <td><p></p></td>
 </tr>
 </tbody>
