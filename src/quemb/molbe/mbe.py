@@ -1,5 +1,6 @@
 # Author(s): Oinam Romesh Meitei
 
+import logging
 import pickle
 from typing import Final, Literal, TypeAlias
 from warnings import warn
@@ -24,7 +25,6 @@ from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
 from quemb.molbe.opt import BEOPT
 from quemb.molbe.pfrag import Frags, union_of_frag_MOs_and_index
 from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
-from quemb.shared.config import settings
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
@@ -41,6 +41,8 @@ IntTransforms: TypeAlias = Literal[
     "sparse-DF-cpp-gpu",  # screen AOs and MOs via S_abs
     "sparse-DF-nb-gpu",  # screen AOs and MOs via S_abs and use jitted numba
 ]
+
+logger = logging.getLogger(__name__)
 
 
 @define
@@ -318,8 +320,7 @@ class BE(MixinLocalize):
             )
         else:
             self.initialize(None, compute_hf, restart=True, int_transform=int_transform)
-        if settings.PRINT_LEVEL >= 10:
-            print(init_timer.str_elapsed())
+        logger.info(f"Elapsed time: {init_timer.str_elapsed()}")
 
     def save(self, save_file: PathLike = "storebe.pk") -> None:
         """
@@ -986,8 +987,7 @@ class BE(MixinLocalize):
                 assert_never(int_transform)
         else:
             eri = None
-        if settings.PRINT_LEVEL >= 10:
-            print(eritransform_timer.str_elapsed())
+        logger.info(f"ERI transform time: {eritransform_timer.str_elapsed()}")
 
         for fobjs_ in self.Fobjs:
             # Process each fragment
@@ -1099,8 +1099,7 @@ class BE(MixinLocalize):
                 rets[0], rets[1][0], rets[1][2], rets[1][1], self.ebe_hf, self.enuc
             )
             self.ebe_tot = rets[0] + self.enuc + self.ebe_hf
-        if settings.PRINT_LEVEL >= 10:
-            print(oneshot_timer.str_elapsed())
+        logger.info(f"Oneshot time: {oneshot_timer.str_elapsed()}")
 
     def update_fock(self, heff: list[Matrix[floating]] | None = None) -> None:
         """

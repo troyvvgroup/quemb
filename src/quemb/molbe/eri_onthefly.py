@@ -1,5 +1,7 @@
 # Author(s): Minsik Cho, Hong-Zhou Ye
 
+import logging
+
 from numpy import moveaxis, transpose, zeros
 from pyscf import lib
 from pyscf.ao2mo.addons import restore
@@ -9,6 +11,8 @@ from pyscf.gto.moleintor import getints3c, make_cintopt, make_loc
 from scipy.linalg import cholesky, solve_triangular
 
 from quemb.shared.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
@@ -40,8 +44,7 @@ def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
             (start index, end index) of the auxiliary basis functions to calculate the
             3-center integrals, i.e. (pq|L) with L ∈ [start, end) is returned
         """
-        if settings.PRINT_LEVEL > 10:
-            print("Start calculating (μν|P) for range", aux_range, flush=True)
+        logger.debug("Start calculating (μν|P) for range %s", aux_range)
         p0, p1 = aux_range
         shls_slice = (
             0,
@@ -63,8 +66,7 @@ def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
             cintopt,
             out=None,
         )
-        if settings.PRINT_LEVEL > 10:
-            print("Finish calculating (μν|P) for range", aux_range, flush=True)
+        logger.debug("Finish calculating (μν|P) for range %s", aux_range)
         return ints
 
     def block_step_size(nfrag, naux, nao):
@@ -93,15 +95,12 @@ def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
             ),
         )  # max(int(500*.24e6/8/nao),1)
 
-    if settings.PRINT_LEVEL > 2:
-        print(
-            "Evaluating fragment ERIs on-the-fly using density fitting...", flush=True
-        )
-        print(
-            "In this case, note that HF-in-HF error includes DF error on top of "
-            "numerical error from embedding.",
-            flush=True,
-        )
+    logger.info("Evaluating fragment ERIs on-the-fly using density fitting...")
+    logger.info(
+        "In this case, note that HF-in-HF error includes DF error on top of "
+        "numerical error from embedding."
+    )
+
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
     j2c = auxmol.intor(mf.mol._add_suffix("int2c2e"), hermi=1)  # (L|M)
     low = cholesky(j2c, lower=True)
@@ -120,30 +119,25 @@ def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
             0, auxmol.nbas, block_step_size(len(Fobjs), auxmol.nbas, mf.mol.nao)
         )
     ]
-    if settings.PRINT_LEVEL > 4:
-        print("Aux Basis Block Info: ", blockranges, flush=True)
+    logger.debug("Aux Basis Block Info: %s", blockranges)
 
     for idx, ints in enumerate(lib.map_with_prefetch(calculate_pqL, blockranges)):
-        if settings.PRINT_LEVEL > 4:
-            print("Calculating pq|L block #", idx, blockranges[idx], flush=True)
+        logger.debug("Calculating pq|L block #%d %s", idx, blockranges[idx])
         # Transform pq (AO) to fragment space (ij)
         start = end
         end += ints.shape[2]
         for fragidx in range(len(Fobjs)):
-            if settings.PRINT_LEVEL > 10:
-                print("(μν|P) -> (ij|P) for frag #", fragidx, flush=True)
+            logger.debug("(μν|P) -> (ij|P) for frag #%d", fragidx)
             Lqp = transpose(ints, axes=(2, 1, 0))
             Lqi = Lqp @ Fobjs[fragidx].TA
             Liq = moveaxis(Lqi, 2, 1)
             pqL_frag[fragidx][start:end, :, :] = Liq @ Fobjs[fragidx].TA
     # Fit to get B_{ij}^{L}
     for fragidx in range(len(Fobjs)):
-        if settings.PRINT_LEVEL > 10:
-            print("Fitting B_{ij}^{L} for frag #", fragidx, flush=True)
+        logger.debug("Fitting B_{ij}^{L} for frag #%d", fragidx)
         b = pqL_frag[fragidx].reshape(auxmol.nao, -1)
         bb = solve_triangular(low, b, lower=True, overwrite_b=True, check_finite=False)
-        if settings.PRINT_LEVEL > 10:
-            print("Finished obtaining B_{ij}^{L} for frag #", fragidx, flush=True)
+        logger.debug("Finished obtaining B_{ij}^{L} for frag #%d", fragidx)
         eri_nosym = bb.T @ bb
         eri = restore("4", eri_nosym, Fobjs[fragidx].nao)
         file_eri.create_dataset(Fobjs[fragidx].dname, data=eri)

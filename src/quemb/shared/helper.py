@@ -1,4 +1,5 @@
 import inspect
+import logging
 from collections.abc import Callable, Iterable, Sequence
 from inspect import signature
 from itertools import islice
@@ -15,6 +16,7 @@ from quemb.shared.typing import Integral, Matrix, T
 
 _Function = TypeVar("_Function", bound=Callable)
 _T_Integral = TypeVar("_T_Integral", bound=Integral)
+logger = logging.getLogger(__name__)
 
 
 # Note that we have once Callable and once Function.
@@ -125,10 +127,7 @@ class Timer:
     start: float = field(init=False, factory=time)
 
     def __attrs_post_init__(self) -> None:
-        from quemb.shared.config import settings  # noqa: PLC0415
-
-        if settings.PRINT_LEVEL >= 10:
-            print(f"Timer with message '{self.message}' started.", flush=True)
+        logger.info(f"Timer with message '{self.message}' started.")
 
     def elapsed(self) -> float:
         return time() - self.start
