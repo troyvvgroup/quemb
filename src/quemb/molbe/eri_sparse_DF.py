@@ -1769,9 +1769,9 @@ def _primitive_overlap(
                     Iz = 0.0
                     for n in range(nroots):
                         w = weights[n]
-                        Ix += abs(mu[ix, 0, n] * nu[jx, 0, n] * w)
-                        Iy += abs(mu[iy, 1, n] * nu[jy, 1, n] * w)
-                        Iz += abs(mu[iz, 2, n] * nu[jz, 2, n] * w)
+                        Ix += w * abs(mu[ix, 0, n] * nu[jx, 0, n])
+                        Iy += w * abs(mu[iy, 1, n] * nu[jy, 1, n])
+                        Iz += w * abs(mu[iz, 2, n] * nu[jz, 2, n])
 
                     s[i, j] = Ix * Iy * Iz * norm_fac
                     j += 1
