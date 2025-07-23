@@ -16,17 +16,21 @@
 #include <cuda_runtime_api.h>
 #endif
 
+#ifdef GCC
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Warray-bounds"
 #pragma GCC diagnostic ignored "-Wsign-conversion"
 #pragma GCC diagnostic ignored "-Wstringop-overread"
 #pragma GCC diagnostic ignored "-Wnull-dereference"
+#endif
 #include <pybind11/eigen.h>
 #include <pybind11/functional.h>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#ifdef GCC
 #pragma GCC diagnostic pop
+#endif
 
 #include "indexers.hpp"
 
@@ -398,13 +402,19 @@ Tensor3D copy_from_numpy(py::array_t<double, py::array::f_style> arr)
 Matrix contract_with_TA_2nd_to_sym_dense(const SemiSparse3DTensor &int_mu_i_P, const Matrix &TA) noexcept
 {
     PROFILE_FUNCTION();
-    const auto [naux, nao, nmo] = int_mu_i_P.get_shape();
-
-    assert(TA.rows() == nao && "TA.shape[0] must match int_mu_i_P.shape[1]");
+#ifndef CLANG
+    const auto [naux, _, nmo] = int_mu_i_P.get_shape();
+#else
+    // Clang does not yet support capturing structured bindings in OpenMP.
+    // Use the structured binding, if it works in the future.
+    // https://github.com/llvm/llvm-project/issues/33025
+    const auto shape = int_mu_i_P.get_shape();
+    const auto naux = std::get<0>(shape);
+    const auto nmo = std::get<2>(shape);
+#endif
     assert(TA.cols() == nmo && "TA.shape[1] must match int_mu_i_P.shape[2]");
 
     const auto n_sym_pairs = to_eigen(ravel_symmetric(nmo - 1, nmo - 1) + 1);
-
     Matrix sym_P_pq(naux, n_sym_pairs);
 
 #pragma omp parallel for

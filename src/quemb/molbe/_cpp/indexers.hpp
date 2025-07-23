@@ -11,6 +11,13 @@
 #include <Eigen/Dense>
 #include <unsupported/Eigen/CXX11/Tensor>
 
+#ifdef GCC
+#define GCC_ONLY(code) code
+#else
+#define GCC_ONLY(code)
+#endif
+
+
 using int_t = int64_t;
 using OrbitalIdx = Eigen::Index;
 using Matrix = Eigen::MatrixXd;
