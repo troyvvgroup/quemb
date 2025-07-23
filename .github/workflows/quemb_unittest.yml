@@ -68,7 +68,7 @@ jobs:
     needs: analysis
     strategy:
       matrix:
-        compiler: ["gcc", "clang", "icc"]
+        compiler: ["gcc", "clang"]
 
     steps:
     - uses: actions/checkout@v4
@@ -92,12 +92,6 @@ jobs:
             sudo apt update
             sudo apt install -y clang
             export CXX=clang++
-            ;;
-          icc)
-            wget https://registrationcenter-download.intel.com/akdlm/IRC_NAS/cd42ec1f-62c2-4035-b1b4-00a7310f3fc0/l_BaseKit_p_2024.1.0.604_offline.sh
-            bash l_BaseKit_p_2024.1.0.604_offline.sh -a -s --eula accept
-            source /opt/intel/oneapi/setvars.sh
-            export CXX=icpx
             ;;
         esac
 

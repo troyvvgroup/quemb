@@ -28,6 +28,7 @@ target_link_libraries(eri_sparse_DF PRIVATE OpenMP::OpenMP_CXX)
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
 endif()
+message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 target_compile_features(eri_sparse_DF PRIVATE cxx_std_17)
 
