@@ -90,7 +90,7 @@ jobs:
             ;;
           clang)
             sudo apt update
-            sudo apt install -y clang
+            sudo apt install -y clang libomp-dev
             export CXX=clang++
             ;;
         esac
