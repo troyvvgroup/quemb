@@ -11,12 +11,6 @@
 #include <Eigen/Dense>
 #include <unsupported/Eigen/CXX11/Tensor>
 
-#ifdef GCC
-#define GCC_ONLY(code) code
-#else
-#define GCC_ONLY(code)
-#endif
-
 #define UNUSED(x) (void)(x)
 
 
