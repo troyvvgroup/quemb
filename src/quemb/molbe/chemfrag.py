@@ -39,6 +39,7 @@ from pyscf.gto import M, Mole, is_au
 from pyscf.lib import param
 from pyscf.pbc.gto import Cell
 from typing_extensions import Self
+from warnings import warn
 
 from quemb.molbe.autofrag import FragPart
 from quemb.molbe.helper import are_equal, get_core
@@ -253,11 +254,63 @@ class BondConnectivity:
         def all_H_belong_to_motif() -> bool:
             return H_atoms.issubset(union_of_seqs(*(H_per_motif.values())))
 
+        def enforce_one_H_per_motif() -> void:
+            # If a H is in more than one motif, this removes it from all but one.
+            for i_motif, i_H_atoms in H_per_motif.items():
+                for j_motif, j_H_atoms in H_per_motif.items():
+                    # Cycle through all pairs of motifs, and identify if one H is
+                    # in multiple motifs
+                    if i_motif == j_motif:
+                        continue
+                    if i_H_atoms & j_H_atoms:
+                        # Identify the shared H
+                        shared_H = [x for x in i_H_atoms & j_H_atoms]
+                        # If H is in both motif i and motif j, this lists the atom inds
+                        # in each motif which is not that H
+                        i_atoms_ind = atoms_per_motif[i_motif] - shared_H
+                        j_atoms_ind = atoms_per_motif[j_motif] - shared_H
+
+                        # Find the bond lengths of the shared hydrogen with all atoms
+                        # in each motif.
+                        i_dists = []
+                        j_dists = []
+                        for y in shared_H:
+                            for i in i_atoms_ind:
+                                i_dists.append(m.get_bond_lengths((i, y)))
+                            for j in j_atoms_ind:
+                                j_dists.append(m.get_bond_lengths((j, y)))
+
+                        # Find the minimum H-X bond length. Note that this assumes that
+                        # the H is not completely equidistant (for now) between multiple
+                        # atoms, which may require a treat_H_different treatment
+                        min_dist = min(i_dists + j_dists)
+                        # Allow H to remain only in the motif with the shortest bond length
+                        # Remove that H from processed_bonds_atoms, H_per_motif, and
+                        # atoms_per_motif
+                        if min_dist in i_dists:
+                            print("Removing shared H"+str(shared_H)+" from motif"+str(j_motif))
+                            processed_bonds_atoms[j_motif] -= shared_H
+                            H_per_motif[j_motif] -= shared_H
+                            atoms_per_motif[j_motif] -= shared_H
+                        elif min_dist in j_dists:
+                            print("Removing shared H"+str(shared_H)+" from motif "+str(i_motif))
+                            processed_bonds_atoms[i_motif] -= shared_H
+                            H_per_motif[i_motif] -= shared_H
+                            atoms_per_motif[i_motif] -= shared_H
+
+
         if treat_H_different and not (all_H_belong_to_motif() and not motifs_share_H()):
-            raise ValueError(
-                "Cannot treat hydrogens differently if not all hydrogens belong "
-                "to exactly one motif."
-            )
+            if motifs_share_H():
+                warn("H in multiple motifs: removing H from all but physically closest motif")
+                # Enforce that each H can only be in one motif. This modifies
+                # processed_bonds_atoms, H_per_motif, and atoms_per_motif, leaving H only
+                # in the motif to which it's physically closest.
+                enforce_one_H_per_motif()
+            else:
+                raise ValueError(
+                    "Cannot treat hydrogens differently if not all hydrogens belong "
+                    "to exactly one motif."
+                )
 
         return cls(
             processed_bonds_atoms,
