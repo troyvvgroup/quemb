@@ -120,6 +120,7 @@ def delete_multiple_files(*args: Iterable[Path]) -> None:
         for file in files:
             file.unlink()
 
+
 @define
 class FunctionTimer:
     stats: dict = field(factory=lambda: defaultdict(lambda: {"time": 0.0, "calls": 0}))
