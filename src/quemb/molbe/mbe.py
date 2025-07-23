@@ -1,7 +1,8 @@
 # Author(s): Oinam Romesh Meitei
 
+import logging
 import pickle
-from typing import Literal, TypeAlias
+from typing import Final, Literal, TypeAlias
 from warnings import warn
 
 import h5py
@@ -14,14 +15,16 @@ from typing_extensions import assert_never
 
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
-from quemb.molbe.eri_sparse_DF import transform_sparse_DF_integral
+from quemb.molbe.eri_sparse_DF import (
+    transform_sparse_DF_integral_cpp,
+    transform_sparse_DF_integral_nb,
+)
 from quemb.molbe.fragment import FragPart
 from quemb.molbe.lo import MixinLocalize
 from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
 from quemb.molbe.opt import BEOPT
-from quemb.molbe.pfrag import Frags
+from quemb.molbe.pfrag import Frags, union_of_frag_MOs_and_index
 from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
-from quemb.shared.config import settings
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
@@ -30,8 +33,16 @@ from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix, PathLike
 
 IntTransforms: TypeAlias = Literal[
-    "in-core", "out-core-DF", "int-direct-DF", "sparse-DF"
+    "in-core",
+    "out-core-DF",
+    "int-direct-DF",
+    "sparse-DF-cpp",  # screen AOs and MOs via S_abs
+    "sparse-DF-nb",  # screen AOs and MOs via S_abs and use jitted numba
+    "sparse-DF-cpp-gpu",  # screen AOs and MOs via S_abs
+    "sparse-DF-nb-gpu",  # screen AOs and MOs via S_abs and use jitted numba
 ]
+
+logger = logging.getLogger(__name__)
 
 
 @define
@@ -91,6 +102,8 @@ class BE(MixinLocalize):
         scratch_dir: WorkDir | None = None,
         int_transform: IntTransforms = "in-core",
         auxbasis: str | None = None,
+        MO_coeff_epsilon: float = 1e-4,
+        AO_coeff_epsilon: float = 1e-10,
     ) -> None:
         r"""
         Constructor for BE object.
@@ -135,13 +148,39 @@ class BE(MixinLocalize):
             - :python:`"int-direct-DF"`: Use a dense, DF representation of integrals,
               the required DF integrals :math:`(\mu, \nu | P)` are computed and fitted
               on-demand for each fragment.
-            - :python:`"sparse-DF"`:  Work in progress.
+            - :python:`"sparse-DF-cpp"`:
               Use a sparse, DF representation of integrals,
               and avoid recomputation of elements that are shared across fragments.
+              Uses a ``C++`` implementation for performance heavy code.
+            - :python:`"sparse-DF-nb"`:
+              Use a sparse, DF representation of integrals,
+              and avoid recomputation of elements that are shared across fragments.
+              Uses a numba implementation for performance heavy code.
+            - :python:`"sparse-DF-cpp-gpu"`:
+              Use a sparse, DF representation of integrals,
+              and avoid recomputation of elements that are shared across fragments.
+              Uses a ``C++`` + ``CUDDA`` implementation for performance heavy code,
+              only available when compiled with CUDABlas.
+            - :python:`"sparse-DF-nb-gpu"`:
+              Use a sparse, DF representation of integrals,
+              and avoid recomputation of elements that are shared across fragments.
+              Uses a numba implementation + ``cupy`` for performance heavy code.
+              Only available if ``cupy`` is installed.
         auxbasis :
             Auxiliary basis for density fitting, by default None
             (uses default auxiliary basis defined in PySCF).
             Only relevant for :python:`int_transform in {"int-direct-DF", "sparse-DF"}`.
+        MO_coeff_epsilon:
+            The cutoff value of the absolute overlap
+            :math:`\int |\phi_i| |\varphi_{\mu}|`
+            when a MO coefficient :math:`i` and an AO coefficient
+            :math:`\mu` are considered to be connected for sparsity screening.
+        AO_coeff_epsilon:
+            The cutoff value of the absolute overlap
+            :math:`\int |\varphi_{\mu}| |\varphi_{\nu}|`
+            when two AO coefficient :math:`\mu, \nu`
+            are considered to be connected for sparsity screening.
+            Here the absolute overlap matrix is used.
         """
         init_timer = Timer("Time to initialize BE object")
         if restart:
@@ -163,6 +202,13 @@ class BE(MixinLocalize):
             self.P_core = store_.P_core
             self.core_veff = store_.core_veff
             self.mo_energy = store_.mo_energy
+
+        self.MO_coeff_epsilon = MO_coeff_epsilon
+        self.AO_coeff_epsilon = AO_coeff_epsilon
+
+        # We hardcode it here, because in practice it is far better
+        # to use the parallelization in each fragment.
+        self.n_threads_integral_transform: Final = 1
 
         self.unrestricted = False
         self.nproc = nproc
@@ -267,8 +313,7 @@ class BE(MixinLocalize):
             )
         else:
             self.initialize(None, compute_hf, restart=True, int_transform=int_transform)
-        if settings.PRINT_LEVEL >= 10:
-            print(init_timer.str_elapsed())
+        logger.info(f"Elapsed time: {init_timer.str_elapsed()}")
 
     def save(self, save_file: PathLike = "storebe.pk") -> None:
         """
@@ -354,6 +399,7 @@ class BE(MixinLocalize):
         rdm2AO = zeros((nao, nao, nao, nao))
 
         for fobjs in self.Fobjs:
+            rdm2 = fobjs.rdm2__.copy()
             if return_RDM2:
                 # Adjust the one-particle reduced density matrix (RDM1)
                 drdm1 = fobjs.rdm1__.copy()
@@ -366,7 +412,7 @@ class BE(MixinLocalize):
                 ) - 0.5 * einsum(
                     "ij,kl->iklj", drdm1, drdm1, dtype=numpy.float64, optimize=True
                 )
-                fobjs.rdm2__ -= dm_nc
+                rdm2 -= dm_nc
 
             # Generate the projection matrix
             cind = [fobjs.AO_in_frag[i] for i in fobjs.weight_and_relAO_per_center[1]]
@@ -391,7 +437,7 @@ class BE(MixinLocalize):
                 # Transform RDM2 to AO basis
                 rdm2s = einsum(
                     "ijkl,pi,qj,rk,sl->pqrs",
-                    fobjs.rdm2__,
+                    rdm2,
                     *([fobjs.mo_coeffs] * 4),
                     optimize=True,
                 )
@@ -650,7 +696,7 @@ class BE(MixinLocalize):
 
     def optimize(
         self,
-        solver: Solvers = "MP2",
+        solver: Solvers = "CCSD",
         method: str = "QN",
         only_chem: bool = False,
         use_cumulant: bool = True,
@@ -670,7 +716,7 @@ class BE(MixinLocalize):
         Parameters
         ----------
         solver :
-            High-level solver for the fragment, by default 'MP2'
+            High-level solver for the fragment, by default "CCSD"
         method :
             Optimization method, by default 'QN'
         only_chem :
@@ -821,6 +867,8 @@ class BE(MixinLocalize):
             Whether to compute Hartree-Fock energy.
         restart : bool, optional
             Whether to restart from a previous calculation, by default False.
+        int_transfrom :
+            Which integral transformation to perform.
         """
         if compute_hf:
             E_hf = 0.0
@@ -834,7 +882,13 @@ class BE(MixinLocalize):
 
             self.Fobjs.append(fobjs_)
 
-        eritransform_timer = Timer("Time to transform ERIs")
+        self.all_fragment_MO_TA, frag_TA_index_per_frag = union_of_frag_MOs_and_index(
+            self.Fobjs, self.mf.mol.intor("int1e_ovlp"), epsilon=1e-10
+        )
+        for fobj, frag_TA_offset in zip(self.Fobjs, frag_TA_index_per_frag):
+            fobj.frag_TA_offset = frag_TA_offset
+
+        eritransform_timer = Timer(f"Time to transform ERIs ({int_transform})")
 
         if not restart:
             # Transform ERIs for each fragment and store in the file
@@ -866,21 +920,67 @@ class BE(MixinLocalize):
                     self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis
                 )
                 eri = None
-            elif int_transform == "sparse-DF":
-                # Calculate ERIs on-the-fly to generate fragment ERIs
-                # TODO: Future feature to be implemented
-                # NOTE: Ideally, we want AO shell pair screening for this.
+            elif int_transform == "sparse-DF-cpp":
                 ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-                transform_sparse_DF_integral(
-                    self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis
+                transform_sparse_DF_integral_cpp(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    file_eri_handler=file_eri,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.n_threads_integral_transform,
+                )
+                eri = None
+            elif int_transform == "sparse-DF-cpp-gpu":
+                from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
+                    transform_sparse_DF_integral_cpp_gpu,
+                )
+
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                transform_sparse_DF_integral_cpp_gpu(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    file_eri_handler=file_eri,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.n_threads_integral_transform,
+                )
+                eri = None
+            elif int_transform == "sparse-DF-nb":
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                transform_sparse_DF_integral_nb(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    file_eri_handler=file_eri,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.n_threads_integral_transform,
+                )
+                eri = None
+            elif int_transform == "sparse-DF-nb-gpu":
+                from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
+                    transform_sparse_DF_integral_nb_gpu,
+                )
+
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                transform_sparse_DF_integral_nb_gpu(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    file_eri_handler=file_eri,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.n_threads_integral_transform,
                 )
                 eri = None
             else:
                 assert_never(int_transform)
         else:
             eri = None
-        if settings.PRINT_LEVEL >= 10:
-            print(eritransform_timer.str_elapsed())
+        logger.info(f"ERI transform time: {eritransform_timer.str_elapsed()}")
 
         for fobjs_ in self.Fobjs:
             # Process each fragment
@@ -925,7 +1025,7 @@ class BE(MixinLocalize):
 
     def oneshot(
         self,
-        solver: Solvers = "MP2",
+        solver: Solvers = "CCSD",
         use_cumulant: bool = True,
         nproc: int = 1,
         ompnum: int = 4,
@@ -937,7 +1037,7 @@ class BE(MixinLocalize):
         Parameters
         ----------
         solver :
-            High-level quantum chemistry method, by default 'MP2'. 'CCSD', 'FCI',
+            High-level quantum chemistry method, by default 'CCSD'. 'CCSD', 'FCI',
             and variants of selected CI are supported.
         use_cumulant :
             Whether to use the cumulant energy expression, by default True.
@@ -992,8 +1092,7 @@ class BE(MixinLocalize):
                 rets[0], rets[1][0], rets[1][2], rets[1][1], self.ebe_hf, self.enuc
             )
             self.ebe_tot = rets[0] + self.enuc + self.ebe_hf
-        if settings.PRINT_LEVEL >= 10:
-            print(oneshot_timer.str_elapsed())
+        logger.info(f"Oneshot time: {oneshot_timer.str_elapsed()}")
 
     def update_fock(self, heff: list[Matrix[floating]] | None = None) -> None:
         """

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from collections.abc import (
     Callable,
@@ -12,39 +13,47 @@ from collections.abc import (
     Sequence,
     Set,
 )
-from itertools import chain, count, takewhile
+from concurrent.futures import ThreadPoolExecutor
+from itertools import chain, takewhile
 from typing import Final, TypeVar, cast
 
 import h5py
 import numpy as np
 from chemcoord import Cartesian
-from numba import float64, int64, prange, uint64  # type: ignore[attr-defined]
+from numba import float64, int64, prange  # type: ignore[attr-defined]
 from numba.typed import Dict, List
 from numba.types import (  # type: ignore[attr-defined]
     DictType,
     ListType,
     UniTuple,
 )
-from pyscf import df, gto, scf
+from pyscf import df, dft, gto, scf
 from pyscf.ao2mo.addons import restore
-from pyscf.df import addons
+from pyscf.df.addons import make_auxmol
 from pyscf.gto import Mole
 from pyscf.gto.moleintor import getints
 from pyscf.lib import einsum
 from scipy.linalg import cholesky, solve, solve_triangular
 from scipy.optimize import bisect
 
+import quemb.molbe._cpp.eri_sparse_DF as cpp_transforms  # type: ignore[import-not-found]
 from quemb.molbe.chemfrag import (
     _get_AOidx_per_atom,
 )
 from quemb.molbe.pfrag import Frags
 from quemb.shared.helper import (
+    Timer,
     jitclass,
+    n_symmetric,
     njit,
     ravel_Fortran,
     ravel_symmetric,
 )
-from quemb.shared.numba_helpers import PreIncr, SortedIntSet, Type_SortedIntSet
+from quemb.shared.numba_helpers import (
+    PreIncr,
+    SortedIntSet,
+    Type_SortedIntSet,
+)
 from quemb.shared.typing import (
     AOIdx,
     AtomIdx,
@@ -67,6 +76,8 @@ _T_start = TypeVar("_T_start", bound=np.integer)
 _T_target = TypeVar("_T_target", bound=np.integer)
 _T = TypeVar("_T", int, np.integer)
 
+logger = logging.getLogger(__name__)
+
 
 def _aux_e2(  # type: ignore[no-untyped-def]
     mol: Mole,
@@ -83,13 +94,13 @@ def _aux_e2(  # type: ignore[no-untyped-def]
     Fixes a bug in the original implementation :func:`pyscf.df.incore.aux_e2`
     that does not accept all valid slices.
     Replace with the original, as soon as https://github.com/pyscf/pyscf/pull/2734
-    is in the stable release.
+    is merged in the stable release.
     """
     if isinstance(auxmol_or_auxbasis, gto.MoleBase):
         auxmol = auxmol_or_auxbasis
     else:
         auxbasis = auxmol_or_auxbasis
-        auxmol = addons.make_auxmol(mol, auxbasis)
+        auxmol = make_auxmol(mol, auxbasis)
     if shls_slice is None:
         shls_slice = (0, mol.nbas, 0, mol.nbas, mol.nbas, mol.nbas + auxmol.nbas)
     else:
@@ -111,64 +122,19 @@ def _aux_e2(  # type: ignore[no-untyped-def]
     )
 
 
-@jitclass
-class SparseInt2:
-    """Sparsely stores the 2-electron integrals using chemist's notation.
-
-    This is a :python:`jitclass` which can be used with numba functions.
-
-    8-fold permutational symmetry is assumed for the spatial integrals, i.e.
-
-    .. math::
-
-        g_{ijkl} = g_{klij} = g_{jikl} = g_{jilk} = g_{lkji} = g_{lkij} = g_{ilkj} = g_{ikjl}
-
-    There is no boundary checking! It will not crash, but just return 0.0
-    if you try to access an index that is not in the dictionary.
-
-    The 2-electron integrals are stored in a dictionary.
-    The keys of the dictionary are tuples of the form (i, j, k, l)
-    where i, j, k, l are the indices of the basis functions.
-    The values of the dictionary are the 2-electron integrals.
-
-    Examples
-    --------
-
-    >>> g = TwoElIntegral()
-    >>> g[1, 2, 3, 4] = 3
-
-    We can test all possible permutations:
-
-    >>> assert g[1, 2, 3, 4] == 3
-    >>> assert g[1, 2, 4, 3] == 3
-    >>> assert g[2, 1, 3, 4] == 3
-    >>> assert g[2, 1, 4, 3] == 3
-    >>> assert g[3, 4, 1, 2] == 3
-    >>> assert g[4, 3, 1, 2] == 3
-    >>> assert g[3, 4, 2, 1] == 3
-    >>> assert g[4, 3, 2, 1] == 3
-
-    A non-existing index returns 0.0:
-
-    >>> assert g[1, 2, 3, 10] == 0
-    """  # noqa: E501
-
-    _data: DictType(uint64, float64)  # type: ignore[valid-type]
-
-    def __init__(self) -> None:
-        self._data = Dict.empty(uint64, float64)
-
-    def __getitem__(self, key: tuple[int, int, int, int]) -> float:
-        idx = self.idx(*key)
-        return self._data.get(idx, 0.0)
-
-    def __setitem__(self, key: tuple[int, int, int, int], value: float) -> None:
-        self._data[self.idx(*key)] = value
-
-    @staticmethod
-    def idx(a: int, b: int, c: int, d: int) -> int:
-        """Return compound index given four indices using Yoshimine sort"""
-        return ravel_symmetric(ravel_symmetric(a, b), ravel_symmetric(c, d))
+@njit(nogil=True, inline="always")
+def _assign_with_symmetry(
+    g: Tensor4D[np.float64], i: int, j: int, k: int, l: int, val: float
+) -> None:
+    """Assign to ERI using 8-fold symmetry"""
+    g[i, j, k, l] = val
+    g[i, j, l, k] = val
+    g[j, i, k, l] = val
+    g[j, i, l, k] = val
+    g[k, l, i, j] = val
+    g[l, k, i, j] = val
+    g[k, l, j, i] = val
+    g[l, k, j, i] = val
 
 
 def get_sparse_D_ints_and_coeffs(
@@ -201,9 +167,15 @@ def get_sparse_D_ints_and_coeffs(
         for different elements. Compare to the :python:`modify_element_data`
         argument of :meth:`~chemcoord.Cartesian.get_bonds`.
     """
-    ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, screening_radius)
+    if screening_radius is None:
+        screening_radius = find_screening_radius(mol, auxmol)
+    atom_per_AO = get_atom_per_AO(mol)
+    exch_reachable = get_reachable(
+        atom_per_AO, atom_per_AO, get_screened(mol, screening_radius)
+    )
+    ints_3c2e = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
     ints_2c2e = auxmol.intor("int2c2e")
-    df_coeffs_data = solve(ints_2c2e, ints_3c2e.unique_dense_data.T).T
+    df_coeffs_data = solve(ints_2c2e, ints_3c2e.unique_dense_data.T, assume_a="pos").T
     df_coef = SemiSparseSym3DTensor(
         df_coeffs_data,
         ints_3c2e.nao,
@@ -213,7 +185,7 @@ def get_sparse_D_ints_and_coeffs(
     return ints_3c2e, df_coef
 
 
-@njit(parallel=True)
+@njit(nogil=True, parallel=True)
 def get_dense_integrals(
     ints_3c2e: SemiSparseSym3DTensor, df_coef: SemiSparseSym3DTensor
 ) -> Tensor4D[np.float64]:
@@ -248,14 +220,8 @@ def get_dense_integrals(
                         ints_3c2e.exch_reachable_unique[rho], nu, side="right"
                     )
                 for sigma in ints_3c2e.exch_reachable_unique[rho][:idx]:
-                    g[mu, nu, rho, sigma] = ints_3c2e[mu, nu] @ df_coef[rho, sigma]
-                    g[mu, nu, sigma, rho] = g[mu, nu, rho, sigma]
-                    g[nu, mu, rho, sigma] = g[mu, nu, rho, sigma]
-                    g[nu, mu, sigma, rho] = g[mu, nu, rho, sigma]
-                    g[rho, sigma, mu, nu] = g[mu, nu, rho, sigma]
-                    g[sigma, rho, mu, nu] = g[mu, nu, rho, sigma]
-                    g[rho, sigma, nu, mu] = g[mu, nu, rho, sigma]
-                    g[sigma, rho, nu, mu] = g[mu, nu, rho, sigma]
+                    val = float(ints_3c2e[mu, nu] @ df_coef[rho, sigma])
+                    _assign_with_symmetry(g, mu, nu, rho, sigma, val)
     return g
 
 
@@ -268,6 +234,7 @@ def get_dense_integrals(
         ("exch_reachable_with_offsets", ListType(ListType(UniTuple(int64, 2)))),
         ("exch_reachable_unique", ListType(int64[::1])),
         ("exch_reachable_unique_with_offsets", ListType(ListType(UniTuple(int64, 2)))),
+        ("_data", DictType(int64, float64[::1])),
     ]
 )
 class SemiSparseSym3DTensor:
@@ -337,6 +304,8 @@ class SemiSparseSym3DTensor:
     #:        self.unique_dense_data[offset] == self[p, q]  # True
     exch_reachable_unique_with_offsets: list[list[tuple[int, OrbitalIdx]]]
 
+    _data: Mapping[int, Vector[np.float64]]
+
     def __init__(
         self,
         unique_dense_data: Matrix[np.float64],
@@ -369,7 +338,6 @@ class SemiSparseSym3DTensor:
                 for p in range(self.nao)
             ]
         )
-        counter = PreIncr()
         self.exch_reachable_with_offsets = List(
             [
                 List(
@@ -382,9 +350,12 @@ class SemiSparseSym3DTensor:
             ]
         )
 
+        self._data = Dict.empty(int64, float64[::1])
+        for i, k in enumerate(self._keys):
+            self._data[k] = self.unique_dense_data[i, :]  # type: ignore[index]
+
     def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[np.float64]:
-        look_up_idx = np.searchsorted(self._keys, self.idx(key[0], key[1]))
-        return self.unique_dense_data[look_up_idx]
+        return self._data[self.idx(key[0], key[1])]
 
     # We cannot annotate the return type of this function, because of a strange bug in
     #  sphinx-autodoc-typehints.
@@ -398,13 +369,27 @@ class SemiSparseSym3DTensor:
                 g[q, p] = self[p, q]  # type: ignore[index]
         return g
 
+    # We cannot annotate the return type of this function, because of a strange bug in
+    #  sphinx-autodoc-typehints.
+    #  https://github.com/tox-dev/sphinx-autodoc-typehints/issues/532
+    def _extract_dense(self, idx):  # type: ignore[no-untyped-def]
+        """Convert to dense 3D tensor, but only for the slice of ``idx``."""
+        n_MO = len(idx)
+        g = np.zeros((n_MO, n_MO, self.naux), dtype=np.float64)
+        # TODO: ensure that we can actually access these indices
+        for i, p in enumerate(idx):
+            for j, q in enumerate(idx[: i + 1]):
+                g[i, j] = self[p, q]  # type: ignore[index]
+                g[j, i] = g[i, j]  # type: ignore[index]
+        return g
+
     @staticmethod
     def idx(a: OrbitalIdx, b: OrbitalIdx) -> int:
         """Return compound index"""
         return ravel_symmetric(a, b)  # type: ignore[return-value]
 
 
-@njit
+@njit(nogil=True)
 def _get_list_of_sortedset(n: int) -> list[SortedIntSet]:
     L = List.empty_list(Type_SortedIntSet)
     for _ in range(n):
@@ -492,6 +477,7 @@ class MutableSemiSparse3DTensor:
         ("shape", UniTuple(int64, 3)),
         ("AO_reachable_by_MO_with_offsets", ListType(ListType(UniTuple(int64, 2)))),
         ("AO_reachable_by_MO", ListType(int64[::1])),
+        ("_data", DictType(int64, float64[::1])),
     ]
 )
 class SemiSparse3DTensor:
@@ -546,6 +532,8 @@ class SemiSparse3DTensor:
     #:        self.dense_data[offset] == self[mu, i]  # True
     AO_reachable_by_MO_with_offsets: list[list[tuple[int, AOIdx]]]
 
+    _data: Mapping[int, Vector[np.float64]]
+
     def __init__(
         self,
         unique_dense_data: Matrix[np.float64],
@@ -563,9 +551,12 @@ class SemiSparse3DTensor:
 
         self._keys = keys
 
+        self._data = Dict.empty(int64, float64[::1])
+        for i, k in enumerate(self._keys):
+            self._data[k] = self.dense_data[i, :]  # type: ignore[index]
+
     def __getitem__(self, key: tuple[OrbitalIdx, OrbitalIdx]) -> Vector[np.float64]:
-        look_up_idx = np.searchsorted(self._keys, self._idx(key[0], key[1]))
-        return self.dense_data[look_up_idx]
+        return self._data[self._idx(key[0], key[1])]
 
     # We cannot annotate the return type of this function, because of a strange bug in
     #  sphinx-autodoc-typehints.
@@ -643,7 +634,8 @@ def get_orbs_reachable_by_atom(
 ) -> dict[AtomIdx, dict[AtomIdx, Set[_T_orb_idx]]]:
     return {
         i_atom: {
-            j_atom: orb_per_atom.get(j_atom, set()) for j_atom in sorted(connected)
+            j_atom: orb_per_atom.get(j_atom, set())
+            for j_atom in sorted(connected)  # type: ignore[type-var]
         }
         for i_atom, connected in screened.items()
     }
@@ -694,6 +686,51 @@ def get_atom_per_MO(
     }
 
 
+def _modify_overlap(
+    AO_per_atom: Mapping[AOIdx, Set[AtomIdx]], S: Matrix[np.float64]
+) -> Matrix[np.float64]:
+    S_mod = S.copy()
+    for AOs_on_one_atom in AO_per_atom.values():
+        idx = list(AOs_on_one_atom)
+        S_mod[np.ix_(idx, idx)] = 1
+    return S_mod
+
+
+def _get_AO_per_MO(
+    TA: Matrix[np.float64],
+    S_abs: Matrix[np.float64],
+    epsilon: float,
+) -> dict[MOIdx, Sequence[AOIdx]]:
+    n_MO = TA.shape[-1]
+    X = np.abs(S_abs @ TA)
+    return {
+        i_MO: cast(Sequence[AOIdx], (X[:, i_MO] >= epsilon).nonzero()[0])
+        for i_MO in cast(Sequence[MOIdx], range(n_MO))
+    }
+
+
+@njit(nogil=True)
+def _jit_get_AO_per_MO(
+    TA: Matrix[np.float64],
+    S_abs: Matrix[np.float64],
+    epsilon: float,
+) -> List[Vector[np.int64]]:
+    n_MO = TA.shape[-1]
+    X = np.abs(S_abs @ TA)
+    return List([(X[:, i_MO] >= epsilon).nonzero()[0] for i_MO in range(n_MO)])
+
+
+def _get_AO_per_AO(
+    S_abs: Matrix[np.float64],
+    epsilon: float,
+) -> dict[AOIdx, Sequence[AOIdx]]:
+    n_AO = len(S_abs)
+    return {
+        i_AO: cast(Sequence[AOIdx], (S_abs[:, i_AO] >= epsilon).nonzero()[0])
+        for i_AO in cast(Sequence[AOIdx], range(n_AO))
+    }
+
+
 def conversions_AO_shell(
     mol: Mole,
 ) -> tuple[dict[ShellIdx, list[AOIdx]], dict[AOIdx, ShellIdx]]:
@@ -719,11 +756,17 @@ def conversions_AO_shell(
     return shell_id_to_AO, AO_to_shell_id
 
 
+def get_screened(
+    mol: Mole, screening_radius: Real | Callable[[Real], Real] | Mapping[str, Real]
+) -> dict[AtomIdx, set[AtomIdx]]:
+    m = Cartesian.from_pyscf(mol)
+    return m.get_bonds(modify_element_data=screening_radius, self_bonding_allowed=True)
+
+
 def get_reachable(
-    mol: Mole,
     atoms_per_start_orb: Mapping[_T_start_orb, Set[AtomIdx]],
     atoms_per_target_orb: Mapping[_T_target_orb, Set[AtomIdx]],
-    screening_radius: Real | Callable[[Real], Real] | Mapping[str, Real] = 5,
+    screened_connection: Mapping[AtomIdx, Set[AtomIdx]],
 ) -> dict[_T_start_orb, list[_T_target_orb]]:
     """Return the sorted orbitals that can by reached for each orbital after screening.
 
@@ -745,17 +788,11 @@ def get_reachable(
         for different elements. Compare to the :python:`modify_element_data`
         argument of :meth:`~chemcoord.Cartesian.get_bonds`.
     """
-    m = Cartesian.from_pyscf(mol)
-
-    screen_conn = m.get_bonds(
-        modify_element_data=screening_radius, self_bonding_allowed=True
-    )
-
     return _flatten(
         get_orbs_reachable_by_orb(
             atoms_per_start_orb,
             get_orbs_reachable_by_atom(
-                get_orbs_per_atom(atoms_per_target_orb), screen_conn
+                get_orbs_per_atom(atoms_per_target_orb), screened_connection
             ),
         )
     )
@@ -811,7 +848,7 @@ def account_for_symmetry(
     }
 
 
-@njit
+@njit(nogil=True)
 def _jit_account_for_symmetry(
     reachable: list[Vector[_T_orb_idx]],
 ) -> list[Vector[_T_orb_idx]]:
@@ -826,37 +863,6 @@ def _jit_account_for_symmetry(
     return List(
         [np.array([q for q in qs if p >= q]) for (p, qs) in enumerate(reachable)]
     )
-
-
-def identify_contiguous_blocks(X: Sequence[_T]) -> list[tuple[int, int]]:
-    """Identify the indices of contiguous blocks in the sequence X.
-
-    A block is defined as a sequence of consecutive integers.
-    Returns a list of tuples, where each tuple contains the
-    start and one-past-the-end indices of a block.
-    This means that the returned tuples can be used in slicing operations.
-
-    Parameters
-    ----------
-    X :
-
-    Example
-    --------
-    >>> X = [1, 2, 3, 5, 6, 7, 9, 10]
-    >>> blocks = identify_contiguous_blocks(X)
-    >>> assert blocks  == [(0, 3), (3, 6), (6, 8)]
-    >>> assert X[blocks[1][0] : blocks[1][1]] == [5, 6, 7]
-    """
-    if not X:
-        return []
-    result = []
-    start = 0  # Start index of a contiguous block
-    for i in range(1, len(X)):
-        if X[i] - X[i - 1] > 1:  # Gap detected
-            result.append((start, i))
-            start = i  # New block starts here
-    result.append((start, len(X)))  # Add the final block
-    return result
 
 
 def get_blocks(reachable: Sequence[_T]) -> list[tuple[_T, _T]]:
@@ -881,33 +887,48 @@ def get_blocks(reachable: Sequence[_T]) -> list[tuple[_T, _T]]:
     ]
 
 
-def get_sparse_ints_3c2e(
+def get_sparse_P_mu_nu(
     mol: Mole,
     auxmol: Mole,
-    screening_radius: Real | Callable[[Real], Real] | Mapping[str, Real] | None = None,
+    exch_reachable: Mapping[AOIdx, Sequence[AOIdx]],
 ) -> SemiSparseSym3DTensor:
     """Return the 3-center 2-electron integrals in a sparse format."""
 
-    if screening_radius is None:
-        screening_radius = find_screening_radius(mol, auxmol)
+    def to_shell_reachable_by_shell(
+        exch_reachable: Mapping[AOIdx, Sequence[AOIdx]],
+        AO_to_shell_id: Mapping[AOIdx, ShellIdx],
+    ) -> Mapping[ShellIdx, list[ShellIdx]]:
+        """Also accepts `exch_reachable_unique` to return
+        symmetry-aware reachable shell mappings"""
+        shell_reachable_by_shell: dict[ShellIdx, set[ShellIdx]] = defaultdict(set)
 
-    atom_per_AO = get_atom_per_AO(mol)
-    exch_reachable = cast(
-        Mapping[AOIdx, Set[AOIdx]],
-        get_reachable(mol, atom_per_AO, atom_per_AO, screening_radius),
-    )
+        for k, v in exch_reachable.items():
+            shell_reachable_by_shell[AO_to_shell_id[k]] |= {
+                AO_to_shell_id[orb] for orb in v
+            }
+        return {k: sorted(v) for k, v in shell_reachable_by_shell.items()}  # type: ignore[type-var]
+
+    AO_timer = Timer("Time to compute sparse (mu nu | P)")
     exch_reachable_unique = account_for_symmetry(exch_reachable)
 
-    screened_unique_integrals = np.empty(
-        (sum(len(v) for v in exch_reachable_unique.values()), auxmol.nao), order="C"
+    n_unique = sum(len(v) for v in exch_reachable_unique.values())
+
+    logger.info(
+        "Semi-Sparse Memory for (mu nu | P) integrals is: "
+        f"{n_unique * auxmol.nao * 8 * 2**-30} Gb"
+    )
+    logger.info(
+        "Dense Memory for (mu nu | P) would be: "
+        f"{n_symmetric(mol.nao) * auxmol.nao * 8 * 2**-30} Gb"
+    )
+    logger.info(f"Sparsity factor is: {(1 - n_unique / n_symmetric(mol.nao)) * 100} %")
+    screened_unique_integrals = np.full(
+        (n_unique, auxmol.nao), fill_value=np.nan, dtype=np.float64, order="C"
     )
 
     shell_id_to_AO, AO_to_shell_id = conversions_AO_shell(mol)
-    shell_reachable_by_shell = account_for_symmetry(
-        {
-            AO_to_shell_id[k]: sorted({AO_to_shell_id[orb] for orb in v})  # type: ignore[type-var]
-            for k, v in exch_reachable_unique.items()
-        }
+    shell_reachable_by_shell = to_shell_reachable_by_shell(
+        exch_reachable_unique, AO_to_shell_id
     )
     keys = np.array(
         [
@@ -916,6 +937,9 @@ def get_sparse_ints_3c2e(
         ],
         dtype=np.int64,
     )
+    key_to_offset = {k: i for i, k in enumerate(keys)}
+
+    assert len(keys) == n_unique
 
     for i_shell, reachable in shell_reachable_by_shell.items():
         for start_block, stop_block in get_blocks(reachable):
@@ -943,9 +967,14 @@ def get_sparse_ints_3c2e(
                         min(shell_id_to_AO[stop_block][-1] + 1, p + 1),  # type: ignore[index]
                     )
                 ):
-                    screened_unique_integrals[
-                        np.searchsorted(keys, ravel_symmetric(p, q)), :
-                    ] = integrals[i, j, ::1]
+                    if ravel_symmetric(p, q) in key_to_offset:
+                        screened_unique_integrals[
+                            key_to_offset[ravel_symmetric(p, q)], :  # type: ignore[arg-type]
+                        ] = integrals[i, j, ::1]
+
+    logger.info(AO_timer.str_elapsed())
+
+    assert not np.isnan(screened_unique_integrals).any()
 
     return SemiSparseSym3DTensor(
         screened_unique_integrals, mol.nao, auxmol.nao, to_numba_input(exch_reachable)
@@ -975,7 +1004,7 @@ def _flatten(
     }
 
 
-@njit(parallel=True)
+@njit(nogil=True, parallel=True)
 def _count_non_zero_2el(
     exch_reachable: list[Vector[OrbitalIdx]],
     n_AO: int | None = None,
@@ -1010,7 +1039,7 @@ def _calc_residual(mol: Mole) -> dict[tuple[AOIdx, AOIdx], float]:
     """
     atom_per_AO = get_atom_per_AO(mol)
     screened_away = account_for_symmetry(
-        get_complement(get_reachable(mol, atom_per_AO, atom_per_AO, 0.0))
+        get_complement(get_reachable(atom_per_AO, atom_per_AO, get_screened(mol, 0.0)))
     )
     g = mol.intor("int2e")
     return {
@@ -1029,7 +1058,7 @@ def _calc_aux_residual(
     """
     atom_per_AO = get_atom_per_AO(mol)
     screened_away = account_for_symmetry(
-        get_complement(get_reachable(mol, atom_per_AO, atom_per_AO, 0.0))
+        get_complement(get_reachable(atom_per_AO, atom_per_AO, get_screened(mol, 0.0)))
     )
     ints_3c2e = df.incore.aux_e2(mol, auxmol, intor="int3c2e")
     return {
@@ -1044,7 +1073,7 @@ def _find_screening_cutoff_distance_aux(
 ) -> float:
     def f(r: float) -> float:
         mol = _get_test_mol(atom1, atom2, r, basis=basis)
-        auxmol = df.make_auxmol(mol, auxbasis)
+        auxmol = make_auxmol(mol, auxbasis)
         nao = mol.nao
         naux = auxmol.nao
 
@@ -1054,7 +1083,7 @@ def _find_screening_cutoff_distance_aux(
 
         ints_3c2e = df.incore.aux_e2(mol, auxmol, intor="int3c2e")
         ints_2c2e = auxmol.intor("int2c2e")
-        df_coef = solve(ints_2c2e, ints_3c2e.reshape(nao * nao, naux).T)
+        df_coef = solve(ints_2c2e, ints_3c2e.reshape(nao * nao, naux).T, assume_a="pos")
         df_coef = df_coef.reshape((naux, nao, nao), order="F")
 
         df_eri = einsum("ijP,Pkl->ijkl", ints_3c2e, df_coef)
@@ -1131,8 +1160,23 @@ def find_screening_radius(
         }
 
 
-@njit(parallel=True)
-def _first_contract_with_TA(
+@njit(nogil=True)
+def contract_with_TA_1st(
+    TA: Matrix[np.float64],
+    int_mu_nu_P: SemiSparseSym3DTensor,
+    AO_reachable_per_SchmidtMO: list[Vector[AOIdx]],
+) -> SemiSparse3DTensor:
+    return _jit_contract_with_TA_1st(
+        TA,
+        int_mu_nu_P,
+        _jit_get_AO_MO_pair_with_offset(AO_reachable_per_SchmidtMO),
+        _jit_get_AO_reachable_by_MO_with_offset(AO_reachable_per_SchmidtMO),
+        AO_reachable_per_SchmidtMO,
+    )
+
+
+@njit(nogil=True, parallel=True)
+def _jit_contract_with_TA_1st(
     TA: Matrix[np.float64],
     int_mu_nu_P: SemiSparseSym3DTensor,
     AO_MO_pair_with_offset: list[tuple[int, AOIdx, MOIdx]],
@@ -1141,8 +1185,10 @@ def _first_contract_with_TA(
 ) -> SemiSparse3DTensor:
     assert TA.shape[0] == int_mu_nu_P.nao and TA.shape[1] == len(AO_reachable_by_MO)
     n_unique = len(AO_MO_pair_with_offset)
+
+    print("Memory for (mu i | P): Gb", n_unique * int_mu_nu_P.naux * 8 * 2**-30)
     g_unique = np.zeros((n_unique, int_mu_nu_P.naux), dtype=np.float64)
-    keys = np.empty(n_unique, dtype=np.int64)
+    keys = np.full(n_unique, fill_value=np.nan, dtype=np.int64)
 
     # We cannot directly loop as in
     # ``for offset, mu, i in AO_MO_pair_with_offset```
@@ -1151,7 +1197,7 @@ def _first_contract_with_TA(
     for outer_counter in prange(len(AO_MO_pair_with_offset)):  # type: ignore[attr-defined]
         offset, mu, i = AO_MO_pair_with_offset[outer_counter]
         keys[offset] = ravel_Fortran(mu, i, TA.shape[0])
-        for nu_counter in prange(len(int_mu_nu_P.exch_reachable[mu])):  # type: ignore[attr-defined]
+        for nu_counter in range(len(int_mu_nu_P.exch_reachable[mu])):  # type: ignore[attr-defined]
             inner_offset, nu = int_mu_nu_P.exch_reachable_with_offsets[mu][nu_counter]
             # In an un-optimized, but readable way it would be written as:
             # g_unique[offset] += TA[nu, i] * int_mu_nu_P[mu, nu]
@@ -1168,16 +1214,40 @@ def _first_contract_with_TA(
     )
 
 
-@njit(parallel=True)
-def _second_contract_with_TA(
+@njit(nogil=True, parallel=True)
+def contract_with_TA_2nd_to_sym_dense(
     TA: Matrix[np.float64], int_mu_i_P: SemiSparse3DTensor
 ) -> Tensor3D[np.float64]:
+    r"""Contract the first dimension of ``int_mu_i_P``
+    with the first dimension of ``TA``.
+    We assume the result to be symmetric in the first two dimensions.
+
+    If the result is known to be non-symmetric use
+    :func:`contract_with_TA_2nd_to_dense` instead.
+
+    Can be used to e.g. compute contractions to purely fragment,
+    or purely bath integrals.
+
+    .. math::
+
+        (i j | P) = \sum_{\mu} T_{\mu,i} (\mu j | P) \\
+        (a b | P) = \sum_{\mu} T_{\mu,a} (\mu b | P)
+
+    Returns
+    -------
+    Tensor3D :
+        A dense 3D tensor :math:`(i j | P)`, symmetric in the first two (MO) dimensions.
+        The last dimension is along the auxiliary basis.
+    """
     assert TA.shape[0] == int_mu_i_P.shape[0]
     assert TA.shape[1] == int_mu_i_P.shape[1]
 
+    print("Memory for (i j | P): Gb", TA.shape[1] ** 2 * int_mu_i_P.naux * 8 * 2**-30)
+
     g = np.zeros((TA.shape[1], TA.shape[1], int_mu_i_P.naux), dtype=np.float64)
 
-    for i in prange(g.shape[0]):  # type: ignore[attr-defined]
+    for counter in prange(g.shape[0]):  # type: ignore[attr-defined]
+        i = g.shape[0] - counter - 1
         for j in prange(min(g.shape[1], i + 1)):  # type: ignore[attr-defined]
             for offset, nu in int_mu_i_P.AO_reachable_by_MO_with_offsets[i]:
                 g[i, j, :] += TA[nu, j] * int_mu_i_P.dense_data[offset]
@@ -1186,23 +1256,123 @@ def _second_contract_with_TA(
     return g
 
 
-def transform_sparse_DF_integral(
-    mf: scf.hf.SCF,
-    Fobjs: Sequence[Frags],
-    file_eri_handler: h5py.File,
-    auxbasis: str | None = None,
-    screen_radius: Mapping[str, float] | None = None,
-) -> None:
-    eris = _transform_sparse_DF_integral(
-        mf,
-        Fobjs,
-        auxbasis,
-        screen_radius,
+@njit(nogil=True)
+def contract_with_TA_2nd_to_sym_sparse(
+    TA: Matrix[np.float64],
+    int_mu_i_P: SemiSparse3DTensor,
+    i_reachable_by_j: List[Vector[np.int64]],
+) -> SemiSparseSym3DTensor:
+    r"""Contract the first dimension of ``int_mu_i_P``
+    with the first dimension of ``TA``.
+    We assume the result to be symmetric in the first two dimensions.
+
+    If the result is known to be non-symmetric use
+    :func:`contract_with_TA_2nd_to_dense` instead.
+
+    Can be used to e.g. compute contractions to purely fragment,
+    or purely bath integrals.
+
+    .. math::
+
+        (i j | P) = \sum_{\mu} T_{\mu,i} (\mu j | P) \\
+        (a b | P) = \sum_{\mu} T_{\mu,a} (\mu b | P)
+
+    Returns
+    -------
+    Tensor3D :
+        A dense 3D tensor :math:`(i j | P)`, symmetric in the first two (MO) dimensions.
+        The last dimension is along the auxiliary basis.
+    """
+    assert TA.shape[0] == int_mu_i_P.shape[0]
+    assert TA.shape[1] == int_mu_i_P.shape[1]
+
+    i_reachable_by_j_unique = _jit_account_for_symmetry(i_reachable_by_j)
+    n_unique = sum([len(x) for x in i_reachable_by_j_unique])
+    n_MO = TA.shape[1]
+
+    unique_dense_data = np.zeros((n_unique, int_mu_i_P.naux), dtype=np.float64)
+
+    i_j_offset = 0
+    for i in prange(n_MO):  # type: ignore[attr-defined]
+        for j in i_reachable_by_j_unique[i]:
+            for mu_i_offset, nu in int_mu_i_P.AO_reachable_by_MO_with_offsets[i]:
+                unique_dense_data[i_j_offset, :] += (
+                    TA[nu, j] * int_mu_i_P.dense_data[mu_i_offset]
+                )
+            i_j_offset += 1
+
+    return SemiSparseSym3DTensor(
+        unique_dense_data, n_MO, int_mu_i_P.naux, i_reachable_by_j
     )
-    write_eris(Fobjs, eris, file_eri_handler)
 
 
-def _slow_transform_sparse_DF_integral(
+@njit(nogil=True, parallel=True)
+def contract_with_TA_2nd_to_dense(
+    TA: Matrix[np.float64], int_mu_i_P: SemiSparse3DTensor
+) -> Tensor3D[np.float64]:
+    r"""Contract the first dimension of ``int_mu_i_P``
+    with the first dimension of ``TA``.
+    If the result is known to be symmetric use
+    :func:`contract_with_TA_2nd_to_sym_dense` or
+    :func:`contract_with_TA_2nd_to_sym_sparse` instead.
+
+    Can be used to e.g. compute contractions of mixed fragment-bath
+    integrals.
+
+    .. math::
+
+        (i a | P) = \sum_{\mu} T_{\mu,i} (\mu a | P) \\
+        (a i | P) = \sum_{\mu} T_{\mu,a} (\mu i | P)
+
+    Returns
+    -------
+    Tensor3D :
+        A dense 3D tensor :math:`(i a | P)`, which can have
+        different lengths along the first two dimensions,
+        e.g. fragment and bath orbitals.
+        The last dimension is along the auxiliary basis.
+    """
+    assert TA.shape[0] == int_mu_i_P.shape[0]
+
+    g = np.zeros((TA.shape[1], int_mu_i_P.shape[1], int_mu_i_P.naux), dtype=np.float64)
+
+    for a in prange(g.shape[0]):  # type: ignore[attr-defined]
+        for i in prange(g.shape[1]):  # type: ignore[attr-defined]
+            for offset, mu in int_mu_i_P.AO_reachable_by_MO_with_offsets[i]:
+                g[a, i, :] += TA[mu, a] * int_mu_i_P.dense_data[offset]
+    return g
+
+
+@njit(nogil=True)
+def _jit_get_AO_MO_pair_with_offset(
+    AO_reachable_by_MO: List[Vector[np.int64]],
+) -> list[tuple[int, AOIdx, MOIdx]]:
+    return List(
+        [
+            (offset, mu, i)
+            for offset, (mu, i) in enumerate(
+                [
+                    (i_AO, i_MO)
+                    for i_MO, reachable_AOs in enumerate(AO_reachable_by_MO)
+                    for i_AO in sorted(reachable_AOs)  # type: ignore[type-var]
+                ]
+            )
+        ]
+    )
+
+
+@njit(nogil=True)
+def _jit_get_AO_reachable_by_MO_with_offset(
+    AO_reachable_by_MO: List[Vector[np.int64]],
+) -> List[List[int, AOIdx]]:
+    # assert list(AO_reachable_by_MO.keys()) == list(range(len(AO_reachable_by_MO)))
+    counter = PreIncr()
+    return List(
+        [List([(counter.incr(), AO) for AO in AOs]) for AOs in AO_reachable_by_MO]
+    )
+
+
+def _transform_sparse_DF_slow(
     mf: scf.hf.SCF,
     Fobjs: Sequence[Frags],
     auxbasis: str | None = None,
@@ -1210,10 +1380,14 @@ def _slow_transform_sparse_DF_integral(
 ) -> list[Matrix[np.float64]]:
     """Only exist for reference. Can be deleted soon."""
     mol = mf.mol
-    auxmol = addons.make_auxmol(mf.mol, auxbasis=auxbasis)
+    auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
     if screen_radius is None:
         screen_radius = find_screening_radius(mol, auxmol, threshold=1e-4)
-    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, screen_radius)
+    atom_per_AO = get_atom_per_AO(mol)
+    exch_reachable = get_reachable(
+        atom_per_AO, atom_per_AO, get_screened(mol, screen_radius)
+    )
+    sparse_ints_3c2e = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
     ints_mu_nu_P = sparse_ints_3c2e.to_dense()
     ints_2c2e = auxmol.intor("int2c2e")
 
@@ -1224,7 +1398,9 @@ def _slow_transform_sparse_DF_integral(
         int_mu_i_P = transf @ ints_mu_nu_P
         ints_i_j_P.append(transf @ np.moveaxis(int_mu_i_P, 1, 0))
 
-    Ds_i_j_P = [solve(ints_2c2e, int_i_j_P.T).T for int_i_j_P in ints_i_j_P]
+    Ds_i_j_P = [
+        solve(ints_2c2e, int_i_j_P.T, assume_a="pos").T for int_i_j_P in ints_i_j_P
+    ]
 
     return [
         einsum("ijP,klP->ijkl", ints, df_coef)
@@ -1232,100 +1408,356 @@ def _slow_transform_sparse_DF_integral(
     ]
 
 
-def get_AO_MO_pair_with_offset(
-    AO_reachable_by_MO: Mapping[MOIdx, Collection[AOIdx]],
-) -> list[tuple[int, AOIdx, MOIdx]]:
-    return [
-        (offset, mu, i)
-        for offset, (mu, i) in enumerate(
-            (i_AO, i_MO)
-            for i_MO, reachable_AOs in AO_reachable_by_MO.items()
-            for i_AO in sorted(reachable_AOs)  # type: ignore[type-var]
-        )
-    ]
-
-
-def _nb_get_AO_reachable_by_MO_with_offset(
-    AO_reachable_by_MO: Mapping[MOIdx, Collection[AOIdx]],
-) -> List[List[int, AOIdx]]:
-    assert list(AO_reachable_by_MO.keys()) == list(range(len(AO_reachable_by_MO)))
-    counter = count()
-    return List(
-        [List([(next(counter), x) for x in v]) for v in AO_reachable_by_MO.values()]
-    )
-
-
-def _transform_sparse_DF_integral(
+def transform_sparse_DF_integral_nb(
     mf: scf.hf.SCF,
     Fobjs: Sequence[Frags],
-    auxbasis: str | None = None,
-    screen_radius: Mapping[str, float] | None = None,
-) -> list[Matrix[np.float64]]:
+    auxbasis: str | None,
+    file_eri_handler: h5py.File,
+    AO_coeff_epsilon: float,
+    MO_coeff_epsilon: float,
+    n_threads: int,
+) -> None:
     mol = mf.mol
-    auxmol = addons.make_auxmol(mf.mol, auxbasis=auxbasis)
-    if screen_radius is None:
-        screen_radius = find_screening_radius(mol, auxmol, threshold=1e-4)
-    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol, screen_radius)
-    ints_2c2e = auxmol.intor("int2c2e")
-    low_triang_PQ = cholesky(ints_2c2e, lower=True)
+    auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
-    atom_per_AO = get_atom_per_AO(mol)
+    S_abs_timer = Timer("Time to compute S_abs")
+    S_abs = calculate_abs_overlap(mol)
 
-    ints_i_j_P = [
-        get_fragment_ints3c2e(
-            screen_radius, mol, sparse_ints_3c2e, atom_per_AO, fragobj.TA
+    logger.info(S_abs_timer.str_elapsed())
+
+    exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
+
+    sparse_P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
+    PQ = auxmol.intor("int2c2e")
+    low_triang_PQ = cholesky(PQ, lower=True)
+
+    def f(fragobj: Frags) -> None:
+        eri = restore(
+            "4",
+            _transform_fragment_integral(
+                sparse_P_mu_nu,
+                fragobj.TA,
+                S_abs,
+                low_triang_PQ,
+                MO_coeff_epsilon,
+            ),
+            fragobj.TA.shape[1],
         )
-        for fragobj in Fobjs
-    ]
+        file_eri_handler.create_dataset(fragobj.dname, data=eri)
 
-    return [
-        restore("1", _eval_via_cholesky(ijP, low_triang_PQ), len(ijP))
-        for ijP in ints_i_j_P
-    ]
+    if n_threads > 1:
+        with ThreadPoolExecutor(max_workers=n_threads) as executor:
+            futures = [executor.submit(f, fragobj) for fragobj in Fobjs]
+            # You must call future.result() if you want to catch exceptions
+            # raised during execution. Otherwise, errors may silently fail.
+            for future in futures:
+                future.result()
+    else:
+        for fragobj in Fobjs:
+            f(fragobj)
 
 
-def get_fragment_ints3c2e(
-    screen_radius: Mapping[str, float],
-    mol: Mole,
+def transform_sparse_DF_integral_cpp(
+    mf: scf.hf.SCF,
+    Fobjs: Sequence[Frags],
+    auxbasis: str | None,
+    file_eri_handler: h5py.File,
+    AO_coeff_epsilon: float,
+    MO_coeff_epsilon: float,
+    n_threads: int,
+) -> None:
+    cpp_transforms.set_log_level(logging.getLogger().getEffectiveLevel())
+    mol = mf.mol
+    auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
+
+    S_abs_timer = Timer("Time to compute S_abs")
+    S_abs = calculate_abs_overlap(mol)
+    print(S_abs_timer.str_elapsed())
+
+    exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
+
+    py_P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
+    mu_nu_P = cpp_transforms.SemiSparseSym3DTensor(
+        np.asfortranarray(py_P_mu_nu.unique_dense_data.T),
+        tuple(reversed(py_P_mu_nu.shape)),  # type: ignore[arg-type]
+        py_P_mu_nu.exch_reachable,  # type: ignore[arg-type]
+    )
+    PQ = auxmol.intor("int2c2e")
+    low_triang_PQ = cholesky(PQ, lower=True)
+
+    def f(fragobj: Frags) -> None:
+        eri = restore(
+            "4",
+            cpp_transforms.transform_integral(
+                mu_nu_P,
+                fragobj.TA,
+                S_abs,
+                low_triang_PQ,
+                MO_coeff_epsilon,
+            ),
+            fragobj.TA.shape[1],
+        )
+        file_eri_handler.create_dataset(fragobj.dname, data=eri)
+
+    if n_threads > 1:
+        with ThreadPoolExecutor(max_workers=n_threads) as executor:
+            futures = [executor.submit(f, fragobj) for fragobj in Fobjs]
+            # You must call future.result() if you want to catch exceptions
+            # raised during execution. Otherwise, errors may silently fail.
+            for future in futures:
+                future.result()
+    else:
+        for fragobj in Fobjs:
+            f(fragobj)
+
+
+def transform_sparse_DF_integral_cpp_gpu(
+    mf: scf.hf.SCF,
+    Fobjs: Sequence[Frags],
+    auxbasis: str | None,
+    file_eri_handler: h5py.File,
+    AO_coeff_epsilon: float,
+    MO_coeff_epsilon: float,
+    n_threads: int,
+) -> None:
+    cpp_transforms.set_log_level(logging.getLogger().getEffectiveLevel())
+    mol = mf.mol
+    auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
+
+    S_abs_timer = Timer("Time to compute S_abs")
+    S_abs = calculate_abs_overlap(mol)
+    print(S_abs_timer.str_elapsed())
+
+    exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
+
+    py_P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
+    mu_nu_P = cpp_transforms.SemiSparseSym3DTensor(
+        np.asfortranarray(py_P_mu_nu.unique_dense_data.T),
+        tuple(reversed(py_P_mu_nu.shape)),  # type: ignore[arg-type]
+        py_P_mu_nu.exch_reachable,  # type: ignore[arg-type]
+    )
+    PQ = auxmol.intor("int2c2e")
+    low_triang_PQ = cpp_transforms.GPU_MatrixHandle(cholesky(PQ, lower=True))
+
+    def f(fragobj: Frags) -> None:
+        eri = restore(
+            "4",
+            cpp_transforms.transform_integral_cuda(
+                mu_nu_P,
+                fragobj.TA,
+                S_abs,
+                low_triang_PQ,
+                MO_coeff_epsilon,
+            ),
+            fragobj.TA.shape[1],
+        )
+        file_eri_handler.create_dataset(fragobj.dname, data=eri)
+
+    if n_threads > 1:
+        with ThreadPoolExecutor(max_workers=n_threads) as executor:
+            futures = [executor.submit(f, fragobj) for fragobj in Fobjs]
+            # You must call future.result() if you want to catch exceptions
+            # raised during execution. Otherwise, errors may silently fail.
+            for future in futures:
+                future.result()
+    else:
+        for fragobj in Fobjs:
+            f(fragobj)
+
+
+@njit(nogil=True)
+def _get_P_ij(
     sparse_ints_3c2e: SemiSparseSym3DTensor,
-    atom_per_AO: Mapping[AOIdx, Set[AtomIdx]],
     TA: Matrix[np.float64],
-    epsilon: float = 1e-8,
+    S_abs: Matrix[np.float64],
+    MO_coeff_epsilon: float,
 ) -> Tensor3D[np.float64]:
-    AO_reachable_per_SchmidtMO = get_reachable(
-        mol,
-        get_atom_per_MO(atom_per_AO, TA, epsilon=epsilon),
-        atom_per_AO,
-        screen_radius,
+    AO_reachable_per_SchmidtMO = _jit_get_AO_per_MO(TA, S_abs, MO_coeff_epsilon)
+    return contract_with_TA_2nd_to_sym_dense(
+        TA, contract_with_TA_1st(TA, sparse_ints_3c2e, AO_reachable_per_SchmidtMO)
     )
 
-    sparse_int_mu_i_P = _first_contract_with_TA(
-        TA,
-        sparse_ints_3c2e,
-        List(get_AO_MO_pair_with_offset(AO_reachable_per_SchmidtMO)),
-        _nb_get_AO_reachable_by_MO_with_offset(AO_reachable_per_SchmidtMO),
-        to_numba_input(AO_reachable_per_SchmidtMO),
+
+def _transform_fragment_integral(
+    sparse_ints_3c2e: SemiSparseSym3DTensor,
+    TA: Matrix[np.float64],
+    S_abs: Matrix[np.float64],
+    low_triang_PQ: Matrix[np.float64],
+    MO_coeff_epsilon: float,
+) -> Matrix[np.float64]:
+    return _eval_via_cholesky(
+        _get_P_ij(sparse_ints_3c2e, TA, S_abs, MO_coeff_epsilon), low_triang_PQ
     )
 
-    return _second_contract_with_TA(TA, sparse_int_mu_i_P)
+
+@njit(nogil=True, parallel=True)
+def _account_for_symmetry(pqP: Tensor3D[np.float64]) -> Matrix[np.float64]:
+    """(n_orb, n_orb | n_aux) -> (n_aux | sym n_orb pairs)"""
+    n_orb, naux = len(pqP), pqP.shape[-1]
+    sym_bb = np.full(
+        (naux, ravel_symmetric(n_orb - 1, n_orb - 1) + 1),
+        fill_value=np.nan,
+        dtype=np.float64,
+    )
+
+    for i in prange(n_orb):  # type: ignore[attr-defined]
+        for j in range(i + 1):  # type: ignore[attr-defined]
+            sym_bb[:, ravel_symmetric(i, j)] = pqP[i, j, :]
+    return sym_bb
 
 
 def _eval_via_cholesky(
-    ijP: Tensor3D[np.float64], low_triang_PQ: Matrix[np.float64]
+    pqP: Tensor3D[np.float64], low_triang_PQ: Matrix[np.float64]
 ) -> Matrix[np.float64]:
-    b = ijP.reshape(ijP.shape[0] ** 2, ijP.shape[2]).T
+    symmetrised = _account_for_symmetry(pqP)
     bb = solve_triangular(
-        low_triang_PQ, b, lower=True, overwrite_b=False, check_finite=False
+        low_triang_PQ,
+        symmetrised,
+        lower=True,
+        overwrite_b=False,
+        check_finite=False,
     )
-    return bb.T @ bb
+    result = bb.T @ bb
+    return result
 
 
-def write_eris(
-    Fobjs: Sequence[Frags],
-    eris: Sequence[Matrix[np.float64]],
-    file_eri_handler: h5py.File,
-) -> None:
-    for fragidx, eri in enumerate(eris):
-        file_eri_handler.create_dataset(
-            Fobjs[fragidx].dname, data=restore("4", eri, len(eri))
+try:
+    import cupy as cp  # type: ignore
+    from cupyx.scipy.linalg import (
+        solve_triangular as cupy_solve_triangular,  # type: ignore
+    )
+
+    def _transform_fragment_integral_on_gpu(
+        sparse_ints_3c2e: SemiSparseSym3DTensor,
+        TA: Matrix[np.float64],
+        S_abs: Matrix[np.float64],
+        low_triang_PQ_on_gpu: cp.ndarray[np.float64],
+        MO_coeff_epsilon: float,
+    ) -> Matrix[np.float64]:
+        return _eval_via_cholesky_gpu(
+            _get_P_ij(sparse_ints_3c2e, TA, S_abs, MO_coeff_epsilon),
+            low_triang_PQ_on_gpu,
         )
+
+    def transform_sparse_DF_integral_nb_gpu(
+        mf: scf.hf.SCF,
+        Fobjs: Sequence[Frags],
+        auxbasis: str | None,
+        file_eri_handler: h5py.File,
+        AO_coeff_epsilon: float,
+        MO_coeff_epsilon: float,
+        n_threads: int,
+    ) -> None:
+        mol = mf.mol
+        auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
+
+        S_abs_timer = Timer("Time to compute S_abs")
+        S_abs = calculate_abs_overlap(mol)
+        print(S_abs_timer.str_elapsed())
+
+        exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
+
+        sparse_P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
+        PQ = auxmol.intor("int2c2e")
+        low_triang_PQ_on_gpu = cp.asarray(cholesky(PQ, lower=True))
+
+        def f(fragobj: Frags) -> None:
+            eri = restore(
+                "4",
+                _transform_fragment_integral_on_gpu(
+                    sparse_P_mu_nu,
+                    fragobj.TA,
+                    S_abs,
+                    low_triang_PQ_on_gpu,
+                    MO_coeff_epsilon,
+                ),
+                fragobj.TA.shape[1],
+            )
+            file_eri_handler.create_dataset(fragobj.dname, data=eri)
+
+        if n_threads > 1:
+            with ThreadPoolExecutor(max_workers=n_threads) as executor:
+                futures = [executor.submit(f, fragobj) for fragobj in Fobjs]
+                # You must call future.result() if you want to catch exceptions
+                # raised during execution. Otherwise, errors may silently fail.
+                for future in futures:
+                    future.result()
+        else:
+            for fragobj in Fobjs:
+                f(fragobj)
+
+    def _eval_via_cholesky_gpu(
+        pqP: Tensor3D[np.float64],
+        low_triang_PQ_on_gpu: cp.ndarray[np.float64],
+    ) -> np.ndarray:
+        symmetrised = _account_for_symmetry(pqP)  # should return np.ndarray
+        symmetrised_on_gpu = cp.asarray(symmetrised, dtype=cp.float64)
+
+        # Double-check types if still unsure
+        assert isinstance(symmetrised_on_gpu, cp.ndarray)
+        assert isinstance(low_triang_PQ_on_gpu, cp.ndarray)
+
+        bb = cupy_solve_triangular(
+            low_triang_PQ_on_gpu,
+            symmetrised_on_gpu,
+            lower=True,
+            overwrite_b=False,
+            check_finite=False,
+        )
+
+        result = bb.T @ bb
+        return cp.asnumpy(result)
+except ImportError:
+    pass
+
+
+_T_ = ListType(_UniTuple_int64_2)
+
+
+def calculate_abs_overlap(mol: Mole, grid_level: int = 2) -> Matrix[np.float64]:
+    r"""
+    Calculates the overlap matrix :math:`S_ij = \int |phi_i(r)| |phi_j(r)| dr`
+    using numerical integration on a DFT grid.
+
+    Parameters
+    -----------
+        mol :
+    """
+    grids = dft.gen_grid.Grids(mol)
+    grids.level = grid_level
+    grids.build()
+    AO_abs_val = np.abs(dft.numint.eval_ao(mol, grids.coords, deriv=0))
+    result = (AO_abs_val * grids.weights[:, np.newaxis]).T @ AO_abs_val
+    assert np.allclose(result, result.T)
+    return result
+
+
+def identify_contiguous_blocks(X: Sequence[_T]) -> list[tuple[int, int]]:
+    """Identify the indices of contiguous blocks in the sequence X.
+
+    A block is defined as a sequence of consecutive integers.
+    Returns a list of tuples, where each tuple contains the
+    start and one-past-the-end indices of a block.
+    This means that the returned tuples can be used in slicing operations.
+
+    Parameters
+    ----------
+    X :
+
+    Example
+    --------
+    >>> X = [1, 2, 3, 5, 6, 7, 9, 10]
+    >>> blocks = identify_contiguous_blocks(X)
+    >>> assert blocks  == [(0, 3), (3, 6), (6, 8)]
+    >>> assert X[blocks[1][0] : blocks[1][1]] == [5, 6, 7]
+    """
+    if not X:
+        return []
+    result = []
+    start = 0  # Start index of a contiguous block
+    for i in range(1, len(X)):
+        if X[i] - X[i - 1] > 1:  # Gap detected
+            result.append((start, i))
+            start = i  # New block starts here
+    result.append((start, len(X)))  # Add the final block
+    return result

@@ -19,6 +19,7 @@ from quemb.molbe.helper import (
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import (
     SHCI_ArgsUser,
+    Solvers,
     UserSolverArgs,
     _SHCI_Args,
     solve_ccsd,
@@ -47,7 +48,7 @@ def run_solver(
     weight_and_relAO_per_center: ListOverFrag[tuple[float, list[RelAOIdx]]],
     TA: Matrix[float64],
     h1_e: Matrix[float64],
-    solver: str = "MP2",
+    solver: Solvers = "CCSD",
     eri_file: str = "eri_file.h5",
     veff: Matrix[float64] | None = None,
     veff0: Matrix[float64] | None = None,
@@ -88,8 +89,8 @@ def run_solver(
     h1_e :
         One-electron integral matrix.
     solver :
-        Solver to use for the calculation ('MP2', 'CCSD', 'FCI', 'HCI', 'SHCI', 'SCI').
-        Default is 'MP2'.
+        Solver to use for the calculation.
+        Default is 'CCSD'.
     eri_file :
         Filename for the electron repulsion integrals. Default is 'eri_file.h5'.
     veff :

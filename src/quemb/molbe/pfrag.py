@@ -11,6 +11,7 @@ from numpy import (
     einsum,
     eye,
     float64,
+    int64,
     outer,
     trace,
     tril_indices,
@@ -20,6 +21,7 @@ from numpy import (
 from numpy.linalg import eigh, multi_dot
 
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
+from quemb.shared.helper import clean_overlap
 from quemb.shared.typing import (
     FragmentIdx,
     GlobalAOIdx,
@@ -28,6 +30,7 @@ from quemb.shared.typing import (
     RelAOIdx,
     RelAOIdxInRef,
     SeqOverEdge,
+    Vector,
 )
 
 
@@ -107,6 +110,7 @@ class Frags:
             self.dname = "f" + str(ifrag)
 
         self.TA: Matrix[float64]
+        self.frag_TA_offset: Vector[int64]
         self.TA_lo_eo: Matrix[float64]
 
         self.h1: Matrix[float64]
@@ -481,3 +485,86 @@ def schmidt_decomposition(
     TA[Env_sites1, len(AO_in_frag) :] = Evec[:, Bidx]  # Environment part
 
     return TA, Frag_sites1.shape[0], len(Bidx)
+
+
+def _get_contained(
+    all_fragment_MOs_TA: Matrix[np.float64],
+    TA: Matrix[np.float64],
+    S: Matrix[np.float64],
+    epsilon: float,
+) -> Vector[np.bool]:
+    r"""Get a boolean vector of the MOs in TA that are already contained in
+    ``all_fragment_MOs_TA``
+
+    Parameters
+    ----------
+    all_fragment_MOs_TA :
+        A :math:`n_{\text{AO}} \times n_{\text{f,all}}` matrix that
+        contains the fragment orbitals of all fragments.
+    TA :
+        A :math:`n_{\text{AO}} \times n_{\text{f}}` matrix that
+        contains the fragment orbitals of a given fragment.
+    S :
+        The AO overlap matrix.
+    epsilon :
+        Cutoff to consider overlap values to be zero or one.
+    """
+    return (clean_overlap(all_fragment_MOs_TA.T @ S @ TA, epsilon=epsilon) == 1).any(
+        axis=0
+    )
+
+
+def _get_union_of_fragment_MOs(
+    schmidt_TAs: Sequence[Matrix[np.float64]], S: Matrix[np.float64], epsilon: float
+) -> Matrix[np.float64]:
+    all_fragment_MOs_TA = schmidt_TAs[0]
+    for schmidt_TA in schmidt_TAs[1:]:
+        all_fragment_MOs_TA = np.hstack(
+            (
+                all_fragment_MOs_TA,
+                schmidt_TA[
+                    :, ~_get_contained(all_fragment_MOs_TA, schmidt_TA, S, epsilon)
+                ],
+            )
+        )
+    return all_fragment_MOs_TA
+
+
+def _get_index_offset(
+    all_fragment_MOs_TA: Matrix[np.float64],
+    TA: Matrix[np.float64],
+    S: Matrix[np.float64],
+    epsilon: float,
+) -> Vector[np.int64]:
+    idx_rows, idx_cols = (
+        clean_overlap(all_fragment_MOs_TA.T @ S @ TA, epsilon) == 1
+    ).nonzero()
+    new_idx = np.argsort(idx_cols)
+    idx_rows, idx_cols = idx_rows[new_idx], idx_cols[new_idx]
+    assert (idx_cols == np.arange(TA.shape[1])).all()
+    return idx_rows
+
+
+def union_of_frag_MOs_and_index(
+    Fobjs: Sequence[Frags], S: Matrix[np.float64], epsilon: float = 1e-10
+) -> tuple[Matrix[np.float64], list[Vector[np.int64]]]:
+    r"""Get the union of all fragment MOs as one Matrix and the respective
+    indices for each fragment to refer to the global fragment MO matrix.
+
+    This allows to reuse information such as integrals for the fragment MOs.
+
+    Parameters
+    ----------
+    Fobjs:
+        A sequence of Frags.
+    S :
+        The AO overlap matrix.
+    epsilon :
+        Cutoff to consider overlap values to be zero or one.
+    """
+    fragment_TAs = [fobj.TA[:, : fobj.n_f] for fobj in Fobjs]
+    all_fragment_MOs_TA = _get_union_of_fragment_MOs(fragment_TAs, S, epsilon=epsilon)
+    return all_fragment_MOs_TA, [
+        _get_index_offset(all_fragment_MOs_TA, schmidt_TA, S, epsilon=epsilon)
+        for schmidt_TA in fragment_TAs
+    ]

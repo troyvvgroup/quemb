@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 import scipy
 from chemcoord import Cartesian
 from pyscf import df, scf
@@ -8,39 +9,22 @@ from pyscf.lib import einsum
 
 from quemb.molbe import BE, fragmentate
 from quemb.molbe.eri_sparse_DF import (
-    SparseInt2,
     _invert_dict,
     find_screening_radius,
     get_atom_per_AO,
     get_atom_per_MO,
     get_dense_integrals,
     get_reachable,
+    get_screened,
     get_sparse_D_ints_and_coeffs,
-    get_sparse_ints_3c2e,
+    get_sparse_P_mu_nu,
     traverse_nonzero,
 )
-from quemb.shared.helper import get_calling_function_name
+from quemb.shared.helper import clean_overlap, get_calling_function_name
 
 from ._expected_data_for_eri_sparse_DF import get_expected
 
 expected = get_expected()
-
-
-def test_basic_indexing() -> None:
-    g = SparseInt2()
-    g[1, 2, 3, 4] = 3
-
-    # test all possible permutations
-    assert g[1, 2, 3, 4] == 3
-    assert g[1, 2, 4, 3] == 3
-    assert g[2, 1, 3, 4] == 3
-    assert g[2, 1, 4, 3] == 3
-    assert g[3, 4, 1, 2] == 3
-    assert g[4, 3, 1, 2] == 3
-    assert g[3, 4, 2, 1] == 3
-    assert g[4, 3, 2, 1] == 3
-
-    assert g[1, 2, 3, 10] == 0
 
 
 def test_semi_sparse_3d_tensor() -> None:
@@ -49,7 +33,12 @@ def test_semi_sparse_3d_tensor() -> None:
     auxbasis = "weigend"
     mol = m.to_pyscf(basis=basis, charge=0)
     auxmol = df.addons.make_auxmol(mol, auxbasis)
-    sparse_ints_3c2e = get_sparse_ints_3c2e(mol, auxmol)
+
+    atom_per_AO = get_atom_per_AO(mol)
+    exch_reachable = get_reachable(
+        atom_per_AO, atom_per_AO, get_screened(mol, find_screening_radius(mol, auxmol))
+    )
+    sparse_ints_3c2e = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
 
     ints_3c2e = df.incore.aux_e2(mol, auxmol, intor="int3c2e")
 
@@ -105,12 +94,12 @@ def test_sparse_DF_BE() -> None:
     mf.kernel()
 
     fobj = fragmentate(frag_type="chemgen", n_BE=2, mol=mol, print_frags=False)
-    sparse_DF_BE = BE(mf, fobj, auxbasis="weigend", int_transform="sparse-DF")
+    sparse_DF_BE = BE(mf, fobj, auxbasis="weigend", int_transform="sparse-DF-cpp")
     sparse_DF_BE.oneshot(solver="CCSD")
 
     assert np.isclose(
         sparse_DF_BE.ebe_tot - sparse_DF_BE.ebe_hf,
-        -0.5498849435531383,
+        -0.5499222005057618,
         atol=1e-10,
         rtol=0,
     )
@@ -122,37 +111,27 @@ def test_invert_dict() -> None:
     assert _invert_dict(X) == expected
 
 
-def test_MO_screening() -> None:
-    mol = M("xyz/E-polyacetylene/20.xyz", basis="sto-3g")
-    auxbasis = "weigend"
-    auxmol = make_auxmol(mol, auxbasis=auxbasis)
-
-    mf = scf.RHF(mol)
-    mf.kernel()
-
-    fobj = fragmentate(frag_type="chemgen", n_BE=2, mol=mol, print_frags=False)
-    my_be = BE(mf, fobj, auxbasis=auxbasis, int_transform="int-direct-DF")
+def test_MO_screening(ikosan) -> None:
+    mol, auxmol, mf, fobj, my_be = ikosan
 
     atom_per_AO = get_atom_per_AO(mol)
 
-    screening_cutoff = find_screening_radius(mol, auxmol)
+    screened = get_screened(mol, find_screening_radius(mol, auxmol))
 
     SchmidtMO_reachable_per_AO_per_frag = [
         get_reachable(
-            mol,
             atom_per_AO,
             get_atom_per_MO(atom_per_AO, TA, epsilon=1e-8),
-            screening_cutoff,
+            screened,
         )
         for TA in (fobj.TA for fobj in my_be.Fobjs)
     ]
 
     AO_reachable_per_SchmidtMO_per_frag = [
         get_reachable(
-            mol,
             get_atom_per_MO(atom_per_AO, TA, epsilon=1e-8),
             atom_per_AO,
-            screening_cutoff,
+            screened,
         )
         for TA in (fobj.TA for fobj in my_be.Fobjs)
     ]
@@ -176,3 +155,32 @@ def test_MO_screening() -> None:
         for i_MO in AO_reachable_by_MO:
             for i_AO in AO_reachable_by_MO[i_MO]:
                 assert i_MO in MO_reachable_by_AO[i_AO]
+
+
+def test_reuse_schmidt_fragment_MOs(ikosan) -> None:
+    mol, auxmol, mf, fobj, my_be = ikosan
+
+    S = mol.intor("int1e_ovlp")
+    for fobj in my_be.Fobjs:
+        assert (
+            clean_overlap(
+                my_be.all_fragment_MO_TA[:, fobj.frag_TA_offset].T
+                @ S
+                @ fobj.TA[:, : fobj.n_f]
+            )
+            == np.eye(fobj.n_f)
+        ).all()
+
+
+@pytest.fixture(scope="session")
+def ikosan():
+    mol = M("xyz/E-polyacetylene/20.xyz", basis="sto-3g")
+    auxbasis = "weigend"
+    auxmol = make_auxmol(mol, auxbasis=auxbasis)
+
+    mf = scf.RHF(mol)
+    mf.kernel()
+
+    fobj = fragmentate(frag_type="chemgen", n_BE=2, mol=mol, print_frags=False)
+    my_be = BE(mf, fobj, auxbasis=auxbasis, int_transform="int-direct-DF")
+    return mol, auxmol, mf, fobj, my_be
