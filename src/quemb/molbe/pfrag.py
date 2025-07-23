@@ -474,9 +474,16 @@ def schmidt_decomposition(
     # Set the number of orbitals to be taken from the environment orbitals
     # Based on an eigenvalue threshold ordering
     if norb is not None:
-        # add extra correlated orbital from environment
+        # add extra orbital from environment
         # this will likely have Eval = 1
+        # note: there are normally very few orbitals with a Eval[i] <= thr_bath,
+        # so adding Bidx from the "front of the list" doesn't work. Instead, we add
+        # Bidx corresponding to a high eigenvalue from the environment
+        # (this is analagous to tightening up the threshold of the bath for the alpha
+        # or beta orbitals until they are the same size)
         while len(Bidx) < norb:
+            # Bidx corresponds to sorted Eval and Evec, so this simply adds indices
+            # corresponding to larger eigenvectors until the bath size reaches norb
             Bidx.append(Bidx[-1] + 1)
 
     # Initialize the transformation matrix (TA)
