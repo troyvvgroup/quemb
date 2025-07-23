@@ -17,6 +17,8 @@
 #define GCC_ONLY(code)
 #endif
 
+#define UNUSED(x) (void)(x)
+
 
 using int_t = int64_t;
 using OrbitalIdx = Eigen::Index;

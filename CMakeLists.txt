@@ -29,10 +29,11 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
 endif()
 
-# =====================
-# Common flags
-# =====================
 target_compile_features(eri_sparse_DF PRIVATE cxx_std_17)
+
+# =====================
+# Compile flags
+# =====================
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     target_compile_definitions(eri_sparse_DF PRIVATE CLANG=1)
@@ -45,29 +46,46 @@ else()
 endif()
 
 
+
+# =====================
+# Optimization and Tuning
+# =====================
+
 # Enable debug symbols always (fine-grained tuning later)
 target_compile_options(eri_sparse_DF PRIVATE -g)
 
-# =====================
-# Optimization per config
-# =====================
-target_compile_options(eri_sparse_DF PRIVATE
-    $<$<CONFIG:Release>:-O3 -ffast-math>
-    $<$<CONFIG:RelWithDebInfo>:-O2>
-    $<$<CONFIG:Debug>:-O0>
-)
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    target_compile_options(eri_sparse_DF PRIVATE -O3 -ffast-math)
 
-# Native tuning (except MSVC)
-if (NOT MSVC)
-    target_compile_options(eri_sparse_DF PRIVATE
-        $<$<CONFIG:Release>:-march=native>
-    )
+    if(NOT MSVC)
+        target_compile_options(eri_sparse_DF PRIVATE -march=native)
+    endif()
+
+elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+    target_compile_options(eri_sparse_DF PRIVATE -O2)
+
+elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_compile_options(eri_sparse_DF PRIVATE -O0)
+
+    if(NOT MSVC)
+        target_compile_options(eri_sparse_DF PRIVATE
+            -fsanitize=address
+            -fsanitize=undefined
+            -fno-omit-frame-pointer
+        )
+        target_link_options(eri_sparse_DF PRIVATE
+            -fsanitize=address
+            -fsanitize=undefined
+            -fno-omit-frame-pointer
+        )
+    endif()
 endif()
 
 # =====================
-# Warnings (except MSVC)
+# Warnings
 # =====================
-if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU|Intel")
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU|Intel")
     target_compile_options(eri_sparse_DF PRIVATE
         -Wall -Wextra -Wpedantic
         -Wshadow -Wnon-virtual-dtor
@@ -76,29 +94,17 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU|Intel")
         -Wconversion -Wno-sign-conversion
         -Wnull-dereference -Wdouble-promotion
         -Wformat=2 -Wimplicit-fallthrough
-        $<$<CONFIG:Debug>:-Werror>
     )
-endif()
 
-# =====================
-# Sanitizers (Debug only)
-# =====================
-if (CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT MSVC)
-    target_compile_options(eri_sparse_DF PRIVATE
-        -fsanitize=address
-        -fsanitize=undefined
-        -fno-omit-frame-pointer
-    )
-    target_link_options(eri_sparse_DF PRIVATE
-        -fsanitize=address
-        -fsanitize=undefined
-        -fno-omit-frame-pointer
-    )
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        target_compile_options(eri_sparse_DF PRIVATE -Werror)
+    endif()
 endif()
 
 # =====================
 # Installation
 # =====================
+
 install(TARGETS eri_sparse_DF
     LIBRARY DESTINATION quemb/molbe/_cpp
 )

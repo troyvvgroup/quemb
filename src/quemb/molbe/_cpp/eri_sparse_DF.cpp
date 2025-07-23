@@ -403,15 +403,18 @@ Matrix contract_with_TA_2nd_to_sym_dense(const SemiSparse3DTensor &int_mu_i_P, c
 {
     PROFILE_FUNCTION();
 #ifndef CLANG
-    const auto [naux, _, nmo] = int_mu_i_P.get_shape();
+    const auto [naux, nao, nmo] = int_mu_i_P.get_shape();
 #else
     // Clang does not yet support capturing structured bindings in OpenMP.
     // Use the structured binding, if it works in the future.
     // https://github.com/llvm/llvm-project/issues/33025
     const auto shape = int_mu_i_P.get_shape();
     const auto naux = std::get<0>(shape);
+    const auto nao = std::get<1>(shape);
+    UNUSED(nao); // Unused in release
     const auto nmo = std::get<2>(shape);
 #endif
+    assert(TA.rows() == nao && "TA.shape[0] must match int_mu_i_P.shape[1]");
     assert(TA.cols() == nmo && "TA.shape[1] must match int_mu_i_P.shape[2]");
 
     const auto n_sym_pairs = to_eigen(ravel_symmetric(nmo - 1, nmo - 1) + 1);
