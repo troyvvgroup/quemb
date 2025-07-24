@@ -47,7 +47,7 @@ pip install git+https://github.com/troyvvgroup/quemb
 
 Alternatively one can manually clone and install as in:
 ```bash
-git clone https://github.com/troyvvgroup/quemb
+git clone --recurse-submodules https://github.com/troyvvgroup/quemb
 cd quemb
 pip install .
 ```
@@ -88,15 +88,20 @@ Alternatively, you can view the latest documentation online [here](https://vanvo
 
 ## References
 
-The methods implemented in this code are described in details in the following papers:
-- OR Meitei, T Van Voorhis, Periodic bootstrap embedding, [JCTC 19 3123 2023](https://doi.org/10.1021/acs.jctc.3c00069)
-- OR Meitei, T Van Voorhis, Electron correlation in 2D periodic systems, [arXiv:2308.06185](https://arxiv.org/abs/2308.06185)
+This code has been described in a software paper: 
+- M Cho, OR Meitei, LP Weisburn, O Weser, S Weatherly, et. al, QuEmb: a toolbox for bootstrap embedding calculations of molecular and periodic systems, [JPCA 129 6538 2025](https://doi.org/10.1021/acs.jpca.5c02983)
+
+The methods implemented in this code are described in further detail in the following papers:
 - HZ Ye, HK Tran, T Van Voorhis, Bootstrap embedding for large molecular systems, [JCTC 16 5035 2020](https://doi.org/10.1021/acs.jctc.0c00438)
+- HK Tran, LP Weisburn, M Cho, S Weatherly, HZ Ye, T Van Voorhis, Bootstrap embedding for molecules in extended basis sets, [JCTC 20 10912 2024](https://doi.org/10.1021/acs.jctc.4c01267)
+- OR Meitei, T Van Voorhis, Periodic bootstrap embedding, [JCTC 19 3123 2023](https://doi.org/10.1021/acs.jctc.3c00069)
+- OR Meitei, T Van Voorhis, Electron correlation in 2D periodic systems from periodic bootstrap embedding, [JPC Lett. 15 11992 2024](https://doi.org/10.1021/acs.jpclett.4c02686)
 
 
 ## Contributors
 
 The contributors in alphabetic order were:
+- Alexandra Alexiu
 - Minsik Cho
 - Beck Hanscam
 - Oinam Romesh Meitei
