@@ -47,7 +47,7 @@ pip install git+https://github.com/troyvvgroup/quemb
 
 Alternatively one can manually clone and install as in:
 ```bash
-git clone https://github.com/troyvvgroup/quemb
+git clone --recurse-submodules https://github.com/troyvvgroup/quemb
 cd quemb
 pip install .
 ```
