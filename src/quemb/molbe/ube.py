@@ -42,6 +42,7 @@ class UBE(BE):  # 🍠
         pop_method: str | None = None,
         compute_hf: bool = True,
         thr_bath: float = 1.0e-10,
+        equal_bath: bool = True,
     ) -> None:
         """Initialize Unrestricted BE Object (ube🍠)
 
@@ -60,16 +61,21 @@ class UBE(BE):  # 🍠
         eri_file :
             h5py file with ERIs
         lo_method :
-            Method for orbital localization. Supports 'lowdin', 'boys', and 'wannier',
-            by default "lowdin"
+            Method for orbital localization, by default "lowdin"
         pop_method :
             Method for calculating orbital population, by default 'meta-lowdin'
             See pyscf.lo for more details and options
-        thr_bath : float,
+        thr_bath :
             Threshold for bath orbitals in Schmidt decomposition
+        equal_bath :
+            Whether to use a bath with the same number of alpha and beta orbitals.
+            Using equal_bath = False will require custom compiled functions in
+            PySCF to perform integral transformations. Default is True
         """
+
         self.unrestricted = True
         self.thr_bath = thr_bath
+        self.equal_bath = equal_bath
 
         self.fobj = fobj
 
@@ -102,15 +108,12 @@ class UBE(BE):  # 🍠
         self.pot = initialize_pot(self.fobj.n_frag, self.fobj.relAO_per_edge_per_frag)
 
         self.eri_file = Path(eri_file)
-        self.ek = 0.0
         self.frozen_core = fobj.frozen_core
         self.ncore = 0
         self.E_core = 0
         self.C_core = None
         self.P_core = None
         self.core_veff = None
-
-        self.uhf_full_e = mf.e_tot
 
         if self.frozen_core:
             assert not (
@@ -193,53 +196,58 @@ class UBE(BE):  # 🍠
             if self.frozen_core:
                 fobj_a.core_veff = self.core_veff[0]
                 fobj_b.core_veff = self.core_veff[1]
-                fobj_a.sd(
-                    self.W[0],
-                    self.lmo_coeff_a,
-                    self.Nocc[0],
-                    thr_bath=self.thr_bath,
-                )
-                fobj_b.sd(
-                    self.W[1],
-                    self.lmo_coeff_b,
-                    self.Nocc[1],
-                    thr_bath=self.thr_bath,
-                )
             else:
                 fobj_a.core_veff = None
                 fobj_b.core_veff = None
-                fobj_a.sd(
-                    self.W,
-                    self.lmo_coeff_a,
-                    self.Nocc[0],
-                    thr_bath=self.thr_bath,
-                )
-                fobj_b.sd(
-                    self.W,
-                    self.lmo_coeff_b,
-                    self.Nocc[1],
-                    thr_bath=self.thr_bath,
-                )
 
-            if eri_ is None and self.mf.with_df is not None:
-                # NOT IMPLEMENTED: should not be called, as no unrestricted DF tested
-                # for density-fitted integrals; if mf is provided, pyscf.ao2mo uses DF
-                # object in an outcore fashion
-                eri_a = ao2mo.kernel(self.mf.mol, fobj_a.TA, compact=True)
-                eri_b = ao2mo.kernel(self.mf.mol, fobj_b.TA, compact=True)
-            else:
-                eri_a = ao2mo.incore.full(
-                    eri_, fobj_a.TA, compact=True
-                )  # otherwise, do an incore ao2mo
-                eri_b = ao2mo.incore.full(eri_, fobj_b.TA, compact=True)
+            fobj_a.sd(
+                self.W[0] if self.frozen_core else self.W,
+                self.lmo_coeff_a,
+                self.Nocc[0],
+                thr_bath=self.thr_bath,
+            )
+            fobj_b.sd(
+                self.W[1] if self.frozen_core else self.W,
+                self.lmo_coeff_b,
+                self.Nocc[1],
+                thr_bath=self.thr_bath,
+            )
 
-                Csd_A = fobj_a.TA  # may have to add in nibath here
-                Csd_B = fobj_b.TA
+            if self.equal_bath:
+                # Enforce the same number of alpha and beta orbitals
+                # by augmenting the bath
+                tot_alpha = fobj_a.n_f + fobj_a.n_b
+                tot_beta = fobj_b.n_f + fobj_b.n_b
+                if tot_alpha > tot_beta:
+                    fobj_b.sd(
+                        self.W[1] if self.frozen_core else self.W,
+                        self.lmo_coeff_b,
+                        self.Nocc[1],
+                        thr_bath=self.thr_bath,
+                        norb=fobj_a.n_b,
+                    )
+                elif tot_beta > tot_alpha:
+                    fobj_a.sd(
+                        self.W[0] if self.frozen_core else self.W,
+                        self.lmo_coeff_a,
+                        self.Nocc[0],
+                        thr_bath=self.thr_bath,
+                        norb=fobj_b.n_b,
+                    )
 
-                # cross-spin ERI term
-                eri_ab = ao2mo.incore.general(
-                    eri_, (Csd_A, Csd_A, Csd_B, Csd_B), compact=True
-                )
+            assert fobj_a.TA is not None and fobj_b.TA is not None
+            assert eri_ is not None, "eri_ is None: set incore_anyway for UHF"
+
+            eri_a = ao2mo.incore.full(eri_, fobj_a.TA, compact=True)
+            eri_b = ao2mo.incore.full(eri_, fobj_b.TA, compact=True)
+
+            Csd_A = fobj_a.TA  # may have to add in nibath here
+            Csd_B = fobj_b.TA
+
+            # cross-spin ERI term
+            eri_ab = ao2mo.incore.general(
+                eri_, (Csd_A, Csd_A, Csd_B, Csd_B), compact=True
+            )
 
             file_eri.create_dataset(fobj_a.dname[0], data=eri_a)
             file_eri.create_dataset(fobj_a.dname[1], data=eri_b)
@@ -248,7 +256,6 @@ class UBE(BE):  # 🍠
             # sab = self.C_a @ self.S @ self.C_b
             _ = fobj_a.get_nsocc(self.S, self.C_a, self.Nocc[0], ncore=self.ncore)
 
-            assert fobj_a.TA is not None
             fobj_a.h1 = multi_dot((fobj_a.TA.T, self.hcore, fobj_a.TA))
 
             eri_a = ao2mo.restore(8, eri_a, fobj_a.nao)
@@ -273,7 +280,6 @@ class UBE(BE):  # 🍠
 
             _ = fobj_b.get_nsocc(self.S, self.C_b, self.Nocc[1], ncore=self.ncore)
 
-            assert fobj_b.TA is not None
             fobj_b.h1 = multi_dot((fobj_b.TA.T, self.hcore, fobj_b.TA))
             eri_b = ao2mo.restore(8, eri_b, fobj_b.nao)
             fobj_b.cons_fock(self.hf_veff[1], self.S, self.hf_dm[1] * 2.0, eri_=eri_b)
@@ -334,8 +340,7 @@ class UBE(BE):  # 🍠
         )
         if compute_hf:
             hf_err = self.hf_etot - (E_hf + self.enuc + self.E_core)
-
-            self.ebe_hf = E_hf + self.enuc + self.E_core - self.ek
+            self.ebe_hf = E_hf + self.enuc + self.E_core
             print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
             if abs(hf_err) > 1.0e-5:
                 warn("Large HF-in-HF energy error")
@@ -384,7 +389,7 @@ class UBE(BE):  # 🍠
         print("-----------------------------------------------------", flush=True)
         print(flush=True)
 
-        self.ebe_tot = E + self.uhf_full_e
+        self.ebe_tot = E + self.hf_etot
         print(
             "Total Energy : {:>12.8f} Ha".format(
                 (self.ebe_tot),
