@@ -28,6 +28,7 @@ from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence, Set
 from itertools import chain
 from pathlib import Path
 from typing import Any, Final, Generic, TypeAlias, TypeVar, cast
+from warnings import warn
 
 import numpy as np
 from attr import cmp_using, define, field
@@ -39,7 +40,6 @@ from pyscf.gto import M, Mole, is_au
 from pyscf.lib import param
 from pyscf.pbc.gto import Cell
 from typing_extensions import Self
-from warnings import warn
 
 from quemb.molbe.autofrag import FragPart
 from quemb.molbe.helper import are_equal, get_core
@@ -254,7 +254,7 @@ class BondConnectivity:
         def all_H_belong_to_motif() -> bool:
             return H_atoms.issubset(union_of_seqs(*(H_per_motif.values())))
 
-        def enforce_one_H_per_motif() -> void:
+        def enforce_one_H_per_motif() -> None:
             # If a H is in more than one motif, this removes it from all but one.
             for i_motif, i_H_atoms in H_per_motif.items():
                 for j_motif, j_H_atoms in H_per_motif.items():
@@ -284,27 +284,39 @@ class BondConnectivity:
                         # the H is not completely equidistant (for now) between multiple
                         # atoms, which may require a treat_H_different treatment
                         min_dist = min(i_dists + j_dists)
-                        # Allow H to remain only in the motif with the shortest bond length
-                        # Remove that H from processed_bonds_atoms, H_per_motif, and
-                        # atoms_per_motif
+                        # Allow H to remain only in the motif with the shortest bond
+                        # length. Remove that H from processed_bonds_atoms,
+                        # H_per_motif, and atoms_per_motif
                         if min_dist in i_dists:
-                            print("Removing shared H"+str(shared_H)+" from motif"+str(j_motif))
+                            print(
+                                "Removing shared H"
+                                + str(shared_H)
+                                + " from motif"
+                                + str(j_motif)
+                            )
                             processed_bonds_atoms[j_motif] -= shared_H
                             H_per_motif[j_motif] -= shared_H
                             atoms_per_motif[j_motif] -= shared_H
                         elif min_dist in j_dists:
-                            print("Removing shared H"+str(shared_H)+" from motif "+str(i_motif))
+                            print(
+                                "Removing shared H"
+                                + str(shared_H)
+                                + " from motif"
+                                + str(i_motif)
+                            )
                             processed_bonds_atoms[i_motif] -= shared_H
                             H_per_motif[i_motif] -= shared_H
                             atoms_per_motif[i_motif] -= shared_H
 
-
         if treat_H_different and not (all_H_belong_to_motif() and not motifs_share_H()):
             if motifs_share_H():
-                warn("H in multiple motifs: removing H from all but physically closest motif")
+                warn(
+                    "H in multiple motifs: removing H from all "
+                    "but physically closest motif"
+                )
                 # Enforce that each H can only be in one motif. This modifies
-                # processed_bonds_atoms, H_per_motif, and atoms_per_motif, leaving H only
-                # in the motif to which it's physically closest.
+                # processed_bonds_atoms, H_per_motif, and atoms_per_motif, leaving H
+                # only in the motif to which it's physically closest.
                 enforce_one_H_per_motif()
             else:
                 raise ValueError(
