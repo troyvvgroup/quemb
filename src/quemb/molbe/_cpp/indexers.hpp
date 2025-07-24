@@ -11,6 +11,9 @@
 #include <Eigen/Dense>
 #include <unsupported/Eigen/CXX11/Tensor>
 
+#define UNUSED(x) (void)(x)
+
+
 using int_t = int64_t;
 using OrbitalIdx = Eigen::Index;
 using Matrix = Eigen::MatrixXd;
