@@ -5,6 +5,7 @@
 #   (except for the trust region routine)
 #         The code has been slightly modified.
 #
+import logging
 from collections.abc import Sequence
 
 from numpy import array, empty, float64, outer, zeros
@@ -13,11 +14,12 @@ from numpy.linalg import inv, norm, pinv
 from quemb.kbe.pfrag import Frags as pFrags
 from quemb.molbe.helper import get_eri, get_scfObj
 from quemb.molbe.pfrag import Frags
-from quemb.shared.config import settings
 from quemb.shared.external.cphf_utils import cphf_kernel_batch, get_rhf_dP_from_u
 from quemb.shared.external.cpmp2_utils import get_dPmp2_batch_r
 from quemb.shared.external.jac_utils import get_dPccsdurlx_batch_u
 from quemb.shared.typing import GlobalAOIdx, Matrix, RelAOIdx, SeqOverEdge
+
+logger = logging.getLogger(__name__)
 
 
 def line_search_LF(func, xold, fold, dx, iter_):
@@ -144,16 +146,10 @@ def trustRegion(func, xold, fold, Binv, c=0.5):
         # r = ared/pred \le rho
         ratio = ared / pred
         microiter += 1
-        if prevdx is None or not all(dx == prevdx) and settings.PRINT_LEVEL > 2:
-            print("    ||δx||: ", norm(dx), flush=True)
-            print(
-                "    Reduction Ratio (Actual / Predicted): ",
-                ared,
-                "/",
-                pred,
-                "=",
-                ratio,
-                flush=True,
+        if prevdx is None or not all(dx == prevdx):
+            logger.debug(f"    ||δx||: {norm(dx)}")
+            logger.debug(
+                f"    Reduction Ratio (Actual / Predicted): {ared} / {pred} = {ratio}"
             )
         prevdx = dx
     return xold + dx, fnew  # xnew
