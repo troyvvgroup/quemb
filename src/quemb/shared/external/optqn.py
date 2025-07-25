@@ -5,15 +5,21 @@
 #   (except for the trust region routine)
 #         The code has been slightly modified.
 #
+import logging
+from collections.abc import Sequence
 
-from numpy import array, empty, outer, zeros
+from numpy import array, empty, float64, outer, zeros
 from numpy.linalg import inv, norm, pinv
 
+from quemb.kbe.pfrag import Frags as pFrags
 from quemb.molbe.helper import get_eri, get_scfObj
-from quemb.shared.config import settings
+from quemb.molbe.pfrag import Frags
 from quemb.shared.external.cphf_utils import cphf_kernel_batch, get_rhf_dP_from_u
 from quemb.shared.external.cpmp2_utils import get_dPmp2_batch_r
 from quemb.shared.external.jac_utils import get_dPccsdurlx_batch_u
+from quemb.shared.typing import GlobalAOIdx, Matrix, RelAOIdx, SeqOverEdge
+
+logger = logging.getLogger(__name__)
 
 
 def line_search_LF(func, xold, fold, dx, iter_):
@@ -140,16 +146,10 @@ def trustRegion(func, xold, fold, Binv, c=0.5):
         # r = ared/pred \le rho
         ratio = ared / pred
         microiter += 1
-        if prevdx is None or not all(dx == prevdx) and settings.PRINT_LEVEL > 2:
-            print("    ||δx||: ", norm(dx), flush=True)
-            print(
-                "    Reduction Ratio (Actual / Predicted): ",
-                ared,
-                "/",
-                pred,
-                "=",
-                ratio,
-                flush=True,
+        if prevdx is None or not all(dx == prevdx):
+            logger.debug(f"    ||δx||: {norm(dx)}")
+            logger.debug(
+                f"    Reduction Ratio (Actual / Predicted): {ared} / {pred} = {ratio}"
             )
         prevdx = dx
     return xold + dx, fnew  # xnew
@@ -159,7 +159,7 @@ class FrankQN:
     """Quasi Newton Optimization
 
     Performs quasi newton optimization. Interfaces many functionalities of the
-    frankestein code originaly written by Hong-Zhou Ye
+    frankestein code originally written by Hong-Zhou Ye
 
 
     """
@@ -171,8 +171,6 @@ class FrankQN:
         self.func = func
 
         self.B0 = pinv(J0)
-
-        self.iter_ = 0
 
         self.tol_gmres = 1.0e-6
         self.xnew = None  # new errvec
@@ -187,8 +185,8 @@ class FrankQN:
         self.B = None
         self.trust = trust
 
-    def next_step(self, trust_region=False):
-        if self.iter_ == 0:
+    def next_step(self, iter, trust_region=False):
+        if iter == 0:
             self.xnew = self.x0
             self.fnew = self.func(self.xnew) if self.f0 is None else self.f0
             self.fs[0] = self.fnew.copy()
@@ -196,14 +194,14 @@ class FrankQN:
             self.Binv = self.B0.copy()
 
         # Book keeping
-        if not self.iter_ == 0:
+        if not iter == 0:
             dx_i = self.xnew - self.xold
             df_i = self.fnew - self.fold
 
         self.xold = self.xnew.copy()
         self.fold = self.fnew.copy()
 
-        if not self.iter_ == 0:
+        if not iter == 0:
             tmp__ = outer(dx_i - self.Binv @ df_i, dx_i @ self.Binv) / (
                 dx_i @ self.Binv @ df_i
             )
@@ -214,18 +212,19 @@ class FrankQN:
                 self.func, self.xold, self.fold, self.Binv, c=self.trust
             )
         else:
-            self.us[self.iter_] = self.get_Bnfn(self.iter_)
+            self.us[iter] = self.get_Bnfn(iter)
 
             _, self.xnew, self.fnew = line_search_LF(
-                self.func, self.xold, self.fold, -self.us[self.iter_], self.iter_
+                self.func, self.xold, self.fold, -self.us[iter], iter
             )
 
             # udpate vs, dxs, and fs
-            self.vs[self.iter_] = self.B0 @ self.fnew
-        self.dxs[self.iter_] = self.xnew - self.xold
-        self.fs[self.iter_ + 1] = self.fnew.copy()
-
-        self.iter_ += 1
+            self.vs[iter] = self.B0 @ self.fnew
+        self.dxs[iter] = self.xnew - self.xold
+        if iter + 1 < self.max_subspace:
+            self.fs[iter + 1] = self.fnew.copy()
+        else:
+            print("Reached the maximum number of iterations:", self.max_subspace)
 
     def get_Bnfn(self, n):
         # self.us; self.dxs; self.vs
@@ -250,23 +249,25 @@ class FrankQN:
         return vs[0]
 
 
-def get_be_error_jacobian(Nfrag, Fobjs, jac_solver="HF"):
-    Jes = [None] * Nfrag
-    Jcs = [None] * Nfrag
-    xes = [None] * Nfrag
-    xcs = [None] * Nfrag
-    ys = [None] * Nfrag
-    alphas = [None] * Nfrag
+def get_be_error_jacobian(n_frag, Fobjs, jac_solver="HF"):
+    Jes = [None] * n_frag
+    Jcs = [None] * n_frag
+    xes = [None] * n_frag
+    xcs = [None] * n_frag
+    ys = [None] * n_frag
+    alphas = [None] * n_frag
 
-    if jac_solver == "MP2":
+    if jac_solver.upper() == "MP2":
         res_func = mp2res_func
-    elif jac_solver == "CCSD":
+    elif jac_solver.upper() == "CCSD":
         res_func = ccsdres_func
-    elif jac_solver == "HF":
+    elif jac_solver.upper() == "HF":
         res_func = hfres_func
+    else:
+        raise NotImplementedError("Jacobian solver input not implemented")
 
-    Ncout = [None] * Nfrag
-    for A in range(Nfrag):
+    Ncout = [None] * n_frag
+    for A in range(n_frag):
         Jes[A], Jcs[A], xes[A], xcs[A], ys[A], alphas[A], Ncout[A] = (
             get_atbe_Jblock_frag(Fobjs[A], res_func)
         )
@@ -295,13 +296,15 @@ def get_be_error_jacobian(Nfrag, Fobjs, jac_solver="HF"):
 
         coutc = 0
         coutc_ = 0
-        for cindx, cens in enumerate(fobj.center_idx):
-            coutc += Jcs[fobj.center[cindx]].shape[0]
-            start_ = sum(Ncout[: fobj.center[cindx]])
-            end_ = start_ + Ncout[fobj.center[cindx]]
-            J[cout + coutc_ : cout + coutc, start_:end_] += Jcs[fobj.center[cindx]]
+        for cindx, cens in enumerate(fobj.relAO_in_ref_per_edge):
+            coutc += Jcs[fobj.ref_frag_idx_per_edge[cindx]].shape[0]
+            start_ = sum(Ncout[: fobj.ref_frag_idx_per_edge[cindx]])
+            end_ = start_ + Ncout[fobj.ref_frag_idx_per_edge[cindx]]
+            J[cout + coutc_ : cout + coutc, start_:end_] += Jcs[
+                fobj.ref_frag_idx_per_edge[cindx]
+            ]
             J[cout + coutc_ : cout + coutc, N_:] += array(
-                xcs[fobj.center[cindx]]
+                xcs[fobj.ref_frag_idx_per_edge[cindx]]
             ).reshape(-1, 1)
             coutc_ = coutc
         cout += Ncout[findx]
@@ -310,8 +313,17 @@ def get_be_error_jacobian(Nfrag, Fobjs, jac_solver="HF"):
     return J
 
 
-def get_atbe_Jblock_frag(fobj, res_func):
-    vpots = get_vpots_frag(fobj.nao, fobj.edge_idx, fobj.fsites)
+def get_atbe_Jblock_frag(
+    fobj: Frags | pFrags, res_func
+) -> tuple[Matrix[float64], Matrix[float64], list, list, list, float, int]:
+    assert (
+        fobj._mo_coeffs is not None
+        and fobj.nsocc is not None
+        and fobj.fock is not None
+        and fobj.heff is not None
+        and fobj.nao is not None
+    )
+    vpots = get_vpots_frag(fobj.nao, fobj.relAO_per_edge, fobj.AO_in_frag)
     eri_ = get_eri(fobj.dname, fobj.nao, eri_file=fobj.eri_file)
     dm0 = 2.0 * (fobj._mo_coeffs[:, : fobj.nsocc] @ fobj._mo_coeffs[:, : fobj.nsocc].T)
     mf_ = get_scfObj(fobj.fock + fobj.heff, eri_, fobj.nsocc, dm0=dm0)
@@ -325,7 +337,7 @@ def get_atbe_Jblock_frag(fobj, res_func):
     xc = []
     cout = 0
 
-    for edge in fobj.edge_idx:
+    for edge in fobj.relAO_per_edge:
         for j_ in range(len(edge)):
             for k_ in range(len(edge)):
                 if j_ > k_:
@@ -334,7 +346,7 @@ def get_atbe_Jblock_frag(fobj, res_func):
                 # edges
                 tmpje_ = []
 
-                for edge_ in fobj.edge_idx:
+                for edge_ in fobj.relAO_per_edge:
                     lene = len(edge_)
 
                     for j__ in range(lene):
@@ -344,8 +356,8 @@ def get_atbe_Jblock_frag(fobj, res_func):
 
                             tmpje_.append(dPs[cout][edge_[j__], edge_[k__]])
                 y_ = 0.0
-                for fidx, fval in enumerate(fobj.fsites):
-                    if not any(fidx in sublist for sublist in fobj.edge_idx):
+                for fidx, fval in enumerate(fobj.AO_in_frag):
+                    if not any(fidx in sublist for sublist in fobj.relAO_per_edge):
                         y_ += dPs[cout][fidx, fidx]
 
                 y.append(y_)
@@ -353,11 +365,11 @@ def get_atbe_Jblock_frag(fobj, res_func):
                 tmpjc_ = []
                 # center on the same fragment
                 # for cen in fobj.efac[1]:
-                for j__ in fobj.centerf_idx:
-                    for k__ in fobj.centerf_idx:
-                        if j__ > k__:
+                for j_relAO in fobj.relAO_per_origin:
+                    for k_relAO in fobj.relAO_per_origin:
+                        if j_relAO > k_relAO:
                             continue
-                        tmpjc_.append(-dPs[cout][j__, k__])
+                        tmpjc_.append(-dPs[cout][j_relAO, k_relAO])
 
                 Je.append(tmpje_)
 
@@ -367,20 +379,19 @@ def get_atbe_Jblock_frag(fobj, res_func):
                 # edge
                 xe.append(dP_mu[edge[j_], edge[k_]])
                 cout += 1
-    Je = array(Je).T
-    Jc = array(Jc).T
 
     alpha = 0.0
-    for fidx, _ in enumerate(fobj.fsites):
-        if not any(fidx in sublist for sublist in fobj.edge_idx):
+    for fidx, _ in enumerate(fobj.AO_in_frag):
+        if not any(fidx in sublist for sublist in fobj.relAO_per_edge):
             alpha += dP_mu[fidx, fidx]
 
-    for j__ in fobj.centerf_idx:
-        for k__ in fobj.centerf_idx:
-            if j__ > k__:
+    for j_relAO in fobj.relAO_per_origin:
+        for k_relAO in fobj.relAO_per_origin:
+            if j_relAO > k_relAO:
                 continue
-            xc.append(-dP_mu[j__, k__])
-    return Je, Jc, xe, xc, y, alpha, cout
+            xc.append(-dP_mu[j_relAO, k_relAO])
+
+    return array(Je).T, array(Jc).T, xe, xc, y, alpha, cout
 
 
 def get_be_error_jacobian_selffrag(self, jac_solver="HF"):
@@ -396,6 +407,8 @@ def get_be_error_jacobian_selffrag(self, jac_solver="HF"):
         res_func = ccsdres_func
     elif jac_solver == "HF":
         res_func = hfres_func
+    else:
+        raise NotImplementedError("Jacobian solver option not implemented.")
 
     Jes, _, xes, xcs, ys, alphas, Ncout = get_atbe_Jblock_frag(self.Fobjs[0], res_func)
 
@@ -411,7 +424,7 @@ def get_be_error_jacobian_selffrag(self, jac_solver="HF"):
     return J
 
 
-def hfres_func(mf, vpots, eri, nsocc):
+def hfres_func(mf, vpots, eri, nsocc) -> tuple[list[Matrix[float64]], Matrix[float64]]:
     C = mf.mo_coeff
     moe = mf.mo_energy
     eri = mf._eri
@@ -450,10 +463,14 @@ def ccsdres_func(mf, vpots, eri, nsocc):
     return dPs_an[:-1], dP_mu
 
 
-def get_vpots_frag(nao, edge_idx, fsites):
-    vpots = []
+def get_vpots_frag(
+    nao: int,
+    rel_AO_per_edge: SeqOverEdge[Sequence[RelAOIdx]],
+    AO_in_frag: Sequence[GlobalAOIdx],
+) -> list[Matrix[float64]]:
+    vpots: list[Matrix[float64]] = []
 
-    for edge_ in edge_idx:
+    for edge_ in rel_AO_per_edge:
         lene = len(edge_)
         for j__ in range(lene):
             for k__ in range(lene):
@@ -467,8 +484,8 @@ def get_vpots_frag(nao, edge_idx, fsites):
     # only the centers
     # outer edges not included
     tmppot = zeros((nao, nao))
-    for fidx, fval in enumerate(fsites):
-        if not any(fidx in sublist for sublist in edge_idx):
+    for fidx, fval in enumerate(AO_in_frag):
+        if not any(fidx in sublist for sublist in rel_AO_per_edge):
             tmppot[fidx, fidx] = -1
 
     vpots.append(tmppot)

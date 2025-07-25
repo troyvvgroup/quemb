@@ -3,6 +3,8 @@
 import os
 import pickle
 from multiprocessing import Pool
+from typing import Literal
+from warnings import warn
 
 import h5py
 import numpy as np
@@ -12,14 +14,14 @@ from pyscf import ao2mo
 from pyscf.pbc import df, gto, scf
 from pyscf.pbc.df.df_jk import _ewald_exxdiv_for_G0
 
-from quemb.kbe.fragment import fragpart
+from quemb.kbe.fragment import FragPart
 from quemb.kbe.lo import Mixin_k_Localize
 from quemb.kbe.misc import print_energy, storePBE
 from quemb.kbe.pfrag import Frags
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
 from quemb.molbe.opt import BEOPT
-from quemb.molbe.solver import UserSolverArgs, be_func
+from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
@@ -40,18 +42,18 @@ class BE(Mixin_k_Localize):
     ----------
     mf :
         PySCF mean-field object.
-    fobj : quemb.kbe.fragment.fragpart
+    fobj :
         Fragment object containing sites, centers, edges, and indices.
-    eri_file : str
+    eri_file :
         Path to the file storing two-electron integrals.
-    lo_method : str
+    lo_method :
         Method for orbital localization, default is 'lowdin'.
     """
 
     def __init__(
         self,
         mf: scf.khf.KRHF,
-        fobj: fragpart,
+        fobj: FragPart,
         eri_file: PathLike = "eri_file.h5",
         compute_hf: bool = True,
         restart: bool = False,
@@ -63,6 +65,7 @@ class BE(Mixin_k_Localize):
         exxdiv: str | None = "ewald",
         kpts: list[list[float]] | None = None,
         cderi: PathLike | None = None,
+        thr_bath: float = 1.0e-10,
         scratch_dir: WorkDir | None = None,
     ) -> None:
         """
@@ -95,6 +98,8 @@ class BE(Mixin_k_Localize):
         iao_loc_method :
             Method to localize the IAO (not PAO?) space, by default 'SO'.
             Options include: 'so' and 'wannier'
+        thr_bath : float,
+            Threshold for bath orbitals in Schmidt decomposition
         scratch_dir :
             Scratch directory.
         """
@@ -120,6 +125,7 @@ class BE(Mixin_k_Localize):
 
         self.nproc = nproc
         self.ompnum = ompnum
+        self.thr_bath = thr_bath
 
         # Fragment information from fobj
         self.fobj = fobj
@@ -161,7 +167,7 @@ class BE(Mixin_k_Localize):
 
         self.print_ini()
         self.Fobjs: list[Frags] = []
-        self.pot = initialize_pot(self.fobj.Nfrag, self.fobj.edge_idx)
+        self.pot = initialize_pot(self.fobj.n_frag, self.fobj.relAO_per_edge_per_frag)
         self.eri_file = eri_file
         self.cderi = cderi
 
@@ -201,6 +207,9 @@ class BE(Mixin_k_Localize):
 
         if self.frozen_core:
             # Handle frozen core orbitals
+            assert not (
+                fobj.ncore is None or fobj.no_core_idx is None or fobj.core_list is None
+            )
             self.ncore = fobj.ncore
             self.no_core_idx = fobj.no_core_idx
             self.core_list = fobj.core_list
@@ -276,16 +285,17 @@ class BE(Mixin_k_Localize):
 
     def optimize(
         self,
-        solver: str = "MP2",
+        solver: Solvers = "CCSD",
         method: str = "QN",
         only_chem: bool = False,
         use_cumulant: bool = True,
         conv_tol: float = 1.0e-6,
         relax_density: bool = False,
-        J0: Matrix[floating] | None = None,
         nproc: int = 1,
         ompnum: int = 4,
         max_iter: int = 500,
+        jac_solver: Literal["HF", "MP2", "CCSD"] = "HF",
+        trust_region: bool = False,
     ) -> None:
         """BE optimization function
 
@@ -294,7 +304,7 @@ class BE(Mixin_k_Localize):
         Parameters
         ----------
         solver : str, optional
-            High-level solver for the fragment, by default 'MP2'
+            High-level solver for the fragment, by default 'CCSD'
         method : str, optional
             Optimization method, by default 'QN'
         only_chem : bool, optional
@@ -318,13 +328,17 @@ class BE(Mixin_k_Localize):
         ompnum : int
             If nproc > 1, ompnum sets the number of cores for OpenMP parallelization.
             Defaults to 4
-        J0 : list of list of float
-            Initial Jacobian.
+        jac_solver :
+            Method to form Jacobian used in optimization routine, by default HF.
+            Options include HF, MP2, CCSD
+        trust_region :
+            Use trust-region based QN optimization, by default False
+
         """
         # Check if only chemical potential optimization is required
         if not only_chem:
             pot = self.pot
-            if self.fobj.be_type == "be1":
+            if self.fobj.n_BE == 1:
                 raise ValueError(
                     "BE1 only works with chemical potential optimization. "
                     "Set only_chem=True"
@@ -353,13 +367,13 @@ class BE(Mixin_k_Localize):
             # Prepare the initial Jacobian matrix
             if only_chem:
                 J0 = array([[0.0]])
-                J0 = self.get_be_error_jacobian(jac_solver="HF")
+                J0 = self.get_be_error_jacobian(jac_solver=jac_solver)
                 J0 = J0[-1:, -1:]
             else:
-                J0 = self.get_be_error_jacobian(jac_solver="HF")
+                J0 = self.get_be_error_jacobian(jac_solver=jac_solver)
 
             # Perform the optimization
-            be_.optimize(method, J0=J0)
+            be_.optimize(method, J0=J0, trust_region=trust_region)
             self.ebe_tot = self.ebe_hf + be_.Ebe[0]
             # Print the energy components
             if use_cumulant:
@@ -407,7 +421,7 @@ class BE(Mixin_k_Localize):
 
     @copy_docstring(_ext_get_be_error_jacobian)
     def get_be_error_jacobian(self, jac_solver: str = "HF") -> Matrix[floating]:
-        return _ext_get_be_error_jacobian(self.fobj.Nfrag, self.Fobjs, jac_solver)
+        return _ext_get_be_error_jacobian(self.fobj.n_frag, self.Fobjs, jac_solver)
 
     def print_ini(self) -> None:
         """
@@ -428,7 +442,7 @@ class BE(Mixin_k_Localize):
         print(flush=True)
 
         print("            PERIODIC BOOTSTRAP EMBEDDING", flush=True)
-        print("           BEn = ", self.fobj.be_type, flush=True)
+        print("           BEn = ", self.fobj.n_BE, flush=True)
         print(
             "-----------------------------------------------------------",
             flush=True,
@@ -469,47 +483,18 @@ class BE(Mixin_k_Localize):
         # Create a file to store ERIs
         if not restart:
             file_eri = h5py.File(self.eri_file, "w")
-        lentmp = len(self.fobj.edge_idx)
         transform_parallel = False  # hard set for now
-        for fidx in range(self.fobj.Nfrag):
-            if lentmp:
-                fobjs_ = Frags(
-                    self.fobj.fsites[fidx],
-                    fidx,
-                    edge=self.fobj.edge[fidx],
-                    eri_file=self.eri_file,
-                    center=self.fobj.center[fidx],
-                    edge_idx=self.fobj.edge_idx[fidx],
-                    center_idx=self.fobj.center_idx[fidx],
-                    efac=self.fobj.ebe_weight[fidx],
-                    centerf_idx=self.fobj.centerf_idx[fidx],
-                    unitcell=self.fobj.unitcell,
-                    unitcell_nkpt=self.unitcell_nkpt,
-                )
-            else:
-                fobjs_ = Frags(
-                    self.fobj.fsites[fidx],
-                    fidx,
-                    edge=[],
-                    center=[],
-                    eri_file=self.eri_file,
-                    edge_idx=[],
-                    center_idx=[],
-                    centerf_idx=[],
-                    efac=self.fobj.ebe_weight[fidx],
-                    unitcell=self.fobj.unitcell,
-                    unitcell_nkpt=self.unitcell_nkpt,
-                )
-
+        for fidx in range(self.fobj.n_frag):
+            fobjs_ = self.fobj.to_Frags(fidx, self.eri_file, self.unitcell_nkpt)
             fobjs_.sd(
                 self.W,
                 self.lmo_coeff,
                 self.Nocc,
                 kmesh=self.fobj.kpt,
                 cell=self.fobj.mol,
-                frag_type=self.fobj.frag_type,
                 kpts=self.kpts,
                 h1=self.hcore,
+                thr_bath=self.thr_bath,
             )
 
             fobjs_.cons_h1(self.hcore)
@@ -544,7 +529,7 @@ class BE(Mixin_k_Localize):
             os.system("export OMP_NUM_THREADS=" + str(self.ompnum))
             with Pool(nprocs) as pool_:
                 results = []
-                for frg in range(self.fobj.Nfrag):
+                for frg in range(self.fobj.n_frag):
                     result = pool_.apply_async(
                         eritransform_parallel,
                         [
@@ -559,7 +544,7 @@ class BE(Mixin_k_Localize):
                     results.append(result)
                 eris = [result.get() for result in results]
 
-            for frg in range(self.fobj.Nfrag):
+            for frg in range(self.fobj.n_frag):
                 file_eri.create_dataset(self.Fobjs[frg].dname, data=eris[frg])
             del eris
             file_eri.close()
@@ -567,7 +552,7 @@ class BE(Mixin_k_Localize):
             nprocs = self.nproc // self.ompnum
             with Pool(nprocs) as pool_:
                 results = []
-                for frg in range(self.fobj.Nfrag):
+                for frg in range(self.fobj.n_frag):
                     result = pool_.apply_async(
                         parallel_fock_wrapper,
                         [
@@ -583,7 +568,7 @@ class BE(Mixin_k_Localize):
                     results.append(result)
                 veffs = [result.get() for result in results]
 
-            for frg in range(self.fobj.Nfrag):
+            for frg in range(self.fobj.n_frag):
                 veff0, veff_ = veffs[frg]
                 if np.abs(veff_.imag).max() < 1.0e-6:
                     self.Fobjs[frg].veff = veff_.real
@@ -596,7 +581,7 @@ class BE(Mixin_k_Localize):
 
         # SCF parallelized
         if self.nproc == 1 and not transform_parallel:
-            for frg in range(self.fobj.Nfrag):
+            for frg in range(self.fobj.n_frag):
                 # SCF
                 self.Fobjs[frg].scf(fs=True, dm0=self.Fobjs[frg].dm_init)
         else:
@@ -604,7 +589,7 @@ class BE(Mixin_k_Localize):
             with Pool(nprocs) as pool_:
                 os.system("export OMP_NUM_THREADS=" + str(self.ompnum))
                 results = []
-                for frg in range(self.fobj.Nfrag):
+                for frg in range(self.fobj.n_frag):
                     nao = self.Fobjs[frg].nao
                     nocc = self.Fobjs[frg].nsocc
                     dname = self.Fobjs[frg].dname
@@ -616,10 +601,10 @@ class BE(Mixin_k_Localize):
                     results.append(result)
                 mo_coeffs = [result.get() for result in results]
 
-            for frg in range(self.fobj.Nfrag):
+            for frg in range(self.fobj.n_frag):
                 self.Fobjs[frg]._mo_coeffs = mo_coeffs[frg]
 
-        for frg in range(self.fobj.Nfrag):
+        for frg in range(self.fobj.n_frag):
             self.Fobjs[frg].dm0 = 2.0 * (
                 self.Fobjs[frg]._mo_coeffs[:, : self.Fobjs[frg].nsocc]
                 @ self.Fobjs[frg]._mo_coeffs[:, : self.Fobjs[frg].nsocc].conj().T
@@ -635,16 +620,12 @@ class BE(Mixin_k_Localize):
 
         if compute_hf:
             E_hf /= self.unitcell_nkpt
-            hf_err = self.hf_etot - (E_hf + self.enuc + self.E_core)
+            hf_err = self.hf_etot - (E_hf + self.enuc + self.E_core - self.ek)
 
             self.ebe_hf = E_hf + self.enuc + self.E_core - self.ek
-            print(
-                "HF-in-HF error                 :  {:>.4e} Ha".format(hf_err),
-                flush=True,
-            )
-
+            print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
             if abs(hf_err) > 1.0e-5:
-                print("WARNING!!! Large HF-in-HF energy error")
+                warn("Large HF-in-HF energy error")
 
         couti = 0
         for fobj in self.Fobjs:
@@ -653,7 +634,7 @@ class BE(Mixin_k_Localize):
 
     def oneshot(
         self,
-        solver: str = "MP2",
+        solver: Solvers = "CCSD",
         use_cumulant: bool = True,
         nproc: int = 1,
         ompnum: int = 4,
@@ -665,7 +646,7 @@ class BE(Mixin_k_Localize):
         Parameters
         ----------
         solver :
-            High-level quantum chemistry method, by default 'MP2'. 'CCSD', 'FCI',
+            High-level quantum chemistry method, by default 'CCSD'. 'CCSD', 'FCI',
             and variants of selected CI are supported.
         use_cumulant :
             Whether to use the cumulant energy expression, by default True.
@@ -684,7 +665,6 @@ class BE(Mixin_k_Localize):
                 self.Nocc,
                 solver,
                 self.enuc,
-                nproc=ompnum,
                 eeval=True,
                 scratch_dir=self.scratch_dir,
                 solver_args=solver_args,
@@ -720,11 +700,11 @@ class BE(Mixin_k_Localize):
             flush=True,
         )
         print(
-            "Final Tr(V K_approx) is      : {:>12.8f} Ha".format(rets[1][1]),
+            f"Final Tr(V K_approx) is      : {rets[1][1]:>12.8f} Ha",
             flush=True,
         )
         print(
-            "Final e_corr is              : {:>12.8f} Ha".format(rets[0]),
+            f"Final e_corr is              : {rets[0]:>12.8f} Ha",
             flush=True,
         )
 
@@ -772,22 +752,22 @@ class BE(Mixin_k_Localize):
                 fobj.heff = filepot.get(fobj.dname)
 
 
-def initialize_pot(Nfrag, edge_idx):
+def initialize_pot(n_frag, rel_AO_per_edge_per_frag):
     """
     Initialize the potential array for bootstrap embedding.
 
     This function initializes a potential array for a given number of
-    fragments (:python:`Nfrag`) and their corresponding edge indices
-    (:python:`edge_idx`).
+    fragments (:python:`n_frag`) and their corresponding edge indices
+    (:python:`rel_AO_per_edge_per_frag`).
     The potential array is initialized with zeros for each pair of
     edge site indices within each fragment, followed by an
     additional zero for the global chemical potential.
 
     Parameters
     ----------
-    Nfrag : int
+    n_frag: int
         Number of fragments.
-    edge_idx : list of list of list of int
+    rel_AO_per_edge_per_frag: list of list of list of int
         List of edge indices for each fragment. Each element is a list of lists,
         where each sublist contains the indices of edge sites for a particular fragment.
 
@@ -798,9 +778,9 @@ def initialize_pot(Nfrag, edge_idx):
     """
     pot_ = []
 
-    if not len(edge_idx) == 0:
-        for fidx in range(Nfrag):
-            for i in edge_idx[fidx]:
+    if not len(rel_AO_per_edge_per_frag) == 0:
+        for fidx in range(n_frag):
+            for i in rel_AO_per_edge_per_frag[fidx]:
                 for j in range(len(i)):
                     for k in range(len(i)):
                         if j > k:

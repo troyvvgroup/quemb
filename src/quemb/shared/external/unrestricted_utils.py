@@ -97,6 +97,11 @@ def _convert_eri_gen(origsym, targetsym, eri, norb1, norb2):
         This requires a custom PySCF compilation
 
         Add to your PySCF and recompile: /pyscf/lib/ao2mo/restore_eri.c
+    For gcc 14.2.0 (and perhaps earlier gcc), add:
+    #include <string.h>
+    to avoid memcpy issues in compilation:
+
+    Add to end of file:
 
     void AO2MOrestore_nr4to1_gen(double *eri4, double *eri1, int norb1, int norb2)
     {
@@ -136,7 +141,7 @@ def _convert_eri_gen(origsym, targetsym, eri, norb1, norb2):
     """
     libao2mo = lib.load_library("libao2mo")
 
-    fn = getattr(libao2mo, "AO2MOrestore_nr%sto%s_gen" % (origsym, targetsym))
+    fn = getattr(libao2mo, "AO2MOrestore_nr{}to{}_gen".format(origsym, targetsym))
 
     if targetsym == 1:
         eri_out = empty([norb1, norb1, norb2, norb2])

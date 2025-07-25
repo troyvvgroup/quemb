@@ -11,7 +11,7 @@ import unittest
 
 from pyscf import gto, scf
 
-from quemb.molbe import UBE, fragpart
+from quemb.molbe import UBE, fragmentate
 
 
 class TestOneShot_Unrestricted(unittest.TestCase):
@@ -28,13 +28,13 @@ class TestOneShot_Unrestricted(unittest.TestCase):
         mol.spin = 1
         mol.build()
         self.molecular_unrestricted_oneshot_test(
-            mol, "be1", "Hexene Anion Frz (BE1)", True, -0.35753374
+            mol, 1, "Hexene Anion Frz (BE1)", True, -0.35753374
         )
         self.molecular_unrestricted_oneshot_test(
-            mol, "be2", "Hexene Anion Frz (BE2)", True, -0.34725961
+            mol, 2, "Hexene Anion Frz (BE2)", True, -0.34725961
         )
         self.molecular_unrestricted_oneshot_test(
-            mol, "be3", "Hexene Anion Frz (BE3)", True, -0.34300834
+            mol, 3, "Hexene Anion Frz (BE3)", True, -0.34300834
         )
 
     @unittest.skipIf(
@@ -50,13 +50,13 @@ class TestOneShot_Unrestricted(unittest.TestCase):
         mol.spin = 1
         mol.build()
         self.molecular_unrestricted_oneshot_test(
-            mol, "be1", "Hexene Cation Frz (BE1)", True, -0.40383508
+            mol, 1, "Hexene Cation Frz (BE1)", True, -0.40383508
         )
         self.molecular_unrestricted_oneshot_test(
-            mol, "be2", "Hexene Cation Frz (BE2)", True, -0.36496690
+            mol, 2, "Hexene Cation Frz (BE2)", True, -0.36496690
         )
         self.molecular_unrestricted_oneshot_test(
-            mol, "be3", "Hexene Cation Frz (BE3)", True, -0.36996484
+            mol, 3, "Hexene Cation Frz (BE3)", True, -0.36996484
         )
 
     @unittest.skipIf(
@@ -72,13 +72,13 @@ class TestOneShot_Unrestricted(unittest.TestCase):
         mol.spin = 1
         mol.build()
         self.molecular_unrestricted_oneshot_test(
-            mol, "be1", "Hexene Anion Unfrz (BE1)", False, -0.38478279
+            mol, 1, "Hexene Anion Unfrz (BE1)", False, -0.38478279
         )
         self.molecular_unrestricted_oneshot_test(
-            mol, "be2", "Hexene Anion Unfrz (BE2)", False, -0.39053689
+            mol, 2, "Hexene Anion Unfrz (BE2)", False, -0.39053689
         )
         self.molecular_unrestricted_oneshot_test(
-            mol, "be3", "Hexene Anion Unfrz (BE3)", False, -0.38960174
+            mol, 3, "Hexene Anion Unfrz (BE3)", False, -0.38960174
         )
 
     @unittest.skipIf(
@@ -93,21 +93,21 @@ class TestOneShot_Unrestricted(unittest.TestCase):
         mol.spin = 1
         mol.build()
         self.molecular_unrestricted_oneshot_test(
-            mol, "be1", "Hexene Cation Frz (BE1)", False, -0.39471433
+            mol, 1, "Hexene Cation Frz (BE1)", False, -0.39471433
         )
         self.molecular_unrestricted_oneshot_test(
-            mol, "be2", "Hexene Cation Frz (BE2)", False, -0.39846777
+            mol, 2, "Hexene Cation Frz (BE2)", False, -0.39846777
         )
         self.molecular_unrestricted_oneshot_test(
-            mol, "be3", "Hexene Cation Frz (BE3)", False, -0.39729184
+            mol, 3, "Hexene Cation Frz (BE3)", False, -0.39729184
         )
 
     def molecular_unrestricted_oneshot_test(
-        self, mol, be_type, test_name, frz, exp_result, delta=1e-4
+        self, mol, n_BE, test_name, frz, exp_result, delta=1e-4
     ):
         mf = scf.UHF(mol)
         mf.kernel()
-        fobj = fragpart(frag_type="autogen", be_type=be_type, mol=mol, frozen_core=frz)
+        fobj = fragmentate(frag_type="autogen", n_BE=n_BE, mol=mol, frozen_core=frz)
         mybe = UBE(mf, fobj)
         mybe.oneshot(solver="UCCSD", nproc=1)
         self.assertAlmostEqual(

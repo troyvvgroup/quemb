@@ -2,8 +2,10 @@
 
 import os
 from multiprocessing import Pool
+from pathlib import Path
+from warnings import warn
 
-from numpy import asarray, diag_indices, einsum, float64, zeros_like
+from numpy import diag_indices, einsum, float64, zeros_like
 from numpy.linalg import multi_dot
 from pyscf import ao2mo, fci, mcscf
 
@@ -17,20 +19,22 @@ from quemb.molbe.helper import (
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import (
     SHCI_ArgsUser,
+    Solvers,
     UserSolverArgs,
     _SHCI_Args,
-    make_rdm1_ccsd_t1,
-    make_rdm2_urlx,
     solve_ccsd,
     solve_error,
     solve_mp2,
     solve_uccsd,
 )
-from quemb.shared.external.ccsd_rdm import make_rdm1_uccsd, make_rdm2_uccsd
 from quemb.shared.external.unrestricted_utils import make_uhf_obj
 from quemb.shared.helper import unused
 from quemb.shared.manage_scratch import WorkDir
-from quemb.shared.typing import Matrix
+from quemb.shared.typing import (
+    ListOverFrag,
+    Matrix,
+    RelAOIdx,
+)
 
 
 def run_solver(
@@ -40,16 +44,14 @@ def run_solver(
     dname: str,
     nao: int,
     nocc: int,
-    nfsites: int,
-    efac: float,
+    n_frag: int,
+    weight_and_relAO_per_center: ListOverFrag[tuple[float, list[RelAOIdx]]],
     TA: Matrix[float64],
     h1_e: Matrix[float64],
-    solver: str = "MP2",
+    solver: Solvers = "CCSD",
     eri_file: str = "eri_file.h5",
     veff: Matrix[float64] | None = None,
     veff0: Matrix[float64] | None = None,
-    ompnum: int = 4,
-    writeh1: bool = False,
     eeval: bool = True,
     ret_vec: bool = False,
     use_cumulant: bool = True,
@@ -77,27 +79,24 @@ def run_solver(
         Number of atomic orbitals.
     nocc :
         Number of occupied orbitals.
-    nfsites :
+    n_frag :
         Number of fragment sites.
-    efac :
-        Scaling factor for the electronic energy.
+    weight_and_relAO_per_center :
+        Scaling factor for the electronic energy **and**
+        the relative AO indices per center per frag
     TA :
         Transformation matrix for embedding orbitals.
     h1_e :
         One-electron integral matrix.
     solver :
-        Solver to use for the calculation ('MP2', 'CCSD', 'FCI', 'HCI', 'SHCI', 'SCI').
-        Default is 'MP2'.
+        Solver to use for the calculation.
+        Default is 'CCSD'.
     eri_file :
         Filename for the electron repulsion integrals. Default is 'eri_file.h5'.
     veff :
         Veff matrix to be passed to energy, if non-cumulant energy.
     veff0 :
         Veff0 matrix, passed to energy, the hf_veff in the fragment Schmidt space
-    ompnum :
-        Number of OpenMP threads. Default is 4.
-    writeh1 :
-        If True, write the one-electron integrals to a file. Default is False.
     use_cumulant :
         If True, use the cumulant approximation for RDM2. Default is True.
     eeval :
@@ -124,27 +123,39 @@ def run_solver(
     if solver == "MP2":
         mc_ = solve_mp2(mf_, mo_energy=mf_.mo_energy)
         rdm1_tmp = mc_.make_rdm1()
+        if eeval:
+            rdm2s = mc_.make_rdm2()
 
     elif solver == "CCSD":
-        if not relax_density:
-            t1, t2 = solve_ccsd(mf_, mo_energy=mf_.mo_energy, rdm_return=False)
-            rdm1_tmp = make_rdm1_ccsd_t1(t1)
-        else:
+        if eeval:
             t1, t2, rdm1_tmp, rdm2s = solve_ccsd(
                 mf_,
                 mo_energy=mf_.mo_energy,
+                relax=relax_density,
+                use_cumulant=use_cumulant,
                 rdm_return=True,
                 rdm2_return=True,
-                use_cumulant=use_cumulant,
-                relax=True,
             )
+        else:
+            t1, t2, rdm1_tmp, _ = solve_ccsd(
+                mf_,
+                mo_energy=mf_.mo_energy,
+                relax=relax_density,
+                use_cumulant=use_cumulant,
+                rdm_return=True,
+                rdm2_return=False,
+            )
+
     elif solver == "FCI":
         mc_ = fci.FCI(mf_, mf_.mo_coeff)
         efci, civec = mc_.kernel()
         unused(efci)
         rdm1_tmp = mc_.make_rdm1(civec, mc_.norb, mc_.nelec)
-    elif solver == "HCI":
+
+    elif solver == "HCI":  # TODO
         # pylint: disable-next=E0611
+        raise NotImplementedError("HCI solver not implemented")
+        """
         from pyscf import hci  # type: ignore[attr-defined]  # noqa: PLC0415
 
         assert isinstance(solver_args, SHCI_ArgsUser)
@@ -163,14 +174,17 @@ def run_solver(
         h1_ = multi_dot((mf_.mo_coeff.T, h1, mf_.mo_coeff))
         eci, civec = ci_.kernel(h1_, eri, nmo, nelec)
         unused(eci)
-        civec = asarray(civec)
+        civec = asarray(civec) # import numpy.asarray
 
         (rdm1a_, rdm1b_), (rdm2aa, rdm2ab, rdm2bb) = ci_.make_rdm12s(civec, nmo, nelec)
         rdm1_tmp = rdm1a_ + rdm1b_
         rdm2s = rdm2aa + rdm2ab + rdm2ab.transpose(2, 3, 0, 1) + rdm2bb
+        """
 
-    elif solver == "SHCI":
+    elif solver == "SHCI":  # TODO
         # pylint: disable-next=E0401,E0611
+        raise NotImplementedError("SHCI solver not implemented")
+        """
         from pyscf.shciscf import shci  # type: ignore[attr-defined]  # noqa: PLC0415
 
         frag_scratch = WorkDir(scratch_dir / dname)
@@ -181,17 +195,18 @@ def run_solver(
         nao, nmo = mf_.mo_coeff.shape
         nelec = (nocc, nocc)
         mch = shci.SHCISCF(mf_, nmo, nelec, orbpath=frag_scratch)
-        mch.fcisolver.mpiprefix = "mpirun -np " + str(ompnum)
+        mch.fcisolver.mpiprefix = "mpirun -np " + str(ompnum) # need to pass in ompnum
         mch.fcisolver.stochastic = True  # this is for PT and doesnt add PT to rdm
         mch.fcisolver.nPTiter = 0
         mch.fcisolver.sweep_iter = [0]
         mch.fcisolver.DoRDM = True
         mch.fcisolver.sweep_epsilon = [solver_args.hci_cutoff]
         mch.fcisolver.scratchDirectory = frag_scratch
-        if not writeh1:
+        if not writeh1: # writeh1 specifies whether to write the 1e integrals
             mch.fcisolver.restart = True
         mch.mc1step()
         rdm1_tmp, rdm2s = mch.fcisolver.make_rdm12(0, nmo, nelec)
+        """
 
     elif solver == "SCI":
         # pylint: disable-next=E0611
@@ -200,9 +215,9 @@ def run_solver(
         assert isinstance(solver_args, SHCI_ArgsUser)
         SHCI_args = _SHCI_Args.from_user_input(solver_args)
 
-        frag_scratch = WorkDir(scratch_dir / dname)
+        assert isinstance(dname, str)
 
-        nao, nmo = mf_.mo_coeff.shape
+        nmo = mf_.mo_coeff.shape[1]
         nelec = (nocc, nocc)
         cas = mcscf.CASCI(mf_, nmo, nelec)
         h1, ecore = cas.get_h1eff(mo_coeff=mf_.mo_coeff)
@@ -211,14 +226,34 @@ def run_solver(
             4 * ((nmo),)
         )
 
+        if SHCI_args.return_frag_data:
+            warn(
+                "If return_frag_data is True, RDMs and other data"
+                "are written into a directory which is not"
+                "cleaned: cleanup_at_end is False"
+            )
+            iter = 0
+            frag_name = Path(f"{scratch_dir}-frag_data") / f"{dname}_iter{iter}"
+            while frag_name.exists():
+                iter += 1
+                frag_name = Path(f"{scratch_dir}-frag_data") / f"{dname}_iter{iter}"
+            frag_scratch = WorkDir(frag_name, cleanup_at_end=False)
+            print("Fragment Scratch Directory:", frag_scratch)
+        else:
+            frag_scratch = WorkDir(scratch_dir / dname)
         ci = cornell_shci.SHCI()
         ci.runtimedir = frag_scratch
         ci.restart = True
-        ci.config["var_only"] = True
-        ci.config["eps_vars"] = [solver_args.hci_cutoff]
-        ci.config["get_1rdm_csv"] = True
-        ci.config["get_2rdm_csv"] = True
+        # var_only being True means no perturbation is added to the fragment
+        # This is advised
+        ci.config["var_only"] = not SHCI_args.hci_pt
+        ci.config["eps_vars"] = [SHCI_args.hci_cutoff]
+        # Returning the 1RDM and 2RDM as csv can be helpful,
+        # but is false by default to save disc space
+        ci.config["get_1rdm_csv"] = SHCI_args.return_frag_data
+        ci.config["get_2rdm_csv"] = SHCI_args.return_frag_data
         ci.kernel(h1, eri, nmo, nelec)
+        # We always return 1 and 2rdms, for now
         rdm1_tmp, rdm2s = ci.make_rdm12(0, nmo, nelec)
 
     else:
@@ -228,12 +263,9 @@ def run_solver(
     rdm1 = multi_dot((mf_.mo_coeff, rdm1_tmp, mf_.mo_coeff.T)) * 0.5
 
     if eeval:
-        if solver == "CCSD" and not relax_density:
-            rdm2s = make_rdm2_urlx(t1, t2, with_dm1=not use_cumulant)
-        elif solver == "MP2":
-            rdm2s = mc_.make_rdm2()
-        elif solver == "FCI":
-            rdm2s = mc_.make_rdm2(civec, mc_.norb, mc_.nelec)
+        if solver == "FCI" or solver == "SCI":
+            if solver == "FCI":
+                rdm2s = mc_.make_rdm2(civec, mc_.norb, mc_.nelec)
             if use_cumulant:
                 hf_dm = zeros_like(rdm1_tmp)
                 hf_dm[diag_indices(nocc)] += 2.0
@@ -253,8 +285,8 @@ def run_solver(
         e_f = get_frag_energy(
             mf_.mo_coeff,
             nocc,
-            nfsites,
-            efac,
+            n_frag,
+            weight_and_relAO_per_center,
             TA,
             h1_e,
             rdm1_tmp,
@@ -272,15 +304,14 @@ def run_solver(
 
 
 def run_solver_u(
-    fobj_a,
-    fobj_b,
+    fobj_a: Frags,
+    fobj_b: Frags,
     solver,
     enuc,  # noqa: ARG001
     hf_veff,
     relax_density=False,
     frozen=False,
     use_cumulant=True,
-    ereturn=True,
 ):
     """
     Run a quantum chemistry solver to compute the reduced density matrices.
@@ -303,15 +334,12 @@ def run_solver_u(
         If True, uses frozen core, defaults to False
     use_cumulant : bool, optional
         If True, uses the cumulant approximation for RDM2. Default is True.
-    ereturn : bool, optional
-        If True, return the computed energy. Defaults to False.
 
     Returns
     -------
     float
         As implemented, only returns the UCCSD fragment energy
     """
-    print("obj type", type(fobj_a))
     # Run SCF for alpha and beta spins
     fobj_a.scf(unrestricted=True, spin_ind=0)
     fobj_b.scf(unrestricted=True, spin_ind=1)
@@ -320,25 +348,21 @@ def run_solver_u(
     full_uhf, eris = make_uhf_obj(fobj_a, fobj_b, frozen=frozen)
 
     if solver == "UCCSD":
-        if relax_density:
-            ucc, rdm1_tmp, rdm2s = solve_uccsd(
-                full_uhf,
-                eris,
-                relax=relax_density,
-                rdm_return=True,
-                rdm2_return=True,
-                frozen=frozen,
-            )
-        else:
-            ucc = solve_uccsd(
-                full_uhf, eris, relax=relax_density, rdm_return=False, frozen=frozen
-            )
-            rdm1_tmp = make_rdm1_uccsd(ucc, relax=relax_density)
+        ucc, rdm1_tmp, rdm2s = solve_uccsd(
+            full_uhf,
+            eris,
+            relax=relax_density,
+            use_cumulant=use_cumulant,
+            rdm_return=True,
+            rdm2_return=True,
+            frozen=frozen,
+        )
     else:
         raise NotImplementedError("Only UCCSD Solver implemented")
 
     # Compute RDM1
     fobj_a.rdm1__ = rdm1_tmp[0].copy()
+    assert fobj_a._mf is not None and fobj_b._mf is not None
     fobj_a._rdm1 = (
         multi_dot((fobj_a._mf.mo_coeff, rdm1_tmp[0], fobj_a._mf.mo_coeff.T)) * 0.5
     )
@@ -349,37 +373,37 @@ def run_solver_u(
     )
 
     # Calculate Energies
-    if ereturn:
-        if solver == "UCCSD" and not relax_density:
-            rdm2s = make_rdm2_uccsd(ucc, with_dm1=not use_cumulant)
+    fobj_a.rdm2__ = rdm2s[0].copy()
+    fobj_b.rdm2__ = rdm2s[1].copy()
 
-        fobj_a.rdm2__ = rdm2s[0].copy()
-        fobj_b.rdm2__ = rdm2s[1].copy()
+    # Calculate energy on a per-fragment basis
+    if frozen:
+        h1_ab = [
+            full_uhf.h1[0] + full_uhf.full_gcore[0] + full_uhf.core_veffs[0],
+            full_uhf.h1[1] + full_uhf.full_gcore[1] + full_uhf.core_veffs[1],
+        ]
+    else:
+        h1_ab = [fobj_a.h1, fobj_b.h1]
 
-        # Calculate energy on a per-fragment basis
-        if frozen:
-            h1_ab = [
-                full_uhf.h1[0] + full_uhf.full_gcore[0] + full_uhf.core_veffs[0],
-                full_uhf.h1[1] + full_uhf.full_gcore[1] + full_uhf.core_veffs[1],
-            ]
-        else:
-            h1_ab = [fobj_a.h1, fobj_b.h1]
-        e_f = get_frag_energy_u(
-            (fobj_a._mo_coeffs, fobj_b._mo_coeffs),
-            (fobj_a.nsocc, fobj_b.nsocc),
-            (fobj_a.nfsites, fobj_b.nfsites),
-            (fobj_a.efac, fobj_b.efac),
-            (fobj_a.TA, fobj_b.TA),
-            h1_ab,
-            hf_veff,
-            rdm1_tmp,
-            rdm2s,
-            fobj_a.dname,
-            eri_file=fobj_a.eri_file,
-            gcores=full_uhf.full_gcore,
-            frozen=frozen,
-        )
-        return e_f
+    e_f = get_frag_energy_u(
+        (fobj_a._mo_coeffs, fobj_b._mo_coeffs),
+        (fobj_a.nsocc, fobj_b.nsocc),
+        (fobj_a.n_frag, fobj_b.n_frag),
+        (
+            fobj_a.weight_and_relAO_per_center,
+            fobj_b.weight_and_relAO_per_center,
+        ),
+        (fobj_a.TA, fobj_b.TA),
+        h1_ab,
+        hf_veff,
+        rdm1_tmp,
+        rdm2s,
+        fobj_a.dname,
+        eri_file=fobj_a.eri_file,
+        gcores=full_uhf.full_gcore,
+        frozen=frozen,
+    )
+    return e_f
 
 
 def be_func_parallel(
@@ -397,7 +421,6 @@ def be_func_parallel(
     use_cumulant: bool = True,
     eeval: bool = False,
     return_vec: bool = False,
-    writeh1: bool = False,
 ):
     """
     Embarrassingly Parallel High-Level Computation
@@ -438,8 +461,6 @@ def be_func_parallel(
         Use cumulant energy expression. Defaults to True
     return_vec :
         Whether to return the error vector. Defaults to False.
-    writeh1 :
-        Whether to write the one-electron integrals. Defaults to False.
 
     Returns
     -------
@@ -457,9 +478,13 @@ def be_func_parallel(
             fobj.update_heff(pot, only_chem=only_chem)
 
     with Pool(nprocs) as pool_:
-        results = []
+        results = []  # type: ignore[var-annotated]
         # Run solver in parallel for each fragment
         for fobj in Fobjs:
+            assert (
+                fobj.fock is not None and fobj.heff is not None and fobj.dm0 is not None
+            )
+
             result = pool_.apply_async(
                 run_solver,
                 [
@@ -469,16 +494,14 @@ def be_func_parallel(
                     fobj.dname,
                     fobj.nao,
                     fobj.nsocc,
-                    fobj.nfsites,
-                    fobj.efac,
+                    fobj.n_frag,
+                    fobj.weight_and_relAO_per_center,
                     fobj.TA,
                     fobj.h1,
                     solver,
                     fobj.eri_file,
                     fobj.veff if not use_cumulant else None,
                     fobj.veff0,
-                    ompnum,
-                    writeh1,
                     eeval,
                     return_vec,
                     use_cumulant,
@@ -553,7 +576,7 @@ def be_func_parallel_u(
         Potentials (local & global) that are added to the 1-electron
         Hamiltonian component.  The last element in the list is the chemical potential.
         Should always be 0, as this is still a one-shot only implementation
-    Fobjs : list of tuple of quemb.molbe.fragment.fragpart
+    Fobjs : list of tuple of quemb.molbe.autofrag.FragPart
         Fragment definitions, alpha and beta components.
     solver : str
         High-level solver in bootstrap embedding. Supported value is 'UCCSD'.
@@ -596,7 +619,6 @@ def be_func_parallel_u(
                     relax_density,
                     frozen,
                     use_cumulant,
-                    True,
                 ],
             )
             results.append(result)

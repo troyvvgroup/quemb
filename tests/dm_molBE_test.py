@@ -9,7 +9,8 @@ import unittest
 
 from pyscf import gto, scf
 
-from quemb.molbe import BE, fragpart
+from quemb.molbe import BE, fragmentate
+from quemb.molbe.fragment import ChemGenArgs
 
 
 class TestBE_restricted(unittest.TestCase):
@@ -23,15 +24,34 @@ class TestBE_restricted(unittest.TestCase):
         mol.charge = 0.0
         mol.spin = 0.0
         mol.build()
-        self.molecular_QN_test(mol, "be2", "H8 (BE2)", "hchain_simple", only_chem=False)
+        self.molecular_QN_test(
+            mol,
+            2,
+            "H8 (BE2)",
+            "chemgen",
+            only_chem=False,
+            additional_args=ChemGenArgs(treat_H_different=False),
+        )
 
     def molecular_QN_test(
-        self, mol, be_type, test_name, frag_type, delta=1e-6, only_chem=True
+        self,
+        mol,
+        n_BE,
+        test_name,
+        frag_type,
+        delta=1e-6,
+        only_chem=True,
+        additional_args=None,
     ):
         mf = scf.RHF(mol)
         mf.max_cycle = 100
         mf.kernel()
-        fobj = fragpart(frag_type=frag_type, be_type=be_type, mol=mol)
+        fobj = fragmentate(
+            frag_type=frag_type,
+            n_BE=n_BE,
+            mol=mol,
+            additional_args=additional_args,
+        )
         mybe1 = BE(mf, fobj)
         mybe1.optimize(
             solver="CCSD", method="QN", trust_region=False, only_chem=only_chem

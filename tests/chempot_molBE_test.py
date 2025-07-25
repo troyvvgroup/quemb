@@ -10,7 +10,8 @@ import unittest
 
 from pyscf import gto, scf
 
-from quemb.molbe import BE, fragpart
+from quemb.molbe import BE, fragmentate
+from quemb.molbe.fragment import ChemGenArgs
 
 
 class TestBE_restricted(unittest.TestCase):
@@ -27,10 +28,24 @@ class TestBE_restricted(unittest.TestCase):
         mf = scf.RHF(mol)
         mf.kernel()
         self.molecular_restricted_test(
-            mol, mf, "be2", "H8 (BE2)", "hchain_simple", -4.30628355, only_chem=True
+            mol,
+            mf,
+            2,
+            "H8 (BE2)",
+            "chemgen",
+            -4.30628355,
+            only_chem=True,
+            additional_args=ChemGenArgs(treat_H_different=False),
         )
         self.molecular_restricted_test(
-            mol, mf, "be3", "H8 (BE3)", "hchain_simple", -4.30649890, only_chem=True
+            mol,
+            mf,
+            3,
+            "H8 (BE3)",
+            "chemgen",
+            -4.30649890,
+            only_chem=True,
+            additional_args=ChemGenArgs(treat_H_different=False),
         )
 
     def test_octane_sto3g_ben(self):
@@ -45,16 +60,30 @@ class TestBE_restricted(unittest.TestCase):
         mf = scf.RHF(mol)
         mf.kernel()
         self.molecular_restricted_test(
-            mol, mf, "be2", "Octane (BE2)", "autogen", -310.33471581, only_chem=True
+            mol, mf, 2, "Octane (BE2)", "autogen", -310.33471581, only_chem=True
         )
         self.molecular_restricted_test(
-            mol, mf, "be3", "Octane (BE3)", "autogen", -310.33447096, only_chem=True
+            mol, mf, 3, "Octane (BE3)", "autogen", -310.33447096, only_chem=True
         )
 
     def molecular_restricted_test(
-        self, mol, mf, be_type, test_name, frag_type, target, delta=1e-4, only_chem=True
+        self,
+        mol,
+        mf,
+        n_BE,
+        test_name,
+        frag_type,
+        target,
+        delta=1e-4,
+        only_chem=True,
+        additional_args=None,
     ):
-        fobj = fragpart(frag_type=frag_type, be_type=be_type, mol=mol)
+        fobj = fragmentate(
+            frag_type=frag_type,
+            n_BE=n_BE,
+            mol=mol,
+            additional_args=additional_args,
+        )
         mybe = BE(mf, fobj)
         mybe.optimize(solver="CCSD", method="QN", only_chem=only_chem)
         self.assertAlmostEqual(

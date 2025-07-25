@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pyscf import cc, fci, gto, scf
 
-from quemb.molbe import BE, fragpart
+from quemb.molbe import BE, fragmentate
 from quemb.molbe.solver import DMRG_ArgsUser
 
 # We'll consider the dissociation curve for a 1D chain of 8 H-atoms:
@@ -42,7 +42,7 @@ for a in seps:
     # any clear advantage to using any one scheme over another,
     # the Pipek-Mezey scheme continues to be the most popular. With
     # BE-DMRG, localization takes place prior to fragmentation:
-    fobj = fragpart(be_type="be1", mol=mol)
+    fobj = fragmentate(n_BE=1, mol=mol)
     mybe = BE(
         mf,
         fobj,
@@ -52,7 +52,7 @@ for a in seps:
 
     # Next, run BE-DMRG with default parameters and maxM=100.
     mybe.oneshot(
-        solver="block2",  # or 'DMRG', 'DMRGSCF', 'DMRGCI'
+        solver="DMRG",  # or 'block2', 'DMRGSCF', 'DMRGCI'
         solver_args=DMRG_ArgsUser(
             maxM=100,  # Max fragment bond dimension
             force_cleanup=True,  # Remove all fragment DMRG tmpfiles
@@ -88,7 +88,7 @@ mol.basis = "sto-3g"
 mol.charge = 0
 mol.spin = 0
 mol.build()
-fobj = fragpart(be_type="be2", mol=mol)
+fobj = fragmentate(n_BE=2, mol=mol)
 mybe = BE(mf, fobj, lo_method="pipek-mezey", pop_method="lowdin")
 
 # We automatically construct the fragment DMRG schedules based on user keywords.
@@ -98,7 +98,7 @@ mybe = BE(mf, fobj, lo_method="pipek-mezey", pop_method="lowdin")
 # to the Fiedler vector procedure, along with a few other tweaks:
 
 mybe.optimize(
-    solver="block2",  # or 'DMRG', 'DMRGSCF', 'DMRGCI'
+    solver="DMRG",  # or 'block2', 'DMRGSCF', 'DMRGCI'
     max_iter=60,  # Max number of sweeps
     only_chem=True,
     solver_args=DMRG_ArgsUser(
@@ -123,7 +123,7 @@ schedule: dict[str, list[int] | list[float]] = {
 
 # and pass it to the fragment solver through `schedule_kwargs`:
 mybe.optimize(
-    solver="block2",
+    solver="DMRG",
     only_chem=True,
     solver_args=DMRG_ArgsUser(
         schedule_kwargs=schedule,

@@ -1,3 +1,5 @@
+exclude = ["external"]
+
 [lint]
 # see the rules [here](https://docs.astral.sh/ruff/rules/)
 select = ["E", "F", "I", "NPY", "PL", "ARG"]
@@ -23,4 +25,4 @@ ignore = [
         # if people import stuff with a leading underscore
         # they (should) know that this is private by convention
 ]
-preview = true
+preview = false # ruff preview expects old python syntax

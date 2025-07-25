@@ -12,7 +12,7 @@ import unittest
 from numpy import eye
 from pyscf.pbc import df, gto, scf
 
-from quemb.kbe import BE, fragpart
+from quemb.kbe import BE, fragmentate
 
 
 class Test_kBE_Full(unittest.TestCase):
@@ -38,7 +38,10 @@ class Test_kBE_Full(unittest.TestCase):
         cell.build()
 
         self.periodic_test(
-            cell, kpt, "be1", "C2 (kBE1)", "autogen", -102.16547952, only_chem=True
+            cell, kpt, 1, "C2 (kBE1)", "autogen", -102.16547952, only_chem=True
+        )
+        self.periodic_test(
+            cell, kpt, 1, "C2 (kBE1)", "chemgen", -102.16547952, only_chem=True
         )
 
     @unittest.skipIf(
@@ -69,9 +72,19 @@ class Test_kBE_Full(unittest.TestCase):
         self.periodic_test(
             cell,
             kpt,
-            "be2",
+            2,
             "C4 (kBE2)",
             "autogen",
+            -204.44557767,
+            only_chem=False,
+        )
+
+        self.periodic_test(
+            cell,
+            kpt,
+            2,
+            "C4 (kBE2)",
+            "chemgen",
             -204.44557767,
             only_chem=False,
         )
@@ -100,7 +113,7 @@ class Test_kBE_Full(unittest.TestCase):
         self.periodic_test(
             cell,
             kpt,
-            "be2",
+            2,
             "C4 (kBE2, MP2/frozen core)",
             "autogen",
             -120.87412293,
@@ -113,7 +126,7 @@ class Test_kBE_Full(unittest.TestCase):
         self,
         cell,
         kpt,
-        be_type,
+        n_BE,
         test_name,
         frag_type,
         target,
@@ -132,8 +145,8 @@ class Test_kBE_Full(unittest.TestCase):
         kmf.conv_tol = 1e-12
         kmf.kernel()
 
-        kfrag = fragpart(
-            be_type=be_type,
+        kfrag = fragmentate(
+            n_BE=n_BE,
             mol=cell,
             frag_type=frag_type,
             kpt=kpt,

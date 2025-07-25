@@ -1,4 +1,6 @@
-# Author(s): Oinam Romesh Meitei
+# Author(s): Oinam Romesh Meitei, Oskar Weser
+
+from collections.abc import Sequence
 
 import h5py
 import numpy as np
@@ -9,6 +11,8 @@ from numpy import (
     diag_indices,
     einsum,
     eye,
+    float64,
+    int64,
     outer,
     trace,
     tril_indices,
@@ -18,6 +22,17 @@ from numpy import (
 from numpy.linalg import eigh, multi_dot
 
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
+from quemb.shared.helper import clean_overlap
+from quemb.shared.typing import (
+    FragmentIdx,
+    GlobalAOIdx,
+    Matrix,
+    PathLike,
+    RelAOIdx,
+    RelAOIdxInRef,
+    SeqOverEdge,
+    Vector,
+)
 
 
 class Frags:
@@ -30,65 +45,80 @@ class Frags:
 
     def __init__(
         self,
-        fsites,
-        ifrag,
-        edge=None,
-        center=None,
-        edge_idx=None,
-        center_idx=None,
-        efac=None,
-        eri_file="eri_file.h5",
-        centerf_idx=None,
-        unrestricted=False,
-    ):
+        AO_in_frag: Sequence[GlobalAOIdx],
+        ifrag: int,
+        AO_per_edge: SeqOverEdge[Sequence[GlobalAOIdx]],
+        ref_frag_idx_per_edge: SeqOverEdge[FragmentIdx],
+        relAO_per_edge: SeqOverEdge[Sequence[RelAOIdx]],
+        relAO_in_ref_per_edge: SeqOverEdge[Sequence[RelAOIdxInRef]],
+        weight_and_relAO_per_center: tuple[float, Sequence[RelAOIdx]],
+        relAO_per_origin: Sequence[RelAOIdx],
+        eri_file: PathLike = "eri_file.h5",
+        unrestricted: bool = False,
+    ) -> None:
         """Constructor function for :python:`Frags` class.
 
         Parameters
         ----------
-        fsites : list
-            list of AOs in the fragment (i.e. BE.fsites[i] or fragpart.fsites[i])
-        ifrag : int
-            fragment index (∈ [0, BE.Nfrag])
-        edge : list, optional
-            list of lists of edge site AOs for each atom in the fragment,
-            by default None
-        center : list, optional
-            list of fragment indices where edge site AOs are center site,
-            by default None
-        edge_idx : list, optional
-            list of lists of indices for edge site AOs within the fragment,
-            by default None
-        center_idx : list, optional
+        AO_in_frag :
+            list of AOs in the fragment (i.e. ``BE.AO_per_frag[i]``
+            or ``FragPart.AO_per_frag[i]``)
+        ifrag :
+            fragment index (∈ [0, BE.n_frag - 1])
+        AO_per_edge :
+            list of lists of edge site AOs for each atom in the fragment.
+            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
+        ref_frag_idx_per_edge :
+            list of fragment indices where edge site AOs are center site.
+            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
+        relAO_per_edge :
+            list of lists of indices for edge site AOs within the fragment.
+            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
+        relAO_in_ref_per_edge :
             list of lists of indices within the fragment specified in :python:`center`
-            that points to the edge site AOs , by default None
-        efac : list, optional
-            weight used for energy contributions, by default None
-        eri_file : str, optional
+            that points to the edge site AOs.
+            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
+        weight_and_relAO_per_center :
+            weight used for energy contributions and the indices.
+            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
+        relAO_per_origin :
+            indices of the origin site atoms in the fragment
+            Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
+        eri_file :
             two-electron integrals stored as h5py file, by default 'eri_file.h5'
-        centerf_idx : list, optional
-            indices of the center site atoms in the fragment, by default None
-        unrestricted : bool, optional
+        unrestricted :
             unrestricted calculation, by default False
         """
 
-        self.fsites = fsites
-        self.nfsites = len(fsites)
-        self.TA = None
-        self.TA_lo_eo = None
-        self.h1 = None
+        self.AO_in_frag = AO_in_frag
+        self.n_frag = len(AO_in_frag)
+        self.AO_per_edge = AO_per_edge
+        self.ref_frag_idx_per_edge = ref_frag_idx_per_edge
+        self.relAO_per_edge = relAO_per_edge
+        self.relAO_in_ref_per_edge = relAO_in_ref_per_edge
+        self.relAO_per_origin = relAO_per_origin
+        self.weight_and_relAO_per_center = weight_and_relAO_per_center
+        self.eri_file = eri_file
+
         self.ifrag = ifrag
         if unrestricted:
-            self.dname = [
+            self.dname: str | list[str] = [
                 "f" + str(ifrag) + "/aa",
                 "f" + str(ifrag) + "/bb",
                 "f" + str(ifrag) + "/ab",
             ]
         else:
             self.dname = "f" + str(ifrag)
-        self.nao = None
-        self.mo_coeffs = None
-        self._mo_coeffs = None
-        self.nsocc = None
+
+        self.TA: Matrix[float64]
+        self.frag_TA_offset: Vector[int64]
+        self.TA_lo_eo: Matrix[float64]
+
+        self.h1: Matrix[float64]
+        self.nao: int
+        self.mo_coeffs: Matrix[float64]
+        self._mo_coeffs: Matrix[float64]
+        self.nsocc: int
         self._mf = None
         self._mc = None
 
@@ -96,13 +126,8 @@ class Frags:
         self.t1 = None
         self.t2 = None
 
-        self.heff = None
-        self.edge = edge
-        self.center = center
-        self.edge_idx = edge_idx
-        self.center_idx = center_idx
-        self.centerf_idx = centerf_idx
-        self.udim = None
+        self.heff: Matrix[float64]
+        self.udim: int | None = None
 
         self._rdm1 = None
         self.rdm1__ = None
@@ -111,16 +136,21 @@ class Frags:
         self.genvs = None
         self.ebe = 0.0
         self.ebe_hf = 0.0
-        self.efac = efac
         self.fock = None
         self.veff = None
         self.veff0 = None
         self.dm_init = None
-        self.dm0 = None
-        self.eri_file = eri_file
+        self.dm0: Matrix[float64]
         self.unitcell_nkpt = 1.0
 
-    def sd(self, lao, lmo, nocc, norb=None, return_orb_count=False):
+    def sd(
+        self,
+        lao: Matrix[float64],
+        lmo: Matrix[float64],
+        nocc: int,
+        thr_bath: float,
+        norb: int | None = None,
+    ) -> None:
         """
         Perform Schmidt decomposition for the fragment.
 
@@ -132,40 +162,22 @@ class Frags:
             Local molecular orbital coefficients.
         nocc : int
             Number of occupied orbitals.
+        thr_bath : float,
+            Threshold for bath orbitals in Schmidt decomposition
         norb : int, optional
             Specify number of bath orbitals.
             Used for UBE, where different number of alpha and beta orbitals
             Default is None, allowing orbitals to be chosen by threshold
-        return_orb_count : bool, optional
-            Retrun the number of orbitals in each space, for UBE use/
-            Default is False
         """
-
-        if return_orb_count:
-            TA, n_f, n_b = schmidt_decomposition(
-                lmo, nocc, self.fsites, norb=norb, return_orb_count=return_orb_count
-            )
-        else:
-            TA = schmidt_decomposition(lmo, nocc, self.fsites)
-        self.C_lo_eo = TA
-        TA = lao @ TA
-        self.nao = TA.shape[1]
-        self.TA = TA
-        if return_orb_count:
-            return [n_f, n_b]
-
-    def cons_h1(self, h1):
-        """
-        Construct the one-electron Hamiltonian for the fragment.
-
-        Parameters
-        ----------
-        h1 : numpy.ndarray
-            One-electron Hamiltonian matrix.
-        """
-
-        h1_tmp = multi_dot((self.TA.T, h1, self.TA))
-        self.h1 = h1_tmp
+        self.TA_lo_eo, self.n_f, self.n_b = schmidt_decomposition(
+            lmo,
+            nocc,
+            self.AO_in_frag,
+            thr_bath=thr_bath,
+            norb=norb,
+        )
+        self.TA = lao @ self.TA_lo_eo
+        self.nao = self.TA.shape[1]
 
     def cons_fock(self, hf_veff, S, dm, eri_=None):
         """
@@ -274,7 +286,6 @@ class Frags:
             self.mo_coeffs = mf_.mo_coeff.copy()
         else:
             self._mo_coeffs = mf_.mo_coeff.copy()
-        mf_ = None
 
     def update_heff(self, u, cout=None, only_chem=False):
         """Update the effective Hamiltonian for the fragment."""
@@ -283,15 +294,15 @@ class Frags:
         if cout is None:
             cout = self.udim
 
-        for i, fi in enumerate(self.fsites):
-            if not any(i in sublist for sublist in self.edge_idx):
+        for i, fi in enumerate(self.AO_in_frag):
+            if not any(i in sublist for sublist in self.relAO_per_edge):
                 heff_[i, i] -= u[-1]
 
         if only_chem:
             self.heff = heff_
             return
         else:
-            for i in self.edge_idx:
+            for i in self.relAO_per_edge:
                 for j in range(len(i)):
                     for k in range(len(i)):
                         if j > k:  # or j==k:
@@ -305,7 +316,7 @@ class Frags:
             self.heff = heff_
 
     def set_udim(self, cout):
-        for i in self.edge_idx:
+        for i in self.relAO_per_edge:
             for j in range(len(i)):
                 for k in range(len(i)):
                     if j > k:
@@ -331,13 +342,13 @@ class Frags:
         unrestricted_fac = 1.0 if unrestricted else 2.0
 
         e1 = unrestricted_fac * einsum(
-            "ij,ij->i", self.h1[: self.nfsites], rdm_hf[: self.nfsites]
+            "ij,ij->i", self.h1[: self.n_frag], rdm_hf[: self.n_frag]
         )
 
         ec = (
             0.5
             * unrestricted_fac
-            * einsum("ij,ij->i", self.veff[: self.nfsites], rdm_hf[: self.nfsites])
+            * einsum("ij,ij->i", self.veff[: self.n_frag], rdm_hf[: self.n_frag])
         )
 
         if self.TA.ndim == 3:
@@ -345,14 +356,14 @@ class Frags:
         else:
             jmax = self.TA.shape[1]
         if eri is None:
-            with h5py.File(self.eri_file, "r") as r:
+            with h5py.File(self.eri_file, "r") as f:
                 if isinstance(self.dname, list):
-                    eri = [r[self.dname[0]][()], r[self.dname[1]][()]]
+                    eri = [f[self.dname[0]][()], f[self.dname[1]][()]]
                 else:
-                    eri = r[self.dname][()]
+                    eri = f[self.dname][()]
 
         e2 = zeros_like(e1)
-        for i in range(self.nfsites):
+        for i in range(self.n_frag):
             for j in range(jmax):
                 ij = i * (i + 1) // 2 + j if i > j else j * (j + 1) // 2 + i
                 Gij = (2.0 * rdm_hf[i, j] * rdm_hf - outer(rdm_hf[i], rdm_hf[j]))[
@@ -360,9 +371,8 @@ class Frags:
                 ]
                 Gij[diag_indices(jmax)] *= 0.5
                 Gij += Gij.T
-                if (
-                    unrestricted
-                ):  # unrestricted ERI file has 3 spin components: a, b, ab
+                # unrestricted ERI file has 3 spin components: a, b, ab
+                if unrestricted:
                     e2[i] += (
                         0.5
                         * unrestricted_fac
@@ -374,25 +384,31 @@ class Frags:
 
         e_ = e1 + e2 + ec
         etmp = 0.0
-        for i in self.efac[1]:
-            etmp += self.efac[0] * e_[i]
+        for i in self.weight_and_relAO_per_center[1]:
+            etmp += self.weight_and_relAO_per_center[0] * e_[i]
 
         self.ebe_hf = etmp
 
         if return_e:
             e_h1 = 0.0
             e_coul = 0.0
-            for i in self.efac[1]:
-                e_h1 += self.efac[0] * e1[i]
-                e_coul += self.efac[0] * (e2[i] + ec[i])
+            for i in self.weight_and_relAO_per_center[1]:
+                e_h1 += self.weight_and_relAO_per_center[0] * e1[i]
+                e_coul += self.weight_and_relAO_per_center[0] * (e2[i] + ec[i])
             return (e_h1, e_coul, e1 + e2 + ec)
         else:
             return None
 
 
 def schmidt_decomposition(
-    mo_coeff, nocc, Frag_sites, cinv=None, rdm=None, norb=None, return_orb_count=False
-):
+    mo_coeff: Matrix[float64],
+    nocc: int,
+    AO_in_frag: Sequence[GlobalAOIdx],
+    thr_bath: float = 1.0e-10,
+    cinv: Matrix[float64] | None = None,
+    rdm: Matrix[float64] | None = None,
+    norb: int | None = None,
+) -> tuple[Matrix[float64], int, int]:
     """
     Perform Schmidt decomposition on the molecular orbital coefficients.
 
@@ -402,35 +418,30 @@ def schmidt_decomposition(
 
     Parameters
     ----------
-    mo_coeff : numpy.ndarray
+    mo_coeff :
         Molecular orbital coefficients.
-    nocc : int
+    nocc :
         Number of occupied orbitals.
     Frag_sites : list of int
         List of fragment sites (indices).
-    cinv : numpy.ndarray, optional
+    thr_bath :
+        Threshold for bath orbitals in Schmidt decomposition
+    cinv :
         Inverse of the transformation matrix. Defaults to None.
-    rdm : numpy.ndarray, optional
+    rdm :
         Reduced density matrix. If not provided, it will be computed from the molecular
         orbitals. Defaults to None.
-    norb : int, optional
+    norb :
         Specifies number of bath orbitals. Used for UBE to make alpha and beta
         spaces the same size. Defaults to None
-    return_orb_count : bool, optional
-        Return more information about the number of orbitals. Used in UBE.
-        Defaults to False
 
     Returns
     -------
-    numpy.ndarray
+    tuple:
+        TA, norbs_frag, norbs_bath
+
         Transformation matrix (TA) including both fragment and entangled bath orbitals.
-    if return_orb_count:
-        numpy.ndarray, int, int
-        returns TA (above), number of orbitals in the fragment space, and number of
-        orbitals in bath space
     """
-    # Threshold for eigenvalue significance
-    thres = 1.0e-10
 
     # Compute the reduced density matrix (RDM) if not provided
     if mo_coeff is not None:
@@ -446,9 +457,9 @@ def schmidt_decomposition(
     Tot_sites = Dhf.shape[0]
 
     # Identify environment sites (indices not in Frag_sites)
-    Env_sites1 = array([i for i in range(Tot_sites) if i not in Frag_sites])
-    Env_sites = array([[i] for i in range(Tot_sites) if i not in Frag_sites])
-    Frag_sites1 = array([[i] for i in Frag_sites])
+    Env_sites1 = array([i for i in range(Tot_sites) if i not in AO_in_frag])
+    Env_sites = array([[i] for i in range(Tot_sites) if i not in AO_in_frag])
+    Frag_sites1 = array([[i] for i in AO_in_frag])
 
     # Compute the environment part of the density matrix
     Denv = Dhf[Env_sites, Env_sites.T]
@@ -465,22 +476,102 @@ def schmidt_decomposition(
         n_frag_ind = len(Frag_sites1)
         n_bath_ind = norb - n_frag_ind
         ind_sort = argsort(np.abs(Eval))
-        first_el = [x for x in ind_sort if x < 1.0 - thres][-1 * n_bath_ind]
+        first_el = [x for x in ind_sort if x < 1.0 - thr_bath][-1 * n_bath_ind]
         for i in range(len(Eval)):
             if np.abs(Eval[i]) >= first_el:
                 Bidx.append(i)
     else:
         for i in range(len(Eval)):
-            if thres < np.abs(Eval[i]) < 1.0 - thres:
+            if thr_bath < np.abs(Eval[i]) < 1.0 - thr_bath:
                 Bidx.append(i)
 
     # Initialize the transformation matrix (TA)
-    TA = zeros([Tot_sites, len(Frag_sites) + len(Bidx)])
-    TA[Frag_sites, : len(Frag_sites)] = eye(len(Frag_sites))  # Fragment part
-    TA[Env_sites1, len(Frag_sites) :] = Evec[:, Bidx]  # Environment part
+    TA = zeros([Tot_sites, len(AO_in_frag) + len(Bidx)])
+    TA[AO_in_frag, : len(AO_in_frag)] = eye(len(AO_in_frag))  # Fragment part
+    TA[Env_sites1, len(AO_in_frag) :] = Evec[:, Bidx]  # Environment part
 
-    if return_orb_count:
-        # return TA, norbs_frag, norbs_bath
-        return TA, Frag_sites1.shape[0], len(Bidx)
-    else:
-        return TA
+    # return TA, norbs_frag, norbs_bath
+    return TA, Frag_sites1.shape[0], len(Bidx)
+
+
+def _get_contained(
+    all_fragment_MOs_TA: Matrix[np.float64],
+    TA: Matrix[np.float64],
+    S: Matrix[np.float64],
+    epsilon: float,
+) -> Vector[np.bool]:
+    r"""Get a boolean vector of the MOs in TA that are already contained in
+    ``all_fragment_MOs_TA``
+
+    Parameters
+    ----------
+    all_fragment_MOs_TA :
+        A :math:`n_{\text{AO}} \times n_{\text{f,all}}` matrix that
+        contains the fragment orbitals of all fragments.
+    TA :
+        A :math:`n_{\text{AO}} \times n_{\text{f}}` matrix that
+        contains the fragment orbitals of a given fragment.
+    S :
+        The AO overlap matrix.
+    epsilon :
+        Cutoff to consider overlap values to be zero or one.
+    """
+    return (clean_overlap(all_fragment_MOs_TA.T @ S @ TA, epsilon=epsilon) == 1).any(
+        axis=0
+    )
+
+
+def _get_union_of_fragment_MOs(
+    schmidt_TAs: Sequence[Matrix[np.float64]], S: Matrix[np.float64], epsilon: float
+) -> Matrix[np.float64]:
+    all_fragment_MOs_TA = schmidt_TAs[0]
+    for schmidt_TA in schmidt_TAs[1:]:
+        all_fragment_MOs_TA = np.hstack(
+            (
+                all_fragment_MOs_TA,
+                schmidt_TA[
+                    :, ~_get_contained(all_fragment_MOs_TA, schmidt_TA, S, epsilon)
+                ],
+            )
+        )
+    return all_fragment_MOs_TA
+
+
+def _get_index_offset(
+    all_fragment_MOs_TA: Matrix[np.float64],
+    TA: Matrix[np.float64],
+    S: Matrix[np.float64],
+    epsilon: float,
+) -> Vector[np.int64]:
+    idx_rows, idx_cols = (
+        clean_overlap(all_fragment_MOs_TA.T @ S @ TA, epsilon) == 1
+    ).nonzero()
+    new_idx = np.argsort(idx_cols)
+    idx_rows, idx_cols = idx_rows[new_idx], idx_cols[new_idx]
+    assert (idx_cols == np.arange(TA.shape[1])).all()
+    return idx_rows
+
+
+def union_of_frag_MOs_and_index(
+    Fobjs: Sequence[Frags], S: Matrix[np.float64], epsilon: float = 1e-10
+) -> tuple[Matrix[np.float64], list[Vector[np.int64]]]:
+    r"""Get the union of all fragment MOs as one Matrix and the respective
+    indices for each fragment to refer to the global fragment MO matrix.
+
+    This allows to reuse information such as integrals for the fragment MOs.
+
+    Parameters
+    ----------
+    Fobjs:
+        A sequence of Frags.
+    S :
+        The AO overlap matrix.
+    epsilon :
+        Cutoff to consider overlap values to be zero or one.
+    """
+    fragment_TAs = [fobj.TA[:, : fobj.n_f] for fobj in Fobjs]
+    all_fragment_MOs_TA = _get_union_of_fragment_MOs(fragment_TAs, S, epsilon=epsilon)
+    return all_fragment_MOs_TA, [
+        _get_index_offset(all_fragment_MOs_TA, schmidt_TA, S, epsilon=epsilon)
+        for schmidt_TA in fragment_TAs
+    ]

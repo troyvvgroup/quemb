@@ -1,12 +1,45 @@
 # Author(s): Oinam Romesh Meitei
 
+from warnings import warn
 
+from attrs import define
 from numpy import arange, asarray, where
 from numpy.linalg import norm
 from pyscf import lib
 
 from quemb.kbe.misc import sgeom
 from quemb.molbe.helper import get_core
+
+
+@define
+class AutogenArgs:
+    """Additional arguments for autogen
+
+    Parameters
+    ----------
+    gamma_2d:
+    gamma_1d:
+    interlayer :
+        Whether the periodic system has two stacked monolayers.
+    long_bond :
+        For systems with longer than 1.8 Angstrom covalent bond, set this to True
+        otherwise the fragmentation might fail.
+    perpend_dist:
+    perpend_dist_tol:
+    nx:
+    ny:
+    nz:
+    """
+
+    gamma_2d: bool = False
+    gamma_1d: bool = False
+    interlayer: bool = False
+    long_bond: bool = False
+    perpend_dist: float = 4.0
+    perpend_dist_tol: float = 1e-3
+    nx: bool = False
+    ny: bool = False
+    nz: bool = False
 
 
 def warn_large_fragment():
@@ -75,7 +108,7 @@ def sidefunc(
     main_list,
     sub_list,
     coord,
-    be_type,
+    n_BE: int,
     bond=2.6 * 1.88973,
     klist=[],
     ext_list=[],
@@ -103,7 +136,7 @@ def sidefunc(
     closest = sub_list.copy()
     close_be3 = []
 
-    if be_type == "be3" or be_type == "be4":
+    if 3 <= n_BE <= 4:
         for lmin1 in unit2[where(unit1 == Idx)[0]]:
             for jdx, j in enumerate(coord):
                 if (
@@ -118,7 +151,7 @@ def sidefunc(
                             sub_list.append(jdx)
                             close_be3.append(jdx)
 
-                            if be_type == "be4":
+                            if n_BE == 4:
                                 for kdx, k in enumerate(coord):
                                     if kdx == jdx:
                                         continue
@@ -141,18 +174,18 @@ def surround(
     unit2,
     flist,
     coord,
-    be_type,
+    n_BE: int,
     ext_list,
     klist,
     NK,
     rlist=[],
     bond=1.8 * 1.88973,
 ):
-    be_type_ = be_reduce(be_type)
-    if not rlist == [] and be_type_ == "be3":
-        be_type_ = "be2"
-    sublist_ = []
-    if not be_type_ == 0:
+    n_BE_ = be_reduce(n_BE)
+    if not rlist == [] and n_BE_ == 3:
+        n_BE_ = 2
+    sublist_ = []  # type: ignore[var-annotated]
+    if not n_BE_ == 0:
         sidefunc(
             cell,
             sidx,
@@ -161,7 +194,7 @@ def surround(
             flist,
             sublist_,
             coord,
-            be_type_,
+            n_BE_,
             bond=bond,
             klist=klist,
             ext_list=ext_list,
@@ -216,21 +249,20 @@ def kfrag_func(
     return frglist
 
 
-def be_reduce(be_type, N=1):
-    if N == 1:
-        if be_type == "be2":
-            return 0
-        elif be_type == "be3":
-            return "be2"
-        elif be_type == "be4":
-            return "be3"
+def be_reduce(n_BE):
+    if n_BE == 2:
+        return 0
+    elif 3 <= n_BE <= 4:
+        return n_BE - 1
+    else:
+        raise ValueError("Should not be here")
 
 
 def autogen(
     mol,
     kpt,
     frozen_core=True,
-    be_type="be2",
+    n_BE=2,
     write_geom=False,
     unitcell=1,
     gamma_2d=False,
@@ -267,10 +299,11 @@ def autogen(
         Number of k-points in each lattice vector dimension.
     frozen_core : bool, optional
         Whether to invoke frozen core approximation. Defaults to True.
-    be_type : str, optional
-        Specifies the order of bootstrap calculation in the atom-based fragmentation.
-        Supported values are 'be1', 'be2', 'be3', and 'be4'.
-        Defaults to 'be2'.
+    n_BE: int, optional
+        Specifies the order of bootstrap calculation in the atom-based fragmentation,
+        i.e. BE(n).
+        Supported values are 1, 2, 3, and 4
+        Defaults to 2.
     write_geom : bool, optional
         Whether to write a 'fragment.xyz' file which contains all the fragments in
         Cartesian coordinates. Defaults to False.
@@ -287,27 +320,6 @@ def autogen(
     long_bond : bool
         For systems with longer than 1.8 Angstrom covalent bond,
         set this to True otherwise the fragmentation might fail.
-
-
-    Returns
-    -------
-    fsites : list of list of int
-        List of fragment sites where each fragment is a list of LO indices.
-    edgsites : list of list of list of int
-        List of edge sites for each fragment where each edge is a list of LO indices.
-    center : list of list of int
-        List of center indices for each edge.
-    edge_idx : list of list of list of int
-        List of edge indices for each fragment where each edge index is a list of
-        LO indices.
-    center_idx : list of list of list of int
-        List of center indices for each fragment where each center index is a list of
-        LO indices.
-    centerf_idx : list of list of int
-        List of center fragment indices.
-    ebe_weight : list of list
-        Weights for each fragment. Each entry contains a weight and a list of LO
-        indices.
     """
     if not float(unitcell).is_integer():
         raise ValueError("Fractional unitcell is not supported!")
@@ -327,7 +339,7 @@ def autogen(
 
         print(flush=True)
         print(
-            "No. of cells used in building fragments : {:>3}".format(unitcell),
+            f"No. of cells used in building fragments : {unitcell:>3}",
             flush=True,
         )
 
@@ -503,11 +515,11 @@ def autogen(
             inter_layer_dict.append([inter_idx_, inter_dist_])
 
     # Assumes - minimum atom in a ring is 5
-    if be_type == "be4":
+    if n_BE == 4:
         if twoD:
-            print("*********************")
-            print("USE BE4  WITH CAUTION")
-            print("*********************")
+            warn("*********************\n"
+                 "USE BE4  WITH CAUTION\n"
+                 "*********************")  # fmt: skip
 
     for idx, i in enumerate(normlist):
         if cell.atom_pure_symbol(idx) == "H":
@@ -550,7 +562,7 @@ def autogen(
 
         if idx in lunit:
             closest, close_be3 = sidefunc(
-                cell, idx, lunit, runit, flist, lsts, coord, be_type, bond=bond
+                cell, idx, lunit, runit, flist, lsts, coord, n_BE, bond=bond
             )
             for zdx in lsts:
                 if twoD:
@@ -569,7 +581,7 @@ def autogen(
                         lunit,
                         flist,
                         coord,
-                        be_type,
+                        n_BE,
                         lsts,
                         klsts,
                         1,
@@ -584,7 +596,7 @@ def autogen(
                         dunit,
                         flist,
                         coord,
-                        be_type,
+                        n_BE,
                         lsts,
                         klsts,
                         nk1 * (nk2 - 1) + 2,
@@ -598,7 +610,7 @@ def autogen(
                         uunit,
                         flist,
                         coord,
-                        be_type,
+                        n_BE,
                         lsts,
                         klsts,
                         nk1 * nk2,
@@ -612,14 +624,14 @@ def autogen(
                         munit,
                         flist,
                         coord,
-                        be_type,
+                        n_BE,
                         lsts,
                         klsts,
                         2,
                         bond=bond,
                     )
 
-            if be_type == "be4":
+            if n_BE == 4:
                 for lsidx in close_be3:
                     if lsidx in lunit or lsidx in munit:
                         warn_large_fragment()
@@ -631,7 +643,7 @@ def autogen(
                             lunit,
                             flist,
                             coord,
-                            "be3",
+                            3,
                             lsts,
                             klsts,
                             1,
@@ -646,7 +658,7 @@ def autogen(
                             dunit,
                             flist,
                             coord,
-                            "be3",
+                            3,
                             lsts,
                             klsts,
                             nk1 * (nk2 - 1) + 2,
@@ -660,7 +672,7 @@ def autogen(
                             uunit,
                             flist,
                             coord,
-                            "be3",
+                            3,
                             lsts,
                             klsts,
                             nk1 * nk2,
@@ -674,7 +686,7 @@ def autogen(
                             munit,
                             flist,
                             coord,
-                            "be3",
+                            3,
                             lsts,
                             klsts,
                             2,
@@ -686,7 +698,7 @@ def autogen(
 
         if idx in uunit:
             closest, close_be3 = sidefunc(
-                cell, idx, uunit, dunit, flist, usts, coord, be_type, bond=bond
+                cell, idx, uunit, dunit, flist, usts, coord, n_BE, bond=bond
             )
             for kdx in usts:
                 kusts.append(2)
@@ -701,7 +713,7 @@ def autogen(
                         runit,
                         flist,
                         coord,
-                        be_type,
+                        n_BE,
                         usts,
                         kusts,
                         nk1 * (nk2 - 1) + 2,
@@ -715,7 +727,7 @@ def autogen(
                         lunit,
                         flist,
                         coord,
-                        be_type,
+                        n_BE,
                         usts,
                         kusts,
                         nk1 + 2,
@@ -729,7 +741,7 @@ def autogen(
                         tunit,
                         flist,
                         coord,
-                        be_type,
+                        n_BE,
                         usts,
                         kusts,
                         nk1 * (nk2 - 1) + 1,
@@ -743,14 +755,14 @@ def autogen(
                         uunit,
                         flist,
                         coord,
-                        be_type,
+                        n_BE,
                         usts,
                         kusts,
                         1,
                         rlist=[idx] + clist_check,
                         bond=bond,
                     )
-            if be_type == "be4":
+            if n_BE == 4:
                 for usidx in close_be3:
                     if usidx in uunit or usidx in tunit:
                         warn_large_fragment()
@@ -762,7 +774,7 @@ def autogen(
                             runit,
                             flist,
                             coord,
-                            "be3",
+                            3,
                             usts,
                             kusts,
                             nk1 * (nk2 - 1) + 2,
@@ -776,7 +788,7 @@ def autogen(
                             lunit,
                             flist,
                             coord,
-                            "be3",
+                            3,
                             usts,
                             kusts,
                             nk1 + 2,
@@ -790,7 +802,7 @@ def autogen(
                             tunit,
                             flist,
                             coord,
-                            "be3",
+                            3,
                             usts,
                             kusts,
                             nk1 * (nk2 - 1) + 1,
@@ -804,7 +816,7 @@ def autogen(
                             uunit,
                             flist,
                             coord,
-                            "be3",
+                            3,
                             usts,
                             kusts,
                             1,
@@ -817,7 +829,7 @@ def autogen(
 
         if idx in munit:
             closest, close_be3 = sidefunc(
-                cell, idx, munit, tunit, flist, msts, coord, be_type, bond=bond
+                cell, idx, munit, tunit, flist, msts, coord, n_BE, bond=bond
             )
             for kdx in msts:
                 kmsts.append(nk1 * nk2)
@@ -832,7 +844,7 @@ def autogen(
                         lunit,
                         flist,
                         coord,
-                        be_type,
+                        n_BE,
                         msts,
                         kmsts,
                         nk1,
@@ -846,7 +858,7 @@ def autogen(
                         dunit,
                         flist,
                         coord,
-                        be_type,
+                        n_BE,
                         msts,
                         kmsts,
                         nk1 * (nk2 - 1) + 1,
@@ -860,14 +872,14 @@ def autogen(
                         munit,
                         flist,
                         coord,
-                        be_type,
+                        n_BE,
                         msts,
                         kmsts,
                         1,
                         rlist=[idx] + clist_check,
                         bond=bond,
                     )
-            if be_type == "be4":
+            if n_BE == 4:
                 for msidx in close_be3:
                     if msidx in lunit or msidx in munit or msidx in dunit:
                         warn_large_fragment()
@@ -879,7 +891,7 @@ def autogen(
                             lunit,
                             flist,
                             coord,
-                            "be3",
+                            3,
                             msts,
                             kmsts,
                             nk1,
@@ -893,7 +905,7 @@ def autogen(
                             dunit,
                             flist,
                             coord,
-                            "be3",
+                            3,
                             msts,
                             kmsts,
                             nk1 * (nk2 - 1) + 1,
@@ -907,7 +919,7 @@ def autogen(
                             munit,
                             flist,
                             coord,
-                            "be3",
+                            3,
                             msts,
                             kmsts,
                             1,
@@ -920,7 +932,7 @@ def autogen(
 
         if idx in runit:
             closest, close_be3 = sidefunc(
-                cell, idx, runit, lunit, flist, rsts, coord, be_type, bond=bond
+                cell, idx, runit, lunit, flist, rsts, coord, n_BE, bond=bond
             )
             for kdx in rsts:
                 if twoD:
@@ -938,7 +950,7 @@ def autogen(
                         runit,
                         flist,
                         coord,
-                        be_type,
+                        n_BE,
                         rsts,
                         krsts,
                         1,
@@ -953,7 +965,7 @@ def autogen(
                         tunit,
                         flist,
                         coord,
-                        be_type,
+                        n_BE,
                         rsts,
                         krsts,
                         nk1,
@@ -967,7 +979,7 @@ def autogen(
                         dunit,
                         flist,
                         coord,
-                        be_type,
+                        n_BE,
                         rsts,
                         krsts,
                         nk1 + 2,
@@ -981,13 +993,13 @@ def autogen(
                         uunit,
                         flist,
                         coord,
-                        be_type,
+                        n_BE,
                         rsts,
                         krsts,
                         nk1 * 2,
                         bond=bond,
                     )
-            if be_type == "be4":
+            if n_BE == 4:
                 for rsidx in close_be3:
                     if rsidx in runit or rsidx in tunit:
                         warn_large_fragment()
@@ -999,7 +1011,7 @@ def autogen(
                             runit,
                             flist,
                             coord,
-                            "be3",
+                            3,
                             rsts,
                             krsts,
                             1,
@@ -1014,7 +1026,7 @@ def autogen(
                             tunit,
                             flist,
                             coord,
-                            "be3",
+                            3,
                             rsts,
                             krsts,
                             nk1,
@@ -1028,7 +1040,7 @@ def autogen(
                             dunit,
                             flist,
                             coord,
-                            "be3",
+                            3,
                             rsts,
                             krsts,
                             nk1 + 2,
@@ -1042,7 +1054,7 @@ def autogen(
                             uunit,
                             flist,
                             coord,
-                            "be3",
+                            3,
                             rsts,
                             krsts,
                             nk1 * 2,
@@ -1053,7 +1065,7 @@ def autogen(
                     clist_check.append(rsts[i1dx])
         if idx in dunit:
             closest, close_be3 = sidefunc(
-                cell, idx, dunit, uunit, flist, dsts, coord, be_type, bond=bond
+                cell, idx, dunit, uunit, flist, dsts, coord, n_BE, bond=bond
             )
             for kdx in dsts:
                 kdsts.append(nk1)
@@ -1068,7 +1080,7 @@ def autogen(
                         runit,
                         flist,
                         coord,
-                        be_type,
+                        n_BE,
                         dsts,
                         kdsts,
                         nk1 * nk2,
@@ -1082,7 +1094,7 @@ def autogen(
                         lunit,
                         flist,
                         coord,
-                        be_type,
+                        n_BE,
                         dsts,
                         kdsts,
                         nk1 * 2,
@@ -1096,7 +1108,7 @@ def autogen(
                         dunit,
                         flist,
                         coord,
-                        be_type,
+                        n_BE,
                         dsts,
                         kdsts,
                         1,
@@ -1111,13 +1123,13 @@ def autogen(
                         munit,
                         flist,
                         coord,
-                        be_type,
+                        n_BE,
                         dsts,
                         kdsts,
                         nk1 + 1,
                         bond=bond,
                     )
-            if be_type == "be4":
+            if n_BE == 4:
                 for dsidx in close_be3:
                     if dsidx in munit or dsidx in dunit:
                         warn_large_fragment()
@@ -1129,7 +1141,7 @@ def autogen(
                             runit,
                             flist,
                             coord,
-                            "be3",
+                            3,
                             dsts,
                             kdsts,
                             nk1 * nk2,
@@ -1143,7 +1155,7 @@ def autogen(
                             lunit,
                             flist,
                             coord,
-                            "be3",
+                            3,
                             dsts,
                             kdsts,
                             nk1 * 2,
@@ -1157,7 +1169,7 @@ def autogen(
                             dunit,
                             flist,
                             coord,
-                            "be3",
+                            3,
                             dsts,
                             kdsts,
                             1,
@@ -1172,7 +1184,7 @@ def autogen(
                             munit,
                             flist,
                             coord,
-                            "be3",
+                            3,
                             dsts,
                             kdsts,
                             nk1 + 1,
@@ -1184,7 +1196,7 @@ def autogen(
 
         if idx in tunit:
             closest, close_be3 = sidefunc(
-                cell, idx, tunit, munit, flist, tsts, coord, be_type, bond=bond
+                cell, idx, tunit, munit, flist, tsts, coord, n_BE, bond=bond
             )
             for kdx in tsts:
                 ktsts.append(nk1 + 2)
@@ -1199,7 +1211,7 @@ def autogen(
                         runit,
                         flist,
                         coord,
-                        be_type,
+                        n_BE,
                         tsts,
                         ktsts,
                         2,
@@ -1213,7 +1225,7 @@ def autogen(
                         tunit,
                         flist,
                         coord,
-                        be_type,
+                        n_BE,
                         tsts,
                         ktsts,
                         1,
@@ -1228,13 +1240,13 @@ def autogen(
                         uunit,
                         flist,
                         coord,
-                        be_type,
+                        n_BE,
                         tsts,
                         ktsts,
                         nk1 + 1,
                         bond=bond,
                     )
-            if be_type == "be4":
+            if n_BE == 4:
                 for tsidx in close_be3:
                     if tsidx in runit or tsidx in uunit or tsidx in tunit:
                         warn_large_fragment()
@@ -1246,7 +1258,7 @@ def autogen(
                             runit,
                             flist,
                             coord,
-                            "be3",
+                            3,
                             tsts,
                             ktsts,
                             2,
@@ -1260,7 +1272,7 @@ def autogen(
                             tunit,
                             flist,
                             coord,
-                            "be3",
+                            3,
                             tsts,
                             ktsts,
                             1,
@@ -1275,7 +1287,7 @@ def autogen(
                             uunit,
                             flist,
                             coord,
-                            "be3",
+                            3,
                             tsts,
                             ktsts,
                             nk1 + 1,
@@ -1303,7 +1315,7 @@ def autogen(
                     pedg.append(jdx)
                 if dist > bond:
                     continue
-                if be_type == "be3" or be_type == "be4":
+                if 3 <= n_BE <= 4:
                     if jdx in lunit:
                         lmin1 = runit[where(lunit == jdx)[0]]
                         if not twoD:
@@ -1316,7 +1328,7 @@ def autogen(
                                     klsts.append(nk1)
                         else:
                             add_check_k(lmin1, flist, lsts, klsts, nk1 * (nk2 - 1) + 1)
-                        if be_type == "be4":
+                        if n_BE == 4:
                             for kdx, k in enumerate(coord):
                                 if (
                                     kdx == jdx
@@ -1350,7 +1362,7 @@ def autogen(
                                         dunit,
                                         flist,
                                         coord,
-                                        "be3",
+                                        3,
                                         lsts,
                                         klsts,
                                         nk1 * (nk2 - 1) + 2,
@@ -1364,7 +1376,7 @@ def autogen(
                                         uunit,
                                         flist,
                                         coord,
-                                        "be3",
+                                        3,
                                         lsts,
                                         klsts,
                                         nk1 * nk2,
@@ -1378,7 +1390,7 @@ def autogen(
                                         munit,
                                         flist,
                                         coord,
-                                        "be3",
+                                        3,
                                         lsts,
                                         klsts,
                                         2,
@@ -1396,7 +1408,7 @@ def autogen(
                                     krsts.append(2)
                         else:
                             add_check_k(rmin1, flist, rsts, krsts, nk1 + 1)
-                        if be_type == "be4":
+                        if n_BE == 4:
                             for kdx, k in enumerate(coord):
                                 if (
                                     kdx == jdx
@@ -1429,7 +1441,7 @@ def autogen(
                                         tunit,
                                         flist,
                                         coord,
-                                        "be3",
+                                        3,
                                         rsts,
                                         krsts,
                                         nk1,
@@ -1443,7 +1455,7 @@ def autogen(
                                         dunit,
                                         flist,
                                         coord,
-                                        "be3",
+                                        3,
                                         rsts,
                                         krsts,
                                         nk1 + 2,
@@ -1457,7 +1469,7 @@ def autogen(
                                         uunit,
                                         flist,
                                         coord,
-                                        "be3",
+                                        3,
                                         rsts,
                                         krsts,
                                         nk1 * 2,
@@ -1467,7 +1479,7 @@ def autogen(
                     if jdx in uunit:
                         umin1 = dunit[where(uunit == jdx)[0]]
                         add_check_k(umin1, flist, usts, kusts, 2)
-                        if be_type == "be4":
+                        if n_BE == 4:
                             for kdx, k in enumerate(coord):
                                 if (
                                     kdx == jdx
@@ -1497,7 +1509,7 @@ def autogen(
                                         runit,
                                         flist,
                                         coord,
-                                        "be3",
+                                        3,
                                         usts,
                                         kusts,
                                         nk1 * (nk2 - 1) + 2,
@@ -1511,7 +1523,7 @@ def autogen(
                                         lunit,
                                         flist,
                                         coord,
-                                        "be3",
+                                        3,
                                         usts,
                                         kusts,
                                         nk1 + 2,
@@ -1525,7 +1537,7 @@ def autogen(
                                         tunit,
                                         flist,
                                         coord,
-                                        "be3",
+                                        3,
                                         usts,
                                         kusts,
                                         nk1 * (nk2 - 1) + 1,
@@ -1535,7 +1547,7 @@ def autogen(
                         dmin1 = uunit[where(dunit == jdx)[0]]
                         add_check_k(dmin1, flist, dsts, kdsts, nk1)
 
-                        if be_type == "be4":
+                        if n_BE == 4:
                             for kdx, k in enumerate(coord):
                                 if (
                                     kdx == jdx
@@ -1565,7 +1577,7 @@ def autogen(
                                         runit,
                                         flist,
                                         coord,
-                                        "be3",
+                                        3,
                                         dsts,
                                         kdsts,
                                         nk1 * nk2,
@@ -1579,7 +1591,7 @@ def autogen(
                                         lunit,
                                         flist,
                                         coord,
-                                        "be3",
+                                        3,
                                         dsts,
                                         kdsts,
                                         nk1 * 2,
@@ -1593,7 +1605,7 @@ def autogen(
                                         munit,
                                         flist,
                                         coord,
-                                        "be3",
+                                        3,
                                         dsts,
                                         kdsts,
                                         nk1 + 1,
@@ -1602,7 +1614,7 @@ def autogen(
                     if jdx in munit:  #
                         mmin1 = tunit[where(munit == jdx)[0]]
                         add_check_k(mmin1, flist, msts, kmsts, nk1 * nk2)
-                        if be_type == "be4":
+                        if n_BE == 4:
                             for kdx, k in enumerate(coord):
                                 if (
                                     kdx == jdx
@@ -1632,7 +1644,7 @@ def autogen(
                                         lunit,
                                         flist,
                                         coord,
-                                        "be3",
+                                        3,
                                         msts,
                                         kmsts,
                                         nk1,
@@ -1646,7 +1658,7 @@ def autogen(
                                         dunit,
                                         flist,
                                         coord,
-                                        "be3",
+                                        3,
                                         msts,
                                         kmsts,
                                         nk1 * (nk2 - 1) + 1,
@@ -1657,7 +1669,7 @@ def autogen(
                         tmin1 = munit[where(tunit == jdx)[0]]
                         add_check_k(tmin1, flist, tsts, ktsts, nk1 + 2)
 
-                        if be_type == "be4":
+                        if n_BE == 4:
                             for kdx, k in enumerate(coord):
                                 if (
                                     kdx == jdx
@@ -1687,7 +1699,7 @@ def autogen(
                                         runit,
                                         flist,
                                         coord,
-                                        "be3",
+                                        3,
                                         tsts,
                                         ktsts,
                                         2,
@@ -1701,7 +1713,7 @@ def autogen(
                                         uunit,
                                         flist,
                                         coord,
-                                        "be3",
+                                        3,
                                         tsts,
                                         ktsts,
                                         nk1 + 1,
@@ -1720,7 +1732,7 @@ def autogen(
                                 if kdx not in pedg and kdx not in clist_check:
                                     flist.append(kdx)
                                     pedg.append(kdx)
-                                if be_type == "be4":
+                                if n_BE == 4:
                                     if kdx in lunit:
                                         lmin1 = runit[where(lunit == kdx)[0]]
                                         for zdx in lmin1:
@@ -1871,13 +1883,13 @@ def autogen(
                 if j == cen[idx]:
                     continue
                 print(
-                    " {:>5} ".format(cell.atom_pure_symbol(j) + str(j + 1)),
+                    f" {cell.atom_pure_symbol(j) + str(j + 1):>5} ",
                     end=" ",
                     flush=True,
                 )
                 for k in hlist[j]:
                     print(
-                        " {:>5} ".format(cell.atom_pure_symbol(k) + str(k + 1)),
+                        f" {cell.atom_pure_symbol(k) + str(k + 1):>5} ",
                         end=" ",
                         flush=True,
                     )
@@ -1983,10 +1995,10 @@ def autogen(
         maxH = max([j for i in hsites for j in i])
         max_site = max(max_site, maxH)
 
-    fsites = []
-    edgsites = []
-    edge_idx = []
-    centerf_idx = []
+    AO_per_frag = []
+    AO_per_edge_per_frag = []
+    relAO_per_edge_per_frag = []
+    relAO_per_origin_per_frag = []
     edge = []
 
     nkcon = True
@@ -2163,12 +2175,12 @@ def autogen(
 
         ls = len(sites__[cen[idx]]) + len(hsites[cen[idx]])
         if not pao:
-            centerf_idx.append([pq for pq in range(indix, indix + ls)])
+            relAO_per_origin_per_frag.append([pq for pq in range(indix, indix + ls)])
         else:
             cntlist = sites__[cen[idx]].copy()[: nbas2[cen[idx]]]
             cntlist.extend(hsites[cen[idx]][: nbas2H[cen[idx]]])
             ind__ = [indix + frglist.index(pq) for pq in cntlist]
-            centerf_idx.append(ind__)
+            relAO_per_origin_per_frag.append(ind__)
         indix += ls
 
         for jdx in pedge[idx]:
@@ -2337,41 +2349,52 @@ def autogen(
             indix += ls
 
         edge.append(edg)
-        fsites.append(ftmp)
-        edgsites.append(ftmpe)
-        edge_idx.append(edind)
+        AO_per_frag.append(ftmp)
+        AO_per_edge_per_frag.append(ftmpe)
+        relAO_per_edge_per_frag.append(edind)
 
-    center = []
+    ref_frag_idx_per_edge_per_frag = []
     for ix in edge:
         cen_ = []
         for jx in ix:
             cen_.append(cen.index(jx))
-        center.append(cen_)
+        ref_frag_idx_per_edge_per_frag.append(cen_)
 
-    Nfrag = len(fsites)
-    ebe_weight = []
+    n_frag = len(AO_per_frag)
+    weight_and_relAO_per_center_per_frag = []
     # Use IAO+PAO for computing energy
-    for ix, i in enumerate(fsites):
+    for ix, i in enumerate(AO_per_frag):
         tmp_ = [i.index(pq) for pq in sites__[cen[ix]]]
         tmp_.extend([i.index(pq) for pq in hsites[cen[ix]]])
-        ebe_weight.append([1.0, tmp_])
+        weight_and_relAO_per_center_per_frag.append([1.0, tmp_])
 
-    # Center of a fragment are defined in cen[idx]
-    # center[[idx,jdx]] defines fragments idx,jdx who's cen[idx],cen[jdx] \\
-    # centers are matched to the edges.
-    center_idx = []
-    for i in range(Nfrag):
+    relAO_in_ref_per_edge_per_frag = []
+    for i in range(n_frag):
         idx = []
-        for j in center[i]:
+        for j in ref_frag_idx_per_edge_per_frag[i]:
             if not pao:
                 cntlist = sites__[cen[j]].copy()
                 cntlist.extend(hsites[cen[j]])
-                idx.append([fsites[j].index(k) for k in cntlist])
+                idx.append([AO_per_frag[j].index(k) for k in cntlist])
             else:
                 cntlist = sites__[cen[j]].copy()[: nbas2[cen[j]]]
                 cntlist.extend(hsites[cen[j]][: nbas2H[cen[j]]])
-                idx.append([fsites[j].index(k) for k in cntlist])
+                idx.append([AO_per_frag[j].index(k) for k in cntlist])
 
-        center_idx.append(idx)
+        relAO_in_ref_per_edge_per_frag.append(idx)
 
-    return (fsites, edgsites, center, edge_idx, center_idx, centerf_idx, ebe_weight)
+    if not AO_per_edge_per_frag:
+        AO_per_edge_per_frag = [[] for _ in range(n_frag)]
+        ref_frag_idx_per_edge_per_frag = [[] for _ in range(n_frag)]
+        relAO_per_edge_per_frag = [[] for _ in range(n_frag)]
+        relAO_in_ref_per_edge_per_frag = [[] for _ in range(n_frag)]
+
+    return (
+        AO_per_frag,
+        AO_per_edge_per_frag,
+        ref_frag_idx_per_edge_per_frag,
+        relAO_per_edge_per_frag,
+        relAO_in_ref_per_edge_per_frag,
+        relAO_per_origin_per_frag,
+        weight_and_relAO_per_center_per_frag,
+    )

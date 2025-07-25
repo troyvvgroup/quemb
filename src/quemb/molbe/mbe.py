@@ -1,28 +1,48 @@
 # Author(s): Oinam Romesh Meitei
 
+import logging
 import pickle
+from typing import Final, Literal, TypeAlias
+from warnings import warn
 
 import h5py
 import numpy
 from attrs import define
 from numpy import array, diag_indices, einsum, float64, floating, zeros, zeros_like
+from numpy.linalg import multi_dot
 from pyscf import ao2mo, scf
+from typing_extensions import assert_never
 
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
-from quemb.molbe.fragment import fragpart
+from quemb.molbe.eri_sparse_DF import (
+    transform_sparse_DF_integral_cpp,
+    transform_sparse_DF_integral_nb,
+)
+from quemb.molbe.fragment import FragPart
 from quemb.molbe.lo import MixinLocalize
 from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
 from quemb.molbe.opt import BEOPT
-from quemb.molbe.pfrag import Frags
-from quemb.molbe.solver import UserSolverArgs, be_func
-from quemb.shared.config import settings
+from quemb.molbe.pfrag import Frags, union_of_frag_MOs_and_index
+from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
-from quemb.shared.helper import Timer, copy_docstring
+from quemb.shared.helper import Timer, copy_docstring, ensure
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix, PathLike
+
+IntTransforms: TypeAlias = Literal[
+    "in-core",
+    "out-core-DF",
+    "int-direct-DF",
+    "sparse-DF-cpp",  # screen AOs and MOs via S_abs
+    "sparse-DF-nb",  # screen AOs and MOs via S_abs and use jitted numba
+    "sparse-DF-cpp-gpu",  # screen AOs and MOs via S_abs
+    "sparse-DF-nb-gpu",  # screen AOs and MOs via S_abs and use jitted numba
+]
+
+logger = logging.getLogger(__name__)
 
 
 @define
@@ -57,7 +77,7 @@ class BE(MixinLocalize):
     ----------
     mf : pyscf.scf.hf.SCF
         PySCF mean-field object.
-    fobj : quemb.molbe.fragment.fragpart
+    fobj : quemb.molbe.autofrag.FragPart
         Fragment object containing sites, centers, edges, and indices.
     eri_file : str
         Path to the file storing two-electron integrals.
@@ -68,7 +88,7 @@ class BE(MixinLocalize):
     def __init__(
         self,
         mf: scf.hf.SCF,
-        fobj: fragpart,
+        fobj: FragPart,
         eri_file: PathLike = "eri_file.h5",
         lo_method: str = "lowdin",
         iao_loc_method: str | None = "SO",
@@ -78,11 +98,14 @@ class BE(MixinLocalize):
         restart_file: PathLike = "storebe.pk",
         nproc: int = 1,
         ompnum: int = 4,
+        thr_bath: float = 1.0e-10,
         scratch_dir: WorkDir | None = None,
-        integral_direct_DF: bool = False,
+        int_transform: IntTransforms = "in-core",
         auxbasis: str | None = None,
+        MO_coeff_epsilon: float = 1e-4,
+        AO_coeff_epsilon: float = 1e-10,
     ) -> None:
-        """
+        r"""
         Constructor for BE object.
 
         Parameters
@@ -111,15 +134,53 @@ class BE(MixinLocalize):
             threaded parallel computation is invoked.
         ompnum :
             Number of OpenMP threads, by default 4.
+        thr_bath : float,
+            Threshold for bath orbitals in Schmidt decomposition
         scratch_dir :
             Scratch directory.
-        integral_direct_DF:
-            If mf._eri is None (i.e. ERIs are not saved in memory using incore_anyway),
-            this flag is used to determine if the ERIs are computed integral-directly
-            using density fitting; by default False.
+        int_transform :
+            The possible integral transformations.
+
+            - :python:`"in-core"` (default): Use a dense representation of integrals
+              in memory without density fitting (DF) and transform in-memory.
+            - :python:`"out-core-DF"`: Use a dense, DF representation of integrals,
+              the DF integrals :math:`(\mu, \nu | P)` are stored on disc.
+            - :python:`"int-direct-DF"`: Use a dense, DF representation of integrals,
+              the required DF integrals :math:`(\mu, \nu | P)` are computed and fitted
+              on-demand for each fragment.
+            - :python:`"sparse-DF-cpp"`:
+              Use a sparse, DF representation of integrals,
+              and avoid recomputation of elements that are shared across fragments.
+              Uses a ``C++`` implementation for performance heavy code.
+            - :python:`"sparse-DF-nb"`:
+              Use a sparse, DF representation of integrals,
+              and avoid recomputation of elements that are shared across fragments.
+              Uses a numba implementation for performance heavy code.
+            - :python:`"sparse-DF-cpp-gpu"`:
+              Use a sparse, DF representation of integrals,
+              and avoid recomputation of elements that are shared across fragments.
+              Uses a ``C++`` + ``CUDDA`` implementation for performance heavy code,
+              only available when compiled with CUDABlas.
+            - :python:`"sparse-DF-nb-gpu"`:
+              Use a sparse, DF representation of integrals,
+              and avoid recomputation of elements that are shared across fragments.
+              Uses a numba implementation + ``cupy`` for performance heavy code.
+              Only available if ``cupy`` is installed.
         auxbasis :
             Auxiliary basis for density fitting, by default None
             (uses default auxiliary basis defined in PySCF).
+            Only relevant for :python:`int_transform in {"int-direct-DF", "sparse-DF"}`.
+        MO_coeff_epsilon:
+            The cutoff value of the absolute overlap
+            :math:`\int |\phi_i| |\varphi_{\mu}|`
+            when a MO coefficient :math:`i` and an AO coefficient
+            :math:`\mu` are considered to be connected for sparsity screening.
+        AO_coeff_epsilon:
+            The cutoff value of the absolute overlap
+            :math:`\int |\varphi_{\mu}| |\varphi_{\nu}|`
+            when two AO coefficient :math:`\mu, \nu`
+            are considered to be connected for sparsity screening.
+            Here the absolute overlap matrix is used.
         """
         init_timer = Timer("Time to initialize BE object")
         if restart:
@@ -142,11 +203,19 @@ class BE(MixinLocalize):
             self.core_veff = store_.core_veff
             self.mo_energy = store_.mo_energy
 
+        self.MO_coeff_epsilon = MO_coeff_epsilon
+        self.AO_coeff_epsilon = AO_coeff_epsilon
+
+        # We hardcode it here, because in practice it is far better
+        # to use the parallelization in each fragment.
+        self.n_threads_integral_transform: Final = 1
+
         self.unrestricted = False
         self.nproc = nproc
         self.ompnum = ompnum
-        self.integral_direct_DF = integral_direct_DF
+        self.integral_transform = int_transform
         self.auxbasis = auxbasis
+        self.thr_bath = thr_bath
 
         # Fragment information from fobj
         self.fobj = fobj
@@ -155,6 +224,7 @@ class BE(MixinLocalize):
         self.ebe_tot = 0.0
 
         self.mf = mf
+
         if not restart:
             self.mo_energy = mf.mo_energy
 
@@ -174,12 +244,13 @@ class BE(MixinLocalize):
 
         self.print_ini()
         self.Fobjs: list[Frags] = []
-        self.pot = initialize_pot(self.fobj.Nfrag, self.fobj.edge_idx)
+        self.pot = initialize_pot(self.fobj.n_frag, self.fobj.relAO_per_edge_per_frag)
 
         if scratch_dir is None:
             self.scratch_dir = WorkDir.from_environment()
         else:
             self.scratch_dir = scratch_dir
+        print(f"Scratch dir is in: {self.scratch_dir.path}")
         self.eri_file = self.scratch_dir / eri_file
 
         self.frozen_core = fobj.frozen_core
@@ -192,6 +263,9 @@ class BE(MixinLocalize):
 
         if self.frozen_core:
             # Handle frozen core orbitals
+            assert not (
+                fobj.ncore is None or fobj.no_core_idx is None or fobj.core_list is None
+            )
             self.ncore = fobj.ncore
             self.no_core_idx = fobj.no_core_idx
             self.core_list = fobj.core_list
@@ -234,11 +308,12 @@ class BE(MixinLocalize):
 
         if not restart:
             # Initialize fragments and perform initial calculations
-            self.initialize(mf._eri, compute_hf)
+            self.initialize(
+                mf._eri, compute_hf, restart=False, int_transform=int_transform
+            )
         else:
-            self.initialize(None, compute_hf, restart=True)
-        if settings.PRINT_LEVEL >= 10:
-            print(init_timer.str_elapsed())
+            self.initialize(None, compute_hf, restart=True, int_transform=int_transform)
+        logger.info(f"Elapsed time: {init_timer.str_elapsed()}")
 
     def save(self, save_file: PathLike = "storebe.pk") -> None:
         """
@@ -324,6 +399,7 @@ class BE(MixinLocalize):
         rdm2AO = zeros((nao, nao, nao, nao))
 
         for fobjs in self.Fobjs:
+            rdm2 = fobjs.rdm2__.copy()
             if return_RDM2:
                 # Adjust the one-particle reduced density matrix (RDM1)
                 drdm1 = fobjs.rdm1__.copy()
@@ -336,10 +412,10 @@ class BE(MixinLocalize):
                 ) - 0.5 * einsum(
                     "ij,kl->iklj", drdm1, drdm1, dtype=numpy.float64, optimize=True
                 )
-                fobjs.rdm2__ -= dm_nc
+                rdm2 -= dm_nc
 
             # Generate the projection matrix
-            cind = [fobjs.fsites[i] for i in fobjs.efac[1]]
+            cind = [fobjs.AO_in_frag[i] for i in fobjs.weight_and_relAO_per_center[1]]
             Pc_ = (
                 fobjs.TA.T
                 @ self.S
@@ -361,7 +437,7 @@ class BE(MixinLocalize):
                 # Transform RDM2 to AO basis
                 rdm2s = einsum(
                     "ijkl,pi,qj,rk,sl->pqrs",
-                    fobjs.rdm2__,
+                    rdm2,
                     *([fobjs.mo_coeffs] * 4),
                     optimize=True,
                 )
@@ -449,12 +525,12 @@ class BE(MixinLocalize):
 
             print("-----------------------------------------------------", flush=True)
 
-            print(" 1-elec E        : {:>15.8f} Ha".format(Eh1), flush=True)
-            print(" 2-elec E        : {:>15.8f} Ha".format(E2), flush=True)
+            print(f" 1-elec E        : {Eh1:>15.8f} Ha", flush=True)
+            print(f" 2-elec E        : {E2:>15.8f} Ha", flush=True)
             E_tot = Eh1 + E2 + self.E_core + self.enuc
-            print(" E_BE            : {:>15.8f} Ha".format(E_tot), flush=True)
+            print(f" E_BE            : {E_tot:>15.8f} Ha", flush=True)
             print(
-                " Ecorr BE        : {:>15.8f} Ha".format((E_tot) - self.ebe_hf),
+                f" Ecorr BE        : {(E_tot) - self.ebe_hf:>15.8f} Ha",
                 flush=True,
             )
             print("-----------------------------------------------------", flush=True)
@@ -584,21 +660,19 @@ class BE(MixinLocalize):
 
         print("-----------------------------------------------------", flush=True)
         print(" E_BE = E_HF + Tr(F del g) + Tr(V K_approx)", flush=True)
-        print(" E_HF            : {:>14.8f} Ha".format(self.ebe_hf), flush=True)
-        print(" Tr(F del g)     : {:>14.8f} Ha".format(Eh1_dg + Eveff_dg), flush=True)
-        print(" Tr(V K_aprrox)  : {:>14.8f} Ha".format(EKumul / 2.0), flush=True)
-        print(" E_BE            : {:>14.8f} Ha".format(EKapprox), flush=True)
-        print(
-            " Ecorr BE        : {:>14.8f} Ha".format(EKapprox - self.ebe_hf), flush=True
-        )
+        print(f" E_HF            : {self.ebe_hf:>14.8f} Ha", flush=True)
+        print(f" Tr(F del g)     : {Eh1_dg + Eveff_dg:>14.8f} Ha", flush=True)
+        print(f" Tr(V K_aprrox)  : {EKumul / 2.0:>14.8f} Ha", flush=True)
+        print(f" E_BE            : {EKapprox:>14.8f} Ha", flush=True)
+        print(f" Ecorr BE        : {EKapprox - self.ebe_hf:>14.8f} Ha", flush=True)
 
         if not approx_cumulant:
             print(flush=True)
             print(" E_BE = Tr(F[g] g) + Tr(V K_true)", flush=True)
-            print(" Tr(h1 g)        : {:>14.8f} Ha".format(Eh1), flush=True)
-            print(" Tr(Veff[g] g)   : {:>14.8f} Ha".format(EVeff / 2.0), flush=True)
-            print(" Tr(V K_true)    : {:>14.8f} Ha".format(EKumul_T / 2.0), flush=True)
-            print(" E_BE            : {:>14.8f} Ha".format(EKtrue), flush=True)
+            print(f" Tr(h1 g)        : {Eh1:>14.8f} Ha", flush=True)
+            print(f" Tr(Veff[g] g)   : {EVeff / 2.0:>14.8f} Ha", flush=True)
+            print(f" Tr(V K_true)    : {EKumul_T / 2.0:>14.8f} Ha", flush=True)
+            print(f" E_BE            : {EKtrue:>14.8f} Ha", flush=True)
             if use_full_rdm and return_rdm:
                 print(
                     " E(g+G)          : {:>14.8f} Ha".format(
@@ -607,11 +681,11 @@ class BE(MixinLocalize):
                     flush=True,
                 )
             print(
-                " Ecorr BE        : {:>14.8f} Ha".format(EKtrue - self.ebe_hf),
+                f" Ecorr BE        : {EKtrue - self.ebe_hf:>14.8f} Ha",
                 flush=True,
             )
             print(flush=True)
-            print(" True - approx   : {:>14.4e} Ha".format(EKtrue - EKapprox))
+            print(f" True - approx   : {EKtrue - EKapprox:>14.4e} Ha")
         print("-----------------------------------------------------", flush=True)
 
         print(flush=True)
@@ -622,13 +696,13 @@ class BE(MixinLocalize):
 
     def optimize(
         self,
-        solver: str = "MP2",
+        solver: Solvers = "CCSD",
         method: str = "QN",
         only_chem: bool = False,
         use_cumulant: bool = True,
         conv_tol: float = 1.0e-6,
         relax_density: bool = False,
-        J0: Matrix[floating] | None = None,
+        jac_solver: Literal["HF", "MP2", "CCSD"] = "HF",
         nproc: int = 1,
         ompnum: int = 4,
         max_iter: int = 500,
@@ -642,7 +716,7 @@ class BE(MixinLocalize):
         Parameters
         ----------
         solver :
-            High-level solver for the fragment, by default 'MP2'
+            High-level solver for the fragment, by default "CCSD"
         method :
             Optimization method, by default 'QN'
         only_chem :
@@ -666,18 +740,33 @@ class BE(MixinLocalize):
         ompnum :
             If nproc > 1, ompnum sets the number of cores for OpenMP parallelization.
             Defaults to 4
-        J0 :
-            Initial Jacobian.
+        jac_solver :
+            Method to form Jacobian used in optimization routine, by default HF.
+            Options include HF, MP2, CCSD
         trust_region :
             Use trust-region based QN optimization, by default False
         """
         # Check if only chemical potential optimization is required
         if not only_chem:
             pot = self.pot
-            if self.fobj.be_type == "be1":
+            if self.fobj.n_BE == 1:
                 raise ValueError(
                     "BE1 only works with chemical potential optimization. "
                     "Set only_chem=True"
+                )
+            elif (
+                #  The `all_centers_are_origins` test is not defined for IAOs
+                not self.fobj.iao_valence_basis
+                and self.fobj.n_BE >= 3
+                and not self.fobj.all_centers_are_origins()
+            ):
+                raise ValueError(
+                    "BE3 currently does not work with matching conditions, if there "
+                    "are centers that are not origins.\n"
+                    "See this issue https://github.com/troyvvgroup/quemb/issues/150 "
+                    "for reference. "
+                    "As a stop gap measure you can use the `swallow_replace=True` "
+                    "option when fragmentating with chemgen."
                 )
         else:
             pot = [0.0]
@@ -705,10 +794,10 @@ class BE(MixinLocalize):
             # Prepare the initial Jacobian matrix
             if only_chem:
                 J0 = array([[0.0]])
-                J0 = self.get_be_error_jacobian(jac_solver="HF")
+                J0 = self.get_be_error_jacobian(jac_solver=jac_solver)
                 J0 = J0[-1:, -1:]
             else:
-                J0 = self.get_be_error_jacobian(jac_solver="HF")
+                J0 = self.get_be_error_jacobian(jac_solver=jac_solver)
 
             # Perform the optimization
             be_.optimize(method, J0=J0, trust_region=trust_region)
@@ -737,7 +826,7 @@ class BE(MixinLocalize):
 
     @copy_docstring(_ext_get_be_error_jacobian)
     def get_be_error_jacobian(self, jac_solver: str = "HF") -> Matrix[floating]:
-        return _ext_get_be_error_jacobian(self.fobj.Nfrag, self.Fobjs, jac_solver)
+        return _ext_get_be_error_jacobian(self.fobj.n_frag, self.Fobjs, jac_solver)
 
     def print_ini(self):
         """
@@ -755,11 +844,18 @@ class BE(MixinLocalize):
 
         print(flush=True)
         print("            MOLECULAR BOOTSTRAP EMBEDDING", flush=True)
-        print("            BEn = ", self.fobj.be_type, flush=True)
+        print("            BEn = ", self.fobj.n_BE, flush=True)
         print("-----------------------------------------------------------", flush=True)
         print(flush=True)
 
-    def initialize(self, eri_, compute_hf, restart=False) -> None:
+    def initialize(
+        self,
+        eri_,
+        compute_hf: bool,
+        *,
+        restart: bool,
+        int_transform: IntTransforms,
+    ) -> None:
         """
         Initialize the Bootstrap Embedding calculation.
 
@@ -771,6 +867,8 @@ class BE(MixinLocalize):
             Whether to compute Hartree-Fock energy.
         restart : bool, optional
             Whether to restart from a previous calculation, by default False.
+        int_transfrom :
+            Which integral transformation to perform.
         """
         if compute_hf:
             E_hf = 0.0
@@ -778,37 +876,20 @@ class BE(MixinLocalize):
         # Create a file to store ERIs
         if not restart:
             file_eri = h5py.File(self.eri_file, "w")
-        lentmp = len(self.fobj.edge_idx)
-        for I in range(self.fobj.Nfrag):
-            if lentmp:
-                fobjs_ = Frags(
-                    self.fobj.fsites[I],
-                    I,
-                    edge=self.fobj.edge_sites[I],
-                    eri_file=self.eri_file,
-                    center=self.fobj.center[I],
-                    edge_idx=self.fobj.edge_idx[I],
-                    center_idx=self.fobj.center_idx[I],
-                    efac=self.fobj.ebe_weight[I],
-                    centerf_idx=self.fobj.centerf_idx[I],
-                )
-            else:
-                fobjs_ = Frags(
-                    self.fobj.fsites[I],
-                    I,
-                    edge=[],
-                    center=[],
-                    eri_file=self.eri_file,
-                    edge_idx=[],
-                    center_idx=[],
-                    centerf_idx=[],
-                    efac=self.fobj.ebe_weight[I],
-                )
-            fobjs_.sd(self.W, self.lmo_coeff, self.Nocc)
+        for I in range(self.fobj.n_frag):
+            fobjs_ = self.fobj.to_Frags(I, eri_file=self.eri_file)
+            fobjs_.sd(self.W, self.lmo_coeff, self.Nocc, thr_bath=self.thr_bath)
 
             self.Fobjs.append(fobjs_)
 
-        eritransform_timer = Timer("Time to transform ERIs")
+        self.all_fragment_MO_TA, frag_TA_index_per_frag = union_of_frag_MOs_and_index(
+            self.Fobjs, self.mf.mol.intor("int1e_ovlp"), epsilon=1e-10
+        )
+        for fobj, frag_TA_offset in zip(self.Fobjs, frag_TA_index_per_frag):
+            fobj.frag_TA_offset = frag_TA_offset
+
+        eritransform_timer = Timer(f"Time to transform ERIs ({int_transform})")
+
         if not restart:
             # Transform ERIs for each fragment and store in the file
             # ERI Transform Decision Tree
@@ -817,48 +898,97 @@ class BE(MixinLocalize):
             #   No  -- Do we have (ij|P) from density fitting?
             #       Yes -- ao2mo, outcore version, using saved (ij|P)
             #       No  -- if integral_direct_DF is requested, invoke on-the-fly routine
-            assert (
-                (eri_ is not None)
-                or (hasattr(self.mf, "with_df"))
-                or (self.integral_direct_DF)
-            ), "Input mean-field object is missing ERI (mf._eri) or DF (mf.with_df) "
-            "object AND integral direct DF routine was not requested. "
-            "Please check your inputs."
-            if (
-                eri_ is not None
-            ):  # incore ao2mo using saved eri from mean-field calculation
-                for I in range(self.fobj.Nfrag):
+            if int_transform == "in-core":
+                ensure(eri_ is not None, "ERIs have to be available in memory.")
+                for I in range(self.fobj.n_frag):
                     eri = ao2mo.incore.full(eri_, self.Fobjs[I].TA, compact=True)
                     file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
-            elif hasattr(self.mf, "with_df") and self.mf.with_df is not None:
+            elif int_transform == "out-core-DF":
+                ensure(
+                    hasattr(self.mf, "with_df") and self.mf.with_df is not None,
+                    "Pyscf mean field object has to support `with_df`.",
+                )
                 # pyscf.ao2mo uses DF object in an outcore fashion using (ij|P)
                 #   in pyscf temp directory
-                for I in range(self.fobj.Nfrag):
+                for I in range(self.fobj.n_frag):
                     eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)
                     file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
-            else:
+            elif int_transform == "int-direct-DF":
                 # If ERIs are not saved on memory, compute fragment ERIs integral-direct
-                if (
-                    self.integral_direct_DF
-                ):  # Use density fitting to generate fragment ERIs on-the-fly
-                    integral_direct_DF(
-                        self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis
-                    )
-                else:  # Calculate ERIs on-the-fly to generate fragment ERIs
-                    # TODO: Future feature to be implemented
-                    # NOTE: Ideally, we want AO shell pair screening for this.
-                    raise NotImplementedError
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                integral_direct_DF(
+                    self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis
+                )
+                eri = None
+            elif int_transform == "sparse-DF-cpp":
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                transform_sparse_DF_integral_cpp(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    file_eri_handler=file_eri,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.n_threads_integral_transform,
+                )
+                eri = None
+            elif int_transform == "sparse-DF-cpp-gpu":
+                from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
+                    transform_sparse_DF_integral_cpp_gpu,
+                )
+
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                transform_sparse_DF_integral_cpp_gpu(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    file_eri_handler=file_eri,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.n_threads_integral_transform,
+                )
+                eri = None
+            elif int_transform == "sparse-DF-nb":
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                transform_sparse_DF_integral_nb(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    file_eri_handler=file_eri,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.n_threads_integral_transform,
+                )
+                eri = None
+            elif int_transform == "sparse-DF-nb-gpu":
+                from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
+                    transform_sparse_DF_integral_nb_gpu,
+                )
+
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                transform_sparse_DF_integral_nb_gpu(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    file_eri_handler=file_eri,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.n_threads_integral_transform,
+                )
+                eri = None
+            else:
+                assert_never(int_transform)
         else:
             eri = None
-        if settings.PRINT_LEVEL >= 10:
-            print(eritransform_timer.str_elapsed())
+        logger.info(f"ERI transform time: {eritransform_timer.str_elapsed()}")
 
         for fobjs_ in self.Fobjs:
             # Process each fragment
             eri = array(file_eri.get(fobjs_.dname))
             _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
 
-            fobjs_.cons_h1(self.hcore)
+            assert fobjs_.TA is not None
+            fobjs_.h1 = multi_dot((fobjs_.TA.T, self.hcore, fobjs_.TA))
 
             if not restart:
                 eri = ao2mo.restore(8, eri, fobjs_.nao)
@@ -868,6 +998,7 @@ class BE(MixinLocalize):
             fobjs_.heff = zeros_like(fobjs_.h1)
             fobjs_.scf(fs=True, eri=eri)
 
+            assert fobjs_.h1 is not None and fobjs_.nsocc is not None
             fobjs_.dm0 = 2.0 * (
                 fobjs_._mo_coeffs[:, : fobjs_.nsocc]
                 @ fobjs_._mo_coeffs[:, : fobjs_.nsocc].conj().T
@@ -883,14 +1014,9 @@ class BE(MixinLocalize):
         if compute_hf:
             self.ebe_hf = E_hf + self.enuc + self.E_core
             hf_err = self.hf_etot - self.ebe_hf
-            print(
-                "HF-in-HF error                 :  {:>.4e} Ha".format(hf_err),
-                flush=True,
-            )
+            print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
             if abs(hf_err) > 1.0e-5:
-                print("WARNING!!! Large HF-in-HF energy error")
-
-            print(flush=True)
+                warn("Large HF-in-HF energy error")
 
         couti = 0
         for fobj in self.Fobjs:
@@ -899,7 +1025,7 @@ class BE(MixinLocalize):
 
     def oneshot(
         self,
-        solver: str = "MP2",
+        solver: Solvers = "CCSD",
         use_cumulant: bool = True,
         nproc: int = 1,
         ompnum: int = 4,
@@ -911,7 +1037,7 @@ class BE(MixinLocalize):
         Parameters
         ----------
         solver :
-            High-level quantum chemistry method, by default 'MP2'. 'CCSD', 'FCI',
+            High-level quantum chemistry method, by default 'CCSD'. 'CCSD', 'FCI',
             and variants of selected CI are supported.
         use_cumulant :
             Whether to use the cumulant energy expression, by default True.
@@ -929,7 +1055,6 @@ class BE(MixinLocalize):
                 self.Nocc,
                 solver,
                 self.enuc,
-                nproc=ompnum,
                 eeval=True,
                 scratch_dir=self.scratch_dir,
                 solver_args=solver_args,
@@ -967,8 +1092,7 @@ class BE(MixinLocalize):
                 rets[0], rets[1][0], rets[1][2], rets[1][1], self.ebe_hf, self.enuc
             )
             self.ebe_tot = rets[0] + self.enuc + self.ebe_hf
-        if settings.PRINT_LEVEL >= 10:
-            print(oneshot_timer.str_elapsed())
+        logger.info(f"Oneshot time: {oneshot_timer.str_elapsed()}")
 
     def update_fock(self, heff: list[Matrix[floating]] | None = None) -> None:
         """
@@ -981,9 +1105,11 @@ class BE(MixinLocalize):
         """
         if heff is None:
             for fobj in self.Fobjs:
+                assert fobj.fock is not None and fobj.heff is not None
                 fobj.fock += fobj.heff
         else:
             for idx, fobj in enumerate(self.Fobjs):
+                assert fobj.fock is not None
                 fobj.fock += heff[idx]
 
     def write_heff(self, heff_file: str = "bepotfile.h5") -> None:
@@ -997,6 +1123,7 @@ class BE(MixinLocalize):
         """
         with h5py.File(heff_file, "w") as filepot:
             for fobj in self.Fobjs:
+                assert fobj.heff is not None
                 print(fobj.heff.shape, fobj.dname, flush=True)
                 filepot.create_dataset(fobj.dname, data=fobj.heff)
 
@@ -1014,21 +1141,22 @@ class BE(MixinLocalize):
                 fobj.heff = filepot.get(fobj.dname)
 
 
-def initialize_pot(Nfrag, edge_idx):
+def initialize_pot(n_frag, relAO_per_edge):
     """
     Initialize the potential array for bootstrap embedding.
 
     This function initializes a potential array for a given number of fragments
-    (:python:`Nfrag`) and their corresponding edge indices (:python:`edge_idx`).
+    (:python:`n_frag`) and their corresponding edge indices
+    (:python:`relAO_per_edge`).
     The potential array is initialized with zeros for each pair of edge site indices
     within each fragment, followed by an
     additional zero for the global chemical potential.
 
     Parameters
     ----------
-    Nfrag : int
+    n_frag: int
         Number of fragments.
-    edge_idx : list of list of list of int
+    relAO_per_edge: list of list of list of int
         List of edge indices for each fragment. Each element is a list of lists,
         where each sublist contains the indices of edge sites for a particular fragment.
 
@@ -1039,9 +1167,9 @@ def initialize_pot(Nfrag, edge_idx):
     """
     pot_ = []
 
-    if not len(edge_idx) == 0:
-        for I in range(Nfrag):
-            for i in edge_idx[I]:
+    if relAO_per_edge:
+        for I in range(n_frag):
+            for i in relAO_per_edge[I]:
                 for j in range(len(i)):
                     for k in range(len(i)):
                         if j > k:

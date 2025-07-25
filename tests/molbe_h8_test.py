@@ -3,9 +3,10 @@
 # between edge & centers of fragments.
 
 import numpy as np
+import pytest
 from pyscf import gto, scf
 
-from quemb.molbe import BE, fragpart
+from quemb.molbe import BE, fragmentate
 from quemb.molbe.fragment import ChemGenArgs
 
 
@@ -32,12 +33,14 @@ def prepare_system():
     return mol, mf
 
 
-def do_BE(mol, mf, be_type: str, only_chem: bool):
-    fobj = fragpart(
-        be_type=be_type,
+def do_BE(mol, mf, n_BE: int, only_chem: bool, swallow_replace: bool = False):
+    fobj = fragmentate(
+        n_BE=n_BE,
         frag_type="chemgen",
         mol=mol,
-        additional_args=ChemGenArgs(treat_H_different=False),
+        additional_args=ChemGenArgs(
+            treat_H_different=False, swallow_replace=swallow_replace
+        ),
     )
     mybe = BE(mf, fobj)
     mybe.optimize(solver="FCI", only_chem=only_chem)
@@ -47,25 +50,30 @@ def do_BE(mol, mf, be_type: str, only_chem: bool):
 def test_BE_density_matching():
     mol, mf = prepare_system()
 
-    BE2 = do_BE(mol, mf, "be2", only_chem=False)
+    BE2 = do_BE(mol, mf, 2, only_chem=False)
     assert np.isclose(BE2.ebe_tot - BE2.ebe_hf, -0.1343036698277933)
 
-    BE3 = do_BE(mol, mf, "be3", only_chem=False)
+    with pytest.raises(ValueError):
+        # should raise until https://github.com/troyvvgroup/quemb/issues/150
+        # is resolved.
+        BE3 = do_BE(mol, mf, 3, only_chem=False, swallow_replace=False)
+
+    BE3 = do_BE(mol, mf, 3, only_chem=False, swallow_replace=True)
     assert np.isclose(BE3.ebe_tot - BE3.ebe_hf, -0.1332017928466369)
 
 
 def test_BE_chemical_potential():
     mol, mf = prepare_system()
 
-    BE1 = do_BE(mol, mf, "be1", only_chem=True)
+    BE1 = do_BE(mol, mf, 1, only_chem=True)
     print(BE1.ebe_tot - BE1.ebe_hf)
     assert np.isclose(BE1.ebe_tot - BE1.ebe_hf, -0.12831444938462155)
 
-    BE2 = do_BE(mol, mf, "be2", only_chem=True)
+    BE2 = do_BE(mol, mf, 2, only_chem=True)
     print(BE2.ebe_tot - BE2.ebe_hf)
     assert np.isclose(BE2.ebe_tot - BE2.ebe_hf, -0.1343968038684169)
 
-    BE3 = do_BE(mol, mf, "be3", only_chem=True)
+    BE3 = do_BE(mol, mf, 3, only_chem=True)
     print(BE3.ebe_tot - BE3.ebe_hf)
     assert np.isclose(BE3.ebe_tot - BE3.ebe_hf, -0.1332017928466369)
 
