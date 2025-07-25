@@ -53,4 +53,4 @@ mybe = BE(mf, fobj)
 # effectively running 5 fragment calculations in parallel
 mybe.optimize(solver="CCSD", nproc=20, ompnum=4)
 
-rdm1_ao, rdm2_ao = mybe.rdm1_fullbasis(return_ao=True)
+rdm1_ao, rdm2_ao = mybe.rdm_fullbasis(return_ao=True)
