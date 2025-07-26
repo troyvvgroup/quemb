@@ -8,7 +8,6 @@ from warnings import warn
 import h5py
 import numpy
 from attrs import define
-from helper import FunctionTimer
 from numpy import array, diag_indices, einsum, float64, floating, zeros, zeros_like
 from numpy.linalg import multi_dot
 from pyscf import ao2mo, scf
@@ -29,7 +28,7 @@ from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
-from quemb.shared.helper import copy_docstring, ensure
+from quemb.shared.helper import FunctionTimer, copy_docstring, ensure
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix, PathLike
 

@@ -42,7 +42,6 @@ from quemb.molbe.chemfrag import (
 )
 from quemb.molbe.pfrag import Frags
 from quemb.shared.helper import (
-    Timer,
     jitclass,
     n_symmetric,
     njit,
