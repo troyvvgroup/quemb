@@ -1,10 +1,12 @@
+import functools
 import inspect
 import logging
+import time
+from collections import defaultdict
 from collections.abc import Callable, Iterable, Sequence
 from inspect import signature
 from itertools import islice
 from pathlib import Path
-from time import time
 from typing import Any, TypeVar, overload
 
 import numba as nb
@@ -117,6 +119,36 @@ def delete_multiple_files(*args: Iterable[Path]) -> None:
     for files in args:
         for file in files:
             file.unlink()
+
+
+@define
+class FunctionTimer:
+    stats: dict = field(factory=lambda: defaultdict(lambda: {"time": 0.0, "calls": 0}))
+
+    def timeit(self, func):
+        """Decorator to time a function and record stats."""
+
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            duration = time.perf_counter() - start
+            key = f"{func.__module__}.{func.__qualname__}"
+            self.stats[key]["time"] += duration
+            self.stats[key]["calls"] += 1
+            return result
+
+        return wrapper
+
+    def print_top(self, n=10):
+        """Print the top-n functions by total accumulated time."""
+        sorted_stats = sorted(
+            self.stats.items(), key=lambda item: item[1]["time"], reverse=True
+        )
+        print(f"{'Function':60} {'Calls':>10} {'Total Time (s)':>15}")
+        print("-" * 90)
+        for name, data in sorted_stats[:n]:
+            print(f"{name:60} {data['calls']:10d} {data['time']:15.6f}")
 
 
 @define(frozen=True)
