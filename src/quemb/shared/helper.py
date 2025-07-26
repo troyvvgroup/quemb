@@ -8,8 +8,7 @@ from inspect import signature
 from itertools import islice
 from pathlib import Path
 from typing import Any, TypeVar, overload
-import time
-from collections import defaultdict
+
 import numba as nb
 import numpy as np
 from attr import define, field
@@ -121,6 +120,7 @@ def delete_multiple_files(*args: Iterable[Path]) -> None:
         for file in files:
             file.unlink()
 
+
 @define(frozen=True)
 class Timer:
     """Simple class to time code execution"""
@@ -136,6 +136,7 @@ class Timer:
 
     def str_elapsed(self, message: str | None = None) -> str:
         return f"{self.message if message is None else message}: {self.elapsed():.5f}"
+
 
 @define
 class FunctionTimer:
