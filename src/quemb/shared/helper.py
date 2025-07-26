@@ -4,6 +4,7 @@ import logging
 import time
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Sequence
+from dataclasses import field
 from inspect import signature
 from itertools import islice
 from pathlib import Path
@@ -11,7 +12,7 @@ from typing import Any, TypeVar, overload
 
 import numba as nb
 import numpy as np
-from attr import define, field
+from attr import define
 from ordered_set import OrderedSet
 
 from quemb.shared.typing import Integral, Matrix, T
@@ -123,7 +124,9 @@ def delete_multiple_files(*args: Iterable[Path]) -> None:
 
 @define
 class FunctionTimer:
-    stats: dict = field(factory=lambda: defaultdict(lambda: {"time": 0.0, "calls": 0}))
+    stats: dict = field(
+        default_factory=lambda: defaultdict(lambda: {"time": 0.0, "calls": 0})
+    )
 
     def timeit(self, func):
         """Decorator to time a function and record stats."""
