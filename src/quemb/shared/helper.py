@@ -123,12 +123,11 @@ def delete_multiple_files(*args: Iterable[Path]) -> None:
 
 @define
 class FunctionTimer:
-    stats: dict = field(
-        default_factory=lambda: defaultdict(lambda: {"time": 0.0, "calls": 0})
-    )
+    stats: dict = field(factory=lambda: defaultdict(lambda: {"time": 0.0, "calls": 0}))
 
-    @add_docstring("Decorator to time a function and record stats.")
     def timeit(self, func):
+        """Decorator to time a function and record stats."""
+
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             start = time.perf_counter()
@@ -141,8 +140,8 @@ class FunctionTimer:
 
         return wrapper
 
-    @add_docstring("Print the top-n functions by total accumulated time.")
     def print_top(self, n=10):
+        """Print the top-n functions by total accumulated time."""
         sorted_stats = sorted(
             self.stats.items(), key=lambda item: item[1]["time"], reverse=True
         )
