@@ -152,6 +152,9 @@ class FunctionTimer:
             print(f"{name:60} {data['calls']:10d} {data['time']:15.6f}")
 
 
+timer = FunctionTimer
+
+
 @define(frozen=True)
 class Timer:
     """Simple class to time code execution"""
