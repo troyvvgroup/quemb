@@ -102,7 +102,7 @@ class BE(MixinLocalize):
         scratch_dir: WorkDir | None = None,
         int_transform: IntTransforms = "in-core",
         auxbasis: str | None = None,
-        MO_coeff_epsilon: float = 1e-4,
+        MO_coeff_epsilon: float = 1e-5,
         AO_coeff_epsilon: float = 1e-10,
     ) -> None:
         r"""

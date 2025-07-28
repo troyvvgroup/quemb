@@ -99,7 +99,23 @@ def test_sparse_DF_BE() -> None:
 
     assert np.isclose(
         sparse_DF_BE.ebe_tot - sparse_DF_BE.ebe_hf,
-        -0.5499742605015285,
+        -0.5499817066329342,
+        atol=1e-10,
+        rtol=0,
+    ), sparse_DF_BE.ebe_tot - sparse_DF_BE.ebe_hf
+
+    mol = M("data/octane.xyz", basis="sto-3g", cart=False)
+
+    mf = scf.RHF(mol)
+    mf.kernel()
+
+    fobj = fragmentate(frag_type="chemgen", n_BE=2, mol=mol, print_frags=False)
+    sparse_DF_BE = BE(mf, fobj, auxbasis="weigend", int_transform="sparse-DF-cpp")
+    sparse_DF_BE.oneshot(solver="CCSD")
+
+    assert np.isclose(
+        sparse_DF_BE.ebe_tot - sparse_DF_BE.ebe_hf,
+        -0.5498957862386646,
         atol=1e-10,
         rtol=0,
     ), sparse_DF_BE.ebe_tot - sparse_DF_BE.ebe_hf
