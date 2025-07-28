@@ -28,7 +28,7 @@ from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
-from quemb.shared.helper import FunctionTimer, copy_docstring, ensure
+from quemb.shared.helper import copy_docstring, ensure, timer
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix, PathLike
 
@@ -43,7 +43,6 @@ IntTransforms: TypeAlias = Literal[
 ]
 
 logger = logging.getLogger(__name__)
-timer = FunctionTimer()
 
 
 @define
