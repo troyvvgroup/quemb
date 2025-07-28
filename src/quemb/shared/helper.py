@@ -159,7 +159,7 @@ class Timer:
     """Simple class to time code execution"""
 
     message: str = "Elapsed time"
-    start: float = field(init=False, factory=time.perf_counter())
+    start: float = field(init=False, default_factory=time.perf_counter())
 
     def __attrs_post_init__(self) -> None:
         logger.info(f"Timer with message '{self.message}' started.")
