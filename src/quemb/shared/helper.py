@@ -11,7 +11,7 @@ from typing import Any, TypeVar, overload
 
 import numba as nb
 import numpy as np
-from attr import define, field
+from attrs import define, field
 from ordered_set import OrderedSet
 
 from quemb.shared.typing import Integral, Matrix, T
@@ -159,7 +159,7 @@ class Timer:
     """Simple class to time code execution"""
 
     message: str = "Elapsed time"
-    start: float = field(init=False, factory=time.perf_counter())
+    start: float = field(init=False, factory=lambda: time.perf_counter())
 
     def __attrs_post_init__(self) -> None:
         logger.info(f"Timer with message '{self.message}' started.")
