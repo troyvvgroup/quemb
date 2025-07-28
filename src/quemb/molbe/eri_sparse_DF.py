@@ -1424,7 +1424,7 @@ def transform_sparse_DF_integral_nb(
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
     S_abs_timer = Timer("Time to compute S_abs")
-    S_abs = calculate_abs_overlap(mol)
+    S_abs = approx_S_abs(mol)
 
     logger.info(S_abs_timer.str_elapsed())
 
@@ -1474,7 +1474,7 @@ def transform_sparse_DF_integral_cpp(
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
     S_abs_timer = Timer("Time to compute S_abs")
-    S_abs = calculate_abs_overlap(mol)
+    S_abs = approx_S_abs(mol)
     print(S_abs_timer.str_elapsed())
 
     exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
@@ -1528,7 +1528,7 @@ def transform_sparse_DF_integral_cpp_gpu(
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
     S_abs_timer = Timer("Time to compute S_abs")
-    S_abs = calculate_abs_overlap(mol)
+    S_abs = approx_S_abs(mol)
     print(S_abs_timer.str_elapsed())
 
     exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
@@ -1655,7 +1655,7 @@ try:
         auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
         S_abs_timer = Timer("Time to compute S_abs")
-        S_abs = calculate_abs_overlap(mol)
+        S_abs = approx_S_abs(mol)
         print(S_abs_timer.str_elapsed())
 
         exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
@@ -1817,7 +1817,9 @@ def _primitive_overlap_matrix(
     return smat
 
 
-def calculate_abs_overlap(mol: Mole, nroots: int = 500) -> Matrix[np.float64]:
+def _cart_mol_abs_ovlp_matrix(
+    mol: Mole, nroots: int = 500
+) -> tuple[Matrix[np.float64], Matrix[np.float64]]:
     r"""Compute the absolute overlap
 
     This is given by:
@@ -1845,7 +1847,6 @@ def calculate_abs_overlap(mol: Mole, nroots: int = 500) -> Matrix[np.float64]:
             "Cartesian basis functions are required. "
             "Please construct the ``Mole`` object with ``cart=True``."
         )
-
     # Integrals are computed using primitive GTOs. ctr_mat transforms the
     # primitive GTOs to the contracted GTOs.
     pmol, ctr_mat = mol.decontract_basis(aggregate=True)
@@ -1859,7 +1860,38 @@ def calculate_abs_overlap(mol: Mole, nroots: int = 500) -> Matrix[np.float64]:
     bas_coords = np.array([pmol.bas_coord(i) for i in range(pmol.nbas)])
     r, w = roots_hermite(nroots)
     s = _primitive_overlap_matrix(ls, exps, norm_coef, bas_coords, r, w)
-    return ctr_mat.T @ s @ ctr_mat
+    assert (s >= 0).all()
+    return s, ctr_mat
+
+
+def _get_cart_mol(mol: Mole) -> Mole:
+    return gto.M(
+        atom=mol.atom, basis=mol.basis, charge=mol.charge, spin=mol.spin, cart=True
+    )
+
+
+def approx_S_abs(mol: Mole, nroots: int = 500) -> Matrix[np.float64]:
+    """Compute the approximated absolute overlap matrix.
+
+    The calculation is only exact for uncontracted, cartesian basis functions.
+    Since the absolute value is not a linear function, the
+    value after contraction and/or transformation to spherical-harmonics is approximated
+    via the RHS of the triangle inequality:
+
+    .. math::
+
+        \int |\phi_i(\mathbf{r})| \, |\phi_j(\mathbf{r})| \, d\mathbf{r}
+        \leq
+        \sum_{\alpha,\beta} |c_{\alpha i}| \, |c_{\beta j}| \int |\chi_\alpha(\mathbf{r})| \, |\chi_\beta(\mathbf{r})| \, d\mathbf{r}
+    """  # noqa: E501
+    if mol.cart:
+        s, ctr_mat = _cart_mol_abs_ovlp_matrix(mol, nroots)
+        return abs(ctr_mat.T) @ s @ abs(ctr_mat)
+    else:
+        cart_mol = _get_cart_mol(mol)
+        s, ctr_mat = _cart_mol_abs_ovlp_matrix(cart_mol, nroots)
+        cart2spher = cart_mol.cart2sph_coeff(normalized="sp")
+        return abs(cart2spher.T @ ctr_mat.T) @ s @ abs(ctr_mat @ cart2spher)
 
 
 def identify_contiguous_blocks(X: Sequence[_T]) -> list[tuple[int, int]]:
