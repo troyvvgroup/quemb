@@ -92,32 +92,36 @@ class Orbital:  # noqa: PLW1641
         Parse an ORCA AO label like '0O   2pz' into an Orbital.
         """
 
-        def infer_l(shape: str) -> L_VALS:
+        def infer_l(m_l_char: str) -> L_VALS:
             for l in L_Values:
-                if shape.startswith(l):
+                if m_l_char.startswith(l):
                     return l
-            raise ValueError(f"Unknown orbital shape: {shape!r}")
+            raise ValueError(f"Unknown orbital shape: {m_l_char!r}")
 
-        # Remove whitespace and split the atomic and orbital part
-        label = label.strip()
-        m = re.match(r"(\d+)([A-Z][a-z]?)\s+(\d+)([a-z0-9]+)", label)
+        def infer_m_l(m_l_char: str) -> M_L_VALS:
+            TRANSLATE = {
+                "dz2": "dz^2",
+                "dx2y2": "dx2-y2",
+                "f0": "f+0",
+                "g0": "g+0",
+                "h0": "h+0",
+            }
+            m_l_char = TRANSLATE.get(m_l_char, m_l_char)
+            assert m_l_char in M_L_Values, (label, m_l_char)
+            return cast(M_L_VALS, m_l_char)
+
+        m = re.match(r"(\d+)([A-Z][a-z]?)\s+(\d+)([a-zA-Z0-9+\-]+)", label.strip())
         if not m:
             raise ValueError(f"Cannot parse ORCA label: {label!r}")
 
         idx_atom_str, element_symbol, n_str, m_l_char = m.groups()
-        idx_atom = int(idx_atom_str)
-        n = int(n_str)
-
-        l = infer_l(m_l_char)
-        assert m_l_char in M_L_Values
-        m_l = cast(M_L_VALS, m_l_char)  # e.g., "pz", "dxz", "s", "dz2", ...
 
         return cls(
-            idx_atom=idx_atom,
+            idx_atom=int(idx_atom_str),
             element_symbol=element_symbol,
-            n=n,
-            l=l,
-            m_l=m_l,
+            n=int(n_str),
+            l=infer_l(m_l_char),
+            m_l=infer_m_l(m_l_char),
         )
 
     def __lt__(self, other: Self) -> bool:
