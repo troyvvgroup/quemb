@@ -1,12 +1,12 @@
 import functools
 import inspect
 import logging
-import time
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Sequence
 from inspect import signature
 from itertools import islice
 from pathlib import Path
+from time import time
 from typing import Any, TypeVar, overload
 
 import numba as nb
@@ -159,13 +159,13 @@ class Timer:
     """Simple class to time code execution"""
 
     message: str = "Elapsed time"
-    start: float = field(init=False, factory=time.time)
+    start: float = field(init=False, factory=time)
 
     def __attrs_post_init__(self) -> None:
         logger.info(f"Timer with message '{self.message}' started.")
 
     def elapsed(self) -> float:
-        return time.time() - self.start
+        return time() - self.start
 
     def str_elapsed(self, message: str | None = None) -> str:
         return f"{self.message if message is None else message}: {self.elapsed():.5f}"
