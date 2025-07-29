@@ -165,7 +165,7 @@ class Timer:
         logger.info(f"Timer with message '{self.message}' started.")
 
     def elapsed(self) -> float:
-        return time.perf_counter - self.start
+        return time.perf_counter() - self.start
 
     def str_elapsed(self, message: str | None = None) -> str:
         return f"{self.message if message is None else message}: {self.elapsed():.5f}"
