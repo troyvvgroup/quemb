@@ -1719,8 +1719,39 @@ _T_ = ListType(_UniTuple_int64_2)
 
 @njit(fastmath=True, nogil=True)
 def _primitive_overlap(
-    li, lj, ai, aj, ci, cj, Ra, Rb, roots, weights
+    li: int,
+    lj: int,
+    ai: float,
+    aj: float,
+    ci: float,
+    cj: float,
+    Ra: Vector[np.floating],
+    Rb: Vector[np.floating],
+    roots: Vector[np.floating],
+    weights: Vector[np.floating],
 ) -> Matrix[np.float64]:
+    """Evaluate the absolute overlap for a given
+    pair of **uncontracted cartesian** basis functions
+
+    .. warning::
+
+        The result is undefined if the basis functions are not uncontracted cartesians.
+        Use the triangle inequality to convert to different bases as done
+        and described in :func:`~quemb.molbe.eri_sparse_DF.approx_S_abs`.
+
+    Parameters
+    ----------
+    li, lj :
+        Angular momenta of the two primitives.
+    ai, aj :
+        Gaussian exponents.
+    ci, cj :
+        Normalization prefactors.
+    Ra, Rb :
+        Centers of the two primitives.
+    roots, weights :
+        Gauß-Hermite quadrature roots and weights.
+    """
     norm_fac = ci * cj
     # Unconventional normalization for Cartesian functions in PySCF
     if li <= 1:
@@ -1781,8 +1812,23 @@ def _primitive_overlap(
 
 @njit(nogil=True, parallel=True)
 def _primitive_overlap_matrix(
-    ls, exps, norm_coef, bas_coords, roots, weights
+    ls: Vector[np.integer],
+    exps: Vector[np.floating],
+    norm_coef: Vector[np.floating],
+    bas_coords: Matrix[np.floating],
+    roots: Vector[np.floating],
+    weights: Vector[np.floating],
 ) -> Matrix[np.float64]:
+    """Compute the absolute overlap matrix for uncontracted cartesians.
+
+    Combines the results of :func:`~quemb.molbe.eri_sparse_DF._primitive_overlap`.
+
+    .. warning::
+
+        The result is undefined if the basis functions are not uncontracted cartesians.
+        Use the triangle inequality to convert to different bases as done
+        and described in :func:`~quemb.molbe.eri_sparse_DF.approx_S_abs`.
+    """
     nbas = len(ls)
     dims = [(l + 1) * (l + 2) // 2 for l in ls]
     nao = sum(dims)
@@ -1851,14 +1897,20 @@ def _cart_mol_abs_ovlp_matrix(
     # primitive GTOs to the contracted GTOs.
     pmol, ctr_mat = mol.decontract_basis(aggregate=True)
     # Angular momentum for each shell
-    ls = np.array([pmol.bas_angular(i) for i in range(pmol.nbas)])
+    ls = cast(
+        Vector[np.int64], np.array([pmol.bas_angular(i) for i in range(pmol.nbas)])
+    )
     # need to access only one exponent for primitive gaussians
-    exps = np.array([pmol.bas_exp(i)[0] for i in range(pmol.nbas)])
+    exps = cast(
+        Vector[np.float64], np.array([pmol.bas_exp(i)[0] for i in range(pmol.nbas)])
+    )
     # Normalization coefficients
-    norm_coef = gto.gto_norm(ls, exps)
+    norm_coef = cast(Vector[np.float64], gto.gto_norm(ls, exps))
     # Position for each shell
-    bas_coords = np.array([pmol.bas_coord(i) for i in range(pmol.nbas)])
-    r, w = roots_hermite(nroots)
+    bas_coords = cast(
+        Matrix[np.float64], np.array([pmol.bas_coord(i) for i in range(pmol.nbas)])
+    )
+    r, w = cast(tuple[Vector[np.float64], Vector[np.float64]], roots_hermite(nroots))
     s = _primitive_overlap_matrix(ls, exps, norm_coef, bas_coords, r, w)
     assert (s >= 0).all()
     return s, ctr_mat
@@ -1871,7 +1923,7 @@ def _get_cart_mol(mol: Mole) -> Mole:
 
 
 def approx_S_abs(mol: Mole, nroots: int = 500) -> Matrix[np.float64]:
-    """Compute the approximated absolute overlap matrix.
+    r"""Compute the approximated absolute overlap matrix.
 
     The calculation is only exact for uncontracted, cartesian basis functions.
     Since the absolute value is not a linear function, the
@@ -1883,6 +1935,12 @@ def approx_S_abs(mol: Mole, nroots: int = 500) -> Matrix[np.float64]:
         \int |\phi_i(\mathbf{r})| \, |\phi_j(\mathbf{r})| \, d\mathbf{r}
         \leq
         \sum_{\alpha,\beta} |c_{\alpha i}| \, |c_{\beta j}| \int |\chi_\alpha(\mathbf{r})| \, |\chi_\beta(\mathbf{r})| \, d\mathbf{r}
+
+    Parameters
+    ----------
+    mol :
+    nroots :
+        Number of roots for the Gauß-Hermite quadrature.
     """  # noqa: E501
     if mol.cart:
         s, ctr_mat = _cart_mol_abs_ovlp_matrix(mol, nroots)
@@ -1890,6 +1948,7 @@ def approx_S_abs(mol: Mole, nroots: int = 500) -> Matrix[np.float64]:
     else:
         cart_mol = _get_cart_mol(mol)
         s, ctr_mat = _cart_mol_abs_ovlp_matrix(cart_mol, nroots)
+        # get the transformation matrix from cartesian basis functions to spherical.
         cart2spher = cart_mol.cart2sph_coeff(normalized="sp")
         return abs(cart2spher.T @ ctr_mat.T) @ s @ abs(ctr_mat @ cart2spher)
 
