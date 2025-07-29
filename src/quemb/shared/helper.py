@@ -130,9 +130,9 @@ class FunctionTimer:
 
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            start = time.perf_counter
+            start = time.perf_counter()
             result = func(*args, **kwargs)
-            duration = time.perf_counter - start
+            duration = time.perf_counter() - start
             key = f"{func.__module__}.{func.__qualname__}"
             self.stats[key]["time"] += duration
             self.stats[key]["calls"] += 1
