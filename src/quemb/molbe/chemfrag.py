@@ -376,7 +376,9 @@ class BondConnectivity:
         treat_H_different :
             If True, we treat hydrogen atoms differently from heavy atoms.
         """
-        bonds_atoms = cls._get_periodic_bonds_atoms(cell)
+        bonds_atoms = cls._get_periodic_bonds_atoms(
+            cell, bonds_atoms, vdW_radius, modify_atom_data, treat_H_different
+        )
 
         return cls.from_cartesian(
             Cartesian.from_pyscf(cell.to_mol()),
