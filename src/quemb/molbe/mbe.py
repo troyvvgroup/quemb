@@ -176,12 +176,14 @@ class BE(MixinLocalize):
             :math:`\int |\phi_i| |\varphi_{\mu}|`
             when a MO coefficient :math:`i` and an AO coefficient
             :math:`\mu` are considered to be connected for sparsity screening.
+            Smaller value means less screening.
         AO_coeff_epsilon:
             The cutoff value of the absolute overlap
             :math:`\int |\varphi_{\mu}| |\varphi_{\nu}|`
             when two AO coefficient :math:`\mu, \nu`
             are considered to be connected for sparsity screening.
             Here the absolute overlap matrix is used.
+            Smaller value means less screening.
         """
         init_timer = Timer("Time to initialize BE object")
         if restart:
