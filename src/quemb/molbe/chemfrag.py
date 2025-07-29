@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Any, Final, Generic, TypeAlias, TypeVar, cast
 
 import numpy as np
-from attr import cmp_using, define, field
+from attrs import cmp_using, define, field
 from chemcoord import Cartesian
 from networkx.algorithms.shortest_paths.generic import shortest_path_length
 from networkx.classes.graph import Graph
