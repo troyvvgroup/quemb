@@ -130,9 +130,9 @@ class FunctionTimer:
 
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            start = time.perf_counter
+            start = time.perfcounter
             result = func(*args, **kwargs)
-            duration = time.perf_counter - start
+            duration = time.perfcounter - start
             key = f"{func.__module__}.{func.__qualname__}"
             self.stats[key]["time"] += duration
             self.stats[key]["calls"] += 1
@@ -159,13 +159,13 @@ class Timer:
     """Simple class to time code execution"""
 
     message: str = "Elapsed time"
-    start: float = field(init=False, factory=lambda: time.perf_counter)
+    start: float = field(init=False, factory=lambda: time.perfcounter)
 
     def __attrs_post_init__(self) -> None:
         logger.info(f"Timer with message '{self.message}' started.")
 
     def elapsed(self) -> float:
-        return time.perf_counter - self.start
+        return time.perfcounter - self.start
 
     def str_elapsed(self, message: str | None = None) -> str:
         return f"{self.message if message is None else message}: {self.elapsed():.5f}"
