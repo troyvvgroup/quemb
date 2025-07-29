@@ -277,7 +277,7 @@
 </li>
 <li class="toctree-l3 current has-children current-page"><a class="current reference internal" href="#">quemb.molbe.eri_sparse_DF</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-15" name="toctree-checkbox-15" role="switch" type="checkbox"/><label for="toctree-checkbox-15"><div class="visually-hidden">Toggle navigation of quemb.molbe.eri_sparse_DF</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l4"><a class="reference internal" href="quemb.molbe.eri_sparse_DF.account_for_symmetry.html">quemb.molbe.eri_sparse_DF.account_for_symmetry</a></li>
-<li class="toctree-l4"><a class="reference internal" href="quemb.molbe.eri_sparse_DF.calculate_abs_overlap.html">quemb.molbe.eri_sparse_DF.calculate_abs_overlap</a></li>
+<li class="toctree-l4"><a class="reference internal" href="quemb.molbe.eri_sparse_DF.approx_S_abs.html">quemb.molbe.eri_sparse_DF.approx_S_abs</a></li>
 <li class="toctree-l4"><a class="reference internal" href="quemb.molbe.eri_sparse_DF.contract_with_TA_1st.html">quemb.molbe.eri_sparse_DF.contract_with_TA_1st</a></li>
 <li class="toctree-l4"><a class="reference internal" href="quemb.molbe.eri_sparse_DF.contract_with_TA_2nd_to_dense.html">quemb.molbe.eri_sparse_DF.contract_with_TA_2nd_to_dense</a></li>
 <li class="toctree-l4"><a class="reference internal" href="quemb.molbe.eri_sparse_DF.contract_with_TA_2nd_to_sym_dense.html">quemb.molbe.eri_sparse_DF.contract_with_TA_2nd_to_sym_dense</a></li>
@@ -806,8 +806,8 @@
 <tr class="row-odd"><td><p><a class="reference internal" href="quemb.molbe.eri_sparse_DF.account_for_symmetry.html#quemb.molbe.eri_sparse_DF.account_for_symmetry" title="quemb.molbe.eri_sparse_DF.account_for_symmetry"><code class="xref py py-obj docutils literal notranslate"><span class="pre">account_for_symmetry</span></code></a>(reachable)</p></td>
 <td><p>Account for permutational symmetry and remove all q that are larger than p.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="quemb.molbe.eri_sparse_DF.calculate_abs_overlap.html#quemb.molbe.eri_sparse_DF.calculate_abs_overlap" title="quemb.molbe.eri_sparse_DF.calculate_abs_overlap"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_abs_overlap</span></code></a>(mol[, grid_level])</p></td>
-<td><p>Calculates the overlap matrix <span class="math notranslate nohighlight">\(S_ij = \int |phi_i(r)| |phi_j(r)| dr\)</span> using numerical integration on a DFT grid.</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="quemb.molbe.eri_sparse_DF.approx_S_abs.html#quemb.molbe.eri_sparse_DF.approx_S_abs" title="quemb.molbe.eri_sparse_DF.approx_S_abs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">approx_S_abs</span></code></a>(mol[, nroots])</p></td>
+<td><p>Compute the approximated absolute overlap matrix.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="quemb.molbe.eri_sparse_DF.contract_with_TA_1st.html#quemb.molbe.eri_sparse_DF.contract_with_TA_1st" title="quemb.molbe.eri_sparse_DF.contract_with_TA_1st"><code class="xref py py-obj docutils literal notranslate"><span class="pre">contract_with_TA_1st</span></code></a>(TA, int_mu_nu_P, ...)</p></td>
 <td><p></p></td>
@@ -955,6 +955,5 @@
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
-    <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     </body>
 </html>

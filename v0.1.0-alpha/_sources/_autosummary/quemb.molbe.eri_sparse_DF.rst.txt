@@ -15,7 +15,7 @@ quemb.molbe.eri\_sparse\_DF
       :toctree:
    
       account_for_symmetry
-      calculate_abs_overlap
+      approx_S_abs
       contract_with_TA_1st
       contract_with_TA_2nd_to_dense
       contract_with_TA_2nd_to_sym_dense

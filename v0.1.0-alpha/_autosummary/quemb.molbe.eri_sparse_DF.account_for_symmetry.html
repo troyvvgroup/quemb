@@ -3,7 +3,7 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="quemb.molbe.eri_sparse_DF.calculate_abs_overlap" href="quemb.molbe.eri_sparse_DF.calculate_abs_overlap.html" /><link rel="prev" title="quemb.molbe.eri_sparse_DF" href="quemb.molbe.eri_sparse_DF.html" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="quemb.molbe.eri_sparse_DF.approx_S_abs" href="quemb.molbe.eri_sparse_DF.approx_S_abs.html" /><link rel="prev" title="quemb.molbe.eri_sparse_DF" href="quemb.molbe.eri_sparse_DF.html" />
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2025.07.19 -->
         <title>quemb.molbe.eri_sparse_DF.account_for_symmetry - QuEmb documentation</title>
@@ -277,7 +277,7 @@
 </li>
 <li class="toctree-l3 current has-children"><a class="reference internal" href="quemb.molbe.eri_sparse_DF.html">quemb.molbe.eri_sparse_DF</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-15" name="toctree-checkbox-15" role="switch" type="checkbox"/><label for="toctree-checkbox-15"><div class="visually-hidden">Toggle navigation of quemb.molbe.eri_sparse_DF</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
 <li class="toctree-l4 current current-page"><a class="current reference internal" href="#">quemb.molbe.eri_sparse_DF.account_for_symmetry</a></li>
-<li class="toctree-l4"><a class="reference internal" href="quemb.molbe.eri_sparse_DF.calculate_abs_overlap.html">quemb.molbe.eri_sparse_DF.calculate_abs_overlap</a></li>
+<li class="toctree-l4"><a class="reference internal" href="quemb.molbe.eri_sparse_DF.approx_S_abs.html">quemb.molbe.eri_sparse_DF.approx_S_abs</a></li>
 <li class="toctree-l4"><a class="reference internal" href="quemb.molbe.eri_sparse_DF.contract_with_TA_1st.html">quemb.molbe.eri_sparse_DF.contract_with_TA_1st</a></li>
 <li class="toctree-l4"><a class="reference internal" href="quemb.molbe.eri_sparse_DF.contract_with_TA_2nd_to_dense.html">quemb.molbe.eri_sparse_DF.contract_with_TA_2nd_to_dense</a></li>
 <li class="toctree-l4"><a class="reference internal" href="quemb.molbe.eri_sparse_DF.contract_with_TA_2nd_to_sym_dense.html">quemb.molbe.eri_sparse_DF.contract_with_TA_2nd_to_sym_dense</a></li>
@@ -804,19 +804,18 @@
 <span class="sig-prename descclassname"><span class="pre">quemb.molbe.eri_sparse_DF.</span></span><span class="sig-name descname"><span class="pre">account_for_symmetry</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">reachable</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#quemb.molbe.eri_sparse_DF.account_for_symmetry" title="Link to this definition">¶</a></dt>
 <dd><p>Account for permutational symmetry and remove all q that are larger than p.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.TypeVar" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">TypeVar</span></code></a>(<code class="docutils literal notranslate"><span class="pre">_T_start</span></code>, bound= <a class="reference external" href="https://numpy.org/doc/stable/reference/arrays.scalars.html#numpy.integer" title="(in NumPy v2.3)"><code class="xref py py-class docutils literal notranslate"><span class="pre">integer</span></code></a>), <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.TypeVar" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">TypeVar</span></code></a>(<code class="docutils literal notranslate"><span class="pre">_T_target</span></code>, bound= <a class="reference external" href="https://numpy.org/doc/stable/reference/arrays.scalars.html#numpy.integer" title="(in NumPy v2.3)"><code class="xref py py-class docutils literal notranslate"><span class="pre">integer</span></code></a>)]]</span></p>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>reachable</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Mapping" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.TypeVar" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">TypeVar</span></code></a>(<code class="docutils literal notranslate"><span class="pre">_T_start</span></code>, bound= <a class="reference external" href="https://numpy.org/doc/stable/reference/arrays.scalars.html#numpy.integer" title="(in NumPy v2.3)"><code class="xref py py-class docutils literal notranslate"><span class="pre">integer</span></code></a>), <a class="reference external" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Collection" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Collection</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.TypeVar" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">TypeVar</span></code></a>(<code class="docutils literal notranslate"><span class="pre">_T_target</span></code>, bound= <a class="reference external" href="https://numpy.org/doc/stable/reference/arrays.scalars.html#numpy.integer" title="(in NumPy v2.3)"><code class="xref py py-class docutils literal notranslate"><span class="pre">integer</span></code></a>)]]</span>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.TypeVar" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">TypeVar</span></code></a>(<code class="docutils literal notranslate"><span class="pre">_T_start</span></code>, bound= <a class="reference external" href="https://numpy.org/doc/stable/reference/arrays.scalars.html#numpy.integer" title="(in NumPy v2.3)"><code class="xref py py-class docutils literal notranslate"><span class="pre">integer</span></code></a>), <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.TypeVar" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">TypeVar</span></code></a>(<code class="docutils literal notranslate"><span class="pre">_T_target</span></code>, bound= <a class="reference external" href="https://numpy.org/doc/stable/reference/arrays.scalars.html#numpy.integer" title="(in NumPy v2.3)"><code class="xref py py-class docutils literal notranslate"><span class="pre">integer</span></code></a>)]]</span></p>
 </dd>
 </dl>
-<section id="paramaters">
-<h2>Paramaters<a class="headerlink" href="#paramaters" title="Link to this heading">¶</a></h2>
-<p>reachable :</p>
 <p class="rubric">Example</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">account_for_symmetry</span><span class="p">({</span><span class="mi">0</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> <span class="mi">1</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> <span class="mi">2</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]})</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="p">{</span><span class="mi">0</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">1</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="mi">2</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]}</span>
 </pre></div>
 </div>
-</section>
 </dd></dl>
 
 </section>
@@ -826,12 +825,12 @@
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="quemb.molbe.eri_sparse_DF.calculate_abs_overlap.html">
+          <a class="next-page" href="quemb.molbe.eri_sparse_DF.approx_S_abs.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">quemb.molbe.eri_sparse_DF.calculate_abs_overlap</div>
+                <div class="title">quemb.molbe.eri_sparse_DF.approx_S_abs</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
