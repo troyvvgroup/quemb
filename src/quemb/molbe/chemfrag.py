@@ -376,6 +376,24 @@ class BondConnectivity:
         treat_H_different :
             If True, we treat hydrogen atoms differently from heavy atoms.
         """
+        bonds_atoms = cls._get_periodic_bonds_atoms(cell)
+
+        return cls.from_cartesian(
+            Cartesian.from_pyscf(cell.to_mol()),
+            bonds_atoms=bonds_atoms,  # always set (from input or molecular code)
+            vdW_radius=None,
+            treat_H_different=treat_H_different,
+        )
+
+    @classmethod
+    def _get_periodic_bonds_atoms(
+        cls,
+        cell: Cell,
+        bonds_atoms: Mapping[int, set[int]] | None = None,
+        vdW_radius: InVdWRadius | None = None,
+        modify_atom_data: Mapping[int, float] | None = None,
+        treat_H_different: bool = True,
+    ) -> defaultdict[set]:
         # Add periodic copies to a fake mol object
         # Eight copies of the original cell to account for periodicity
         lattice_vectors = (
@@ -442,12 +460,7 @@ class BondConnectivity:
         for idx, connected in supercell_connectivity.bonds_atoms.items():
             bonds_atoms[idx % cell.natm] |= {j % cell.natm for j in connected}
 
-        return cls.from_cartesian(
-            Cartesian.from_pyscf(cell.to_mol()),
-            bonds_atoms=bonds_atoms,  # always set (from input or molecular code)
-            vdW_radius=None,
-            treat_H_different=treat_H_different,
-        )
+        return bonds_atoms
 
     def get_BE_fragment(self, i_center: MotifIdx, n_BE: int) -> OrderedSet[MotifIdx]:
         """Return the BE fragment around atom :code:`i_center`.
