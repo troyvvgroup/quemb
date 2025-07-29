@@ -395,7 +395,7 @@ class BondConnectivity:
         vdW_radius: InVdWRadius | None = None,
         modify_atom_data: Mapping[int, float] | None = None,
         treat_H_different: bool = True,
-    ) -> defaultdict[set]:
+    ) -> Mapping[int, set[int]]:
         # Add periodic copies to a fake mol object
         # Eight copies of the original cell to account for periodicity
         lattice_vectors = (
