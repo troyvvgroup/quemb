@@ -145,10 +145,11 @@ class FunctionTimer:
         sorted_stats = sorted(
             self.stats.items(), key=lambda item: item[1]["time"], reverse=True
         )
-        print(f"{'Function':60} {'Calls':>10} {'Total Time (s)':>15}")
-        print("-" * 90)
+
+        logger.debug(f"{'Function':60} {'Calls':>10} {'Total Time (s)':>15}")
+        logger.debug("-" * 90)
         for name, data in sorted_stats[:n]:
-            print(f"{name:60} {data['calls']:10d} {data['time']:15.6f}")
+            logger.debug(f"{name:60} {data['calls']:10d} {data['time']:15.6f}")
 
 
 timer = FunctionTimer()
