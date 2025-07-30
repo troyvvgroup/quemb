@@ -32,6 +32,6 @@ Alternatively one can manually clone and install as in
 
 .. code-block:: bash
 
-  git clone https://https://github.com/troyvvgroup/quemb
+  git clone --recurse-submodules https://https://github.com/troyvvgroup/quemb
   cd quemb
   pip install .
