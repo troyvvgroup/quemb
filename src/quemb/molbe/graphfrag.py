@@ -49,7 +49,7 @@ class GraphGenArgs:
 
 @define(frozen=False, kw_only=True)
 class GraphGenUtility:
-    """Utilitity functions for handling graphs in `graphgen()`."""
+    """Utility functions for handling graphs in `graphgen()`."""
 
     @staticmethod
     def euclidean_distance(

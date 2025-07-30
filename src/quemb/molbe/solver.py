@@ -776,7 +776,7 @@ def solve_mp2(mf, frozen=None, mo_coeff=None, mo_occ=None, mo_energy=None):
 
     Returns
     -------
-    pyscf.mp.mp2.MP2
+    pyscf.mp.MP2
         The MP2 object after running the calculation.
     """
     # Set default values for optional parameters
