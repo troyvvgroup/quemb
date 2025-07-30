@@ -185,7 +185,7 @@ class GraphGenUtility:
 
         Returns
         -------
-        plt
+        plt : object
             Saves a `.png` file and returns the corresponding `pyplot` object.
 
         Notes
@@ -295,7 +295,7 @@ class GraphGenUtility:
 
         Returns
         -------
-        subgraph_dict
+        subgraph_dict : dict
             a dictionary mapping fragment indices to `networkx.graph` objects. If `fdx`
             is given, the dictionary will contain only one entry for that fragment.
 
