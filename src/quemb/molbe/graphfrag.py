@@ -157,8 +157,6 @@ class GraphGenUtility:
 
         Parameters
         ----------
-        outdir
-            Directory where the output image will be saved.
         edge_list
             A list of edge groupings, each corresponding to a fragment's set
             of directed edges.
