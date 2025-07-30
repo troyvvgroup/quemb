@@ -52,22 +52,23 @@ class GraphGenUtility:
     """Utility functions for handling graphs in `graphgen()`."""
 
     @staticmethod
-    def euclidean_distance(
+    def _euclidean_distance(
         i_coord: Vector,
         j_coord: Vector,
     ) -> np.floating:
         return norm(i_coord - j_coord)
 
     @staticmethod
-    def graph_to_string(
+    def _graph_to_string(
         graph: nx.Graph,
-        options: dict = {"with_labels": True},
+        options: dict | None = None,
     ) -> Generator:
+        options = {"with_labels": True} if (options is None) else options
         for element in nx.generate_network_text(graph, **options):
             yield element
 
     @staticmethod
-    def remove_nonnunique_frags(
+    def _remove_nonnunique_frags(
         natm: int,
         AO_per_frag: list[Sequence[int]],
         center: list[Sequence[int]],
@@ -88,7 +89,7 @@ class GraphGenUtility:
         change the definition of fragments, we repeat it up to `natm` times
         such that all fragments are guaranteed to be distinct sets.
         NOTE: The arguments passed to this function are edited
-        in-place, meaning `remove_nonnunique_frags` is irreversible.
+        in-place, meaning `_remove_nonnunique_frags()` is irreversible.
         """
         for _ in range(0, natm):
             subsets = set()
@@ -145,8 +146,56 @@ class GraphGenUtility:
         outname: str = "AdjGraph",
         cmap: str = "cubehelix",
         node_position: str = "coordinates",
-    ) -> None:
-        outdir = Path(outdir)
+    ) -> object:
+        """
+        Export a visual representation of a fragment-based adjacency graph to a PNG.
+
+        This function draws a directed network graph using a provided adjacency
+        structure, with fragments color-coded and displayed using either
+        coordinate-based or spring-layout node positioning, and saves the
+        resulting image to the specified output directory.
+
+        Parameters
+        ----------
+        outdir : Path
+            Directory where the output image will be saved.
+        edge_list : list of Sequence
+            A list of edge groupings, each corresponding to a fragment's set
+            of directed edges.
+        adx_map : dict
+            Mapping from node indices to node metadata
+            (must include 'coord' and 'label' keys).
+        adjacency_graph : nx.Graph
+            The NetworkX graph containing node and edge connectivity.
+        origin_per_frag : list of Sequence[int]
+            A list of node index groups, each corresponding to the origin nodes
+            of a fragment.
+        dnames : list of str
+            Names for each fragment, used in the legend.
+        outname : str, optional
+            Filename (without extension) for the output image.
+            Default is "AdjGraph".
+        cmap : str, optional
+            Matplotlib colormap name used to color-code fragments.
+            Default is "cubehelix".
+        node_position : str, optional
+            Node positioning strategy: "coordinates" for z-shifted spatial
+            coordinates, or "spring" for force-directed layout.
+            Default is "coordinates".
+
+        Returns
+        -------
+        plt
+            Saves a `.png` file and returns the corresponding `pyplot` object.
+
+        Notes
+        -----
+        - Assumes that `adx_map` contains a `"coord"` field for all nodes: `[x, y, z]`
+          coordinates when using `"coordinates"` positioning.
+        - Colors are assigned per fragment based on the chosen colormap.
+        - Nodes are drawn in two layers to produce a bordered effect.
+        - Arcs between nodes are radially offset to distinguish overlapping edges.
+        """
         z_offset = 0.5
         c_ = plt.cm.get_cmap(cmap)
         c = [c_(fdx / len(edge_list))[0:3] for fdx in range(0, len(edge_list))]
@@ -207,6 +256,8 @@ class GraphGenUtility:
         plt.axis("off")
         plt.savefig(outdir / f"{outname}.png", dpi=1500)
 
+        return plt
+
     @staticmethod
     def get_subgraphs(
         motifs_per_frag: list[Sequence[int]],
@@ -217,9 +268,42 @@ class GraphGenUtility:
         options: dict = {},
     ) -> dict:
         """
-        Return the subgraph for a fragment indexed by `fdx`.
-        If `fdx=None`, returns subgraphs for all fragments as a dictionary keyed
-        by each fragment index (`fdx`).
+        Construct labeled subgraphs for fragments using motif, edge, and label data.
+
+        If a fragment index (`fdx`) is provided, returns a dictionary containing the
+        subgraph for that single fragment. Otherwise, returns a dictionary of subgraphs
+        for all fragments, keyed by their respective fragment indices (`fdx`).
+
+        Parameters
+        ----------
+        motifs_per_frag : list of Sequence[int]
+            A list where each item is a sequence of node indices (motifs) per fragment.
+        edge_list : list of Sequence
+            A list of edge groupings, each corresponding to a fragment's set of edges.
+        origin_per_frag : list of Sequence[int]
+            A list where each item is a sequence of node indices marking origin nodes
+            within each fragment.
+        adx_map : dict
+            A mapping from node index to metadata, where each value must contain a
+            `"label"` field for node annotation.
+        fdx : int or None, optional
+            Index of a specific fragment to extract. If None (default), subgraphs for
+            all fragments are returned.
+        options : dict, optional
+            Optional keyword arguments passed to the `nx.Graph` constructor for each
+            subgraph.
+
+        Returns
+        -------
+        dict
+            A dictionary mapping fragment indices to `networkx.Graph` objects. If `fdx`
+            is given, the dictionary will contain only one entry for that fragment.
+
+        Notes
+        -----
+        - Origin nodes are highlighted by enclosing their labels in square brackets.
+        - Returned graphs include labeled nodes and edges per fragment.
+        - The structure and labels are derived from `adx_map` and `origin_per_frag`.
         """
         labels = {adx: (map["label"] + str(adx)) for adx, map in adx_map.items()}
 
@@ -260,7 +344,7 @@ def graphgen(
     frozen_core: bool = True,
     remove_nonunique_frags: bool = True,
     frag_prefix: str = "f",
-    connectivity: str = "euclidean",
+    connectivity: Literal["euclidean"] = "euclidean",
     iao_valence_basis: str | None = None,
     cutoff: float = 0.0,
     export_graph_to: Path | None = None,
@@ -322,7 +406,7 @@ def graphgen(
     if iao_valence_basis is not None:
         raise NotImplementedError("IAOs not yet implemented for graphgen.")
     if isinstance(n_BE, str):
-        fragment_type_order = int(re.findall(r"\d+", str(n_BE))[0])
+        fragment_type_order = int(re.findall(r"\d+", n_BE)[0])
     else:
         fragment_type_order = n_BE
     if cutoff == 0.0 and fragment_type_order <= 3:
@@ -397,20 +481,17 @@ def graphgen(
             ncore_ = int(core_list[adx])
             stop_ -= _core_offset + ncore_
             _core_offset += ncore_
-            sites.append(tuple([i for i in range(start_, stop_)]))
-        else:
-            # When frozen_core=False, each 'site' is all AO indices
-            # per atom.
-            sites.append(tuple([i for i in range(start_, stop_)]))
 
-    if connectivity.lower() in ["euclidean_distance", "euclidean"]:
+        sites.append(tuple([i for i in range(start_, stop_)]))
+
+    if connectivity.lower() in ["euclidean"]:
         # Begin by constructing the adjacency matrix and adjacency graph
         # for the system. Each node corresponds to an atom, such that each
         # pair of nodes can be assigned an edge weighted by the square of
         # their euclidean distance.
         for adx in range(natm):
             for bdx in range(adx + 1, natm):
-                dr = GraphGenUtility.euclidean_distance(
+                dr = GraphGenUtility._euclidean_distance(
                     adx_map[adx]["coord"],
                     adx_map[bdx]["coord"],
                 )
@@ -485,7 +566,7 @@ def graphgen(
         # Many of these fragments are redundant or non-unique, so it
         # is convention to "absorb" them into nearby larger fragments.
         # The redundant fragment are then deleted.
-        GraphGenUtility.remove_nonnunique_frags(
+        GraphGenUtility._remove_nonnunique_frags(
             natm=natm,
             AO_per_frag=AO_per_frag,
             center=center,
@@ -584,7 +665,7 @@ def graphgen(
             print(
                 f"Frag `{dnames[fdx]}`:",
             )
-            for st in GraphGenUtility.graph_to_string(sg):
+            for st in GraphGenUtility._graph_to_string(sg):
                 print(st, flush=True)
 
     return FragPart(
