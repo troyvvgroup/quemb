@@ -797,7 +797,6 @@ def solve_mp2(
 
     # Initialize the MP2 object
     pt__ = mp.MP2(mf, frozen=frozen, mo_coeff=mo_coeff, mo_occ=mo_occ)
-    mf = None
     pt__.verbose = 0
 
     # Run the MP2 calculation
