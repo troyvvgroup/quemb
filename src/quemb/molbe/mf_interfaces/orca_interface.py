@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from typing import cast
 
 import numpy as np
-from pyscf.scf import RHF
+from pyscf.scf.hf import RHF
 
 from quemb.molbe.mf_interfaces.pyscf_orbs import Orbital
 from quemb.shared.helper import argsort, normalize_column_signs
@@ -16,7 +16,7 @@ def _get_orca_mo_coeff(
         [x["MOCoefficients"] for x in json_data["Molecule"]["MolecularOrbitals"]["MOs"]]
     ).T
     # The +-3 and +-4 m_l values of the f, g, and h orbitals
-    # use an opposite sign convention
+    # use an opposite sign convention as compared to pyscf
     switch_sign = [
         i
         for i, o in enumerate(orbitals)
@@ -54,4 +54,7 @@ def _get_mf_from_orca(mol, json_data) -> RHF:
     mf.mo_coeff = _get_orca_mo_coeff(json_data, orbitals, idx)
     mf.mo_energy = _get_orca_mo_energy(json_data, idx)
     mf.mo_occ = _get_orca_mo_occ(json_data, idx)
+    # TODO replace wit the parsed energy
+    mf.e_tot = mf.energy_tot()
+    mf.converged = True
     return mf

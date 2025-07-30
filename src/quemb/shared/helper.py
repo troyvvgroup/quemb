@@ -394,7 +394,7 @@ def argsort(seq: Sequence[T], key=lambda x: x) -> list[int]:
 
 
 def normalize_column_signs(
-    arr: Matrix[np.floating], epsilon: float = 1e-7
+    arr: Matrix[np.floating], epsilon: float = 1e-5
 ) -> Matrix[np.float64]:
     """
     Divide each column by the sign of its first non-zero entry (if any).
