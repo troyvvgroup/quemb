@@ -3,6 +3,7 @@ import json
 from pyscf.gto import M
 
 from quemb.molbe.mf_interfaces.pyscf_orbs import Orbital
+from quemb.shared.helper import argsort
 
 with open("data/h2o_cc-pvqz_orca.json") as f:
     json_data = json.load(f)
@@ -133,6 +134,130 @@ def test_orca_parsing() -> None:
 
     assert computed == expected
 
+    computed_idx = argsort(
+        json_data["Molecule"]["MolecularOrbitals"]["OrbitalLabels"],
+        key=Orbital.from_orca_label,
+    )
+
+    expected_idx = [
+        0,
+        1,
+        2,
+        3,
+        4,
+        6,
+        7,
+        5,
+        9,
+        10,
+        8,
+        12,
+        13,
+        11,
+        15,
+        16,
+        14,
+        21,
+        19,
+        17,
+        18,
+        20,
+        26,
+        24,
+        22,
+        23,
+        25,
+        31,
+        29,
+        27,
+        28,
+        30,
+        38,
+        36,
+        34,
+        32,
+        33,
+        35,
+        37,
+        45,
+        43,
+        41,
+        39,
+        40,
+        42,
+        44,
+        54,
+        52,
+        50,
+        48,
+        46,
+        47,
+        49,
+        51,
+        53,
+        55,
+        56,
+        57,
+        58,
+        60,
+        61,
+        59,
+        63,
+        64,
+        62,
+        66,
+        67,
+        65,
+        72,
+        70,
+        68,
+        69,
+        71,
+        77,
+        75,
+        73,
+        74,
+        76,
+        84,
+        82,
+        80,
+        78,
+        79,
+        81,
+        83,
+        85,
+        86,
+        87,
+        88,
+        90,
+        91,
+        89,
+        93,
+        94,
+        92,
+        96,
+        97,
+        95,
+        102,
+        100,
+        98,
+        99,
+        101,
+        107,
+        105,
+        103,
+        104,
+        106,
+        114,
+        112,
+        110,
+        108,
+        109,
+        111,
+        113,
+    ]
+    assert computed_idx == expected_idx
+
 
 def test_pyscf_parsing() -> None:
     mol = M(
@@ -261,3 +386,9 @@ def test_pyscf_parsing() -> None:
     computed = [Orbital.from_pyscf_label(label) for label in mol.ao_labels()]
 
     assert computed == expected
+
+    computed_idx = argsort(
+        mol.ao_labels(), key=lambda label: Orbital.from_pyscf_label(label)
+    )
+
+    assert computed_idx == list(range(mol.nao))

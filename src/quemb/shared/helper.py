@@ -386,3 +386,7 @@ def clean_overlap(M: Matrix[np.float64], epsilon: float = 1e-12) -> Matrix[np.in
     assert (np.abs(1 - M[~very_small]) < epsilon).all()
     M[~very_small] = 1
     return M.astype(np.int64)
+
+
+def argsort(seq: Sequence[T], key=lambda x: x) -> list[int]:
+    return sorted(range(len(seq)), key=lambda i: key(seq[i]))
