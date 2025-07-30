@@ -136,6 +136,12 @@ class FunctionTimer:
             key = f"{func.__module__}.{func.__qualname__}"
             self.stats[key]["time"] += duration
             self.stats[key]["calls"] += 1
+            logger.info(
+                "Called %s: duration=%.4fs, calls=%d",
+                key,
+                duration,
+                self.stats[key]["calls"],
+            )
             return result
 
         return wrapper
