@@ -137,16 +137,16 @@ class GraphGenUtility:
 
     @staticmethod
     def export_graph(
-        outdir: Path,
         edge_list: list[Sequence],
         adx_map: dict,
         adjacency_graph: nx.Graph,
         origin_per_frag: list[Sequence[int]],
         dnames: list[str],
+        outdir: Path | None = None,
         outname: str = "AdjGraph",
         cmap: str = "cubehelix",
         node_position: str = "coordinates",
-    ) -> object:
+    ) -> tuple[object, object]:
         """
         Export a visual representation of a fragment-based adjacency graph to a PNG.
 
@@ -172,6 +172,9 @@ class GraphGenUtility:
             of a fragment.
         dnames
             Names for each fragment, used in the legend.
+        outdir
+            If specified as `Path`: export .png to `outdir`.
+            If `None`: no .png is exported, but (fix, ax) are still returned.
         outname
             Filename (without extension) for the output image.
             Default is "AdjGraph".
@@ -185,8 +188,8 @@ class GraphGenUtility:
 
         Returns
         -------
-        plt : object
-            Saves a `.png` file and returns the corresponding `pyplot` object.
+        (fix, ax) : tuple[object, object]
+            Returns the corresponding `pyplot` objects.
 
         Notes
         -----
@@ -215,7 +218,7 @@ class GraphGenUtility:
         elif node_position in ["spring"]:
             pos = nx.spring_layout(G, seed=3068)  # type: ignore[assignment]
 
-        __, _ = plt.subplots()
+        fig, ax = plt.subplots()
         arc_rads = np.arange(-0.3, 0.3, 0.6 / len(c), dtype=float)
 
         for fdx, color in enumerate(c):
@@ -254,9 +257,11 @@ class GraphGenUtility:
         plt.tight_layout()
         plt.legend(patches, dnames, loc="upper left", fontsize=8)
         plt.axis("off")
-        plt.savefig(outdir / f"{outname}.png", dpi=1500)
 
-        return plt
+        if outdir is not None:
+            plt.savefig(outdir / f"{outname}.png", dpi=1500)
+
+        return (fig, ax)
 
     @staticmethod
     def get_subgraphs(
