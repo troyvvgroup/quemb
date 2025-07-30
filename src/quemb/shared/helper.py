@@ -391,3 +391,36 @@ def clean_overlap(M: Matrix[np.float64], epsilon: float = 1e-12) -> Matrix[np.in
 def argsort(seq: Sequence[T], key=lambda x: x) -> list[int]:
     """Returns the index that sorts a sequence."""
     return sorted(range(len(seq)), key=lambda i: key(seq[i]))
+
+
+def normalize_column_signs(
+    arr: Matrix[np.floating], epsilon: float = 1e-7
+) -> Matrix[np.float64]:
+    """
+    Divide each column by the sign of its first non-zero entry (if any).
+
+    Can be used to compare two MO matrices for (near-)equality, because it fixes
+    the sign factor for both.
+
+    Parameters
+    ----------
+    arr :
+        A 2D numpy array.
+
+    Returns
+    -------
+        New array with columns divided by the sign of their first non-zero element.
+    """
+    # Get a mask of non-zero entries
+    nonzero_mask = abs(arr) > epsilon
+
+    # Get row indices for first non-zero in each column
+    first_nonzero_idx = np.where(nonzero_mask.any(0), nonzero_mask.argmax(0), -1)
+
+    # Extract the first non-zero value per column, defaulting to 1.0 if none exist
+    signs = np.ones(arr.shape[1])
+    valid = first_nonzero_idx != -1
+    signs[valid] = np.sign(
+        arr[first_nonzero_idx[valid], np.arange(arr.shape[1])[valid]]
+    )
+    return arr / signs
