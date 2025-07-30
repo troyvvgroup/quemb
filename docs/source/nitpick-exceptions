@@ -13,3 +13,4 @@ py:class numba.typed.typedlist.List
 py:class numba.core.types.old_scalars.Float
 py:class numba.core.types.old_scalars.Integer
 py:class Function
+py:class pyscf.mp.mp2.MP2
