@@ -42,6 +42,13 @@ PYSCF_ML: Mapping[L_VALS, list[M_L_VALS]] = {
 @total_ordering
 @define(frozen=True, hash=True)
 class Orbital:  # noqa: PLW1641
+    """An Orbital class that can be used to represent AO labels
+    in a program-independent manner.
+
+    It implements comparison operators such that the order that follows from these
+    comparison operators adheres to the pyscf order of orbitals.
+    """
+
     idx_atom: Final[int]
     element_symbol: Final[str]
 
