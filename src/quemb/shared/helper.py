@@ -126,16 +126,18 @@ class FunctionTimer:
     stats: dict = field(factory=lambda: defaultdict(lambda: {"time": 0.0, "calls": 0}))
 
     def timeit(self, func):
-        """Decorator to time a function and record stats."""
+        """Decorator to time a function and record stats using Timer."""
 
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            start = time.perf_counter()
+            timer = Timer(message=f"Timing {func.__module__}.{func.__qualname__}")
             result = func(*args, **kwargs)
-            duration = time.perf_counter() - start
+            duration = timer.elapsed()
+
             key = f"{func.__module__}.{func.__qualname__}"
             self.stats[key]["time"] += duration
             self.stats[key]["calls"] += 1
+
             logger.info(
                 "Called %s: duration=%.4fs, calls=%d",
                 key,
