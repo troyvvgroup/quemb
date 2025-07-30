@@ -696,6 +696,7 @@ class BE(MixinLocalize):
         if return_rdm:
             return (rdm1f, RDM2_full)
 
+    @timer.timeit
     def optimize(
         self,
         solver: Solvers = "CCSD",
