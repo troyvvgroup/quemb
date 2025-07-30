@@ -197,6 +197,9 @@ class BondConnectivity:
               to change the radius of individual elements, e.g. :python:`{"C": 1.5}`.
 
             The keyword is mutually exclusive with :python:`bonds_atoms`.
+        modify_atom_data :
+            To change the van der Waals radius of one or more specific atoms, pass a
+            dictionary that looks like {index1: 1.5}.
         treat_H_different :
             If True, we treat hydrogen atoms differently from heavy atoms.
         """
@@ -322,6 +325,9 @@ class BondConnectivity:
               to change the radius of individual elements, e.g. :python:`{"C": 1.5}`.
 
             The keyword is mutually exclusive with :python:`bonds_atoms`.
+        modify_atom_data :
+            To change the van der Waals radius of one or more specific atoms, pass a
+            dictionary that looks like {index1: 1.5}.
         treat_H_different :
             If True, we treat hydrogen atoms differently from heavy atoms.
         """
@@ -373,6 +379,9 @@ class BondConnectivity:
               to change the radius of individual elements, e.g. :python:`{"C": 1.5}`.
 
             The keyword is mutually exclusive with :python:`bonds_atoms`.
+        modify_atom_data :
+            To change the van der Waals radius of one or more specific atoms, pass a
+            dictionary that looks like {index1: 1.5}.
         treat_H_different :
             If True, we treat hydrogen atoms differently from heavy atoms.
         """
@@ -764,6 +773,29 @@ class PurelyStructureFragmented(Generic[_T_chemsystem]):
             The coordination sphere to consider.
         treat_H_different :
             If True, we treat hydrogen atoms differently from heavy atoms.
+        bonds_atoms :
+            Can be used to specify the connectivity graph of the molecule.
+            Has exactly the same format as the output of
+            :meth:`chemcoord.Cartesian.get_bonds`,
+            which is called internally if this argument is not specified.
+            Allows it to manually change the connectivity by modifying the output of
+            :meth:`chemcoord.Cartesian.get_bonds`.
+            The keyword is mutually exclusive with :python:`vdW_radius`.
+        vdW_radius :
+            If :python:`bonds_atoms` is :class:`None`, then the connectivity graph is
+            determined by the van der Waals radius of the atoms.
+            It is possible to pass:
+
+            * a single number which is used as radius for all atoms,
+            * a callable which is applied to all radii
+              and can be used to e.g. scale via :python:`lambda r: r * 1.1`,
+            * a dictionary which maps the element symbol to the van der Waals radius,
+              to change the radius of individual elements, e.g. :python:`{"C": 1.5}`.
+
+            The keyword is mutually exclusive with :python:`bonds_atoms`.
+        modify_atom_data :
+            To change the van der Waals radius of one or more specific atoms, pass a
+            dictionary that looks like {index1: 1.5}.
         autocratic_matching :
             Assume autocratic matching for possibly shared centers.
             Will call :meth:`get_autocratically_matched` upon construction.
@@ -1269,7 +1301,7 @@ class Fragmented(Generic[_T_chemsystem]):
             The keyword is mutually exclusive with :python:`bonds_atoms`.
         modify_atom_data :
             To change the van der Waals radius of one or more specific atoms, pass a
-            dictionary that looks like modified_properties = {index1: 1.5}.
+            dictionary that looks like {index1: 1.5}.
         autocratic_matching :
             Assume autocratic matching for possibly shared centers.
             Will call :meth:`PurelyStructureFragmented.get_autocratically_matched`
