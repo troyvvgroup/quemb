@@ -389,4 +389,5 @@ def clean_overlap(M: Matrix[np.float64], epsilon: float = 1e-12) -> Matrix[np.in
 
 
 def argsort(seq: Sequence[T], key=lambda x: x) -> list[int]:
+    """Returns the index that sorts a sequence."""
     return sorted(range(len(seq)), key=lambda i: key(seq[i]))
