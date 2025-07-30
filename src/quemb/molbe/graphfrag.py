@@ -157,28 +157,28 @@ class GraphGenUtility:
 
         Parameters
         ----------
-        outdir : Path
+        outdir
             Directory where the output image will be saved.
-        edge_list : list of Sequence
+        edge_list
             A list of edge groupings, each corresponding to a fragment's set
             of directed edges.
-        adx_map : dict
+        adx_map
             Mapping from node indices to node metadata
             (must include 'coord' and 'label' keys).
-        adjacency_graph : nx.Graph
+        adjacency_graph
             The NetworkX graph containing node and edge connectivity.
-        origin_per_frag : list of Sequence[int]
+        origin_per_frag
             A list of node index groups, each corresponding to the origin nodes
             of a fragment.
-        dnames : list of str
+        dnames
             Names for each fragment, used in the legend.
-        outname : str, optional
+        outname
             Filename (without extension) for the output image.
             Default is "AdjGraph".
-        cmap : str, optional
+        cmap
             Matplotlib colormap name used to color-code fragments.
             Default is "cubehelix".
-        node_position : str, optional
+        node_position
             Node positioning strategy: "coordinates" for z-shifted spatial
             coordinates, or "spring" for force-directed layout.
             Default is "coordinates".
@@ -276,27 +276,27 @@ class GraphGenUtility:
 
         Parameters
         ----------
-        motifs_per_frag : list of Sequence[int]
+        motifs_per_frag
             A list where each item is a sequence of node indices (motifs) per fragment.
-        edge_list : list of Sequence
+        edge_list
             A list of edge groupings, each corresponding to a fragment's set of edges.
-        origin_per_frag : list of Sequence[int]
+        origin_per_frag
             A list where each item is a sequence of node indices marking origin nodes
             within each fragment.
-        adx_map : dict
+        adx_map
             A mapping from node index to metadata, where each value must contain a
             `"label"` field for node annotation.
-        fdx : int or None, optional
+        fdx
             Index of a specific fragment to extract. If None (default), subgraphs for
             all fragments are returned.
-        options : dict, optional
+        options
             Optional keyword arguments passed to the `nx.Graph` constructor for each
             subgraph.
 
         Returns
         -------
-        dict
-            A dictionary mapping fragment indices to `networkx.Graph` objects. If `fdx`
+        subgraph_dict
+            a dictionary mapping fragment indices to `networkx.graph` objects. If `fdx`
             is given, the dictionary will contain only one entry for that fragment.
 
         Notes
