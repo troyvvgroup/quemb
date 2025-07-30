@@ -199,7 +199,7 @@ class BondConnectivity:
             The keyword is mutually exclusive with :python:`bonds_atoms`.
         modify_atom_data :
             To change the van der Waals radius of one or more specific atoms, pass a
-            dictionary that looks like {index1: 1.5}.
+            dictionary that looks like :python:`{index1: 1.5}`.
         treat_H_different :
             If True, we treat hydrogen atoms differently from heavy atoms.
         """
@@ -272,9 +272,9 @@ class BondConnectivity:
             raise ValueError(
                 "Cannot treat hydrogens differently if not all hydrogens belong "
                 "to exactly one motif.\nH not contained in any motif: "
-                f"{list(H_atoms.difference(union_of_seqs(*(H_per_motif.values()))))}"
+                f"{H_atoms.difference(union_of_seqs(*(H_per_motif.values())))}"
                 "\nH shared between motifs: "
-                f"{list(identify_share_H())}"
+                f"{identify_share_H()}"
                 "\nBonds between atoms: \n"
                 f"{processed_bonds_atoms}"
             )
@@ -327,7 +327,7 @@ class BondConnectivity:
             The keyword is mutually exclusive with :python:`bonds_atoms`.
         modify_atom_data :
             To change the van der Waals radius of one or more specific atoms, pass a
-            dictionary that looks like {index1: 1.5}.
+            dictionary that looks like :python:`{index1: 1.5}`.
         treat_H_different :
             If True, we treat hydrogen atoms differently from heavy atoms.
         """
@@ -381,7 +381,7 @@ class BondConnectivity:
             The keyword is mutually exclusive with :python:`bonds_atoms`.
         modify_atom_data :
             To change the van der Waals radius of one or more specific atoms, pass a
-            dictionary that looks like {index1: 1.5}.
+            dictionary that looks like :python:`{index1: 1.5}`.
         treat_H_different :
             If True, we treat hydrogen atoms differently from heavy atoms.
         """
@@ -795,7 +795,7 @@ class PurelyStructureFragmented(Generic[_T_chemsystem]):
             The keyword is mutually exclusive with :python:`bonds_atoms`.
         modify_atom_data :
             To change the van der Waals radius of one or more specific atoms, pass a
-            dictionary that looks like {index1: 1.5}.
+            dictionary that looks like :python:`{index1: 1.5}`.
         autocratic_matching :
             Assume autocratic matching for possibly shared centers.
             Will call :meth:`get_autocratically_matched` upon construction.
@@ -1301,7 +1301,7 @@ class Fragmented(Generic[_T_chemsystem]):
             The keyword is mutually exclusive with :python:`bonds_atoms`.
         modify_atom_data :
             To change the van der Waals radius of one or more specific atoms, pass a
-            dictionary that looks like {index1: 1.5}.
+            dictionary that looks like :python:`{index1: 1.5}`.
         autocratic_matching :
             Assume autocratic matching for possibly shared centers.
             Will call :meth:`PurelyStructureFragmented.get_autocratically_matched`
