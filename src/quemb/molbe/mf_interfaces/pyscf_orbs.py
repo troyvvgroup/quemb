@@ -65,6 +65,7 @@ class Orbital:  # noqa: PLW1641
 
     @classmethod
     def from_pyscf_label(cls, label: str) -> Self:
+        """Parse a pyscf AO label like '0 O 3dx2-y2' into an Orbital."""
         # Clean label and split
         parts = label.strip().split()
         if len(parts) != 3:
@@ -95,9 +96,7 @@ class Orbital:  # noqa: PLW1641
 
     @classmethod
     def from_orca_label(cls, label: str) -> Self:
-        """
-        Parse an ORCA AO label like '0O   2pz' into an Orbital.
-        """
+        """Parse an ORCA AO label like '0O   1dx2y2' into an Orbital."""
 
         def infer_l(m_l_char: str) -> L_VALS:
             for l in L_Values:
