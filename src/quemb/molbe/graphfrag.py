@@ -164,7 +164,7 @@ class GraphGenUtility:
                 for map in adx_map.values()
             ]
         elif node_position in ["spring"]:
-            pos = nx.spring_layout(G, seed=3068)
+            pos = nx.spring_layout(dict(G), seed=3068)
 
         __, _ = plt.subplots()
         arc_rads = np.arange(-0.3, 0.3, 0.6 / len(c), dtype=float)
