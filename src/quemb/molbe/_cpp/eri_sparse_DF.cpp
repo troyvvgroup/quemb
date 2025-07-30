@@ -16,17 +16,21 @@
 #include <cuda_runtime_api.h>
 #endif
 
+#ifdef GCC
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Warray-bounds"
 #pragma GCC diagnostic ignored "-Wsign-conversion"
 #pragma GCC diagnostic ignored "-Wstringop-overread"
 #pragma GCC diagnostic ignored "-Wnull-dereference"
+#endif
 #include <pybind11/eigen.h>
 #include <pybind11/functional.h>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#ifdef GCC
 #pragma GCC diagnostic pop
+#endif
 
 #include "indexers.hpp"
 
@@ -336,7 +340,7 @@ SemiSparse3DTensor contract_with_TA_1st(const Matrix &TA, const SemiSparseSym3DT
         n_unique += offsets.size();
     }
 
-    if (PRINT_LEVEL > 10) {
+    if (LOG_LEVEL <= LogLevel::Info) {
         std::cout << "(P | mu i) [MEMORY] sparse "
                   << static_cast<double>(naux * n_unique * sizeof(double)) / std::pow(2, 30) << " GB" << "\n";
         std::cout << "(P | mu i) [MEMORY] dense "
@@ -398,13 +402,22 @@ Tensor3D copy_from_numpy(py::array_t<double, py::array::f_style> arr)
 Matrix contract_with_TA_2nd_to_sym_dense(const SemiSparse3DTensor &int_mu_i_P, const Matrix &TA) noexcept
 {
     PROFILE_FUNCTION();
+#ifndef CLANG
     const auto [naux, nao, nmo] = int_mu_i_P.get_shape();
-
+#else
+    // Clang does not yet support capturing structured bindings in OpenMP.
+    // Use the structured binding, if it works in the future.
+    // https://github.com/llvm/llvm-project/issues/33025
+    const auto shape = int_mu_i_P.get_shape();
+    const auto naux = std::get<0>(shape);
+    const auto nao = std::get<1>(shape);
+    UNUSED(nao); // Unused in release
+    const auto nmo = std::get<2>(shape);
+#endif
     assert(TA.rows() == nao && "TA.shape[0] must match int_mu_i_P.shape[1]");
     assert(TA.cols() == nmo && "TA.shape[1] must match int_mu_i_P.shape[2]");
 
     const auto n_sym_pairs = to_eigen(ravel_symmetric(nmo - 1, nmo - 1) + 1);
-
     Matrix sym_P_pq(naux, n_sym_pairs);
 
 #pragma omp parallel for
@@ -429,7 +442,7 @@ Matrix eval_via_cholesky(const Matrix &sym_P_pq, const Matrix &L_PQ) noexcept
     Timer cholesky_timer{"eval_via_cholesky"};
     // Step 1: Solve L * X = sym_P_pq  →  X = L⁻¹ sym_P_pq
     const Matrix X = L_PQ.triangularView<Eigen::Lower>().solve(sym_P_pq);
-    if (PRINT_LEVEL > 10) {
+    if (LOG_LEVEL <= LogLevel::Info) {
         cholesky_timer.print("triangular solve completed");
     };
     // Step 2: Return Xᵀ X
@@ -524,7 +537,8 @@ PYBIND11_MODULE(eri_sparse_DF, m)
               "This module provides functionality to transform ERIs using semi-sparse tensors\n"
               "and optionally CUDA for GPU acceleration.";
 
-    m.attr("PRINT_LEVEL") = py::cast(&PRINT_LEVEL, py::return_value_policy::reference);
+    m.def("get_log_level", &get_log_level);
+    m.def("set_log_level", &set_log_level, py::arg("log_level"));
 
 #ifdef USE_CUDA
     py::class_<GPU_MatrixHandle>(m, "GPU_MatrixHandle")
