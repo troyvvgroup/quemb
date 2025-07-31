@@ -23,26 +23,11 @@ from pyscf.pbc import gto as pgto
 from quemb.shared.external.lo_helper import (
     cano_orth,
     get_aoind_by_atom,
+    remove_core_mo,
     reorder_by_atom_,
     symm_orth,
 )
 from quemb.shared.helper import ncore_, unused
-
-
-def remove_core_mo_k(Clo, Ccore, S, thr=0.5):
-    assert allclose(Clo.conj().T @ S @ Clo, eye(Clo.shape[1]))
-    assert allclose(Ccore.conj().T @ S @ Ccore, eye(Ccore.shape[1]))
-
-    n, nlo = Clo.shape
-    ncore = Ccore.shape[1]
-    Pcore = Ccore @ Ccore.conj().T @ S
-    Clo1 = (eye(n) - Pcore) @ Clo
-    pop = diag(Clo1.conj().T @ S @ Clo1)
-    idx_keep = where(pop > thr)[0]
-    assert len(idx_keep) == nlo - ncore
-    Clo2 = symm_orth(Clo1[:, idx_keep], ovlp=S)
-
-    return Clo2
 
 
 def get_xovlp_k(cell, kpts, basis="sto-3g"):
@@ -77,6 +62,19 @@ def get_xovlp_k(cell, kpts, basis="sto-3g"):
 
 
 def get_iao_k(Co, S12, S1, S2=None, ortho=True):
+    """
+    Co: Matrix,
+    S12: Matrix,
+    S1: Matrix,
+    S2: Matrix | None = None,
+    ortho: bool = True,
+    mol: Mole,
+    iao_valence_basis: str,
+    iao_loc_method: str = "SO"
+
+    ):
+    """
+
     """
 
     Parameters
@@ -119,7 +117,7 @@ def get_iao_k(Co, S12, S1, S2=None, ortho=True):
         if ortho:
             Ciao[k] = symm_orth(Ciao[k], ovlp=S1[k])
 
-            rep_err = norm(multi_dot(Ciao[k], Ciao[k].conj().T, S1[k], Po) - Po)
+            rep_err = norm(multi_dot((Ciao[k], Ciao[k].conj().T, S1[k], Po)) - Po)
             if rep_err > 1.0e-10:
                 raise RuntimeError
 
@@ -228,9 +226,8 @@ class Mixin_k_Localize:
         self,
         lo_method,
         iao_valence_basis="sto-3g",
-        core_basis="sto-3g",
-        iao_wannier=True,
-        iao_val_core=True,
+        iao_core_basis="sto-3g",
+        iao_loc_method="SO",
     ):
         """Orbital localization
 
@@ -246,14 +243,14 @@ class Mixin_k_Localize:
             Localization method in quantum chemistry. 'lowdin', 'boys','iao',
             and 'wannier' are supported.
         iao_valence_basis : str
-            Name of valence basis set for IAO scheme. 'sto-3g' suffice for most cases.
-        core_basis : str
-            Name of core basis set for IAO scheme. 'sto-3g' suffice for most cases.
-        iao_wannier : bool
-            Whether to perform Wannier localization in the IAO space
+            Name of valence basis set for IAO scheme. 'sto-3g' suffices for most cases.
+        iao_core_basis : str
+            Currently, not exposed: to be investigated
+            Name of core basis set for IAO scheme. 'sto-3g' suffices for most cases.
+        iao_loc_method : str
+            Method of localization for the IAO (not PAO?) spaces. Defult is SO. Options
+            include: 'SO' and 'Wannier'
         """
-        if lo_method.upper() == "IAO" and iao_val_core:
-            raise NotImplementedError("iao_val_core and lo_method='iao' not supported.")
 
         if lo_method.upper() == "LOWDIN":
             # Lowdin orthogonalization with k-points
@@ -311,16 +308,16 @@ class Mixin_k_Localize:
             self.cinv = cinv_
 
         elif lo_method.upper() == "IAO":
-            if not iao_val_core or not self.frozen_core:
+            if not self.frozen_core:
                 Co = self.C[:, :, : self.Nocc].copy()
-                S12, S2 = get_xovlp_k(self.cell, self.kpts, basis=iao_valence_basis)
+                S12, S2 = get_xovlp_k(self.mf.cell, self.kpts, basis=iao_valence_basis)
                 ciao_ = get_iao_k(Co, S12, self.S, S2=S2)
 
                 # tmp - aos are not rearrange and so below is not necessary
                 nk, nao, nlo = ciao_.shape
                 Ciao_ = zeros((nk, nao, nlo), dtype=complex128)
                 for k in range(self.nkpt):
-                    aoind_by_atom = get_aoind_by_atom(self.cell)
+                    aoind_by_atom = get_aoind_by_atom(self.mf.cell)
                     ctmp, iaoind_by_atom = reorder_by_atom_(
                         ciao_[k], aoind_by_atom, self.S[k]
                     )
@@ -330,13 +327,13 @@ class Mixin_k_Localize:
                 # Cpao = get_pao_k(Ciao, self.S, S12, S2, self.cell)
                 # get_pao_native_k returns symm orthogonalized orbitals
                 cpao_ = get_pao_native_k(
-                    Ciao_, self.S, self.cell, iao_valence_basis, self.kpts
+                    Ciao_, self.S, self.mf.cell, iao_valence_basis, self.kpts
                 )
 
                 nk, nao, nlo = cpao_.shape
                 Cpao_ = zeros((nk, nao, nlo), dtype=complex128)
                 for k in range(self.nkpt):
-                    aoind_by_atom = get_aoind_by_atom(self.cell)
+                    aoind_by_atom = get_aoind_by_atom(self.mf.cell)
                     ctmp, paoind_by_atom = reorder_by_atom_(
                         cpao_[k], aoind_by_atom, self.S[k]
                     )
@@ -348,14 +345,16 @@ class Mixin_k_Localize:
                     Ciao_nocore = zeros((nk, nao, nlo - self.ncore), dtype=complex128)
                     for k in range(nk):
                         Ccore = self.C[k][:, : self.ncore]
-                        Ciao_nocore[k] = remove_core_mo_k(Ciao_[k], Ccore, self.S[k])
+                        Ciao_nocore[k] = remove_core_mo(Ciao_[k], Ccore, self.S[k])
                     Ciao_ = Ciao_nocore
 
             else:
-                # Construct seperate IAOs for the core and valence
+                # Construct separate IAOs for the core and valence
 
                 # Begin core
-                s12_core_, s2_core = get_xovlp_k(self.cell, self.kpts, basis=core_basis)
+                s12_core_, s2_core = get_xovlp_k(
+                    self.cell, self.kpts, basis=iao_core_basis
+                )
                 C_core_ = self.C[:, :, : self.ncore].copy()
                 nk_, nao_, nmo_ = C_core_.shape
                 s1_core = zeros((nk_, nmo_, nmo_), dtype=self.S.dtype)
@@ -439,7 +438,7 @@ class Mixin_k_Localize:
             Cpao = Cpao_.copy()
             Ciao = Ciao_.copy()
 
-            if iao_wannier:
+            if iao_loc_method.upper() == "WANNIER":
                 mo_energy_ = []
                 for k in range(nk):
                     fock_iao = multi_dot((Ciao_[k].conj().T, self.FOCK[k], Ciao_[k]))
@@ -579,7 +578,7 @@ class Mixin_k_Localize:
 
                 if self.frozen_core:
                     Ccore = self.C[k][:, : self.ncore]
-                    lorb_nocore[k] = remove_core_mo_k(lorb[k], Ccore, self.S[k])
+                    lorb_nocore[k] = remove_core_mo(lorb[k], Ccore, self.S[k])
 
             if not self.frozen_core:
                 lmf = KMF(

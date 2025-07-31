@@ -88,7 +88,7 @@ Alternatively, you can view the latest documentation online [here](https://vanvo
 
 ## References
 
-This code has been described in a software paper: 
+This code has been described in a software paper:
 - M Cho, OR Meitei, LP Weisburn, O Weser, S Weatherly, et. al, QuEmb: a toolbox for bootstrap embedding calculations of molecular and periodic systems, [JPCA 129 6538 2025](https://doi.org/10.1021/acs.jpca.5c02983)
 
 The methods implemented in this code are described in further detail in the following papers:
