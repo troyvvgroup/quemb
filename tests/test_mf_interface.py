@@ -2,7 +2,7 @@ import json
 
 from pyscf.gto import M
 
-from quemb.molbe.mf_interfaces.pyscf_orbs import Orbital
+from quemb.molbe.mf_interfaces._pyscf_orbital_order import Orbital
 from quemb.shared.helper import argsort
 
 with open("data/h2o_cc-pvqz_orca.json") as f:
