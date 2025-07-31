@@ -27,7 +27,7 @@ from numba.types import (  # type: ignore[attr-defined]
     ListType,
     UniTuple,
 )
-from pyscf import df, dft, gto, scf
+from pyscf import df, gto, scf
 from pyscf.ao2mo.addons import restore
 from pyscf.df.addons import make_auxmol
 from pyscf.gto import Mole
@@ -35,6 +35,7 @@ from pyscf.gto.moleintor import getints
 from pyscf.lib import einsum
 from scipy.linalg import cholesky, solve, solve_triangular
 from scipy.optimize import bisect
+from scipy.special import roots_hermite
 
 import quemb.molbe._cpp.eri_sparse_DF as cpp_transforms  # type: ignore[import-not-found]
 from quemb.molbe.chemfrag import (
@@ -43,11 +44,13 @@ from quemb.molbe.chemfrag import (
 from quemb.molbe.pfrag import Frags
 from quemb.shared.helper import (
     Timer,
+    gauss_sum,
     jitclass,
     n_symmetric,
     njit,
     ravel_Fortran,
     ravel_symmetric,
+    unravel_symmetric,
 )
 from quemb.shared.numba_helpers import (
     PreIncr,
@@ -833,7 +836,7 @@ def account_for_symmetry(
 ) -> dict[_T_start, list[_T_target]]:
     """Account for permutational symmetry and remove all q that are larger than p.
 
-    Paramaters
+    Parameters
     ----------
     reachable :
 
@@ -856,7 +859,7 @@ def _jit_account_for_symmetry(
 
     This is a jitted version of :func:`account_for_symmetry`.
 
-    Paramaters
+    Parameters
     ----------
     reachable :
     """
@@ -1421,7 +1424,7 @@ def transform_sparse_DF_integral_nb(
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
     S_abs_timer = Timer("Time to compute S_abs")
-    S_abs = calculate_abs_overlap(mol)
+    S_abs = approx_S_abs(mol)
 
     logger.info(S_abs_timer.str_elapsed())
 
@@ -1471,7 +1474,7 @@ def transform_sparse_DF_integral_cpp(
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
     S_abs_timer = Timer("Time to compute S_abs")
-    S_abs = calculate_abs_overlap(mol)
+    S_abs = approx_S_abs(mol)
     print(S_abs_timer.str_elapsed())
 
     exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
@@ -1525,7 +1528,7 @@ def transform_sparse_DF_integral_cpp_gpu(
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
     S_abs_timer = Timer("Time to compute S_abs")
-    S_abs = calculate_abs_overlap(mol)
+    S_abs = approx_S_abs(mol)
     print(S_abs_timer.str_elapsed())
 
     exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
@@ -1652,7 +1655,7 @@ try:
         auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
         S_abs_timer = Timer("Time to compute S_abs")
-        S_abs = calculate_abs_overlap(mol)
+        S_abs = approx_S_abs(mol)
         print(S_abs_timer.str_elapsed())
 
         exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
@@ -1714,22 +1717,240 @@ except ImportError:
 _T_ = ListType(_UniTuple_int64_2)
 
 
-def calculate_abs_overlap(mol: Mole, grid_level: int = 2) -> Matrix[np.float64]:
-    r"""
-    Calculates the overlap matrix :math:`S_ij = \int |phi_i(r)| |phi_j(r)| dr`
-    using numerical integration on a DFT grid.
+@njit(fastmath=True, nogil=True)
+def _primitive_overlap(
+    li: int,
+    lj: int,
+    ai: float,
+    aj: float,
+    ci: float,
+    cj: float,
+    Ra: Vector[np.floating],
+    Rb: Vector[np.floating],
+    roots: Vector[np.floating],
+    weights: Vector[np.floating],
+) -> Matrix[np.float64]:
+    """Evaluate the absolute overlap for a given
+    pair of **uncontracted cartesian** basis functions
+
+    .. warning::
+
+        The result is undefined if the basis functions are not uncontracted cartesians.
+        Use the triangle inequality to convert to different bases as done
+        and described in :func:`~quemb.molbe.eri_sparse_DF.approx_S_abs`.
 
     Parameters
-    -----------
-        mol :
+    ----------
+    li, lj :
+        Angular momenta of the two primitives.
+    ai, aj :
+        Gaussian exponents.
+    ci, cj :
+        Normalization prefactors.
+    Ra, Rb :
+        Centers of the two primitives.
+    roots, weights :
+        Gauß-Hermite quadrature roots and weights.
     """
-    grids = dft.gen_grid.Grids(mol)
-    grids.level = grid_level
-    grids.build()
-    AO_abs_val = np.abs(dft.numint.eval_ao(mol, grids.coords, deriv=0))
-    result = (AO_abs_val * grids.weights[:, np.newaxis]).T @ AO_abs_val
-    assert np.allclose(result, result.T)
-    return result
+    norm_fac = ci * cj
+    # Unconventional normalization for Cartesian functions in PySCF
+    if li <= 1:
+        norm_fac *= ((2 * li + 1) / (4 * np.pi)) ** 0.5
+    if lj <= 1:
+        norm_fac *= ((2 * lj + 1) / (4 * np.pi)) ** 0.5
+
+    aij = ai + aj
+    Rab = Ra - Rb
+    Rp = (ai * Ra + aj * Rb) / aij
+    theta_ij = ai * aj / aij
+    scale = 1.0 / np.sqrt(aij)
+    norm_fac *= scale**3 * np.exp(-theta_ij * (Rab @ Rab))
+
+    nroots = len(weights)
+    x = roots * scale + Rp[:, None]
+    xa = x - Ra[:, None]
+    xb = x - Rb[:, None]
+
+    mu = np.empty((li + 1, 3, nroots))
+    nu = np.empty((lj + 1, 3, nroots))
+    mu[0, :, :] = 1.0
+    nu[0, :, :] = 1.0
+
+    for d in range(3):
+        for p in range(1, li + 1):
+            mu[p, d, :] = mu[p - 1, d, :] * xa[d, :]
+        for p in range(1, lj + 1):
+            nu[p, d, :] = nu[p - 1, d, :] * xb[d, :]
+
+    nfi = (li + 1) * (li + 2) // 2
+    nfj = (lj + 1) * (lj + 2) // 2
+    s = np.empty((nfi, nfj))
+
+    i = 0
+    for ix in range(li, -1, -1):
+        for iy in range(li - ix, -1, -1):
+            iz = li - ix - iy
+            j = 0
+            for jx in range(lj, -1, -1):
+                for jy in range(lj - jx, -1, -1):
+                    jz = lj - jx - jy
+
+                    Ix = 0.0
+                    Iy = 0.0
+                    Iz = 0.0
+                    for n in range(nroots):
+                        w = weights[n]
+                        Ix += w * abs(mu[ix, 0, n] * nu[jx, 0, n])
+                        Iy += w * abs(mu[iy, 1, n] * nu[jy, 1, n])
+                        Iz += w * abs(mu[iz, 2, n] * nu[jz, 2, n])
+
+                    s[i, j] = Ix * Iy * Iz * norm_fac
+                    j += 1
+            i += 1
+    return s
+
+
+@njit(nogil=True, parallel=True)
+def _primitive_overlap_matrix(
+    ls: Vector[np.integer],
+    exps: Vector[np.floating],
+    norm_coef: Vector[np.floating],
+    bas_coords: Matrix[np.floating],
+    roots: Vector[np.floating],
+    weights: Vector[np.floating],
+) -> Matrix[np.float64]:
+    """Compute the absolute overlap matrix for uncontracted cartesians.
+
+    Combines the results of :func:`~quemb.molbe.eri_sparse_DF._primitive_overlap`.
+
+    .. warning::
+
+        The result is undefined if the basis functions are not uncontracted cartesians.
+        Use the triangle inequality to convert to different bases as done
+        and described in :func:`~quemb.molbe.eri_sparse_DF.approx_S_abs`.
+    """
+    nbas = len(ls)
+    dims = [(l + 1) * (l + 2) // 2 for l in ls]
+    nao = sum(dims)
+    smat = np.zeros((nao, nao))
+
+    npairs = gauss_sum(nbas)
+
+    for idx in prange(npairs):  # type: ignore[attr-defined]
+        i, j = unravel_symmetric(idx)
+
+        i0 = sum(dims[:i])
+        j0 = sum(dims[:j])
+        ni = dims[i]
+        nj = dims[j]
+
+        s = _primitive_overlap(
+            ls[i],
+            ls[j],
+            exps[i],
+            exps[j],
+            norm_coef[i],
+            norm_coef[j],
+            bas_coords[i],
+            bas_coords[j],
+            roots,
+            weights,
+        )
+        smat[i0 : i0 + ni, j0 : j0 + nj] = s
+        if i != j:
+            smat[j0 : j0 + nj, i0 : i0 + ni] = s.T
+
+    return smat
+
+
+def _cart_mol_abs_ovlp_matrix(
+    mol: Mole, nroots: int = 500
+) -> tuple[Matrix[np.float64], Matrix[np.float64]]:
+    r"""Compute the absolute overlap
+
+    This is given by:
+
+    .. math::
+
+        S^{\mathrm{abs}}_{ij} = \int | \phi_i(r) | |\phi_j(r) | \, \mathrm{d} r
+
+    and can be used for screening.
+    Taken from `pyscf examples <https://github.com/pyscf/pyscf/blob/master/examples/1-advanced/40-mole_api_and_numba_jit.py>`_.
+
+    .. note::
+
+        This requires cartesian AOs, instead of spherical harmonics.
+        Use :python:`cart=True` when constructing your :python:`pyscf.gto.Mole` object.
+
+    Parameters
+    ----------
+    mol :
+    nroots :
+        Number of roots for the Gauß-Hermite quadrature.
+    """
+    if not mol.cart:
+        raise ValueError(
+            "Cartesian basis functions are required. "
+            "Please construct the ``Mole`` object with ``cart=True``."
+        )
+    # Integrals are computed using primitive GTOs. ctr_mat transforms the
+    # primitive GTOs to the contracted GTOs.
+    pmol, ctr_mat = mol.decontract_basis(aggregate=True)
+    # Angular momentum for each shell
+    ls = cast(
+        Vector[np.int64], np.array([pmol.bas_angular(i) for i in range(pmol.nbas)])
+    )
+    # need to access only one exponent for primitive gaussians
+    exps = cast(
+        Vector[np.float64], np.array([pmol.bas_exp(i)[0] for i in range(pmol.nbas)])
+    )
+    # Normalization coefficients
+    norm_coef = cast(Vector[np.float64], gto.gto_norm(ls, exps))
+    # Position for each shell
+    bas_coords = cast(
+        Matrix[np.float64], np.array([pmol.bas_coord(i) for i in range(pmol.nbas)])
+    )
+    r, w = cast(tuple[Vector[np.float64], Vector[np.float64]], roots_hermite(nroots))
+    s = _primitive_overlap_matrix(ls, exps, norm_coef, bas_coords, r, w)
+    assert (s >= 0).all()
+    return s, ctr_mat
+
+
+def _get_cart_mol(mol: Mole) -> Mole:
+    return gto.M(
+        atom=mol.atom, basis=mol.basis, charge=mol.charge, spin=mol.spin, cart=True
+    )
+
+
+def approx_S_abs(mol: Mole, nroots: int = 500) -> Matrix[np.float64]:
+    r"""Compute the approximated absolute overlap matrix.
+
+    The calculation is only exact for uncontracted, cartesian basis functions.
+    Since the absolute value is not a linear function, the
+    value after contraction and/or transformation to spherical-harmonics is approximated
+    via the RHS of the triangle inequality:
+
+    .. math::
+
+        \int |\phi_i(\mathbf{r})| \, |\phi_j(\mathbf{r})| \, d\mathbf{r}
+        \leq
+        \sum_{\alpha,\beta} |c_{\alpha i}| \, |c_{\beta j}| \int |\chi_\alpha(\mathbf{r})| \, |\chi_\beta(\mathbf{r})| \, d\mathbf{r}
+
+    Parameters
+    ----------
+    mol :
+    nroots :
+        Number of roots for the Gauß-Hermite quadrature.
+    """  # noqa: E501
+    if mol.cart:
+        s, ctr_mat = _cart_mol_abs_ovlp_matrix(mol, nroots)
+        return abs(ctr_mat.T) @ s @ abs(ctr_mat)
+    else:
+        cart_mol = _get_cart_mol(mol)
+        s, ctr_mat = _cart_mol_abs_ovlp_matrix(cart_mol, nroots)
+        # get the transformation matrix from cartesian basis functions to spherical.
+        cart2spher = cart_mol.cart2sph_coeff(normalized="sp")
+        return abs(cart2spher.T @ ctr_mat.T) @ s @ abs(ctr_mat @ cart2spher)
 
 
 def identify_contiguous_blocks(X: Sequence[_T]) -> list[tuple[int, int]]:

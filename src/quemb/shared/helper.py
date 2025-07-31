@@ -1,15 +1,17 @@
+import functools
 import inspect
 import logging
+import time
+from collections import defaultdict
 from collections.abc import Callable, Iterable, Sequence
 from inspect import signature
 from itertools import islice
 from pathlib import Path
-from time import time
 from typing import Any, TypeVar, overload
 
 import numba as nb
 import numpy as np
-from attr import define, field
+from attrs import define, field
 from ordered_set import OrderedSet
 
 from quemb.shared.typing import Integral, Matrix, SupportsRichComparison, T
@@ -119,18 +121,59 @@ def delete_multiple_files(*args: Iterable[Path]) -> None:
             file.unlink()
 
 
+@define
+class FunctionTimer:
+    stats: dict = field(factory=lambda: defaultdict(lambda: {"time": 0.0, "calls": 0}))
+
+    def timeit(self, func):
+        """Decorator to time a function and record stats using Timer."""
+
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            timer = Timer(message=f"Timing {func.__module__}.{func.__qualname__}")
+            result = func(*args, **kwargs)
+            duration = timer.elapsed()
+
+            key = f"{func.__module__}.{func.__qualname__}"
+            self.stats[key]["time"] += duration
+            self.stats[key]["calls"] += 1
+
+            logger.info(
+                "Called %s: duration=%.4fs, calls=%d",
+                key,
+                duration,
+                self.stats[key]["calls"],
+            )
+            return result
+
+        return wrapper
+
+    def print_top(self, n=10):
+        """Print the top-n functions by total accumulated time."""
+        sorted_stats = sorted(
+            self.stats.items(), key=lambda item: item[1]["time"], reverse=True
+        )
+        print(f"{'Function':60} {'Calls':>10} {'Total Time (s)':>15}")
+        print("-" * 90)
+        for name, data in sorted_stats[:n]:
+            print(f"{name:60} {data['calls']:10d} {data['time']:15.6f}")
+
+
+timer = FunctionTimer()
+
+
 @define(frozen=True)
 class Timer:
     """Simple class to time code execution"""
 
     message: str = "Elapsed time"
-    start: float = field(init=False, factory=time)
+    start: float = field(init=False, factory=lambda: time.perf_counter())
 
     def __attrs_post_init__(self) -> None:
         logger.info(f"Timer with message '{self.message}' started.")
 
     def elapsed(self) -> float:
-        return time() - self.start
+        return time.perf_counter() - self.start
 
     def str_elapsed(self, message: str | None = None) -> str:
         return f"{self.message if message is None else message}: {self.elapsed():.5f}"
