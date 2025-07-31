@@ -14,6 +14,7 @@ from numpy import (
     diag,
     diag_indices,
     einsum,
+    floating,
     mean,
     ndarray,
     zeros_like,
@@ -21,6 +22,7 @@ from numpy import (
 from numpy.linalg import multi_dot
 from pyscf import ao2mo, cc, fci, mcscf, mp
 from pyscf.cc.ccsd_rdm import make_rdm2
+from pyscf.mp.mp2 import MP2
 from pyscf.scf.hf import RHF
 
 from quemb.kbe.pfrag import Frags as pFrags
@@ -35,6 +37,7 @@ from quemb.shared.external.uccsd_eri import make_eris_incore
 from quemb.shared.external.unrestricted_utils import make_uhf_obj
 from quemb.shared.helper import delete_multiple_files, unused
 from quemb.shared.manage_scratch import WorkDir
+from quemb.shared.typing import Matrix, Vector
 
 Solvers: TypeAlias = Literal["MP2", "CCSD", "FCI", "HCI", "SHCI", "SCI", "DMRG"]
 USolvers: TypeAlias = Literal["UCCSD"]
@@ -754,7 +757,13 @@ def solve_error(Fobjs, Nocc, only_chem=False):
     return norm_, err_vec
 
 
-def solve_mp2(mf, frozen=None, mo_coeff=None, mo_occ=None, mo_energy=None):
+def solve_mp2(
+    mf: RHF,
+    frozen: int | list[int] | None = None,
+    mo_coeff: Matrix[floating] | None = None,
+    mo_occ: Vector[floating] | None = None,
+    mo_energy: Vector[floating] | None = None,
+) -> MP2:
     """
     Perform an MP2 (2nd order Moller-Plesset perturbation theory) calculation.
 
@@ -763,20 +772,19 @@ def solve_mp2(mf, frozen=None, mo_coeff=None, mo_occ=None, mo_energy=None):
 
     Parameters
     ----------
-    mf : pyscf.scf.hf.RHF
+    mf :
         Mean-field object from PySCF.
-    frozen : list or int, optional
+    frozen :
         List of frozen orbitals or number of frozen core orbitals. Defaults to None.
-    mo_coeff : numpy.ndarray, optional
+    mo_coeff :
         Molecular orbital coefficients. Defaults to None.
-    mo_occ : numpy.ndarray, optional
+    mo_occ :
         Molecular orbital occupations. Defaults to None.
-    mo_energy : numpy.ndarray, optional
+    mo_energy :
         Molecular orbital energies. Defaults to None.
 
     Returns
     -------
-    pt__ : object
         The MP2 object after running the calculation.
     """
     # Set default values for optional parameters
@@ -789,7 +797,6 @@ def solve_mp2(mf, frozen=None, mo_coeff=None, mo_occ=None, mo_energy=None):
 
     # Initialize the MP2 object
     pt__ = mp.MP2(mf, frozen=frozen, mo_coeff=mo_coeff, mo_occ=mo_occ)
-    mf = None
     pt__.verbose = 0
 
     # Run the MP2 calculation

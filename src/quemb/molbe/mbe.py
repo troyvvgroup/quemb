@@ -28,7 +28,7 @@ from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
-from quemb.shared.helper import Timer, copy_docstring, ensure
+from quemb.shared.helper import copy_docstring, ensure, timer
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix, PathLike
 
@@ -85,6 +85,7 @@ class BE(MixinLocalize):
         Method for orbital localization, default is 'lowdin'.
     """
 
+    @timer.timeit
     def __init__(
         self,
         mf: scf.hf.SCF,
@@ -185,7 +186,6 @@ class BE(MixinLocalize):
             Here the absolute overlap matrix is used.
             Smaller value means less screening.
         """
-        init_timer = Timer("Time to initialize BE object")
         if restart:
             # Load previous calculation data from restart file
             with open(restart_file, "rb") as rfile:
@@ -316,7 +316,6 @@ class BE(MixinLocalize):
             )
         else:
             self.initialize(None, compute_hf, restart=True, int_transform=int_transform)
-        logger.info(f"Elapsed time: {init_timer.str_elapsed()}")
 
     def save(self, save_file: PathLike = "storebe.pk") -> None:
         """
@@ -697,6 +696,7 @@ class BE(MixinLocalize):
         if return_rdm:
             return (rdm1f, RDM2_full)
 
+    @timer.timeit
     def optimize(
         self,
         solver: Solvers = "CCSD",
@@ -851,6 +851,7 @@ class BE(MixinLocalize):
         print("-----------------------------------------------------------", flush=True)
         print(flush=True)
 
+    @timer.timeit
     def initialize(
         self,
         eri_,
@@ -890,8 +891,6 @@ class BE(MixinLocalize):
         )
         for fobj, frag_TA_offset in zip(self.Fobjs, frag_TA_index_per_frag):
             fobj.frag_TA_offset = frag_TA_offset
-
-        eritransform_timer = Timer(f"Time to transform ERIs ({int_transform})")
 
         if not restart:
             # Transform ERIs for each fragment and store in the file
@@ -983,7 +982,6 @@ class BE(MixinLocalize):
                 assert_never(int_transform)
         else:
             eri = None
-        logger.info(f"ERI transform time: {eritransform_timer.str_elapsed()}")
 
         for fobjs_ in self.Fobjs:
             # Process each fragment
@@ -1026,6 +1024,7 @@ class BE(MixinLocalize):
             fobj.udim = couti
             couti = fobj.set_udim(couti)
 
+    @timer.timeit
     def oneshot(
         self,
         solver: Solvers = "CCSD",
@@ -1050,7 +1049,6 @@ class BE(MixinLocalize):
         ompnum :
             Number of OpenMP threads, by default 4.
         """
-        oneshot_timer = Timer("Time to perform one-shot BE")
         if nproc == 1:
             rets = be_func(
                 None,
@@ -1095,7 +1093,6 @@ class BE(MixinLocalize):
                 rets[0], rets[1][0], rets[1][2], rets[1][1], self.ebe_hf, self.enuc
             )
             self.ebe_tot = rets[0] + self.enuc + self.ebe_hf
-        logger.info(f"Oneshot time: {oneshot_timer.str_elapsed()}")
 
     def update_fock(self, heff: list[Matrix[floating]] | None = None) -> None:
         """
