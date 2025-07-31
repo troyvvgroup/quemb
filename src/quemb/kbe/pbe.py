@@ -25,7 +25,7 @@ from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
-from quemb.shared.helper import copy_docstring
+from quemb.shared.helper import copy_docstring, timer
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix, PathLike
 
@@ -280,6 +280,7 @@ class BE(Mixin_k_Localize):
         if not restart:
             self.initialize(compute_hf)
 
+    @timer.timeit
     def optimize(
         self,
         solver: Solvers = "CCSD",
@@ -629,6 +630,7 @@ class BE(Mixin_k_Localize):
             fobj.udim = couti
             couti = fobj.set_udim(couti)
 
+    @timer.timeit
     def oneshot(
         self,
         solver: Solvers = "CCSD",

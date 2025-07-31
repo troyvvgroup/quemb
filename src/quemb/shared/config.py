@@ -17,6 +17,7 @@ for this python session.
 Creates ~/.quembrc.yml file that allows changes to persist.
 
 To specify the print level, do
+
 >>> import logging
 >>> logger = logging.getLogger()
 >>> logger.setLevel(logging.DEBUG)
