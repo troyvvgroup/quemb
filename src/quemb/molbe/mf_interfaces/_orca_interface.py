@@ -155,6 +155,9 @@ def get_mf_orca(
     calc.write_input()
     logger.info("Starting ORCA calculation")
     calc.run()
-    logger.info("ORCA calculation finished")
+    output = calc.get_output()
+    if not output.terminated_normally():
+        raise RuntimeError("ORCA terminated with errors")
+    logger.info("ORCA calculation finished successfully")
 
-    return _parse_orca_into_mf(mol, calc.get_output())
+    return _parse_orca_into_mf(mol, output)
