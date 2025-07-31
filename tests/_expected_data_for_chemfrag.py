@@ -72758,4 +72758,49 @@ def get_expected():
         ),
     }
 
+    expected["test_periodic"]["graphene_manipulated"] = {
+        (2, "sto-3g", None): FragPart(
+            mol=get_graphene_cell("sto-3g"),
+            frag_type="chemgen",
+            n_BE=2,
+            AO_per_frag=[
+                [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+                [10, 11, 12, 13, 14],
+                [15, 16, 17, 18, 19],
+                [20, 21, 22, 23, 24],
+                [25, 26, 27, 28, 29],
+                [30, 31, 32, 33, 34],
+                [35, 36, 37, 38, 39],
+            ],
+            AO_per_edge_per_frag=[[], [], [], [], [], [], []],
+            ref_frag_idx_per_edge_per_frag=[[], [], [], [], [], [], []],
+            relAO_per_edge_per_frag=[[], [], [], [], [], [], []],
+            relAO_in_ref_per_edge_per_frag=[[], [], [], [], [], [], []],
+            relAO_per_origin_per_frag=[
+                [0, 1, 2, 3, 4],
+                [0, 1, 2, 3, 4],
+                [0, 1, 2, 3, 4],
+                [0, 1, 2, 3, 4],
+                [0, 1, 2, 3, 4],
+                [0, 1, 2, 3, 4],
+                [0, 1, 2, 3, 4],
+            ],
+            weight_and_relAO_per_center_per_frag=[
+                (1.0, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]),
+                (1.0, [0, 1, 2, 3, 4]),
+                (1.0, [0, 1, 2, 3, 4]),
+                (1.0, [0, 1, 2, 3, 4]),
+                (1.0, [0, 1, 2, 3, 4]),
+                (1.0, [0, 1, 2, 3, 4]),
+                (1.0, [0, 1, 2, 3, 4]),
+            ],
+            motifs_per_frag=[[0, 1], [2], [3], [4], [5], [6], [7]],
+            origin_per_frag=[0, 2, 3, 4, 5, 6, 7],
+            H_per_motif=[[], [], [], [], [], [], [], []],
+            add_center_atom=[[1], [], [], [], [], [], []],
+            frozen_core=False,
+            iao_valence_basis=None,
+            iao_valence_only=False,
+        )
+    }
     return expected
