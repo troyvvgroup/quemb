@@ -1,0 +1,29 @@
+quemb.shared.helper.FunctionTimer
+=================================
+
+.. currentmodule:: quemb.shared.helper
+
+.. autoclass:: FunctionTimer
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: FunctionTimer.stats
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~FunctionTimer.__init__
+      ~FunctionTimer.print_top
+      ~FunctionTimer.timeit
+   
+   

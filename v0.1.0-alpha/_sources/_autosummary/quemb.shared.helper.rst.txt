@@ -48,6 +48,7 @@ quemb.shared.helper
       :toctree:
       :template: custom-class-template.rst
    
+      FunctionTimer
       Timer
    
    
