@@ -1,7 +1,8 @@
 from collections.abc import Sequence
-from typing import cast
+from typing import Any, cast
 
 import numpy as np
+from pyscf.gto import Mole
 from pyscf.scf.hf import RHF
 
 from quemb.molbe.mf_interfaces.pyscf_orbs import Orbital
@@ -42,7 +43,7 @@ def _get_orca_mo_energy(json_data: dict, idx: Sequence[int]) -> Vector[np.float6
     return cast(Vector[np.float64], mo_energy[idx])
 
 
-def _get_mf_from_orca(mol, json_data) -> RHF:
+def _get_mf_from_orca(mol: Mole, json_data: dict[str, Any]) -> RHF:
     orbitals = [
         Orbital.from_orca_label(label)
         for label in json_data["Molecule"]["MolecularOrbitals"]["OrbitalLabels"]

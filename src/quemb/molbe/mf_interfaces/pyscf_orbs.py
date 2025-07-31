@@ -56,7 +56,7 @@ class Orbital:  # noqa: PLW1641
     l: Final[L_VALS]
     m_l: Final[M_L_VALS]
 
-    def __attrs_post_init__(self):
+    def __attrs_post_init__(self) -> None:
         allowed = PYSCF_ML[self.l]
         if self.m_l not in allowed:
             raise ValueError(
