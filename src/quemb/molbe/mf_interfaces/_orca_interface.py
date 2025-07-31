@@ -16,6 +16,7 @@ from opi.output.core import Output
 from pyscf.gto import Mole
 from pyscf.scf.hf import RHF
 
+from quemb.molbe.mf_interfaces._pyscf_interface import create_mf
 from quemb.molbe.mf_interfaces._pyscf_orbital_order import Orbital
 from quemb.shared.helper import argsort, normalize_column_signs
 from quemb.shared.manage_scratch import WorkDir
@@ -94,20 +95,19 @@ def _parse_energy(output: Output) -> float:
 def _parse_orca_into_mf(mol: Mole, output: Output) -> RHF:
     with open(output.gbw_json_file, "r") as f:
         json_data = json.load(f)
-    orbitals = [
+    AO_labels = [
         Orbital.from_orca_label(label)
         for label in json_data["Molecule"]["MolecularOrbitals"]["OrbitalLabels"]
     ]
-    idx = argsort(orbitals)
+    idx = argsort(AO_labels)
 
-    mf = RHF(mol)
-
-    mf.mo_coeff = _get_orca_mo_coeff(json_data, orbitals, idx)
-    mf.mo_energy = _get_orca_mo_energy(json_data, idx)
-    mf.mo_occ = _get_orca_mo_occ(json_data, idx)
-    mf.e_tot = _parse_energy(output)
-    mf.converged = True
-    return mf
+    return create_mf(
+        mol=mol,
+        mo_coeff=_get_orca_mo_coeff(json_data, AO_labels, idx),
+        mo_energy=_get_orca_mo_energy(json_data, idx),
+        mo_occ=_get_orca_mo_occ(json_data, idx),
+        e_tot=_parse_energy(output),
+    )
 
 
 def _prepare_orca_calc(
