@@ -152,7 +152,7 @@ class WorkDir:
     def __fspath__(self) -> str:
         return self.path.__fspath__()
 
-    def __format__(self, format_spec) -> str:
+    def __format__(self, format_spec: str) -> str:
         return self.path.__format__(format_spec)
 
     def __str__(self) -> str:

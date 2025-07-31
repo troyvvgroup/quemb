@@ -12,7 +12,7 @@ import numpy as np
 from attr import define, field
 from ordered_set import OrderedSet
 
-from quemb.shared.typing import Integral, Matrix, T
+from quemb.shared.typing import Integral, Matrix, SupportsRichComparison, T
 
 _Function = TypeVar("_Function", bound=Callable)
 _T_Integral = TypeVar("_T_Integral", bound=Integral)
@@ -259,8 +259,8 @@ def unravel_eri_idx(i: _T_Integral) -> tuple[int, int, int, int]:
 
 
 @njit(nogil=True)
-def n_eri(n):
-    return ravel_eri_idx(n - 1, n - 1, n - 1, n - 1) + 1
+def n_eri(n: _T_Integral) -> _T_Integral:
+    return ravel_eri_idx(n - 1, n - 1, n - 1, n - 1) + 1  # type: ignore[return-value]
 
 
 @njit(nogil=True)
@@ -388,9 +388,27 @@ def clean_overlap(M: Matrix[np.float64], epsilon: float = 1e-12) -> Matrix[np.in
     return M.astype(np.int64)
 
 
-def argsort(seq: Sequence[T], key=lambda x: x) -> list[int]:
-    """Returns the index that sorts a sequence."""
-    return sorted(range(len(seq)), key=lambda i: key(seq[i]))
+_T_comparable = TypeVar("_T_comparable", bound=SupportsRichComparison)
+
+
+def argsort(
+    seq: Sequence[_T_comparable],
+    key: Callable[[_T_comparable], SupportsRichComparison] | None = None,
+) -> list[int]:
+    """Returns the index that sorts a sequence.
+
+    Parameters
+    ----------
+    seq:
+        The sequence to be sorted.
+    key:
+        Apply function before comparing.
+        Behaves exactly as the same argument to :func:`sorted`.
+    """
+    if key is None:
+        return sorted(range(len(seq)), key=lambda i: seq[i])  # type: ignore[arg-type]
+    else:
+        return sorted(range(len(seq)), key=lambda i: key(seq[i]))
 
 
 def normalize_column_signs(
