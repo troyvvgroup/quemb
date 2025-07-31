@@ -209,7 +209,16 @@ def test_periodic_graphene():
 
 def test_periodic_graphene_manipulation_of_bonds_atoms():
     bases = [("sto-3g", None)]
-    bonds_atoms = {0: [1], 1: [0], 2: [], 3: [], 4: [], 5: [], 6: [], 7: []} # nothing else bonded
+    bonds_atoms = {
+        0: [1],
+        1: [0],
+        2: [],
+        3: [],
+        4: [],
+        5: [],
+        6: [],
+        7: [],
+    }  # nothing else bonded
 
     calculated = {
         (
@@ -222,7 +231,7 @@ def test_periodic_graphene_manipulation_of_bonds_atoms():
             n_BE=n_BE,
             bonds_atoms=bonds_atoms,
         ).get_FragPart()
-        for n_BE in [2] # bonds_atoms only makes sense for n_BE > 1
+        for n_BE in [2]  # bonds_atoms only makes sense for n_BE > 1
         for basis, iao_valence_basis in bases
     }
     for k, result in calculated.items():
