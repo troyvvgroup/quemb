@@ -1288,9 +1288,9 @@ class BE:
             self.W = get_loc(
                 self.mf.mol,
                 W_,
-                lo_method,
+                lo_method,  # type: ignore[arg-type]
                 pop_method=pop_method,
-                init_guess=init_guess,  # type: ignore[arg-type]
+                init_guess=init_guess,
             )
 
             if not self.frozen_core:
