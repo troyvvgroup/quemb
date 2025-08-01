@@ -338,7 +338,7 @@ class BE:
                     iao_valence_only=False,
                     pop_method=pop_method,
                     hstack=True,
-                    nosave=True,
+                    save=False,
                 )
 
         if not restart:
@@ -1181,7 +1181,7 @@ class BE:
         pop_method: str | None = None,
         init_guess: Matrix[np.floating] | None = None,
         hstack: bool = False,
-        nosave: bool = False,
+        save: bool = True,
     ):
         """Molecular orbital localization
 
@@ -1394,7 +1394,7 @@ class BE:
                             shift += npao
                 else:
                     Wstack = np.hstack((Ciao, Cpao))
-            if not nosave:
+            if save:
                 self.W = Wstack
                 assert allclose(self.W.T @ self.S @ self.W, eye(self.W.shape[1]))
             else:
