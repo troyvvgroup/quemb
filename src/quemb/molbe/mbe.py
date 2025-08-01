@@ -1285,23 +1285,13 @@ class BE:
                 W_ = multi_dot((vs_, s_, vs_.T))
                 W_ = C_ @ W_
 
-            if lo_method == "ER" or lo_method == "boys":
-                assert pop_method is None
-                self.W = get_loc(
-                    self.mf.mol,
-                    W_,
-                    lo_method,
-                    pop_method=pop_method,
-                    init_guess=init_guess,
-                )
-            else:
-                self.W = get_loc(
-                    self.mf.mol,
-                    W_,
-                    lo_method,
-                    pop_method=pop_method,
-                    init_guess=init_guess,
-                )
+            self.W = get_loc(
+                self.mf.mol,
+                W_,
+                lo_method,
+                pop_method=pop_method,
+                init_guess=init_guess,  # type: ignore[arg-type]
+            )
 
             if not self.frozen_core:
                 self.lmo_coeff = self.W.T @ self.S @ self.C
@@ -1374,9 +1364,7 @@ class BE:
             shift = 0
             ncore = 0
             if not iao_valence_only:
-                Wstack = zeros(
-                    (Ciao.shape[0], Ciao.shape[1] + Cpao.shape[1])
-                )  # -self.ncore))
+                Wstack = zeros((Ciao.shape[0], Ciao.shape[1] + Cpao.shape[1]))
             else:
                 Wstack = zeros((Ciao.shape[0], Ciao.shape[1]))
 

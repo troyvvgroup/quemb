@@ -249,7 +249,7 @@ def get_loc(
     method: Literal["PM"],
     pop_method: str | None = ...,
     init_guess: Matrix | None = ...,
-) -> Mole: ...
+) -> Matrix[np.float64]: ...
 
 
 @overload
@@ -259,7 +259,7 @@ def get_loc(
     method: Literal["ER", "boys"],
     pop_method: None = ...,
     init_guess: Matrix | None = ...,
-) -> Mole: ...
+) -> Matrix[np.float64]: ...
 
 
 def get_loc(
@@ -268,7 +268,7 @@ def get_loc(
     method: Literal["ER", "PM", "boys"] = "ER",
     pop_method: str | None = None,
     init_guess: Matrix | str | None = "atomic",
-) -> Mole:
+) -> Matrix[np.float64]:
     """Import, initialize, and call localization procedure `method` for C
     from `PySCF`
 
