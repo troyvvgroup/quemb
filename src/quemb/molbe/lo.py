@@ -18,8 +18,8 @@ from quemb.shared.external.lo_helper import (
 )
 from quemb.shared.typing import Matrix, Tensor3D
 
-IAO_LocMethods = Literal["SO", "FB", "PM", "ER"]
-LocMethods = Literal["SO", "FB", "ER", "PM", "IAO"]
+IAO_LocMethods = Literal["lowdin", "boys", "PM", "ER"]
+LocMethods = Literal["lowdin", "boys", "ER", "PM", "IAO"]
 
 
 def remove_core_mo(Clo: Matrix, Ccore: Matrix, S: Matrix, thr: float = 0.5) -> Matrix:
@@ -75,7 +75,7 @@ def get_iao(
     S2: Matrix,
     mol: Mole,
     iao_valence_basis: str,
-    iao_loc_method: IAO_LocMethods = "SO",
+    iao_loc_method: IAO_LocMethods = "lowdin",
 ) -> Matrix:
     """Gets symmetrically orthogonalized IAO coefficient matrix from system MOs
     Derived from G. Knizia: J. Chem. Theory Comput. 2013, 9, 11, 4834–4843
@@ -110,7 +110,7 @@ def get_iao(
     """
     n = Co.shape[0]
 
-    if iao_loc_method == "SO":
+    if iao_loc_method == "lowdin":
         # this is the "native" option in Frankenstein and older versions of Quemb.
         # Rather than form the full S matrices in all bases, the S1 in the
         # large, working basis is separated by labels
@@ -171,7 +171,7 @@ def get_pao(
     S12: Matrix,
     mol: Mole,
     iao_valence_basis: str,
-    iao_loc_method: IAO_LocMethods = "SO",
+    iao_loc_method: IAO_LocMethods = "lowdin",
 ) -> Matrix:
     """Get (symmetrically though often canonically) orthogonalized PAOs
     from given (localized) IAOs
@@ -207,7 +207,7 @@ def get_pao(
     # projector into IAOs
     Piao = Ciao @ Ciao.T @ S1
 
-    if iao_loc_method == "SO":
+    if iao_loc_method == "lowdin":
         # Read further info in `get_iao`
         # Form a mol object with the valence basis for the ao_labels
         mol_alt = mol.copy()
@@ -225,7 +225,7 @@ def get_pao(
         ]
 
         Cpao_redundant = (eye(n) - Piao)[:, vir_idx]
-    elif iao_loc_method == "FB" or iao_loc_method == "PM" or iao_loc_method == "ER":
+    elif iao_loc_method == "boys" or iao_loc_method == "PM" or iao_loc_method == "ER":
         P_12 = inv(S1) @ S12
         # set of orbitals minus valence (orth in working basis)
         nonval = eye(n) - P_12 @ P_12.T
@@ -256,7 +256,7 @@ def get_loc(
 def get_loc(
     mol: Mole,
     C: Matrix,
-    method: Literal["ER", "FB"],
+    method: Literal["ER", "boys"],
     pop_method: None = ...,
     init_guess: Matrix | None = ...,
 ) -> Mole: ...
@@ -265,7 +265,7 @@ def get_loc(
 def get_loc(
     mol: Mole,
     C: Matrix,
-    method: Literal["ER", "PM", "FB"] = "ER",
+    method: Literal["ER", "PM", "boys"] = "ER",
     pop_method: str | None = None,
     init_guess: Matrix | str | None = "atomic",
 ) -> Mole:
@@ -300,7 +300,7 @@ def get_loc(
         Localizer = EdmistonRuedenberg
     elif method == "PM":
         Localizer = PipekMezey
-    elif method == "FB":
+    elif method == "boys":
         Localizer = Boys
         # Note: Convergence issues for IAO-Boys with frozen core,
         # when not using an 'atomic' initial guess

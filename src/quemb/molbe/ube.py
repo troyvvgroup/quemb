@@ -39,7 +39,7 @@ class UBE(BE):  # 🍠
         fobj: FragPart,
         scratch_dir: WorkDir | None = None,
         eri_file: PathLike = "eri_file.h5",
-        lo_method: LocMethods = "SO",
+        lo_method: LocMethods = "lowdin",
         pop_method: str | None = None,
         compute_hf: bool = True,
         thr_bath: float = 1.0e-10,
@@ -62,11 +62,11 @@ class UBE(BE):  # 🍠
             h5py file with ERIs
         lo_method :
             Method for orbital localization. Supports
-            "SO" (Löwdin or symmetric orthogonalization),
-            "FB" (Foster-Boys),
+            "lowdin" (Löwdin or symmetric orthogonalization),
+            "boys" (Foster-Boys),
             "PM" (Pipek-Mezey", and
             "ER" (Edmiston-Rudenberg).
-            By default "SO"
+            By default "lowdin"
         pop_method :
             Method for calculating orbital population, by default 'meta-lowdin'
             See pyscf.lo for more details and options

@@ -54,7 +54,7 @@ def test_hexene_loc_be1_unfroz_iao_minao_so(hexene) -> None:
         frozen=False,
         iao_valence_basis="minao",
         lo_method="iao",
-        iao_loc_method="SO",
+        iao_loc_method="lowdin",
         oneshot=True,
         nproc=1,
     )

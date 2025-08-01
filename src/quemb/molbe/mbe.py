@@ -118,8 +118,8 @@ class BE:
         mf: scf.hf.SCF,
         fobj: FragPart[Mole],
         eri_file: PathLike = "eri_file.h5",
-        lo_method: LocMethods = "SO",
-        iao_loc_method: IAO_LocMethods = "SO",
+        lo_method: LocMethods = "lowdin",
+        iao_loc_method: IAO_LocMethods = "lowdin",
         pop_method: str | None = None,
         compute_hf: bool = True,
         restart: bool = False,
@@ -145,9 +145,9 @@ class BE:
         eri_file :
             Path to the file storing two-electron integrals.
         lo_method :
-            Method for orbital localization, by default "SO".
+            Method for orbital localization, by default "lowdin".
         iao_loc_method :
-            Method for IAO localization, by default "SO"
+            Method for IAO localization, by default "lowdin"
         pop_method :
             Method for calculating orbital population, by default 'meta-lowdin'
             See pyscf.lo for more details and options
@@ -249,12 +249,11 @@ class BE:
 
         # Fragment information from fobj
         self.fobj = fobj
-        if lo_method == "IAO":
-            if self.fobj.iao_valence_basis is None:
-                raise ValueError(
-                    f"If lo_method = '{lo_method}', "
-                    "then the fobj has to have an iao_valence_basis defined."
-                )
+        if not ((lo_method == "IAO") == (self.fobj.iao_valence_basis is not None)):
+            raise ValueError(
+                f"If lo_method = '{lo_method}', "
+                "then the fobj has to have an iao_valence_basis defined."
+            )
 
         self.ebe_hf = 0.0
         self.ebe_tot = 0.0
@@ -1176,8 +1175,9 @@ class BE:
     def localize(
         self,
         lo_method: LocMethods,
+        # TODO explicitly use fobj
         iao_valence_basis="sto-3g",
-        iao_loc_method: IAO_LocMethods = "SO",
+        iao_loc_method: IAO_LocMethods = "lowdin",
         iao_valence_only=False,
         pop_method=None,
         init_guess=None,
@@ -1196,11 +1196,11 @@ class BE:
         ----------
         lo_method :
             Method for orbital localization. Supports
-            "SO" (Löwdin or symmetric orthogonalization),
-            "FB" (Foster-Boys),
+            "lowdin" (Löwdin or symmetric orthogonalization),
+            "boys" (Foster-Boys),
             "PM" (Pipek-Mezey", and
             "ER" (Edmiston-Rudenberg).
-            By default "SO"
+            By default "lowdin"
         iao_valence_basis : str
             Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
         iao_loc_method:
@@ -1214,7 +1214,7 @@ class BE:
             valence basis in the IAO partitioning. Default is False.
             This is an experimental feature: the returned energy is not accurate
         """
-        if lo_method == "SO":
+        if lo_method == "lowdin":
             es_, vs_ = eigh(self.S)
             edx = es_ > 1.0e-15
             self.W = vs_[:, edx] / sqrt(es_[edx]) @ vs_[:, edx].T
@@ -1269,7 +1269,7 @@ class BE:
                     )
                 else:
                     self.lmo_coeff = multi_dot((self.W.T, self.S, self.C))
-        elif lo_method == "FB" or lo_method == "PM" or lo_method == "ER":
+        elif lo_method == "boys" or lo_method == "PM" or lo_method == "ER":
             es_, vs_ = eigh(self.S)
             edx = es_ > 1.0e-15
             W_ = vs_[:, edx] / sqrt(es_[edx]) @ vs_[:, edx].T
@@ -1287,7 +1287,7 @@ class BE:
                 W_ = multi_dot((vs_, s_, vs_.T))
                 W_ = C_ @ W_
 
-            if lo_method == "ER" or lo_method == "FB":
+            if lo_method == "ER" or lo_method == "boys":
                 assert pop_method is None
             self.W = get_loc(
                 self.mf.mol, W_, lo_method, pop_method=pop_method, init_guess=init_guess
