@@ -249,6 +249,12 @@ class BE:
 
         # Fragment information from fobj
         self.fobj = fobj
+        if lo_method == "IAO":
+            if self.fobj.iao_valence_basis is None:
+                raise ValueError(
+                    f"If lo_method = '{lo_method}', "
+                    "then the fobj has to have an iao_valence_basis defined."
+                )
 
         self.ebe_hf = 0.0
         self.ebe_tot = 0.0
@@ -1188,14 +1194,18 @@ class BE:
 
         Parameters
         ----------
-        lo_method : str
-            Localization method in quantum chemistry. 'lowdin', 'FB', 'ER', 'PM', and
-            'iao' are supported.
+        lo_method :
+            Method for orbital localization. Supports
+            "SO" (Löwdin or symmetric orthogonalization),
+            "FB" (Foster-Boys),
+            "PM" (Pipek-Mezey", and
+            "ER" (Edmiston-Rudenberg).
+            By default "SO"
         iao_valence_basis : str
             Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
         iao_loc_method:
             Name of localization method in quantum chemistry for the IAOs and PAOs.
-            Options include 'Boys', 'PM', 'ER' (as documented in PySCF). Default is
+            Options include 'SO', 'FB', 'PM', 'ER' (as documented in PySCF). Default is
             'SO', or symmetric orthogonalization.
             If not using SO, we suggest using 'PM', as it is more robust than 'Boys'
             localization and less expensive than 'ER'

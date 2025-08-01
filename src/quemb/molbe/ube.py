@@ -63,9 +63,10 @@ class UBE(BE):  # 🍠
         lo_method :
             Method for orbital localization. Supports
             "SO" (Löwdin or symmetric orthogonalization),
-            "FB" (Foster-Boys), and
-            "ER" (Edmiston-Rudenberg) are supported.
-            by default "SO"
+            "FB" (Foster-Boys),
+            "PM" (Pipek-Mezey", and
+            "ER" (Edmiston-Rudenberg).
+            By default "SO"
         pop_method :
             Method for calculating orbital population, by default 'meta-lowdin'
             See pyscf.lo for more details and options
