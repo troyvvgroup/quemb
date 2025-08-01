@@ -1,6 +1,5 @@
 from typing import Literal, assert_never
 
-from opi.input.simple_keywords import Approximation
 from pyscf.gto import Mole
 from pyscf.scf.hf import RHF
 
@@ -21,6 +20,8 @@ def get_mf(
     elif backend == "orca":
         return get_mf_orca(mol, work_dir, n_procs, simple_keywords=[])
     elif backend == "orca-RIJCOSX":
+        from opi.input.simple_keywords import Approximation  # noqa: PLC0415
+
         return get_mf_orca(
             mol, work_dir, n_procs, simple_keywords=[Approximation.RIJCOSX]
         )
