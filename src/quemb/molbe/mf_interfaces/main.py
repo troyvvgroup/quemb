@@ -20,7 +20,9 @@ def get_mf(
     elif backend == "orca":
         return get_mf_orca(mol, work_dir, n_procs, simple_keywords=[])
     elif backend == "orca-RIJCOSX":
-        from opi.input.simple_keywords import Approximation  # noqa: PLC0415
+        from opi.input.simple_keywords import (  # noqa: PLC0415
+            Approximation,  # type: ignore[import-not-found]
+        )
 
         return get_mf_orca(
             mol, work_dir, n_procs, simple_keywords=[Approximation.RIJCOSX]
