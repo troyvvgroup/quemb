@@ -251,8 +251,10 @@ class BE:
         self.fobj = fobj
         if not ((lo_method == "IAO") == (self.fobj.iao_valence_basis is not None)):
             raise ValueError(
-                f"If lo_method = '{lo_method}', "
-                "then the fobj has to have an iao_valence_basis defined."
+                "If lo_method = 'IAO', "
+                "then the fobj has to have an iao_valence_basis defined.\n"
+                "Likewise, if lo_method != 'IAO', then fobj must not have "
+                "an iao_valence_basis defined."
             )
 
         self.ebe_hf = 0.0
