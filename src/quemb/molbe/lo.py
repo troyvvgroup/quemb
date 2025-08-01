@@ -18,8 +18,8 @@ from quemb.shared.external.lo_helper import (
 )
 from quemb.shared.typing import Matrix, Tensor3D
 
-IAO_LocMethods = Literal["SO", "full"]
-LocMethods = Literal["lowdin", "FB", "ER", "PM", "IAO"]
+IAO_LocMethods = Literal["SO", "FB", "PM", "ER"]
+LocMethods = Literal["SO", "FB", "ER", "PM", "IAO"]
 
 
 def remove_core_mo(Clo: Matrix, Ccore: Matrix, S: Matrix, thr: float = 0.5) -> Matrix:
@@ -225,7 +225,7 @@ def get_pao(
         ]
 
         Cpao_redundant = (eye(n) - Piao)[:, vir_idx]
-    elif iao_loc_method == "full":
+    elif iao_loc_method == "FB" or iao_loc_method == "PM" or iao_loc_method == "ER":
         P_12 = inv(S1) @ S12
         # set of orbitals minus valence (orth in working basis)
         nonval = eye(n) - P_12 @ P_12.T
@@ -296,16 +296,17 @@ def get_loc(
         Localized mol object
     """
     Localizer: type[EdmistonRuedenberg] | type[PipekMezey] | type[Boys]
-    if method.upper() in ["EDMINSTON-RUEDENBERG", "ER"]:
+    if method == "ER":
         Localizer = EdmistonRuedenberg
-    elif method.upper() in ["PIPEK-MEZEY", "PIPEK", "PM"]:
+    elif method == "PM":
         Localizer = PipekMezey
-    elif method.upper() in ["FOSTER-BOYS", "BOYS", "FB"]:
+    elif method == "FB":
         Localizer = Boys
         # Note: Convergence issues for IAO-Boys with frozen core,
         # when not using an 'atomic' initial guess
     else:
-        raise NotImplementedError("Localization scheme not understood")
+        raise NotImplementedError(f"Localization scheme {method} not understood")
+        assert_never(method)
 
     mlo = Localizer(mol, C)
     if pop_method is not None:

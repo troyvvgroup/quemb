@@ -108,8 +108,8 @@ class BE:
         Fragment object containing sites, centers, edges, and indices.
     eri_file : str
         Path to the file storing two-electron integrals.
-    lo_method : str
-        Method for orbital localization, default is 'lowdin'.
+    lo_method :
+        Method for orbital localization, default is 'SO'.
     """
 
     @timer.timeit
@@ -118,7 +118,7 @@ class BE:
         mf: scf.hf.SCF,
         fobj: FragPart[Mole],
         eri_file: PathLike = "eri_file.h5",
-        lo_method: LocMethods = "lowdin",
+        lo_method: LocMethods = "SO",
         iao_loc_method: IAO_LocMethods = "SO",
         pop_method: str | None = None,
         compute_hf: bool = True,
@@ -145,7 +145,7 @@ class BE:
         eri_file :
             Path to the file storing two-electron integrals.
         lo_method :
-            Method for orbital localization, by default 'lowdin'.
+            Method for orbital localization, by default "SO".
         iao_loc_method :
             Method for IAO localization, by default "SO"
         pop_method :
@@ -325,7 +325,7 @@ class BE:
                 pop_method=pop_method,
             )
 
-            if fobj.iao_valence_only and lo_method.upper() == "IAO":
+            if fobj.iao_valence_only and lo_method == "IAO":
                 self.Ciao_pao = self.localize(
                     lo_method,
                     iao_valence_basis=fobj.iao_valence_basis,
@@ -1204,7 +1204,7 @@ class BE:
             valence basis in the IAO partitioning. Default is False.
             This is an experimental feature: the returned energy is not accurate
         """
-        if lo_method == "lowdin":
+        if lo_method == "SO":
             es_, vs_ = eigh(self.S)
             edx = es_ > 1.0e-15
             self.W = vs_[:, edx] / sqrt(es_[edx]) @ vs_[:, edx].T
