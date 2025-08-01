@@ -1,7 +1,7 @@
 # Author(s): Henry Tran, Oinam Meitei, Shaun Weatherly
 #
 
-from typing import Literal, assert_never, overload
+from typing import Literal, overload
 
 import numpy as np
 from numpy import allclose, diag, eye, where
@@ -11,6 +11,7 @@ from pyscf.gto.mole import Mole
 from pyscf.lo import Boys
 from pyscf.lo.edmiston import EdmistonRuedenberg
 from pyscf.lo.pipek import PipekMezey
+from typing_extensions import assert_never
 
 from quemb.shared.external.lo_helper import (
     cano_orth,
