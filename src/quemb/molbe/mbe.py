@@ -1341,7 +1341,7 @@ class BE:
                     iao_loc_method,
                 )
 
-                if iao_loc_method == "full":
+                if iao_loc_method != "lowdin":
                     # Localize IAOs and PAOs
                     Ciao = get_loc(self.fobj.mol, Ciao, iao_loc_method)
                     Cpao = get_loc(self.fobj.mol, Cpao, iao_loc_method)
@@ -1356,7 +1356,7 @@ class BE:
                     iao_loc_method,
                 )
 
-                if iao_loc_method == "full":
+                if iao_loc_method != "lowdin":
                     Ciao = get_loc(self.fobj.mol, Ciao, iao_loc_method)
 
             # Rearrange by atom
