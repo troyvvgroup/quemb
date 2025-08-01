@@ -23,6 +23,7 @@ from pyscf.scf.uhf import UHF
 
 from quemb.molbe.be_parallel import be_func_parallel_u
 from quemb.molbe.fragment import FragPart
+from quemb.molbe.lo import LocMethods
 from quemb.molbe.mbe import BE
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import be_func_u
@@ -38,7 +39,7 @@ class UBE(BE):  # 🍠
         fobj: FragPart,
         scratch_dir: WorkDir | None = None,
         eri_file: PathLike = "eri_file.h5",
-        lo_method: PathLike = "lowdin",
+        lo_method: LocMethods = "lowdin",
         pop_method: str | None = None,
         compute_hf: bool = True,
         thr_bath: float = 1.0e-10,
