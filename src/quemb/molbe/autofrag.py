@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 from copy import deepcopy
-from typing import Final, Literal, TypeAlias
+from typing import Final, Generic, Literal, TypeAlias, TypeVar
 from warnings import warn
 
 import networkx as nx
@@ -37,13 +37,15 @@ from quemb.shared.typing import (
 
 FragType: TypeAlias = Literal["chemgen", "graphgen", "autogen"]
 
+_T_chemsystem = TypeVar("_T_chemsystem", Mole, Cell)
+
 
 @define(kw_only=True)
-class FragPart:
+class FragPart(Generic[_T_chemsystem]):
     """Data structure to hold the result of BE fragmentations."""
 
     #: The full molecule.
-    mol: Mole | Cell = field(eq=cmp_using(are_equal))
+    mol: _T_chemsystem = field(eq=cmp_using(are_equal))
     #: The algorithm used for fragmenting.
     frag_type: FragType
     #: The level of BE fragmentation, i.e. 1, 2, ...

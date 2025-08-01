@@ -57,9 +57,9 @@ fobj = fragmentate(
 # Initialize BE, specifying other iao parameters:
 # The lo_method is used to specify IAO localization
 # iao_loc_method is the localization of the generated IAOs and PAOs.
-# The default, "SO", calls the get_iao_native routine, while
+# The default, "lowdin", calls the get_iao_native routine, while
 # "Boys", "PM", and "ER" call get_iao. We recommend using Pipek-Mezey
-# if not using "SO"
+# if not using "lowdin"
 # We can also specify the init_guess and pop_method here, relevant for
 # certain localization schemes.
 mybe = BE(
