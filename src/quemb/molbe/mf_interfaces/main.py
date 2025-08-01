@@ -1,9 +1,10 @@
 # ruff: noqa: PLC0415
 
-from typing import Literal, assert_never
+from typing import Literal
 
 from pyscf.gto import Mole
 from pyscf.scf.hf import RHF
+from typing_extensions import assert_never
 
 from quemb.molbe.mf_interfaces._orca_interface import get_mf_orca
 from quemb.molbe.mf_interfaces._pyscf_interface import get_mf_psycf
