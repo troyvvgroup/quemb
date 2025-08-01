@@ -1182,7 +1182,7 @@ class BE:
         init_guess: Matrix[np.floating] | None = None,
         hstack: bool = False,
         save: bool = True,
-    ):
+    ) -> None | Matrix[np.float64]:
         """Molecular orbital localization
 
         Performs molecular orbital localization computations. For large basis,
@@ -1267,6 +1267,7 @@ class BE:
                     )
                 else:
                     self.lmo_coeff = multi_dot((self.W.T, self.S, self.C))
+            return None
         elif lo_method == "boys" or lo_method == "PM" or lo_method == "ER":
             es_, vs_ = eigh(self.S)
             edx = es_ > 1.0e-15
@@ -1297,6 +1298,7 @@ class BE:
                 self.lmo_coeff = self.W.T @ self.S @ self.C
             else:
                 self.lmo_coeff = self.W.T @ self.S @ self.C[:, self.ncore :]
+            return None
 
         elif lo_method == "IAO":
             # IAO working basis: (w): (large) basis set we use
@@ -1400,6 +1402,7 @@ class BE:
             else:
                 assert allclose(Wstack.T @ self.S @ Wstack, eye(Wstack.shape[1]))
                 return Wstack
+
             nmo = self.C.shape[1] - self.ncore
             nlo = self.W.shape[1]
 
@@ -1423,7 +1426,7 @@ class BE:
                     self.lmo_coeff = self.W.T @ self.S @ self.C[:, self.ncore :]
             else:
                 self.lmo_coeff = self.W.T @ self.S @ self.C[:, self.ncore :]
-
+            return None
         else:
             raise assert_never(lo_method)
 
