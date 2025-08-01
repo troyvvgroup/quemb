@@ -129,9 +129,9 @@ def _prepare_orca_calc(
         basis: Final = PYSCF_TO_ORCA_BASIS[mol.basis]
     except KeyError:
         raise NotImplementedError(
-            f"PYSCF basis set {mol.basis} is not supported. "
-            "This is either because it genuinely does not exist in ORCA, or because "
-            "The translation is not defined. If you think that the basis exists in "
+            f"PYSCF basis set {mol.basis} is not supported.\n"
+            "This is either because it genuinely does not exist in ORCA, or because\n"
+            "the translation is not defined. If you think that the basis exists in\n"
             "pyscf and ORCA, then raise an issue at the quemb GitHub repository."
         )
     sk_list: Final = [
