@@ -7,7 +7,7 @@ from collections.abc import Callable, Iterable, Sequence
 from inspect import signature
 from itertools import islice
 from pathlib import Path
-from typing import Any, TypeVar, overload
+from typing import Any, ParamSpec, TypeVar, overload
 
 import numba as nb
 import numpy as np
@@ -121,15 +121,22 @@ def delete_multiple_files(*args: Iterable[Path]) -> None:
             file.unlink()
 
 
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
+
+
 @define
 class FunctionTimer:
     stats: dict = field(factory=lambda: defaultdict(lambda: {"time": 0.0, "calls": 0}))
 
-    def timeit(self, func):
+    def reset(self) -> None:
+        self.stats = defaultdict(lambda: {"time": 0.0, "calls": 0})
+
+    def timeit(self, func: Callable[_P, _R]) -> Callable[_P, _R]:
         """Decorator to time a function and record stats using Timer."""
 
         @functools.wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _R:
             timer = Timer(message=f"Timing {func.__module__}.{func.__qualname__}")
             result = func(*args, **kwargs)
             duration = timer.elapsed()
@@ -148,7 +155,7 @@ class FunctionTimer:
 
         return wrapper
 
-    def print_top(self, n=10):
+    def print_top(self, n: int = 10) -> None:
         """Print the top-n functions by total accumulated time."""
         sorted_stats = sorted(
             self.stats.items(), key=lambda item: item[1]["time"], reverse=True
