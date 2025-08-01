@@ -158,7 +158,7 @@ class UBE(BE):  # 🍠
 
         self.localize(
             lo_method,
-            iao_valence_basis=fobj.iao_valence_basis,
+            fobj=fobj,
             iao_valence_only=fobj.iao_valence_only,
             pop_method=pop_method,
         )

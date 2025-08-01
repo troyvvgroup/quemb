@@ -324,7 +324,7 @@ class BE:
             # Localize orbitals
             self.localize(
                 lo_method,
-                iao_valence_basis=fobj.iao_valence_basis,
+                fobj=fobj,
                 iao_loc_method=iao_loc_method,
                 iao_valence_only=fobj.iao_valence_only,
                 pop_method=pop_method,
@@ -333,7 +333,7 @@ class BE:
             if fobj.iao_valence_only and lo_method == "IAO":
                 self.Ciao_pao = self.localize(
                     lo_method,
-                    iao_valence_basis=fobj.iao_valence_basis,
+                    fobj=fobj,
                     iao_loc_method=iao_loc_method,
                     iao_valence_only=False,
                     pop_method=pop_method,
@@ -1175,14 +1175,13 @@ class BE:
     def localize(
         self,
         lo_method: LocMethods,
-        # TODO explicitly use fobj
-        iao_valence_basis="sto-3g",
+        fobj: FragPart,
         iao_loc_method: IAO_LocMethods = "lowdin",
-        iao_valence_only=False,
-        pop_method=None,
-        init_guess=None,
-        hstack=False,
-        nosave=False,
+        iao_valence_only: bool = False,
+        pop_method: str | None = None,
+        init_guess: Matrix[np.floating] | None = None,
+        hstack: bool = False,
+        nosave: bool = False,
     ):
         """Molecular orbital localization
 
@@ -1201,8 +1200,7 @@ class BE:
             "PM" (Pipek-Mezey", and
             "ER" (Edmiston-Rudenberg).
             By default "lowdin"
-        iao_valence_basis : str
-            Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
+        fobj :
         iao_loc_method:
             Name of localization method in quantum chemistry for the IAOs and PAOs.
             Options include 'SO', 'FB', 'PM', 'ER' (as documented in PySCF). Default is
@@ -1289,9 +1287,21 @@ class BE:
 
             if lo_method == "ER" or lo_method == "boys":
                 assert pop_method is None
-            self.W = get_loc(
-                self.mf.mol, W_, lo_method, pop_method=pop_method, init_guess=init_guess
-            )
+                self.W = get_loc(
+                    self.mf.mol,
+                    W_,
+                    lo_method,
+                    pop_method=pop_method,
+                    init_guess=init_guess,
+                )
+            else:
+                self.W = get_loc(
+                    self.mf.mol,
+                    W_,
+                    lo_method,
+                    pop_method=pop_method,
+                    init_guess=init_guess,
+                )
 
             if not self.frozen_core:
                 self.lmo_coeff = self.W.T @ self.S @ self.C
@@ -1301,12 +1311,13 @@ class BE:
         elif lo_method == "IAO":
             # IAO working basis: (w): (large) basis set we use
             # IAO valence basis: (v): minimal-like basis we try to resemble
+            assert fobj.iao_valence_basis is not None
 
             # Occupied mo_coeff (with core)
             Co = self.C[:, : self.Nocc]
 
             # Get necessary overlaps, second arg is IAO valence basis
-            S_vw, S_vv = get_xovlp(self.fobj.mol, basis=iao_valence_basis)
+            S_vw, S_vv = get_xovlp(self.fobj.mol, basis=fobj.iao_valence_basis)
 
             # How do we describe the rest of the space?
             # If iao_valence_only=False, we use PAOs:
@@ -1317,12 +1328,17 @@ class BE:
                     self.S,
                     S_vv,
                     self.fobj.mol,
-                    iao_valence_basis,
+                    fobj.iao_valence_basis,
                     iao_loc_method,
                 )
 
                 Cpao = get_pao(
-                    Ciao, self.S, S_vw, self.fobj.mol, iao_valence_basis, iao_loc_method
+                    Ciao,
+                    self.S,
+                    S_vw,
+                    self.fobj.mol,
+                    fobj.iao_valence_basis,
+                    iao_loc_method,
                 )
 
                 if iao_loc_method == "full":
@@ -1336,7 +1352,7 @@ class BE:
                     self.S,
                     S_vv,
                     self.fobj.mol,
-                    iao_valence_basis,
+                    fobj.iao_valence_basis,
                     iao_loc_method,
                 )
 
