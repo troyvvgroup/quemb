@@ -169,26 +169,26 @@ class Timer
     ~Timer()
     {
         if (LOG_LEVEL <= LogLevel::Info) {
-            const auto duration = elapsed_ms();
-            std::cout << "[TIMER] " << _name << " finished in " << duration << " ms\n";
+            const auto duration = elapsed_s();
+            std::cout << "[TIMER] " << _name << " finished in " << duration << " s\n";
         };
     }
 
     void print(const std::string &message = "Checkpoint") const
     {
-        const auto duration = elapsed_ms();
-        std::cout << "[TIMER] " << _name << " - " << message << ": " << duration << " ms\n";
+        const auto duration = elapsed_s();
+        std::cout << "[TIMER] " << _name << " - " << message << ": " << duration << " s\n";
     }
 
   private:
     const char *_name;
     std::chrono::high_resolution_clock::time_point _start;
 
-    double elapsed_ms() const
+    double elapsed_s() const
     {
         using namespace std::chrono;
         const auto now = high_resolution_clock::now();
-        return std::chrono::duration<double, std::milli>(now - _start).count();
+        return std::chrono::duration<double>(now - _start).count();
     }
 };
 

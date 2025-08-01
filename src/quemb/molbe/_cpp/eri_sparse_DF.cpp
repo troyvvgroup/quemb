@@ -418,6 +418,12 @@ Matrix contract_with_TA_2nd_to_sym_dense(const SemiSparse3DTensor &int_mu_i_P, c
     assert(TA.cols() == nmo && "TA.shape[1] must match int_mu_i_P.shape[2]");
 
     const auto n_sym_pairs = to_eigen(ravel_symmetric(nmo - 1, nmo - 1) + 1);
+
+
+    if (LOG_LEVEL <= LogLevel::Debug) {
+        std::cout << "[MEMORY] about to allocate sym_P_pq(naux, n_sym_pairs) with "
+                  << static_cast<double>(naux * n_sym_pairs * sizeof(double)) / std::pow(2, 30) << " GB" << std::endl;
+    }
     Matrix sym_P_pq(naux, n_sym_pairs);
 
 #pragma omp parallel for
