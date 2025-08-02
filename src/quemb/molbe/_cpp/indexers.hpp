@@ -71,7 +71,8 @@ template <typename T> constexpr int_t gauss_sum(const T n) noexcept
 }
 
 // Ravel symmetric index (i,j) -> unique index
-template <typename T1, typename T2> constexpr int_t ravel_symmetric(const T1 a, const T2 b) noexcept
+template <typename T1, typename T2>
+constexpr int_t ravel_symmetric(const T1 a, const T2 b) noexcept
 {
     const int_t A = to_int_t(a), B = to_int_t(b);
     return (A > B) ? gauss_sum(A) + B : gauss_sum(B) + A;
@@ -88,7 +89,8 @@ template <typename T> constexpr int_t n_symmetric(const T n) noexcept
 template <typename T> inline std::pair<int_t, int_t> unravel_symmetric(const T i)
 {
     const int_t I = to_int_t(i);
-    const int_t a = static_cast<int_t>((std::sqrt(8.0 * static_cast<double>(I) + 1.0) - 1.0) / 2.0);
+    const int_t a =
+        static_cast<int_t>((std::sqrt(8.0 * static_cast<double>(I) + 1.0) - 1.0) / 2.0);
     const int_t offset = gauss_sum(a);
     const int_t b = I - offset;
     return (a <= b) ? std::make_pair(a, b) : std::make_pair(b, a);
@@ -102,7 +104,8 @@ constexpr int_t ravel_eri_idx(const T1 a, const T2 b, const T3 c, const T4 d) no
 }
 
 // Invert raveled ERI index (not constexpr due to sqrt)
-template <typename T> inline std::tuple<int_t, int_t, int_t, int_t> unravel_eri_idx(const T i)
+template <typename T>
+inline std::tuple<int_t, int_t, int_t, int_t> unravel_eri_idx(const T i)
 {
     const auto [ab, cd] = unravel_symmetric(i);
     const auto [a, b] = unravel_symmetric(ab);
@@ -132,7 +135,8 @@ constexpr int_t ravel_Fortran(const T1 a, const T2 b, const T3 n_rows) noexcept
 }
 
 // Unique entries in a symmetric matrix with m, n dimensions
-template <typename T1, typename T2> constexpr int_t symmetric_different_size(const T1 m, const T2 n) noexcept
+template <typename T1, typename T2>
+constexpr int_t symmetric_different_size(const T1 m, const T2 n) noexcept
 {
     const int_t M = to_int_t(m), N = to_int_t(n);
     return (M > N) ? gauss_sum(N) + N * (M - N) : gauss_sum(M) + M * (N - M);
@@ -140,12 +144,15 @@ template <typename T1, typename T2> constexpr int_t symmetric_different_size(con
 
 // Unique ERI count with non-equal orbital sizes
 template <typename T1, typename T2, typename T3, typename T4>
-constexpr int_t get_flexible_n_eri(const T1 p_max, const T2 q_max, const T3 r_max, const T4 s_max) noexcept
+constexpr int_t get_flexible_n_eri(const T1 p_max, const T2 q_max, const T3 r_max,
+                                   const T4 s_max) noexcept
 {
-    return symmetric_different_size(symmetric_different_size(p_max, q_max), symmetric_different_size(r_max, s_max));
+    return symmetric_different_size(symmetric_different_size(p_max, q_max),
+                                    symmetric_different_size(r_max, s_max));
 }
 
-std::vector<std::vector<OrbitalIdx>> extract_unique(const std::vector<std::vector<OrbitalIdx>> &exch_reachable)
+std::vector<std::vector<OrbitalIdx>> extract_unique(
+    const std::vector<std::vector<OrbitalIdx>> &exch_reachable)
 {
     std::vector<std::vector<OrbitalIdx>> result;
     result.resize(exch_reachable.size());
@@ -161,7 +168,8 @@ std::vector<std::vector<OrbitalIdx>> extract_unique(const std::vector<std::vecto
 }
 
 template <typename Int>
-constexpr typename std::enable_if<std::is_integral<Int>::value, double>::type bytes_to_gib(Int bytes) noexcept
+constexpr typename std::enable_if<std::is_integral<Int>::value, double>::type
+bytes_to_gib(Int bytes) noexcept
 {
     return static_cast<double>(bytes) / (1024.0 * 1024 * 1024);
 }
@@ -169,7 +177,8 @@ constexpr typename std::enable_if<std::is_integral<Int>::value, double>::type by
 class Timer
 {
   public:
-    explicit Timer(const char *name) : _name(name), _start(std::chrono::high_resolution_clock::now())
+    explicit Timer(const char *name)
+        : _name(name), _start(std::chrono::high_resolution_clock::now())
     {
     }
 
@@ -184,7 +193,8 @@ class Timer
     void print(const std::string &message = "Checkpoint") const
     {
         const auto duration = elapsed_s();
-        std::cout << "[TIMER] " << _name << " - " << message << ": " << duration << " s\n";
+        std::cout << "[TIMER] " << _name << " - " << message << ": " << duration
+                  << " s\n";
     }
 
   private:
@@ -200,11 +210,14 @@ class Timer
 };
 
 #define PROFILE_FUNCTION() Timer timer(__func__)
-#define PROFILE_SCOPE() Timer timer(std::string(__FILE__) + ":" + std::to_string(__LINE__) + " in " + __func__)
+#define PROFILE_SCOPE()                                                                \
+    Timer timer(std::string(__FILE__) + ":" + std::to_string(__LINE__) + " in " +      \
+                __func__)
 
 // Rebuilds an unordered_map to improve lookup performance by reducing collisions
 // and improving memory layout. This is useful if the original map grew inefficiently.
-template <typename Key, typename Value, typename Hash = std::hash<Key>, typename KeyEqual = std::equal_to<Key>,
+template <typename Key, typename Value, typename Hash = std::hash<Key>,
+          typename KeyEqual = std::equal_to<Key>,
           typename Allocator = std::allocator<std::pair<const Key, Value>>>
 std::unordered_map<Key, Value, Hash, KeyEqual, Allocator> rebuild_unordered_map(
     const std::unordered_map<Key, Value, Hash, KeyEqual, Allocator> &original)
