@@ -391,4 +391,6 @@ def test_pyscf_parsing() -> None:
         mol.ao_labels(), key=lambda label: Orbital.from_pyscf_label(label)
     )
 
+    # Surprise, Surprise 🥳
+    # PYSCF is ordered by PYSCF convention
     assert computed_idx == list(range(mol.nao))
