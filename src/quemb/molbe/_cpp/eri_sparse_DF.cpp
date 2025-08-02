@@ -426,7 +426,10 @@ Matrix contract_with_TA_2nd_to_sym_dense(const SemiSparse3DTensor &int_mu_i_P, c
     }
     Matrix sym_P_pq(naux, n_sym_pairs);
 
-#pragma omp parallel for
+    if (LOG_LEVEL <= LogLevel::Debug) {
+        std::cout << "About to enter OMP parallel for loop (now it's not parallel)" << std::endl;
+    }
+// #pragma omp parallel for
     for (OrbitalIdx i = 0; i < nmo; ++i) {
         for (OrbitalIdx j = 0; j <= i; ++j) {
             Eigen::VectorXd tmp = Eigen::VectorXd::Zero(naux);
@@ -435,6 +438,9 @@ Matrix contract_with_TA_2nd_to_sym_dense(const SemiSparse3DTensor &int_mu_i_P, c
             }
             sym_P_pq.col(ravel_symmetric(i, j)) = tmp;
         }
+    }
+    if (LOG_LEVEL <= LogLevel::Debug) {
+        std::cout << "finished OMP parallel for loop" << std::endl;
     }
 
     return sym_P_pq;
