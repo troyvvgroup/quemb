@@ -857,6 +857,17 @@ class BE(MixinLocalize):
             eri = ao2mo.incore.full(eri_, self.Fobjs[I].TA, compact=True)
             file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
 
+    def _transform_eri_out_core(self, file_eri):
+        ensure(
+            hasattr(self.mf, "with_df") and self.mf.with_df is not None,
+            "Pyscf mean field object has to support `with_df`.",
+        )
+        # pyscf.ao2mo uses DF object in an outcore fashion using (ij|P)
+        #   in pyscf temp directory
+        for I in range(self.fobj.n_frag):
+            eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)
+            file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
+
     @timer.timeit
     def initialize(
         self,
@@ -910,15 +921,8 @@ class BE(MixinLocalize):
                 self._transform_eri_in_core(eri_, file_eri)
 
             elif int_transform == "out-core-DF":
-                ensure(
-                    hasattr(self.mf, "with_df") and self.mf.with_df is not None,
-                    "Pyscf mean field object has to support `with_df`.",
-                )
-                # pyscf.ao2mo uses DF object in an outcore fashion using (ij|P)
-                #   in pyscf temp directory
-                for I in range(self.fobj.n_frag):
-                    eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)
-                    file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
+                self._transform_eri_out_core(file_eri)
+
             elif int_transform == "int-direct-DF":
                 # If ERIs are not saved on memory, compute fragment ERIs integral-direct
                 ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
