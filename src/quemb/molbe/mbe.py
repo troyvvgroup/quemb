@@ -17,7 +17,6 @@ from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
 from quemb.molbe.eri_sparse_DF import (
     transform_sparse_DF_integral_cpp,
-    transform_sparse_DF_integral_cpp_gpu,
     transform_sparse_DF_integral_nb,
     transform_sparse_DF_integral_nb_gpu,
 )
@@ -115,6 +114,10 @@ def transform_eris(
         )
 
     elif int_transform == "sparse-DF-cpp-gpu":
+        from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
+            transform_sparse_DF_integral_cpp_gpu,
+        )
+
         ensure(bool(auxbasis), "`auxbasis` has to be defined.")
         transform_sparse_DF_integral_cpp_gpu(
             mf,
