@@ -22,6 +22,37 @@ def get_mf(
     work_dir: WorkDir | None = None,
     backend: SCF_Backends = "pyscf",
 ) -> RHF:
+    """
+    Compute the mean-field (SCF) object for a given molecule using the selected backend.
+
+    Supports multiple SCF backends, including PySCF and ORCA, with optional RIJCOSX
+    acceleration for large systems. The ORCA runs are isolated in a working directory,
+    which can be provided or inferred from the environment.
+
+    Parameters
+    ----------
+    mol :
+        The molecule to perform the SCF calculation on.
+    n_procs :
+        Number of processor cores to use (only relevant for ORCA). Default is 1.
+    work_dir :
+        Working directory for external backend calculations (e.g., ORCA).
+        If None, a directory is created based on the environment.
+    backend :
+        The SCF backend to use: "pyscf", "orca", or "orca-RIJCOSX".
+
+        .. note::
+
+            Using any of the ORCA options requires ``orca`` (version >= 6.1)
+            in your path and the ORCA python interface
+            (`OPI <https://www.faccts.de/docs/opi/nightly/docs/>`_)
+            to be installed.
+
+    Returns
+    -------
+        The resulting mean-field (RHF) object from the selected backend.
+    """
+
     if work_dir is None:
         work_dir = WorkDir.from_environment(prefix="mf_calculation")
 

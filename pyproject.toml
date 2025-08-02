@@ -25,7 +25,6 @@ dependencies = [
     "pyyaml",
     "numba",
     "ordered-set",
-    # "orca-pi",
     "libdmet @ git+https://github.com/gkclab/libdmet_preview.git",
     "chemcoord @ git+https://github.com/mcocdawc/chemcoord.git",
 ]
