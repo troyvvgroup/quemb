@@ -342,9 +342,9 @@ SemiSparse3DTensor contract_with_TA_1st(const Matrix &TA, const SemiSparseSym3DT
 
     if (LOG_LEVEL <= LogLevel::Info) {
         std::cout << "(P | mu i) [MEMORY] sparse "
-                  << static_cast<double>(naux * n_unique * sizeof(double)) / std::pow(2, 30) << " GB" << "\n";
+                  << bytes_to_gib(naux * n_unique * sizeof(double)) << " GiB" << "\n";
         std::cout << "(P | mu i) [MEMORY] dense "
-                  << static_cast<double>(naux * nao * nmo * sizeof(double)) / std::pow(2, 30) << " GB" << "\n";
+                  << bytes_to_gib(naux * nao * nmo * sizeof(double)) << " GiB" << "\n";
         std::cout << "(P | mu i) [MEMORY] sparsity "
                   << (1. - static_cast<double>(n_unique) / static_cast<double>(nao * nmo)) * 100. << " %"
                   << "\n";
@@ -419,28 +419,25 @@ Matrix contract_with_TA_2nd_to_sym_dense(const SemiSparse3DTensor &int_mu_i_P, c
 
     const auto n_sym_pairs = to_eigen(ravel_symmetric(nmo - 1, nmo - 1) + 1);
 
-
     if (LOG_LEVEL <= LogLevel::Debug) {
         std::cout << "[MEMORY] about to allocate sym_P_pq(naux, n_sym_pairs) with "
-                  << static_cast<double>(naux * n_sym_pairs * sizeof(double)) / std::pow(2, 30) << " GB" << std::endl;
+                  << bytes_to_gib(naux * n_sym_pairs * sizeof(double)) << " GiB" << std::endl;
     }
     Matrix sym_P_pq(naux, n_sym_pairs);
 
-    if (LOG_LEVEL <= LogLevel::Debug) {
-        std::cout << "About to enter OMP parallel for loop (now it's not parallel)" << std::endl;
-    }
-// #pragma omp parallel for
-    for (OrbitalIdx i = 0; i < nmo; ++i) {
-        for (OrbitalIdx j = 0; j <= i; ++j) {
-            Eigen::VectorXd tmp = Eigen::VectorXd::Zero(naux);
+#pragma omp parallel
+    {
+        Eigen::VectorXd tmp = Eigen::VectorXd::Zero(naux); // one per thread
+
+#pragma omp for
+        for (OrbitalIdx ij_sym = 0; ij_sym < n_sym_pairs; ++ij_sym) {
+            const auto &[i, j] = unravel_symmetric(ij_sym);
+            tmp.setZero(); // reuse same memory
             for (const auto &[offset, mu] : int_mu_i_P.exch_reachable_with_offsets()[i]) {
-                tmp += TA(mu, j) * int_mu_i_P.dense_data().col(offset);
+                tmp.noalias() += TA(mu, j) * int_mu_i_P.dense_data().col(offset);
             }
-            sym_P_pq.col(ravel_symmetric(i, j)) = tmp;
+            sym_P_pq.col(ij_sym) = tmp;
         }
-    }
-    if (LOG_LEVEL <= LogLevel::Debug) {
-        std::cout << "finished OMP parallel for loop" << std::endl;
     }
 
     return sym_P_pq;
@@ -473,8 +470,17 @@ Matrix eval_via_cholesky_cuda(const Matrix &sym_P_pq, const GPU_MatrixHandle &L_
 
     double *d_X = nullptr, *d_result = nullptr;
 
+    if (LOG_LEVEL <= LogLevel::Debug) {
+        std::cout << __func__ << "[GPU MEMORY] about to allocate bytes_X " << bytes_to_gib(bytes_X) << " GiB\n";
+        std::cout << __func__ << "[GPU MEMORY] about to allocate bytes_res " << bytes_to_gib(bytes_res) << " GiB" << std::endl;
+    }
+
     CUDA_CHECK_THROW(cudaMalloc(reinterpret_cast<void **>(&d_X), bytes_X));
     CUDA_CHECK_THROW(cudaMalloc(reinterpret_cast<void **>(&d_result), bytes_res));
+    if (LOG_LEVEL <= LogLevel::Debug) {
+        std::cout << __func__ << "[MEMORY] bytes_X succesfully allocated\n";
+        std::cout << __func__ << "[MEMORY] bytes_res successfully allocated" << std::endl;
+    }
 
     // Copy data to device
     // We will solve: L * X = sym_P_pq  → X = L⁻¹ * sym_P_pq

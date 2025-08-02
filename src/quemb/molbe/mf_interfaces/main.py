@@ -18,7 +18,7 @@ SCF_Backends = Literal["pyscf", "orca", "orca-RIJCOSX"]
 def get_mf(
     mol: Mole,
     *,
-    n_procs: int,
+    n_procs: int = 1,
     work_dir: WorkDir | None = None,
     backend: SCF_Backends = "pyscf",
 ) -> RHF:
