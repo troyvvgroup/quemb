@@ -50,6 +50,7 @@ from quemb.shared.helper import (
     njit,
     ravel_Fortran,
     ravel_symmetric,
+    timer,
     unravel_symmetric,
 )
 from quemb.shared.numba_helpers import (
@@ -1922,6 +1923,7 @@ def _get_cart_mol(mol: Mole) -> Mole:
     )
 
 
+@timer.timeit
 def approx_S_abs(mol: Mole, nroots: int = 500) -> Matrix[np.float64]:
     r"""Compute the approximated absolute overlap matrix.
 

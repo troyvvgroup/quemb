@@ -10,6 +10,7 @@ from pyscf import gto, scf
 
 from quemb.molbe import BE, fragmentate
 from quemb.molbe.fragment import ChemGenArgs
+from quemb.molbe.lo import IAO_LocMethods, LocMethods
 
 
 def test_hexene_loc_be1_froz_pm(hexene) -> None:
@@ -19,8 +20,7 @@ def test_hexene_loc_be1_froz_pm(hexene) -> None:
         n_BE=1,
         frozen=True,
         iao_valence_basis=None,
-        lo_method="pipek-mezey",
-        iao_loc_method=None,
+        lo_method="PM",
         oneshot=True,
         nproc=1,
     )
@@ -39,7 +39,6 @@ def test_hexene_loc_be2_unfroz_lowdin(hexene) -> None:
         frozen=False,
         iao_valence_basis=None,
         lo_method="lowdin",
-        iao_loc_method=None,
         oneshot=True,
         nproc=2,
     )
@@ -53,8 +52,8 @@ def test_hexene_loc_be1_unfroz_iao_minao_so(hexene) -> None:
         n_BE=1,
         frozen=False,
         iao_valence_basis="minao",
-        lo_method="iao",
-        iao_loc_method="SO",
+        lo_method="IAO",
+        iao_loc_method="lowdin",
         oneshot=True,
         nproc=1,
     )
@@ -72,8 +71,8 @@ def test_hexene_loc_be2_froz_iao_sto3g_boys(hexene) -> None:
         n_BE=2,
         frozen=True,
         iao_valence_basis="sto-3g",
-        lo_method="iao",
-        iao_loc_method="Boys",
+        lo_method="IAO",
+        iao_loc_method="boys",
         oneshot=False,
         nproc=8,
     )
@@ -94,8 +93,8 @@ def test_chem_gen_hexene_loc_be2_froz_iao_sto3g_boys(hexene) -> None:
         n_BE=2,
         frozen=True,
         iao_valence_basis="sto-3g",
-        lo_method="iao",
-        iao_loc_method="Boys",
+        lo_method="IAO",
+        iao_loc_method="boys",
         oneshot=False,
         nproc=8,
         frag_type="chemgen",
@@ -116,8 +115,8 @@ def test_chem_gen_hexene_loc_be2_froz_iao_sto3g_boys_fixed_AOs(hexene) -> None:
         n_BE=2,
         frozen=True,
         iao_valence_basis="sto-3g",
-        lo_method="iao",
-        iao_loc_method="Boys",
+        lo_method="IAO",
+        iao_loc_method="boys",
         oneshot=False,
         nproc=8,
         frag_type="chemgen",
@@ -133,10 +132,10 @@ def ret_ecorr(
     n_BE: int,
     frozen: bool,
     iao_valence_basis: str | None,
-    lo_method: str,
-    iao_loc_method: str | None,
+    lo_method: LocMethods,
     oneshot: bool,
     nproc: int,
+    iao_loc_method: IAO_LocMethods = "lowdin",
     frag_type: Literal["autogen", "chemgen"] = "autogen",
     additional_args: ChemGenArgs | None = None,
 ) -> float:
