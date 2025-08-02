@@ -1008,18 +1008,18 @@ class BE(MixinLocalize):
             fobj.frag_TA_offset = frag_TA_offset
 
         if not restart:
-            file_eri = h5py.File(self.eri_file, "w")
-            transform_eris(
-                eri_=eri_,
-                fobjs=self.Fobjs,
-                int_transform=int_transform,
-                mf=self.mf,
-                auxbasis=self.auxbasis,
-                eri_file=file_eri,
-                MO_coeff_epsilon=self.MO_coeff_epsilon,
-                AO_coeff_epsilon=self.AO_coeff_epsilon,
-                n_threads=self.n_threads_integral_transform,
-            )
+            with h5py.File(self.eri_file, "w") as file_eri:
+                transform_eris(
+                    eri_=eri_,
+                    fobjs=self.Fobjs,
+                    int_transform=int_transform,
+                    mf=self.mf,
+                    auxbasis=self.auxbasis,
+                    eri_file=file_eri,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.n_threads_integral_transform,
+                )
 
         for fobjs_ in self.Fobjs:
             # Process each fragment
