@@ -16,8 +16,15 @@ SCF_Backends = Literal["pyscf", "orca", "orca-RIJCOSX"]
 
 @timer.timeit
 def get_mf(
-    mol: Mole, n_procs: int, work_dir: WorkDir, backend: SCF_Backends = "pyscf"
+    mol: Mole,
+    *,
+    n_procs: int,
+    work_dir: WorkDir | None = None,
+    backend: SCF_Backends = "pyscf",
 ) -> RHF:
+    if work_dir is None:
+        work_dir = WorkDir.from_environment(prefix="mf_calculation")
+
     if backend == "pyscf":
         return get_mf_psycf(mol)
     elif backend == "orca":

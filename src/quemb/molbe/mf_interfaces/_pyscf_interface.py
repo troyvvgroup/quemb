@@ -31,7 +31,7 @@ def get_mf_psycf(mol: Mole) -> RHF:
     return mf
 
 
-def store_to_hdf5(path: PathLike, mf: RHF) -> None:
+def store_to_hdf5(mf: RHF, path: PathLike) -> None:
     """Store a PySCF RHF object to an HDF5 file."""
     with h5py.File(path, "w") as f:
         mol_group = f.create_group("mol")
