@@ -924,8 +924,6 @@ class BE(MixinLocalize):
                 self._transform_eri_out_core(file_eri)
 
             elif int_transform == "int-direct-DF":
-                # If ERIs are not saved on memory, compute fragment ERIs integral-direct
-                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
                 integral_direct_DF(
                     self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis
                 )
