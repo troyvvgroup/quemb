@@ -45,121 +45,6 @@ IntTransforms: TypeAlias = Literal[
 logger = logging.getLogger(__name__)
 
 
-def transform_eris(
-    eri_: numpy.ndarray,
-    fobjs: list,
-    int_transform: IntTransforms,
-    mf,
-    auxbasis,
-    eri_file: h5py.File,
-    MO_coeff_epsilon: float,
-    AO_coeff_epsilon: float,
-    n_threads: int,
-) -> None:
-    """
-    Perform ERI transformation and store results in the given HDF5 file.
-
-    Parameters
-    ----------
-    eri_ : numpy.ndarray
-        Electron repulsion integrals (in AO basis)
-    fobjs : list
-        List of fragment objects with `TA` and `dname` attributes.
-    int_transform : IntTransforms
-        Specifies the type of integral transformation.
-    mf : pyscf.scf.hf.SCF
-        PySCF mean-field object.
-    auxbasis : str
-        Auxiliary basis for density fitting.
-    eri_file : h5py.File
-        HDF5 file handle where ERIs will be stored.
-    MO_coeff_epsilon : float
-        Threshold for MO coefficient screening in sparse DF.
-    AO_coeff_epsilon : float
-        Threshold for AO coefficient screening in sparse DF.
-    n_threads : int
-        Number of threads to use for transformation.
-    """
-
-    if int_transform == "in-core":
-        ensure(eri_ is not None, "ERIs have to be available in memory.")
-        for I, fobj in enumerate(fobjs):
-            eri = ao2mo.incore.full(eri_, fobj.TA, compact=True)
-            eri_file.create_dataset(fobj.dname, data=eri)
-
-    elif int_transform == "out-core-DF":
-        ensure(
-            hasattr(mf, "with_df") and mf.with_df is not None,
-            "Pyscf mean field object has to support `with_df`.",
-        )
-        for fobj in fobjs:
-            eri = mf.with_df.ao2mo(fobj.TA, compact=True)
-            eri_file.create_dataset(fobj.dname, data=eri)
-
-    elif int_transform == "int-direct-DF":
-        ensure(bool(auxbasis), "`auxbasis` has to be defined.")
-        integral_direct_DF(mf, fobjs, eri_file, auxbasis=auxbasis)
-
-    elif int_transform == "sparse-DF-cpp":
-        ensure(bool(auxbasis), "`auxbasis` has to be defined.")
-        transform_sparse_DF_integral_cpp(
-            mf,
-            fobjs,
-            auxbasis=auxbasis,
-            file_eri_handler=eri_file,
-            MO_coeff_epsilon=MO_coeff_epsilon,
-            AO_coeff_epsilon=AO_coeff_epsilon,
-            n_threads=n_threads,
-        )
-
-    elif int_transform == "sparse-DF-cpp-gpu":
-        from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
-            transform_sparse_DF_integral_cpp_gpu,
-        )
-
-        ensure(bool(auxbasis), "`auxbasis` has to be defined.")
-        transform_sparse_DF_integral_cpp_gpu(
-            mf,
-            fobjs,
-            auxbasis=auxbasis,
-            file_eri_handler=eri_file,
-            MO_coeff_epsilon=MO_coeff_epsilon,
-            AO_coeff_epsilon=AO_coeff_epsilon,
-            n_threads=n_threads,
-        )
-
-    elif int_transform == "sparse-DF-nb":
-        ensure(bool(auxbasis), "`auxbasis` has to be defined.")
-        transform_sparse_DF_integral_nb(
-            mf,
-            fobjs,
-            auxbasis=auxbasis,
-            file_eri_handler=eri_file,
-            MO_coeff_epsilon=MO_coeff_epsilon,
-            AO_coeff_epsilon=AO_coeff_epsilon,
-            n_threads=n_threads,
-        )
-
-    elif int_transform == "sparse-DF-nb-gpu":
-        from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
-            transform_sparse_DF_integral_nb_gpu,
-        )
-
-        ensure(bool(auxbasis), "`auxbasis` has to be defined.")
-        transform_sparse_DF_integral_nb_gpu(
-            mf,
-            fobjs,
-            auxbasis=auxbasis,
-            file_eri_handler=eri_file,
-            MO_coeff_epsilon=MO_coeff_epsilon,
-            AO_coeff_epsilon=AO_coeff_epsilon,
-            n_threads=n_threads,
-        )
-
-    else:
-        assert_never(int_transform)
-
-
 @define
 class storeBE:
     Nocc: int
@@ -966,6 +851,12 @@ class BE(MixinLocalize):
         print("-----------------------------------------------------------", flush=True)
         print(flush=True)
 
+    def _transform_eri_in_core(self, eri_, file_eri):
+        ensure(eri_ is not None, "ERIs have to be available in memory.")
+        for I in range(self.fobj.n_frag):
+            eri = ao2mo.incore.full(eri_, self.Fobjs[I].TA, compact=True)
+            file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
+
     @timer.timeit
     def initialize(
         self,
@@ -1008,18 +899,93 @@ class BE(MixinLocalize):
             fobj.frag_TA_offset = frag_TA_offset
 
         if not restart:
-            with h5py.File(self.eri_file, "w") as file_eri:
-                transform_eris(
-                    eri_=eri_,
-                    fobjs=self.Fobjs,
-                    int_transform=int_transform,
-                    mf=self.mf,
+            # Transform ERIs for each fragment and store in the file
+            # ERI Transform Decision Tree
+            # Do we have full (ij|kl)?
+            #   Yes -- ao2mo, incore version
+            #   No  -- Do we have (ij|P) from density fitting?
+            #       Yes -- ao2mo, outcore version, using saved (ij|P)
+            #       No  -- if integral_direct_DF is requested, invoke on-the-fly routine
+            if int_transform == "in-core":
+                self._transform_eri_in_core(eri_, file_eri)
+
+            elif int_transform == "out-core-DF":
+                ensure(
+                    hasattr(self.mf, "with_df") and self.mf.with_df is not None,
+                    "Pyscf mean field object has to support `with_df`.",
+                )
+                # pyscf.ao2mo uses DF object in an outcore fashion using (ij|P)
+                #   in pyscf temp directory
+                for I in range(self.fobj.n_frag):
+                    eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)
+                    file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
+            elif int_transform == "int-direct-DF":
+                # If ERIs are not saved on memory, compute fragment ERIs integral-direct
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                integral_direct_DF(
+                    self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis
+                )
+                eri = None
+            elif int_transform == "sparse-DF-cpp":
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                transform_sparse_DF_integral_cpp(
+                    self.mf,
+                    self.Fobjs,
                     auxbasis=self.auxbasis,
-                    eri_file=file_eri,
+                    file_eri_handler=file_eri,
                     MO_coeff_epsilon=self.MO_coeff_epsilon,
                     AO_coeff_epsilon=self.AO_coeff_epsilon,
                     n_threads=self.n_threads_integral_transform,
                 )
+                eri = None
+            elif int_transform == "sparse-DF-cpp-gpu":
+                from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
+                    transform_sparse_DF_integral_cpp_gpu,
+                )
+
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                transform_sparse_DF_integral_cpp_gpu(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    file_eri_handler=file_eri,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.n_threads_integral_transform,
+                )
+                eri = None
+            elif int_transform == "sparse-DF-nb":
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                transform_sparse_DF_integral_nb(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    file_eri_handler=file_eri,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.n_threads_integral_transform,
+                )
+                eri = None
+            elif int_transform == "sparse-DF-nb-gpu":
+                from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
+                    transform_sparse_DF_integral_nb_gpu,
+                )
+
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                transform_sparse_DF_integral_nb_gpu(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    file_eri_handler=file_eri,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.n_threads_integral_transform,
+                )
+                eri = None
+            else:
+                assert_never(int_transform)
+        else:
+            eri = None
 
         for fobjs_ in self.Fobjs:
             # Process each fragment
