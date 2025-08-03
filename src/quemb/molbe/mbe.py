@@ -851,6 +851,7 @@ class BE(MixinLocalize):
         print("-----------------------------------------------------------", flush=True)
         print(flush=True)
 
+    @timer.timeit
     def eri_transform(self, int_transform, eri_, file_eri):
         # Transform ERIs for each fragment and store in the file
         # ERI Transform Decision Tree
