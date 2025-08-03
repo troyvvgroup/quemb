@@ -962,7 +962,12 @@ class BE(MixinLocalize):
             if compute_hf:
                 fobjs_.update_ebe_hf()  # Updates fragment HF energy.
                 E_hf += fobjs_.ebe_hf
-        return E_hf
+        if compute_hf:
+            self.ebe_hf = E_hf + self.enuc + self.E_core
+            hf_err = self.hf_etot - self.ebe_hf
+            print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
+            if abs(hf_err) > 1.0e-5:
+                warn("Large HF-in-HF energy error")
 
     @timer.timeit
     def initialize(
@@ -1005,16 +1010,9 @@ class BE(MixinLocalize):
         if not restart:
             self.eri_transform(int_transform, eri_, file_eri)
 
-        E_hf = self.process_fragments(file_eri, restart=True, compute_hf=True)
+        self.process_fragments(file_eri, restart, compute_hf)
         if not restart:
             file_eri.close()
-
-        if compute_hf:
-            self.ebe_hf = E_hf + self.enuc + self.E_core
-            hf_err = self.hf_etot - self.ebe_hf
-            print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
-            if abs(hf_err) > 1.0e-5:
-                warn("Large HF-in-HF energy error")
 
         couti = 0
         for fobj in self.Fobjs:
