@@ -968,6 +968,8 @@ class BE(MixinLocalize):
             print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
             if abs(hf_err) > 1.0e-5:
                 warn("Large HF-in-HF energy error")
+        if not restart:
+            file_eri.close()
 
     @timer.timeit
     def initialize(
@@ -1011,8 +1013,6 @@ class BE(MixinLocalize):
             self.eri_transform(int_transform, eri_, file_eri)
 
         self.process_fragments(file_eri, restart, compute_hf)
-        if not restart:
-            file_eri.close()
 
         couti = 0
         for fobj in self.Fobjs:
