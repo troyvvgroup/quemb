@@ -867,6 +867,8 @@ class BE(MixinLocalize):
             for I in range(self.fobj.n_frag):
                 eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)
                 file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
+        elif int_transform == "int-direct-DF":
+            integral_direct_DF(self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis)
 
     @timer.timeit
     def initialize(
@@ -917,13 +919,13 @@ class BE(MixinLocalize):
             #   No  -- Do we have (ij|P) from density fitting?
             #       Yes -- ao2mo, outcore version, using saved (ij|P)
             #       No  -- if integral_direct_DF is requested, invoke on-the-fly routine
-            if int_transform == "in-core" or int_transform == "out-core-DF":
+            if (
+                int_transform == "in-core"
+                or int_transform == "out-core-DF"
+                or int_transform == "int-direct-DF"
+            ):
                 self.eri_transform(int_transform, eri_, file_eri)
 
-            elif int_transform == "int-direct-DF":
-                integral_direct_DF(
-                    self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis
-                )
             elif int_transform == "sparse-DF-cpp":
                 transform_sparse_DF_integral_cpp(
                     self.mf,
