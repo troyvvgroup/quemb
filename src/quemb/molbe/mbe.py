@@ -987,9 +987,6 @@ class BE(MixinLocalize):
         int_transfrom :
             Which integral transformation to perform.
         """
-        if compute_hf:
-            E_hf = 0.0
-
         # Create a file to store ERIs
         if not restart:
             file_eri = h5py.File(self.eri_file, "w")
