@@ -1008,7 +1008,7 @@ class BE(MixinLocalize):
         if not restart:
             self.eri_transform(int_transform, eri_, file_eri)
 
-        E_hf = self.process_all_fragments(file_eri, restart=True, compute_hf=True)
+        E_hf = self.process_fragments(file_eri, restart=True, compute_hf=True)
         if not restart:
             file_eri.close()
 
