@@ -851,22 +851,22 @@ class BE(MixinLocalize):
         print("-----------------------------------------------------------", flush=True)
         print(flush=True)
 
-    def _transform_eri_in_core(self, eri_, file_eri):
-        ensure(eri_ is not None, "ERIs have to be available in memory.")
-        for I in range(self.fobj.n_frag):
-            eri = ao2mo.incore.full(eri_, self.Fobjs[I].TA, compact=True)
-            file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
-
-    def _transform_eri_out_core(self, file_eri):
-        ensure(
-            hasattr(self.mf, "with_df") and self.mf.with_df is not None,
-            "Pyscf mean field object has to support `with_df`.",
-        )
-        # pyscf.ao2mo uses DF object in an outcore fashion using (ij|P)
-        #   in pyscf temp directory
-        for I in range(self.fobj.n_frag):
-            eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)
-            file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
+    def eri_transform(self, int_transform, eri_, file_eri):
+        if int_transform == "in-core":
+            ensure(eri_ is not None, "ERIs have to be available in memory.")
+            for I in range(self.fobj.n_frag):
+                eri = ao2mo.incore.full(eri_, self.Fobjs[I].TA, compact=True)
+                file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
+        elif int_transform == "out-core-DF":
+            ensure(
+                hasattr(self.mf, "with_df") and self.mf.with_df is not None,
+                "Pyscf mean field object has to support `with_df`.",
+            )
+            # pyscf.ao2mo uses DF object in an outcore fashion using (ij|P)
+            #   in pyscf temp directory
+            for I in range(self.fobj.n_frag):
+                eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)
+                file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
 
     @timer.timeit
     def initialize(
@@ -917,18 +917,14 @@ class BE(MixinLocalize):
             #   No  -- Do we have (ij|P) from density fitting?
             #       Yes -- ao2mo, outcore version, using saved (ij|P)
             #       No  -- if integral_direct_DF is requested, invoke on-the-fly routine
-            if int_transform == "in-core":
-                self._transform_eri_in_core(eri_, file_eri)
-
-            elif int_transform == "out-core-DF":
-                self._transform_eri_out_core(file_eri)
+            if int_transform == "in-core" or int_transform == "out-core-DF":
+                self.transform_eri(int_transform, eri_, file_eri)
 
             elif int_transform == "int-direct-DF":
                 integral_direct_DF(
                     self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis
                 )
             elif int_transform == "sparse-DF-cpp":
-                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
                 transform_sparse_DF_integral_cpp(
                     self.mf,
                     self.Fobjs,

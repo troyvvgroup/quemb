@@ -1469,6 +1469,7 @@ def transform_sparse_DF_integral_cpp(
     MO_coeff_epsilon: float,
     n_threads: int,
 ) -> None:
+    ensure(bool(auxbasis), "`auxbasis` has to be defined.")
     cpp_transforms.set_log_level(logging.getLogger().getEffectiveLevel())
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
