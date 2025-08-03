@@ -872,6 +872,7 @@ class BE(MixinLocalize):
             ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
             integral_direct_DF(self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis)
         elif int_transform == "sparse-DF-cpp":
+            ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
             transform_sparse_DF_integral_cpp(
                 self.mf,
                 self.Fobjs,
