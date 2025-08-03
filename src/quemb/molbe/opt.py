@@ -207,8 +207,6 @@ class BEOPT:
                         )
                         break
                 if self.err >= self.conv_tol:
-                    warnings.warn(
-                        f"BE DID NOT CONVERGE IN {self.max_space} STEPS", stacklevel=2
-                    )
+                    warnings.warn(f"BE DID NOT CONVERGE IN {self.max_space} STEPS")
         else:
             raise ValueError("This optimization method for BE is not supported")
