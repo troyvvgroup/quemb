@@ -935,9 +935,50 @@ class BE(MixinLocalize):
         else:
             assert_never(int_transform)
 
-    def process_fragments(self, file_eri, restart, compute_hf):
+    @timer.timeit
+    def initialize(
+        self,
+        eri_,
+        compute_hf: bool,
+        *,
+        restart: bool,
+        int_transform: IntTransforms,
+    ) -> None:
+        """
+        Initialize the Bootstrap Embedding calculation.
+
+        Parameters
+        ----------
+        eri_ : numpy.ndarray
+            Electron repulsion integrals.
+        compute_hf : bool
+            Whether to compute Hartree-Fock energy.
+        restart : bool, optional
+            Whether to restart from a previous calculation, by default False.
+        int_transfrom :
+            Which integral transformation to perform.
+        """
         if compute_hf:
             E_hf = 0.0
+
+        # Create a file to store ERIs
+        if not restart:
+            file_eri = h5py.File(self.eri_file, "w")
+        for I in range(self.fobj.n_frag):
+            fobjs_ = self.fobj.to_Frags(I, eri_file=self.eri_file)
+            fobjs_.sd(self.W, self.lmo_coeff, self.Nocc, thr_bath=self.thr_bath)
+
+            self.Fobjs.append(fobjs_)
+
+        self.all_fragment_MO_TA, frag_TA_index_per_frag = union_of_frag_MOs_and_index(
+            self.Fobjs, self.mf.mol.intor("int1e_ovlp"), epsilon=1e-10
+        )
+        for fobj, frag_TA_offset in zip(self.Fobjs, frag_TA_index_per_frag):
+            fobj.frag_TA_offset = frag_TA_offset
+
+        if not restart:
+            self.eri_transform(int_transform, eri_, file_eri)
+
         for fobjs_ in self.Fobjs:
             # Process each fragment
             eri = array(file_eri.get(fobjs_.dname))
@@ -963,51 +1004,6 @@ class BE(MixinLocalize):
             if compute_hf:
                 fobjs_.update_ebe_hf()  # Updates fragment HF energy.
                 E_hf += fobjs_.ebe_hf
-            return E_hf
-
-    @timer.timeit
-    def initialize(
-        self,
-        eri_,
-        compute_hf: bool,
-        *,
-        restart: bool,
-        int_transform: IntTransforms,
-    ) -> None:
-        """
-        Initialize the Bootstrap Embedding calculation.
-
-        Parameters
-        ----------
-        eri_ : numpy.ndarray
-            Electron repulsion integrals.
-        compute_hf : bool
-            Whether to compute Hartree-Fock energy.
-        restart : bool, optional
-            Whether to restart from a previous calculation, by default False.
-        int_transfrom :
-            Which integral transformation to perform.
-        """
-
-        # Create a file to store ERIs
-        if not restart:
-            file_eri = h5py.File(self.eri_file, "w")
-        for I in range(self.fobj.n_frag):
-            fobjs_ = self.fobj.to_Frags(I, eri_file=self.eri_file)
-            fobjs_.sd(self.W, self.lmo_coeff, self.Nocc, thr_bath=self.thr_bath)
-
-            self.Fobjs.append(fobjs_)
-
-        self.all_fragment_MO_TA, frag_TA_index_per_frag = union_of_frag_MOs_and_index(
-            self.Fobjs, self.mf.mol.intor("int1e_ovlp"), epsilon=1e-10
-        )
-        for fobj, frag_TA_offset in zip(self.Fobjs, frag_TA_index_per_frag):
-            fobj.frag_TA_offset = frag_TA_offset
-
-        if not restart:
-            self.eri_transform(int_transform, eri_, file_eri)
-
-        E_hf = self.process_fragments(file_eri, restart, compute_hf)
 
         if not restart:
             file_eri.close()
