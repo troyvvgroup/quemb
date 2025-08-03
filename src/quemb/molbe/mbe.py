@@ -918,7 +918,7 @@ class BE(MixinLocalize):
             #       Yes -- ao2mo, outcore version, using saved (ij|P)
             #       No  -- if integral_direct_DF is requested, invoke on-the-fly routine
             if int_transform == "in-core" or int_transform == "out-core-DF":
-                self.transform_eri(int_transform, eri_, file_eri)
+                self.eri_transform(int_transform, eri_, file_eri)
 
             elif int_transform == "int-direct-DF":
                 integral_direct_DF(
