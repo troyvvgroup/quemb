@@ -852,6 +852,14 @@ class BE(MixinLocalize):
         print(flush=True)
 
     def eri_transform(self, int_transform, eri_, file_eri):
+        # Transform ERIs for each fragment and store in the file
+        # ERI Transform Decision Tree
+        # Do we have full (ij|kl)?
+        #   Yes -- ao2mo, incore version
+        #   No  -- Do we have (ij|P) from density fitting?
+        #       Yes -- ao2mo, outcore version, using saved (ij|P)
+        #       No  -- if integral_direct_DF is requested, invoke on-the-fly routine
+
         if int_transform == "in-core":
             ensure(eri_ is not None, "ERIs have to be available in memory.")
             for I in range(self.fobj.n_frag):
@@ -951,13 +959,6 @@ class BE(MixinLocalize):
             fobj.frag_TA_offset = frag_TA_offset
 
         if not restart:
-            # Transform ERIs for each fragment and store in the file
-            # ERI Transform Decision Tree
-            # Do we have full (ij|kl)?
-            #   Yes -- ao2mo, incore version
-            #   No  -- Do we have (ij|P) from density fitting?
-            #       Yes -- ao2mo, outcore version, using saved (ij|P)
-            #       No  -- if integral_direct_DF is requested, invoke on-the-fly routine
             if (
                 int_transform == "in-core"
                 or int_transform == "out-core-DF"
