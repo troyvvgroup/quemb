@@ -44,6 +44,7 @@ from quemb.molbe.chemfrag import (
 from quemb.molbe.pfrag import Frags
 from quemb.shared.helper import (
     Timer,
+    ensure,
     gauss_sum,
     jitclass,
     n_symmetric,
