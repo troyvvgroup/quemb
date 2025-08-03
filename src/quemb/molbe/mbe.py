@@ -869,6 +869,16 @@ class BE(MixinLocalize):
                 file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
         elif int_transform == "int-direct-DF":
             integral_direct_DF(self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis)
+        elif int_transform == "sparse-DF-cpp":
+            transform_sparse_DF_integral_cpp(
+                self.mf,
+                self.Fobjs,
+                auxbasis=self.auxbasis,
+                file_eri_handler=file_eri,
+                MO_coeff_epsilon=self.MO_coeff_epsilon,
+                AO_coeff_epsilon=self.AO_coeff_epsilon,
+                n_threads=self.n_threads_integral_transform,
+            )
 
     @timer.timeit
     def initialize(
@@ -923,19 +933,10 @@ class BE(MixinLocalize):
                 int_transform == "in-core"
                 or int_transform == "out-core-DF"
                 or int_transform == "int-direct-DF"
+                or int_transform == "sparse-DF-cpp"
             ):
                 self.eri_transform(int_transform, eri_, file_eri)
 
-            elif int_transform == "sparse-DF-cpp":
-                transform_sparse_DF_integral_cpp(
-                    self.mf,
-                    self.Fobjs,
-                    auxbasis=self.auxbasis,
-                    file_eri_handler=file_eri,
-                    MO_coeff_epsilon=self.MO_coeff_epsilon,
-                    AO_coeff_epsilon=self.AO_coeff_epsilon,
-                    n_threads=self.n_threads_integral_transform,
-                )
             elif int_transform == "sparse-DF-cpp-gpu":
                 from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
                     transform_sparse_DF_integral_cpp_gpu,
