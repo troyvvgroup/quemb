@@ -868,6 +868,8 @@ class BE(MixinLocalize):
                 eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)
                 file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
         elif int_transform == "int-direct-DF":
+            # If ERIs are not saved on memory, compute fragment ERIs integral-direct
+            ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
             integral_direct_DF(self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis)
         elif int_transform == "sparse-DF-cpp":
             transform_sparse_DF_integral_cpp(

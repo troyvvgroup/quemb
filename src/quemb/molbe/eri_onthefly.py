@@ -11,7 +11,6 @@ from pyscf.gto.moleintor import getints3c, make_cintopt, make_loc
 from scipy.linalg import cholesky, solve_triangular
 
 from quemb.shared.config import settings
-from quemb.shared.helper import ensure
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +33,6 @@ def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
         Auxiliary basis used for density fitting. If not provided, use pyscf's default
         choice for the basis set used to construct mf object; by default None
     """
-
-    # If ERIs are not saved on memory, compute fragment ERIs integral-direct
-    ensure(bool(auxbasis), "`auxbasis` has to be defined.")
 
     def calculate_pqL(aux_range):
         """Internal function to calculate the 3-center integrals for a given range of
