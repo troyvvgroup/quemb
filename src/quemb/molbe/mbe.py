@@ -935,6 +935,35 @@ class BE(MixinLocalize):
         else:
             assert_never(int_transform)
 
+    def process_fragments(self, file_eri, restart, compute_hf):
+        E_hf = 0.0 if compute_hf else None
+        for fobjs_ in self.Fobjs:
+            # Process each fragment
+            eri = array(file_eri.get(fobjs_.dname))
+            _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
+
+            assert fobjs_.TA is not None
+            fobjs_.h1 = multi_dot((fobjs_.TA.T, self.hcore, fobjs_.TA))
+
+            if not restart:
+                eri = ao2mo.restore(8, eri, fobjs_.nao)
+
+            fobjs_.cons_fock(self.hf_veff, self.S, self.hf_dm, eri_=eri)
+
+            fobjs_.heff = zeros_like(fobjs_.h1)
+            fobjs_.scf(fs=True, eri=eri)
+
+            assert fobjs_.h1 is not None and fobjs_.nsocc is not None
+            fobjs_.dm0 = 2.0 * (
+                fobjs_._mo_coeffs[:, : fobjs_.nsocc]
+                @ fobjs_._mo_coeffs[:, : fobjs_.nsocc].conj().T
+            )
+
+            if compute_hf:
+                fobjs_.update_ebe_hf()  # Updates fragment HF energy.
+                E_hf += fobjs_.ebe_hf
+        return E_hf
+
     @timer.timeit
     def initialize(
         self,
@@ -979,32 +1008,7 @@ class BE(MixinLocalize):
         if not restart:
             self.eri_transform(int_transform, eri_, file_eri)
 
-        for fobjs_ in self.Fobjs:
-            # Process each fragment
-            eri = array(file_eri.get(fobjs_.dname))
-            _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
-
-            assert fobjs_.TA is not None
-            fobjs_.h1 = multi_dot((fobjs_.TA.T, self.hcore, fobjs_.TA))
-
-            if not restart:
-                eri = ao2mo.restore(8, eri, fobjs_.nao)
-
-            fobjs_.cons_fock(self.hf_veff, self.S, self.hf_dm, eri_=eri)
-
-            fobjs_.heff = zeros_like(fobjs_.h1)
-            fobjs_.scf(fs=True, eri=eri)
-
-            assert fobjs_.h1 is not None and fobjs_.nsocc is not None
-            fobjs_.dm0 = 2.0 * (
-                fobjs_._mo_coeffs[:, : fobjs_.nsocc]
-                @ fobjs_._mo_coeffs[:, : fobjs_.nsocc].conj().T
-            )
-
-            if compute_hf:
-                fobjs_.update_ebe_hf()  # Updates fragment HF energy.
-                E_hf += fobjs_.ebe_hf
-
+        E_hf = self.process_all_fragments(file_eri, restart=True, compute_hf=True)
         if not restart:
             file_eri.close()
 
