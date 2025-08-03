@@ -932,6 +932,8 @@ class BE(MixinLocalize):
                 AO_coeff_epsilon=self.AO_coeff_epsilon,
                 n_threads=self.n_threads_integral_transform,
             )
+        else:
+            assert_never(int_transform)
 
     @timer.timeit
     def initialize(
@@ -975,19 +977,7 @@ class BE(MixinLocalize):
             fobj.frag_TA_offset = frag_TA_offset
 
         if not restart:
-            if (
-                int_transform == "in-core"
-                or int_transform == "out-core-DF"
-                or int_transform == "int-direct-DF"
-                or int_transform == "sparse-DF-cpp"
-                or int_transform == "sparse-DF-cpp-gpu"
-                or int_transform == "sparse-DF-nb"
-                or int_transform == "sparse-DF-nb-gpu"
-            ):
-                self.eri_transform(int_transform, eri_, file_eri)
-
-            else:
-                assert_never(int_transform)
+            self.eri_transform(int_transform, eri_, file_eri)
 
         for fobjs_ in self.Fobjs:
             # Process each fragment
