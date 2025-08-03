@@ -916,6 +916,21 @@ class BE(MixinLocalize):
                 AO_coeff_epsilon=self.AO_coeff_epsilon,
                 n_threads=self.n_threads_integral_transform,
             )
+        elif int_transform == "sparse-DF-nb-gpu":
+            from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
+                transform_sparse_DF_integral_nb_gpu,
+            )
+
+            ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+            transform_sparse_DF_integral_nb_gpu(
+                self.mf,
+                self.Fobjs,
+                auxbasis=self.auxbasis,
+                file_eri_handler=file_eri,
+                MO_coeff_epsilon=self.MO_coeff_epsilon,
+                AO_coeff_epsilon=self.AO_coeff_epsilon,
+                n_threads=self.n_threads_integral_transform,
+            )
 
     @timer.timeit
     def initialize(
@@ -966,24 +981,10 @@ class BE(MixinLocalize):
                 or int_transform == "sparse-DF-cpp"
                 or int_transform == "sparse-DF-cpp-gpu"
                 or int_transform == "sparse-DF-nb"
+                or int_transform == "sparse-DF-nb-gpu"
             ):
                 self.eri_transform(int_transform, eri_, file_eri)
 
-            elif int_transform == "sparse-DF-nb-gpu":
-                from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
-                    transform_sparse_DF_integral_nb_gpu,
-                )
-
-                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-                transform_sparse_DF_integral_nb_gpu(
-                    self.mf,
-                    self.Fobjs,
-                    auxbasis=self.auxbasis,
-                    file_eri_handler=file_eri,
-                    MO_coeff_epsilon=self.MO_coeff_epsilon,
-                    AO_coeff_epsilon=self.AO_coeff_epsilon,
-                    n_threads=self.n_threads_integral_transform,
-                )
             else:
                 assert_never(int_transform)
 
