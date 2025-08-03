@@ -935,6 +935,7 @@ class BE(MixinLocalize):
         else:
             assert_never(int_transform)
 
+    @timer.timeit
     def process_fragments(self, file_eri, restart, compute_hf):
         E_hf = 0.0 if compute_hf else None
         for fobjs_ in self.Fobjs:
