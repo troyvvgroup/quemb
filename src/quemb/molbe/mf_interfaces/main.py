@@ -92,19 +92,21 @@ def _force_eval_mol(mol: Mole) -> Mole:
     """
 
     new_mol = mol.copy()
-    coords = mol.atom_coords()
+    coords = mol.atom_coords(unit="bohr")
     symbols = [mol.atom_symbol(i) for i in range(mol.natm)]
 
     new_mol.atom = "\n".join(
         f"{sym} {x:.10f} {y:.10f} {z:.10f}" for sym, (x, y, z) in zip(symbols, coords)
     )
+    new_mol.unit = "bohr"
     new_mol.build()
     return new_mol
 
 
-def load_scf(chkfile: PathLike) -> RHF:
-    """Recreate a PySCF RHF object from an HDF5 file."""
-    return create_mf(load_mol(chkfile), **load(chkfile, "scf"))
+def load_scf(chkfile: PathLike) -> tuple[Mole, RHF]:
+    """Recreate a PySCF Mole and RHF object from an HDF5 file."""
+    mf = create_mf(load_mol(chkfile), **load(chkfile, "scf"))
+    return mf.mol.copy(), mf
 
 
 def dump_scf(mf: RHF, chkfile: PathLike) -> None:

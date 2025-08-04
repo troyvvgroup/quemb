@@ -17,14 +17,14 @@ def write_cube(
 
     Parameters
     ----------
-    be_object
+    be_object :
         BE object containing the fragments, each of which contains embedding orbitals.
-    cube_file_path
+    cube_file_path :
         Directory to write the cube files to.
-    fragment_idx
+    fragment_idx :
         Index of the fragments to write the cube files for.
         If None, write all fragments.
-    cubegen_kwargs
+    cubegen_kwargs :
         Keyword arguments passed to cubegen.orbital.
     """
     cube_file_path = Path(cube_file_path)

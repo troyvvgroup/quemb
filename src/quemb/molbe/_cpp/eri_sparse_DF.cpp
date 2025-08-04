@@ -38,12 +38,28 @@ namespace py = pybind11;
 
 #ifdef USE_CUDA
 #define CUDA_CHECK_THROW(err)                                                          \
-    if ((err) != cudaSuccess)                                                          \
-        throw std::runtime_error(cudaGetErrorString(err));
+    do {                                                                               \
+        const cudaError_t _err = (err);                                                \
+        if (_err != cudaSuccess) {                                                     \
+            throw std::runtime_error(cudaGetErrorString(_err));                        \
+        }                                                                              \
+    } while (0)
 
 #define CUBLAS_CHECK_THROW(err)                                                        \
-    if ((err) != CUBLAS_STATUS_SUCCESS)                                                \
-        throw std::runtime_error("cuBLAS error");
+    do {                                                                               \
+        const cublasStatus_t _err = (err);                                             \
+        if (_err != CUBLAS_STATUS_SUCCESS) {                                           \
+            throw std::runtime_error("cuBLAS error");                                  \
+        }                                                                              \
+    } while (0)
+
+#define CUDA_CHECK_ALLOC(err)                                                          \
+    do {                                                                               \
+        const cudaError_t _err = (err);                                                \
+        if (_err != cudaSuccess) {                                                     \
+            throw std::bad_alloc();                                                    \
+        }                                                                              \
+    } while (0)
 
 class GPU_MatrixHandle
 {
@@ -53,7 +69,7 @@ class GPU_MatrixHandle
           _size(static_cast<size_t>(_n_rows * _n_cols))
     {
         const size_t bytes = _size * sizeof(double);
-        CUDA_CHECK_THROW(cudaMalloc(reinterpret_cast<void **>(&d_L), bytes));
+        CUDA_CHECK_ALLOC(cudaMalloc(reinterpret_cast<void **>(&d_L), bytes));
         CUDA_CHECK_THROW(cudaMemcpy(d_L, L_host.data(), bytes, cudaMemcpyHostToDevice));
     }
 
@@ -456,10 +472,7 @@ Matrix contract_with_TA_2nd_to_sym_dense(const SemiSparse3DTensor &int_mu_i_P,
     const auto n_sym_pairs = to_eigen(ravel_symmetric(nmo - 1, nmo - 1) + 1);
 
     if (LOG_LEVEL <= LogLevel::Debug) {
-        std::cout << "[MEMORY] about to "
-                     "allocate "
-                     "sym_P_pq(naux, "
-                     "n_sym_pairs) with "
+        std::cout << "[MEMORY] about to allocate sym_P_pq(naux, n_sym_pairs) with "
                   << bytes_to_gib(naux * n_sym_pairs * sizeof(double)) << " GiB"
                   << std::endl;
     }
@@ -514,26 +527,17 @@ Matrix eval_via_cholesky_cuda(const Matrix &sym_P_pq, const GPU_MatrixHandle &L_
     double *d_X = nullptr, *d_result = nullptr;
 
     if (LOG_LEVEL <= LogLevel::Debug) {
-        std::cout << __func__
-                  << "[GPU MEMORY] about to "
-                     "allocate bytes_X "
+        std::cout << __func__ << "[GPU MEMORY] about to allocate bytes_X "
                   << bytes_to_gib(bytes_X) << " GiB\n";
-        std::cout << __func__
-                  << "[GPU MEMORY] about to "
-                     "allocate bytes_res "
+        std::cout << __func__ << "[GPU MEMORY] about to allocate bytes_res "
                   << bytes_to_gib(bytes_res) << " GiB" << std::endl;
     }
 
-    CUDA_CHECK_THROW(cudaMalloc(reinterpret_cast<void **>(&d_X), bytes_X));
-    CUDA_CHECK_THROW(cudaMalloc(reinterpret_cast<void **>(&d_result), bytes_res));
+    CUDA_CHECK_ALLOC(cudaMalloc(reinterpret_cast<void **>(&d_X), bytes_X));
+    CUDA_CHECK_ALLOC(cudaMalloc(reinterpret_cast<void **>(&d_result), bytes_res));
     if (LOG_LEVEL <= LogLevel::Debug) {
-        std::cout << __func__
-                  << "[MEMORY] bytes_X "
-                     "succesfully "
-                     "allocated\n";
-        std::cout << __func__
-                  << "[MEMORY] bytes_res "
-                     "successfully allocated"
+        std::cout << __func__ << "[MEMORY] bytes_X succesfully allocated\n";
+        std::cout << __func__ << "[MEMORY] bytes_res successfully allocated"
                   << std::endl;
     }
 
