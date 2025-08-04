@@ -2,8 +2,8 @@
 
 from typing import Literal
 
-import h5py
 from pyscf.gto import Mole
+from pyscf.lib.chkfile import load, load_mol, save, save_mol
 from pyscf.scf.hf import RHF
 from typing_extensions import assert_never
 
@@ -102,38 +102,19 @@ def _force_eval_mol(mol: Mole) -> Mole:
     return new_mol
 
 
-def store_to_hdf5(mf: RHF, path: PathLike) -> None:
-    """Store a PySCF RHF object to an HDF5 file."""
-    with h5py.File(path, "w") as f:
-        mol_group = f.create_group("mol")
-        mol = _force_eval_mol(mf.mol)
-
-        mol_group.attrs["atom"] = mol.atom
-        mol_group.attrs["basis"] = mol.basis
-        mol_group.attrs["unit"] = mol.unit
-        mol_group.attrs["charge"] = mol.charge
-        mol_group.attrs["spin"] = mol.spin
-
-        f.create_dataset("mo_coeff", data=mf.mo_coeff)
-        f.create_dataset("mo_energy", data=mf.mo_energy)
-        f.create_dataset("mo_occ", data=mf.mo_occ)
-        f.attrs["e_tot"] = mf.e_tot
-
-
-def read_hdf5(path: PathLike) -> RHF:
+def load_scf(chkfile: PathLike) -> RHF:
     """Recreate a PySCF RHF object from an HDF5 file."""
-    with h5py.File(path, "r") as f:
-        mol_data = f["mol"].attrs
-        mol = Mole()
-        mol.atom = mol_data["atom"]
-        mol.basis = mol_data["basis"]
-        mol.unit = mol_data["unit"]
-        mol.charge = int(mol_data["charge"])
-        mol.spin = int(mol_data["spin"])
-        mol.build()
+    return create_mf(load_mol(chkfile), **load(chkfile, "scf"))
 
-        mo_coeff = f["mo_coeff"][()]
-        mo_energy = f["mo_energy"][()]
-        mo_occ = f["mo_occ"][()]
-        e_tot = float(f.attrs["e_tot"])
-    return create_mf(mol, mo_coeff, mo_energy, mo_occ, e_tot)
+
+def dump_scf(mf: RHF, chkfile: PathLike) -> None:
+    """Store a PySCF RHF object to an HDF5 file."""
+    save_mol(_force_eval_mol(mf.mol), chkfile)
+
+    scf_data = {
+        "e_tot": mf.e_tot,
+        "mo_energy": mf.mo_energy,
+        "mo_occ": mf.mo_occ,
+        "mo_coeff": mf.mo_coeff,
+    }
+    save(chkfile, "scf", scf_data)
