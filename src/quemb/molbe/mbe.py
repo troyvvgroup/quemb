@@ -941,7 +941,9 @@ class BE(MixinLocalize):
             assert_never(int_transform)
 
     @timer.timeit
-    def process_fragments(self, file_eri, restart, compute_hf):
+    def process_fragments(
+        self: "BE", file_eri: h5py.File, restart: bool, compute_hf: bool
+    ):
         E_hf = 0.0 if compute_hf else None
         for fobjs_ in self.Fobjs:
             # Process each fragment
