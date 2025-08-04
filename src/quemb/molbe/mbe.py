@@ -944,7 +944,7 @@ class BE(MixinLocalize):
     def process_fragments(
         self: "BE", file_eri: h5py.File, restart: bool, compute_hf: bool
     ):
-        E_hf = 0.0 if compute_hf else None
+        E_hf = 0.0
         for fobjs_ in self.Fobjs:
             # Process each fragment
             eri = array(file_eri.get(fobjs_.dname))
