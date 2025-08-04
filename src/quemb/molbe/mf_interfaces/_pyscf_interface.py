@@ -2,6 +2,7 @@ import numpy as np
 from pyscf.gto import Mole
 from pyscf.scf.hf import RHF
 
+from quemb.shared.helper import normalize_column_signs
 from quemb.shared.typing import Matrix, Vector
 
 
@@ -15,7 +16,7 @@ def create_mf(
     """Create a pyscf mean-field object from data **without** running a calculation"""
     mf = RHF(mol)
 
-    mf.mo_coeff = mo_coeff
+    mf.mo_coeff = normalize_column_signs(mo_coeff)
     mf.mo_energy = mo_energy
     mf.mo_occ = mo_occ
     mf.e_tot = e_tot
@@ -27,4 +28,5 @@ def get_mf_psycf(mol: Mole) -> RHF:
     "Run an RHF calculation in pyscf"
     mf = RHF(mol)
     mf.kernel()
+    mf.mo_coeff = normalize_column_signs(mf.mo_coeff)
     return mf
