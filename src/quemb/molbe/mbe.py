@@ -852,7 +852,9 @@ class BE(MixinLocalize):
         print(flush=True)
 
     @timer.timeit
-    def eri_transform(self, int_transform, eri_, file_eri):
+    def eri_transform(
+        self: "BE", int_transform: str, eri_: numpy.ndarray, file_eri: h5py.File
+    ):
         # Transform ERIs for each fragment and store in the file
         # ERI Transform Decision Tree
         # Do we have full (ij|kl)?
