@@ -1427,9 +1427,9 @@ def transform_sparse_DF_integral_nb(
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
     if S_abs_calculator == "grid":
-        S_abs = approx_S_abs(mol)
-    else:
         S_abs = grid_S_abs(mol)
+    else:
+        S_abs = approx_S_abs(mol)
 
     exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
 
@@ -1477,9 +1477,9 @@ def transform_sparse_DF_integral_cpp(
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
     if S_abs_calculator == "grid":
-        S_abs = approx_S_abs(mol)
-    else:
         S_abs = grid_S_abs(mol)
+    else:
+        S_abs = approx_S_abs(mol)
 
     exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
 
@@ -1532,9 +1532,9 @@ def transform_sparse_DF_integral_cpp_gpu(
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
     if S_abs_calculator == "grid":
-        S_abs = approx_S_abs(mol)
-    else:
         S_abs = grid_S_abs(mol)
+    else:
+        S_abs = approx_S_abs(mol)
 
     exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
 
@@ -1660,9 +1660,9 @@ try:
         auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
         if S_abs_calculator == "grid":
-            S_abs = approx_S_abs(mol)
-        else:
             S_abs = grid_S_abs(mol)
+        else:
+            S_abs = approx_S_abs(mol)
 
         exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
 
