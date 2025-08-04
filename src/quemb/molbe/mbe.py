@@ -117,9 +117,11 @@ class BE:
         self,
         mf: scf.hf.SCF,
         fobj: FragPart[Mole],
+        *,
         eri_file: PathLike = "eri_file.h5",
         lo_method: LocMethods = "lowdin",
         iao_loc_method: IAO_LocMethods = "lowdin",
+        lo_bath_post_schmidt: Literal["cholesky", "ER", "PM", "boys"] | None = None,
         pop_method: str | None = None,
         compute_hf: bool = True,
         restart: bool = False,
@@ -148,6 +150,11 @@ class BE:
             Method for orbital localization, by default "lowdin".
         iao_loc_method :
             Method for IAO localization, by default "lowdin"
+        lo_method_bath_post_schmidt :
+            If not :python:`None`, then perform a localization of the bath orbitals
+            **after** the Schmidt decomposition.
+            This is particularly relevant for integral screening, i.e.
+            :python:`int_transform="sparse-DF-*"`.
         pop_method :
             Method for calculating orbital population, by default 'meta-lowdin'
             See pyscf.lo for more details and options
@@ -256,6 +263,10 @@ class BE:
                 "Likewise, if lo_method != 'IAO', then fobj must not have "
                 "an iao_valence_basis defined."
             )
+
+        self.lo_bath_post_schmidt: Literal["cholesky", "ER", "PM", "boys"] | None = (
+            lo_bath_post_schmidt
+        )
 
         self.ebe_hf = 0.0
         self.ebe_tot = 0.0
@@ -920,6 +931,14 @@ class BE:
 
             self.Fobjs.append(fobjs_)
 
+        if self.lo_bath_post_schmidt is not None:
+            for frag in self.Fobjs:
+                frag.TA[:, frag.n_f :] = get_loc(
+                    self.mf.mol,
+                    frag.TA[:, frag.n_f :],
+                    method=self.lo_bath_post_schmidt,
+                )
+
         self.all_fragment_MO_TA, frag_TA_index_per_frag = union_of_frag_MOs_and_index(
             self.Fobjs, self.mf.mol.intor("int1e_ovlp"), epsilon=1e-10
         )
@@ -1191,7 +1210,7 @@ class BE:
         IAO is recommended augmented with PAO orbitals.
 
         NOTE: For molecular systems, with frozen core, the core and valence are
-        localized TOGETHER. This is not the case of periodic systems.
+        localized TOGETHER. This is not the case for periodic systems.
 
         Parameters
         ----------
