@@ -2,6 +2,7 @@
 
 
 import logging
+import warnings
 
 from attrs import Factory, define
 from numpy import array, float64
@@ -206,9 +207,6 @@ class BEOPT:
                         )
                         break
                 if self.err >= self.conv_tol:
-                    print(
-                        "BE DID NOT CONVERGE IN " + str(self.max_space) + " STEPS",
-                        flush=True,
-                    )
+                    warnings.warn(f"BE DID NOT CONVERGE IN {self.max_space} STEPS")
         else:
             raise ValueError("This optimization method for BE is not supported")
