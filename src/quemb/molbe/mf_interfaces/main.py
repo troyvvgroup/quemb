@@ -74,11 +74,39 @@ def get_mf(
         assert_never(backend)
 
 
+def _force_eval_mol(mol: Mole) -> Mole:
+    """
+    Return a copy of `mol` with explicit atomic coordinates.
+
+    Converts deferred geometries (e.g., from .xyz files) into an inline atom
+    string by embedding the evaluated coordinates.
+
+    Parameters
+    ----------
+    mol:
+        A built PySCF Mole object.
+
+    Returns
+    -------
+        Copy of `mol` with `atom` set to an explicit coordinate string.
+    """
+
+    new_mol = mol.copy()
+    coords = mol.atom_coords()
+    symbols = [mol.atom_symbol(i) for i in range(mol.natm)]
+
+    new_mol.atom = "\n".join(
+        f"{sym} {x:.10f} {y:.10f} {z:.10f}" for sym, (x, y, z) in zip(symbols, coords)
+    )
+    new_mol.build()
+    return new_mol
+
+
 def store_to_hdf5(mf: RHF, path: PathLike) -> None:
     """Store a PySCF RHF object to an HDF5 file."""
     with h5py.File(path, "w") as f:
         mol_group = f.create_group("mol")
-        mol = mf.mol
+        mol = _force_eval_mol(mf.mol)
 
         mol_group.attrs["atom"] = mol.atom
         mol_group.attrs["basis"] = mol.basis
