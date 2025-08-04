@@ -1,0 +1,6 @@
+quemb.molbe.graphfrag.graphgen
+==============================
+
+.. currentmodule:: quemb.molbe.graphfrag
+
+.. autofunction:: graphgen

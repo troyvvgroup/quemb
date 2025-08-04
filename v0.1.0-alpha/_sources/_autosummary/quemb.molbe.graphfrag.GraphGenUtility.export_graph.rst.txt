@@ -1,0 +1,6 @@
+quemb.molbe.graphfrag.GraphGenUtility.export\_graph
+===================================================
+
+.. currentmodule:: quemb.molbe.graphfrag
+
+.. automethod:: GraphGenUtility.export_graph

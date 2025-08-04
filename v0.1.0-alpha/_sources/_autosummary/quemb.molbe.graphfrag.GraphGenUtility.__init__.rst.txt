@@ -1,0 +1,6 @@
+quemb.molbe.graphfrag.GraphGenUtility.\_\_init\_\_
+==================================================
+
+.. currentmodule:: quemb.molbe.graphfrag
+
+.. automethod:: GraphGenUtility.__init__

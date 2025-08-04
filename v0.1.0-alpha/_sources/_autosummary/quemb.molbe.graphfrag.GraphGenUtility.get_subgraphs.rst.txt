@@ -1,0 +1,6 @@
+quemb.molbe.graphfrag.GraphGenUtility.get\_subgraphs
+====================================================
+
+.. currentmodule:: quemb.molbe.graphfrag
+
+.. automethod:: GraphGenUtility.get_subgraphs

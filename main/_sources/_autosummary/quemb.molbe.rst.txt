@@ -34,6 +34,7 @@
    eri_onthefly
    eri_sparse_DF
    fragment
+   graphfrag
    helper
    lo
    mbe
