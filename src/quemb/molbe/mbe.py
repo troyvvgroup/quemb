@@ -863,14 +863,23 @@ class BE(MixinLocalize):
         and stores them in a file.
 
         Transformation strategy follows a decision tree:
-        1. If full (ij|kl) ERIs are available:
-           - Use in-core `ao2mo` transformation.
-        2. Else, if (ij|P) intermediates from density fitting are available:
-           - Use out-of-core `ao2mo` transformation with saved (ij|P).
-        3. Else, if `integral_direct_DF` is requested:
-           - Use on-the-fly density-fitting integral evaluation.
-        """
 
+        1. If full (ij|kl) ERIs are available:
+           - Use in-core ``ao2mo`` transformation.
+        2. Else, if (ij|P) intermediates from density fitting are available:
+           - Use out-of-core ``ao2mo`` transformation with saved (ij|P).
+        3. Else, if ``integral_direct_DF`` is requested:
+           - Use on-the-fly density-fitting integral evaluation.
+
+        Parameters
+        ----------
+        int_transform : IntTransforms
+            The transformation strategy.
+        eri_ : numpy.ndarray
+            The ERIs for the molecule.
+        file_eri : h5py.File
+            The output file where transformed ERIs are stored.
+        """
         if int_transform == "in-core":
             ensure(eri_ is not None, "ERIs have to be available in memory.")
             for I in range(self.fobj.n_frag):
@@ -881,13 +890,10 @@ class BE(MixinLocalize):
                 hasattr(self.mf, "with_df") and self.mf.with_df is not None,
                 "Pyscf mean field object has to support `with_df`.",
             )
-            # pyscf.ao2mo uses DF object in an outcore fashion using (ij|P)
-            #   in pyscf temp directory
             for I in range(self.fobj.n_frag):
                 eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)
                 file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
         elif int_transform == "int-direct-DF":
-            # If ERIs are not saved on memory, compute fragment ERIs integral-direct
             ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
             integral_direct_DF(self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis)
         elif int_transform == "sparse-DF-cpp":
@@ -950,25 +956,29 @@ class BE(MixinLocalize):
         self: "BE", file_eri: h5py.File, restart: bool, compute_hf: bool
     ):
         """
-        Processes all molecular fragments
-        by constructing their Fock matrices, performing SCF,
-        and optionally computing fragment Hartree–Fock (HF) energies.
+        Processes all molecular fragments by constructing their Fock matrices,
+        performing SCF, and optionally computing fragment Hartree–Fock (HF) energies.
 
         This includes:
+
         - Loading and transforming ERIs (in-core or restored format).
         - Constructing 1-electron Hamiltonians via basis transformations.
         - Running fragment-level SCF calculations.
         - Building initial density matrices.
-        - Computing and accumulating fragment HF energies if `compute_hf` is True.
-        - Verifying HF-in-HF energy consistency
-          and optionally warning on large discrepancies.
+        - Computing and accumulating fragment HF energies if ``compute_hf`` is True.
+        - Verifying HF-in-HF energy consistency and optionally warning on large discrepancies.
 
-        Parameters:
-            file_eri (h5py.File): HDF5 file containing fragment ERIs.
-            restart (bool): If True, skips ERI transformation and file closure.
-            compute_hf (bool): If True, computes fragment HF energies and compares
-                            total against the full system HF energy.
+        Parameters
+        ----------
+        file_eri : h5py.File
+            HDF5 file containing fragment ERIs.
+        restart : bool
+            If True, skips ERI transformation and file closure.
+        compute_hf : bool
+            If True, computes fragment HF energies and compares total
+            against the full system HF energy.
         """
+
         E_hf = 0.0
         for fobjs_ in self.Fobjs:
             eri = array(file_eri.get(fobjs_.dname))
