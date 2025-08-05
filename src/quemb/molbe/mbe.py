@@ -109,7 +109,7 @@ class BE:
     eri_file : str
         Path to the file storing two-electron integrals.
     lo_method :
-        Method for orbital localization, default is 'SO'.
+        Method for orbital localization, default is "lowdin".
     """
 
     @timer.timeit
@@ -1225,9 +1225,9 @@ class BE:
         fobj :
         iao_loc_method:
             Name of localization method in quantum chemistry for the IAOs and PAOs.
-            Options include 'SO', 'FB', 'PM', 'ER' (as documented in PySCF). Default is
-            'SO', or symmetric orthogonalization.
-            If not using SO, we suggest using 'PM', as it is more robust than 'Boys'
+            Options include "lowdin", "boys", 'PM', 'ER' (as documented in PySCF).
+            Default is "lowdin".
+            If not using lowdin, we suggest using 'PM', as it is more robust than 'boys'
             localization and less expensive than 'ER'
         iao_valence_only : bool
             If this option is set to True, all calculation will be performed in the

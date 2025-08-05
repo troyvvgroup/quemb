@@ -21,6 +21,7 @@ def test_hexene_loc_be1_froz_pm(hexene) -> None:
         frozen=True,
         iao_valence_basis=None,
         lo_method="PM",
+        iao_loc_method=None,
         oneshot=True,
         nproc=1,
     )
