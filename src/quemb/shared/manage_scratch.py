@@ -8,7 +8,7 @@ from shutil import rmtree
 from types import TracebackType
 from typing import Annotated, Final, Literal
 
-from attr import define, field
+from attrs import define, field
 
 from quemb.shared.config import settings
 from quemb.shared.typing import PathLike

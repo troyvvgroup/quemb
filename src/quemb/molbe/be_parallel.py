@@ -121,10 +121,10 @@ def run_solver(
 
     # Select solver
     if solver == "MP2":
-        mc_ = solve_mp2(mf_, mo_energy=mf_.mo_energy)
-        rdm1_tmp = mc_.make_rdm1()
+        mc_mp2 = solve_mp2(mf_, mo_energy=mf_.mo_energy)
+        rdm1_tmp = mc_mp2.make_rdm1()
         if eeval:
-            rdm2s = mc_.make_rdm2()
+            rdm2s = mc_mp2.make_rdm2()
 
     elif solver == "CCSD":
         if eeval:
@@ -147,10 +147,10 @@ def run_solver(
             )
 
     elif solver == "FCI":
-        mc_ = fci.FCI(mf_, mf_.mo_coeff)
-        efci, civec = mc_.kernel()
+        mc_fci = fci.FCI(mf_, mf_.mo_coeff)
+        efci, civec = mc_fci.kernel()
         unused(efci)
-        rdm1_tmp = mc_.make_rdm1(civec, mc_.norb, mc_.nelec)
+        rdm1_tmp = mc_fci.make_rdm1(civec, mc_fci.norb, mc_fci.nelec)
 
     elif solver == "HCI":  # TODO
         # pylint: disable-next=E0611
@@ -265,7 +265,7 @@ def run_solver(
     if eeval:
         if solver == "FCI" or solver == "SCI":
             if solver == "FCI":
-                rdm2s = mc_.make_rdm2(civec, mc_.norb, mc_.nelec)
+                rdm2s = mc_fci.make_rdm2(civec, mc_fci.norb, mc_fci.nelec)
             if use_cumulant:
                 hf_dm = zeros_like(rdm1_tmp)
                 hf_dm[diag_indices(nocc)] += 2.0
