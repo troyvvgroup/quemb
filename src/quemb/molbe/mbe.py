@@ -41,6 +41,17 @@ IntTransforms: TypeAlias = Literal[
     "sparse-DF-cpp-gpu",  # screen AOs and MOs via S_abs
     "sparse-DF-nb-gpu",  # screen AOs and MOs via S_abs and use jitted numba
 ]
+"""Literal type describing allowed transformation strategies.
+
+Options:
+- "in-core"
+- "out-core-DF"
+- "int-direct-DF"
+- "sparse-DF-cpp"
+- "sparse-DF-nb"
+- "sparse-DF-cpp-gpu"
+- "sparse-DF-nb-gpu"
+"""
 
 logger = logging.getLogger(__name__)
 
@@ -873,9 +884,12 @@ class BE(MixinLocalize):
 
         Parameters
         ----------
-        int_transform : The transformation strategy.
-        eri_ : The ERIs for the molecule.
-        file_eri : The output file where transformed ERIs are stored.
+        int_transform : :py:data:`~quemb.molbe.mbe.IntTransforms`
+            The transformation strategy.
+        eri_ : numpy.ndarray
+            The ERIs for the molecule.
+        file_eri : h5py.File
+            The output file where transformed ERIs are stored.
         """
         if int_transform == "in-core":
             ensure(eri_ is not None, "ERIs have to be available in memory.")
