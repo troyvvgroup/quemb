@@ -144,3 +144,50 @@ jobs:
       with:
         name: quemb-test-results_${{ matrix.python-version }}
         path: tests/junit/quemb-test-results_${{ matrix.python-version }}.xml
+
+
+  testsuite-expensive:
+    runs-on: ubuntu-latest
+    needs: testsuite
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Prepare pip
+      run: |
+        python -m pip install --upgrade pip
+
+
+    - name: Install dependencies
+      run: |
+        pip install -r tests/test_requirements.txt
+        pip install git+https://github.com/pyscf/dmrgscf
+        PYSCFHOME=$(pip show pyscf-dmrgscf | grep 'Location' | tr ' ' '\n' | tail -n 1)
+        wget https://raw.githubusercontent.com/pyscf/dmrgscf/master/pyscf/dmrgscf/settings.py.example
+        mv settings.py.example ${PYSCFHOME}/pyscf/dmrgscf/settings.py
+        pip install . --config-settings=cmake.args=-DCMAKE_BUILD_TYPE=RelWithDebInfo
+
+
+    - name: Test with pytest
+      run: |
+        cd tests
+        QUEMB_DO_EXPENSIVE_TESTS=true pytest --durations=0 --durations-min=1.0 --doctest-modules --junitxml=junit/quemb-test-results_${{ matrix.python-version }}.xml
+        # If --duration=0, pytest reports all tests that took longer than what was given with durations-min=[time in seconds]
+
+
+    - name: Upload pytest junit results
+      uses: actions/upload-artifact@v4
+      with:
+        name: quemb-test-results_${{ matrix.python-version }}
+        path: tests/junit/quemb-test-results_${{ matrix.python-version }}.xml
