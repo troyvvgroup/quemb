@@ -217,6 +217,18 @@ class UBE(BE):  # 🍠
             print("eh1 ", EH1)
             print("ecoul ", ECOUL)
 
+    @timer.timeit
+    def _set_udim(self):
+        couti = 0
+        for fobj in self.Fobjs_a:
+            fobj.udim = couti
+            couti = fobj.set_udim(couti)
+
+        couti = 0
+        for fobj in self.Fobjs_b:
+            fobj.udim = couti
+            couti = fobj.set_udim(couti)
+
     def initialize(self, eri_, compute_hf):
         if compute_hf:
             E_hf = 0.0
@@ -355,15 +367,7 @@ class UBE(BE):  # 🍠
 
         self._check_hf_error(E_hf, EH1, ECOUL)
 
-        couti = 0
-        for fobj in self.Fobjs_a:
-            fobj.udim = couti
-            couti = fobj.set_udim(couti)
-
-        couti = 0
-        for fobj in self.Fobjs_b:
-            fobj.udim = couti
-            couti = fobj.set_udim(couti)
+        self._set_udim()
 
     def oneshot(self, solver="UCCSD", nproc=1, ompnum=4):
         if nproc == 1:
