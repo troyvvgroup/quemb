@@ -103,7 +103,7 @@ def get_iao(
         the valence (minimal) and working (large) basis are determined by
         separating S1 (working) by AO labels. If other localization methods
         are used, these matrices are calculated in full
-        Default is SO
+        Default is lowdin
     Return
     ------
     Ciao :class:`quemb.shared.typing.Matrix`
@@ -197,7 +197,7 @@ def get_pao(
         the valence (minimal) and working (large) basis are determined by
         separating S1 (working) by AO labels. If other localization methods
         are used, these matrices are calculated in full
-        Default is SO
+        Default is lowdin
     Returns
     -------
     Cpao: :class:`quemb.shared.typing.Matrix`

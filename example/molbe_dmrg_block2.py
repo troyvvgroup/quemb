@@ -46,7 +46,7 @@ for a in seps:
     mybe = BE(
         mf,
         fobj,
-        lo_method="pipek-mezey",  # or 'lowdin', 'iao', 'boys'
+        lo_method="PM",  # Pipek-Mezey or 'lowdin', 'IAO', 'boys', 'ER
         pop_method="lowdin",  # or 'meta-lowdin', 'mulliken', 'iao', 'becke'
     )
 
