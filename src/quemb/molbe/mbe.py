@@ -967,31 +967,29 @@ class BE(MixinLocalize):
         self: "BE", file_eri: h5py.File, restart: bool, compute_hf: bool
     ):
         """
-                Processes all molecular fragments
-                by constructing their Fock matrices,
-                performing SCF,
-                and optionally computing fragment Hartree–Fock (HF) energies.
+        Processes all molecular fragments by constructing their Fock matrices,
+        performing SCF, and optionally computing fragment Hartree–Fock (HF) energies.
 
-                This includes:
+        This includes:
 
-                - Loading and transforming ERIs (in-core or restored format).
-                - Constructing 1-electron Hamiltonians via basis transformations.
-                - Running fragment-level SCF calculations.
-                - Building initial density matrices.
-                - Computing and accumulating fragment HF energies
-                  if ``compute_hf`` is True.
-                - Verifying HF-in-HF energy consistency
+        - Loading and transforming ERIs (in-core or restored format).
+        - Constructing 1-electron Hamiltonians via basis transformations.
+        - Running fragment-level SCF calculations.
+        - Building initial density matrices.
+        - Computing and accumulating fragment HF energies if ``compute_hf`` is True.
+        - Verifying HF-in-HF energy consistency.
 
         Parameters
-            ----------
-            file_eri : h5py.File
-                HDF5 file containing fragment ERIs.
-            restart : bool
-                If True, skips ERI transformation and file closure.
-            compute_hf : bool
-                If True, computes fragment HF energies and compares total
-                against the full system HF energy.
+        ----------
+        file_eri : h5py.File
+            HDF5 file containing fragment ERIs.
+        restart : bool
+            If True, skips ERI transformation and file closure.
+        compute_hf : bool
+            If True, computes fragment HF energies and compares total
+            against the full system HF energy.
         """
+
         E_hf = 0.0
         for fobjs_ in self.Fobjs:
             eri = array(file_eri.get(fobjs_.dname))
