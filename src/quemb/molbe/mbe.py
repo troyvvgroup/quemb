@@ -966,7 +966,7 @@ class BE(MixinLocalize):
         - Running fragment-level SCF calculations.
         - Building initial density matrices.
         - Computing and accumulating fragment HF energies if ``compute_hf`` is True.
-        - Verifying HF-in-HF energy consistency and optionally warning on large discrepancies.
+        - Verifying HF-in-HF energy consistency
 
         Parameters
         ----------
