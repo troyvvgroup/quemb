@@ -16,7 +16,7 @@ from quemb.molbe import BE, fragmentate
 
 class TestDF_ontheflyERI(unittest.TestCase):
     @unittest.skipIf(
-        os.getenv("QUEMB_SKIP_EXPENSIVE_TESTS") == "true",
+        not (os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true"),
         "Skipped expensive tests for QuEmb.",
     )
     def test_octane_BE2_large(self):

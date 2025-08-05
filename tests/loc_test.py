@@ -28,7 +28,7 @@ def test_hexene_loc_be1_froz_pm(hexene) -> None:
 
 
 @unittest.skipIf(
-    os.getenv("QUEMB_SKIP_EXPENSIVE_TESTS") == "true",
+    not (os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true"),
     "Skipped expensive tests for QuEmb.",
 )
 def test_hexene_loc_be2_unfroz_lowdin(hexene) -> None:
@@ -62,7 +62,7 @@ def test_hexene_loc_be1_unfroz_iao_minao_so(hexene) -> None:
 
 
 @unittest.skipIf(
-    os.getenv("QUEMB_SKIP_EXPENSIVE_TESTS") == "true",
+    not (os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true"),
     "Skipped expensive tests for QuEmb.",
 )
 def test_hexene_loc_be2_froz_iao_sto3g_boys(hexene) -> None:
@@ -84,7 +84,7 @@ def test_hexene_loc_be2_froz_iao_sto3g_boys(hexene) -> None:
 
 
 @unittest.skipIf(
-    os.getenv("QUEMB_SKIP_EXPENSIVE_TESTS") == "true",
+    not (os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true"),
     "Skipped expensive tests for QuEmb.",
 )
 def test_chem_gen_hexene_loc_be2_froz_iao_sto3g_boys(hexene) -> None:
@@ -106,7 +106,7 @@ def test_chem_gen_hexene_loc_be2_froz_iao_sto3g_boys(hexene) -> None:
 
 
 @unittest.skipIf(
-    os.getenv("QUEMB_SKIP_EXPENSIVE_TESTS") == "true",
+    not (os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true"),
     "Skipped expensive tests for QuEmb.",
 )
 def test_chem_gen_hexene_loc_be2_froz_iao_sto3g_boys_fixed_AOs(hexene) -> None:

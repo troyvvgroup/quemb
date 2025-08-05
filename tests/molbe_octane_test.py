@@ -37,7 +37,7 @@ def test_BE2_octane_molbe() -> None:
 
 
 @pytest.mark.skipif(
-    os.getenv("QUEMB_SKIP_EXPENSIVE_TESTS") == "true",
+    not (os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true"),
     reason="Skipped expensive BE3 test for QuEmb.",
 )
 def test_BE3_octane_molbe() -> None:

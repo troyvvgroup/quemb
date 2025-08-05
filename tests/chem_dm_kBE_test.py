@@ -45,7 +45,7 @@ class Test_kBE_Full(unittest.TestCase):
         )
 
     @unittest.skipIf(
-        os.getenv("QUEMB_SKIP_EXPENSIVE_TESTS") == "true",
+        not (os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true"),
         "Skipped expensive tests for QuEmb.",
     )
     def test_kc4_sto3g_be2_density(self) -> None:
