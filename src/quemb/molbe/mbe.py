@@ -873,7 +873,7 @@ class BE(MixinLocalize):
 
         Parameters
         ----------
-        int_transform (:class:`quemb.molbe.IntTransforms`):
+        int_transform (:class:`quemb.molbe.mbe.IntTransforms`):
             The transformation strategy.
         eri_ : numpy.ndarray
             The ERIs for the molecule.
