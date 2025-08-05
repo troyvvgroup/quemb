@@ -7,10 +7,25 @@ from warnings import warn
 
 import h5py
 import numpy
+import numpy as np
 from attrs import define
-from numpy import array, diag_indices, einsum, float64, floating, zeros, zeros_like
-from numpy.linalg import multi_dot
+from numpy import (
+    allclose,
+    array,
+    diag,
+    diag_indices,
+    einsum,
+    eye,
+    float64,
+    floating,
+    sqrt,
+    where,
+    zeros,
+    zeros_like,
+)
+from numpy.linalg import eigh, multi_dot, svd
 from pyscf import ao2mo, scf
+from pyscf.gto import Mole
 from typing_extensions import assert_never
 
 from quemb.molbe.be_parallel import be_func_parallel
@@ -20,15 +35,27 @@ from quemb.molbe.eri_sparse_DF import (
     transform_sparse_DF_integral_nb,
 )
 from quemb.molbe.fragment import FragPart
-from quemb.molbe.lo import MixinLocalize
+from quemb.molbe.lo import (
+    IAO_LocMethods,
+    LocMethods,
+    get_iao,
+    get_loc,
+    get_pao,
+    get_xovlp,
+    remove_core_mo,
+)
 from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
 from quemb.molbe.opt import BEOPT
 from quemb.molbe.pfrag import Frags, union_of_frag_MOs_and_index
 from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
+from quemb.shared.external.lo_helper import (
+    get_aoind_by_atom,
+    reorder_by_atom_,
+)
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
-from quemb.shared.helper import copy_docstring, ensure, timer
+from quemb.shared.helper import copy_docstring, ensure, ncore_, timer, unused
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix, PathLike
 
@@ -75,7 +102,7 @@ class storeBE:
     core_veff: Matrix[floating]
 
 
-class BE(MixinLocalize):
+class BE:
     """
     Class for handling bootstrap embedding (BE) calculations.
 
@@ -92,18 +119,18 @@ class BE(MixinLocalize):
         Fragment object containing sites, centers, edges, and indices.
     eri_file : str
         Path to the file storing two-electron integrals.
-    lo_method : str
-        Method for orbital localization, default is 'lowdin'.
+    lo_method :
+        Method for orbital localization, default is "lowdin".
     """
 
     @timer.timeit
     def __init__(
         self,
         mf: scf.hf.SCF,
-        fobj: FragPart,
+        fobj: FragPart[Mole],
         eri_file: PathLike = "eri_file.h5",
-        lo_method: str = "lowdin",
-        iao_loc_method: str | None = "SO",
+        lo_method: LocMethods = "lowdin",
+        iao_loc_method: IAO_LocMethods = "lowdin",
         pop_method: str | None = None,
         restart: bool = False,
         restart_file: PathLike = "storebe.pk",
@@ -128,9 +155,9 @@ class BE(MixinLocalize):
         eri_file :
             Path to the file storing two-electron integrals.
         lo_method :
-            Method for orbital localization, by default 'lowdin'.
+            Method for orbital localization, by default "lowdin".
         iao_loc_method :
-            Method for IAO localization, by default "SO"
+            Method for IAO localization, by default "lowdin"
         pop_method :
             Method for calculating orbital population, by default 'meta-lowdin'
             See pyscf.lo for more details and options
@@ -230,6 +257,13 @@ class BE(MixinLocalize):
 
         # Fragment information from fobj
         self.fobj = fobj
+        if not ((lo_method == "IAO") == (self.fobj.iao_valence_basis is not None)):
+            raise ValueError(
+                "If lo_method = 'IAO', "
+                "then the fobj has to have an iao_valence_basis defined.\n"
+                "Likewise, if lo_method != 'IAO', then fobj must not have "
+                "an iao_valence_basis defined."
+            )
 
         self.ebe_hf = 0.0
         self.ebe_tot = 0.0
@@ -300,21 +334,21 @@ class BE(MixinLocalize):
             # Localize orbitals
             self.localize(
                 lo_method,
-                iao_valence_basis=fobj.iao_valence_basis,
+                fobj=fobj,
                 iao_loc_method=iao_loc_method,
                 iao_valence_only=fobj.iao_valence_only,
                 pop_method=pop_method,
             )
 
-            if fobj.iao_valence_only and lo_method.upper() == "IAO":
+            if fobj.iao_valence_only and lo_method == "IAO":
                 self.Ciao_pao = self.localize(
                     lo_method,
-                    iao_valence_basis=fobj.iao_valence_basis,
+                    fobj=fobj,
                     iao_loc_method=iao_loc_method,
                     iao_valence_only=False,
                     pop_method=pop_method,
                     hstack=True,
-                    nosave=True,
+                    save=False,
                 )
 
         if not restart:
@@ -1172,6 +1206,264 @@ class BE(MixinLocalize):
         with h5py.File(heff_file, "r") as filepot:
             for fobj in self.Fobjs:
                 fobj.heff = filepot.get(fobj.dname)
+
+    def localize(
+        self,
+        lo_method: LocMethods,
+        fobj: FragPart,
+        iao_loc_method: IAO_LocMethods = "lowdin",
+        iao_valence_only: bool = False,
+        pop_method: str | None = None,
+        init_guess: Matrix[np.floating] | None = None,
+        hstack: bool = False,
+        save: bool = True,
+    ) -> None | Matrix[np.float64]:
+        """Molecular orbital localization
+
+        Performs molecular orbital localization computations. For large basis,
+        IAO is recommended augmented with PAO orbitals.
+
+        NOTE: For molecular systems, with frozen core, the core and valence are
+        localized TOGETHER. This is not the case of periodic systems.
+
+        Parameters
+        ----------
+        lo_method :
+            Method for orbital localization. Supports
+            "lowdin" (Löwdin or symmetric orthogonalization),
+            "boys" (Foster-Boys),
+            "PM" (Pipek-Mezey", and
+            "ER" (Edmiston-Rudenberg).
+            By default "lowdin"
+        fobj :
+        iao_loc_method:
+            Name of localization method in quantum chemistry for the IAOs and PAOs.
+            Options include "lowdin", "boys", 'PM', 'ER' (as documented in PySCF).
+            Default is "lowdin".
+            If not using lowdin, we suggest using 'PM', as it is more robust than 'boys'
+            localization and less expensive than 'ER'
+        iao_valence_only : bool
+            If this option is set to True, all calculation will be performed in the
+            valence basis in the IAO partitioning. Default is False.
+            This is an experimental feature: the returned energy is not accurate
+        """
+        if lo_method == "lowdin":
+            es_, vs_ = eigh(self.S)
+            edx = es_ > 1.0e-15
+            self.W = vs_[:, edx] / sqrt(es_[edx]) @ vs_[:, edx].T
+            if self.frozen_core:
+                if self.unrestricted:
+                    P_core = [
+                        eye(self.W.shape[0]) - (self.P_core[s] @ self.S) for s in [0, 1]
+                    ]
+                    C_ = P_core @ self.W
+                    unr_Cpop = [multi_dot((C_[s].T, self.S, C_[s])) for s in [0, 1]]
+                    unr_Cpop = [diag(unr_Cpop[s]) for s in [0, 1]]
+                    unr_no_core_idx = [where(unr_Cpop[s] > 0.7)[0] for s in [0, 1]]
+                    C_ = [C_[s][:, unr_no_core_idx[s]] for s in [0, 1]]
+                    S_ = [multi_dot((C_[s].T, self.S, C_[s])) for s in [0, 1]]
+                    unr_W_ = []
+                    for s in [0, 1]:
+                        es_, vs_ = eigh(S_[s])
+                        s_ = sqrt(es_)
+                        s_ = diag(1.0 / s_)
+                        unr_W_.append(multi_dot((vs_, s_, vs_.T)))
+                    self.W = [C_[s] @ unr_W_[s] for s in [0, 1]]
+                else:
+                    P_core = eye(self.W.shape[0]) - self.P_core @ self.S
+                    C_ = P_core @ self.W
+                    # NOTE: PYSCF has basis in 1s2s3s2p2p2p3p3p3p format
+                    # fix no_core_idx - use population for now
+                    Cpop = multi_dot((C_.T, self.S, C_))
+                    no_core_idx = where(diag(Cpop) > 0.7)[0]
+                    C_ = C_[:, no_core_idx]
+                    S_ = multi_dot((C_.T, self.S, C_))
+                    es_, vs_ = eigh(S_)
+                    s_ = sqrt(es_)
+                    s_ = diag(1.0 / s_)
+                    W_ = multi_dot((vs_, s_, vs_.T))
+                    self.W = C_ @ W_
+
+            if self.unrestricted:
+                if self.frozen_core:
+                    self.lmo_coeff_a = multi_dot(
+                        (self.W[0].T, self.S, self.C_a[:, self.ncore :])  # type: ignore[attr-defined]
+                    )
+                    self.lmo_coeff_b = multi_dot(
+                        (self.W[1].T, self.S, self.C_b[:, self.ncore :])  # type: ignore[attr-defined]
+                    )
+                else:
+                    self.lmo_coeff_a = multi_dot((self.W.T, self.S, self.C_a))  # type: ignore[attr-defined]
+                    self.lmo_coeff_b = multi_dot((self.W.T, self.S, self.C_b))  # type: ignore[attr-defined]
+            else:
+                if self.frozen_core:
+                    self.lmo_coeff = multi_dot(
+                        (self.W.T, self.S, self.C[:, self.ncore :])
+                    )
+                else:
+                    self.lmo_coeff = multi_dot((self.W.T, self.S, self.C))
+            return None
+        elif lo_method == "boys" or lo_method == "PM" or lo_method == "ER":
+            es_, vs_ = eigh(self.S)
+            edx = es_ > 1.0e-15
+            W_ = vs_[:, edx] / sqrt(es_[edx]) @ vs_[:, edx].T
+            if self.frozen_core:
+                P_core = eye(W_.shape[0]) - self.P_core @ self.S
+                C_ = P_core @ W_
+                Cpop = multi_dot((C_.T, self.S, C_))
+                Cpop = diag(Cpop)
+                no_core_idx = where(Cpop > 0.55)[0]
+                C_ = C_[:, no_core_idx]
+                S_ = multi_dot((C_.T, self.S, C_))
+                es_, vs_ = eigh(S_)
+                s_ = sqrt(es_)
+                s_ = diag(1.0 / s_)
+                W_ = multi_dot((vs_, s_, vs_.T))
+                W_ = C_ @ W_
+
+            self.W = get_loc(
+                self.mf.mol,
+                W_,
+                lo_method,  # type: ignore[arg-type]
+                pop_method=pop_method,
+                init_guess=init_guess,
+            )
+
+            if not self.frozen_core:
+                self.lmo_coeff = self.W.T @ self.S @ self.C
+            else:
+                self.lmo_coeff = self.W.T @ self.S @ self.C[:, self.ncore :]
+            return None
+
+        elif lo_method == "IAO":
+            # IAO working basis: (w): (large) basis set we use
+            # IAO valence basis: (v): minimal-like basis we try to resemble
+            assert fobj.iao_valence_basis is not None
+
+            # Occupied mo_coeff (with core)
+            Co = self.C[:, : self.Nocc]
+
+            # Get necessary overlaps, second arg is IAO valence basis
+            S_vw, S_vv = get_xovlp(self.fobj.mol, basis=fobj.iao_valence_basis)
+
+            # How do we describe the rest of the space?
+            # If iao_valence_only=False, we use PAOs:
+            if not iao_valence_only:
+                Ciao = get_iao(
+                    Co,
+                    S_vw,
+                    self.S,
+                    S_vv,
+                    self.fobj.mol,
+                    fobj.iao_valence_basis,
+                    iao_loc_method,
+                )
+
+                Cpao = get_pao(
+                    Ciao,
+                    self.S,
+                    S_vw,
+                    self.fobj.mol,
+                    fobj.iao_valence_basis,
+                    iao_loc_method,
+                )
+
+                if iao_loc_method != "lowdin":
+                    # Localize IAOs and PAOs
+                    Ciao = get_loc(self.fobj.mol, Ciao, iao_loc_method)
+                    Cpao = get_loc(self.fobj.mol, Cpao, iao_loc_method)
+            else:
+                Ciao = get_iao(
+                    Co,
+                    S_vw,
+                    self.S,
+                    S_vv,
+                    self.fobj.mol,
+                    fobj.iao_valence_basis,
+                    iao_loc_method,
+                )
+
+                if iao_loc_method != "lowdin":
+                    Ciao = get_loc(self.fobj.mol, Ciao, iao_loc_method)
+
+            # Rearrange by atom
+            aoind_by_atom = get_aoind_by_atom(self.fobj.mol)
+            Ciao, iaoind_by_atom = reorder_by_atom_(Ciao, aoind_by_atom, self.S)
+
+            if not iao_valence_only:
+                Cpao, paoind_by_atom = reorder_by_atom_(Cpao, aoind_by_atom, self.S)
+
+            if self.frozen_core:
+                # Remove core MOs
+                Cc = self.C[:, : self.ncore]  # Assumes core are first
+                Ciao = remove_core_mo(Ciao, Cc, self.S)
+
+            shift = 0
+            ncore = 0
+            if not iao_valence_only:
+                Wstack = zeros((Ciao.shape[0], Ciao.shape[1] + Cpao.shape[1]))
+            else:
+                Wstack = zeros((Ciao.shape[0], Ciao.shape[1]))
+
+            if self.frozen_core:
+                for ix in range(self.fobj.mol.natm):
+                    nc = ncore_(self.fobj.mol.atom_charge(ix))
+                    ncore += nc
+                    niao = len(iaoind_by_atom[ix])
+                    iaoind_ix = [i_ - ncore for i_ in iaoind_by_atom[ix][nc:]]
+                    Wstack[:, shift : shift + niao - nc] = Ciao[:, iaoind_ix]
+                    shift += niao - nc
+                    if not iao_valence_only:
+                        npao = len(paoind_by_atom[ix])
+                        Wstack[:, shift : shift + npao] = Cpao[:, paoind_by_atom[ix]]
+                        shift += npao
+            else:
+                if not hstack:
+                    for ix in range(self.fobj.mol.natm):
+                        niao = len(iaoind_by_atom[ix])
+                        Wstack[:, shift : shift + niao] = Ciao[:, iaoind_by_atom[ix]]
+                        shift += niao
+                        if not iao_valence_only:
+                            npao = len(paoind_by_atom[ix])
+                            Wstack[:, shift : shift + npao] = Cpao[
+                                :, paoind_by_atom[ix]
+                            ]
+                            shift += npao
+                else:
+                    Wstack = np.hstack((Ciao, Cpao))
+            if save:
+                self.W = Wstack
+                assert allclose(self.W.T @ self.S @ self.W, eye(self.W.shape[1]))
+            else:
+                assert allclose(Wstack.T @ self.S @ Wstack, eye(Wstack.shape[1]))
+                return Wstack
+
+            nmo = self.C.shape[1] - self.ncore
+            nlo = self.W.shape[1]
+
+            if not iao_valence_only:
+                if nmo > nlo:
+                    Co_nocore = self.C[:, self.ncore : self.Nocc]
+                    Cv = self.C[:, self.Nocc :]
+                    # Ensure that the LOs span the occupied space
+                    assert allclose(
+                        np.sum((self.W.T @ self.S @ Co_nocore) ** 2.0),
+                        self.Nocc - self.ncore,
+                    )
+                    # Find virtual orbitals that lie in the span of LOs
+                    u, l, vt = svd(self.W.T @ self.S @ Cv, full_matrices=False)
+                    unused(u)
+                    nvlo = nlo - self.Nocc - self.ncore
+                    assert allclose(np.sum(l[:nvlo]), nvlo)
+                    C_ = np.hstack([Co_nocore, Cv @ vt[:nvlo].T])
+                    self.lmo_coeff = self.W.T @ self.S @ C_
+                else:
+                    self.lmo_coeff = self.W.T @ self.S @ self.C[:, self.ncore :]
+            else:
+                self.lmo_coeff = self.W.T @ self.S @ self.C[:, self.ncore :]
+            return None
+        else:
+            raise assert_never(lo_method)
 
 
 def initialize_pot(n_frag, relAO_per_edge):
