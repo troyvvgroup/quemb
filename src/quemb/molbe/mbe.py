@@ -105,7 +105,6 @@ class BE(MixinLocalize):
         lo_method: str = "lowdin",
         iao_loc_method: str | None = "SO",
         pop_method: str | None = None,
-        compute_hf: bool = True,
         restart: bool = False,
         restart_file: PathLike = "storebe.pk",
         nproc: int = 1,
@@ -135,8 +134,6 @@ class BE(MixinLocalize):
         pop_method :
             Method for calculating orbital population, by default 'meta-lowdin'
             See pyscf.lo for more details and options
-        compute_hf :
-            Whether to compute Hartree-Fock energy, by default True.
         restart :
             Whether to restart from a previous calculation, by default False.
         restart_file :
@@ -322,11 +319,9 @@ class BE(MixinLocalize):
 
         if not restart:
             # Initialize fragments and perform initial calculations
-            self.initialize(
-                mf._eri, compute_hf, restart=False, int_transform=int_transform
-            )
+            self.initialize(mf._eri, restart=False, int_transform=int_transform)
         else:
-            self.initialize(None, compute_hf, restart=True, int_transform=int_transform)
+            self.initialize(None, restart=True, int_transform=int_transform)
 
     def save(self, save_file: PathLike = "storebe.pk") -> None:
         """
@@ -974,7 +969,7 @@ class BE(MixinLocalize):
         - Constructing 1-electron Hamiltonians via basis transformations.
         - Running fragment-level SCF calculations.
         - Building initial density matrices.
-        - Computing and accumulating fragment HF energies if ``compute_hf`` is True.
+        - Computing and accumulating fragment HF energies
         - Verifying HF-in-HF energy consistency.
 
         Parameters
@@ -983,9 +978,6 @@ class BE(MixinLocalize):
             HDF5 file containing fragment ERIs.
         restart : bool
             If True, skips ERI transformation and file closure.
-        compute_hf : bool
-            If True, computes fragment HF energies and compares total
-            against the full system HF energy.
         """
 
         E_hf = 0.0
@@ -1035,8 +1027,6 @@ class BE(MixinLocalize):
         ----------
         eri_ : numpy.ndarray
             Electron repulsion integrals.
-        compute_hf : bool
-            Whether to compute Hartree-Fock energy.
         restart : bool, optional
             Whether to restart from a previous calculation, by default False.
         int_transfrom :
