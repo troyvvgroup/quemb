@@ -963,9 +963,7 @@ class BE(MixinLocalize):
             assert_never(int_transform)
 
     @timer.timeit
-    def _process_fragments(
-        self: "BE", file_eri: h5py.File, restart: bool, compute_hf: bool
-    ):
+    def _process_fragments(self: "BE", file_eri: h5py.File, restart: bool):
         """
         Processes all molecular fragments by constructing their Fock matrices,
         performing SCF, and optionally computing fragment Hartree–Fock (HF) energies.
@@ -1012,15 +1010,13 @@ class BE(MixinLocalize):
                 @ fobjs_._mo_coeffs[:, : fobjs_.nsocc].conj().T
             )
 
-            if compute_hf:
-                fobjs_.update_ebe_hf()  # Updates fragment HF energy.
-                E_hf += fobjs_.ebe_hf
-        if compute_hf:
-            self.ebe_hf = E_hf + self.enuc + self.E_core
-            hf_err = self.hf_etot - self.ebe_hf
-            print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
-            if abs(hf_err) > 1.0e-5:
-                warn("Large HF-in-HF energy error")
+            fobjs_.update_ebe_hf()  # Updates fragment HF energy.
+            E_hf += fobjs_.ebe_hf
+        self.ebe_hf = E_hf + self.enuc + self.E_core
+        hf_err = self.hf_etot - self.ebe_hf
+        print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
+        if abs(hf_err) > 1.0e-5:
+            warn("Large HF-in-HF energy error")
         if not restart:
             file_eri.close()
 
@@ -1028,7 +1024,6 @@ class BE(MixinLocalize):
     def initialize(
         self,
         eri_,
-        compute_hf: bool,
         *,
         restart: bool,
         int_transform: IntTransforms,
@@ -1065,7 +1060,7 @@ class BE(MixinLocalize):
         if not restart:
             self._eri_transform(int_transform, eri_, file_eri)
 
-        self._process_fragments(file_eri, restart, compute_hf)
+        self._process_fragments(file_eri, restart)
 
         couti = 0
         for fobj in self.Fobjs:
