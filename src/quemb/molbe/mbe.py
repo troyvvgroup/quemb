@@ -873,12 +873,9 @@ class BE(MixinLocalize):
 
         Parameters
         ----------
-        int_transform (:class:`quemb.molbe.mbe.IntTransforms`):
-            The transformation strategy.
-        eri_ : numpy.ndarray
-            The ERIs for the molecule.
-        file_eri : h5py.File
-            The output file where transformed ERIs are stored.
+        int_transform : The transformation strategy.
+        eri_ : The ERIs for the molecule.
+        file_eri : The output file where transformed ERIs are stored.
         """
         if int_transform == "in-core":
             ensure(eri_ is not None, "ERIs have to be available in memory.")
@@ -970,12 +967,9 @@ class BE(MixinLocalize):
 
         Parameters
         ----------
-        file_eri : h5py.File
-            HDF5 file containing fragment ERIs.
-        restart : bool
-            If True, skips ERI transformation and file closure.
-        compute_hf : bool
-            If True, computes fragment HF energies and compares total
+        file_eri : HDF5 file containing fragment ERIs.
+        restart : If True, skips ERI transformation and file closure.
+        compute_hf : If True, computes fragment HF energies and compares total
             against the full system HF energy.
         """
 
