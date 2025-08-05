@@ -1,7 +1,7 @@
 # Authors: Oinam Romesh Meitei, Shaun Weatherly, Oskar Weser
 
 from collections.abc import Sequence
-from typing import Literal, TypeAlias
+from typing import Generic, Literal, TypeAlias, TypeVar
 from warnings import warn
 
 from attrs import cmp_using, define, field
@@ -32,13 +32,15 @@ from quemb.shared.typing import (
 
 FragType: TypeAlias = Literal["chemgen", "graphgen", "autogen"]
 
+_T_chemsystem = TypeVar("_T_chemsystem", Mole, Cell)
+
 
 @define(kw_only=True)
-class FragPart:
+class FragPart(Generic[_T_chemsystem]):
     """Data structure to hold the result of BE fragmentations."""
 
     #: The full molecule.
-    mol: Mole | Cell = field(eq=cmp_using(are_equal))
+    mol: _T_chemsystem = field(eq=cmp_using(are_equal))
     #: The algorithm used for fragmenting.
     frag_type: FragType
     #: The level of BE fragmentation, i.e. 1, 2, ...
