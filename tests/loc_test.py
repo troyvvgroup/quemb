@@ -21,7 +21,6 @@ def test_hexene_loc_be1_froz_pm(hexene) -> None:
         frozen=True,
         iao_valence_basis=None,
         lo_method="PM",
-        iao_loc_method=None,
         oneshot=True,
         nproc=1,
     )
@@ -136,7 +135,7 @@ def ret_ecorr(
     lo_method: LocMethods,
     oneshot: bool,
     nproc: int,
-    iao_loc_method: IAO_LocMethods = "lowdin",
+    iao_loc_method: IAO_LocMethods | None = None,
     frag_type: Literal["autogen", "chemgen"] = "autogen",
     additional_args: ChemGenArgs | None = None,
 ) -> float:
