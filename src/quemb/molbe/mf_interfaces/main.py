@@ -3,6 +3,7 @@
 from typing import Literal
 
 import h5py
+from opi.input.simple_keywords import SimpleKeyword
 from pyscf.gto import Mole
 from pyscf.lib.chkfile import load, load_mol, save, save_mol
 from pyscf.scf.hf import RHF
@@ -24,6 +25,7 @@ def get_mf(
     n_procs: int = 1,
     work_dir: WorkDir | None = None,
     backend: SCF_Backends = "pyscf",
+    orca_keywords: list[SimpleKeyword] | None = None,
 ) -> RHF:
     """
     Compute the mean-field (SCF) object for a given molecule using the selected backend.
@@ -58,6 +60,7 @@ def get_mf(
 
     if work_dir is None:
         work_dir = WorkDir.from_environment(prefix="mf_calculation")
+    orca_keywords = [] if orca_keywords is None else orca_keywords
 
     if backend == "pyscf":
         return get_mf_psycf(mol)
@@ -69,7 +72,10 @@ def get_mf(
         )
 
         return get_mf_orca(
-            mol, work_dir, n_procs, simple_keywords=[Approximation.RIJCOSX]
+            mol,
+            work_dir,
+            n_procs,
+            simple_keywords=[Approximation.RIJCOSX] + orca_keywords,
         )
     elif backend == "orca-RIJONX":
         from opi.input.simple_keywords import (  # type: ignore[import-not-found]
@@ -77,7 +83,10 @@ def get_mf(
         )
 
         return get_mf_orca(
-            mol, work_dir, n_procs, simple_keywords=[Approximation.RIJONX]
+            mol,
+            work_dir,
+            n_procs,
+            simple_keywords=[Approximation.RIJONX] + orca_keywords,
         )
     else:
         assert_never(backend)
@@ -100,7 +109,7 @@ def _force_eval_mol(mol: Mole) -> Mole:
         Copy of `mol` with `atom` set to an explicit coordinate string.
     """
 
-    if mol.unit != "Angstrom":
+    if mol.unit != "angstrom":
         raise ValueError("Has to be given in Angstrom.")
 
     new_mol = mol.copy()

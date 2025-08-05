@@ -928,7 +928,6 @@ class BE:
         for I in range(self.fobj.n_frag):
             fobjs_ = self.fobj.to_Frags(I, eri_file=self.eri_file)
 
-            print(">>>>>>>>>>>>>>>>>>>>", self.Nocc)
             fobjs_.sd(self.W, self.lmo_coeff, self.Nocc, thr_bath=self.thr_bath)
 
             self.Fobjs.append(fobjs_)

@@ -8,6 +8,7 @@ from collections.abc import Mapping, Sequence
 from typing import Final, cast
 
 import numpy as np
+from attrs import define, field
 from chemcoord import Cartesian
 from pyscf.gto import Mole
 from pyscf.scf.hf import RHF
@@ -19,6 +20,12 @@ from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix, Vector
 
 logger: Final = logging.getLogger(__name__)
+
+
+@define
+class OrcaArgs:
+    kwargs: dict = field(factory=dict)
+
 
 try:
     from opi.core import Calculator
@@ -125,7 +132,7 @@ try:
     ) -> Calculator:
         orca_work_dir: Final = WorkDir(work_dir / "orca_mf")
         geometry_path: Final = orca_work_dir / "geometry.xyz"
-        if mol.unit != "Angstrom":
+        if mol.unit != "angstrom":
             raise ValueError("mol has to be in Angstrom.")
         Cartesian.from_pyscf(mol).to_xyz(geometry_path)
 
