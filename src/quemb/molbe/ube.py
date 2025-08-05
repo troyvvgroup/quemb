@@ -201,6 +201,17 @@ class UBE(BE):  # 🍠
             flush=True,
         )
 
+    @timer.timeit
+    def _check_hf_error(self, E_hf, EH1, ECOUL):
+        hf_err = self.hf_etot - (E_hf + self.enuc + self.E_core)
+
+        self.ebe_hf = E_hf + self.enuc + self.E_core - self.ek
+        print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
+        if abs(hf_err) > 1.0e-5:
+            warn("Large HF-in-HF energy error")
+            print("eh1 ", EH1)
+            print("ecoul ", ECOUL)
+
     def initialize(self, eri_, compute_hf):
         if compute_hf:
             E_hf = 0.0
@@ -337,15 +348,7 @@ class UBE(BE):  # 🍠
 
         self._print_orbs_per_frag(all_noccs, orb_count_a, orb_count_b)
 
-        if compute_hf:
-            hf_err = self.hf_etot - (E_hf + self.enuc + self.E_core)
-
-            self.ebe_hf = E_hf + self.enuc + self.E_core - self.ek
-            print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
-            if abs(hf_err) > 1.0e-5:
-                warn("Large HF-in-HF energy error")
-                print("eh1 ", EH1)
-                print("ecoul ", ECOUL)
+        self._check_hf_error(E_hf, EH1, ECOUL)
 
         couti = 0
         for fobj in self.Fobjs_a:
