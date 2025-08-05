@@ -863,7 +863,7 @@ class BE(MixinLocalize):
         print(flush=True)
 
     @timer.timeit
-    def eri_transform(
+    def _eri_transform(
         self: "BE",
         int_transform: IntTransforms,
         eri_: numpy.ndarray,
@@ -963,7 +963,7 @@ class BE(MixinLocalize):
             assert_never(int_transform)
 
     @timer.timeit
-    def process_fragments(
+    def _process_fragments(
         self: "BE", file_eri: h5py.File, restart: bool, compute_hf: bool
     ):
         """
@@ -1063,9 +1063,9 @@ class BE(MixinLocalize):
             fobj.frag_TA_offset = frag_TA_offset
 
         if not restart:
-            self.eri_transform(int_transform, eri_, file_eri)
+            self._eri_transform(int_transform, eri_, file_eri)
 
-        self.process_fragments(file_eri, restart, compute_hf)
+        self._process_fragments(file_eri, restart, compute_hf)
 
         couti = 0
         for fobj in self.Fobjs:
