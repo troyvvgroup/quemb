@@ -1207,7 +1207,7 @@ class BE:
             Name of localization method in quantum chemistry for the IAOs and PAOs.
             Options include "lowdin", "boys", 'PM', 'ER' (as documented in PySCF).
             Default is "lowdin".
-            If not using lowdin, we suggest using 'PM', as it is more robust than 'Boys'
+            If not using lowdin, we suggest using 'PM', as it is more robust than 'boys'
             localization and less expensive than 'ER'
         iao_valence_only : bool
             If this option is set to True, all calculation will be performed in the

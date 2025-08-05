@@ -58,7 +58,7 @@ fobj = fragmentate(
 # The lo_method is used to specify IAO localization
 # iao_loc_method is the localization of the generated IAOs and PAOs.
 # The default, "lowdin", calls the get_iao_native routine, while
-# "Boys", "PM", and "ER" call get_iao. We recommend using Pipek-Mezey
+# "boys", "PM", and "ER" call get_iao. We recommend using Pipek-Mezey
 # if not using "lowdin"
 # We can also specify the init_guess and pop_method here, relevant for
 # certain localization schemes.
