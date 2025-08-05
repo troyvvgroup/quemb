@@ -24,14 +24,6 @@ quemb.molbe.lo
 
    
    
-   .. rubric:: Classes
-
-   .. autosummary::
-      :toctree:
-      :template: custom-class-template.rst
-   
-      MixinLocalize
-   
    
 
    
