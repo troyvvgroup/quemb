@@ -26,7 +26,7 @@ from quemb.molbe.fragment import FragPart
 from quemb.molbe.mbe import BE
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import be_func_u
-from quemb.shared.helper import unused
+from quemb.shared.helper import timer, unused
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import PathLike
 
@@ -166,6 +166,41 @@ class UBE(BE):  # 🍠
 
         self.initialize(mf._eri, compute_hf)
 
+    @timer.timeit
+    def _print_orbs_per_frag(self, all_noccs, orb_count_a, orb_count_b):
+        print("Number of Orbitals per Fragment:", flush=True)
+        print(
+            "____________________________________________________________________",
+            flush=True,
+        )
+        print(
+            "| Fragment |    Nocc   | Fragment Orbs | Bath Orbs | Schmidt Space |",
+            flush=True,
+        )
+        print(
+            "____________________________________________________________________",
+            flush=True,
+        )
+        for I in range(self.fobj.n_frag):
+            print(
+                "|    {:>2}    | ({:>3},{:>3}) |   ({:>3},{:>3})   | ({:>3},{:>3}) |   ({:>3},{:>3})   |".format(  # noqa: E501
+                    I,
+                    all_noccs[I][0],
+                    all_noccs[I][1],
+                    orb_count_a[I][0],
+                    orb_count_b[I][0],
+                    orb_count_a[I][1],
+                    orb_count_b[I][1],
+                    orb_count_a[I][0] + orb_count_a[I][1],
+                    orb_count_b[I][0] + orb_count_b[I][1],
+                ),
+                flush=True,
+            )
+        print(
+            "____________________________________________________________________",
+            flush=True,
+        )
+
     def initialize(self, eri_, compute_hf):
         if compute_hf:
             E_hf = 0.0
@@ -300,38 +335,8 @@ class UBE(BE):  # 🍠
 
         file_eri.close()
 
-        print("Number of Orbitals per Fragment:", flush=True)
-        print(
-            "____________________________________________________________________",
-            flush=True,
-        )
-        print(
-            "| Fragment |    Nocc   | Fragment Orbs | Bath Orbs | Schmidt Space |",
-            flush=True,
-        )
-        print(
-            "____________________________________________________________________",
-            flush=True,
-        )
-        for I in range(self.fobj.n_frag):
-            print(
-                "|    {:>2}    | ({:>3},{:>3}) |   ({:>3},{:>3})   | ({:>3},{:>3}) |   ({:>3},{:>3})   |".format(  # noqa: E501
-                    I,
-                    all_noccs[I][0],
-                    all_noccs[I][1],
-                    orb_count_a[I][0],
-                    orb_count_b[I][0],
-                    orb_count_a[I][1],
-                    orb_count_b[I][1],
-                    orb_count_a[I][0] + orb_count_a[I][1],
-                    orb_count_b[I][0] + orb_count_b[I][1],
-                ),
-                flush=True,
-            )
-        print(
-            "____________________________________________________________________",
-            flush=True,
-        )
+        self._print_orbs_per_frag(all_noccs, orb_count_a, orb_count_b)
+
         if compute_hf:
             hf_err = self.hf_etot - (E_hf + self.enuc + self.E_core)
 
