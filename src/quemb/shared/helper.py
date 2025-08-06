@@ -1,6 +1,7 @@
 import functools
 import inspect
 import logging
+import shutil
 import time
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Sequence
@@ -492,3 +493,13 @@ def normalize_column_signs(
         arr[first_nonzero_idx[valid], np.arange(arr.shape[1])[valid]]
     )
     return arr / signs
+
+
+def clear_directory(path: Path) -> None:
+    """Clean the **contents** of a directory, including subdirectories,
+    but not the directory itself."""
+    for item in path.iterdir():
+        if item.is_file() or item.is_symlink():
+            item.unlink()
+        elif item.is_dir():
+            shutil.rmtree(item)

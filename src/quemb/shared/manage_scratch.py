@@ -12,6 +12,7 @@ from typing import Annotated, Final, Literal
 from attrs import define, field
 
 from quemb.shared.config import settings
+from quemb.shared.helper import clear_directory
 from quemb.shared.typing import PathLike
 
 logger = logging.getLogger(__name__)
@@ -87,6 +88,7 @@ class WorkDir:
 
     path: Final[Annotated[Path, "An absolute path"]] = field(converter=_get_abs_path)
     cleanup_at_end: Final[bool] = True
+    ensure_empty: Final[bool] = False
 
     # The __init__ is automatically created
     # the values `self.path` and `self.cleanup_at_end` are already filled.
@@ -94,6 +96,8 @@ class WorkDir:
     def __attrs_post_init__(self) -> None:
         self.path.mkdir(parents=True, exist_ok=True)
         logging.info(f"Scratch directory {self} was created.")
+        if self.ensure_empty:
+            clear_directory(self.path)
         if self.cleanup_at_end:
             logging.info(f"Scratch directory {self} registered for automatic cleanup.")
             atexit.register(partial(self.cleanup, ignore_error=True))
@@ -118,6 +122,7 @@ class WorkDir:
         user_defined_root: PathLike | None = None,
         prefix: str | None = None,
         cleanup_at_end: bool = True,
+        ensure_empty: bool = False,
     ) -> WorkDir:
         """Create a WorkDir based on the environment.
 
@@ -137,8 +142,14 @@ class WorkDir:
             The prefix for the subdirectory.
         cleanup_at_end:
             Perform cleanup when calling :python:`self.cleanup`.
+        ensure_empty:
+            Delete the contents of the directory, if it already exists.
         """
-        return cls(_determine_path(user_defined_root, prefix), cleanup_at_end)
+        return cls(
+            _determine_path(user_defined_root, prefix),
+            cleanup_at_end=cleanup_at_end,
+            ensure_empty=ensure_empty,
+        )
 
     def cleanup(self, ignore_error: bool = False) -> None:
         """Conditionally cleanup the working directory.
