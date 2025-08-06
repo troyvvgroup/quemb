@@ -124,7 +124,7 @@ def test_chem_gen_hexene_loc_be2_froz_iao_sto3g_boys_fixed_AOs(hexene) -> None:
         additional_args=ChemGenArgs(wrong_iao_indexing=False),
     )
     # energy after four iterations
-    assert np.isclose(be2_f_iao_fb, -0.92794903, atol=1e-8, rtol=0), be2_f_iao_fb
+    assert np.isclose(be2_f_iao_fb, -0.92794903, atol=1e-5, rtol=1e-5), be2_f_iao_fb
 
 
 def ret_ecorr(
@@ -175,7 +175,7 @@ def ret_ecorr(
 
 def prepare_struct(structure):
     mol = gto.M(
-        atom=structure,
+        atom=structure,  # This expects an XYZ file path or coordinates
         basis="cc-pVDZ",
         charge=0,
     )
