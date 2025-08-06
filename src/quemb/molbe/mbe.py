@@ -1072,6 +1072,10 @@ class BE:
             print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
             if abs(hf_err) > 1.0e-5:
                 warn("Large HF-in-HF energy error")
+            hf_err = self.mf.energy_tot() - self.ebe_hf
+            print(f"HF-in-HF error; pyscf eval     :  {hf_err:>.4e} Ha")
+            if abs(hf_err) > 1.0e-5:
+                warn("Large HF-in-HF energy error; pyscf eval")
 
         couti = 0
         for fobj in self.Fobjs:

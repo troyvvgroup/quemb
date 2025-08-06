@@ -10,6 +10,7 @@ from types import TracebackType
 from typing import Annotated, Final, Literal
 
 from attrs import define, field
+from typing_extensions import Self
 
 from quemb.shared.config import settings
 from quemb.shared.helper import clear_directory
@@ -123,7 +124,7 @@ class WorkDir:
         prefix: str | None = None,
         cleanup_at_end: bool = True,
         ensure_empty: bool = False,
-    ) -> WorkDir:
+    ) -> Self:
         """Create a WorkDir based on the environment.
 
         The naming scheme is :python:`f"{user_defined_root}/{prefix}{SLURM_JOB_ID}"`
