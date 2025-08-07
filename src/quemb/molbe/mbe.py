@@ -901,6 +901,12 @@ class BE:
            - Use out-of-core ``ao2mo`` transformation with saved (ij|P).
         3. Else, if ``integral_direct_DF`` is requested:
            - Use on-the-fly density-fitting integral evaluation.
+        4. Else, for a sparse, DF representation of integrals:
+           - Use ``sparse-DF-cpp`` for ``C++`` implementation.
+           - Use ``sparse-DF-cpp-gpu`` for ``C++`` + ``CUDDA`` implementation.
+           - Use `sparse-DF-nb`` for numba implementation.
+           - Use ``sparse-DF-nb-gpu`` for numba + ``cupy`` implementation.
+
 
         Parameters
         ----------
