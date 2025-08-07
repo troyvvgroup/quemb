@@ -910,12 +910,9 @@ class BE:
 
         Parameters
         ----------
-        int_transform : :py:data:`~quemb.molbe.mbe.IntTransforms`
-            The transformation strategy.
-        eri_ : numpy.ndarray
-            The ERIs for the molecule.
-        file_eri : h5py.File
-            The output file where transformed ERIs are stored.
+        int_transform : The transformation strategy.
+        eri_ : The ERIs for the molecule.
+        file_eri : The output file where transformed ERIs are stored.
         """
         if int_transform == "in-core":
             ensure(eri_ is not None, "ERIs have to be available in memory.")
