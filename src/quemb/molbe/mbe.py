@@ -886,7 +886,7 @@ class BE:
     def _eri_transform(
         self,
         int_transform: IntTransforms,
-        eri_: numpy.ndarray,
+        eri_: Matrix[np.floating] | None,
         file_eri: h5py.File,
     ):
         """
