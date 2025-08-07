@@ -884,7 +884,7 @@ class BE:
 
     @timer.timeit
     def _eri_transform(
-        self: "BE",
+        self,
         int_transform: IntTransforms,
         eri_: numpy.ndarray,
         file_eri: h5py.File,
