@@ -264,6 +264,12 @@ class BE:
                 "an iao_valence_basis defined."
             )
 
+        if int_transform[:9] == "sparse-DF" and (lo_method != "IAO"):
+            warn(
+                r'Sparse integral screening (int_transform="sparse-DF*")'
+                'works best if lo_method="IAO"'
+            )
+
         self.lo_bath_post_schmidt: Literal["cholesky", "ER", "PM", "boys"] | None = (
             lo_bath_post_schmidt
         )

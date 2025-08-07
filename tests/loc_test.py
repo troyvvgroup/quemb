@@ -135,7 +135,7 @@ def ret_ecorr(
     lo_method: LocMethods,
     oneshot: bool,
     nproc: int,
-    iao_loc_method: IAO_LocMethods | None = None,
+    iao_loc_method: IAO_LocMethods = "lowdin",
     frag_type: Literal["autogen", "chemgen"] = "autogen",
     additional_args: ChemGenArgs | None = None,
 ) -> float:
