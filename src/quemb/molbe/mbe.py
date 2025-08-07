@@ -1058,9 +1058,6 @@ class BE:
         int_transfrom :
             Which integral transformation to perform.
         """
-        if not restart:
-            file_eri = h5py.File(self.eri_file, "w")
-
         for I in range(self.fobj.n_frag):
             fobjs_ = self.fobj.to_Frags(I, eri_file=self.eri_file)
             fobjs_.sd(self.W, self.lmo_coeff, self.Nocc, thr_bath=self.thr_bath)
@@ -1072,6 +1069,9 @@ class BE:
         )
         for fobj, frag_TA_offset in zip(self.Fobjs, frag_TA_index_per_frag):
             fobj.frag_TA_offset = frag_TA_offset
+
+        if not restart:
+            file_eri = h5py.File(self.eri_file, "w")
 
         if not restart:
             self._eri_transform(int_transform, eri_, file_eri)
