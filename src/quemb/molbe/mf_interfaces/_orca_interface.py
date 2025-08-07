@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from typing import Final, cast
 
 import numpy as np
@@ -62,58 +62,50 @@ try:
         "aug-cc-pv5z": BasisSet.AUG_CC_PV5Z,
     }
 
-    def _get_orca_mo_coeff(
-        json_data: dict, orbitals: Sequence[Orbital], idx_pyscf_order: Sequence[int]
-    ) -> Matrix[np.float64]:
+    def _get_orca_mo_coeff(json_data: dict) -> Matrix[np.float64]:
         orca_MOs = np.array(
             [
                 x["MOCoefficients"]
                 for x in json_data["Molecule"]["MolecularOrbitals"]["MOs"]
             ]
         ).T
+        orbital_labels = [
+            Orbital.from_orca_label(label)
+            for label in json_data["Molecule"]["MolecularOrbitals"]["OrbitalLabels"]
+        ]
         # The +-3 and +-4 m_l values of the f, g, and h orbitals
         # use an opposite sign convention as compared to pyscf
         switch_sign = [
             i
-            for i, orbital in enumerate(orbitals)
+            for i, orbital in enumerate(orbital_labels)
             if orbital.l in {"f", "g", "h"}
             and orbital.m_l[-2:] in {"-4", "-3", "+3", "+4"}
         ]
         orca_MOs[switch_sign, :] *= -1
-        return normalize_column_signs(orca_MOs[idx_pyscf_order, :])
+        AOs_pyscf_order = argsort(orbital_labels)
+        return normalize_column_signs(orca_MOs[AOs_pyscf_order, :])
 
     def _get_orca_mo_occ(json_data: dict) -> Vector[np.float64]:
-        # The sorted is a fix to a bug in the ORCA output.
-        # The MOs are sorted according to energy,
-        # the occupancy and energy were not sorted accordingly.
         return cast(
             Vector[np.float64],
             np.array(
-                sorted(
-                    [
-                        x["Occupancy"]
-                        for x in json_data["Molecule"]["MolecularOrbitals"]["MOs"]
-                    ],
-                    reverse=True,
-                )
+                [
+                    x["Occupancy"]
+                    for x in json_data["Molecule"]["MolecularOrbitals"]["MOs"]
+                ],
             ),
         )
 
     def _get_orca_mo_energy(json_data: dict) -> Vector[np.float64]:
         if json_data["Molecule"]["MolecularOrbitals"]["EnergyUnit"] != "Eh":
             raise ValueError("Inconsistent Error Unit")
-        # The sorted is a fix to a bug in the ORCA output.
-        # The MOs are sorted according to energy,
-        # the occupancy and energy were not sorted accordingly.
         return cast(
             Vector[np.float64],
             np.array(
-                sorted(
-                    [
-                        x["OrbitalEnergy"]
-                        for x in json_data["Molecule"]["MolecularOrbitals"]["MOs"]
-                    ]
-                )
+                [
+                    x["OrbitalEnergy"]
+                    for x in json_data["Molecule"]["MolecularOrbitals"]["MOs"]
+                ]
             ),
         )
 
@@ -124,15 +116,10 @@ try:
     def _parse_orca_into_mf(mol: Mole, output: Output) -> RHF:
         with open(output.gbw_json_file, "r") as f:
             json_data = json.load(f)
-        AO_labels = [
-            Orbital.from_orca_label(label)
-            for label in json_data["Molecule"]["MolecularOrbitals"]["OrbitalLabels"]
-        ]
-        idx = argsort(AO_labels)
 
         return create_mf(
             mol=mol,
-            mo_coeff=_get_orca_mo_coeff(json_data, AO_labels, idx),
+            mo_coeff=_get_orca_mo_coeff(json_data),
             mo_energy=_get_orca_mo_energy(json_data),
             mo_occ=_get_orca_mo_occ(json_data),
             e_tot=_parse_energy(output),
