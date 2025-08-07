@@ -1037,8 +1037,6 @@ class BE:
         print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
         if abs(hf_err) > 1.0e-5:
             warn("Large HF-in-HF energy error")
-        if not restart:
-            file_eri.close()
 
     @timer.timeit
     def initialize(
@@ -1073,10 +1071,11 @@ class BE:
             fobj.frag_TA_offset = frag_TA_offset
 
         if not restart:
-            file_eri = h5py.File(self.eri_file, "w")
-            self._eri_transform(int_transform, eri_, file_eri)
+            with h5py.File(self.eri_file, "w") as file_eri:
+                self._eri_transform(int_transform, eri_, file_eri)
 
-        self._initialize_fragments(file_eri, restart)
+        with h5py.File(self.eri_file, "w") as file_eri:
+            self._initialize_fragments(file_eri, restart)
 
         couti = 0
         for fobj in self.Fobjs:
