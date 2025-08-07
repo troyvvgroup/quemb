@@ -887,7 +887,6 @@ class BE:
         self,
         int_transform: IntTransforms,
         eri_: Matrix[np.floating] | None,
-        file_eri: h5py.File,
     ):
         """
         Transforms electron repulsion integrals (ERIs) for each fragment
@@ -914,79 +913,82 @@ class BE:
         eri_ : The ERIs for the molecule.
         file_eri : The output file where transformed ERIs are stored.
         """
-        if int_transform == "in-core":
-            ensure(eri_ is not None, "ERIs have to be available in memory.")
-            for I in range(self.fobj.n_frag):
-                eri = ao2mo.incore.full(eri_, self.Fobjs[I].TA, compact=True)
-                file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
-        elif int_transform == "out-core-DF":
-            ensure(
-                hasattr(self.mf, "with_df") and self.mf.with_df is not None,
-                "Pyscf mean field object has to support `with_df`.",
-            )
-            for I in range(self.fobj.n_frag):
-                eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)
-                file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
-        elif int_transform == "int-direct-DF":
-            ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-            integral_direct_DF(self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis)
-        elif int_transform == "sparse-DF-cpp":
-            ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-            transform_sparse_DF_integral_cpp(
-                self.mf,
-                self.Fobjs,
-                auxbasis=self.auxbasis,
-                file_eri_handler=file_eri,
-                MO_coeff_epsilon=self.MO_coeff_epsilon,
-                AO_coeff_epsilon=self.AO_coeff_epsilon,
-                n_threads=self.n_threads_integral_transform,
-            )
-        elif int_transform == "sparse-DF-cpp-gpu":
-            from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
-                transform_sparse_DF_integral_cpp_gpu,
-            )
+        with h5py.File(self.eri_file, "w") as file_eri:
+            if int_transform == "in-core":
+                ensure(eri_ is not None, "ERIs have to be available in memory.")
+                for I in range(self.fobj.n_frag):
+                    eri = ao2mo.incore.full(eri_, self.Fobjs[I].TA, compact=True)
+                    file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
+            elif int_transform == "out-core-DF":
+                ensure(
+                    hasattr(self.mf, "with_df") and self.mf.with_df is not None,
+                    "Pyscf mean field object has to support `with_df`.",
+                )
+                for I in range(self.fobj.n_frag):
+                    eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)
+                    file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
+            elif int_transform == "int-direct-DF":
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                integral_direct_DF(
+                    self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis
+                )
+            elif int_transform == "sparse-DF-cpp":
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                transform_sparse_DF_integral_cpp(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    file_eri_handler=file_eri,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.n_threads_integral_transform,
+                )
+            elif int_transform == "sparse-DF-cpp-gpu":
+                from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
+                    transform_sparse_DF_integral_cpp_gpu,
+                )
 
-            ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-            transform_sparse_DF_integral_cpp_gpu(
-                self.mf,
-                self.Fobjs,
-                auxbasis=self.auxbasis,
-                file_eri_handler=file_eri,
-                MO_coeff_epsilon=self.MO_coeff_epsilon,
-                AO_coeff_epsilon=self.AO_coeff_epsilon,
-                n_threads=self.n_threads_integral_transform,
-            )
-        elif int_transform == "sparse-DF-nb":
-            ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-            transform_sparse_DF_integral_nb(
-                self.mf,
-                self.Fobjs,
-                auxbasis=self.auxbasis,
-                file_eri_handler=file_eri,
-                MO_coeff_epsilon=self.MO_coeff_epsilon,
-                AO_coeff_epsilon=self.AO_coeff_epsilon,
-                n_threads=self.n_threads_integral_transform,
-            )
-        elif int_transform == "sparse-DF-nb-gpu":
-            from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
-                transform_sparse_DF_integral_nb_gpu,
-            )
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                transform_sparse_DF_integral_cpp_gpu(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    file_eri_handler=file_eri,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.n_threads_integral_transform,
+                )
+            elif int_transform == "sparse-DF-nb":
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                transform_sparse_DF_integral_nb(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    file_eri_handler=file_eri,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.n_threads_integral_transform,
+                )
+            elif int_transform == "sparse-DF-nb-gpu":
+                from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
+                    transform_sparse_DF_integral_nb_gpu,
+                )
 
-            ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-            transform_sparse_DF_integral_nb_gpu(
-                self.mf,
-                self.Fobjs,
-                auxbasis=self.auxbasis,
-                file_eri_handler=file_eri,
-                MO_coeff_epsilon=self.MO_coeff_epsilon,
-                AO_coeff_epsilon=self.AO_coeff_epsilon,
-                n_threads=self.n_threads_integral_transform,
-            )
-        else:
-            assert_never(int_transform)
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                transform_sparse_DF_integral_nb_gpu(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    file_eri_handler=file_eri,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.n_threads_integral_transform,
+                )
+            else:
+                assert_never(int_transform)
 
     @timer.timeit
-    def _initialize_fragments(self: "BE", file_eri: h5py.File, restart: bool):
+    def _initialize_fragments(self, restart: bool):
         """
         Processes all molecular fragments by constructing their Fock matrices,
         performing SCF, and optionally computing fragment Hartree–Fock (HF) energies.
@@ -1008,37 +1010,36 @@ class BE:
             If True, skips ERI transformation and file closure.
         """
 
-        E_hf = 0.0
-        for fobjs_ in self.Fobjs:
-            eri = array(file_eri.get(fobjs_.dname))
-            _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
+        with h5py.File(self.eri_file, "w") as file_eri:
+            E_hf = 0.0
+            for fobjs_ in self.Fobjs:
+                eri = array(file_eri.get(fobjs_.dname))
+                _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
 
-            assert fobjs_.TA is not None
-            fobjs_.h1 = multi_dot((fobjs_.TA.T, self.hcore, fobjs_.TA))
+                assert fobjs_.TA is not None
+                fobjs_.h1 = multi_dot((fobjs_.TA.T, self.hcore, fobjs_.TA))
 
-            if not restart:
-                eri = ao2mo.restore(8, eri, fobjs_.nao)
+                if not restart:
+                    eri = ao2mo.restore(8, eri, fobjs_.nao)
 
-            fobjs_.cons_fock(self.hf_veff, self.S, self.hf_dm, eri_=eri)
+                fobjs_.cons_fock(self.hf_veff, self.S, self.hf_dm, eri_=eri)
 
-            fobjs_.heff = zeros_like(fobjs_.h1)
-            fobjs_.scf(fs=True, eri=eri)
+                fobjs_.heff = zeros_like(fobjs_.h1)
+                fobjs_.scf(fs=True, eri=eri)
 
-            assert fobjs_.h1 is not None and fobjs_.nsocc is not None
-            fobjs_.dm0 = 2.0 * (
-                fobjs_._mo_coeffs[:, : fobjs_.nsocc]
-                @ fobjs_._mo_coeffs[:, : fobjs_.nsocc].conj().T
-            )
+                assert fobjs_.h1 is not None and fobjs_.nsocc is not None
+                fobjs_.dm0 = 2.0 * (
+                    fobjs_._mo_coeffs[:, : fobjs_.nsocc]
+                    @ fobjs_._mo_coeffs[:, : fobjs_.nsocc].conj().T
+                )
 
-            fobjs_.update_ebe_hf()  # Updates fragment HF energy.
-            E_hf += fobjs_.ebe_hf
-        self.ebe_hf = E_hf + self.enuc + self.E_core
-        hf_err = self.hf_etot - self.ebe_hf
-        print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
-        if abs(hf_err) > 1.0e-5:
-            warn("Large HF-in-HF energy error")
-        if not restart:
-            file_eri.close()
+                fobjs_.update_ebe_hf()  # Updates fragment HF energy.
+                E_hf += fobjs_.ebe_hf
+            self.ebe_hf = E_hf + self.enuc + self.E_core
+            hf_err = self.hf_etot - self.ebe_hf
+            print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
+            if abs(hf_err) > 1.0e-5:
+                warn("Large HF-in-HF energy error")
 
     @timer.timeit
     def initialize(
@@ -1073,10 +1074,9 @@ class BE:
             fobj.frag_TA_offset = frag_TA_offset
 
         if not restart:
-            file_eri = h5py.File(self.eri_file, "w")
-            self._eri_transform(int_transform, eri_, file_eri)
+            self._eri_transform(int_transform, eri_)
 
-        self._initialize_fragments(file_eri, restart)
+        self._initialize_fragments(restart)
 
         couti = 0
         for fobj in self.Fobjs:
