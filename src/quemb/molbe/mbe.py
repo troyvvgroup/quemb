@@ -153,8 +153,6 @@ class BE:
         lo_method_bath_post_schmidt :
             If not :python:`None`, then perform a localization of the bath orbitals
             **after** the Schmidt decomposition.
-            This is particularly relevant for integral screening, i.e.
-            :python:`int_transform="sparse-DF-*"`.
         pop_method :
             Method for calculating orbital population, by default 'meta-lowdin'
             See pyscf.lo for more details and options
