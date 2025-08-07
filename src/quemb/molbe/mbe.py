@@ -992,7 +992,7 @@ class BE:
             assert_never(int_transform)
 
     @timer.timeit
-    def _process_fragments(self: "BE", file_eri: h5py.File, restart: bool):
+    def _initialize_fragments(self: "BE", file_eri: h5py.File, restart: bool):
         """
         Processes all molecular fragments by constructing their Fock matrices,
         performing SCF, and optionally computing fragment Hartree–Fock (HF) energies.
@@ -1084,7 +1084,7 @@ class BE:
         if not restart:
             self._eri_transform(int_transform, eri_, file_eri)
 
-        self._process_fragments(file_eri, restart)
+        self._initialize_fragments(file_eri, restart)
 
         couti = 0
         for fobj in self.Fobjs:
