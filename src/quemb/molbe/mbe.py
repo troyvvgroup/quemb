@@ -992,7 +992,7 @@ class BE:
 
         This includes:
 
-        - Loading and transforming ERIs (in-core or restored format).
+        - Loading and changing the symmetry of the ERIs (in-core or restored format).
         - Constructing 1-electron Hamiltonians via basis transformations.
         - Running fragment-level SCF calculations.
         - Building initial density matrices.
