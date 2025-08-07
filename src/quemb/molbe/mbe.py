@@ -1073,8 +1073,8 @@ class BE:
             fobj.frag_TA_offset = frag_TA_offset
 
         if not restart:
-            file_eri = h5py.File(self.eri_file, "w")
-            self._eri_transform(int_transform, eri_, file_eri)
+            with h5py.File(self.eri_file, "w") as file_eri:
+                self._eri_transform(int_transform, eri_, file_eri)
 
         self._initialize_fragments(file_eri, restart)
 
