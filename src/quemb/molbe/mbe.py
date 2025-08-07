@@ -1071,8 +1071,6 @@ class BE:
 
         if not restart:
             file_eri = h5py.File(self.eri_file, "w")
-
-        if not restart:
             self._eri_transform(int_transform, eri_, file_eri)
 
         self._initialize_fragments(file_eri, restart)
