@@ -68,8 +68,7 @@ IntTransforms: TypeAlias = Literal[
     "sparse-DF-cpp-gpu",  # screen AOs and MOs via S_abs
     "sparse-DF-nb-gpu",  # screen AOs and MOs via S_abs and use jitted numba
 ]
-"""Literal type describing allowed transformation strategies.
-"""
+"""Literal type describing allowed transformation strategies."""
 
 logger = logging.getLogger(__name__)
 
