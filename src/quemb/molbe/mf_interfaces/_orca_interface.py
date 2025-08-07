@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Final, cast
 
 import numpy as np
@@ -22,13 +22,16 @@ from quemb.shared.typing import Matrix, Vector
 logger: Final = logging.getLogger(__name__)
 
 
-@define
+@define(frozen=True, kw_only=True)
 class OrcaArgs:
-    kwargs: dict = field(factory=dict)
+    n_procs: Final[int]
+    simple_keywords: Final[Sequence[SimpleKeyword]] = field(factory=list)
+    blocks: Final[Sequence[Block]] = field(factory=list)
 
 
 try:
     from opi.core import Calculator
+    from opi.input.blocks import Block
     from opi.input.simple_keywords import (
         BasisSet,
         SimpleKeyword,
@@ -129,7 +132,8 @@ try:
         mol: Mole,
         work_dir: WorkDir,
         n_procs: int,
-        simple_keywords: list[SimpleKeyword],
+        simple_keywords: Sequence[SimpleKeyword],
+        blocks: Sequence[Block],
     ) -> Calculator:
         orca_work_dir: Final = WorkDir(work_dir / "orca_mf")
         geometry_path: Final = orca_work_dir / "geometry.xyz"
@@ -142,8 +146,17 @@ try:
             geometry_path, charge=mol.charge, multiplicity=mol.multiplicity
         )
 
+        calc.input.add_simple_keywords(*([Method.HF] + list(simple_keywords)))
+        calc.input.add_blocks(*blocks)
+
+        # > Define number of CPUs for the calcualtion
+        calc.input.ncores = n_procs
+
+        return calc
+
+    def get_orca_basis(mol: Mole) -> SimpleKeyword:
         try:
-            basis: Final = PYSCF_TO_ORCA_BASIS[mol.basis]
+            return PYSCF_TO_ORCA_BASIS[mol.basis]
         except KeyError:
             raise NotImplementedError(
                 f"PYSCF basis set {mol.basis} is not supported.\n"
@@ -152,29 +165,26 @@ try:
                 "If you think that the basis exists in\n"
                 "pyscf and ORCA, then raise an issue at the quemb GitHub repository."
             )
-        sk_list: Final = [
-            Method.HF,
-            basis,
-        ]
-
-        calc.input.add_simple_keywords(*(sk_list + simple_keywords))
-
-        # > Define number of CPUs for the calcualtion
-        calc.input.ncores = n_procs
-
-        return calc
 
     def get_mf_orca(
-        mol: Mole, work_dir: WorkDir, n_procs: int, simple_keywords: list[SimpleKeyword]
+        mol: Mole,
+        work_dir: WorkDir,
+        n_procs: int,
+        simple_keywords: Sequence[SimpleKeyword],
+        blocks: Sequence[Block],
     ) -> RHF:
-        calc = _prepare_orca_calc(mol, work_dir, n_procs, simple_keywords)
+        calc = _prepare_orca_calc(mol, work_dir, n_procs, simple_keywords, blocks)
         logger.debug("Writing ORCA input")
         calc.write_input()
         logger.info("Starting ORCA calculation")
         calc.run()
         output = calc.get_output()
+
         if not output.terminated_normally():
-            raise RuntimeError("ORCA terminated with errors")
+            raise RuntimeError(
+                "ORCA terminated with errors.\n"
+                f"The output file can be found at {output.get_file('.out')}"
+            )
         logger.info("ORCA calculation finished successfully")
 
         return _parse_orca_into_mf(mol, output)
@@ -182,7 +192,11 @@ try:
 except ImportError:
 
     def get_mf_orca(
-        mol: Mole, work_dir: WorkDir, n_procs: int, simple_keywords: list[SimpleKeyword]
+        mol: Mole,
+        work_dir: WorkDir,
+        n_procs: int,
+        simple_keywords: Sequence[SimpleKeyword],
+        blocks: Sequence[Block],
     ) -> RHF:  # type: ignore[return-type]
-        unused(mol, work_dir, n_procs, simple_keywords)
+        unused(mol, work_dir, n_procs, simple_keywords, blocks)
         raise ImportError("ORCA and the ORCA python interface have to be available.")

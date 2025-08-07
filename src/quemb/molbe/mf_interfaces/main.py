@@ -3,29 +3,29 @@
 from typing import Literal
 
 import h5py
-from opi.input.simple_keywords import SimpleKeyword
 from pyscf.gto import Mole
 from pyscf.lib.chkfile import load, load_mol, save, save_mol
 from pyscf.scf.hf import RHF
 from typing_extensions import assert_never
 
-from quemb.molbe.mf_interfaces._orca_interface import get_mf_orca
+from quemb.molbe.mf_interfaces._orca_interface import OrcaArgs, get_mf_orca
 from quemb.molbe.mf_interfaces._pyscf_interface import create_mf, get_mf_psycf
 from quemb.shared.helper import timer
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import PathLike
 
-SCF_Backends = Literal["pyscf", "orca", "orca-RIJCOSX", "orca-RIJONX"]
+SCF_Backends = Literal["pyscf", "orca"]
+
+AdditionalArgs = OrcaArgs
 
 
 @timer.timeit
 def get_mf(
     mol: Mole,
     *,
-    n_procs: int = 1,
     work_dir: WorkDir | None = None,
     backend: SCF_Backends = "pyscf",
-    orca_keywords: list[SimpleKeyword] | None = None,
+    additional_args: AdditionalArgs,
 ) -> RHF:
     """
     Compute the mean-field (SCF) object for a given molecule using the selected backend.
@@ -38,8 +38,6 @@ def get_mf(
     ----------
     mol :
         The molecule to perform the SCF calculation on.
-    n_procs :
-        Number of processor cores to use (only relevant for ORCA). Default is 1.
     work_dir :
         Working directory for external backend calculations (e.g., ORCA).
         If None, a directory is created based on the environment.
@@ -60,33 +58,16 @@ def get_mf(
 
     if work_dir is None:
         work_dir = WorkDir.from_environment(prefix="mf_calculation")
-    orca_keywords = [] if orca_keywords is None else orca_keywords
 
     if backend == "pyscf":
         return get_mf_psycf(mol)
     elif backend == "orca":
-        return get_mf_orca(mol, work_dir, n_procs, simple_keywords=[])
-    elif backend == "orca-RIJCOSX":
-        from opi.input.simple_keywords import (  # type: ignore[import-not-found]
-            Approximation,
-        )
-
         return get_mf_orca(
             mol,
             work_dir,
-            n_procs,
-            simple_keywords=[Approximation.RIJCOSX] + orca_keywords,
-        )
-    elif backend == "orca-RIJONX":
-        from opi.input.simple_keywords import (  # type: ignore[import-not-found]
-            Approximation,
-        )
-
-        return get_mf_orca(
-            mol,
-            work_dir,
-            n_procs,
-            simple_keywords=[Approximation.RIJONX] + orca_keywords,
+            n_procs=additional_args.n_procs,
+            simple_keywords=additional_args.simple_keywords,
+            blocks=additional_args.blocks,
         )
     else:
         assert_never(backend)
