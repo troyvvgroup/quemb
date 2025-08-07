@@ -82,26 +82,40 @@ try:
         orca_MOs[switch_sign, :] *= -1
         return normalize_column_signs(orca_MOs[idx_pyscf_order, :])
 
-    def _get_orca_mo_occ(
-        json_data: dict, idx_pyscf_order: Sequence[int]
-    ) -> Vector[np.float64]:
-        orca_occ = np.array(
-            [x["Occupancy"] for x in json_data["Molecule"]["MolecularOrbitals"]["MOs"]]
+    def _get_orca_mo_occ(json_data: dict) -> Vector[np.float64]:
+        # The sorted is a fix to a bug in the ORCA output.
+        # The MOs are sorted according to energy,
+        # the occupancy and energy were not sorted accordingly.
+        return cast(
+            Vector[np.float64],
+            np.array(
+                sorted(
+                    [
+                        x["Occupancy"]
+                        for x in json_data["Molecule"]["MolecularOrbitals"]["MOs"]
+                    ],
+                    reverse=True,
+                )
+            ),
         )
-        return cast(Vector[np.float64], orca_occ[idx_pyscf_order])
 
-    def _get_orca_mo_energy(
-        json_data: dict, idx_pyscf_order: Sequence[int]
-    ) -> Vector[np.float64]:
+    def _get_orca_mo_energy(json_data: dict) -> Vector[np.float64]:
         if json_data["Molecule"]["MolecularOrbitals"]["EnergyUnit"] != "Eh":
             raise ValueError("Inconsistent Error Unit")
-        mo_energy = np.array(
-            [
-                x["OrbitalEnergy"]
-                for x in json_data["Molecule"]["MolecularOrbitals"]["MOs"]
-            ]
+        # The sorted is a fix to a bug in the ORCA output.
+        # The MOs are sorted according to energy,
+        # the occupancy and energy were not sorted accordingly.
+        return cast(
+            Vector[np.float64],
+            np.array(
+                sorted(
+                    [
+                        x["OrbitalEnergy"]
+                        for x in json_data["Molecule"]["MolecularOrbitals"]["MOs"]
+                    ]
+                )
+            ),
         )
-        return cast(Vector[np.float64], mo_energy[idx_pyscf_order])
 
     def _parse_energy(output: Output) -> float:
         output.parse()
@@ -119,8 +133,8 @@ try:
         return create_mf(
             mol=mol,
             mo_coeff=_get_orca_mo_coeff(json_data, AO_labels, idx),
-            mo_energy=_get_orca_mo_energy(json_data, idx),
-            mo_occ=_get_orca_mo_occ(json_data, idx),
+            mo_energy=_get_orca_mo_energy(json_data),
+            mo_occ=_get_orca_mo_occ(json_data),
             e_tot=_parse_energy(output),
         )
 
