@@ -457,6 +457,8 @@ Matrix contract_with_TA_2nd_to_sym_dense(const SemiSparse3DTensor &int_mu_i_P, c
     {
         Eigen::VectorXd tmp = Eigen::VectorXd::Zero(naux); // one per thread
 
+        // instead of looping over i and then looping over j <= i
+        // we loop over a symmetric index `ij_sym`
 #pragma omp for
         for (OrbitalIdx ij_sym = 0; ij_sym < n_sym_pairs; ++ij_sym) {
             const auto &[i, j] = unravel_symmetric(ij_sym);
@@ -578,9 +580,9 @@ Matrix transform_integral(const SemiSparseSym3DTensor &int_P_mu_nu, const Matrix
 }
 
 // Automatically generate python type stub pages via
-// pip install --no-deps -vvv . && pybind11-stubgen
-// quemb.molbe._cpp.eri_sparse_DF -o src/
-// --numpy-array-remove-parameters && ruff format && ruff check --fix
+// pip install --no-deps -vvv . \
+//      && pybind11-stubgen quemb.molbe._cpp.eri_sparse_DF -o src/ --numpy-array-remove-parameters \
+//      && ruff format && ruff check --fix
 
 // Binding code
 PYBIND11_MODULE(eri_sparse_DF, m)
@@ -597,14 +599,11 @@ PYBIND11_MODULE(eri_sparse_DF, m)
 #ifdef USE_CUDA
     py::class_<GPU_MatrixHandle>(m, "GPU_MatrixHandle")
         .def(py::init<const Eigen::MatrixXd &>(), py::arg("L_host"),
-             "Create a GPU_MatrixHandle from a host "
-             "matrix.\n\n"
-             "This allocates memory on the GPU and copies "
-             "the data from the host to the GPU.")
+             "Create a GPU_MatrixHandle from a host matrix.\n"
+             "\n"
+             "This allocates memory on the GPU and copies the data from the host to the GPU.")
         .def("__repr__", [](const GPU_MatrixHandle &self) {
-            return "<GPU_MatrixHandle "
-                   "of size " +
-                   std::to_string(self.size()) + ">";
+            return "<GPU_MatrixHandle of size " + std::to_string(self.size()) + ">";
         });
 #endif
 
@@ -637,8 +636,8 @@ PYBIND11_MODULE(eri_sparse_DF, m)
             py::return_value_policy::reference_internal // important to keep
                                                         // reference valid
             )
-        .doc() = "Immutable, semi-sparse, partially symmetric "
-                 "3-index tensor\n\n"
+        .doc() = "Immutable, semi-sparse, partially symmetric 3-index tensor\n"
+                 "\n"
                  "Assumes:\n"
                  "  - T_{ijk} = T_{jik} symmetry\n"
                  "  - Sparsity over (i, j), dense over k\n"
@@ -680,14 +679,11 @@ PYBIND11_MODULE(eri_sparse_DF, m)
           py::call_guard<py::gil_scoped_release>());
 
     m.def("contract_with_TA_2nd_to_sym_dense", &contract_with_TA_2nd_to_sym_dense, py::arg("int_mu_i_P"), py::arg("TA"),
-          py::call_guard<py::gil_scoped_release>(),
-          "Contract with TA to get a symmetric dense "
-          "tensor (P | i, j)");
+          py::call_guard<py::gil_scoped_release>(), "Contract with TA to get a symmetric dense tensor (P | i, j)");
 
     m.def("get_AO_per_MO", &get_AO_per_MO, py::arg("TA"), py::arg("S_abs"), py::arg("epsilon"),
           py::call_guard<py::gil_scoped_release>(),
-          "Get AOs per MO based on TA and S_abs matrices "
-          "with a threshold epsilon");
+          "Get AOs per MO based on TA and S_abs matrices with a threshold epsilon");
 
     m.def("get_AO_reachable_by_MO_with_offset", &get_AO_reachable_by_MO_with_offset, py::arg("AO_reachable_by_MO"),
           py::call_guard<py::gil_scoped_release>(),
@@ -695,20 +691,17 @@ PYBIND11_MODULE(eri_sparse_DF, m)
           "provided AO_reachable_by_MO structure");
 
     m.def("extract_unique", &extract_unique, py::arg("exch_reachable"), py::call_guard<py::gil_scoped_release>(),
-          "Extract unique reachable AOs from the provided "
-          "exch_reachable structure");
+          "Extract unique reachable AOs from the provided exch_reachable structure");
 
     m.def("transform_integral", &transform_integral, py::arg("int_P_mu_nu"), py::arg("TA"), py::arg("S_abs"),
           py::arg("L_PQ"), py::arg("MO_coeff_epsilon"), py::call_guard<py::gil_scoped_release>(),
-          "Transform the integral using TA, int_P_mu_nu, "
-          "AO_by_MO, and L_PQ,\n"
+          "Transform the integral using TA, int_P_mu_nu, AO_by_MO, and L_PQ,\n"
           "returning the transformed matrix");
 
 #ifdef USE_CUDA
     m.def("transform_integral_cuda", &transform_integral_cuda, py::arg("int_P_mu_nu"), py::arg("TA"), py::arg("S_abs"),
           py::arg("L_PQ"), py::arg("MO_coeff_epsilon"), py::call_guard<py::gil_scoped_release>(),
-          "Transform the integral using TA, int_P_mu_nu, "
-          "AO_by_MO, and L_PQ,\n"
+          "Transform the integral using TA, int_P_mu_nu, AO_by_MO, and L_PQ,\n"
           "returning the transformed matrix.\n"
           "This uses CUDA for performance.");
 #endif
