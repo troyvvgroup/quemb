@@ -8,13 +8,13 @@ from collections.abc import Mapping, Sequence
 from typing import Final, cast
 
 import numpy as np
-from attrs import define, field
+from attrs import define
 from chemcoord import Cartesian
 from pyscf.gto import Mole
 from pyscf.scf.hf import RHF
 
-from quemb.molbe.mf_interfaces._pyscf_interface import create_mf
 from quemb.molbe.mf_interfaces._pyscf_orbital_order import Orbital
+from quemb.molbe.mf_interfaces.pyscf_interface import create_mf
 from quemb.shared.helper import argsort, normalize_column_signs, unused
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix, Vector
@@ -24,9 +24,34 @@ logger: Final = logging.getLogger(__name__)
 
 @define(frozen=True, kw_only=True)
 class OrcaArgs:
-    n_procs: Final[int]
-    simple_keywords: Final[Sequence[SimpleKeyword]] = field(factory=list)
-    blocks: Final[Sequence[Block]] = field(factory=list)
+    """Use to pass information to ORCA.
+    Follows the ORCA python interface. (https://www.faccts.de/docs/opi/1.0/docs/index.html)
+
+    You can use the :func:`~get_orca_basis` function to translate
+    a pyscf basis label to ORCA
+    A "normal" Hartree Fock calculation can be invoked via
+
+    >>> OrcaArgs(
+    >>>     simple_keywords=[],
+    >>>     blocks=[BlockBasis(basis=get_orca_basis(mol))],
+    >>> )
+
+    While a ``RIJK`` calculation with parallelisation would be:
+
+    >>> from opi.input.blocks.block_basis import BlockBasis
+    >>> from opi.input.simple_keywords import Approximation, SimpleKeyword
+    >>> OrcaArgs(
+    >>>     n_procs=4,
+    >>>     simple_keywords=[Approximation.RIJK],
+    >>>     blocks=[
+    >>>         BlockBasis(basis=get_orca_basis(mol), auxjk=SimpleKeyword("def2/jk"))
+    >>>     ],
+    >>> ),
+    """
+
+    n_procs: Final[int] = 1
+    simple_keywords: Final[Sequence[SimpleKeyword]]
+    blocks: Final[Sequence[Block]]
 
 
 try:
@@ -155,6 +180,7 @@ try:
         return calc
 
     def get_orca_basis(mol: Mole) -> SimpleKeyword:
+        """Translate the basis in ``mol`` to an ORCA basis label."""
         try:
             return PYSCF_TO_ORCA_BASIS[mol.basis]
         except KeyError:
@@ -173,6 +199,37 @@ try:
         simple_keywords: Sequence[SimpleKeyword],
         blocks: Sequence[Block],
     ) -> RHF:
+        """Compute a mean field object via orca.
+
+        Use the
+
+
+        You can use the :func:`~get_orca_basis` function to translate
+        a pyscf basis label to ORCA
+        A "normal" Hartree Fock calculation can be invoked via
+
+        >>> get_mf_orca(
+        >>>     mol,
+        >>>     workdir,
+        >>>     n_procs=1,
+        >>>     simple_keywords=[],
+        >>>     blocks=[BlockBasis(basis=get_orca_basis(mol))],
+        >>> )
+
+        While a ``RIJK`` calculation with parallelisation would be:
+
+        >>> from opi.input.blocks.block_basis import BlockBasis
+        >>> from opi.input.simple_keywords import Approximation, SimpleKeyword
+        >>> get_mf_orca(
+        >>>     mol,
+        >>>     workdir,
+        >>>     n_procs=4,
+        >>>     simple_keywords=[Approximation.RIJK],
+        >>>     blocks=[
+        >>>         BlockBasis(basis=get_orca_basis(mol), auxjk=SimpleKeyword("def2/jk"))
+        >>>     ],
+        >>> )
+        """  # noqa: E501
         calc = _prepare_orca_calc(mol, work_dir, n_procs, simple_keywords, blocks)
         logger.debug("Writing ORCA input")
         calc.write_input()
@@ -189,6 +246,8 @@ try:
 
         return _parse_orca_into_mf(mol, output)
 
+    ORCA_AVAILABLE = True
+
 except ImportError:
 
     def get_mf_orca(
@@ -204,3 +263,5 @@ except ImportError:
     def get_orca_basis(mol: Mole) -> SimpleKeyword:
         unused(mol)
         raise ImportError("ORCA and the ORCA python interface have to be available.")
+
+    ORCA_AVAILABLE = False

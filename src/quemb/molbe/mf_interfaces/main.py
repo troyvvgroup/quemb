@@ -1,6 +1,7 @@
 # ruff: noqa: PLC0415
 
-from typing import Literal
+from collections.abc import Mapping
+from typing import Final, Literal
 
 import h5py
 from pyscf.gto import Mole
@@ -8,8 +9,17 @@ from pyscf.lib.chkfile import load, load_mol, save, save_mol
 from pyscf.scf.hf import RHF
 from typing_extensions import assert_never
 
-from quemb.molbe.mf_interfaces._orca_interface import OrcaArgs, get_mf_orca
-from quemb.molbe.mf_interfaces._pyscf_interface import create_mf, get_mf_psycf
+from quemb.molbe.mf_interfaces.orca_interface import (
+    ORCA_AVAILABLE,
+    OrcaArgs,
+    get_mf_orca,
+    get_orca_basis,
+)
+from quemb.molbe.mf_interfaces.pyscf_interface import (
+    PYSCF_AVAILABLE,
+    create_mf,
+    get_mf_psycf,
+)
 from quemb.shared.helper import timer
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import PathLike
@@ -18,6 +28,11 @@ SCF_Backends = Literal["pyscf", "orca"]
 
 AdditionalArgs = OrcaArgs
 
+AVAILABLE_BACKENDS: Final[Mapping[SCF_Backends, bool]] = {
+    "pyscf": PYSCF_AVAILABLE,
+    "orca": ORCA_AVAILABLE,
+}
+
 
 @timer.timeit
 def get_mf(
@@ -25,7 +40,7 @@ def get_mf(
     *,
     work_dir: WorkDir | None = None,
     backend: SCF_Backends = "pyscf",
-    additional_args: AdditionalArgs,
+    additional_args: AdditionalArgs | None = None,
 ) -> RHF:
     """
     Compute the mean-field (SCF) object for a given molecule using the selected backend.
@@ -51,6 +66,10 @@ def get_mf(
             (`OPI <https://www.faccts.de/docs/opi/nightly/docs/>`_)
             to be installed.
 
+    additional_args :
+
+
+
     Returns
     -------
         The resulting mean-field (RHF) object from the selected backend.
@@ -62,6 +81,15 @@ def get_mf(
     if backend == "pyscf":
         return get_mf_psycf(mol)
     elif backend == "orca":
+        from opi.input.blocks.block_basis import BlockBasis
+
+        if additional_args is None:
+            additional_args = OrcaArgs(
+                simple_keywords=[],
+                blocks=[BlockBasis(basis=get_orca_basis(mol))],
+            )
+        else:
+            assert isinstance(additional_args, OrcaArgs)
         return get_mf_orca(
             mol,
             work_dir,

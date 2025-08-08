@@ -1,8 +1,13 @@
-import json
+# ruff: noqa: PLC0415
 
+import json
+import unittest
+
+import numpy as np
 from pyscf.gto import M
 
 from quemb.molbe.mf_interfaces._pyscf_orbital_order import Orbital
+from quemb.molbe.mf_interfaces.main import AVAILABLE_BACKENDS, get_mf
 from quemb.shared.helper import argsort
 
 with open("data/h2o_cc-pvqz_orca.json") as f:
@@ -394,3 +399,41 @@ def test_pyscf_parsing() -> None:
     # Surprise, Surprise 🥳
     # PYSCF is ordered by PYSCF convention
     assert computed_idx == list(range(mol.nao))
+
+
+def test_mf_consistent():
+    mol = M("./xyz/octane.xyz", basis="sto-3g")
+
+    pyscf_mf = get_mf(mol, backend="pyscf")
+
+    if AVAILABLE_BACKENDS["orca"]:
+        orca_mf = get_mf(
+            mol,
+            backend="orca",
+        )
+
+        assert np.isclose(pyscf_mf.e_tot, orca_mf.e_tot)
+
+
+@unittest.skipUnless(AVAILABLE_BACKENDS["orca"], "ORCA has to be available")
+def test_orca_rijk():
+    mol = M("./xyz/octane.xyz", basis="sto-3g")
+
+    from opi.input.blocks.block_basis import BlockBasis
+    from opi.input.simple_keywords import Approximation, SimpleKeyword
+
+    from quemb.molbe.mf_interfaces import OrcaArgs, get_orca_basis
+
+    orca_mf = get_mf(
+        mol,
+        backend="orca",
+        additional_args=OrcaArgs(
+            n_procs=4,
+            simple_keywords=[Approximation.RIJK],
+            blocks=[
+                BlockBasis(basis=get_orca_basis(mol), auxjk=SimpleKeyword("def2/jk"))
+            ],
+        ),
+    )
+
+    assert np.isclose(-309.78578324194916, orca_mf.e_tot)

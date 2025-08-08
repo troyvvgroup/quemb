@@ -1,9 +1,13 @@
+from typing import Final
+
 import numpy as np
 from pyscf.gto import Mole
 from pyscf.scf.hf import RHF
 
 from quemb.shared.helper import normalize_column_signs
 from quemb.shared.typing import Matrix, Vector
+
+PYSCF_AVAILABLE: Final = True
 
 
 def create_mf(
