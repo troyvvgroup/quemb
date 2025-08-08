@@ -200,3 +200,7 @@ except ImportError:
     ) -> RHF:  # type: ignore[return-type]
         unused(mol, work_dir, n_procs, simple_keywords, blocks)
         raise ImportError("ORCA and the ORCA python interface have to be available.")
+
+    def get_orca_basis(mol: Mole) -> SimpleKeyword:
+        unused(mol)
+        raise ImportError("ORCA and the ORCA python interface have to be available.")
