@@ -13,7 +13,6 @@
 
 #define UNUSED(x) (void)(x)
 
-
 using int_t = int64_t;
 using OrbitalIdx = Eigen::Index;
 using Matrix = Eigen::MatrixXd;
@@ -21,27 +20,29 @@ using Tensor3D = Eigen::Tensor<double, 3, Eigen::ColMajor>;
 
 // Matches python logging levels
 // https://docs.python.org/3/library/logging.html#logging-levels
-enum class LogLevel : int {
-    NotSet   = 0,
-    Debug    = 10,
-    Info     = 20,
-    Warning  = 30,
-    Error    = 40,
+enum class LogLevel : int
+{
+    NotSet = 0,
+    Debug = 10,
+    Info = 20,
+    Warning = 30,
+    Error = 40,
     Critical = 50
 };
 
 inline LogLevel LOG_LEVEL = LogLevel::NotSet;
 
 // Expose int getter of LogLevel
-inline int get_log_level() {
+inline int get_log_level()
+{
     return static_cast<int>(LOG_LEVEL);
 }
 
 // Expose int setter of LogLevel
-inline void set_log_level(int lvl) {
+inline void set_log_level(int lvl)
+{
     LOG_LEVEL = static_cast<LogLevel>(lvl);
 }
-
 
 // Utility: constrain to integral types and cast to int_t
 template <typename T> constexpr int_t to_int_t(const T value) noexcept
@@ -87,7 +88,7 @@ template <typename T> constexpr int_t n_symmetric(const T n) noexcept
 template <typename T> inline std::pair<int_t, int_t> unravel_symmetric(const T i)
 {
     const int_t I = to_int_t(i);
-    const int_t a = static_cast<int_t>((std::sqrt(8.0 * I + 1.0) - 1.0) / 2.0);
+    const int_t a = static_cast<int_t>((std::sqrt(8.0 * static_cast<double>(I) + 1.0) - 1.0) / 2.0);
     const int_t offset = gauss_sum(a);
     const int_t b = I - offset;
     return (a <= b) ? std::make_pair(a, b) : std::make_pair(b, a);
@@ -159,6 +160,12 @@ std::vector<std::vector<OrbitalIdx>> extract_unique(const std::vector<std::vecto
     return result;
 }
 
+template <typename Int>
+constexpr typename std::enable_if<std::is_integral<Int>::value, double>::type bytes_to_gib(Int bytes) noexcept
+{
+    return static_cast<double>(bytes) / (1024.0 * 1024 * 1024);
+}
+
 class Timer
 {
   public:
@@ -169,26 +176,26 @@ class Timer
     ~Timer()
     {
         if (LOG_LEVEL <= LogLevel::Info) {
-            const auto duration = elapsed_ms();
-            std::cout << "[TIMER] " << _name << " finished in " << duration << " ms\n";
+            const auto duration = elapsed_s();
+            std::cout << "[TIMER] " << _name << " finished in " << duration << " s\n";
         };
     }
 
     void print(const std::string &message = "Checkpoint") const
     {
-        const auto duration = elapsed_ms();
-        std::cout << "[TIMER] " << _name << " - " << message << ": " << duration << " ms\n";
+        const auto duration = elapsed_s();
+        std::cout << "[TIMER] " << _name << " - " << message << ": " << duration << " s\n";
     }
 
   private:
     const char *_name;
     std::chrono::high_resolution_clock::time_point _start;
 
-    double elapsed_ms() const
+    double elapsed_s() const
     {
         using namespace std::chrono;
         const auto now = high_resolution_clock::now();
-        return std::chrono::duration<double, std::milli>(now - _start).count();
+        return std::chrono::duration<double>(now - _start).count();
     }
 };
 

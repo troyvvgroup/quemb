@@ -8,7 +8,7 @@ from numpy import allclose, diag, eye, where
 from numpy.linalg import inv, norm, solve
 from pyscf.gto import intor_cross
 from pyscf.gto.mole import Mole
-from pyscf.lo import Boys
+from pyscf.lo import Boys, cholesky_mos
 from pyscf.lo.edmiston import EdmistonRuedenberg
 from pyscf.lo.pipek import PipekMezey
 from typing_extensions import assert_never
@@ -17,6 +17,7 @@ from quemb.shared.external.lo_helper import (
     cano_orth,
     symm_orth,
 )
+from quemb.shared.helper import timer
 from quemb.shared.typing import Matrix, Tensor3D
 
 IAO_LocMethods = Literal["lowdin", "boys", "PM", "ER"]
@@ -257,16 +258,17 @@ def get_loc(
 def get_loc(
     mol: Mole,
     C: Matrix,
-    method: Literal["ER", "boys"],
+    method: Literal["cholesky", "ER", "boys"],
     pop_method: None = ...,
     init_guess: Matrix | None = ...,
 ) -> Matrix[np.float64]: ...
 
 
+@timer.timeit
 def get_loc(
     mol: Mole,
     C: Matrix,
-    method: Literal["ER", "PM", "boys"] = "ER",
+    method: Literal["cholesky", "ER", "PM", "boys"] = "ER",
     pop_method: str | None = None,
     init_guess: Matrix | str | None = "atomic",
 ) -> Matrix[np.float64]:
@@ -282,8 +284,9 @@ def get_loc(
     method:
         Localization method. Options include:
         EDMINSTON-RUEDENBERG, ER;
-        PIPEK-MIZEY, PIPEK, PM;
-        FOSTER-BOYS, BOYS, FB
+        PIPEK-MIZEY, PM;
+        FOSTER-BOYS, boys;
+        cholesky;
     pop_method:
         Method for calculating orbital population, by default 'meta-lowdin'
         See pyscf.lo for more details and options. This is only used for
@@ -297,7 +300,9 @@ def get_loc(
         Localized mol object
     """
     Localizer: type[EdmistonRuedenberg] | type[PipekMezey] | type[Boys]
-    if method == "ER":
+    if method == "cholesky":
+        return cholesky_mos(C)
+    elif method == "ER":
         Localizer = EdmistonRuedenberg
     elif method == "PM":
         Localizer = PipekMezey

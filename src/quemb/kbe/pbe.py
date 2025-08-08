@@ -1,5 +1,7 @@
 # Author(s): Oinam Romesh Meitei
 
+import contextlib
+import io
 import os
 import pickle
 from multiprocessing import Pool
@@ -8,7 +10,6 @@ from warnings import warn
 
 import h5py
 import numpy as np
-from libdmet.basis_transform.eri_transform import get_emb_eri_fast_gdf
 from numpy import array, einsum, floating, result_type, zeros, zeros_like
 from pyscf import ao2mo
 from pyscf.pbc import df, gto, scf
@@ -28,6 +29,11 @@ from quemb.shared.external.optqn import (
 from quemb.shared.helper import copy_docstring, timer
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix, PathLike
+
+with contextlib.redirect_stdout(io.StringIO()):
+    # Since they don't want to reduce the printing, let's temporarily disable STDOUT
+    # https://github.com/gkclab/libdmet_preview/issues/22
+    from libdmet.basis_transform.eri_transform import get_emb_eri_fast_gdf
 
 
 class BE(Mixin_k_Localize):

@@ -1,3 +1,5 @@
 BasedOnStyle: Microsoft
+ColumnLimit: 120
+
 BraceWrapping:
   AfterControlStatement: false

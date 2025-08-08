@@ -1,20 +1,21 @@
 import functools
 import inspect
 import logging
+import shutil
 import time
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Sequence
 from inspect import signature
 from itertools import islice
 from pathlib import Path
-from typing import Any, TypeVar, overload
+from typing import Any, ParamSpec, TypeVar, overload
 
 import numba as nb
 import numpy as np
 from attrs import define, field
 from ordered_set import OrderedSet
 
-from quemb.shared.typing import Integral, Matrix, T
+from quemb.shared.typing import Integral, Matrix, SupportsRichComparison, T
 
 _Function = TypeVar("_Function", bound=Callable)
 _T_Integral = TypeVar("_T_Integral", bound=Integral)
@@ -121,15 +122,22 @@ def delete_multiple_files(*args: Iterable[Path]) -> None:
             file.unlink()
 
 
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
+
+
 @define
 class FunctionTimer:
     stats: dict = field(factory=lambda: defaultdict(lambda: {"time": 0.0, "calls": 0}))
 
-    def timeit(self, func):
+    def reset(self) -> None:
+        self.stats = defaultdict(lambda: {"time": 0.0, "calls": 0})
+
+    def timeit(self, func: Callable[_P, _R]) -> Callable[_P, _R]:
         """Decorator to time a function and record stats using Timer."""
 
         @functools.wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _R:
             timer = Timer(message=f"Timing {func.__module__}.{func.__qualname__}")
             result = func(*args, **kwargs)
             duration = timer.elapsed()
@@ -148,7 +156,7 @@ class FunctionTimer:
 
         return wrapper
 
-    def print_top(self, n=10):
+    def print_top(self, n: int = 10) -> None:
         """Print the top-n functions by total accumulated time."""
         sorted_stats = sorted(
             self.stats.items(), key=lambda item: item[1]["time"], reverse=True
@@ -302,8 +310,8 @@ def unravel_eri_idx(i: _T_Integral) -> tuple[int, int, int, int]:
 
 
 @njit(nogil=True)
-def n_eri(n):
-    return ravel_eri_idx(n - 1, n - 1, n - 1, n - 1) + 1
+def n_eri(n: _T_Integral) -> _T_Integral:
+    return ravel_eri_idx(n - 1, n - 1, n - 1, n - 1) + 1  # type: ignore[return-value]
 
 
 @njit(nogil=True)
@@ -429,3 +437,69 @@ def clean_overlap(M: Matrix[np.float64], epsilon: float = 1e-12) -> Matrix[np.in
     assert (np.abs(1 - M[~very_small]) < epsilon).all()
     M[~very_small] = 1
     return M.astype(np.int64)
+
+
+_T_comparable = TypeVar("_T_comparable", bound=SupportsRichComparison)
+
+
+def argsort(
+    seq: Sequence[_T_comparable],
+    key: Callable[[_T_comparable], SupportsRichComparison] | None = None,
+) -> list[int]:
+    """Returns the index that sorts a sequence.
+
+    Parameters
+    ----------
+    seq:
+        The sequence to be sorted.
+    key:
+        Apply function before comparing.
+        Behaves exactly as the same argument to :func:`sorted`.
+    """
+    if key is None:
+        return sorted(range(len(seq)), key=lambda i: seq[i])  # type: ignore[arg-type]
+    else:
+        return sorted(range(len(seq)), key=lambda i: key(seq[i]))
+
+
+def normalize_column_signs(
+    arr: Matrix[np.floating], epsilon: float = 1e-5
+) -> Matrix[np.float64]:
+    """
+    Divide each column by the sign of its first non-zero entry (if any).
+
+    Can be used to compare two MO matrices for (near-)equality, because it fixes
+    the sign factor for both.
+
+    Parameters
+    ----------
+    arr :
+        A 2D numpy array.
+
+    Returns
+    -------
+        New array with columns divided by the sign of their first non-zero element.
+    """
+    # Get a mask of non-zero entries
+    nonzero_mask = abs(arr) > epsilon
+
+    # Get row indices for first non-zero in each column
+    first_nonzero_idx = np.where(nonzero_mask.any(0), nonzero_mask.argmax(0), -1)
+
+    # Extract the first non-zero value per column, defaulting to 1.0 if none exist
+    signs = np.ones(arr.shape[1])
+    valid = first_nonzero_idx != -1
+    signs[valid] = np.sign(
+        arr[first_nonzero_idx[valid], np.arange(arr.shape[1])[valid]]
+    )
+    return arr / signs
+
+
+def clear_directory(path: Path) -> None:
+    """Clean the **contents** of a directory, including subdirectories,
+    but not the directory itself."""
+    for item in path.iterdir():
+        if item.is_file() or item.is_symlink():
+            item.unlink()
+        elif item.is_dir():
+            shutil.rmtree(item)
