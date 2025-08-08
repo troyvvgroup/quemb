@@ -416,13 +416,18 @@ def test_mf_consistent():
 
 
 @unittest.skipUnless(AVAILABLE_BACKENDS["orca"], "ORCA has to be available")
-def test_orca_rijk():
-    mol = M("./xyz/octane.xyz", basis="sto-3g")
-
-    from opi.input.blocks.block_basis import BlockBasis
-    from opi.input.simple_keywords import Approximation, SimpleKeyword
+def test_orca_rijk() -> None:
+    from opi.input.blocks.block_basis import (  # type: ignore[import-not-found]
+        BlockBasis,
+    )
+    from opi.input.simple_keywords import (  # type: ignore[import-not-found,attr-defined]
+        Approximation,
+        SimpleKeyword,
+    )
 
     from quemb.molbe.mf_interfaces import OrcaArgs, get_orca_basis
+
+    mol = M("./xyz/octane.xyz", basis="sto-3g")
 
     orca_mf = get_mf(
         mol,

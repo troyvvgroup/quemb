@@ -80,7 +80,9 @@ def get_mf(
     if backend == "pyscf":
         return get_mf_psycf(mol)
     elif backend == "orca":
-        from opi.input.blocks.block_basis import BlockBasis
+        from opi.input.blocks.block_basis import (  # type: ignore[import-not-found]
+            BlockBasis,
+        )
 
         if additional_args is None:
             additional_args = OrcaArgs(

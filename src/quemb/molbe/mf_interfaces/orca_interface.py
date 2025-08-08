@@ -1,5 +1,3 @@
-# mypy: disable-error-code=import-not-found
-
 from __future__ import annotations
 
 import json
@@ -55,15 +53,19 @@ class OrcaArgs:
 
 
 try:
-    from opi.core import Calculator
-    from opi.input.blocks import Block
-    from opi.input.simple_keywords import (
+    from opi.core import Calculator  # type: ignore[import-not-found,attr-defined]
+    from opi.input.blocks import Block  # type: ignore[import-not-found,attr-defined]
+    from opi.input.simple_keywords import (  # type: ignore[import-not-found,attr-defined]
         BasisSet,
         SimpleKeyword,
     )
-    from opi.input.simple_keywords.method import Method
-    from opi.input.structures.structure import Structure
-    from opi.output.core import Output
+    from opi.input.simple_keywords.method import (  # type: ignore[import-not-found,attr-defined]
+        Method,
+    )
+    from opi.input.structures.structure import (  # type: ignore[import-not-found,attr-defined]
+        Structure,
+    )
+    from opi.output.core import Output  # type: ignore[import-not-found,attr-defined]
 
     PYSCF_TO_ORCA_BASIS: Final[Mapping[str, SimpleKeyword]] = {
         "sto-3g": BasisSet.STO_3G,

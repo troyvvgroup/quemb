@@ -37,7 +37,7 @@ from scipy.linalg import cholesky, solve, solve_triangular
 from scipy.optimize import bisect
 from scipy.special import roots_hermite
 
-import quemb.molbe._cpp.eri_sparse_DF as cpp_transforms  # type: ignore[import-not-found]
+import quemb.molbe._cpp.eri_sparse_DF as cpp_transforms
 from quemb.molbe.chemfrag import (
     _get_AOidx_per_atom,
 )
