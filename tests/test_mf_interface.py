@@ -420,7 +420,7 @@ def test_orca_rijk() -> None:
     from opi.input.blocks.block_basis import (  # type: ignore[import-not-found]
         BlockBasis,
     )
-    from opi.input.simple_keywords import (  # type: ignore[import-not-found,attr-defined]
+    from opi.input.simple_keywords import (  # type: ignore[import-not-found]
         Approximation,
         SimpleKeyword,
     )

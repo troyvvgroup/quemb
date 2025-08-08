@@ -53,19 +53,19 @@ class OrcaArgs:
 
 
 try:
-    from opi.core import Calculator  # type: ignore[import-not-found,attr-defined]
-    from opi.input.blocks import Block  # type: ignore[import-not-found,attr-defined]
-    from opi.input.simple_keywords import (  # type: ignore[import-not-found,attr-defined]
+    from opi.core import Calculator  # type: ignore[import-not-found]
+    from opi.input.blocks import Block  # type: ignore[import-not-found]
+    from opi.input.simple_keywords import (  # type: ignore[import-not-found]
         BasisSet,
         SimpleKeyword,
     )
-    from opi.input.simple_keywords.method import (  # type: ignore[import-not-found,attr-defined]
+    from opi.input.simple_keywords.method import (  # type: ignore[import-not-found]
         Method,
     )
-    from opi.input.structures.structure import (  # type: ignore[import-not-found,attr-defined]
+    from opi.input.structures.structure import (  # type: ignore[import-not-found]
         Structure,
     )
-    from opi.output.core import Output  # type: ignore[import-not-found,attr-defined]
+    from opi.output.core import Output  # type: ignore[import-not-found]
 
     PYSCF_TO_ORCA_BASIS: Final[Mapping[str, SimpleKeyword]] = {
         "sto-3g": BasisSet.STO_3G,
