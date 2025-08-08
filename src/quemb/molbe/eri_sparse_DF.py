@@ -15,7 +15,7 @@ from collections.abc import (
 )
 from concurrent.futures import ThreadPoolExecutor
 from itertools import chain, takewhile
-from typing import Final, Literal, TypeVar, cast
+from typing import Final, TypeVar, cast
 
 import h5py
 import numpy as np
@@ -81,8 +81,6 @@ _T_target = TypeVar("_T_target", bound=np.integer)
 _T = TypeVar("_T", int, np.integer)
 
 logger = logging.getLogger(__name__)
-
-S_abs_calculator: Literal["grid", "triangle"] = "triangle"
 
 
 def _aux_e2(  # type: ignore[no-untyped-def]
@@ -1426,11 +1424,7 @@ def transform_sparse_DF_integral_nb(
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
-    if S_abs_calculator == "grid":
-        S_abs = grid_S_abs(mol)
-    else:
-        S_abs = approx_S_abs(mol)
-
+    S_abs = approx_S_abs(mol)
     exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
 
     sparse_P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
@@ -1476,11 +1470,7 @@ def transform_sparse_DF_integral_cpp(
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
-    if S_abs_calculator == "grid":
-        S_abs = grid_S_abs(mol)
-    else:
-        S_abs = approx_S_abs(mol)
-
+    S_abs = approx_S_abs(mol)
     exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
 
     py_P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
@@ -1531,11 +1521,7 @@ def transform_sparse_DF_integral_cpp_gpu(
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
-    if S_abs_calculator == "grid":
-        S_abs = grid_S_abs(mol)
-    else:
-        S_abs = approx_S_abs(mol)
-
+    S_abs = approx_S_abs(mol)
     exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
 
     py_P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
@@ -1659,11 +1645,7 @@ try:
         mol = mf.mol
         auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
-        if S_abs_calculator == "grid":
-            S_abs = grid_S_abs(mol)
-        else:
-            S_abs = approx_S_abs(mol)
-
+        S_abs = approx_S_abs(mol)
         exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
 
         sparse_P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
