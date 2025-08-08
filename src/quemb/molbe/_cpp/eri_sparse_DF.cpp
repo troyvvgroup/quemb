@@ -590,10 +590,9 @@ pip install --no-deps -vvv . \
 // Binding code
 PYBIND11_MODULE(eri_sparse_DF, m)
 {
-    m.doc() = "Perform the sparse DF ERI transformation "
-              "using semi-sparse tensors.\n\n"
-              "This module provides functionality to "
-              "transform ERIs using semi-sparse tensors\n"
+    m.doc() = "Perform the sparse DF ERI transformation using semi-sparse tensors.\n"
+              "\n"
+              "This module provides functionality to transform ERIs using semi-sparse tensors\n"
               "and optionally CUDA for GPU acceleration.";
 
     m.def("get_log_level", &get_log_level);
