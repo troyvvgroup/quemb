@@ -51,7 +51,12 @@ git clone --recurse-submodules https://github.com/troyvvgroup/quemb
 cd quemb
 pip install .
 ```
+#### macOS Users
+AppleClang does not include OpenMP support by default.
+Before building:
 
+```bash
+brew install libomp
 
 
 ## Basic Usage
