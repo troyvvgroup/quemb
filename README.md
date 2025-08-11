@@ -21,6 +21,18 @@ using reciprocal space sums.
 - **Parallel computing:** Employ's Python multiprocessing module to perform parallel computations across multiple
 processors.
 
+## Documentation
+
+Comprehensive documentation for QuEmb is available online [here](https://vanvoorhisgroup.mit.edu/quemb/)
+and provides detailed infomation on installation, usage, API reference, and examples.
+To build the documentation locally, simply navigate to `docs` and do
+```bash
+pip install -r requirements.txt
+make html # for browser documentation
+# afterwards open build/html/index.html in your browser
+```
+
+
 ## Installation
 
 ### Prerequisites
@@ -51,20 +63,10 @@ git clone --recurse-submodules https://github.com/troyvvgroup/quemb
 cd quemb
 pip install .
 ```
-#### macOS Users
-AppleClang does not include OpenMP support by default.
-Before building:
 
-```bash
-brew install gcc
-brew list gcc
-```
-then export CC and CCX depending on your path.
-For example,
-```bash
-export CC=/opt/homebrew/Cellar/gcc/15.1.0/bin/gcc-15
-export CXX=/opt/homebrew/Cellar/gcc/15.1.0/bin/g++-15
-```
+For more installation details read [here](https://vanvoorhisgroup.mit.edu/quemb/install).
+
+
 
 ## Basic Usage
 
@@ -92,15 +94,9 @@ mybe.optimize(solver='CCSD')
 ```
 See documentation and `quemb/example` for more details.
 
-## Documentation
-
-Comprehensive documentation for QuEmb is available at `quemb/docs`. The documentation provides detailed infomation on installation, usage, API reference, and examples. To build the documentation locally, simply navigate to `docs` and build using `make html` or `make latexpdf`.
-
-Alternatively, you can view the latest documentation online [here](https://vanvoorhisgroup.mit.edu/quemb/).
-
 ## References
 
-This code has been described in a software paper: 
+This code has been described in a software paper:
 - M Cho, OR Meitei, LP Weisburn, O Weser, S Weatherly, et. al, QuEmb: a toolbox for bootstrap embedding calculations of molecular and periodic systems, [JPCA 129 6538 2025](https://doi.org/10.1021/acs.jpca.5c02983)
 
 The methods implemented in this code are described in further detail in the following papers:
