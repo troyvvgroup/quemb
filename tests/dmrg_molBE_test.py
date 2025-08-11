@@ -18,8 +18,8 @@ except ImportError:
 
 
 class TestBE_DMRG(unittest.TestCase):
-    @unittest.skipIf(
-        not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
+    @unittest.skipUnless(
+        os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
         reason="This test is known to fail.",
     )
     def test_h8_sto3g_pipek(self):

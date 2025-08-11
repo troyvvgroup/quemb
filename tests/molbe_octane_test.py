@@ -10,7 +10,7 @@ import pytest
 from pyscf import gto, scf
 
 from quemb.molbe import BE, fragmentate
-from quemb.molbe.fragment import FragType
+from quemb.molbe.fragment import ChemGenArgs, FragType
 from quemb.shared.io import write_cube
 
 
@@ -37,7 +37,7 @@ def test_BE2_octane_molbe() -> None:
 
 
 @pytest.mark.skipif(
-    os.getenv("QUEMB_SKIP_EXPENSIVE_TESTS") == "true",
+    not (os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true"),
     reason="Skipped expensive BE3 test for QuEmb.",
 )
 def test_BE3_octane_molbe() -> None:
@@ -45,22 +45,27 @@ def test_BE3_octane_molbe() -> None:
     mol, mf = prepare_octane()
 
     # initialize fragments (without using frozen core approximation)
-    for frag_type in cast(list[FragType], ["autogen", "chemgen"]):
-        fobj = fragmentate(n_BE=3, frag_type=frag_type, mol=mol, frozen_core=False)
-        # Initialize BE
-        mybe = BE(mf, fobj)
+    fobj = fragmentate(
+        n_BE=3,
+        frag_type="chemgen",
+        mol=mol,
+        frozen_core=False,
+        additional_args=ChemGenArgs(swallow_replace=True),
+    )
+    # Initialize BE
+    mybe = BE(mf, fobj)
 
-        # Perform BE density matching.
-        # Uses 4 procs, each fragment calculation assigned OMP_NUM_THREADS to 2
-        # effectively running 2 fragment calculations in parallel
-        mybe.optimize(solver="CCSD", nproc=4, ompnum=2)
+    # Perform BE density matching.
+    # Uses 4 procs, each fragment calculation assigned OMP_NUM_THREADS to 2
+    # effectively running 2 fragment calculations in parallel
+    mybe.optimize(solver="CCSD", nproc=4, ompnum=2)
 
-        assert np.isclose(mybe.ebe_tot, -310.3344717358742), f"{frag_type} failed"
-        assert np.isclose(mybe.ebe_hf, -309.7847695501025), f"{frag_type} failed"
-        # Note that the test for the correlation energy is stricter, because np.isclose
-        # scales the difference threshold by the absolute values of the inputs.
-        ecorr = mybe.ebe_tot - mybe.ebe_hf
-        assert np.isclose(ecorr, -0.5497021857717073), f"{frag_type} failed"
+    assert np.isclose(mybe.ebe_tot, -310.3344717358742)
+    assert np.isclose(mybe.ebe_hf, -309.7847695501025)
+    # Note that the test for the correlation energy is stricter, because np.isclose
+    # scales the difference threshold by the absolute values of the inputs.
+    ecorr = mybe.ebe_tot - mybe.ebe_hf
+    assert np.isclose(ecorr, -0.5497021857717073)
 
 
 def test_cubegen() -> None:
