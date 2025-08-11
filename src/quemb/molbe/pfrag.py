@@ -176,7 +176,6 @@ class Frags:
             Used for UBE, where different number of alpha and beta orbitals
             Default is None, allowing orbitals to be chosen by threshold
         """
-        print("add_cnos", add_cnos)
         if add_cnos:
             self.TA_lo_eo, self.TA_lo_eo_occ, self.TA_lo_eo_vir, self.n_f, self.n_b = schmidt_decomposition_cnos(
                 lmo,
@@ -580,6 +579,10 @@ def schmidt_decomposition_cnos(
         else:
             OEidx.append(i)
 
+    print("Bidx", Bidx)
+    print("VEidx", VEidx)
+    print("OEidx", OEidx)
+
     # Initialize the transformation matrix (TA)
     TA = zeros([Tot_sites, len(AO_in_frag) + len(Bidx)])
     TA[AO_in_frag, : len(AO_in_frag)] = eye(len(AO_in_frag))  # Fragment part
@@ -596,6 +599,10 @@ def schmidt_decomposition_cnos(
     TA_occ[:TA.shape[0], :TA.shape[1]] = TA
     TA_occ[Env_sites1, len(AO_in_frag) + len(Bidx):] = Evec[:, OEidx]
     print("TA_occ", TA_occ)
+
+    #proj_E_virt = np.zeroslike(TA_virt)
+    
+    #proj_E_occ = np.zeroslike(TA_occ)
 
     # return TA, norbs_frag, norbs_bath
     return TA, TA_occ, TA_virt, Frag_sites1.shape[0], len(Bidx), 

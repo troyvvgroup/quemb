@@ -954,9 +954,6 @@ class BE:
                         fobjs_.TA_cno_vir, # TA virtual expanded
                         self.hcore, # hcore
                         eri_, # eris
-                        self.Fobjs[I].dname, # eri name
-                        self.C, # C matrix
-                        self.S, # S object
                         self.Nocc, # Number of occupieds
                 )
                 print("did cnos", did_cnos)
