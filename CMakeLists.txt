@@ -13,10 +13,6 @@ pybind11_add_module(eri_sparse_DF src/quemb/molbe/_cpp/eri_sparse_DF.cpp)
 # Include Eigen
 target_include_directories(eri_sparse_DF SYSTEM PRIVATE ${CMAKE_SOURCE_DIR}/external/eigen)
 
-# Add LLVM includes/libs
-target_include_directories(eri_sparse_DF PRIVATE /opt/homebrew/opt/llvm/include)
-target_link_directories(eri_sparse_DF PRIVATE /opt/homebrew/opt/llvm/lib)
-
 # Detect CUDA
 find_package(CUDAToolkit QUIET)
 if(CUDAToolkit_FOUND)
