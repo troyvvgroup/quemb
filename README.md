@@ -56,7 +56,14 @@ AppleClang does not include OpenMP support by default.
 Before building:
 
 ```bash
-brew install libomp
+brew install gcc
+brew list gcc
+```
+then export CC and CCX depending on your path.
+For example,
+```
+export CC=/opt/homebrew/Cellar/gcc/15.1.0/bin/gcc-15
+export CXX=/opt/homebrew/Cellar/gcc/15.1.0/bin/g++-15
 ```
 
 ## Basic Usage
