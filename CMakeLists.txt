@@ -25,29 +25,24 @@ find_package(OpenMP)
 
 if(APPLE AND NOT OpenMP_CXX_FOUND)
     message(STATUS "Configuring OpenMP for macOS with Homebrew libomp")
-    # Assume libomp installed via Homebrew
+
+    # Set OpenMP flags and library using Homebrew LLVM paths
     set(OpenMP_CXX_FLAGS -Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include)
-    set(OpenMP_omp_LIBRARY "/opt/homebrew/opt/libomp/lib/libomp.dylib")
+    set(OpenMP_omp_LIBRARY /opt/homebrew/opt/libomp/lib/libomp.dylib)
     set(OpenMP_CXX_FOUND TRUE)
 endif()
 
 if(OpenMP_CXX_FOUND)
     target_compile_options(eri_sparse_DF PRIVATE ${OpenMP_CXX_FLAGS})
 
-    if(APPLE AND OpenMP_omp_LIBRARY)  # macOS fallback linking
+    if(APPLE AND OpenMP_omp_LIBRARY)
         target_link_libraries(eri_sparse_DF PRIVATE ${OpenMP_omp_LIBRARY})
-    else()  # Normal OpenMP linking
+    else()
         target_link_libraries(eri_sparse_DF PRIVATE OpenMP::OpenMP_CXX)
     endif()
 else()
     message(FATAL_ERROR "OpenMP not found — on macOS, run: brew install libomp")
 endif()
-
-# Set default build type
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
-endif()
-message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 target_compile_features(eri_sparse_DF PRIVATE cxx_std_17)
 
