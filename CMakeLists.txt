@@ -20,10 +20,9 @@ if(CUDAToolkit_FOUND)
     target_compile_definitions(eri_sparse_DF PRIVATE USE_CUDA)
 endif()
 
-# Try to find OpenMP normally
+# OpenMP
 find_package(OpenMP)
 
-# macOS-specific fix: AppleClang doesn't ship OpenMP by default
 if(APPLE AND NOT OpenMP_CXX_FOUND)
     message(STATUS "Configuring OpenMP for macOS with Homebrew libomp")
     # Assume libomp installed via Homebrew
@@ -33,10 +32,9 @@ if(APPLE AND NOT OpenMP_CXX_FOUND)
     set(OpenMP_CXX_FOUND TRUE)
 endif()
 
-# Apply OpenMP settings if found
 if(OpenMP_CXX_FOUND)
-    target_compile_options(${PROJECT_NAME} PRIVATE ${OpenMP_CXX_FLAGS})
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${OpenMP_omp_LIBRARY})
+    target_compile_options(eri_sparse_DF PRIVATE ${OpenMP_CXX_FLAGS})
+    target_link_libraries(eri_sparse_DF PRIVATE ${OpenMP_omp_LIBRARY})
 else()
     message(FATAL_ERROR "OpenMP not found — on macOS, run: brew install libomp")
 endif()
