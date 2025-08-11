@@ -13,6 +13,10 @@ pybind11_add_module(eri_sparse_DF src/quemb/molbe/_cpp/eri_sparse_DF.cpp)
 # Include Eigen
 target_include_directories(eri_sparse_DF SYSTEM PRIVATE ${CMAKE_SOURCE_DIR}/external/eigen)
 
+# Add LLVM includes/libs
+target_include_directories(eri_sparse_DF PRIVATE /opt/homebrew/opt/llvm/include)
+target_link_directories(eri_sparse_DF PRIVATE /opt/homebrew/opt/llvm/lib)
+
 # Detect CUDA
 find_package(CUDAToolkit QUIET)
 if(CUDAToolkit_FOUND)
@@ -21,28 +25,14 @@ if(CUDAToolkit_FOUND)
 endif()
 
 # OpenMP
-find_package(OpenMP)
+find_package(OpenMP REQUIRED)
+target_link_libraries(eri_sparse_DF PRIVATE OpenMP::OpenMP_CXX)
 
-if(APPLE AND NOT OpenMP_CXX_FOUND)
-    message(STATUS "Configuring OpenMP for macOS with Homebrew libomp")
-
-    # Set OpenMP flags and library using Homebrew LLVM paths
-    set(OpenMP_CXX_FLAGS -Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include)
-    set(OpenMP_omp_LIBRARY /opt/homebrew/opt/libomp/lib/libomp.dylib)
-    set(OpenMP_CXX_FOUND TRUE)
+# Set default build type
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
 endif()
-
-if(OpenMP_CXX_FOUND)
-    target_compile_options(eri_sparse_DF PRIVATE ${OpenMP_CXX_FLAGS})
-
-    if(APPLE AND OpenMP_omp_LIBRARY)
-        target_link_libraries(eri_sparse_DF PRIVATE ${OpenMP_omp_LIBRARY})
-    else()
-        target_link_libraries(eri_sparse_DF PRIVATE OpenMP::OpenMP_CXX)
-    endif()
-else()
-    message(FATAL_ERROR "OpenMP not found — on macOS, run: brew install libomp")
-endif()
+message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 target_compile_features(eri_sparse_DF PRIVATE cxx_std_17)
 
