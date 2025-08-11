@@ -57,7 +57,7 @@ Before building:
 
 ```bash
 brew install libomp
-
+```
 
 ## Basic Usage
 
