@@ -988,14 +988,14 @@ class BE:
     def _initialize_fragments(self, file_eri: h5py.File, restart: bool):
         """
         Processes all molecular fragments by constructing their Fock matrices,
-        performing SCF, and optionally computing fragment Hartree–Fock (HF) energies.
+        performing SCF, and computing fragment Hartree–Fock (HF) energies.
 
         This includes:
 
         - Loading and changing the symmetry of the ERIs (in-core or restored format).
         - Constructing 1-electron Hamiltonians via basis transformations.
         - Running fragment-level SCF calculations.
-        - Building initial density matrices.
+        - Building initial density matrices for subsequent scf
         - Computing and accumulating fragment HF energies
         - Verifying HF-in-HF energy consistency.
 
