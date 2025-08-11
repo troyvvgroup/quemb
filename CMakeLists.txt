@@ -108,5 +108,4 @@ endif()
 
 install(TARGETS eri_sparse_DF
     LIBRARY DESTINATION quemb/molbe/_cpp
-)
-
+    )
