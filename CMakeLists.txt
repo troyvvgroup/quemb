@@ -26,7 +26,7 @@ find_package(OpenMP)
 if(APPLE AND NOT OpenMP_CXX_FOUND)
     message(STATUS "Configuring OpenMP for macOS with Homebrew libomp")
     # Assume libomp installed via Homebrew
-    set(OpenMP_CXX_FLAGS "-Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include")
+    set(OpenMP_CXX_FLAGS -Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include)
     set(OpenMP_omp_LIBRARY "/opt/homebrew/opt/libomp/lib/libomp.dylib")
     set(OpenMP_CXX_FOUND TRUE)
 endif()
