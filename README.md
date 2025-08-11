@@ -61,7 +61,7 @@ brew list gcc
 ```
 then export CC and CCX depending on your path.
 For example,
-```
+```bash
 export CC=/opt/homebrew/Cellar/gcc/15.1.0/bin/gcc-15
 export CXX=/opt/homebrew/Cellar/gcc/15.1.0/bin/g++-15
 ```
