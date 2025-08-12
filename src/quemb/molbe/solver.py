@@ -315,10 +315,35 @@ def be_func(
                     fobj._mf,
                     mo_energy=fobj._mf.mo_energy,
                     relax=relax_density,
-                    use_cumulant=use_cumulant,
+                    use_cumulant=False,  #
                     rdm_return=True,
                     rdm2_return=True,
                 )
+                if True:
+                    hf_dm = (
+                        fobj._mo_coeffs[:, : fobj.nsocc]
+                        @ fobj._mo_coeffs[:, : fobj.nsocc].conj().T
+                    )
+                    hf_dm = 2 * einsum(
+                        "ij,ip,jq->pq",
+                        hf_dm,
+                        fobj.mo_coeffs,
+                        fobj.mo_coeffs.conj(),
+                        optimize=True,
+                    )
+                    del_rdm1 = rdm1_tmp.copy()
+                    del_rdm1 -= hf_dm
+                    nc = (
+                        einsum("ij,kl->ijkl", hf_dm, hf_dm)
+                        + einsum("ij,kl->ijkl", hf_dm, del_rdm1)
+                        + einsum("ij,kl->ijkl", del_rdm1, hf_dm)
+                    )
+                    nc -= (
+                        einsum("ij,kl->iklj", hf_dm, hf_dm)
+                        + einsum("ij,kl->iklj", hf_dm, del_rdm1)
+                        + einsum("ij,kl->iklj", del_rdm1, hf_dm)
+                    ) * 0.5
+                    rdm2s -= nc
             else:
                 # currently passing mycc: likely unnecessary
                 fobj.t1, fobj.t2, rdm1_tmp, _ = solve_ccsd(  # mycc
@@ -473,6 +498,21 @@ def be_func(
                     hf_dm[diag_indices(fobj.nsocc)] += 2.0
                     del_rdm1 = rdm1_tmp.copy()
                     del_rdm1[diag_indices(fobj.nsocc)] -= 2.0
+
+                    """hf_dm = (
+                        fobj._mo_coeffs[:, : fobj.nsocc]
+                        @ fobj._mo_coeffs[:, : fobj.nsocc].conj().T
+                    )
+                    hf_dm = 2 * einsum(
+                        "ij,ip,jq->pq",
+                        hf_dm,
+                        fobj.mo_coeffs,
+                        fobj.mo_coeffs,
+                        optimize=True,
+                    )"""
+                    # del_rdm1 = rdm1_tmp.copy()
+                    # del_rdm1 -= hf_dm
+
                     nc = (
                         einsum("ij,kl->ijkl", hf_dm, hf_dm)
                         + einsum("ij,kl->ijkl", hf_dm, del_rdm1)
@@ -489,6 +529,8 @@ def be_func(
             # Return [e1, e2, ec] as e_f and add to the running total_e.
             e_f = get_frag_energy(
                 mo_coeffs=fobj.mo_coeffs,
+                #hf_1rdm=fobj._mo_coeffs[:,:fobj.nsocc]
+                # @fobj._mo_coeffs[:,:fobj.nsocc].conj().T,
                 nsocc=fobj.nsocc,
                 n_frag=fobj.n_frag,
                 weight_and_relAO_per_center=fobj.weight_and_relAO_per_center,
