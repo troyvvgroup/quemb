@@ -1,36 +1,76 @@
 # Author(s): Oinam Romesh Meitei
 
+import logging
 import pickle
-from typing import Literal, TypeAlias
+from typing import Final, Literal, TypeAlias
 from warnings import warn
 
 import h5py
 import numpy
+import numpy as np
 from attrs import define
-from numpy import array, diag_indices, einsum, float64, floating, zeros, zeros_like
-from numpy.linalg import multi_dot
+from numpy import (
+    allclose,
+    array,
+    diag,
+    diag_indices,
+    einsum,
+    eye,
+    float64,
+    floating,
+    sqrt,
+    where,
+    zeros,
+    zeros_like,
+)
+from numpy.linalg import eigh, multi_dot, svd
 from pyscf import ao2mo, scf
+from pyscf.gto import Mole
 from typing_extensions import assert_never
 
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
+from quemb.molbe.eri_sparse_DF import (
+    transform_sparse_DF_integral_cpp,
+    transform_sparse_DF_integral_nb,
+)
 from quemb.molbe.fragment import FragPart
-from quemb.molbe.lo import MixinLocalize
+from quemb.molbe.lo import (
+    IAO_LocMethods,
+    LocMethods,
+    get_iao,
+    get_loc,
+    get_pao,
+    get_xovlp,
+    remove_core_mo,
+)
 from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
 from quemb.molbe.opt import BEOPT
-from quemb.molbe.pfrag import Frags
+from quemb.molbe.pfrag import Frags, union_of_frag_MOs_and_index
 from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
-from quemb.shared.config import settings
+from quemb.shared.external.lo_helper import (
+    get_aoind_by_atom,
+    reorder_by_atom_,
+)
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
-from quemb.shared.helper import Timer, copy_docstring, ensure
+from quemb.shared.helper import copy_docstring, ensure, ncore_, timer, unused
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix, PathLike
 
 IntTransforms: TypeAlias = Literal[
-    "in-core", "out-core-DF", "int-direct-DF", "sparse-DF"
+    "in-core",
+    "out-core-DF",
+    "int-direct-DF",
+    "sparse-DF-cpp",  # screen AOs and MOs via S_abs
+    "sparse-DF-nb",  # screen AOs and MOs via S_abs and use jitted numba
+    "sparse-DF-cpp-gpu",  # screen AOs and MOs via S_abs
+    "sparse-DF-nb-gpu",  # screen AOs and MOs via S_abs and use jitted numba
 ]
+"""Literal type describing allowed transformation strategies."""
+
+logger = logging.getLogger(__name__)
 
 
 @define
@@ -52,7 +92,7 @@ class storeBE:
     core_veff: Matrix[floating]
 
 
-class BE(MixinLocalize):
+class BE:
     """
     Class for handling bootstrap embedding (BE) calculations.
 
@@ -69,19 +109,19 @@ class BE(MixinLocalize):
         Fragment object containing sites, centers, edges, and indices.
     eri_file : str
         Path to the file storing two-electron integrals.
-    lo_method : str
-        Method for orbital localization, default is 'lowdin'.
+    lo_method :
+        Method for orbital localization, default is "lowdin".
     """
 
+    @timer.timeit
     def __init__(
         self,
         mf: scf.hf.SCF,
-        fobj: FragPart,
+        fobj: FragPart[Mole],
         eri_file: PathLike = "eri_file.h5",
-        lo_method: str = "lowdin",
-        iao_loc_method: str | None = "SO",
+        lo_method: LocMethods = "lowdin",
+        iao_loc_method: IAO_LocMethods = "lowdin",
         pop_method: str | None = None,
-        compute_hf: bool = True,
         restart: bool = False,
         restart_file: PathLike = "storebe.pk",
         nproc: int = 1,
@@ -90,6 +130,8 @@ class BE(MixinLocalize):
         scratch_dir: WorkDir | None = None,
         int_transform: IntTransforms = "in-core",
         auxbasis: str | None = None,
+        MO_coeff_epsilon: float = 1e-5,
+        AO_coeff_epsilon: float = 1e-10,
     ) -> None:
         r"""
         Constructor for BE object.
@@ -103,14 +145,12 @@ class BE(MixinLocalize):
         eri_file :
             Path to the file storing two-electron integrals.
         lo_method :
-            Method for orbital localization, by default 'lowdin'.
+            Method for orbital localization, by default "lowdin".
         iao_loc_method :
-            Method for IAO localization, by default "SO"
+            Method for IAO localization, by default "lowdin"
         pop_method :
             Method for calculating orbital population, by default 'meta-lowdin'
             See pyscf.lo for more details and options
-        compute_hf :
-            Whether to compute Hartree-Fock energy, by default True.
         restart :
             Whether to restart from a previous calculation, by default False.
         restart_file :
@@ -134,15 +174,43 @@ class BE(MixinLocalize):
             - :python:`"int-direct-DF"`: Use a dense, DF representation of integrals,
               the required DF integrals :math:`(\mu, \nu | P)` are computed and fitted
               on-demand for each fragment.
-            - :python:`"sparse-DF"`:  Work in progress.
+            - :python:`"sparse-DF-cpp"`:
               Use a sparse, DF representation of integrals,
               and avoid recomputation of elements that are shared across fragments.
+              Uses a ``C++`` implementation for performance heavy code.
+            - :python:`"sparse-DF-nb"`:
+              Use a sparse, DF representation of integrals,
+              and avoid recomputation of elements that are shared across fragments.
+              Uses a numba implementation for performance heavy code.
+            - :python:`"sparse-DF-cpp-gpu"`:
+              Use a sparse, DF representation of integrals,
+              and avoid recomputation of elements that are shared across fragments.
+              Uses a ``C++`` + ``CUDDA`` implementation for performance heavy code,
+              only available when compiled with CUDABlas.
+            - :python:`"sparse-DF-nb-gpu"`:
+              Use a sparse, DF representation of integrals,
+              and avoid recomputation of elements that are shared across fragments.
+              Uses a numba implementation + ``cupy`` for performance heavy code.
+              Only available if ``cupy`` is installed.
+
         auxbasis :
             Auxiliary basis for density fitting, by default None
             (uses default auxiliary basis defined in PySCF).
             Only relevant for :python:`int_transform in {"int-direct-DF", "sparse-DF"}`.
+        MO_coeff_epsilon:
+            The cutoff value of the absolute overlap
+            :math:`\int |\phi_i| |\varphi_{\mu}|`
+            when a MO coefficient :math:`i` and an AO coefficient
+            :math:`\mu` are considered to be connected for sparsity screening.
+            Smaller value means less screening.
+        AO_coeff_epsilon:
+            The cutoff value of the absolute overlap
+            :math:`\int |\varphi_{\mu}| |\varphi_{\nu}|`
+            when two AO coefficient :math:`\mu, \nu`
+            are considered to be connected for sparsity screening.
+            Here the absolute overlap matrix is used.
+            Smaller value means less screening.
         """
-        init_timer = Timer("Time to initialize BE object")
         if restart:
             # Load previous calculation data from restart file
             with open(restart_file, "rb") as rfile:
@@ -163,6 +231,13 @@ class BE(MixinLocalize):
             self.core_veff = store_.core_veff
             self.mo_energy = store_.mo_energy
 
+        self.MO_coeff_epsilon = MO_coeff_epsilon
+        self.AO_coeff_epsilon = AO_coeff_epsilon
+
+        # We hardcode it here, because in practice it is far better
+        # to use the parallelization in each fragment.
+        self.n_threads_integral_transform: Final = 1
+
         self.unrestricted = False
         self.nproc = nproc
         self.ompnum = ompnum
@@ -172,6 +247,13 @@ class BE(MixinLocalize):
 
         # Fragment information from fobj
         self.fobj = fobj
+        if not ((lo_method == "IAO") == (self.fobj.iao_valence_basis is not None)):
+            raise ValueError(
+                "If lo_method = 'IAO', "
+                "then the fobj has to have an iao_valence_basis defined.\n"
+                "Likewise, if lo_method != 'IAO', then fobj must not have "
+                "an iao_valence_basis defined."
+            )
 
         self.ebe_hf = 0.0
         self.ebe_tot = 0.0
@@ -242,32 +324,28 @@ class BE(MixinLocalize):
             # Localize orbitals
             self.localize(
                 lo_method,
-                iao_valence_basis=fobj.iao_valence_basis,
+                fobj=fobj,
                 iao_loc_method=iao_loc_method,
                 iao_valence_only=fobj.iao_valence_only,
                 pop_method=pop_method,
             )
 
-            if fobj.iao_valence_only and lo_method.upper() == "IAO":
+            if fobj.iao_valence_only and lo_method == "IAO":
                 self.Ciao_pao = self.localize(
                     lo_method,
-                    iao_valence_basis=fobj.iao_valence_basis,
+                    fobj=fobj,
                     iao_loc_method=iao_loc_method,
                     iao_valence_only=False,
                     pop_method=pop_method,
                     hstack=True,
-                    nosave=True,
+                    save=False,
                 )
 
         if not restart:
             # Initialize fragments and perform initial calculations
-            self.initialize(
-                mf._eri, compute_hf, restart=False, int_transform=int_transform
-            )
+            self.initialize(mf._eri, restart=False, int_transform=int_transform)
         else:
-            self.initialize(None, compute_hf, restart=True, int_transform=int_transform)
-        if settings.PRINT_LEVEL >= 10:
-            print(init_timer.str_elapsed())
+            self.initialize(None, restart=True, int_transform=int_transform)
 
     def save(self, save_file: PathLike = "storebe.pk") -> None:
         """
@@ -353,6 +431,7 @@ class BE(MixinLocalize):
         rdm2AO = zeros((nao, nao, nao, nao))
 
         for fobjs in self.Fobjs:
+            rdm2 = fobjs.rdm2__.copy()
             if return_RDM2:
                 # Adjust the one-particle reduced density matrix (RDM1)
                 drdm1 = fobjs.rdm1__.copy()
@@ -365,7 +444,7 @@ class BE(MixinLocalize):
                 ) - 0.5 * einsum(
                     "ij,kl->iklj", drdm1, drdm1, dtype=numpy.float64, optimize=True
                 )
-                fobjs.rdm2__ -= dm_nc
+                rdm2 -= dm_nc
 
             # Generate the projection matrix
             cind = [fobjs.AO_in_frag[i] for i in fobjs.weight_and_relAO_per_center[1]]
@@ -390,7 +469,7 @@ class BE(MixinLocalize):
                 # Transform RDM2 to AO basis
                 rdm2s = einsum(
                     "ijkl,pi,qj,rk,sl->pqrs",
-                    fobjs.rdm2__,
+                    rdm2,
                     *([fobjs.mo_coeffs] * 4),
                     optimize=True,
                 )
@@ -647,9 +726,10 @@ class BE(MixinLocalize):
         if return_rdm:
             return (rdm1f, RDM2_full)
 
+    @timer.timeit
     def optimize(
         self,
-        solver: Solvers = "MP2",
+        solver: Solvers = "CCSD",
         method: str = "QN",
         only_chem: bool = False,
         use_cumulant: bool = True,
@@ -669,7 +749,7 @@ class BE(MixinLocalize):
         Parameters
         ----------
         solver :
-            High-level solver for the fragment, by default 'MP2'
+            High-level solver for the fragment, by default "CCSD"
         method :
             Optimization method, by default 'QN'
         only_chem :
@@ -801,84 +881,134 @@ class BE(MixinLocalize):
         print("-----------------------------------------------------------", flush=True)
         print(flush=True)
 
-    def initialize(
+    @timer.timeit
+    def _eri_transform(
         self,
-        eri_,
-        compute_hf: bool,
-        *,
-        restart: bool,
         int_transform: IntTransforms,
-    ) -> None:
+        eri_: Matrix[np.floating] | None,
+        file_eri: h5py.File,
+    ):
         """
-        Initialize the Bootstrap Embedding calculation.
+        Transforms electron repulsion integrals (ERIs) for each fragment
+        and stores them in a file.
+
+        Transformation strategy follows a decision tree:
+
+        1. If full (ij|kl) ERIs are available:
+           - Use in-core ``ao2mo`` transformation.
+        2. Else, if (ij|P) intermediates from density fitting are available:
+           - Use out-of-core ``ao2mo`` transformation with saved (ij|P).
+        3. Else, if ``integral_direct_DF`` is requested:
+           - Use on-the-fly density-fitting integral evaluation.
+        4. Else, for a sparse, DF representation of integrals:
+           - Use ``sparse-DF-cpp`` for ``C++`` implementation.
+           - Use ``sparse-DF-cpp-gpu`` for ``C++`` + ``CUDDA`` implementation.
+           - Use `sparse-DF-nb`` for numba implementation.
+           - Use ``sparse-DF-nb-gpu`` for numba + ``cupy`` implementation.
+
 
         Parameters
         ----------
-        eri_ : numpy.ndarray
-            Electron repulsion integrals.
-        compute_hf : bool
-            Whether to compute Hartree-Fock energy.
-        restart : bool, optional
-            Whether to restart from a previous calculation, by default False.
+        int_transform : The transformation strategy.
+        eri_ : The ERIs for the molecule.
+        file_eri : The output file where transformed ERIs are stored.
         """
-        if compute_hf:
-            E_hf = 0.0
+        if int_transform == "in-core":
+            ensure(eri_ is not None, "ERIs have to be available in memory.")
+            for I in range(self.fobj.n_frag):
+                eri = ao2mo.incore.full(eri_, self.Fobjs[I].TA, compact=True)
+                file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
+        elif int_transform == "out-core-DF":
+            ensure(
+                hasattr(self.mf, "with_df") and self.mf.with_df is not None,
+                "Pyscf mean field object has to support `with_df`.",
+            )
+            for I in range(self.fobj.n_frag):
+                eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)
+                file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
+        elif int_transform == "int-direct-DF":
+            ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+            integral_direct_DF(self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis)
+        elif int_transform == "sparse-DF-cpp":
+            ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+            transform_sparse_DF_integral_cpp(
+                self.mf,
+                self.Fobjs,
+                auxbasis=self.auxbasis,
+                file_eri_handler=file_eri,
+                MO_coeff_epsilon=self.MO_coeff_epsilon,
+                AO_coeff_epsilon=self.AO_coeff_epsilon,
+                n_threads=self.n_threads_integral_transform,
+            )
+        elif int_transform == "sparse-DF-cpp-gpu":
+            from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
+                transform_sparse_DF_integral_cpp_gpu,
+            )
 
-        # Create a file to store ERIs
-        if not restart:
-            file_eri = h5py.File(self.eri_file, "w")
-        for I in range(self.fobj.n_frag):
-            fobjs_ = self.fobj.to_Frags(I, eri_file=self.eri_file)
-            fobjs_.sd(self.W, self.lmo_coeff, self.Nocc, thr_bath=self.thr_bath)
+            ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+            transform_sparse_DF_integral_cpp_gpu(
+                self.mf,
+                self.Fobjs,
+                auxbasis=self.auxbasis,
+                file_eri_handler=file_eri,
+                MO_coeff_epsilon=self.MO_coeff_epsilon,
+                AO_coeff_epsilon=self.AO_coeff_epsilon,
+                n_threads=self.n_threads_integral_transform,
+            )
+        elif int_transform == "sparse-DF-nb":
+            ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+            transform_sparse_DF_integral_nb(
+                self.mf,
+                self.Fobjs,
+                auxbasis=self.auxbasis,
+                file_eri_handler=file_eri,
+                MO_coeff_epsilon=self.MO_coeff_epsilon,
+                AO_coeff_epsilon=self.AO_coeff_epsilon,
+                n_threads=self.n_threads_integral_transform,
+            )
+        elif int_transform == "sparse-DF-nb-gpu":
+            from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
+                transform_sparse_DF_integral_nb_gpu,
+            )
 
-            self.Fobjs.append(fobjs_)
-
-        eritransform_timer = Timer("Time to transform ERIs")
-
-        if not restart:
-            # Transform ERIs for each fragment and store in the file
-            # ERI Transform Decision Tree
-            # Do we have full (ij|kl)?
-            #   Yes -- ao2mo, incore version
-            #   No  -- Do we have (ij|P) from density fitting?
-            #       Yes -- ao2mo, outcore version, using saved (ij|P)
-            #       No  -- if integral_direct_DF is requested, invoke on-the-fly routine
-            if int_transform == "in-core":
-                ensure(eri_ is not None, "ERIs have to be available in memory.")
-                for I in range(self.fobj.n_frag):
-                    eri = ao2mo.incore.full(eri_, self.Fobjs[I].TA, compact=True)
-                    file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
-            elif int_transform == "out-core-DF":
-                ensure(
-                    hasattr(self.mf, "with_df") and self.mf.with_df is not None,
-                    "Pyscf mean field object has to support `with_df`.",
-                )
-                # pyscf.ao2mo uses DF object in an outcore fashion using (ij|P)
-                #   in pyscf temp directory
-                for I in range(self.fobj.n_frag):
-                    eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)
-                    file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
-            elif int_transform == "int-direct-DF":
-                # If ERIs are not saved on memory, compute fragment ERIs integral-direct
-                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-                integral_direct_DF(
-                    self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis
-                )
-                eri = None
-            elif int_transform == "sparse-DF":
-                # Calculate ERIs on-the-fly to generate fragment ERIs
-                # TODO: Future feature to be implemented
-                # NOTE: Ideally, we want AO shell pair screening for this.
-                raise NotImplementedError
-            else:
-                assert_never(int_transform)
+            ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+            transform_sparse_DF_integral_nb_gpu(
+                self.mf,
+                self.Fobjs,
+                auxbasis=self.auxbasis,
+                file_eri_handler=file_eri,
+                MO_coeff_epsilon=self.MO_coeff_epsilon,
+                AO_coeff_epsilon=self.AO_coeff_epsilon,
+                n_threads=self.n_threads_integral_transform,
+            )
         else:
-            eri = None
-        if settings.PRINT_LEVEL >= 10:
-            print(eritransform_timer.str_elapsed())
+            assert_never(int_transform)
 
+    @timer.timeit
+    def _initialize_fragments(self, file_eri: h5py.File, restart: bool):
+        """
+        Processes all molecular fragments by constructing their Fock matrices,
+        performing SCF, and computing fragment Hartree–Fock (HF) energies.
+
+        This includes:
+
+        - Loading and changing the symmetry of the ERIs (in-core or restored format).
+        - Constructing 1-electron Hamiltonians via basis transformations.
+        - Running fragment-level SCF calculations.
+        - Building initial density matrices for subsequent scf
+        - Computing and accumulating fragment HF energies
+        - Verifying HF-in-HF energy consistency.
+
+        Parameters
+        ----------
+        file_eri : h5py.File
+            HDF5 file containing fragment ERIs.
+        restart : bool
+            If True, skips ERI transformation and file closure.
+        """
+
+        E_hf = 0.0
         for fobjs_ in self.Fobjs:
-            # Process each fragment
             eri = array(file_eri.get(fobjs_.dname))
             _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
 
@@ -899,28 +1029,64 @@ class BE(MixinLocalize):
                 @ fobjs_._mo_coeffs[:, : fobjs_.nsocc].conj().T
             )
 
-            if compute_hf:
-                fobjs_.update_ebe_hf()  # Updates fragment HF energy.
-                E_hf += fobjs_.ebe_hf
+            fobjs_.update_ebe_hf()  # Updates fragment HF energy.
+            E_hf += fobjs_.ebe_hf
+        self.ebe_hf = E_hf + self.enuc + self.E_core
+        hf_err = self.hf_etot - self.ebe_hf
+        print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
+        if abs(hf_err) > 1.0e-5:
+            warn("Large HF-in-HF energy error")
+
+    @timer.timeit
+    def initialize(
+        self,
+        eri_,
+        *,
+        restart: bool,
+        int_transform: IntTransforms,
+    ) -> None:
+        """
+        Initialize the Bootstrap Embedding calculation.
+
+        Parameters
+        ----------
+        eri_ : numpy.ndarray
+            Electron repulsion integrals.
+        restart : bool, optional
+            Whether to restart from a previous calculation, by default False.
+        int_transfrom :
+            Which integral transformation to perform.
+        """
+        for I in range(self.fobj.n_frag):
+            fobjs_ = self.fobj.to_Frags(I, eri_file=self.eri_file)
+            fobjs_.sd(self.W, self.lmo_coeff, self.Nocc, thr_bath=self.thr_bath)
+
+            self.Fobjs.append(fobjs_)
+
+        self.all_fragment_MO_TA, frag_TA_index_per_frag = union_of_frag_MOs_and_index(
+            self.Fobjs, self.mf.mol.intor("int1e_ovlp"), epsilon=1e-10
+        )
+        for fobj, frag_TA_offset in zip(self.Fobjs, frag_TA_index_per_frag):
+            fobj.frag_TA_offset = frag_TA_offset
+
+        if not restart:
+            file_eri = h5py.File(self.eri_file, "w")
+            self._eri_transform(int_transform, eri_, file_eri)
+
+        self._initialize_fragments(file_eri, restart)
 
         if not restart:
             file_eri.close()
-
-        if compute_hf:
-            self.ebe_hf = E_hf + self.enuc + self.E_core
-            hf_err = self.hf_etot - self.ebe_hf
-            print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
-            if abs(hf_err) > 1.0e-5:
-                warn("Large HF-in-HF energy error")
 
         couti = 0
         for fobj in self.Fobjs:
             fobj.udim = couti
             couti = fobj.set_udim(couti)
 
+    @timer.timeit
     def oneshot(
         self,
-        solver: Solvers = "MP2",
+        solver: Solvers = "CCSD",
         use_cumulant: bool = True,
         nproc: int = 1,
         ompnum: int = 4,
@@ -932,7 +1098,7 @@ class BE(MixinLocalize):
         Parameters
         ----------
         solver :
-            High-level quantum chemistry method, by default 'MP2'. 'CCSD', 'FCI',
+            High-level quantum chemistry method, by default 'CCSD'. 'CCSD', 'FCI',
             and variants of selected CI are supported.
         use_cumulant :
             Whether to use the cumulant energy expression, by default True.
@@ -942,7 +1108,6 @@ class BE(MixinLocalize):
         ompnum :
             Number of OpenMP threads, by default 4.
         """
-        oneshot_timer = Timer("Time to perform one-shot BE")
         if nproc == 1:
             rets = be_func(
                 None,
@@ -950,7 +1115,6 @@ class BE(MixinLocalize):
                 self.Nocc,
                 solver,
                 self.enuc,
-                nproc=ompnum,
                 eeval=True,
                 scratch_dir=self.scratch_dir,
                 solver_args=solver_args,
@@ -988,8 +1152,6 @@ class BE(MixinLocalize):
                 rets[0], rets[1][0], rets[1][2], rets[1][1], self.ebe_hf, self.enuc
             )
             self.ebe_tot = rets[0] + self.enuc + self.ebe_hf
-        if settings.PRINT_LEVEL >= 10:
-            print(oneshot_timer.str_elapsed())
 
     def update_fock(self, heff: list[Matrix[floating]] | None = None) -> None:
         """
@@ -1036,6 +1198,264 @@ class BE(MixinLocalize):
         with h5py.File(heff_file, "r") as filepot:
             for fobj in self.Fobjs:
                 fobj.heff = filepot.get(fobj.dname)
+
+    def localize(
+        self,
+        lo_method: LocMethods,
+        fobj: FragPart,
+        iao_loc_method: IAO_LocMethods = "lowdin",
+        iao_valence_only: bool = False,
+        pop_method: str | None = None,
+        init_guess: Matrix[np.floating] | None = None,
+        hstack: bool = False,
+        save: bool = True,
+    ) -> None | Matrix[np.float64]:
+        """Molecular orbital localization
+
+        Performs molecular orbital localization computations. For large basis,
+        IAO is recommended augmented with PAO orbitals.
+
+        NOTE: For molecular systems, with frozen core, the core and valence are
+        localized TOGETHER. This is not the case of periodic systems.
+
+        Parameters
+        ----------
+        lo_method :
+            Method for orbital localization. Supports
+            "lowdin" (Löwdin or symmetric orthogonalization),
+            "boys" (Foster-Boys),
+            "PM" (Pipek-Mezey", and
+            "ER" (Edmiston-Rudenberg).
+            By default "lowdin"
+        fobj :
+        iao_loc_method:
+            Name of localization method in quantum chemistry for the IAOs and PAOs.
+            Options include "lowdin", "boys", 'PM', 'ER' (as documented in PySCF).
+            Default is "lowdin".
+            If not using lowdin, we suggest using 'PM', as it is more robust than 'boys'
+            localization and less expensive than 'ER'
+        iao_valence_only : bool
+            If this option is set to True, all calculation will be performed in the
+            valence basis in the IAO partitioning. Default is False.
+            This is an experimental feature: the returned energy is not accurate
+        """
+        if lo_method == "lowdin":
+            es_, vs_ = eigh(self.S)
+            edx = es_ > 1.0e-15
+            self.W = vs_[:, edx] / sqrt(es_[edx]) @ vs_[:, edx].T
+            if self.frozen_core:
+                if self.unrestricted:
+                    P_core = [
+                        eye(self.W.shape[0]) - (self.P_core[s] @ self.S) for s in [0, 1]
+                    ]
+                    C_ = P_core @ self.W
+                    unr_Cpop = [multi_dot((C_[s].T, self.S, C_[s])) for s in [0, 1]]
+                    unr_Cpop = [diag(unr_Cpop[s]) for s in [0, 1]]
+                    unr_no_core_idx = [where(unr_Cpop[s] > 0.7)[0] for s in [0, 1]]
+                    C_ = [C_[s][:, unr_no_core_idx[s]] for s in [0, 1]]
+                    S_ = [multi_dot((C_[s].T, self.S, C_[s])) for s in [0, 1]]
+                    unr_W_ = []
+                    for s in [0, 1]:
+                        es_, vs_ = eigh(S_[s])
+                        s_ = sqrt(es_)
+                        s_ = diag(1.0 / s_)
+                        unr_W_.append(multi_dot((vs_, s_, vs_.T)))
+                    self.W = [C_[s] @ unr_W_[s] for s in [0, 1]]
+                else:
+                    P_core = eye(self.W.shape[0]) - self.P_core @ self.S
+                    C_ = P_core @ self.W
+                    # NOTE: PYSCF has basis in 1s2s3s2p2p2p3p3p3p format
+                    # fix no_core_idx - use population for now
+                    Cpop = multi_dot((C_.T, self.S, C_))
+                    no_core_idx = where(diag(Cpop) > 0.7)[0]
+                    C_ = C_[:, no_core_idx]
+                    S_ = multi_dot((C_.T, self.S, C_))
+                    es_, vs_ = eigh(S_)
+                    s_ = sqrt(es_)
+                    s_ = diag(1.0 / s_)
+                    W_ = multi_dot((vs_, s_, vs_.T))
+                    self.W = C_ @ W_
+
+            if self.unrestricted:
+                if self.frozen_core:
+                    self.lmo_coeff_a = multi_dot(
+                        (self.W[0].T, self.S, self.C_a[:, self.ncore :])  # type: ignore[attr-defined]
+                    )
+                    self.lmo_coeff_b = multi_dot(
+                        (self.W[1].T, self.S, self.C_b[:, self.ncore :])  # type: ignore[attr-defined]
+                    )
+                else:
+                    self.lmo_coeff_a = multi_dot((self.W.T, self.S, self.C_a))  # type: ignore[attr-defined]
+                    self.lmo_coeff_b = multi_dot((self.W.T, self.S, self.C_b))  # type: ignore[attr-defined]
+            else:
+                if self.frozen_core:
+                    self.lmo_coeff = multi_dot(
+                        (self.W.T, self.S, self.C[:, self.ncore :])
+                    )
+                else:
+                    self.lmo_coeff = multi_dot((self.W.T, self.S, self.C))
+            return None
+        elif lo_method == "boys" or lo_method == "PM" or lo_method == "ER":
+            es_, vs_ = eigh(self.S)
+            edx = es_ > 1.0e-15
+            W_ = vs_[:, edx] / sqrt(es_[edx]) @ vs_[:, edx].T
+            if self.frozen_core:
+                P_core = eye(W_.shape[0]) - self.P_core @ self.S
+                C_ = P_core @ W_
+                Cpop = multi_dot((C_.T, self.S, C_))
+                Cpop = diag(Cpop)
+                no_core_idx = where(Cpop > 0.55)[0]
+                C_ = C_[:, no_core_idx]
+                S_ = multi_dot((C_.T, self.S, C_))
+                es_, vs_ = eigh(S_)
+                s_ = sqrt(es_)
+                s_ = diag(1.0 / s_)
+                W_ = multi_dot((vs_, s_, vs_.T))
+                W_ = C_ @ W_
+
+            self.W = get_loc(
+                self.mf.mol,
+                W_,
+                lo_method,  # type: ignore[arg-type]
+                pop_method=pop_method,
+                init_guess=init_guess,
+            )
+
+            if not self.frozen_core:
+                self.lmo_coeff = self.W.T @ self.S @ self.C
+            else:
+                self.lmo_coeff = self.W.T @ self.S @ self.C[:, self.ncore :]
+            return None
+
+        elif lo_method == "IAO":
+            # IAO working basis: (w): (large) basis set we use
+            # IAO valence basis: (v): minimal-like basis we try to resemble
+            assert fobj.iao_valence_basis is not None
+
+            # Occupied mo_coeff (with core)
+            Co = self.C[:, : self.Nocc]
+
+            # Get necessary overlaps, second arg is IAO valence basis
+            S_vw, S_vv = get_xovlp(self.fobj.mol, basis=fobj.iao_valence_basis)
+
+            # How do we describe the rest of the space?
+            # If iao_valence_only=False, we use PAOs:
+            if not iao_valence_only:
+                Ciao = get_iao(
+                    Co,
+                    S_vw,
+                    self.S,
+                    S_vv,
+                    self.fobj.mol,
+                    fobj.iao_valence_basis,
+                    iao_loc_method,
+                )
+
+                Cpao = get_pao(
+                    Ciao,
+                    self.S,
+                    S_vw,
+                    self.fobj.mol,
+                    fobj.iao_valence_basis,
+                    iao_loc_method,
+                )
+
+                if iao_loc_method != "lowdin":
+                    # Localize IAOs and PAOs
+                    Ciao = get_loc(self.fobj.mol, Ciao, iao_loc_method)
+                    Cpao = get_loc(self.fobj.mol, Cpao, iao_loc_method)
+            else:
+                Ciao = get_iao(
+                    Co,
+                    S_vw,
+                    self.S,
+                    S_vv,
+                    self.fobj.mol,
+                    fobj.iao_valence_basis,
+                    iao_loc_method,
+                )
+
+                if iao_loc_method != "lowdin":
+                    Ciao = get_loc(self.fobj.mol, Ciao, iao_loc_method)
+
+            # Rearrange by atom
+            aoind_by_atom = get_aoind_by_atom(self.fobj.mol)
+            Ciao, iaoind_by_atom = reorder_by_atom_(Ciao, aoind_by_atom, self.S)
+
+            if not iao_valence_only:
+                Cpao, paoind_by_atom = reorder_by_atom_(Cpao, aoind_by_atom, self.S)
+
+            if self.frozen_core:
+                # Remove core MOs
+                Cc = self.C[:, : self.ncore]  # Assumes core are first
+                Ciao = remove_core_mo(Ciao, Cc, self.S)
+
+            shift = 0
+            ncore = 0
+            if not iao_valence_only:
+                Wstack = zeros((Ciao.shape[0], Ciao.shape[1] + Cpao.shape[1]))
+            else:
+                Wstack = zeros((Ciao.shape[0], Ciao.shape[1]))
+
+            if self.frozen_core:
+                for ix in range(self.fobj.mol.natm):
+                    nc = ncore_(self.fobj.mol.atom_charge(ix))
+                    ncore += nc
+                    niao = len(iaoind_by_atom[ix])
+                    iaoind_ix = [i_ - ncore for i_ in iaoind_by_atom[ix][nc:]]
+                    Wstack[:, shift : shift + niao - nc] = Ciao[:, iaoind_ix]
+                    shift += niao - nc
+                    if not iao_valence_only:
+                        npao = len(paoind_by_atom[ix])
+                        Wstack[:, shift : shift + npao] = Cpao[:, paoind_by_atom[ix]]
+                        shift += npao
+            else:
+                if not hstack:
+                    for ix in range(self.fobj.mol.natm):
+                        niao = len(iaoind_by_atom[ix])
+                        Wstack[:, shift : shift + niao] = Ciao[:, iaoind_by_atom[ix]]
+                        shift += niao
+                        if not iao_valence_only:
+                            npao = len(paoind_by_atom[ix])
+                            Wstack[:, shift : shift + npao] = Cpao[
+                                :, paoind_by_atom[ix]
+                            ]
+                            shift += npao
+                else:
+                    Wstack = np.hstack((Ciao, Cpao))
+            if save:
+                self.W = Wstack
+                assert allclose(self.W.T @ self.S @ self.W, eye(self.W.shape[1]))
+            else:
+                assert allclose(Wstack.T @ self.S @ Wstack, eye(Wstack.shape[1]))
+                return Wstack
+
+            nmo = self.C.shape[1] - self.ncore
+            nlo = self.W.shape[1]
+
+            if not iao_valence_only:
+                if nmo > nlo:
+                    Co_nocore = self.C[:, self.ncore : self.Nocc]
+                    Cv = self.C[:, self.Nocc :]
+                    # Ensure that the LOs span the occupied space
+                    assert allclose(
+                        np.sum((self.W.T @ self.S @ Co_nocore) ** 2.0),
+                        self.Nocc - self.ncore,
+                    )
+                    # Find virtual orbitals that lie in the span of LOs
+                    u, l, vt = svd(self.W.T @ self.S @ Cv, full_matrices=False)
+                    unused(u)
+                    nvlo = nlo - self.Nocc - self.ncore
+                    assert allclose(np.sum(l[:nvlo]), nvlo)
+                    C_ = np.hstack([Co_nocore, Cv @ vt[:nvlo].T])
+                    self.lmo_coeff = self.W.T @ self.S @ C_
+                else:
+                    self.lmo_coeff = self.W.T @ self.S @ self.C[:, self.ncore :]
+            else:
+                self.lmo_coeff = self.W.T @ self.S @ self.C[:, self.ncore :]
+            return None
+        else:
+            raise assert_never(lo_method)
 
 
 def initialize_pot(n_frag, relAO_per_edge):

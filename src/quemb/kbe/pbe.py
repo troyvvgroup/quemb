@@ -25,7 +25,7 @@ from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
-from quemb.shared.helper import copy_docstring
+from quemb.shared.helper import copy_docstring, timer
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix, PathLike
 
@@ -280,9 +280,10 @@ class BE(Mixin_k_Localize):
         if not restart:
             self.initialize(compute_hf)
 
+    @timer.timeit
     def optimize(
         self,
-        solver: Solvers = "MP2",
+        solver: Solvers = "CCSD",
         method: str = "QN",
         only_chem: bool = False,
         use_cumulant: bool = True,
@@ -301,7 +302,7 @@ class BE(Mixin_k_Localize):
         Parameters
         ----------
         solver : str, optional
-            High-level solver for the fragment, by default 'MP2'
+            High-level solver for the fragment, by default 'CCSD'
         method : str, optional
             Optimization method, by default 'QN'
         only_chem : bool, optional
@@ -617,7 +618,7 @@ class BE(Mixin_k_Localize):
 
         if compute_hf:
             E_hf /= self.unitcell_nkpt
-            hf_err = self.hf_etot - (E_hf + self.enuc + self.E_core)
+            hf_err = self.hf_etot - (E_hf + self.enuc + self.E_core - self.ek)
 
             self.ebe_hf = E_hf + self.enuc + self.E_core - self.ek
             print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
@@ -629,9 +630,10 @@ class BE(Mixin_k_Localize):
             fobj.udim = couti
             couti = fobj.set_udim(couti)
 
+    @timer.timeit
     def oneshot(
         self,
-        solver: Solvers = "MP2",
+        solver: Solvers = "CCSD",
         use_cumulant: bool = True,
         nproc: int = 1,
         ompnum: int = 4,
@@ -643,7 +645,7 @@ class BE(Mixin_k_Localize):
         Parameters
         ----------
         solver :
-            High-level quantum chemistry method, by default 'MP2'. 'CCSD', 'FCI',
+            High-level quantum chemistry method, by default 'CCSD'. 'CCSD', 'FCI',
             and variants of selected CI are supported.
         use_cumulant :
             Whether to use the cumulant energy expression, by default True.
@@ -662,7 +664,6 @@ class BE(Mixin_k_Localize):
                 self.Nocc,
                 solver,
                 self.enuc,
-                nproc=ompnum,
                 eeval=True,
                 scratch_dir=self.scratch_dir,
                 solver_args=solver_args,

@@ -1,17 +1,24 @@
-from collections.abc import Callable, Iterable
+import functools
+import inspect
+import logging
+import time
+from collections import defaultdict
+from collections.abc import Callable, Iterable, Sequence
 from inspect import signature
 from itertools import islice
 from pathlib import Path
-from time import time
 from typing import Any, TypeVar, overload
 
 import numba as nb
-from attr import define, field
+import numpy as np
+from attrs import define, field
+from ordered_set import OrderedSet
 
-from quemb.shared.typing import Integral, T
+from quemb.shared.typing import Integral, Matrix, T
 
 _Function = TypeVar("_Function", bound=Callable)
 _T_Integral = TypeVar("_T_Integral", bound=Integral)
+logger = logging.getLogger(__name__)
 
 
 # Note that we have once Callable and once Function.
@@ -114,28 +121,72 @@ def delete_multiple_files(*args: Iterable[Path]) -> None:
             file.unlink()
 
 
+@define
+class FunctionTimer:
+    stats: dict = field(factory=lambda: defaultdict(lambda: {"time": 0.0, "calls": 0}))
+
+    def timeit(self, func):
+        """Decorator to time a function and record stats using Timer."""
+
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            timer = Timer(message=f"Timing {func.__module__}.{func.__qualname__}")
+            result = func(*args, **kwargs)
+            duration = timer.elapsed()
+
+            key = f"{func.__module__}.{func.__qualname__}"
+            self.stats[key]["time"] += duration
+            self.stats[key]["calls"] += 1
+
+            logger.info(
+                "Called %s: duration=%.4fs, calls=%d",
+                key,
+                duration,
+                self.stats[key]["calls"],
+            )
+            return result
+
+        return wrapper
+
+    def print_top(self, n=10):
+        """Print the top-n functions by total accumulated time."""
+        sorted_stats = sorted(
+            self.stats.items(), key=lambda item: item[1]["time"], reverse=True
+        )
+        print(f"{'Function':60} {'Calls':>10} {'Total Time (s)':>15}")
+        print("-" * 90)
+        for name, data in sorted_stats[:n]:
+            print(f"{name:60} {data['calls']:10d} {data['time']:15.6f}")
+
+
+timer = FunctionTimer()
+
+
 @define(frozen=True)
 class Timer:
     """Simple class to time code execution"""
 
     message: str = "Elapsed time"
-    start: float = field(init=False, factory=time)
+    start: float = field(init=False, factory=lambda: time.perf_counter())
+
+    def __attrs_post_init__(self) -> None:
+        logger.info(f"Timer with message '{self.message}' started.")
 
     def elapsed(self) -> float:
-        return time() - self.start
+        return time.perf_counter() - self.start
 
     def str_elapsed(self, message: str | None = None) -> str:
         return f"{self.message if message is None else message}: {self.elapsed():.5f}"
 
 
 @overload
-def njit(f: _Function) -> _Function: ...
+def njit(f: _Function, *, nogil: bool) -> _Function: ...
 @overload
-def njit(**kwargs: Any) -> Callable[[_Function], _Function]: ...
+def njit(*, nogil: bool, **kwargs: Any) -> Callable[[_Function], _Function]: ...
 
 
 def njit(
-    f: _Function | None = None, **kwargs: Any
+    f: _Function | None = None, *, nogil: bool, **kwargs: Any
 ) -> _Function | Callable[[_Function], _Function]:
     """Type-safe jit wrapper that caches the compiled function
 
@@ -157,9 +208,9 @@ def njit(
     In addition to type safety, this wrapper also sets :code:`cache=True` by default.
     """
     if f is None:
-        return nb.njit(cache=True, **kwargs)
+        return nb.njit(cache=True, nogil=nogil, **kwargs)
     else:
-        return nb.njit(f, cache=True, **kwargs)
+        return nb.njit(f, cache=True, nogil=nogil, **kwargs)
 
 
 @overload
@@ -186,7 +237,7 @@ def jitclass(
     return nb.experimental.jitclass(cls_or_spec, spec)
 
 
-@njit
+@njit(nogil=True)
 def gauss_sum(n: _T_Integral) -> _T_Integral:
     r"""Return the sum :math:`\sum_{i=1}^n i`
 
@@ -197,7 +248,7 @@ def gauss_sum(n: _T_Integral) -> _T_Integral:
     return (n * (n + 1)) // 2  # type: ignore[return-value]
 
 
-@njit
+@njit(nogil=True)
 def ravel_symmetric(a: _T_Integral, b: _T_Integral) -> _T_Integral:
     """Flatten the index a, b assuming symmetry.
 
@@ -216,8 +267,47 @@ def ravel_symmetric(a: _T_Integral, b: _T_Integral) -> _T_Integral:
     return gauss_sum(a) + b if a > b else gauss_sum(b) + a  # type: ignore[return-value,operator]
 
 
-@njit
-def ravel(a: _T_Integral, b: _T_Integral, n_cols: _T_Integral) -> _T_Integral:
+@njit(nogil=True)
+def n_symmetric(n: _T_Integral) -> _T_Integral:
+    "The number if symmetry-equivalent pairs i <= j, for i <= n and j <= n"
+    return ravel_symmetric(n - 1, n - 1) + 1  # type: ignore[return-value]
+
+
+@njit(nogil=True)
+def unravel_symmetric(i: Integral) -> tuple[int, int]:
+    a = int((np.sqrt(8 * i + 1) - 1) // 2)
+    offset = gauss_sum(a)
+    b = i - offset
+    if b > a:
+        a, b = b, a
+    return a, b
+
+
+@njit(nogil=True)
+def ravel_eri_idx(
+    a: _T_Integral, b: _T_Integral, c: _T_Integral, d: _T_Integral
+) -> _T_Integral:
+    """Return compound index given four indices using Yoshimine sort and
+    assuming 8-fold permutational symmetry"""
+    return ravel_symmetric(ravel_symmetric(a, b), ravel_symmetric(c, d))
+
+
+@njit(nogil=True)
+def unravel_eri_idx(i: _T_Integral) -> tuple[int, int, int, int]:
+    """Invert :func:`ravel_eri_idx`"""
+    ab, cd = unravel_symmetric(i)
+    a, b = unravel_symmetric(ab)
+    c, d = unravel_symmetric(cd)
+    return a, b, c, d
+
+
+@njit(nogil=True)
+def n_eri(n):
+    return ravel_eri_idx(n - 1, n - 1, n - 1, n - 1) + 1
+
+
+@njit(nogil=True)
+def ravel_C(a: _T_Integral, b: _T_Integral, n_cols: _T_Integral) -> _T_Integral:
     """Flatten the index a, b assuming row-mayor/C indexing
 
     The resulting indexation for a 3 by 4 matrix looks like this::
@@ -231,13 +321,34 @@ def ravel(a: _T_Integral, b: _T_Integral, n_cols: _T_Integral) -> _T_Integral:
     ----------
     a :
     b :
-    n_rows :
+    n_cols :
     """
     assert b < n_cols  # type: ignore[operator]
     return (a * n_cols) + b  # type: ignore[return-value,operator]
 
 
-@njit
+@njit(nogil=True)
+def ravel_Fortran(a: _T_Integral, b: _T_Integral, n_rows: _T_Integral) -> _T_Integral:
+    """Flatten the index a, b assuming column-mayor/Fortran indexing
+
+    The resulting indexation for a 3 by 4 matrix looks like this::
+
+        0   3   6   9
+        1   4   7  10
+        2   5   8  11
+
+
+    Parameters
+    ----------
+    a :
+    b :
+    n_rows :
+    """
+    assert a < n_rows  # type: ignore[operator]
+    return a + (b * n_rows)  # type: ignore[return-value,operator]
+
+
+@njit(nogil=True)
 def symmetric_different_size(m: _T_Integral, n: _T_Integral) -> _T_Integral:
     r"""Return the number of unique elements in a symmetric matrix of different row
     and column length
@@ -264,7 +375,7 @@ def symmetric_different_size(m: _T_Integral, n: _T_Integral) -> _T_Integral:
     return gauss_sum(m) + m * (n - m)  # type: ignore[operator,return-value]
 
 
-@njit
+@njit(nogil=True)
 def get_flexible_n_eri(
     p_max: _T_Integral, q_max: _T_Integral, r_max: _T_Integral, s_max: _T_Integral
 ) -> _T_Integral:
@@ -285,3 +396,36 @@ def get_flexible_n_eri(
     return symmetric_different_size(
         symmetric_different_size(p_max, q_max), symmetric_different_size(r_max, s_max)
     )
+
+
+def union_of_seqs(*seqs: Sequence[T]) -> OrderedSet[T]:
+    """Merge multiple sequences into a single :class:`OrderedSet`.
+
+    This preserves the order of the elements in each sequence,
+    and of the arguments to this function, but removes duplicates.
+    (Always the first occurrence of an element is kept.)
+
+    .. code-block:: python
+
+        merge_seq([1, 2], [2, 3], [1, 4]) -> OrderedSet([1, 2, 3, 4])
+    """
+    # mypy wrongly complains that the arg type is not valid, which it is.
+    return OrderedSet().union(*seqs)  # type: ignore[arg-type]
+
+
+def get_calling_function_name() -> str:
+    """Do stack inspection shenanigan to obtain the name
+    of the calling function"""
+    return inspect.stack()[1][3]
+
+
+def clean_overlap(M: Matrix[np.float64], epsilon: float = 1e-12) -> Matrix[np.int64]:
+    """We assume that M is a (not necessarily square) overlap matrix
+    between ortho-normal vectors. We clean for floating point noise and return
+    an integer matrix with only 0s and 1s."""
+    M = M.copy()
+    very_small = np.abs(M) < epsilon
+    M[very_small] = 0
+    assert (np.abs(1 - M[~very_small]) < epsilon).all()
+    M[~very_small] = 1
+    return M.astype(np.int64)

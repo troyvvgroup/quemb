@@ -8,7 +8,7 @@ from shutil import rmtree
 from types import TracebackType
 from typing import Annotated, Final, Literal
 
-from attr import define, field
+from attrs import define, field
 
 from quemb.shared.config import settings
 from quemb.shared.typing import PathLike
@@ -151,6 +151,12 @@ class WorkDir:
 
     def __fspath__(self) -> str:
         return self.path.__fspath__()
+
+    def __format__(self, format_spec) -> str:
+        return self.path.__format__(format_spec)
+
+    def __str__(self) -> str:
+        return self.path.__str__()
 
     def __truediv__(self, other_path: PathLike) -> Path:
         return self.path / other_path

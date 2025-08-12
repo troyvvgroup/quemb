@@ -15,6 +15,15 @@ for this python session.
 >>>
 >>> dump_settings()
 Creates ~/.quembrc.yml file that allows changes to persist.
+
+To specify the print level, do
+
+>>> import logging
+>>> logger = logging.getLogger()
+>>> logger.setLevel(logging.DEBUG)
+in your input file. Currently the options are DEBUG or INFO.
+For more information on how logging works, see
+https://docs.python.org/3/howto/logging.html
 """
 
 from pathlib import Path
@@ -32,7 +41,6 @@ DEFAULT_RC_PATH: Final = Path("~/.quembrc.yml")
 
 @define
 class Settings:
-    PRINT_LEVEL: int = 5
     SCRATCH_ROOT: Path = Path(gettempdir())
     INTEGRAL_TRANSFORM_MAX_MEMORY: float = 50  # in GB
 

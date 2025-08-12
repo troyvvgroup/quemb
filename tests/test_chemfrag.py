@@ -1,5 +1,3 @@
-import inspect
-
 import numpy as np
 import pytest
 from chemcoord import Cartesian
@@ -16,15 +14,9 @@ from quemb.molbe.chemfrag import (
 )
 from quemb.molbe.fragment import fragmentate
 from quemb.molbe.mbe import BE
+from quemb.shared.helper import get_calling_function_name
 
 from ._expected_data_for_chemfrag import get_expected, get_graphene_cell
-
-
-def get_calling_function_name() -> str:
-    """Do stack inspection shenanigan to obtain the name
-    of the calling function"""
-    return inspect.stack()[1][3]
-
 
 expected = get_expected()
 
@@ -215,6 +207,37 @@ def test_periodic_graphene():
         assert result == expected["test_periodic"]["graphene"][k], k
 
 
+def test_periodic_graphene_manipulation_of_bonds_atoms():
+    bases = [("sto-3g", None)]
+    bonds_atoms = {
+        0: [1],
+        1: [0],
+        2: [],
+        3: [],
+        4: [],
+        5: [],
+        6: [],
+        7: [],
+    }  # nothing else bonded
+
+    calculated = {
+        (
+            n_BE,
+            basis,
+            iao_valence_basis,
+        ): Fragmented.from_mole(
+            get_graphene_cell(basis),
+            iao_valence_basis=iao_valence_basis,
+            n_BE=n_BE,
+            bonds_atoms=bonds_atoms,
+        ).get_FragPart()
+        for n_BE in [2]  # bonds_atoms only makes sense for n_BE > 1
+        for basis, iao_valence_basis in bases
+    }
+    for k, result in calculated.items():
+        assert result == expected["test_periodic"]["graphene_manipulated"][k], k
+
+
 def test_conn_data_manipulation_of_vdW():
     m = Cartesian.read_xyz("data/octane.xyz")
 
@@ -260,12 +283,15 @@ def test_molecule_with_autocratic_matching():
     mf = scf.RHF(mol)
     mf.kernel()
 
-    fobj = fragmentate(mol, n_BE=2, frag_type="chemgen", print_frags=False)
+    fobj = fragmentate(
+        mol, n_BE=2, frag_type="chemgen", print_frags=False, order_by_size=True
+    )
     mybe = BE(mf, fobj)
-
     assert np.isclose(mf.e_tot, mybe.ebe_hf)
 
-    fobj = fragmentate(mol, n_BE=3, frag_type="chemgen", print_frags=False)
+    fobj = fragmentate(
+        mol, n_BE=3, frag_type="chemgen", print_frags=False, order_by_size=True
+    )
     mybe = BE(mf, fobj)
 
     assert np.isclose(mf.e_tot, mybe.ebe_hf)
