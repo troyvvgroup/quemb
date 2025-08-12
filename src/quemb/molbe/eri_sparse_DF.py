@@ -1950,7 +1950,9 @@ def grid_S_abs(mol: Mole, grid_level: int = 2) -> Matrix[np.float64]:
 
     Parameters
     -----------
-        mol :
+    mol :
+    grid_level :
+        Directly passed on to `pyscf grid generation <https://github.com/pyscf/pyscf/blob/master/examples/dft/11-grid_scheme.py>`_.
     """
     grids = dft.gen_grid.Grids(mol)
     grids.level = grid_level
