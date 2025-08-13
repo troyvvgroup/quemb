@@ -14,6 +14,17 @@ author = "Van Voorhis Group"
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
+latex_elements = {
+    'preamble': r'''
+\usepackage{graphicx}
+\DeclareUnicodeCharacter{212B}{\AA}
+\DeclareUnicodeCharacter{2208}{\in}
+\DeclareUnicodeCharacter{1F360}{\includegraphics[height=1em]{1f360.png}}
+'''
+}
+
+latex_additional_files = ['_static/1f360.png']
+
 rst_prolog = """
 .. role:: python(code)
     :language: python
