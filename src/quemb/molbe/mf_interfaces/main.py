@@ -17,7 +17,7 @@ from quemb.molbe.mf_interfaces.orca_interface import (
 from quemb.molbe.mf_interfaces.pyscf_interface import (
     PYSCF_AVAILABLE,
     create_mf,
-    get_mf_psycf,
+    get_mf_pyscf,
 )
 from quemb.shared.helper import timer
 from quemb.shared.manage_scratch import WorkDir
@@ -78,7 +78,7 @@ def get_mf(
         work_dir = WorkDir.from_environment(prefix="mf_calculation")
 
     if backend == "pyscf":
-        return get_mf_psycf(mol)
+        return get_mf_pyscf(mol)
     elif backend == "orca":
         from opi.input.blocks.block_basis import (  # type: ignore[import-not-found]
             BlockBasis,

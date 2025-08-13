@@ -28,7 +28,7 @@ def create_mf(
     return mf
 
 
-def get_mf_psycf(mol: Mole) -> RHF:
+def get_mf_pyscf(mol: Mole) -> RHF:
     "Run an RHF calculation in pyscf"
     mf = RHF(mol)
     mf.kernel()
