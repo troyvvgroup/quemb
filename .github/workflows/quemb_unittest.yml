@@ -80,6 +80,10 @@ jobs:
       with:
         python-version: "3.12"
 
+    - name: Prepare pip
+      run: |
+        python -m pip install --upgrade pip
+
     - name: Install compiler
       run: |
         case "${{ matrix.compiler }}" in
@@ -97,8 +101,7 @@ jobs:
 
     - name: Run build
       run: |
-        python -m pip install --upgrade pip
-        CXX=${{ matrix.compiler }} pip install -vvv --config-settings=cmake.args=-DCMAKE_BUILD_TYPE=Debug .
+        CXX=${{ matrix.compiler }} pip install --config-settings=cmake.args=-DCMAKE_BUILD_TYPE=Debug .
 
   testsuite:
     runs-on: ubuntu-latest
@@ -120,7 +123,6 @@ jobs:
     - name: Prepare pip
       run: |
         python -m pip install --upgrade pip
-
 
     - name: Install dependencies
       run: |
