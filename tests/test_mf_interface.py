@@ -429,7 +429,7 @@ def test_orca_rijk() -> None:
 
     mol = M("./xyz/octane.xyz", basis="sto-3g")
 
-    orca_mf = get_mf(
+    mf_from_orca = get_mf(
         mol,
         backend="orca",
         additional_args=OrcaArgs(
@@ -441,4 +441,7 @@ def test_orca_rijk() -> None:
         ),
     )
 
-    assert np.isclose(-309.78578324194916, orca_mf.e_tot)
+    assert np.isclose(-309.78578324194916, mf_from_orca.e_tot)
+    # The molecule is small enough such that there is no difference between e_tot
+    # and energy_tot(), that is not generally the case.
+    assert np.isclose(-309.78578324194916, mf_from_orca.energy_tot())
