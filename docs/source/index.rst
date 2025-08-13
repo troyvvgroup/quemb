@@ -17,16 +17,25 @@ QuEmb includes two libraries: ``quemb.molbe`` and ``quemb.kbe``.
 The ``quemb.molbe`` library implements BE for molecules and supramolecular complexes,
 while the ``quemb.kbe`` library is designed to handle periodic systems such as surfaces and solids using periodic BE.
 
-References
-==========
 
-1. OR Meitei, T Van Voorhis, Periodic bootstrap embedding, `JCTC 19 3123 2023 <https://doi.org/10.1021/acs.jctc.3c00069>`_
-2. OR Meitei, T Van Voorhis, Electron correlation in 2D periodic systems, `arXiv:2308.06185 <https://arxiv.org/abs/2308.06185>`_
-3. HZ Ye, HK Tran, T Van Voorhis, Bootstrap embedding for large molecular systems, `JCTC 16 5035 2020 <https://doi.org/10.1021/acs.jctc.0c00438>`_
-
+Table of Contents
+=================
 
 .. toctree::
    :maxdepth: 1
 
    install
    api_reference
+   bibliography
+
+
+References
+==========
+
+The whole software package was published in :cite:`cho_quemb_2025`.
+
+The method is based on the following works:
+
+- First work on BE for model systems :cite:`welborn_bootstrap_2016,ricke_performance_2017`
+- Molecular BE :cite:`ye_bootstrap_2019,ye_atom-based_2019,ye_bootstrap_2020,ye_accurate_2021`
+- Periodic BE :cite:`meitei_periodic_2023,meitei_electron_2024`

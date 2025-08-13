@@ -6,6 +6,11 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
+from pathlib import Path
+
+# Get the directory where conf.py is located
+CONF_DIR = Path(__file__).parent
+
 
 project = "QuEmb"
 copyright = "2024, Van Voorhis Group"
@@ -33,6 +38,7 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.githubpages",
     "sphinx_multiversion",
+    "sphinxcontrib.bibtex",
 ]
 
 autodoc_typehints_format = "short"
@@ -94,3 +100,6 @@ html_sidebars = {
 smv_tag_whitelist = r"^v\d+\.\d+\.\d+(-[a-zA-Z0-9\.]+)?$"
 smv_branch_whitelist = r"^main$"
 smv_remote_whitelist = r"^.*$"
+
+
+bibtex_bibfiles = [str(CONF_DIR / "literature.bib")]

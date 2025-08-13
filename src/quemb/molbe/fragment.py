@@ -52,7 +52,9 @@ def fragmentate(
         ben ...
     mol :
         This is required for the following :python:`frag_type` options:
-        :python:`"chemgen", "graphgen", "autogen"`
+        :python:`"chemgen", "graphgen", "autogen"`.
+        If you use :python:`"chemgen"` in your work
+        please credit :cite:`weser_automated_2023`.
     iao_valence_basis:
         Name of minimal basis set for IAO scheme. 'sto-3g' suffice for most cases.
     frozen_core:
