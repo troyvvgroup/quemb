@@ -239,7 +239,7 @@ def jitclass(
 
 @njit(nogil=True)
 def gauss_sum(n: _T_Integral) -> _T_Integral:
-    r"""Return the sum :math:`\sum_{i=1}^n i`
+    r"""Return the sum :math:`\sum_{i=1}^{n} i`
 
     Parameters
     ----------
