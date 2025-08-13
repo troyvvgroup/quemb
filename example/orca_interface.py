@@ -1,3 +1,5 @@
+# mypy: disable-error-code="import-not-found"
+
 from opi.input.blocks.block_basis import BlockBasis
 from opi.input.simple_keywords import Approximation, SimpleKeyword
 from pyscf.gto import M
@@ -15,7 +17,7 @@ mol = M("./data/octane.xyz", basis="sto-3g")
 pyscf_mf = get_mf(mol)
 
 
-# You can do a normal Hartree-Fock calculation with ORCA
+# Or, you can do a normal Hartree-Fock calculation with ORCA
 orca_mf = get_mf(
     mol,
     backend="orca",
