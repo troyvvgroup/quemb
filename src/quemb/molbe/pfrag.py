@@ -64,7 +64,7 @@ class Frags:
             list of AOs in the fragment (i.e. ``BE.AO_per_frag[i]``
             or ``FragPart.AO_per_frag[i]``)
         ifrag :
-            fragment index (:math:`0 \le \text{ifrag} \le \text{BE.n\_frag} - 1`)
+            fragment index (:math:`\in [0, \text{BE.n\_frag} - 1]`)
         AO_per_edge :
             list of lists of edge site AOs for each atom in the fragment.
             Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.
