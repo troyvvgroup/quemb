@@ -239,7 +239,7 @@ def jitclass(
 
 @njit(nogil=True)
 def gauss_sum(n: _T_Integral) -> _T_Integral:
-    r"""Return the sum :math:`\sum_{i=1}^{n} i`
+    r"""Return the sum :math:`\sum_{i=1}^n i`
 
     Parameters
     ----------
@@ -381,7 +381,7 @@ def get_flexible_n_eri(
 ) -> _T_Integral:
     r"""Return the number of unique ERIs but allowing different number of orbitals.
 
-    This is for example the situation for a tuple :math:`\mu,\nu,\kappa,i`,
+    This is for example the situation for a tuple :math:`\mu, \nu, \kappa, i`,
     where :math:`\mu, \nu, \kappa` are AOs and :math:`i` is a fragment orbital.
     This function returns the number of unique ERIs :math:`g_{\mu, \nu, \kappa, i}`.
 
