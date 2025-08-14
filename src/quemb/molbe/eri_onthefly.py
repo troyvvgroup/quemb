@@ -41,8 +41,9 @@ def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
         Parameters
         ----------
         aux_range : tuple of int
-            (start index, end index) of the auxiliary basis functions to calculate the
-            3-center integrals, i.e. (pq|L) with L ∈ [start, end) is returned
+            (start index, end index) of the auxiliary basis functions
+            to calculate the 3-center integrals, i.e.
+            (:math:`(pq|L)`) with L :math:`\in [start, end)` is returned
         """
         logger.debug("Start calculating (μν|P) for range %s", aux_range)
         p0, p1 = aux_range
