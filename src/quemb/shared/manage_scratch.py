@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import atexit
-import logging
 import os
 from functools import partial
+from logging import getLogger
 from pathlib import Path
 from shutil import rmtree
 from types import TracebackType
@@ -16,7 +16,7 @@ from quemb.shared.config import settings
 from quemb.shared.helper import clear_directory
 from quemb.shared.typing import PathLike
 
-logger = logging.getLogger(__name__)
+logger = getLogger(__name__)
 
 
 def _determine_path(
@@ -96,11 +96,11 @@ class WorkDir:
     # we define the __attrs_post_init__ to create the directory
     def __attrs_post_init__(self) -> None:
         self.path.mkdir(parents=True, exist_ok=True)
-        logging.info(f"Scratch directory {self} was created.")
+        logger.info(f"Scratch directory {self} was created.")
         if self.ensure_empty:
             clear_directory(self.path)
         if self.cleanup_at_end:
-            logging.info(f"Scratch directory {self} registered for automatic cleanup.")
+            logger.info(f"Scratch directory {self} registered for automatic cleanup.")
             atexit.register(partial(self.cleanup, ignore_error=True))
 
     def __enter__(self) -> WorkDir:
@@ -165,7 +165,7 @@ class WorkDir:
         except FileNotFoundError as e:
             if not ignore_error:
                 raise e
-        logging.info(f"Scratch directory {self} successfully cleaned up.")
+        logger.info(f"Scratch directory {self} successfully cleaned up.")
 
     def __fspath__(self) -> str:
         return self.path.__fspath__()
