@@ -506,10 +506,10 @@ def _get_contained(
     Parameters
     ----------
     all_fragment_MOs_TA :
-        A :math:`n_{\text{AO}} \times n_{\mathrm{f,all}}` matrix that
+        A :math:`n_{\text{AO}} \times n_{\text{f,all}}` matrix that
         contains the fragment orbitals of all fragments.
     TA :
-        A :math:`n_{\text{AO}} \times n_{\mathrm{f}}` matrix that
+        A :math:`n_{\text{AO}} \times n_{\text{f}}` matrix that
         contains the fragment orbitals of a given fragment.
     S :
         The AO overlap matrix.
