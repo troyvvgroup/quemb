@@ -78,7 +78,7 @@ def trustRegion(func, xold, fold, Binv, c=0.5):
         Inverse of Jacobian approximate (B^{-1}); This is updated in Broyden's Method
         through Sherman-Morrison formula
     c : float, optional
-        Initial value of trust radius ∈ (0, 1), by default 0.5
+        Initial value of trust radius :math:`\in (0, 1)`, by default 0.5
 
     Returns
     -------
