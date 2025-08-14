@@ -46,6 +46,7 @@ extensions = [
     "sphinx.ext.githubpages",
     "sphinx_multiversion",
 ]
+autosummary_generate = True
 
 autodoc_typehints_format = "short"
 autodoc_default_flags = [
