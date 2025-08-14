@@ -199,7 +199,7 @@ class BE:
             Only relevant for :python:`int_transform in {"int-direct-DF", "sparse-DF"}`.
         MO_coeff_epsilon:
             The cutoff value of the absolute overlap
-            :math:`\int |\phi_{i}| |\varphi_{\mu}|`
+            :math:`\int |\phi_i| |\varphi_{\mu}|`
             when a MO coefficient :math:`i` and an AO coefficient
             :math:`\mu` are considered to be connected for sparsity screening.
             Smaller value means less screening.
