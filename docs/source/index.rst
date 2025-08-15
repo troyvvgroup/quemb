@@ -30,12 +30,3 @@ References
 
    install
    api_reference
-
-   _autosummary/quemb.kbe
-   _autosummary/quemb.kbe.autofrag
-   _autosummary/quemb.kbe.fragment
-   _autosummary/quemb.kbe.helper
-   _autosummary/quemb.kbe.lo
-   _autosummary/quemb.kbe.misc
-   _autosummary/quemb.kbe.pbe
-   _autosummary/quemb.shared.typing
