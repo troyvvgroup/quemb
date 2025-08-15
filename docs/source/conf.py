@@ -21,7 +21,6 @@ latex_elements = {
 \DeclareUnicodeCharacter{212B}{\AA}
 \DeclareUnicodeCharacter{2208}{\in}
 \DeclareUnicodeCharacter{1F360}{\includegraphics[height=1em]{1f360.png}}
-\DeclareUnicodeCharacter{2264}{\ensuremath{\le}}
 """
 }
 
