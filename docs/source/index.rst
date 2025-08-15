@@ -38,3 +38,4 @@ References
    _autosummary/quemb.kbe.lo
    _autosummary/quemb.kbe.misc
    _autosummary/quemb.kbe.pbe
+   _autosummary/quemb.shared.typing
