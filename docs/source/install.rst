@@ -35,3 +35,12 @@ Alternatively one can manually clone and install as in
   git clone --recurse-submodules https://https://github.com/troyvvgroup/quemb
   cd quemb
   pip install .
+
+Documentation
+-------------
+
+Comprehensive documentation for QuEmb is available at `quemb/docs`. The documentation provides detailed infomation on installation, usage, API reference, and examples. To build the documentation locally, simply navigate to `docs` and build using `make html` or `make latexpdf`.
+
+Alternatively, you can view the latest documentation online [here](https://vanvoorhisgroup.mit.edu/quemb/).
+
+
