@@ -1,0 +1,107 @@
+name: Do static analysis and run tests for quemb
+
+on:
+  push:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  analysis:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+
+    steps:
+      - &checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Check trailing whitespace
+        run: |
+          git diff-tree --check $(git hash-object -t tree /dev/null) HEAD -- '(exclude)docs/make.bat'
+
+      - &setup-python
+        name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - &prepare-pip
+        name: Prepare pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install static analysis deps
+        run: |
+          pip install -r tests/static_analysis_requirements.txt
+          pip install . --config-settings=cmake.args=-DCMAKE_BUILD_TYPE=RelWithDebInfo
+
+      - name: Check formatting
+        run: ruff format --diff
+
+      - name: Static analysis with ruff
+        run: ruff check .
+
+      - name: Static analysis with mypy
+        run: mypy tests/ example/ src/
+
+  compilations:
+    runs-on: ubuntu-latest
+    needs: analysis
+    strategy:
+      matrix:
+        compiler: ["gcc", "clang"]
+
+    steps:
+      - *checkout
+      - *setup-python
+
+      - name: Install compiler
+        run: |
+          case "${{ matrix.compiler }}" in
+            gcc)
+              sudo apt update
+              sudo apt install -y build-essential
+              export CXX=g++
+              ;;
+            clang)
+              sudo apt update
+              sudo apt install -y clang libomp-dev
+              export CXX=clang++
+              ;;
+          esac
+
+      - name: Run build
+        run: |
+          python -m pip install --upgrade pip
+          CXX=${{ matrix.compiler }} pip install -vvv --config-settings=cmake.args=-DCMAKE_BUILD_TYPE=Debug .
+
+  testsuite-expensive:
+    runs-on: ubuntu-latest
+    needs: analysis
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
+        expensive: [true]
+
+    steps:
+      - *checkout
+      - *setup-python
+      - *prepare-pip
+      - *install-test-deps
+
+      - name: Run pytest (expensive)
+        run: |
+          cd tests
+          QUEMB_DO_EXPENSIVE_TESTS=true \
+          pytest --durations=0 --durations-min=1.0 --doctest-modules \
+            --junitxml=junit/quemb-test-results_${{ matrix.python-version }}.xml
+
+      - name: Upload pytest junit results
+        uses: actions/upload-artifact@v4
+        with:
+          name: quemb-test-results_${{ matrix.python-version }}
+          path: tests/junit/quemb-test-results_${{ matrix.python-version }}.xml
