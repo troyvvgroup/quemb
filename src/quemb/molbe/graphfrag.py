@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+import time
 from collections.abc import Sequence
 from copy import deepcopy
 from pathlib import Path
@@ -14,9 +15,7 @@ import numpy as np
 from attrs import define
 from networkx import shortest_path
 from numpy.linalg import norm
-from numba import njit, prange
 from pyscf import gto
-import time
 
 from quemb.molbe.autofrag import FragPart
 from quemb.molbe.helper import get_core
@@ -52,6 +51,7 @@ class GraphGenArgs:
 @define(frozen=False, kw_only=True)
 class GraphGenUtility:
     """Utility functions for handling graphs in `graphgen()`."""
+
     @staticmethod
     def _euclidean_distance(
         i_coord: Vector,
@@ -67,7 +67,7 @@ class GraphGenUtility:
         options = {"with_labels": True} if (options is None) else options
         for element in nx.generate_network_text(graph, **options):
             yield element
-    
+
     @staticmethod
     def _remove_nonnunique_frags(
         natm: int,
@@ -86,7 +86,7 @@ class GraphGenUtility:
         fragment's. The metadata (`center`, `origin_per_frag`, `add_center_atom`)
         of the removed fragment is merged into the superset fragment. Because this
         process can create new subset relationships, it is repeated up to `natm`
-        times. 
+        times.
         NOTE: All changes are made in-place.
         """
         for _ in range(natm):
@@ -633,7 +633,7 @@ def graphgen(
     # Finally, set fragment data names for scratch and bookkeeping:
     for adx, _ in enumerate(fsites_by_atom):
         dnames.append(frag_prefix + str(adx))
-        
+
     t5 = time.time()
 
     # Optionally export a visualization of fragment connectivity
@@ -671,12 +671,12 @@ def graphgen(
         t6 = time.time()
         title = "VERBOSE: `graphgen` Timing Breakdown"
         print(title, "-" * (80 - len(title)))
-        print(f"Initialization time:                {t1-t0}")
-        print(f"Adj. graph constr. time:            {t2-t1}")
-        print(f"Initial indexing time:              {t3-t2}")
-        print(f"Time to: Remove redundant frags:    {t4-t3}")
-        print(f"Perform final indexing:             {t5-t4}")
-        print(f"Print and wrap-up:                  {t6-t5}")
+        print(f"Initialization time:                {t1 - t0}")
+        print(f"Adj. graph constr. time:            {t2 - t1}")
+        print(f"Initial indexing time:              {t3 - t2}")
+        print(f"Time to: Remove redundant frags:    {t4 - t3}")
+        print(f"Perform final indexing:             {t5 - t4}")
+        print(f"Print and wrap-up:                  {t6 - t5}")
 
     return FragPart(
         mol=mol,
