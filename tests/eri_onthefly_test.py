@@ -15,6 +15,33 @@ from quemb.molbe import BE, fragmentate
 
 
 class TestDF_ontheflyERI(unittest.TestCase):
+    @unittest.skipUnless(
+        (
+            os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true"
+            and not os.getenv("GITHUB_ACTIONS") == "true"
+        ),
+        "Skipped expensive tests for QuEmb.",
+    )
+    def test_octane_BE2_large(self):
+        # Octane, cc-pvtz
+        mol = gto.M()
+        mol.atom = os.path.join(os.path.dirname(__file__), "xyz/octane.xyz")
+        mol.basis = "cc-pvtz"
+        mol.charge = 0.0
+        mol.spin = 0.0
+        mol.build()
+        mf = scf.RHF(mol)
+        mf.direct_scf = True
+        mf.kernel()
+        fobj = fragmentate(frag_type="autogen", n_BE=2, mol=mol)
+        mybe = BE(mf, fobj, auxbasis="cc-pvtz-ri", int_transform="int-direct-DF")
+        self.assertAlmostEqual(
+            mybe.ebe_hf,
+            mf.e_tot,
+            msg="HF-in-HF energy for Octane (BE2) does not match the HF energy!",
+            delta=1e-6,
+        )
+
     def test_octane_BE2_small(self):
         # Octane, cc-pvtz
         mol = gto.M(
