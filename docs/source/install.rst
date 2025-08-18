@@ -27,6 +27,7 @@ Option 2: Build the documentation locally.
 
     cd docs
     make html
+
 or
 
 .. code-block:: bash
