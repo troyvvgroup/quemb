@@ -14,7 +14,9 @@ import numpy as np
 from attrs import define
 from networkx import shortest_path
 from numpy.linalg import norm
+from numba import njit, prange
 from pyscf import gto
+import time
 
 from quemb.molbe.autofrag import FragPart
 from quemb.molbe.helper import get_core
@@ -50,7 +52,6 @@ class GraphGenArgs:
 @define(frozen=False, kw_only=True)
 class GraphGenUtility:
     """Utility functions for handling graphs in `graphgen()`."""
-
     @staticmethod
     def _euclidean_distance(
         i_coord: Vector,
@@ -66,7 +67,7 @@ class GraphGenUtility:
         options = {"with_labels": True} if (options is None) else options
         for element in nx.generate_network_text(graph, **options):
             yield element
-
+    
     @staticmethod
     def _remove_nonnunique_frags(
         natm: int,
@@ -78,62 +79,53 @@ class GraphGenUtility:
         fsites_by_atom: list[Sequence[Sequence[int]]],
         add_center_atom: list[Sequence[int]],
     ) -> None:
-        """Remove all fragments which are strict subsets of another.
-        Remove all fragments whose AO indices can be identified as subsets of
-        another fragment's. The center site for the removed frag is
-        added to that of the superset. Because doing so will necessarily
-        change the definition of fragments, we repeat it up to `natm` times
-        such that all fragments are guaranteed to be distinct sets.
-        another fragment's. The center site for the removed frag is then
-        added to that of the superset. Because doing so will necessarily
-        change the definition of fragments, we repeat it up to `natm` times
-        such that all fragments are guaranteed to be distinct sets.
-        NOTE: The arguments passed to this function are edited
-        in-place, meaning `_remove_nonnunique_frags()` is irreversible.
         """
-        for _ in range(0, natm):
-            subsets = set()
+        Remove redundant fragments that are strict subsets of others.
+
+        A fragment is removed if its AO indices form a strict subset of another
+        fragment's. The metadata (`center`, `origin_per_frag`, `add_center_atom`)
+        of the removed fragment is merged into the superset fragment. Because this
+        process can create new subset relationships, it is repeated up to `natm`
+        times. 
+        NOTE: All changes are made in-place.
+        """
+        for _ in range(natm):
+            subsets_to_remove = set()
+
             for adx, basa in enumerate(AO_per_frag):
+                set_a = set(basa)
                 for bdx, basb in enumerate(AO_per_frag):
                     if adx == bdx:
-                        pass
-                    elif set(basb).issubset(set(basa)):
-                        if bdx in subsets:
-                            pass
-                        else:
-                            subsets.add(bdx)
-                            center[adx] = tuple(
-                                set(list(center[adx]) + list(deepcopy(center[bdx])))
-                            )
+                        continue
+
+                    set_b = set(basb)
+                    if set_b < set_a:  # strict subset only
+                        if bdx not in subsets_to_remove:
+                            subsets_to_remove.add(bdx)
+
+                            # Merge metadata into superset
+                            center[adx] = tuple(set(center[adx]) | set(center[bdx]))
                             origin_per_frag[adx] = tuple(
-                                set(
-                                    list(origin_per_frag[adx])
-                                    + list(deepcopy(origin_per_frag[bdx]))
-                                )
+                                set(origin_per_frag[adx]) | set(origin_per_frag[bdx])
                             )
                             add_center_atom[adx] = tuple(
-                                set(
-                                    list(add_center_atom[adx])
-                                    + list(deepcopy(origin_per_frag[bdx]))
-                                )
+                                set(add_center_atom[adx]) | set(add_center_atom[bdx])
                             )
-            if subsets:
-                sorted_subsets = sorted(subsets, reverse=True)
-                for bdx in sorted_subsets:
-                    if len(AO_per_frag) == 1:
-                        # If all fragments are identified as subsets,
-                        # this stops the loop from deleting the final fragment.
-                        break
-                    else:
-                        # Otherwise, delete the subset fragment.
-                        del center[bdx]
-                        del AO_per_frag[bdx]
-                        del fsites_by_atom[bdx]
-                        del origin_per_frag[bdx]
-                        del motifs_per_frag[bdx]
-                        del edge_list[bdx]
-                        del add_center_atom[bdx]
-        return None
+
+            if not subsets_to_remove:
+                break  # nothing left to prune
+
+            # Remove redundant fragments safely
+            for bdx in sorted(subsets_to_remove, reverse=True):
+                if len(AO_per_frag) == 1:
+                    break  # never delete the last fragment
+                del AO_per_frag[bdx]
+                del center[bdx]
+                del fsites_by_atom[bdx]
+                del origin_per_frag[bdx]
+                del motifs_per_frag[bdx]
+                del edge_list[bdx]
+                del add_center_atom[bdx]
 
     @staticmethod
     def export_graph(
@@ -405,6 +397,7 @@ def graphgen(
         connectivity graphs. Defaults to True.
 
     """
+    t0 = time.time()
     assert mol is not None
     if iao_valence_basis is not None:
         raise NotImplementedError("IAOs not yet implemented for graphgen.")
@@ -486,7 +479,7 @@ def graphgen(
             _core_offset += ncore_
 
         sites.append(tuple([i for i in range(start_, stop_)]))
-
+    t1 = time.time()
     if connectivity.lower() in ["euclidean"]:
         # Begin by constructing the adjacency matrix and adjacency graph
         # for the system. Each node corresponds to an atom, such that each
@@ -513,6 +506,7 @@ def graphgen(
         # (*)-To save runtime, we only compute the shortest paths for
         # sites within some cutoff radius from the center, specified
         # by `cutoff`.)
+        t2 = time.time()
         for adx, map in adx_map.items():
             origin_per_frag.append((adx,))
             center.append(deepcopy(sites[adx]))
@@ -553,6 +547,7 @@ def graphgen(
             fsites_by_atom.append(tuple(fs_temp))
             edge_list.append(edges_temp)
             motifs_per_frag.append(tuple(fatoms_temp))
+        t3 = time.time()
 
     elif connectivity.lower() in ["resistance_distance", "resistance"]:
         raise NotImplementedError("Work in progress...")
@@ -579,6 +574,7 @@ def graphgen(
             fsites_by_atom=fsites_by_atom,
             add_center_atom=add_center_atom,
         )
+    t4 = time.time()
 
     # Define the 'edges' for fragment A as the intersect of its sites
     # with the set of all center sites outside of A.
@@ -637,6 +633,8 @@ def graphgen(
     # Finally, set fragment data names for scratch and bookkeeping:
     for adx, _ in enumerate(fsites_by_atom):
         dnames.append(frag_prefix + str(adx))
+        
+    t5 = time.time()
 
     # Optionally export a visualization of fragment connectivity
     # graphs. Useful for better understanding the shape and size
@@ -655,7 +653,7 @@ def graphgen(
     # Print an ASCII representation of each fragment connectivity
     # graph. All center sites are [bracketed].
     if print_frags:
-        title = "VERBOSE: Fragment Connectivity Graphs"
+        title = "VERBOSE: `graphgen` Connectivity Graphs"
         print(title, "-" * (80 - len(title)))
         print("(Center sites within a fragment are [bracketed])")
         subgraphs = GraphGenUtility.get_subgraphs(
@@ -670,6 +668,15 @@ def graphgen(
             )
             for st in GraphGenUtility._graph_to_string(sg):
                 print(st, flush=True)
+        t6 = time.time()
+        title = "VERBOSE: `graphgen` Timing Breakdown"
+        print(title, "-" * (80 - len(title)))
+        print(f"Initialization time:                {t1-t0}")
+        print(f"Adj. graph constr. time:            {t2-t1}")
+        print(f"Initial indexing time:              {t3-t2}")
+        print(f"Time to: Remove redundant frags:    {t4-t3}")
+        print(f"Perform final indexing:             {t5-t4}")
+        print(f"Print and wrap-up:                  {t6-t5}")
 
     return FragPart(
         mol=mol,
