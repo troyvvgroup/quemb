@@ -1,10 +1,11 @@
 # Author(s): Oinam Meitei
 #            Henry Tran
 #
+import contextlib
+import io
 import os
 
 import numpy as np
-from libdmet.lo import pywannier90
 from numpy import (
     allclose,
     array,
@@ -27,6 +28,11 @@ from quemb.shared.external.lo_helper import (
     symm_orth,
 )
 from quemb.shared.helper import ncore_, unused
+
+with contextlib.redirect_stdout(io.StringIO()):
+    # Since they don't want to reduce the printing, let's temporarily disable STDOUT
+    # https://github.com/gkclab/libdmet_preview/issues/22
+    from libdmet.lo import pywannier90
 
 
 def remove_core_mo_k(Clo, Ccore, S, thr=0.5):
