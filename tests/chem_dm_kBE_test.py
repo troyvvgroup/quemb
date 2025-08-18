@@ -44,8 +44,8 @@ class Test_kBE_Full(unittest.TestCase):
             cell, kpt, 1, "C2 (kBE1)", "chemgen", -102.16547952, only_chem=True
         )
 
-    @unittest.skipIf(
-        os.getenv("QUEMB_SKIP_EXPENSIVE_TESTS") == "true",
+    @unittest.skipUnless(
+        os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true",
         "Skipped expensive tests for QuEmb.",
     )
     def test_kc4_sto3g_be2_density(self) -> None:
