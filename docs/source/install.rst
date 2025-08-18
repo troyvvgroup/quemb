@@ -41,6 +41,6 @@ Documentation
 
 Comprehensive documentation for QuEmb is available at `quemb/docs`. The documentation provides detailed infomation on installation, usage, API reference, and examples. To build the documentation locally, simply navigate to `docs` and build using `make html` or `make latexpdf`.
 
-Alternatively, you can view the latest documentation online [here](https://vanvoorhisgroup.mit.edu/quemb/) or see here for the `PDF documentation <_static/quemb.pdf>`_.
+You can view the latest documentation online `here <https://vanvoorhisgroup.mit.edu/quemb/>`_ or download the `PDF version <_static/quemb.pdf>`_.
 
 
