@@ -57,6 +57,7 @@ jobs:
         sphinx-build -b latex source build/latex
         make latexpdf
         ls -lh build/latex/*.pdf
+        cp build/latex/*.pdf source/_static/
 
     - name: Redirect to docs for main
       run: |
