@@ -1,4 +1,4 @@
-# Author(s): Minsik Cho
+#Author(s): Minsik Cho
 # Based on: https://docs.github.com/en/actions/use-cases-and-examples/building-and-testing/building-and-testing-python
 
 name: Test building docs and deploy docs for merges to main
@@ -55,7 +55,7 @@ jobs:
       run: |
         cd docs
         make latexpdf
-        ls -lh build/latex/*.pdf
+        ls build/latex/*.pdf
         mkdir build/latex/_static/
         cp build/latex/*.pdf build/latex/_static/
 
