@@ -54,7 +54,6 @@ jobs:
     - name: Test building LaTeX PDF docs
       run: |
         cd docs
-        sphinx-build -b latex source build/latex
         make latexpdf
         ls -lh build/latex/*.pdf
         cp build/latex/*.pdf source/_static/
