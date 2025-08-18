@@ -16,7 +16,10 @@ from quemb.molbe import BE, fragmentate
 
 class TestDF_ontheflyERI(unittest.TestCase):
     @unittest.skipUnless(
-        os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true",
+        (
+            os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true"
+            and not os.getenv("GITHUB_ACTIONS") == "true"
+        ),
         "Skipped expensive tests for QuEmb.",
     )
     def test_octane_BE2_large(self):
@@ -41,7 +44,9 @@ class TestDF_ontheflyERI(unittest.TestCase):
 
     def test_octane_BE2_small(self):
         # Octane, cc-pvtz
-        mol = gto.M("xyz/octane.xyz", basis="sto-3g")
+        mol = gto.M(
+            os.path.join(os.path.dirname(__file__), "xyz/octane.xyz"), basis="sto-3g"
+        )
 
         mf = scf.RHF(mol)
         mf.kernel()

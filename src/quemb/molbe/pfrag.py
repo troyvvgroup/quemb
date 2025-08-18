@@ -56,7 +56,7 @@ class Frags:
         eri_file: PathLike = "eri_file.h5",
         unrestricted: bool = False,
     ) -> None:
-        """Constructor function for :python:`Frags` class.
+        r"""Constructor function for :python:`Frags` class.
 
         Parameters
         ----------

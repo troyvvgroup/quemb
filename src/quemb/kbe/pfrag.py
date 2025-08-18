@@ -59,7 +59,7 @@ class Frags:
         unitcell_nkpt: int,
         unitcell: int,
     ) -> None:
-        """Constructor function for :python:`Frags` class.
+        r"""Constructor function for :python:`Frags` class.
 
         Parameters
         ----------
