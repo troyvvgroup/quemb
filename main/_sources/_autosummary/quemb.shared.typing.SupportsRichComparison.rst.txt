@@ -1,0 +1,22 @@
+quemb.shared.typing.SupportsRichComparison
+==========================================
+
+.. currentmodule:: quemb.shared.typing
+
+.. autoclass:: SupportsRichComparison
+
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~SupportsRichComparison.__init__
+   
+   

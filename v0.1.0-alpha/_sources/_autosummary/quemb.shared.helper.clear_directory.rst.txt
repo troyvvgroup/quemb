@@ -1,0 +1,6 @@
+quemb.shared.helper.clear\_directory
+====================================
+
+.. currentmodule:: quemb.shared.helper
+
+.. autofunction:: clear_directory

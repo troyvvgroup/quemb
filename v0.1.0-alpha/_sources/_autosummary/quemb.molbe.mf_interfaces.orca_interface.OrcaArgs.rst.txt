@@ -1,0 +1,29 @@
+quemb.molbe.mf\_interfaces.orca\_interface.OrcaArgs
+===================================================
+
+.. currentmodule:: quemb.molbe.mf_interfaces.orca_interface
+
+.. autoclass:: OrcaArgs
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: OrcaArgs.n_procs
+   .. autoattribute:: OrcaArgs.simple_keywords
+   .. autoattribute:: OrcaArgs.blocks
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~OrcaArgs.__init__
+   
+   

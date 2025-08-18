@@ -1,0 +1,6 @@
+quemb.molbe.mf\_interfaces.pyscf\_interface.create\_mf
+======================================================
+
+.. currentmodule:: quemb.molbe.mf_interfaces.pyscf_interface
+
+.. autofunction:: create_mf

@@ -1,0 +1,6 @@
+quemb.molbe.mf\_interfaces.orca\_interface.get\_orca\_basis
+===========================================================
+
+.. currentmodule:: quemb.molbe.mf_interfaces.orca_interface
+
+.. autofunction:: get_orca_basis

@@ -16,7 +16,9 @@ quemb.shared.helper
    
       add_docstring
       add_init_docstring
+      argsort
       clean_overlap
+      clear_directory
       copy_docstring
       delete_multiple_files
       ensure
@@ -28,6 +30,7 @@ quemb.shared.helper
       n_symmetric
       ncore_
       njit
+      normalize_column_signs
       ravel_C
       ravel_Fortran
       ravel_eri_idx

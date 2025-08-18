@@ -13,6 +13,7 @@ quemb.shared.manage\_scratch.WorkDir
    
    .. autoattribute:: WorkDir.path
    .. autoattribute:: WorkDir.cleanup_at_end
+   .. autoattribute:: WorkDir.ensure_empty
    
    
 
