@@ -19,7 +19,7 @@ are automatically installed by :bash:`pip`.
 Documentation
 -------------
 
-Option 1: :download:`PDF version </_static/quemb.pdf>`
+Option 1: :download:`PDF version <_static/quemb.pdf>`
 
 Option 2: Build the documentation locally.
 

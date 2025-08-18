@@ -14,11 +14,12 @@ help:
 
 .PHONY: help Makefile
 
-latexpdf: 
+latexpdf:
 	@$(SPHINXBUILD) -M latexpdf "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
-	@cp "$(BUILDDIR)/latex/quemb.pdf" "$(SOURCEDIR)/_static/"
 
-# Catch-all target: route all unknown targets to Sphinx using the new
-# "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
+html: latexpdf
+	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+# 	@cp "$(BUILDDIR)/latex/quemb.pdf" "$(BUILDDIR)/html/_static/"
+
 %: Makefile
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)

@@ -8,6 +8,6 @@ API reference
    :template: custom-module-template.rst
    :recursive:
 
-   molbe
-   kbe
    shared
+   .. molbe
+   .. kbe
