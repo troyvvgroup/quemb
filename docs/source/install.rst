@@ -32,6 +32,7 @@ or
 
 .. code-block:: bash
 
+   cd docs
    make latexpdf
 
 
