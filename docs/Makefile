@@ -19,7 +19,7 @@ latexpdf:
 
 html: latexpdf
 	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
-# 	@cp "$(BUILDDIR)/latex/quemb.pdf" "$(BUILDDIR)/html/_static/"
+	@cp "$(BUILDDIR)/latex/quemb.pdf" "$(BUILDDIR)/html/_static/"
 
 %: Makefile
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)

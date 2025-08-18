@@ -9,5 +9,5 @@ API reference
    :recursive:
 
    shared
-   .. molbe
-   .. kbe
+   molbe
+   kbe
