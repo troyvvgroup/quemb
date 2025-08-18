@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
-    """Calculate AO density-fitted 3-center integrals on-the-fly and transform to
+    r"""Calculate AO density-fitted 3-center integrals on-the-fly and transform to
     Schmidt space for given fragment objects
 
     Parameters
@@ -35,7 +35,7 @@ def integral_direct_DF(mf, Fobjs, file_eri, auxbasis=None):
     """
 
     def calculate_pqL(aux_range):
-        """Internal function to calculate the 3-center integrals for a given range of
+        r"""Internal function to calculate the 3-center integrals for a given range of
         auxiliary indices
 
         Parameters
