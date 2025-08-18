@@ -73,6 +73,7 @@ intersphinx_mapping = {
     "h5py": ("https://docs.h5py.org/en/stable/", None),
     "networkx": ("https://networkx.org/documentation/stable/", None),
     "chemcoord": ("https://chemcoord.readthedocs.io/en/latest/", None),
+    "opi": ("https://www.faccts.de/docs/opi/1.0/docs/", None),
 }
 
 
