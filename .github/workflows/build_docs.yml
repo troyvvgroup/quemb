@@ -52,7 +52,7 @@ jobs:
         cd ..
     
     - name: Test building LaTeX PDF docs
-        run: |
+      run: |
         cd docs
         sphinx-build -b latex source build/latex
         make latexpdf
