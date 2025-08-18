@@ -24,7 +24,7 @@ One can just :bash:`pip install` directly from the Github repository
 
 .. code-block:: bash
 
-  pip install git+https://https://github.com/troyvvgroup/quemb
+    pip install git+https://https://github.com/troyvvgroup/quemb
 
 
 
@@ -32,9 +32,23 @@ Alternatively one can manually clone and install as in
 
 .. code-block:: bash
 
-  git clone --recurse-submodules https://https://github.com/troyvvgroup/quemb
-  cd quemb
-  pip install .
+    git clone --recurse-submodules https://https://github.com/troyvvgroup/quemb
+    cd quemb
+    pip install .
+
+
+Optional dependencies
+---------------------
+
+If you want to use the ORCA backend for Hartree-Fock you need to install ORCA from
+`here <https://www.faccts.de/customer/login?came_from=/customer>`_.
+This requires a registration and is free for academic use.
+In addition you need to install the python interface via:
+
+
+.. code-block:: bash
+
+    pip install orca-pi
 
 Documentation
 -------------
@@ -53,9 +67,9 @@ Option 3: Build the documentation locally.
  
     cd docs
     make html
-
 or 
 
 .. code-block:: bash
    
    make latexpdf
+
