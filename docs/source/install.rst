@@ -16,6 +16,25 @@ Prerequisites
 The required dependencies, with the exception of the optional :code:`Wannier90`,
 are automatically installed by :bash:`pip`.
 
+Documentation
+-------------
+
+Option 1: Download the `PDF version </build/latex/_static/quemb.pdf>`_ of the documentation.
+
+Option 2: Build the documentation locally.
+
+.. code-block:: bash
+
+    cd docs
+    make html
+
+or
+
+.. code-block:: bash
+
+   cd docs
+   make latexpdf
+
 
 Installation
 -------------
@@ -24,7 +43,7 @@ One can just :bash:`pip install` directly from the Github repository
 
 .. code-block:: bash
 
-  pip install git+https://https://github.com/troyvvgroup/quemb
+    pip install git+https://https://github.com/troyvvgroup/quemb
 
 
 
@@ -32,15 +51,21 @@ Alternatively one can manually clone and install as in
 
 .. code-block:: bash
 
-  git clone --recurse-submodules https://https://github.com/troyvvgroup/quemb
-  cd quemb
-  pip install .
+    git clone --recurse-submodules https://https://github.com/troyvvgroup/quemb
+    cd quemb
+    pip install .
 
-Documentation
--------------
 
-Comprehensive documentation for QuEmb is available at `quemb/docs`. The documentation provides detailed infomation on installation, usage, API reference, and examples. To build the documentation locally, simply navigate to `docs` and build using `make html` or `make latexpdf`.
+Optional dependencies
+---------------------
 
-You can view the latest documentation online `here <https://vanvoorhisgroup.mit.edu/quemb/>`_ or download the `PDF version <_static/quemb.pdf>`_.
+If you want to use the ORCA backend for Hartree-Fock you need to install ORCA from
+`here <https://www.faccts.de/customer/login?came_from=/customer>`_.
+This requires a registration and is free for academic use.
+In addition you need to install the python interface via:
 
+
+.. code-block:: bash
+
+    pip install orca-pi
 
