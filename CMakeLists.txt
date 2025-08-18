@@ -67,19 +67,6 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
 
 elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_compile_options(eri_sparse_DF PRIVATE -O0)
-
-    if(NOT MSVC)
-        target_compile_options(eri_sparse_DF PRIVATE
-            -fsanitize=address
-            -fsanitize=undefined
-            -fno-omit-frame-pointer
-        )
-        target_link_options(eri_sparse_DF PRIVATE
-            -fsanitize=address
-            -fsanitize=undefined
-            -fno-omit-frame-pointer
-        )
-    endif()
 endif()
 
 # =====================
