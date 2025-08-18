@@ -52,12 +52,11 @@ jobs:
         cd ..
     
     - name: Test building LaTeX PDF docs
-      run: |
+        run: |
         cd docs
         sphinx-build -b latex source build/latex
-        cd build/latex
         make latexpdf
-        ls -lh *.pdf
+        ls -lh build/latex/*.pdf
 
     - name: Redirect to docs for main
       run: |
