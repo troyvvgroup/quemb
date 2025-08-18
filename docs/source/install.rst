@@ -19,15 +19,9 @@ are automatically installed by :bash:`pip`.
 Documentation
 -------------
 
-Comprehensive documentation for QuEmb is available at `quemb/docs`. The documentation provides detailed infomation on installation, usage, API reference, and examples. To build the documentation locally, simply navigate to `docs` and build using `make html` or `make latexpdf`.
-
-You can download the `PDF version <_static/quemb.pdf>`_.
-
 Option 1: Download the `PDF version <_static/quemb.pdf>`_ of the documentation.
 
-Option 2: Comprehensive documentation for QuEmb is available at `quemb/docs`. The documentation provides detailed infomation on installation, usage, API reference, and examples.
-
-Option 3: Build the documentation locally.
+Option 2: Build the documentation locally.
 
 .. code-block:: bash
 
