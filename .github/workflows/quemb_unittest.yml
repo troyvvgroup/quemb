@@ -1,4 +1,4 @@
-# Author(s): Minsik Cho, Shaun Weatherly
+# Author(s): Minsik Cho, Shaun Weatherly, Oskar Weser
 # Based on: https://docs.github.com/en/actions/use-cases-and-examples/building-and-testing/building-and-testing-python
 
 name: Do static analysis and run tests for quemb
@@ -19,49 +19,39 @@ jobs:
       matrix:
         python-version: ["3.12"]
 
-
     steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
+      - &checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
+      - name: Check trailing whitespace
+        run: |
+          git diff-tree --check $(git hash-object -t tree /dev/null) HEAD -- '(exclude)docs/make.bat'
 
-    - name: Check trailing whitespace
-      # Idea taken from https://peter.eisentraut.org/blog/2014/11/04/checking-whitespace-with-git
-      # Windows uses different new line convention, thats why we exclude docs/make.bat
-      run: |
-        git diff-tree --check $(git hash-object -t tree /dev/null)  HEAD -- '(exclude)docs/make.bat'
+      - &setup-python
+        name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
 
+      - &prepare-pip
+        name: Prepare pip
+        run: python -m pip install --upgrade pip
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
+      - name: Install static analysis deps
+        run: |
+          pip install -r tests/static_analysis_requirements.txt
+          pip install . --config-settings=cmake.args=-DCMAKE_BUILD_TYPE=RelWithDebInfo
 
-    - name: Prepare pip
-      run: |
-        python -m pip install --upgrade pip
+      - name: Check formatting
+        run: ruff format --diff
 
-    - name: Install dependencies
-      run: |
-        pip install -r tests/static_analysis_requirements.txt
-        pip install . --config-settings=cmake.args=-DCMAKE_BUILD_TYPE=RelWithDebInfo
+      - name: Static analysis with ruff
+        run: ruff check .
 
-
-    - name: Check formatting
-      run: |
-        ruff format --diff
-
-
-    - name: Static analysis with ruff
-      run: |
-        ruff check .
-
-
-    - name: Static analysis with mypy
-      run: |
-        mypy tests/ example/ src/
-
+      - name: Static analysis with mypy
+        run: mypy tests/ example/ src/
 
   compilations:
     runs-on: ubuntu-latest
@@ -69,36 +59,31 @@ jobs:
     strategy:
       matrix:
         compiler: ["gcc", "clang"]
+        python-version: ["3.12"]
 
     steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
+      - *checkout
+      - *setup-python
 
-    - name: Set up Python 3.12
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.12"
+      - name: Install compiler
+        run: |
+          case "${{ matrix.compiler }}" in
+            gcc)
+              sudo apt update
+              sudo apt install -y build-essential
+              export CXX=g++
+              ;;
+            clang)
+              sudo apt update
+              sudo apt install -y clang libomp-dev
+              export CXX=clang++
+              ;;
+          esac
 
-    - name: Install compiler
-      run: |
-        case "${{ matrix.compiler }}" in
-          gcc)
-            sudo apt update
-            sudo apt install -y build-essential
-            export CXX=g++
-            ;;
-          clang)
-            sudo apt update
-            sudo apt install -y clang libomp-dev
-            export CXX=clang++
-            ;;
-        esac
-
-    - name: Run build
-      run: |
-        python -m pip install --upgrade pip
-        CXX=${{ matrix.compiler }} pip install -vvv --config-settings=cmake.args=-DCMAKE_BUILD_TYPE=Debug .
+      - name: Run build
+        run: |
+          python -m pip install --upgrade pip
+          CXX=${{ matrix.compiler }} pip install -vvv --config-settings=cmake.args=-DCMAKE_BUILD_TYPE=Debug .
 
   testsuite:
     runs-on: ubuntu-latest
@@ -106,41 +91,60 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.10", "3.12"]
+        expensive: [false]
 
     steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
+      - *checkout
+      - *setup-python
+      - *prepare-pip
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
+      - &install-test-deps
+        name: Install test dependencies
+        run: |
+          pip install -r tests/test_requirements.txt
+          pip install git+https://github.com/pyscf/dmrgscf
+          PYSCFHOME=$(pip show pyscf-dmrgscf | grep 'Location' | tr ' ' '\n' | tail -n 1)
+          wget https://raw.githubusercontent.com/pyscf/dmrgscf/master/pyscf/dmrgscf/settings.py.example
+          mv settings.py.example ${PYSCFHOME}/pyscf/dmrgscf/settings.py
+          pip install . --config-settings=cmake.args=-DCMAKE_BUILD_TYPE=RelWithDebInfo
 
-    - name: Prepare pip
-      run: |
-        python -m pip install --upgrade pip
+      - name: Run pytest
+        run: |
+          cd tests
+          ${{ matrix.expensive == 'true' && 'QUEMB_DO_EXPENSIVE_TESTS=true' || '' }} \
+          pytest --durations=0 --durations-min=1.0 --doctest-modules \
+            --junitxml=junit/quemb-test-results_${{ matrix.python-version }}.xml
 
+      - name: Upload pytest junit results
+        uses: actions/upload-artifact@v4
+        with:
+          name: quemb-test-results_${{ matrix.python-version }}
+          path: tests/junit/quemb-test-results_${{ matrix.python-version }}.xml
 
-    - name: Install dependencies
-      run: |
-        pip install -r tests/test_requirements.txt
-        pip install git+https://github.com/pyscf/dmrgscf
-        PYSCFHOME=$(pip show pyscf-dmrgscf | grep 'Location' | tr ' ' '\n' | tail -n 1)
-        wget https://raw.githubusercontent.com/pyscf/dmrgscf/master/pyscf/dmrgscf/settings.py.example
-        mv settings.py.example ${PYSCFHOME}/pyscf/dmrgscf/settings.py
-        pip install . --config-settings=cmake.args=-DCMAKE_BUILD_TYPE=RelWithDebInfo
+  testsuite-expensive:
+    runs-on: ubuntu-latest
+    needs: testsuite
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
+        expensive: [true]
 
+    steps:
+      - *checkout
+      - *setup-python
+      - *prepare-pip
+      - *install-test-deps
 
-    - name: Test with pytest
-      run: |
-        cd tests
-        QUEMB_SKIP_EXPENSIVE_TESTS=true pytest --durations=0 --durations-min=1.0 --doctest-modules --junitxml=junit/quemb-test-results_${{ matrix.python-version }}.xml
-        # If --duration=0, pytest reports all tests that took longer than what was given with durations-min=[time in seconds]
+      - name: Run pytest (expensive)
+        run: |
+          cd tests
+          QUEMB_DO_EXPENSIVE_TESTS=true \
+          pytest --durations=0 --durations-min=1.0 --doctest-modules \
+            --junitxml=junit/quemb-test-results_${{ matrix.python-version }}.xml
 
-
-    - name: Upload pytest junit results
-      uses: actions/upload-artifact@v4
-      with:
-        name: quemb-test-results_${{ matrix.python-version }}
-        path: tests/junit/quemb-test-results_${{ matrix.python-version }}.xml
+      - name: Upload pytest junit results
+        uses: actions/upload-artifact@v4
+        with:
+          name: quemb-test-results_${{ matrix.python-version }}
+          path: tests/junit/quemb-test-results_${{ matrix.python-version }}.xml
