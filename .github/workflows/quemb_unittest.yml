@@ -59,6 +59,7 @@ jobs:
     strategy:
       matrix:
         compiler: ["gcc", "clang"]
+        python-version: ["3.12"]
 
     steps:
       - *checkout
