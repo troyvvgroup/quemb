@@ -56,8 +56,7 @@ jobs:
         cd docs
         make latexpdf
         ls build/latex/*.pdf
-        mkdir build/html/_static/
-        cp build/latex/*.pdf build/html/_static/
+        cp build/latex/*.pdf source/_static/
 
     - name: Redirect to docs for main
       run: |
