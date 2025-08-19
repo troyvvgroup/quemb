@@ -206,7 +206,7 @@ class GraphGenUtility:
                 for map in adx_map.values()
             ]
         elif node_position in ["spring"]:
-            pos = nx.spring_layout(G, seed=3068)  # type: ignore[assignment]
+            pos = nx.spring_layout(G, seed=3068)
 
         fig, ax = plt.subplots()
         arc_rads = np.arange(-0.3, 0.3, 0.6 / len(c), dtype=float)
@@ -217,7 +217,7 @@ class GraphGenUtility:
                 G,
                 pos,
                 nodelist=origin_per_frag[fdx],
-                node_color=[color for _ in origin_per_frag[fdx]],  # type: ignore[misc]
+                node_color=[color for _ in origin_per_frag[fdx]],
                 edgecolors="tab:gray",
                 node_size=850,
                 alpha=1.0,
@@ -226,7 +226,7 @@ class GraphGenUtility:
                 G,
                 pos,
                 nodelist=origin_per_frag[fdx],
-                node_color="whitesmoke",  # type: ignore[arg-type]
+                node_color="whitesmoke",
                 edgecolors=color,
                 node_size=700,
                 alpha=0.6,
@@ -238,7 +238,7 @@ class GraphGenUtility:
                 edgelist=edges,
                 width=5,
                 alpha=0.8,
-                edge_color=color,  # type: ignore[arg-type]
+                edge_color=color,
                 connectionstyle=f"arc3,rad={arc_rads[fdx]}",
             )
         nx.draw_networkx_labels(
