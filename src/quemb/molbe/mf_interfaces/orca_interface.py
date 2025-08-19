@@ -9,8 +9,6 @@ import numpy as np
 from attrs import define
 from chemcoord import Cartesian
 from pyscf.gto import Mole
-from pyscf.gto.mole import is_au
-from pyscf.lib import param
 from pyscf.scf.hf import RHF
 
 from quemb.molbe.mf_interfaces._pyscf_orbital_order import Orbital
