@@ -6,7 +6,7 @@ import time
 from collections.abc import Sequence
 from copy import deepcopy
 from pathlib import Path
-from typing import Final, Generator, Literal
+from typing import Final, Generator, Literal, Any
 
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
@@ -198,10 +198,12 @@ class GraphGenUtility:
         G = adjacency_graph
 
         if node_position in ["coordinates"]:
-            pos = {
-                key: (
-                    map["coord"][0] + (map["coord"][2] * z_offset),
-                    map["coord"][1] + (map["coord"][2] * z_offset),
+            pos: dict = {
+                key: np.ndarray(
+                    (
+                        map["coord"][0] + (map["coord"][2] * z_offset),
+                        map["coord"][1] + (map["coord"][2] * z_offset),
+                    ),
                 )
                 for key, map in adx_map.items()
             }
