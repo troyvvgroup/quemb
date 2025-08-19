@@ -13,6 +13,7 @@ from pyscf import gto, scf
 
 from quemb.molbe import BE, fragmentate
 
+CHKFILE = os.path.join(os.path.dirname(__file__), "chk/octane_ccpvtz.h5")
 
 class TestDF_ontheflyERI(unittest.TestCase):
     @unittest.skipUnless(
@@ -32,7 +33,13 @@ class TestDF_ontheflyERI(unittest.TestCase):
         mol.build()
         mf = scf.RHF(mol)
         mf.direct_scf = True
-        mf.kernel()
+
+        if os.path.exists(CHKFILE):
+            mf = mf.from_hdf5(CHKFILE, "scf") 
+        else:
+            mf.kernel()
+            mf.to_hdf5(CHKFILE, "scf")
+
         fobj = fragmentate(frag_type="autogen", n_BE=2, mol=mol)
         mybe = BE(mf, fobj, auxbasis="cc-pvtz-ri", int_transform="int-direct-DF")
         self.assertAlmostEqual(
