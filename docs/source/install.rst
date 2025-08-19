@@ -16,6 +16,23 @@ Prerequisites
 The required dependencies, with the exception of the optional :code:`Wannier90`,
 are automatically installed by :bash:`pip`.
 
+Documentation
+-------------
+
+To build the documentation locally, do
+
+.. code-block:: bash
+
+    cd docs
+    make html
+
+or
+
+.. code-block:: bash
+
+   cd docs
+   make latexpdf
+
 
 Installation
 -------------
@@ -35,6 +52,7 @@ Alternatively one can manually clone and install as in
     git clone --recurse-submodules https://https://github.com/troyvvgroup/quemb
     cd quemb
     pip install .
+
 
 
 Known issues and troubleshooting
@@ -57,3 +75,17 @@ to install either GCC or LLVM/Clang with the OpenMP runtime.
 
     brew install llvm libomp
     CXX=$(brew --prefix llvm)/bin/clang++ pip install .
+
+
+Optional dependencies
+---------------------
+
+If you want to use the ORCA backend for Hartree-Fock you need to install ORCA from
+`here <https://www.faccts.de/customer/login?came_from=/customer>`_.
+This requires a registration and is free for academic use.
+In addition you need to install the python interface via:
+
+
+.. code-block:: bash
+
+    pip install orca-pi

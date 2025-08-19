@@ -25,6 +25,7 @@ processors.
 
 Comprehensive documentation for QuEmb is available online [here](https://vanvoorhisgroup.mit.edu/quemb/)
 and provides detailed infomation on installation, usage, API reference, and examples.
+
 To build the documentation locally, simply navigate to `docs` and do
 ```bash
 pip install -r requirements.txt
@@ -64,7 +65,7 @@ cd quemb
 pip install .
 ```
 
-For more installation details read [here](https://vanvoorhisgroup.mit.edu/quemb/install).
+For more installation details read [here](https://vanvoorhisgroup.mit.edu/quemb/install)
 
 
 
