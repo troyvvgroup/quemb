@@ -166,6 +166,13 @@ class WorkDir:
                 raise e
         logger.info(f"Scratch directory {self} successfully cleaned up.")
 
+    def make_subdir(self, name: str | PathLike) -> Self:
+        """Create a subdirectory with the same cleanup settings as ``self``."""
+        return self.__class__(
+            self.path / Path(name),
+            cleanup_at_end=self.cleanup_at_end,
+        )
+
     def __fspath__(self) -> str:
         return self.path.__fspath__()
 

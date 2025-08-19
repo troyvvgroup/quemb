@@ -22,6 +22,7 @@ from quemb.shared.typing import Integral, Matrix, SupportsRichComparison, T
 _Function = TypeVar("_Function", bound=Callable)
 _T_Integral = TypeVar("_T_Integral", bound=Integral)
 _T = TypeVar("_T")
+_R = TypeVar("_R")
 _P = ParamSpec("_P")
 logger = logging.getLogger(__name__)
 
@@ -124,10 +125,6 @@ def delete_multiple_files(*args: Iterable[Path]) -> None:
     for files in args:
         for file in files:
             file.unlink()
-
-
-_P = ParamSpec("_P")
-_R = TypeVar("_R")
 
 
 @define
