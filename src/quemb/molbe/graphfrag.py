@@ -217,7 +217,7 @@ class GraphGenUtility:
             edges = edge_list[fdx]
             nx.draw_networkx_nodes(
                 G,
-                pos,  # type: ignore[arg-type]
+                pos,
                 nodelist=origin_per_frag[fdx],
                 node_color=[color for _ in origin_per_frag[fdx]],
                 edgecolors="tab:gray",
@@ -226,7 +226,7 @@ class GraphGenUtility:
             )
             nx.draw_networkx_nodes(
                 G,
-                pos,  # type: ignore[arg-type]
+                pos,
                 nodelist=origin_per_frag[fdx],
                 node_color="whitesmoke",
                 edgecolors=color,
@@ -245,7 +245,7 @@ class GraphGenUtility:
             )  # type: ignore[call-overload]
         nx.draw_networkx_labels(
             G,
-            pos,  # type: ignore[arg-type]
+            pos,
             labels,
             font_size=10,
             font_color="black",
