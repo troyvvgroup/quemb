@@ -242,7 +242,7 @@ class GraphGenUtility:
                 alpha=0.8,
                 edge_color=color,
                 connectionstyle=f"arc3,rad={arc_rads[fdx]}",
-            )  # type: ignore[call-overload]
+            )
         nx.draw_networkx_labels(
             G,
             pos,
