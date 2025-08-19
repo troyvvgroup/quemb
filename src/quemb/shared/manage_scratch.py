@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import atexit
 import os
 from functools import partial
 from logging import getLogger
@@ -13,7 +12,7 @@ from attrs import define, field
 from typing_extensions import Self
 
 from quemb.shared.config import settings
-from quemb.shared.helper import clear_directory
+from quemb.shared.helper import clear_directory, register_clean_exit
 from quemb.shared.typing import PathLike
 
 logger = getLogger(__name__)
@@ -101,7 +100,7 @@ class WorkDir:
             clear_directory(self.path)
         if self.cleanup_at_end:
             logger.info(f"Scratch directory {self} registered for automatic cleanup.")
-            atexit.register(partial(self.cleanup, ignore_error=True))
+            register_clean_exit(partial(self.cleanup, ignore_error=True))
 
     def __enter__(self) -> WorkDir:
         return self

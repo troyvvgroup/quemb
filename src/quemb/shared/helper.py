@@ -1,7 +1,9 @@
+import atexit
 import functools
 import inspect
 import logging
 import shutil
+import sys
 import time
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Sequence
@@ -19,6 +21,8 @@ from quemb.shared.typing import Integral, Matrix, SupportsRichComparison, T
 
 _Function = TypeVar("_Function", bound=Callable)
 _T_Integral = TypeVar("_T_Integral", bound=Integral)
+_T = TypeVar("_T")
+_P = ParamSpec("_P")
 logger = logging.getLogger(__name__)
 
 
@@ -503,3 +507,22 @@ def clear_directory(path: Path) -> None:
             item.unlink()
         elif item.is_dir():
             shutil.rmtree(item)
+
+
+def register_clean_exit(
+    func: Callable[_P, _T], /, *args: _P.args, **kwargs: _P.kwargs
+) -> Callable[_P, _T]:
+    """Execute a function upon clean exits.
+
+    Does the same as :func:`atexit.register`, but **only** executes the function
+    if a clean exit happened.
+    The function is not executed if the program terminates with an error.
+    Can be used as a decorator.
+    """
+
+    def inner(*args: _P.args, **kwargs: _P.kwargs) -> None:
+        if not hasattr(sys, "last_exc"):
+            func(*args, **kwargs)
+
+    atexit.register(inner, *args, **kwargs)
+    return func
