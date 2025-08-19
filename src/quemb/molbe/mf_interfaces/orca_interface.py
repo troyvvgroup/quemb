@@ -164,7 +164,7 @@ try:
     ) -> Calculator:
         orca_work_dir: Final = WorkDir(work_dir / "orca_mf")
         geometry_path: Final = orca_work_dir / "geometry.xyz"
-        if mol.unit != "angstrom":
+        if mol.unit.lower() != "angstrom":
             raise ValueError("mol has to be in Angstrom.")
         Cartesian.from_pyscf(mol).to_xyz(geometry_path)
 
