@@ -60,7 +60,7 @@ def line_search_LF(func, xold, fold, dx, iter_):
 
 
 def trustRegion(func, xold, fold, Binv, c=0.5):
-    """Perform Trust Region Optimization.
+    r"""Perform Trust Region Optimization.
 
     See "A Broyden Trust Region Quasi-Newton Method
     for Nonlinear Equations" (https://www.iaeng.org/IJCS/issues_v46/issue_3/IJCS_46_3_09.pdf)"
@@ -78,7 +78,7 @@ def trustRegion(func, xold, fold, Binv, c=0.5):
         Inverse of Jacobian approximate (B^{-1}); This is updated in Broyden's Method
         through Sherman-Morrison formula
     c : float, optional
-        Initial value of trust radius ∈ (0, 1), by default 0.5
+        Initial value of trust radius :math:`\in (0, 1)`, by default 0.5
 
     Returns
     -------
@@ -160,8 +160,6 @@ class FrankQN:
 
     Performs quasi newton optimization. Interfaces many functionalities of the
     frankestein code originally written by Hong-Zhou Ye
-
-
     """
 
     def __init__(self, func, x0, f0, J0, trust=0.5, max_space=500):
