@@ -223,7 +223,7 @@ class GraphGenUtility:
             edges = edge_list[fdx]
             nx.draw_networkx_nodes(
                 G,
-                pos,
+                pos,  # type: ignore[arg-type]
                 nodelist=origin_per_frag[fdx],
                 node_color=[color for _ in origin_per_frag[fdx]],  # type: ignore[misc]
                 edgecolors="tab:gray",
@@ -232,7 +232,7 @@ class GraphGenUtility:
             )
             nx.draw_networkx_nodes(
                 G,
-                pos,
+                pos,  # type: ignore[arg-type]
                 nodelist=origin_per_frag[fdx],
                 node_color="whitesmoke",  # type: ignore[arg-type]
                 edgecolors=color,
@@ -248,9 +248,14 @@ class GraphGenUtility:
                 alpha=0.8,
                 edge_color=color,  # type: ignore[arg-type]
                 connectionstyle=f"arc3,rad={arc_rads[fdx]}",
-            )
+            )  # type: ignore[call-overload]
         nx.draw_networkx_labels(
-            G, pos, labels, font_size=10, font_color="black", alpha=1
+            G,
+            pos,  # type: ignore[arg-type]
+            labels,
+            font_size=10,
+            font_color="black",
+            alpha=1,
         )
         plt.tight_layout()
         plt.legend(patches, dnames, loc="upper left", fontsize=8)
