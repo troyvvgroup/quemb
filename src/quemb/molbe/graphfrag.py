@@ -250,12 +250,12 @@ class GraphGenUtility:
                 connectionstyle=f"arc3,rad={arc_rads[fdx]}",
             )  # type: ignore[call-overload]
         nx.draw_networkx_labels(
-            G, 
+            G,
             pos,  # type: ignore[arg-type]
-            labels, 
-            font_size=10, 
-            font_color="black", 
-            alpha=1
+            labels,
+            font_size=10,
+            font_color="black",
+            alpha=1,
         )
         plt.tight_layout()
         plt.legend(patches, dnames, loc="upper left", fontsize=8)
