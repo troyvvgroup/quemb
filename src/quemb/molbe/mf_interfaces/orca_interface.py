@@ -9,6 +9,8 @@ import numpy as np
 from attrs import define
 from chemcoord import Cartesian
 from pyscf.gto import Mole
+from pyscf.gto.mole import is_au
+from pyscf.lib import param
 from pyscf.scf.hf import RHF
 
 from quemb.molbe.mf_interfaces._pyscf_orbital_order import Orbital
@@ -164,8 +166,9 @@ try:
     ) -> Calculator:
         orca_work_dir: Final = WorkDir(work_dir / "orca_mf")
         geometry_path: Final = orca_work_dir / "geometry.xyz"
-        if mol.unit != "angstrom":
-            raise ValueError("mol has to be in Angstrom.")
+
+        # Call to `Cartesian.from_pyscf` specifies unit = "angstrom" when calling
+        # `atom_coords`, ensuring that the coordinates are converted appropriately.
         Cartesian.from_pyscf(mol).to_xyz(geometry_path)
 
         calc = Calculator(basename="mf_calculation", working_dir=orca_work_dir.path)
