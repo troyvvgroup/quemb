@@ -40,14 +40,19 @@ class OrcaArgs:
     >>> from opi.input.simple_keywords import Approximation, SimpleKeyword
     >>> OrcaArgs(
     >>>     n_procs=4,
+    >>>     memory=16000,
     >>>     simple_keywords=[Approximation.RIJK],
     >>>     blocks=[
     >>>         BlockBasis(basis=get_orca_basis(mol), auxjk=SimpleKeyword("def2/jk"))
     >>>     ],
-    >>> ),
+    >>> )
+
+    Note that memory is for each core in MBs. i.e., you need physical memory of at
+    least n_procs x memory (in MB). See: (https://www.faccts.de/docs/orca/6.0/manual/contents/structure.html#global-memory-use)
     """
 
     n_procs: Final[int] = 1
+    memory: Final[int] = 4000
     simple_keywords: Final[Sequence[SimpleKeyword]]
     blocks: Final[Sequence[Block]]
 
@@ -159,6 +164,7 @@ try:
         mol: Mole,
         work_dir: WorkDir,
         n_procs: int,
+        memory: int,
         simple_keywords: Sequence[SimpleKeyword],
         blocks: Sequence[Block],
     ) -> Calculator:
@@ -177,8 +183,10 @@ try:
         calc.input.add_simple_keywords(*([Method.HF] + list(simple_keywords)))
         calc.input.add_blocks(*blocks)
 
-        # > Define number of CPUs for the calcualtion
+        # > Define number of CPUs for the calculation
         calc.input.ncores = n_procs
+        # > Define memory (in MBs) per CPU for the calculation (%maxcore keyword)
+        calc.input.memory = memory
 
         return calc
 
@@ -199,6 +207,7 @@ try:
         mol: Mole,
         work_dir: WorkDir,
         n_procs: int,
+        memory: int,
         simple_keywords: Sequence[SimpleKeyword],
         blocks: Sequence[Block],
     ) -> RHF:
@@ -215,6 +224,7 @@ try:
         >>>     mol,
         >>>     workdir,
         >>>     n_procs=1,
+        >>>     memory=16000,
         >>>     simple_keywords=[],
         >>>     blocks=[BlockBasis(basis=get_orca_basis(mol))],
         >>> )
@@ -227,13 +237,16 @@ try:
         >>>     mol,
         >>>     workdir,
         >>>     n_procs=4,
+        >>>     memory=16000,
         >>>     simple_keywords=[Approximation.RIJK],
         >>>     blocks=[
         >>>         BlockBasis(basis=get_orca_basis(mol), auxjk=SimpleKeyword("def2/jk"))
         >>>     ],
         >>> )
         """  # noqa: E501
-        calc = _prepare_orca_calc(mol, work_dir, n_procs, simple_keywords, blocks)
+        calc = _prepare_orca_calc(
+            mol, work_dir, n_procs, memory, simple_keywords, blocks
+        )
         logger.debug("Writing ORCA input")
         calc.write_input()
         logger.info("Starting ORCA calculation")
@@ -257,10 +270,11 @@ except ImportError:
         mol: Mole,
         work_dir: WorkDir,
         n_procs: int,
+        memory: int,
         simple_keywords: Sequence[SimpleKeyword],
         blocks: Sequence[Block],
     ) -> RHF:  # type: ignore[return-type]
-        unused(mol, work_dir, n_procs, simple_keywords, blocks)
+        unused(mol, work_dir, n_procs, memory, simple_keywords, blocks)
         raise ImportError("ORCA and the ORCA python interface have to be available.")
 
     def get_orca_basis(mol: Mole) -> SimpleKeyword:
