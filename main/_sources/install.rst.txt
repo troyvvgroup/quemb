@@ -16,6 +16,23 @@ Prerequisites
 The required dependencies, with the exception of the optional :code:`Wannier90`,
 are automatically installed by :bash:`pip`.
 
+Documentation
+-------------
+
+To build the documentation locally, do
+
+.. code-block:: bash
+
+    cd docs
+    make html
+
+or
+
+.. code-block:: bash
+
+   cd docs
+   make latexpdf
+
 
 Installation
 -------------
@@ -49,3 +66,4 @@ In addition you need to install the python interface via:
 .. code-block:: bash
 
     pip install orca-pi
+
