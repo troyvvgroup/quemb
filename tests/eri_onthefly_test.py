@@ -15,6 +15,7 @@ from quemb.molbe import BE, fragmentate
 
 CHKFILE = os.path.join(os.path.dirname(__file__), "chk/octane_ccpvtz.h5")
 
+
 class TestDF_ontheflyERI(unittest.TestCase):
     @unittest.skipUnless(
         (
@@ -35,7 +36,7 @@ class TestDF_ontheflyERI(unittest.TestCase):
         mf.direct_scf = True
 
         if os.path.exists(CHKFILE):
-            mf = mf.from_hdf5(CHKFILE, "scf") 
+            mf = mf.from_hdf5(CHKFILE, "scf")
         else:
             mf.kernel()
             mf.to_hdf5(CHKFILE, "scf")
