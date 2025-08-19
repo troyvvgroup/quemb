@@ -198,13 +198,13 @@ class GraphGenUtility:
         G = adjacency_graph
 
         if node_position in ["coordinates"]:
-            pos = [
-                (
+            pos = {
+                key: (
                     map["coord"][0] + (map["coord"][2] * z_offset),
                     map["coord"][1] + (map["coord"][2] * z_offset),
                 )
-                for map in adx_map.values()
-            ]
+                for key, map in adx_map.items()
+            }
         elif node_position in ["spring"]:
             pos = nx.spring_layout(G, seed=3068)
 
