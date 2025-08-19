@@ -6,7 +6,7 @@ import time
 from collections.abc import Sequence
 from copy import deepcopy
 from pathlib import Path
-from typing import Final, Generator, Literal, Any
+from typing import Final, Generator, Literal
 
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
