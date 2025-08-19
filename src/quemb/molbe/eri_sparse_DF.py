@@ -1128,7 +1128,7 @@ def find_screening_radius(
     If ``auxmol`` is not given, the screening radius is calculated such that
     :math:`(\mu \nu | \mu \nu) < T`.
     If ``auxmol`` is given, the screening radius is calculated such that
-    :math:`\Sum_P |(\mu \nu | P)| < T`.
+    :math:`\sum_P |(\mu \nu | P)| < T`.
 
     Parameters
     ----------

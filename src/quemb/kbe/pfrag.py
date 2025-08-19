@@ -59,7 +59,7 @@ class Frags:
         unitcell_nkpt: int,
         unitcell: int,
     ) -> None:
-        """Constructor function for :python:`Frags` class.
+        r"""Constructor function for :python:`Frags` class.
 
         Parameters
         ----------
@@ -68,7 +68,7 @@ class Frags:
             or FragPart.AO_per_frag[i])
             Read more detailed description in :class:`quemb.kbe.fragment.FragPart`.
         ifrag :
-            fragment index (∈ [0, pbe.n_frag - 1])
+            fragment index (:math:`\in [0, \text{pbe.n\_frag} - 1]`)
         AO_per_edge :
             list of lists of edge site AOs for each atom in the fragment.
             Read more detailed description in :class:`quemb.kbe.fragment.FragPart`.
