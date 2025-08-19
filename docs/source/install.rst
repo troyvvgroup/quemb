@@ -54,6 +54,29 @@ Alternatively one can manually clone and install as in
     pip install .
 
 
+
+Known issues and troubleshooting
+--------------------------------
+
+On macOS, the system-provided Clang compiler does not support OpenMP out of the
+box. To enable OpenMP, it is recommended to use `Homebrew <https://brew.sh/>`_
+to install either GCC or LLVM/Clang with the OpenMP runtime.
+
+**Option 1 - GCC (includes OpenMP support by default):**
+
+.. code-block:: bash
+
+    brew install gcc
+    CXX=$(brew --prefix gcc)/bin/g++ pip install .
+
+**Option 2 - LLVM/Clang with OpenMP runtime:**
+
+.. code-block:: bash
+
+    brew install llvm libomp
+    CXX=$(brew --prefix llvm)/bin/clang++ pip install .
+
+
 Optional dependencies
 ---------------------
 
@@ -66,4 +89,3 @@ In addition you need to install the python interface via:
 .. code-block:: bash
 
     pip install orca-pi
-
