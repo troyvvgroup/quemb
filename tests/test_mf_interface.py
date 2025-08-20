@@ -434,6 +434,7 @@ def test_orca_rijk() -> None:
         backend="orca",
         additional_args=OrcaArgs(
             n_procs=4,
+            memory_MB=4000,
             simple_keywords=[Approximation.RIJK],
             blocks=[
                 BlockBasis(basis=get_orca_basis(mol), auxjk=SimpleKeyword("def2/jk"))
