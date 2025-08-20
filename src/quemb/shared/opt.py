@@ -151,9 +151,12 @@ class BEOPT:
 
         Parameters
         ----------
-        method : High-level quantum chemistry method.
-        J0 : Initial Jacobian.
-        trust_region : Use trust-region based QN optimization, by default False.
+        method : str
+            High-level quantum chemistry method.
+        J0 : numpy.ndarray | None
+            Initial Jacobian.
+        trust_region : bool
+            Use trust-region based QN optimization, by default False.
         """
 
         print("-----------------------------------------------------", flush=True)
