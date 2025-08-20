@@ -30,5 +30,5 @@ def test_matching_order():
         return mybe.ebe_tot - mybe.ebe_hf
 
     assert isclose(
-        get_energy("data/octane.xyz"), get_energy("./data/suspected_bug_octane.xyz")
+        get_energy("data/octane.xyz"), get_energy("./xyz/suspected_bug_octane.xyz")
     )
