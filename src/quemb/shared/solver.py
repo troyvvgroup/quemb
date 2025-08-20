@@ -216,7 +216,7 @@ class _SHCI_Args:
     # select_cutoff: Final[float]  # TODO SOLVER
 
     @classmethod
-    def from_user_input(cls, args: SHCI_ArgsUser):
+    def from_user_input(cls, args: SHCI_ArgsUser) -> Self:
         """
         if (args.select_cutoff is None) and (args.ci_coeff_cutoff is None):
             select_cutoff = args.hci_cutoff
