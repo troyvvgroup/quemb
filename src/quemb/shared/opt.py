@@ -18,6 +18,7 @@ from quemb.shared.typing import Matrix, Vector
 
 logger = logging.getLogger(__name__)
 
+
 @define
 class BEOPT:
     """Perform BE optimization.
