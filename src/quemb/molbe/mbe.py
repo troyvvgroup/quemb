@@ -2,6 +2,7 @@
 
 import logging
 import pickle
+import sys
 from typing import Final, Literal, TypeAlias
 from warnings import warn
 
@@ -29,7 +30,7 @@ from pyscf.gto import Mole
 from typing_extensions import assert_never
 
 from quemb.molbe.be_parallel import be_func_parallel
-from quemb.molbe.cno_utils import get_cnos
+from quemb.molbe.cno_utils import CNOArgs, choose_cnos, get_cnos
 from quemb.molbe.eri_onthefly import integral_direct_DF
 from quemb.molbe.eri_sparse_DF import (
     transform_sparse_DF_integral_cpp,
@@ -69,6 +70,8 @@ IntTransforms: TypeAlias = Literal[
     "sparse-DF-cpp-gpu",  # screen AOs and MOs via S_abs
     "sparse-DF-nb-gpu",  # screen AOs and MOs via S_abs and use jitted numba
 ]
+
+AdditionalArgs: TypeAlias = CNOArgs
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +126,6 @@ class BE:
         iao_loc_method: IAO_LocMethods = "lowdin",
         pop_method: str | None = None,
         add_cnos: bool = False,
-        cno_scheme: str | None = None,
         compute_hf: bool = True,
         restart: bool = False,
         restart_file: PathLike = "storebe.pk",
@@ -135,6 +137,7 @@ class BE:
         auxbasis: str | None = None,
         MO_coeff_epsilon: float = 1e-5,
         AO_coeff_epsilon: float = 1e-10,
+        additional_args: AdditionalArgs | None = None,
     ) -> None:
         r"""
         Constructor for BE object.
@@ -157,8 +160,6 @@ class BE:
         add_cnos : 
             Whether to run the CNO routine and return cluster natural orbitals to pad the
             Schmidt space. Default is False
-        cno_scheme : 
-            Type of CNO routine to perform. Options include (). Default is None
         compute_hf :
             Whether to compute Hartree-Fock energy, by default True.
         restart :
@@ -257,7 +258,7 @@ class BE:
 
         # CNO Parameters
         self.add_cnos = add_cnos
-        self.cno_scheme = cno_scheme
+        self.additional_args = additional_args
 
         # Fragment information from fobj
         self.fobj = fobj
@@ -947,16 +948,49 @@ class BE:
 
         if not restart:
             if self.add_cnos:
-                for fobjs_ in self.Fobjs:
-                    did_cnos = get_cnos(
-                        fobjs_.TA, # TA matrix
-                        fobjs_.TA_cno_occ, # TA occupied expanded
-                        fobjs_.TA_cno_vir, # TA virtual expanded
-                        self.hcore, # hcore
-                        eri_, # eris
-                        self.Nocc, # Number of occupieds
-                )
-                print("did cnos", did_cnos)
+                for idx, fobjs_ in enumerate(self.Fobjs):
+                    # Run this the first time, to get nsocc
+                    # Run again LATER with updated TA!
+                    _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
+                    nocc_add_cno, nvir_add_cno = choose_cnos(
+                        "f"+str(idx)+".xyz", # geometry
+                        self.mf.mol.basis, # basis
+                        fobjs_.n_f, # number of fragment orbitals
+                        fobjs_.n_b, # number of bath orbitals
+                        self.Nocc, # Total number of occupieds
+                        fobjs_.nsocc, # number of occupieds in frag
+                        #2 * fobjs_.nsocc, # number of electrons in fragment
+                        self.additional_args,
+                    )
+                    print("nocc_add_cno, nvir_add_cno", nocc_add_cno, nvir_add_cno)
+
+                    # Generate occupied CNOs
+                    if nocc_add_cno > 0:
+                        occ_cno = get_cnos(
+                            fobjs_.TA, # TA matrix
+                            fobjs_.TA_cno_occ, # TA occupied expanded
+                            self.S,
+                            self.hcore, # hcore
+                            eri_, # eris
+                            fobjs_.nsocc, # number of occupieds in frag
+                            occ = True,
+                        )
+                        print("occ_cno", occ_cno)
+                        # (appending T)
+                    if nvir_add_cno > 0:
+                        # Generate virtual CNOs
+                        vir_cno = get_cnos(
+                            fobjs_.TA, # TA matrix
+                            fobjs_.TA_cno_vir, # TA virtual expanded
+                            self.S,
+                            self.hcore, # hcore
+                            eri_, # eris
+                            fobjs_.nsocc, # number of occupieds in frag
+                            occ = False,
+                        )
+                    print("vir_cno", vir_cno)
+                    # Augment the TA matrix with the occupied and virtual CNOs
+
             else:
                 # Transform ERIs for each fragment and store in the file
                 # ERI Transform Decision Tree

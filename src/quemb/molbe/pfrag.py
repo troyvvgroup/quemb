@@ -245,7 +245,9 @@ class Frags:
         C_ = multi_dot((self.TA.T, S, C[:, ncore : ncore + nocc]))
         P_ = C_ @ C_.T
         nsocc_ = trace(P_)
+        print("nsocc_", nsocc_)
         nsocc = int(round(nsocc_))
+        print("nsocc", nsocc)
         try:
             mo_coeffs = scipy.linalg.svd(C_)[0]
         except scipy.linalg.LinAlgError:
@@ -579,9 +581,9 @@ def schmidt_decomposition_cnos(
         else:
             OEidx.append(i)
 
-    print("Bidx", Bidx)
-    print("VEidx", VEidx)
-    print("OEidx", OEidx)
+    #print("Bidx", Bidx)
+    #print("VEidx", VEidx)
+    #print("OEidx", OEidx)
 
     # Initialize the transformation matrix (TA)
     TA = zeros([Tot_sites, len(AO_in_frag) + len(Bidx)])
@@ -592,13 +594,13 @@ def schmidt_decomposition_cnos(
     TA_virt = zeros([Tot_sites, TA.shape[1] + len(VEidx)])
     TA_virt[:TA.shape[0], :TA.shape[1]] = TA
     TA_virt[Env_sites1, len(AO_in_frag) + len(Bidx):] = Evec[:, VEidx]
-    print("TA_virt", TA_virt)
+    #print("TA_virt", TA_virt)
 
     # Augment TA with occupied environment
     TA_occ = zeros([Tot_sites, TA.shape[1] + len(OEidx)])
     TA_occ[:TA.shape[0], :TA.shape[1]] = TA
     TA_occ[Env_sites1, len(AO_in_frag) + len(Bidx):] = Evec[:, OEidx]
-    print("TA_occ", TA_occ)
+    #print("TA_occ", TA_occ)
 
     #proj_E_virt = np.zeroslike(TA_virt)
     

@@ -732,6 +732,7 @@ class PurelyStructureFragmented(Generic[_T_chemsystem]):
             )
             for i_fragment in motifs_per_frag
         ]
+        print("atoms_per_frag", atoms_per_frag)
 
         ref_frag_idx_per_edge = [
             {edge: frag_idx(edge) for edge in edges} for edges in edges_per_frag
