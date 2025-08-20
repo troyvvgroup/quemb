@@ -28,9 +28,9 @@ from quemb.molbe.fragment import FragPart
 from quemb.molbe.lo import LocMethods
 from quemb.molbe.mbe import BE
 from quemb.molbe.pfrag import Frags
-from quemb.molbe.solver import be_func_u
 from quemb.shared.helper import unused
 from quemb.shared.manage_scratch import WorkDir
+from quemb.shared.solver import be_func_u
 from quemb.shared.typing import PathLike
 
 
