@@ -95,6 +95,7 @@ def get_mf(
             mol,
             work_dir,
             n_procs=additional_args.n_procs,
+            memory_MB=additional_args.memory_MB,
             simple_keywords=additional_args.simple_keywords,
             blocks=additional_args.blocks,
         )
