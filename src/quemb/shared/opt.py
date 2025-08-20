@@ -14,7 +14,7 @@ from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.external.optqn import FrankQN
 from quemb.shared.helper import Timer
 from quemb.shared.manage_scratch import WorkDir
-from quemb.shared.typing import Matrix, Vector
+from quemb.shared.typing import Matrix, Optional, Vector
 
 logger = logging.getLogger(__name__)
 
@@ -143,17 +143,16 @@ class BEOPT:
         self.Ebe = ebe_
         return errvec_
 
-    def optimize(self, method, J0=None, trust_region=False):
+    def optimize(
+        self, method: str, J0: Optional[float] = None, trust_region: bool = False
+    ):
         """Main kernel to perform BE optimization
 
         Parameters
         ----------
-        method : str
-           High-level quantum chemistry method.
-        J0 : list of list of float, optional
-           Initial Jacobian
-        trust_region : bool, optional
-           Use trust-region based QN optimization, by default False
+        method : High-level quantum chemistry method.
+        J0 : Initial Jacobian
+        trust_region : Use trust-region based QN optimization, by default False
         """
         print("-----------------------------------------------------", flush=True)
         print("             Starting BE optimization ", flush=True)
