@@ -9,12 +9,16 @@ import logging
 import os
 import unittest
 
+import h5py
 from pyscf import gto, scf
-from pyscf.lib import hdf5
+
 from quemb.molbe import BE, fragmentate
 
 chkfile_expensive = os.path.join(os.path.dirname(__file__), "chk/octane_expensive.h5")
-chkfile_inexpensive = os.path.join(os.path.dirname(__file__), "chk/octane_inexpensive.h5")
+chkfile_inexpensive = os.path.join(
+    os.path.dirname(__file__), "chk/octane_inexpensive.h5"
+)
+
 
 class TestDF_ontheflyERI(unittest.TestCase):
     @unittest.skipUnless(
@@ -36,10 +40,10 @@ class TestDF_ontheflyERI(unittest.TestCase):
         mf.direct_scf = True
 
         if os.path.exists(chkfile_expensive):
-            hdf5.read_hdf5(chkfile_expensive, 'scf', mf)
+            hdf5.read_hdf5(chkfile_expensive, "scf", mf)
         else:
             mf.kernel()
-            hdf5.store_to_hdf5(chkfile_expensive, 'scf', mf)
+            hdf5.store_to_hdf5(chkfile_expensive, "scf", mf)
 
         fobj = fragmentate(frag_type="autogen", n_BE=2, mol=mol)
         mybe = BE(mf, fobj, auxbasis="cc-pvtz-ri", int_transform="int-direct-DF")
@@ -59,10 +63,10 @@ class TestDF_ontheflyERI(unittest.TestCase):
         mf = scf.RHF(mol)
 
         if os.path.exists(chkfile_inexpensive):
-            hdf5.read_hdf5(chkfile_inexpensive, 'scf', mf)
+            hdf5.read_hdf5(chkfile_inexpensive, "scf", mf)
         else:
             mf.kernel()
-            hdf5.store_to_hdf5(chkfile_inexpensive, 'scf', mf)
+            h5py.store_to_h5py(chkfile_inexpensive, "scf", mf)
 
         fobj = fragmentate(frag_type="chemgen", n_BE=2, mol=mol)
 
