@@ -3,7 +3,7 @@
 import os
 from abc import ABC
 from pathlib import Path
-from typing import Final, Literal, Self, TypeAlias
+from typing import Final, Literal, TypeAlias
 from warnings import warn
 
 from attrs import Factory, define, field
@@ -157,7 +157,7 @@ class _DMRG_Args:
     force_cleanup: Final[bool]
 
     @classmethod
-    def from_user_input(cls, user_args: DMRG_ArgsUser, mf: RHF) -> Self:
+    def from_user_input(cls, user_args: DMRG_ArgsUser, mf: RHF):
         if user_args.norb is None:
             assert mf.mo_coeff is not None
             norb = mf.mo_coeff.shape[1]
@@ -216,7 +216,7 @@ class _SHCI_Args:
     # select_cutoff: Final[float]  # TODO SOLVER
 
     @classmethod
-    def from_user_input(cls, args: SHCI_ArgsUser) -> Self:
+    def from_user_input(cls, args: SHCI_ArgsUser):
         """
         if (args.select_cutoff is None) and (args.ci_coeff_cutoff is None):
             select_cutoff = args.hci_cutoff
