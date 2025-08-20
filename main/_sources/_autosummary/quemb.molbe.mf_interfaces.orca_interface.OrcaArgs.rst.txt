@@ -12,6 +12,7 @@ quemb.molbe.mf\_interfaces.orca\_interface.OrcaArgs
 
    
    .. autoattribute:: OrcaArgs.n_procs
+   .. autoattribute:: OrcaArgs.memory_MB
    .. autoattribute:: OrcaArgs.simple_keywords
    .. autoattribute:: OrcaArgs.blocks
    

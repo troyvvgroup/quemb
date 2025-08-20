@@ -839,7 +839,7 @@
 <h1>quemb.molbe.mf_interfaces.orca_interface.get_mf_orca<a class="headerlink" href="#quemb-molbe-mf-interfaces-orca-interface-get-mf-orca" title="Link to this heading">¶</a></h1>
 <dl class="py function">
 <dt class="sig sig-object py" id="quemb.molbe.mf_interfaces.orca_interface.get_mf_orca">
-<span class="sig-prename descclassname"><span class="pre">quemb.molbe.mf_interfaces.orca_interface.</span></span><span class="sig-name descname"><span class="pre">get_mf_orca</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mol</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">work_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_procs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">simple_keywords</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">blocks</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#quemb.molbe.mf_interfaces.orca_interface.get_mf_orca" title="Link to this definition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">quemb.molbe.mf_interfaces.orca_interface.</span></span><span class="sig-name descname"><span class="pre">get_mf_orca</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mol</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">work_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_procs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">memory_MB</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">simple_keywords</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">blocks</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#quemb.molbe.mf_interfaces.orca_interface.get_mf_orca" title="Link to this definition">¶</a></dt>
 <dd><p>Compute a mean field object via orca.</p>
 <p>Use the</p>
 <p>You can use the <a class="reference internal" href="quemb.molbe.mf_interfaces.orca_interface.get_orca_basis.html#quemb.molbe.mf_interfaces.orca_interface.get_orca_basis" title="quemb.molbe.mf_interfaces.orca_interface.get_orca_basis"><code class="xref py py-func docutils literal notranslate"><span class="pre">get_orca_basis()</span></code></a> function to translate
@@ -854,6 +854,7 @@ A “normal” Hartree Fock calculation can be invoked via</p>
 <span class="gp">&gt;&gt;&gt; </span>    <span class="n">mol</span><span class="p">,</span>
 <span class="gp">&gt;&gt;&gt; </span>    <span class="n">workdir</span><span class="p">,</span>
 <span class="gp">&gt;&gt;&gt; </span>    <span class="n">n_procs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">memory_MB</span><span class="o">=</span><span class="mi">16000</span><span class="p">,</span>
 <span class="gp">&gt;&gt;&gt; </span>    <span class="n">simple_keywords</span><span class="o">=</span><span class="p">[],</span>
 <span class="gp">&gt;&gt;&gt; </span>    <span class="n">blocks</span><span class="o">=</span><span class="p">[</span><span class="n">BlockBasis</span><span class="p">(</span><span class="n">basis</span><span class="o">=</span><span class="n">get_orca_basis</span><span class="p">(</span><span class="n">mol</span><span class="p">))],</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="p">)</span>
@@ -866,6 +867,7 @@ A “normal” Hartree Fock calculation can be invoked via</p>
 <span class="gp">&gt;&gt;&gt; </span>    <span class="n">mol</span><span class="p">,</span>
 <span class="gp">&gt;&gt;&gt; </span>    <span class="n">workdir</span><span class="p">,</span>
 <span class="gp">&gt;&gt;&gt; </span>    <span class="n">n_procs</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">memory_MB</span><span class="o">=</span><span class="mi">16000</span><span class="p">,</span>
 <span class="gp">&gt;&gt;&gt; </span>    <span class="n">simple_keywords</span><span class="o">=</span><span class="p">[</span><span class="n">Approximation</span><span class="o">.</span><span class="n">RIJK</span><span class="p">],</span>
 <span class="gp">&gt;&gt;&gt; </span>    <span class="n">blocks</span><span class="o">=</span><span class="p">[</span>
 <span class="gp">&gt;&gt;&gt; </span>        <span class="n">BlockBasis</span><span class="p">(</span><span class="n">basis</span><span class="o">=</span><span class="n">get_orca_basis</span><span class="p">(</span><span class="n">mol</span><span class="p">),</span> <span class="n">auxjk</span><span class="o">=</span><span class="n">SimpleKeyword</span><span class="p">(</span><span class="s2">&quot;def2/jk&quot;</span><span class="p">))</span>

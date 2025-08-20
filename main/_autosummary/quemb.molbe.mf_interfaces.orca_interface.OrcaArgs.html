@@ -839,7 +839,7 @@
 <h1>quemb.molbe.mf_interfaces.orca_interface.OrcaArgs<a class="headerlink" href="#quemb-molbe-mf-interfaces-orca-interface-orcaargs" title="Link to this heading">¶</a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="quemb.molbe.mf_interfaces.orca_interface.OrcaArgs">
-<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">quemb.molbe.mf_interfaces.orca_interface.</span></span><span class="sig-name descname"><span class="pre">OrcaArgs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_procs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">simple_keywords</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">blocks</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#quemb.molbe.mf_interfaces.orca_interface.OrcaArgs" title="Link to this definition">¶</a></dt>
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">quemb.molbe.mf_interfaces.orca_interface.</span></span><span class="sig-name descname"><span class="pre">OrcaArgs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_procs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">memory_MB</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">simple_keywords</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">blocks</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#quemb.molbe.mf_interfaces.orca_interface.OrcaArgs" title="Link to this definition">¶</a></dt>
 <dd><p>Use to pass information to ORCA.
 Follows the ORCA python interface. (<a class="reference external" href="https://www.faccts.de/docs/opi/1.0/docs/index.html">https://www.faccts.de/docs/opi/1.0/docs/index.html</a>)</p>
 <p>You can use the <a class="reference internal" href="quemb.molbe.mf_interfaces.orca_interface.get_orca_basis.html#quemb.molbe.mf_interfaces.orca_interface.get_orca_basis" title="quemb.molbe.mf_interfaces.orca_interface.get_orca_basis"><code class="xref py py-func docutils literal notranslate"><span class="pre">get_orca_basis()</span></code></a> function to translate
@@ -856,17 +856,25 @@ A “normal” Hartree Fock calculation can be invoked via</p>
 <span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">opi.input.simple_keywords</span><span class="w"> </span><span class="kn">import</span> <span class="n">Approximation</span><span class="p">,</span> <span class="n">SimpleKeyword</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">OrcaArgs</span><span class="p">(</span>
 <span class="gp">&gt;&gt;&gt; </span>    <span class="n">n_procs</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">memory_MB</span><span class="o">=</span><span class="mi">16000</span><span class="p">,</span>
 <span class="gp">&gt;&gt;&gt; </span>    <span class="n">simple_keywords</span><span class="o">=</span><span class="p">[</span><span class="n">Approximation</span><span class="o">.</span><span class="n">RIJK</span><span class="p">],</span>
 <span class="gp">&gt;&gt;&gt; </span>    <span class="n">blocks</span><span class="o">=</span><span class="p">[</span>
 <span class="gp">&gt;&gt;&gt; </span>        <span class="n">BlockBasis</span><span class="p">(</span><span class="n">basis</span><span class="o">=</span><span class="n">get_orca_basis</span><span class="p">(</span><span class="n">mol</span><span class="p">),</span> <span class="n">auxjk</span><span class="o">=</span><span class="n">SimpleKeyword</span><span class="p">(</span><span class="s2">&quot;def2/jk&quot;</span><span class="p">))</span>
 <span class="gp">&gt;&gt;&gt; </span>    <span class="p">],</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="p">),</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="p">)</span>
 </pre></div>
 </div>
+<p>Note that memory is for each core in MBs. i.e., you need physical memory of at
+least n_procs x memory (in MB). See: (<a class="reference external" href="https://www.faccts.de/docs/orca/6.0/manual/contents/structure.html#global-memory-use">https://www.faccts.de/docs/orca/6.0/manual/contents/structure.html#global-memory-use</a>)</p>
 <p class="rubric">Attributes</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="quemb.molbe.mf_interfaces.orca_interface.OrcaArgs.n_procs">
 <span class="sig-name descname"><span class="pre">n_procs</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">Final</span></code><span class="pre">[</span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a><span class="pre">]</span></em><a class="headerlink" href="#quemb.molbe.mf_interfaces.orca_interface.OrcaArgs.n_procs" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="quemb.molbe.mf_interfaces.orca_interface.OrcaArgs.memory_MB">
+<span class="sig-name descname"><span class="pre">memory_MB</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">Final</span></code><span class="pre">[</span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a><span class="pre">]</span></em><a class="headerlink" href="#quemb.molbe.mf_interfaces.orca_interface.OrcaArgs.memory_MB" title="Link to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
@@ -883,7 +891,7 @@ A “normal” Hartree Fock calculation can be invoked via</p>
 <div class="table-wrapper autosummary longtable docutils container">
 <table class="autosummary longtable docutils align-default">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="quemb.molbe.mf_interfaces.orca_interface.OrcaArgs.__init__.html#quemb.molbe.mf_interfaces.orca_interface.OrcaArgs.__init__" title="quemb.molbe.mf_interfaces.orca_interface.OrcaArgs.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>(*[, n_procs])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="quemb.molbe.mf_interfaces.orca_interface.OrcaArgs.__init__.html#quemb.molbe.mf_interfaces.orca_interface.OrcaArgs.__init__" title="quemb.molbe.mf_interfaces.orca_interface.OrcaArgs.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>(*[, n_procs, memory_MB])</p></td>
 <td><p>Method generated by attrs for class OrcaArgs.</p></td>
 </tr>
 </tbody>
@@ -951,6 +959,7 @@ A “normal” Hartree Fock calculation can be invoked via</p>
 <li><a class="reference internal" href="#">quemb.molbe.mf_interfaces.orca_interface.OrcaArgs</a><ul>
 <li><a class="reference internal" href="#quemb.molbe.mf_interfaces.orca_interface.OrcaArgs"><code class="docutils literal notranslate"><span class="pre">OrcaArgs</span></code></a><ul>
 <li><a class="reference internal" href="#quemb.molbe.mf_interfaces.orca_interface.OrcaArgs.n_procs"><code class="docutils literal notranslate"><span class="pre">OrcaArgs.n_procs</span></code></a></li>
+<li><a class="reference internal" href="#quemb.molbe.mf_interfaces.orca_interface.OrcaArgs.memory_MB"><code class="docutils literal notranslate"><span class="pre">OrcaArgs.memory_MB</span></code></a></li>
 <li><a class="reference internal" href="#quemb.molbe.mf_interfaces.orca_interface.OrcaArgs.simple_keywords"><code class="docutils literal notranslate"><span class="pre">OrcaArgs.simple_keywords</span></code></a></li>
 <li><a class="reference internal" href="#quemb.molbe.mf_interfaces.orca_interface.OrcaArgs.blocks"><code class="docutils literal notranslate"><span class="pre">OrcaArgs.blocks</span></code></a></li>
 </ul>
