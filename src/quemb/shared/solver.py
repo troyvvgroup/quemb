@@ -3,7 +3,7 @@
 import os
 from abc import ABC
 from pathlib import Path
-from typing import Final, Literal, TypeAlias
+from typing import Final, Literal, Self, TypeAlias
 from warnings import warn
 
 from attrs import Factory, define, field
@@ -157,7 +157,7 @@ class _DMRG_Args:
     force_cleanup: Final[bool]
 
     @classmethod
-    def from_user_input(cls, user_args: DMRG_ArgsUser, mf: RHF):
+    def from_user_input(cls, user_args: DMRG_ArgsUser, mf: RHF) -> Self:
         if user_args.norb is None:
             assert mf.mo_coeff is not None
             norb = mf.mo_coeff.shape[1]
