@@ -3,6 +3,7 @@
 
 import logging
 import warnings
+from typing import Optional
 
 from attrs import Factory, define
 from numpy import array, float64
@@ -14,7 +15,7 @@ from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.external.optqn import FrankQN
 from quemb.shared.helper import Timer
 from quemb.shared.manage_scratch import WorkDir
-from quemb.shared.typing import Matrix, Optional, Vector
+from quemb.shared.typing import Matrix, Vector
 
 logger = logging.getLogger(__name__)
 
