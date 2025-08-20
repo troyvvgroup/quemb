@@ -4,7 +4,6 @@
 import logging
 import warnings
 
-import numpy
 from attrs import Factory, define
 from numpy import array, float64
 
@@ -144,19 +143,17 @@ class BEOPT:
         self.Ebe = ebe_
         return errvec_
 
-    def optimize(
-        self, method: str, J0: numpy.ndarray | None = None, trust_region: bool = False
-    ) -> None:
+    def optimize(self, method, J0=None, trust_region=False):
         """Main kernel to perform BE optimization
 
         Parameters
         ----------
         method : str
-            High-level quantum chemistry method.
-        J0 : numpy.ndarray | None
-            Initial Jacobian.
-        trust_region : bool
-            Use trust-region based QN optimization, by default False.
+           High-level quantum chemistry method.
+        J0 : list of list of float, optional
+           Initial Jacobian
+        trust_region : bool, optional
+           Use trust-region based QN optimization, by default False
         """
 
         print("-----------------------------------------------------", flush=True)
