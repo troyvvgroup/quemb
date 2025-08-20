@@ -698,6 +698,7 @@
 <li class="toctree-l4"><a class="reference internal" href="quemb.shared.helper.ravel_Fortran.html">quemb.shared.helper.ravel_Fortran</a></li>
 <li class="toctree-l4"><a class="reference internal" href="quemb.shared.helper.ravel_eri_idx.html">quemb.shared.helper.ravel_eri_idx</a></li>
 <li class="toctree-l4"><a class="reference internal" href="quemb.shared.helper.ravel_symmetric.html">quemb.shared.helper.ravel_symmetric</a></li>
+<li class="toctree-l4"><a class="reference internal" href="quemb.shared.helper.register_clean_exit.html">quemb.shared.helper.register_clean_exit</a></li>
 <li class="toctree-l4"><a class="reference internal" href="quemb.shared.helper.symmetric_different_size.html">quemb.shared.helper.symmetric_different_size</a></li>
 <li class="toctree-l4"><a class="reference internal" href="quemb.shared.helper.union_of_seqs.html">quemb.shared.helper.union_of_seqs</a></li>
 <li class="toctree-l4"><a class="reference internal" href="quemb.shared.helper.unravel_eri_idx.html">quemb.shared.helper.unravel_eri_idx</a></li>
@@ -727,6 +728,7 @@
 <li class="toctree-l5"><a class="reference internal" href="quemb.shared.manage_scratch.WorkDir.__init__.html">quemb.shared.manage_scratch.WorkDir.__init__</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.shared.manage_scratch.WorkDir.cleanup.html">quemb.shared.manage_scratch.WorkDir.cleanup</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.shared.manage_scratch.WorkDir.from_environment.html">quemb.shared.manage_scratch.WorkDir.from_environment</a></li>
+<li class="toctree-l5"><a class="reference internal" href="quemb.shared.manage_scratch.WorkDir.make_subdir.html">quemb.shared.manage_scratch.WorkDir.make_subdir</a></li>
 </ul>
 </li>
 </ul>
@@ -902,19 +904,22 @@
 <tr class="row-odd"><td><p><a class="reference internal" href="quemb.shared.helper.ravel_symmetric.html#quemb.shared.helper.ravel_symmetric" title="quemb.shared.helper.ravel_symmetric"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ravel_symmetric</span></code></a>(a, b)</p></td>
 <td><p>Flatten the index a, b assuming symmetry.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="quemb.shared.helper.symmetric_different_size.html#quemb.shared.helper.symmetric_different_size" title="quemb.shared.helper.symmetric_different_size"><code class="xref py py-obj docutils literal notranslate"><span class="pre">symmetric_different_size</span></code></a>(m, n)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="quemb.shared.helper.register_clean_exit.html#quemb.shared.helper.register_clean_exit" title="quemb.shared.helper.register_clean_exit"><code class="xref py py-obj docutils literal notranslate"><span class="pre">register_clean_exit</span></code></a>(func, /, *args, **kwargs)</p></td>
+<td><p>Execute a function upon clean exits.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="quemb.shared.helper.symmetric_different_size.html#quemb.shared.helper.symmetric_different_size" title="quemb.shared.helper.symmetric_different_size"><code class="xref py py-obj docutils literal notranslate"><span class="pre">symmetric_different_size</span></code></a>(m, n)</p></td>
 <td><p>Return the number of unique elements in a symmetric matrix of different row and column length</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="quemb.shared.helper.union_of_seqs.html#quemb.shared.helper.union_of_seqs" title="quemb.shared.helper.union_of_seqs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">union_of_seqs</span></code></a>(*seqs)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="quemb.shared.helper.union_of_seqs.html#quemb.shared.helper.union_of_seqs" title="quemb.shared.helper.union_of_seqs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">union_of_seqs</span></code></a>(*seqs)</p></td>
 <td><p>Merge multiple sequences into a single <code class="xref py py-class docutils literal notranslate"><span class="pre">OrderedSet</span></code>.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="quemb.shared.helper.unravel_eri_idx.html#quemb.shared.helper.unravel_eri_idx" title="quemb.shared.helper.unravel_eri_idx"><code class="xref py py-obj docutils literal notranslate"><span class="pre">unravel_eri_idx</span></code></a>(i)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="quemb.shared.helper.unravel_eri_idx.html#quemb.shared.helper.unravel_eri_idx" title="quemb.shared.helper.unravel_eri_idx"><code class="xref py py-obj docutils literal notranslate"><span class="pre">unravel_eri_idx</span></code></a>(i)</p></td>
 <td><p>Invert <a class="reference internal" href="quemb.shared.helper.ravel_eri_idx.html#quemb.shared.helper.ravel_eri_idx" title="quemb.shared.helper.ravel_eri_idx"><code class="xref py py-func docutils literal notranslate"><span class="pre">ravel_eri_idx()</span></code></a></p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="quemb.shared.helper.unravel_symmetric.html#quemb.shared.helper.unravel_symmetric" title="quemb.shared.helper.unravel_symmetric"><code class="xref py py-obj docutils literal notranslate"><span class="pre">unravel_symmetric</span></code></a>(i)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="quemb.shared.helper.unravel_symmetric.html#quemb.shared.helper.unravel_symmetric" title="quemb.shared.helper.unravel_symmetric"><code class="xref py py-obj docutils literal notranslate"><span class="pre">unravel_symmetric</span></code></a>(i)</p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="quemb.shared.helper.unused.html#quemb.shared.helper.unused" title="quemb.shared.helper.unused"><code class="xref py py-obj docutils literal notranslate"><span class="pre">unused</span></code></a>(*args)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="quemb.shared.helper.unused.html#quemb.shared.helper.unused" title="quemb.shared.helper.unused"><code class="xref py py-obj docutils literal notranslate"><span class="pre">unused</span></code></a>(*args)</p></td>
 <td><p></p></td>
 </tr>
 </tbody>

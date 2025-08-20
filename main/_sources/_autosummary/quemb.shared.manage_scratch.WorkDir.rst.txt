@@ -27,5 +27,6 @@ quemb.shared.manage\_scratch.WorkDir
       ~WorkDir.__init__
       ~WorkDir.cleanup
       ~WorkDir.from_environment
+      ~WorkDir.make_subdir
    
    

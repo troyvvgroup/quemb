@@ -35,6 +35,7 @@ quemb.shared.helper
       ravel_Fortran
       ravel_eri_idx
       ravel_symmetric
+      register_clean_exit
       symmetric_different_size
       union_of_seqs
       unravel_eri_idx
