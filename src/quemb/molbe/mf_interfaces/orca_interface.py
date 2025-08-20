@@ -162,7 +162,7 @@ try:
         simple_keywords: Sequence[SimpleKeyword],
         blocks: Sequence[Block],
     ) -> Calculator:
-        orca_work_dir: Final = WorkDir(work_dir / "orca_mf")
+        orca_work_dir: Final = work_dir.make_subdir("orca_mf")
         geometry_path: Final = orca_work_dir / "geometry.xyz"
 
         # Call to `Cartesian.from_pyscf` specifies unit = "angstrom" when calling
