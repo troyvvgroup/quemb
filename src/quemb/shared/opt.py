@@ -3,8 +3,8 @@
 
 import logging
 import warnings
-from typing import Optional
 
+import numpy
 from attrs import Factory, define
 from numpy import array, float64
 
@@ -145,8 +145,8 @@ class BEOPT:
         return errvec_
 
     def optimize(
-        self, method: str, J0: Optional[float] = None, trust_region: bool = False
-    ):
+        self, method: str, J0: numpy.ndarray | None = None, trust_region: bool = False
+    ) -> None:
         """Main kernel to perform BE optimization
 
         Parameters
@@ -155,6 +155,7 @@ class BEOPT:
         J0 : Initial Jacobian.
         trust_region : Use trust-region based QN optimization, by default False.
         """
+
         print("-----------------------------------------------------", flush=True)
         print("             Starting BE optimization ", flush=True)
         print("             Solver : ", self.solver, flush=True)
