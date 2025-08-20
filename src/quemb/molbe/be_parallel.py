@@ -187,7 +187,7 @@ def run_solver(
         """
         from pyscf.shciscf import shci  # type: ignore[attr-defined]  # noqa: PLC0415
 
-        frag_scratch = WorkDir(scratch_dir / dname)
+        frag_scratch = scratch_dir.make_subdir(dname)
 
         assert isinstance(solver_args, SHCI_ArgsUser)
         SHCI_args = _SHCI_Args.from_user_input(solver_args)
