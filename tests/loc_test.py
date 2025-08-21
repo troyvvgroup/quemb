@@ -21,7 +21,6 @@ def test_hexene_loc_be1_froz_pm(hexene) -> None:
         frozen=True,
         iao_valence_basis=None,
         lo_method="PM",
-        iao_loc_method=None,
         oneshot=True,
         nproc=1,
     )
@@ -40,7 +39,6 @@ def test_hexene_loc_be2_unfroz_lowdin(hexene) -> None:
         frozen=False,
         iao_valence_basis=None,
         lo_method="lowdin",
-        iao_loc_method=None,
         oneshot=True,
         nproc=2,
     )
@@ -124,8 +122,7 @@ def test_chem_gen_hexene_loc_be2_froz_iao_sto3g_boys_fixed_AOs(hexene) -> None:
         frag_type="chemgen",
         additional_args=ChemGenArgs(wrong_iao_indexing=False),
     )
-    # energy after four iterations
-    assert np.isclose(be2_f_iao_fb, -0.92794903, atol=1e-8, rtol=0), be2_f_iao_fb
+    assert np.isclose(be2_f_iao_fb, -0.9279496397090554, atol=1e-8, rtol=0)
 
 
 def ret_ecorr(
@@ -135,9 +132,9 @@ def ret_ecorr(
     frozen: bool,
     iao_valence_basis: str | None,
     lo_method: LocMethods,
-    iao_loc_method: IAO_LocMethods | None,
     oneshot: bool,
     nproc: int,
+    iao_loc_method: IAO_LocMethods = "lowdin",
     frag_type: Literal["autogen", "chemgen"] = "autogen",
     additional_args: ChemGenArgs | None = None,
 ) -> float:

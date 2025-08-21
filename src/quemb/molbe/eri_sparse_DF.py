@@ -27,7 +27,7 @@ from numba.types import (  # type: ignore[attr-defined]
     ListType,
     UniTuple,
 )
-from pyscf import df, gto, scf
+from pyscf import df, dft, gto, scf
 from pyscf.ao2mo.addons import restore
 from pyscf.df.addons import make_auxmol
 from pyscf.gto import Mole
@@ -37,7 +37,7 @@ from scipy.linalg import cholesky, solve, solve_triangular
 from scipy.optimize import bisect
 from scipy.special import roots_hermite
 
-import quemb.molbe._cpp.eri_sparse_DF as cpp_transforms  # type: ignore[import-not-found]
+import quemb.molbe._cpp.eri_sparse_DF as cpp_transforms
 from quemb.molbe.chemfrag import (
     _get_AOidx_per_atom,
 )
@@ -50,6 +50,7 @@ from quemb.shared.helper import (
     njit,
     ravel_Fortran,
     ravel_symmetric,
+    timer,
     unravel_symmetric,
 )
 from quemb.shared.numba_helpers import (
@@ -1127,7 +1128,7 @@ def find_screening_radius(
     If ``auxmol`` is not given, the screening radius is calculated such that
     :math:`(\mu \nu | \mu \nu) < T`.
     If ``auxmol`` is given, the screening radius is calculated such that
-    :math:`\Sum_P |(\mu \nu | P)| < T`.
+    :math:`\sum_P |(\mu \nu | P)| < T`.
 
     Parameters
     ----------
@@ -1423,11 +1424,7 @@ def transform_sparse_DF_integral_nb(
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
-    S_abs_timer = Timer("Time to compute S_abs")
     S_abs = approx_S_abs(mol)
-
-    logger.info(S_abs_timer.str_elapsed())
-
     exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
 
     sparse_P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
@@ -1473,10 +1470,7 @@ def transform_sparse_DF_integral_cpp(
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
-    S_abs_timer = Timer("Time to compute S_abs")
     S_abs = approx_S_abs(mol)
-    print(S_abs_timer.str_elapsed())
-
     exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
 
     py_P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
@@ -1527,10 +1521,7 @@ def transform_sparse_DF_integral_cpp_gpu(
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
-    S_abs_timer = Timer("Time to compute S_abs")
     S_abs = approx_S_abs(mol)
-    print(S_abs_timer.str_elapsed())
-
     exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
 
     py_P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
@@ -1654,10 +1645,7 @@ try:
         mol = mf.mol
         auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
-        S_abs_timer = Timer("Time to compute S_abs")
         S_abs = approx_S_abs(mol)
-        print(S_abs_timer.str_elapsed())
-
         exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
 
         sparse_P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
@@ -1922,6 +1910,7 @@ def _get_cart_mol(mol: Mole) -> Mole:
     )
 
 
+@timer.timeit
 def approx_S_abs(mol: Mole, nroots: int = 500) -> Matrix[np.float64]:
     r"""Compute the approximated absolute overlap matrix.
 
@@ -1951,6 +1940,27 @@ def approx_S_abs(mol: Mole, nroots: int = 500) -> Matrix[np.float64]:
         # get the transformation matrix from cartesian basis functions to spherical.
         cart2spher = cart_mol.cart2sph_coeff(normalized="sp")
         return abs(cart2spher.T @ ctr_mat.T) @ s @ abs(ctr_mat @ cart2spher)
+
+
+@timer.timeit
+def grid_S_abs(mol: Mole, grid_level: int = 2) -> Matrix[np.float64]:
+    r"""
+    Calculates the overlap matrix :math:`S_ij = \int |phi_i(r)| |phi_j(r)| dr`
+    using numerical integration on a DFT grid.
+
+    Parameters
+    -----------
+    mol :
+    grid_level :
+        Directly passed on to `pyscf grid generation <https://github.com/pyscf/pyscf/blob/master/examples/dft/11-grid_scheme.py>`_.
+    """
+    grids = dft.gen_grid.Grids(mol)
+    grids.level = grid_level
+    grids.build()
+    AO_abs_val = np.abs(dft.numint.eval_ao(mol, grids.coords, deriv=0))
+    result = (AO_abs_val * grids.weights[:, np.newaxis]).T @ AO_abs_val
+    assert np.allclose(result, result.T)
+    return result
 
 
 def identify_contiguous_blocks(X: Sequence[_T]) -> list[tuple[int, int]]:

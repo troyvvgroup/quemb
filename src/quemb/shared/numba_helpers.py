@@ -9,6 +9,7 @@ from numba.types import (  # type: ignore[attr-defined]
 )
 
 from quemb.shared.helper import jitclass, njit
+from quemb.shared.typing import Integral
 
 Key = TypeVar("Key", bound=Hashable)
 Val = TypeVar("Val")
@@ -104,11 +105,14 @@ class SortedIntSet:
     [1, 3]
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._lookup = Dict.empty(key_type=key_type, value_type=val_type)
         self.items = List.empty_list(key_type)
 
-    def add(self, val):
+    # We cannot annotate the return type of this function, because of a strange bug in
+    #  sphinx-autodoc-typehints.
+    #  https://github.com/tox-dev/sphinx-autodoc-typehints/issues/532
+    def add(self, val):  # type: ignore[no-untyped-def]
         if val in self._lookup:
             return
         self._lookup[val] = True
@@ -120,7 +124,10 @@ class SortedIntSet:
 
         self.items.insert(idx, val)
 
-    def remove(self, val):
+    # We cannot annotate the return type of this function, because of a strange bug in
+    #  sphinx-autodoc-typehints.
+    #  https://github.com/tox-dev/sphinx-autodoc-typehints/issues/532
+    def remove(self, val):  # type: ignore[no-untyped-def]
         if val not in self._lookup:
             return
         del self._lookup[val]
@@ -131,10 +138,10 @@ class SortedIntSet:
                 new_items.append(item)
         self.items = new_items
 
-    def __contains__(self, val):
+    def __contains__(self, val: Integral) -> bool:
         return val in self._lookup
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.items)
 
 
@@ -154,6 +161,6 @@ class PreIncr:
     # We cannot annotate the return type of this function, because of a strange bug in
     #  sphinx-autodoc-typehints.
     #  https://github.com/tox-dev/sphinx-autodoc-typehints/issues/532
-    def incr(self):
+    def incr(self):  # type: ignore[no-untyped-def]
         self.count += 1
         return self.count
