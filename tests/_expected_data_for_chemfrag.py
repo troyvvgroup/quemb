@@ -33,7 +33,7 @@ def get_graphene_cell(basis):
 
 
 def get_expected():
-    octane_cart = Cartesian.read_xyz("data/octane.xyz")
+    octane_cart = Cartesian.read_xyz("xyz/octane.xyz")
     octane_mol = octane_cart.to_pyscf()
 
     H8_mol = M(

@@ -186,7 +186,7 @@ def prepare_struct(structure):
 
 @pytest.fixture(scope="session")
 def hexene():
-    mol, mf = prepare_struct(structure="data/hexene.xyz")
+    mol, mf = prepare_struct(structure="xyz/hexene.xyz")
     return [mol, mf]
 
 

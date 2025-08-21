@@ -12,7 +12,7 @@ def test_rbe_qmmm_fromchk():
     coords = [(-3, -8, -2), (-2, 6, 1), (2, -5, 2), (1, 8, 1.5)]
 
     # Give structure XYZ, in Angstroms
-    structure = "data/octane.xyz"
+    structure = "xyz/octane.xyz"
 
     # returns BE energy with CCSD solver from RHF reference,
     # using checkfile from converged RHF

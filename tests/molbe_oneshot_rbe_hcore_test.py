@@ -40,7 +40,7 @@ def test_QM_MM_BE():
     coords = [(-3, -8, -2), (-2, 6, 1), (2, -5, 2), (1, 8, 1.5)]
 
     # Give structure XYZ, in Angstroms
-    structure = "data/octane.xyz"
+    structure = "xyz/octane.xyz"
 
     """
     Build hcore in the libint form for QM/MM
