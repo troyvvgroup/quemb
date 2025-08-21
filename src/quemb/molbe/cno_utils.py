@@ -126,6 +126,9 @@ def FormPairDensity(Vs, mo_occs, mo_coeffs, mo_energys, occ):
     # Transform 2 e integrals
     V = ao2mo.kernel(Vs, [COcc, CVir, COcc, CVir], compact = False)
     V = V.reshape((nOcc, nVir, nOcc, nVir))
+    print("V shape", V.shape)
+    print("mo_energys", mo_energys.shape)
+    print("nOcc", nOcc)
 
     mo_energy_occ = mo_energys[:nOcc]
     mo_energy_vir = mo_energys[nOcc:]
@@ -137,20 +140,21 @@ def FormPairDensity(Vs, mo_occs, mo_coeffs, mo_energys, occ):
     T = -1 * V * eMat
     T = np.swapaxes(T, 1, 2)
 
-    delta_T = 2 * T - np.swapaxes(T, 2, 3)
+    delta_T_term = 2 * T - np.swapaxes(T, 2, 3)
     # Type = 0 or 1 for Occ or Vir
     if occ: # True is occ
         #P = -1 * np.einsum('ikab,kjab->ij', T, Tt)
         # Orig
-        P = 2.0 * np.einsum('kiab,kjab->ij', delta_T, T)# + np.einsum('ikab,jkab->ij', t, T)
+        #P = 2.0 * np.einsum('kiab,kjab->ij', delta_T_term, T)# + np.einsum('ikab,jkab->ij', t, T)
         # Leah
-        #P = 2 * np.einsum('kiab,kjab->ij', T, delta_T)
+        P = 2 * np.einsum('kiab,kjab->ij', T, delta_T_term)
+        #P = np.eye(T.shape[0]) - P
         P = np.eye(T.shape[0]) - P
     else:
         #P = np.einsum('ijac,ijcb->ab', T, Tt)
         # Orig
-        P = 2.0 * np.einsum('ijca,ijcb->ab', delta_T, T)# + np.einsum('ij,ijac,ijbc->ab', N, t, T)
+        #P = 2.0 * np.einsum('ijca,ijcb->ab', delta_T_term, T)# + np.einsum('ij,ijac,ijbc->ab', N, t, T)
         # Leah
-        #P = np.einsum('ijac,jicb->ab', T, delta_T)
+        P = 2.0 * np.einsum('ijac,jicb->ab', T, delta_T_term)
 
     return P
