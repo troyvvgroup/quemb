@@ -717,13 +717,27 @@ def graphgen(
         t_tot = t6 - t0
         title = "VERBOSE: `graphgen` Timing Breakdown"
         print(title, "-" * (80 - len(title)))
-        print(f"Initialization time:                {t1 - t0:0.6f}s ({100 * (t1 - t0) / t_tot:0.1f}%)")  # noqa: E501
-        print(f"Adj. graph construction:            {t2 - t1:0.6f}s ({100 * (t2 - t1) / t_tot:0.1f}%)")  # noqa: E501
-        print(f"Shortest path finding:              {t3 - t2:0.6f}s ({100 * (t3 - t2) / t_tot:0.1f}%)")  # noqa: E501
-        print(f"Removing redundant frags:           {t4 - t3:0.6f}s ({100 * (t4 - t3) / t_tot:0.1f}%)")  # noqa: E501
-        print(f"Finalize indexing:                  {t5 - t4:0.6f}s ({100 * (t5 - t4) / t_tot:0.1f}%)")  # noqa: E501
-        print(f"Print and wrap-up:                  {t6 - t5:0.6f}s ({100 * (t6 - t5) / t_tot:0.1f}%)")  # noqa: E501
-        print(f"Total elapsed time:                 {t6 - t0:0.6f}s ({100 * (t6 - t0) / t_tot:0.1f}%)")  # noqa: E501
+        print(
+            f"Initialization time:                {t1 - t0:0.6f}s ({100 * (t1 - t0) / t_tot:0.1f}%)"  # noqa: E501
+        )
+        print(
+            f"Adj. graph construction:            {t2 - t1:0.6f}s ({100 * (t2 - t1) / t_tot:0.1f}%)"  # noqa: E501
+        )
+        print(
+            f"Shortest path finding:              {t3 - t2:0.6f}s ({100 * (t3 - t2) / t_tot:0.1f}%)"  # noqa: E501
+        )
+        print(
+            f"Removing redundant frags:           {t4 - t3:0.6f}s ({100 * (t4 - t3) / t_tot:0.1f}%)"  # noqa: E501
+        )
+        print(
+            f"Finalize indexing:                  {t5 - t4:0.6f}s ({100 * (t5 - t4) / t_tot:0.1f}%)"  # noqa: E501
+        )
+        print(
+            f"Print and wrap-up:                  {t6 - t5:0.6f}s ({100 * (t6 - t5) / t_tot:0.1f}%)"  # noqa: E501
+        )
+        print(
+            f"Total elapsed time:                 {t6 - t0:0.6f}s ({100 * (t6 - t0) / t_tot:0.1f}%)"  # noqa: E501
+        )
 
     return FragPart(
         mol=mol,

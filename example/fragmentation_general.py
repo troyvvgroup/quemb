@@ -5,22 +5,26 @@
 # NOTE: We do not consider PBC in this example.
 
 # Standard imports
-import os, time, pickle
-import numpy as np
-from pyscf import gto
-from quemb.molbe import fragmentate
-from quemb.molbe.graphfrag import GraphGenArgs
-from quemb.molbe.chemfrag import ChemGenArgs
-from quemb.molbe.autofrag import AutogenArgs
+import os
+import pickle
+import time
+
 # For visualizing the collected data
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
+from pyscf import gto
+
+from quemb.molbe import fragmentate
+from quemb.molbe.autofrag import AutogenArgs
+from quemb.molbe.chemfrag import ChemGenArgs
+from quemb.molbe.graphfrag import GraphGenArgs
 
 # For fetching geometries from `data`, we set the current
 # working directory appropriately:
 cwd = os.path.dirname(os.path.abspath(__file__))
 # For loading in the data if it already exists:
-data_file = os.path.join(cwd, 'data/frag_data.pkl')
+data_file = os.path.join(cwd, "data/frag_data.pkl")
 
 # There are three broad classes of systems that we'll use to
 # illustrate the strengths and weaknesses of each fragmenation scheme.
@@ -34,23 +38,19 @@ data_file = os.path.join(cwd, 'data/frag_data.pkl')
 # 2. *Large organic molecules* represent a more practical example. In
 # these systems, intramolecular interactions are minimal and the consistency
 # of C-C and C-H bond lengths means that atomic connectivity will still be
-# unambiguous (assuming all geometries have been equilibriated). 
+# unambiguous (assuming all geometries have been equilibriated).
 #
-# 3. *Non-covalent systems* are a more challenging example. 
+# 3. *Non-covalent systems* are a more challenging example.
 
 # 1. Hydrogenic systems: 1D and 2D H-Lattices
 lat_a = 1.0
-geom_H_1D = [
-    ["H", (0.0, 0.0, i * lat_a)] for i in range(20)
-]
+geom_H_1D = [["H", (0.0, 0.0, i * lat_a)] for i in range(20)]
 mol_H_1D = gto.M(
     atom=geom_H_1D,
     basis="sto-3g",
 ).build()
 
-geom_H_2D = [
-    ["H", (0.0, j * lat_a, i * lat_a)] for i in range(20) for j in range(20)
-]
+geom_H_2D = [["H", (0.0, j * lat_a, i * lat_a)] for i in range(20) for j in range(20)]
 mol_H_2D = gto.M(
     atom=geom_H_2D,
     basis="sto-3g",
@@ -94,7 +94,9 @@ results = {}
 # Each fragmentation code has its own set of optional parameters:
 fragmentate_args = {
     "graphgen": GraphGenArgs(),
-    "chemgen": ChemGenArgs(treat_H_different=False, ),
+    "chemgen": ChemGenArgs(
+        treat_H_different=False,
+    ),
     "autogen": AutogenArgs(),
 }
 
@@ -114,36 +116,54 @@ if not os.path.exists(data_file):
                     additional_args=fragmentate_args.get(frag_type, None),
                 )
                 t1 = time.time()
-                results.update({
-                    result_idx: { 
-                        "frag_type": frag_type,
-                        "be_type": be_type,
-                        "mol_type": mol_type,
-                        "time_to_run": t1-t0,
-                        "total_num_atoms": mol.natm,
-                        "total_num_electrons": mol.tot_electrons(),
-                        "total_num_aos": mol.nao_nr(),
-                        "total_num_fragments": len(fobj.AO_per_frag),
-                        "all_fragment_sizes": [len(frag) for frag in fobj.AO_per_frag],
-                        "mean_fragment_size": np.mean([len(frag) for frag in fobj.AO_per_frag]),
-                        "dev_fragment_size": np.std([len(frag) for frag in fobj.AO_per_frag]),
-                        "max_fragment_size": np.max([len(frag) for frag in fobj.AO_per_frag]),
-                        "min_fragment_size": np.min([len(frag) for frag in fobj.AO_per_frag]),
-                        "mean_overlap_size": np.mean([len(frag) for frag in fobj.AO_per_edge_per_frag]),
-                        "max_overlap_size": np.max([len(frag) for frag in fobj.AO_per_edge_per_frag]),
-                        "min_overlap_size": np.min([len(frag) for frag in fobj.AO_per_edge_per_frag]),
+                results.update(
+                    {
+                        result_idx: {
+                            "frag_type": frag_type,
+                            "be_type": be_type,
+                            "mol_type": mol_type,
+                            "time_to_run": t1 - t0,
+                            "total_num_atoms": mol.natm,
+                            "total_num_electrons": mol.tot_electrons(),
+                            "total_num_aos": mol.nao_nr(),
+                            "total_num_fragments": len(fobj.AO_per_frag),
+                            "all_fragment_sizes": [
+                                len(frag) for frag in fobj.AO_per_frag
+                            ],
+                            "mean_fragment_size": np.mean(
+                                [len(frag) for frag in fobj.AO_per_frag]
+                            ),
+                            "dev_fragment_size": np.std(
+                                [len(frag) for frag in fobj.AO_per_frag]
+                            ),
+                            "max_fragment_size": np.max(
+                                [len(frag) for frag in fobj.AO_per_frag]
+                            ),
+                            "min_fragment_size": np.min(
+                                [len(frag) for frag in fobj.AO_per_frag]
+                            ),
+                            "mean_overlap_size": np.mean(
+                                [len(frag) for frag in fobj.AO_per_edge_per_frag]
+                            ),
+                            "max_overlap_size": np.max(
+                                [len(frag) for frag in fobj.AO_per_edge_per_frag]
+                            ),
+                            "min_overlap_size": np.min(
+                                [len(frag) for frag in fobj.AO_per_edge_per_frag]
+                            ),
+                        }
                     }
-                })
+                )
                 result_idx += 1
-    with open(data_file, 'wb') as file:
+    with open(data_file, "wb") as file:
         pickle.dump(results, file)
 else:
-    with open(data_file, 'rb') as file:
+    with open(data_file, "rb") as file:
         results = pickle.load(file)
 
 # Finally, we can visualize the fragment data and discuss trends:
 dataframe = pd.DataFrame(results).transpose()
-matrix_of_dataframes = np.empty((len(mol_types),len(be_types)), dtype=object)
+matrix_of_dataframes = np.empty((len(mol_types), len(be_types)), dtype=object)
 
 for i, mol_type in enumerate(mol_types.keys()):
     _current_df = dataframe.loc[dataframe["mol_type"] == mol_type]
@@ -185,11 +205,11 @@ for i, mol_type in enumerate(mol_types.keys()):
             showmeans=True,
             patch_artist=True,
         )
-        axs[i, j].set_title(f'{mol_type} - BE{str(be_type)}', fontsize=fs)
-        for patch, color in zip(_ax['boxes'], xcolors):
+        axs[i, j].set_title(f"{mol_type} - BE{str(be_type)}", fontsize=fs)
+        for patch, color in zip(_ax["boxes"], xcolors):
             patch.set_facecolor(color)
 # plt.show()
-plt.savefig(os.path.join(cwd, 'figures/frag_size_data.png'), dpi=500)
+plt.savefig(os.path.join(cwd, "figures/frag_size_data.png"), dpi=500)
 
 # What we've just generated shows the distribution of fragment sizes (where
 # 'size' is defined as the number of uncontracted GTOs per fragment) across
