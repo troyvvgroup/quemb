@@ -957,40 +957,38 @@ class BE:
                         self.mf.mol.basis, # basis
                         fobjs_.n_f, # number of fragment orbitals
                         fobjs_.n_b, # number of bath orbitals
-                        self.Nocc, # Total number of occupieds
-                        fobjs_.nsocc, # number of occupieds in frag
-                        #2 * fobjs_.nsocc, # number of electrons in fragment
+                        self.Nocc, # total number of occupied orbitals
+                        fobjs_.nsocc, # number of occupied orbitals in fragment
                         self.additional_args,
                     )
                     print("nocc_add_cno, nvir_add_cno", nocc_add_cno, nvir_add_cno)
 
                     # Generate occupied CNOs
-                    if nocc_add_cno > 0:
+                    print("fobjs_")
+                    if nocc_add_cno >= 0:
                         occ_cno = get_cnos(
                             fobjs_.TA, # TA matrix
                             fobjs_.TA_cno_occ, # TA occupied expanded
-                            self.S,
                             self.hcore, # hcore
                             eri_, # eris
-                            fobjs_.nsocc, # number of occupieds in frag
+                            self.Nocc,
                             occ = True,
                         )
                         print("occ_cno", occ_cno)
                         # (appending T)
-                    if nvir_add_cno > 0:
+                    if nvir_add_cno >= 0:
                         # Generate virtual CNOs
                         vir_cno = get_cnos(
                             fobjs_.TA, # TA matrix
                             fobjs_.TA_cno_vir, # TA virtual expanded
-                            self.S,
                             self.hcore, # hcore
                             eri_, # eris
-                            fobjs_.nsocc, # number of occupieds in frag
+                            self.Nocc,
                             occ = False,
                         )
                     print("vir_cno", vir_cno)
                     # Augment the TA matrix with the occupied and virtual CNOs
-
+                    sys.exit()
             else:
                 # Transform ERIs for each fragment and store in the file
                 # ERI Transform Decision Tree

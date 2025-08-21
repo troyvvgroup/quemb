@@ -176,15 +176,21 @@ class Frags:
             Used for UBE, where different number of alpha and beta orbitals
             Default is None, allowing orbitals to be chosen by threshold
         """
+        print("lmo", lmo.shape, lmo)
+        print("lao", lao.shape, lao)
         if add_cnos:
-            self.TA_lo_eo, self.TA_lo_eo_occ, self.TA_lo_eo_vir, self.n_f, self.n_b = schmidt_decomposition_cnos(
+            self.TA_lo_eo, delta_TA_lo_eo_occ, delta_TA_lo_eo_vir, self.n_f, self.n_b = schmidt_decomposition_cnos(
                 lmo,
                 nocc,
                 self.AO_in_frag,
                 thr_bath=thr_bath,
             )
-            self.TA_cno_vir = lao @ self.TA_lo_eo_vir
-            self.TA_cno_occ = lao @ self.TA_lo_eo_occ
+            self.TA = lao @ self.TA_lo_eo
+            self.nao = self.TA.shape[1]
+
+            self.TA_cno_occ = np.hstack((self.TA, lao @ delta_TA_lo_eo_occ))
+            self.TA_cno_vir = np.hstack((self.TA, lao @ delta_TA_lo_eo_vir))
+            
         else:
             self.TA_lo_eo, self.n_f, self.n_b = schmidt_decomposition(
                 lmo,
@@ -193,8 +199,10 @@ class Frags:
                 thr_bath=thr_bath,
                 norb=norb,
            )
-        self.TA = lao @ self.TA_lo_eo
-        self.nao = self.TA.shape[1]
+            self.TA = lao @ self.TA_lo_eo
+            self.nao = self.TA.shape[1]
+            print("self.TA", self.TA.shape, self.TA)
+
 
     def cons_fock(self, hf_veff, S, dm, eri_=None):
         """
@@ -574,40 +582,55 @@ def schmidt_decomposition_cnos(
         # Entangled bath orbital index
         if thr_bath < np.abs(Eval[i]) < 1.0 - thr_bath:
             Bidx.append(i)
-        # Virtual environment index
-        elif thr_bath <= np.abs(Eval[i]):
-            VEidx.append(i)
         # Occupied environment index
-        else:
+        elif thr_bath <= np.abs(Eval[i]):
             OEidx.append(i)
+        # Virtual environment index
+        else:
+            VEidx.append(i)
 
-    #print("Bidx", Bidx)
-    #print("VEidx", VEidx)
-    #print("OEidx", OEidx)
+    print("Bidx", len(Bidx), Bidx)
+    print("VEidx", len(VEidx), VEidx)
+    print("OEidx", len(OEidx), OEidx)
 
     # Initialize the transformation matrix (TA)
     TA = zeros([Tot_sites, len(AO_in_frag) + len(Bidx)])
     TA[AO_in_frag, : len(AO_in_frag)] = eye(len(AO_in_frag))  # Fragment part
     TA[Env_sites1, len(AO_in_frag) :] = Evec[:, Bidx]  # Environment part
     
+    print("TA", TA)
+    ######################
+    # As-written version #
+    ######################
+    """
+    
     # Augment TA with virtual environment
     TA_virt = zeros([Tot_sites, TA.shape[1] + len(VEidx)])
     TA_virt[:TA.shape[0], :TA.shape[1]] = TA
     TA_virt[Env_sites1, len(AO_in_frag) + len(Bidx):] = Evec[:, VEidx]
-    #print("TA_virt", TA_virt)
+    print("TA_virt", TA_virt.shape, TA_virt)
 
     # Augment TA with occupied environment
     TA_occ = zeros([Tot_sites, TA.shape[1] + len(OEidx)])
     TA_occ[:TA.shape[0], :TA.shape[1]] = TA
     TA_occ[Env_sites1, len(AO_in_frag) + len(Bidx):] = Evec[:, OEidx]
-    #print("TA_occ", TA_occ)
-
-    #proj_E_virt = np.zeroslike(TA_virt)
+    print("TA_occ", TA_occ.shape, TA_occ)
+    """
+    ##########################################
+    # Alt version: avoid redundant rotations #
+    ##########################################
+    # Occupied environment columns
+    delta_TA_occ = zeros([Tot_sites, len(OEidx)])
+    delta_TA_occ[Env_sites1,:] = Evec[:, OEidx]
     
-    #proj_E_occ = np.zeroslike(TA_occ)
+    # Virtual environment columns
+    delta_TA_virt = zeros([Tot_sites, len(VEidx)])
+    delta_TA_virt[Env_sites1, :] = Evec[:, VEidx]
 
+    print("delta_TA_occ", delta_TA_occ)
+    print("delta_TA_virt", delta_TA_virt)
     # return TA, norbs_frag, norbs_bath
-    return TA, TA_occ, TA_virt, Frag_sites1.shape[0], len(Bidx), 
+    return TA, delta_TA_occ, delta_TA_virt, Frag_sites1.shape[0], len(Bidx), 
 
 
 def _get_contained(
