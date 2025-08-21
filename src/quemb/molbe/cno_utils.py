@@ -23,8 +23,8 @@ class CNOArgs:
     tot_orbs: int | None = None
 
 def get_cnos(TA, TA_x, hcore_full, eri_full, nocc, occ):
-    # TA_x is either TA_occ or TA_vir, aligning with occ
-
+    # TA_x is either TA_occ or TA_vir, aligning with occ=True or False
+    ta0, nfb = TA.shape
     # Generate 1 and 2 electron orbitals in modified Schmidt space
     h_schmidt = np.einsum('mp,nq,mn->pq', TA_x, TA_x, hcore_full)
     eri_schmidt = ao2mo.incore.full(eri_full, TA_x, compact=True)
@@ -51,18 +51,47 @@ def get_cnos(TA, TA_x, hcore_full, eri_full, nocc, occ):
     # Transform pair density in SO basis
     P_mat_SO = C_SC @ P @ C_SC.T
     print("P_mat_SO", P_mat_SO)
+
     # Project out FOs and BOs
-    P_mat_SO_env_only = np.zeros_like(P_mat_SO)
-    P_mat_SO_env_only[
-        TA.shape[1]:, TA.shape[1]:] = P_mat_SO[TA.shape[1]:, TA.shape[1]:]
-    print("P_mat_SO_env_only", P_mat_SO_env_only)
-    # get PNOs by diagonalizing
-    P_mat_eigvals, P_mat_eigvecs = np.linalg.eig(P_mat_SO_env_only)
+    # You can do this all padded with zeros (as described in paper),
+    # but reduced to non-zero blocks for cost
+    P_mat_SO_env = P_mat_SO[nfb:, nfb:]
+    print("P_mat_SO_env_only",P_mat_SO_env)
+
+    # Find the pair natural orbitals by diagonalizing these orbitals
+    P_mat_eigvals, P_mat_eigvecs = np.linalg.eig(P_mat_SO_env)
     print("P_mat_eigvals and vecs", P_mat_eigvals, P_mat_eigvecs)
 
+    # Pad pair natural orbitals
+    print("nfb", nfb)
+    print("TA_x", TA_x.shape)
+    print("TA shape", TA.shape)
+
+    PNO = np.zeros((TA_x.shape[1], TA_x.shape[1]-nfb))
+    print("PNO shape", PNO.shape)
+    PNO[nfb:,:] = P_mat_eigvecs
+    print("PNO", PNO.shape, PNO)
+    
+    # Generate cluster natural orbitals, rotating into AO basis
+    cnos = TA_x @ PNO
+
+    """
+
+    P_mat_SO_env = np.zeros_like(P_mat_SO)
+    P_mat_SO_env[
+        nfb:, nfb:] = P_mat_SO[nfb:, nfb:]
+    print("nfb", nfb)
+    print("P_mat_SO_env", P_mat_SO_env.shape, P_mat_SO_env)
+    # get PNOs by diagonalizing
+    P_mat_eigvals, P_mat_eigvecs = np.linalg.eig(P_mat_SO_env)
+    print("P_mat_eigvals and vecs", P_mat_eigvals, P_mat_eigvecs)
+
+    """
     # change back to AO basis
-    cnos = TA_x @ P_mat_eigvecs
-    #print("cnos", cnos)
+    #full_cnos = TA_x @ P_mat_eigvecs
+
+    #cnos = TA_x @ P_mat_eigvecs 
+    print("cnos", cnos.shape, cnos)
     return cnos
 
 def choose_cnos(file,
@@ -105,11 +134,15 @@ def choose_cnos(file,
 
     elif args.cno_scheme == "ProportionalQQ":
         prop = n_f / (nelec / 2)
-        total_orbs = 1.5 * n_f + n_b
-        nocc_cno_add = max(int(np.round(total_orbs / prop - nsocc)), 0)
+        total_orbs = n_f + n_b + int(prop * n_f)
+        nocc_cno_add = max(int(np.round(total_orbs / 2 - nsocc)), 0)
         nvir_cno_add = total_orbs - n_b - nocc_cno_add - n_f
         print("nocc_cno_add", nocc_cno_add)
         print("nvir_cno_add", nvir_cno_add)
+
+    elif args.cno_scheme == "FragSize":
+        prop = n_f / (nelec / 2)
+        raise NotImplementedError
 
     return nocc_cno_add, nvir_cno_add
 
@@ -158,3 +191,11 @@ def FormPairDensity(Vs, mo_occs, mo_coeffs, mo_energys, occ):
         P = 2.0 * np.einsum('ijac,jicb->ab', T, delta_T_term)
 
     return P
+
+def augment_w_cnos(TA, nocc_cno, nvir_cno, occ_cno, vir_cno):
+    if nocc_cno > 0:
+        TA = np.hstack((TA, occ_cno[:, :nocc_cno]))
+    if nvir_cno > 0:
+        print("nvir_cno", nvir_cno)
+        TA = np.hstack((TA, vir_cno[:, :nvir_cno]))
+    return TA

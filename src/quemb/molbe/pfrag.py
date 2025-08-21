@@ -186,7 +186,6 @@ class Frags:
                 thr_bath=thr_bath,
             )
             self.TA = lao @ self.TA_lo_eo
-            self.nao = self.TA.shape[1]
 
             self.TA_cno_occ = np.hstack((self.TA, lao @ delta_TA_lo_eo_occ))
             self.TA_cno_vir = np.hstack((self.TA, lao @ delta_TA_lo_eo_vir))

@@ -30,7 +30,7 @@ from pyscf.gto import Mole
 from typing_extensions import assert_never
 
 from quemb.molbe.be_parallel import be_func_parallel
-from quemb.molbe.cno_utils import CNOArgs, choose_cnos, get_cnos
+from quemb.molbe.cno_utils import CNOArgs, augment_w_cnos, choose_cnos, get_cnos
 from quemb.molbe.eri_onthefly import integral_direct_DF
 from quemb.molbe.eri_sparse_DF import (
     transform_sparse_DF_integral_cpp,
@@ -938,6 +938,58 @@ class BE:
                 add_cnos=self.add_cnos,
                 )
 
+            if self.add_cnos:
+                # Run this the first time, to get nsocc
+                # Run again LATER with updated TA!
+                _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
+                nocc_add_cno, nvir_add_cno = choose_cnos(
+                    "f"+str(I)+".xyz", # geometry
+                    self.mf.mol.basis, # basis
+                    fobjs_.n_f, # number of fragment orbitals
+                    fobjs_.n_b, # number of bath orbitals
+                    self.Nocc, # total number of occupied orbitals
+                    fobjs_.nsocc, # number of occupied orbitals in fragment
+                    self.additional_args,
+                )
+                print("Adding" + str(nocc_add_cno) + "Occupied CNOs")
+                print("Adding" + str(nvir_add_cno) + "Virtual CNOs")
+                occ_cno = None
+                vir_cno = None
+                if nocc_add_cno >= 0:
+                    print("OCCUPIED")
+                    # Generate occupied CNOs, return those that will augment TA
+                    occ_cno = get_cnos(
+                        fobjs_.TA, # number of fragment and bath orbitals
+                        fobjs_.TA_cno_occ, # TA occupied expanded
+                        self.hcore, # hcore
+                        eri_, # eris
+                        self.Nocc,
+                        occ = True,
+                    )
+                    # (appending T)
+                if nvir_add_cno >= 0:
+                    print("VIRTUAL")
+                    # Generate virtual CNOs, return those that will augment TA
+                    vir_cno = get_cnos(
+                        fobjs_.TA, # number of fragment and bath orbitals
+                        fobjs_.TA_cno_vir, # TA virtual expanded
+                        self.hcore, # hcore
+                        eri_, # eris
+                        self.Nocc,
+                        occ = False,
+                    )
+                fobjs_.TA = augment_w_cnos(
+                    fobjs_.TA,
+                    nocc_add_cno,
+                    nvir_add_cno,
+                    occ_cno,
+                    vir_cno
+                )
+
+                # Update relevant fobjs_ attributes
+                fobjs_.nao = fobjs_.TA.shape[1]
+                fobjs_.n_b = fobjs_.n_b + nocc_add_cno + nvir_add_cno
+
             self.Fobjs.append(fobjs_)
 
         self.all_fragment_MO_TA, frag_TA_index_per_frag = union_of_frag_MOs_and_index(
@@ -947,6 +999,8 @@ class BE:
             fobj.frag_TA_offset = frag_TA_offset
 
         if not restart:
+            
+            """
             if self.add_cnos:
                 for idx, fobjs_ in enumerate(self.Fobjs):
                     # Run this the first time, to get nsocc
@@ -962,121 +1016,133 @@ class BE:
                         self.additional_args,
                     )
                     print("nocc_add_cno, nvir_add_cno", nocc_add_cno, nvir_add_cno)
-
-                    # Generate occupied CNOs
-                    print("fobjs_")
+                    occ_cno = None
+                    vir_cno = None
                     if nocc_add_cno >= 0:
+                        print("OCCUPIED")
+                        # Generate occupied CNOs, return those that will augment TA
                         occ_cno = get_cnos(
-                            fobjs_.TA, # TA matrix
+                            fobjs_.TA, # number of fragment and bath orbitals
                             fobjs_.TA_cno_occ, # TA occupied expanded
                             self.hcore, # hcore
                             eri_, # eris
                             self.Nocc,
+                            nocc_add_cno,
                             occ = True,
                         )
                         print("occ_cno", occ_cno)
                         # (appending T)
                     if nvir_add_cno >= 0:
-                        # Generate virtual CNOs
+                        print("VIRTUAL")
+                        # Generate virtual CNOs, return those that will augment TA
                         vir_cno = get_cnos(
-                            fobjs_.TA, # TA matrix
+                            fobjs_.TA, # number of fragment and bath orbitals
                             fobjs_.TA_cno_vir, # TA virtual expanded
                             self.hcore, # hcore
                             eri_, # eris
                             self.Nocc,
+                            nvir_add_cno,
                             occ = False,
                         )
-                    print("vir_cno", vir_cno)
-                    # Augment the TA matrix with the occupied and virtual CNOs
-                    sys.exit()
+                        print("vir_cno", vir_cno)
+                    fobjs_.TA = augment_w_cnos(
+                        fobjs_.TA,
+                        nocc_add_cno,
+                        nvir_add_cno,
+                        occ_cno,
+                        vir_cno
+                    )
+
+                    # Update relevant fobjs_ attributes
+                    fobjs_.n_b = fobjs_.n_b + nocc_add_cno + nvir_add_cno
+            """
+            # Transform ERIs for each fragment and store in the file
+            # ERI Transform Decision Tree
+            # Do we have full (ij|kl)?
+            #   Yes -- ao2mo, incore version
+            #   No  -- Do we have (ij|P) from density fitting?
+            #       Yes -- ao2mo, outcore version, using saved (ij|P)
+            #       No  -- if integral_direct_DF is requested, invoke on-the-fly routine
+            if int_transform == "in-core":
+                ensure(eri_ is not None, "ERIs have to be available in memory.")
+                for I in range(self.fobj.n_frag):
+                    eri = ao2mo.incore.full(eri_, self.Fobjs[I].TA, compact=True)
+                    file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
+            elif int_transform == "out-core-DF":
+                ensure(
+                    hasattr(self.mf, "with_df") and self.mf.with_df is not None,
+                    "Pyscf mean field object has to support `with_df`.",
+                )
+                # pyscf.ao2mo uses DF object in an outcore fashion using (ij|P)
+                #   in pyscf temp directory
+                for I in range(self.fobj.n_frag):
+                    eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)
+                    file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
+            elif int_transform == "int-direct-DF":
+                # If ERIs are not saved on memory, compute fragment ERIs integral-direct
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                integral_direct_DF(
+                    self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis
+                )
+                eri = None
+            elif int_transform == "sparse-DF-cpp":
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                transform_sparse_DF_integral_cpp(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    file_eri_handler=file_eri,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.n_threads_integral_transform,
+                )
+                eri = None
+            elif int_transform == "sparse-DF-cpp-gpu":
+                from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
+                    transform_sparse_DF_integral_cpp_gpu,
+                )
+
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                transform_sparse_DF_integral_cpp_gpu(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    file_eri_handler=file_eri,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.n_threads_integral_transform,
+                )
+                eri = None
+            elif int_transform == "sparse-DF-nb":
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                transform_sparse_DF_integral_nb(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    file_eri_handler=file_eri,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.n_threads_integral_transform,
+                )
+                eri = None
+            elif int_transform == "sparse-DF-nb-gpu":
+                from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
+                    transform_sparse_DF_integral_nb_gpu,
+                )
+
+                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+                transform_sparse_DF_integral_nb_gpu(
+                    self.mf,
+                    self.Fobjs,
+                    auxbasis=self.auxbasis,
+                    file_eri_handler=file_eri,
+                    MO_coeff_epsilon=self.MO_coeff_epsilon,
+                    AO_coeff_epsilon=self.AO_coeff_epsilon,
+                    n_threads=self.n_threads_integral_transform,
+                )
+                eri = None
             else:
-                # Transform ERIs for each fragment and store in the file
-                # ERI Transform Decision Tree
-                # Do we have full (ij|kl)?
-                #   Yes -- ao2mo, incore version
-                #   No  -- Do we have (ij|P) from density fitting?
-                #       Yes -- ao2mo, outcore version, using saved (ij|P)
-                #       No  -- if integral_direct_DF is requested, invoke on-the-fly routine
-                if int_transform == "in-core":
-                    ensure(eri_ is not None, "ERIs have to be available in memory.")
-                    for I in range(self.fobj.n_frag):
-                        eri = ao2mo.incore.full(eri_, self.Fobjs[I].TA, compact=True)
-                        file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
-                elif int_transform == "out-core-DF":
-                    ensure(
-                        hasattr(self.mf, "with_df") and self.mf.with_df is not None,
-                        "Pyscf mean field object has to support `with_df`.",
-                    )
-                    # pyscf.ao2mo uses DF object in an outcore fashion using (ij|P)
-                    #   in pyscf temp directory
-                    for I in range(self.fobj.n_frag):
-                        eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)
-                        file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
-                elif int_transform == "int-direct-DF":
-                    # If ERIs are not saved on memory, compute fragment ERIs integral-direct
-                    ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-                    integral_direct_DF(
-                        self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis
-                    )
-                    eri = None
-                elif int_transform == "sparse-DF-cpp":
-                    ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-                    transform_sparse_DF_integral_cpp(
-                        self.mf,
-                        self.Fobjs,
-                        auxbasis=self.auxbasis,
-                        file_eri_handler=file_eri,
-                        MO_coeff_epsilon=self.MO_coeff_epsilon,
-                        AO_coeff_epsilon=self.AO_coeff_epsilon,
-                        n_threads=self.n_threads_integral_transform,
-                    )
-                    eri = None
-                elif int_transform == "sparse-DF-cpp-gpu":
-                    from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
-                        transform_sparse_DF_integral_cpp_gpu,
-                    )
-
-                    ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-                    transform_sparse_DF_integral_cpp_gpu(
-                        self.mf,
-                        self.Fobjs,
-                        auxbasis=self.auxbasis,
-                        file_eri_handler=file_eri,
-                        MO_coeff_epsilon=self.MO_coeff_epsilon,
-                        AO_coeff_epsilon=self.AO_coeff_epsilon,
-                        n_threads=self.n_threads_integral_transform,
-                    )
-                    eri = None
-                elif int_transform == "sparse-DF-nb":
-                    ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-                    transform_sparse_DF_integral_nb(
-                        self.mf,
-                        self.Fobjs,
-                        auxbasis=self.auxbasis,
-                        file_eri_handler=file_eri,
-                        MO_coeff_epsilon=self.MO_coeff_epsilon,
-                        AO_coeff_epsilon=self.AO_coeff_epsilon,
-                        n_threads=self.n_threads_integral_transform,
-                    )
-                    eri = None
-                elif int_transform == "sparse-DF-nb-gpu":
-                    from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
-                        transform_sparse_DF_integral_nb_gpu,
-                    )
-
-                    ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-                    transform_sparse_DF_integral_nb_gpu(
-                        self.mf,
-                        self.Fobjs,
-                        auxbasis=self.auxbasis,
-                        file_eri_handler=file_eri,
-                        MO_coeff_epsilon=self.MO_coeff_epsilon,
-                        AO_coeff_epsilon=self.AO_coeff_epsilon,
-                        n_threads=self.n_threads_integral_transform,
-                    )
-                    eri = None
-                else:
-                    assert_never(int_transform)
+                assert_never(int_transform)
         else:
             eri = None
 
@@ -1084,12 +1150,16 @@ class BE:
             # Process each fragment
 
             eri = array(file_eri.get(fobjs_.dname))
+            print("eri a", eri.shape)
             _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
-
+            print("eri b", eri.shape)
+            print("shape fobjs_.TA", fobjs_.TA.T.shape, fobjs_.TA.T )
             assert fobjs_.TA is not None
             fobjs_.h1 = multi_dot((fobjs_.TA.T, self.hcore, fobjs_.TA))
 
             if not restart:
+                print("fobjs_.nao", fobjs_.nao)
+                print("eri", eri.shape)
                 eri = ao2mo.restore(8, eri, fobjs_.nao)
 
             fobjs_.cons_fock(self.hf_veff, self.S, self.hf_dm, eri_=eri)
