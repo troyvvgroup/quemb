@@ -929,7 +929,6 @@ class BE:
             file_eri = h5py.File(self.eri_file, "w")
         for I in range(self.fobj.n_frag):
             fobjs_ = self.fobj.to_Frags(I, eri_file=self.eri_file)
-            print("self.add_cnos", self.add_cnos)
             fobjs_.sd(
                 self.W,
                 self.lmo_coeff,
@@ -947,17 +946,17 @@ class BE:
                     self.mf.mol.basis, # basis
                     fobjs_.n_f, # number of fragment orbitals
                     fobjs_.n_b, # number of bath orbitals
-                    self.Nocc, # total number of occupied orbitals
+                    fobjs_.TA_cno_occ.shape[1], # occupied-augmented size 
+                    fobjs_.TA_cno_vir.shape[1], # virtual-augmented size
                     fobjs_.nsocc, # number of occupied orbitals in fragment
                     self.additional_args,
                 )
-                print("Adding" + str(nocc_add_cno) + "Occupied CNOs")
-                print("Adding" + str(nvir_add_cno) + "Virtual CNOs")
+                print(f"Adding {nocc_add_cno:>3.0f} Occupied CNOs", flush=True)
+                print(f"Adding {nvir_add_cno:>3.0f} Virtual CNOs", flush=True)
                 occ_cno = None
                 vir_cno = None
-                if nocc_add_cno >= 0:
-                    print("OCCUPIED")
-                    # Generate occupied CNOs, return those that will augment TA
+                if nocc_add_cno >= 0:\
+                    # Generate occupied CNOs
                     occ_cno = get_cnos(
                         fobjs_.TA, # number of fragment and bath orbitals
                         fobjs_.TA_cno_occ, # TA occupied expanded
@@ -966,10 +965,8 @@ class BE:
                         self.Nocc,
                         occ = True,
                     )
-                    # (appending T)
                 if nvir_add_cno >= 0:
-                    print("VIRTUAL")
-                    # Generate virtual CNOs, return those that will augment TA
+                    # Generate virtual CNOs
                     vir_cno = get_cnos(
                         fobjs_.TA, # number of fragment and bath orbitals
                         fobjs_.TA_cno_vir, # TA virtual expanded
@@ -999,63 +996,6 @@ class BE:
             fobj.frag_TA_offset = frag_TA_offset
 
         if not restart:
-            
-            """
-            if self.add_cnos:
-                for idx, fobjs_ in enumerate(self.Fobjs):
-                    # Run this the first time, to get nsocc
-                    # Run again LATER with updated TA!
-                    _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
-                    nocc_add_cno, nvir_add_cno = choose_cnos(
-                        "f"+str(idx)+".xyz", # geometry
-                        self.mf.mol.basis, # basis
-                        fobjs_.n_f, # number of fragment orbitals
-                        fobjs_.n_b, # number of bath orbitals
-                        self.Nocc, # total number of occupied orbitals
-                        fobjs_.nsocc, # number of occupied orbitals in fragment
-                        self.additional_args,
-                    )
-                    print("nocc_add_cno, nvir_add_cno", nocc_add_cno, nvir_add_cno)
-                    occ_cno = None
-                    vir_cno = None
-                    if nocc_add_cno >= 0:
-                        print("OCCUPIED")
-                        # Generate occupied CNOs, return those that will augment TA
-                        occ_cno = get_cnos(
-                            fobjs_.TA, # number of fragment and bath orbitals
-                            fobjs_.TA_cno_occ, # TA occupied expanded
-                            self.hcore, # hcore
-                            eri_, # eris
-                            self.Nocc,
-                            nocc_add_cno,
-                            occ = True,
-                        )
-                        print("occ_cno", occ_cno)
-                        # (appending T)
-                    if nvir_add_cno >= 0:
-                        print("VIRTUAL")
-                        # Generate virtual CNOs, return those that will augment TA
-                        vir_cno = get_cnos(
-                            fobjs_.TA, # number of fragment and bath orbitals
-                            fobjs_.TA_cno_vir, # TA virtual expanded
-                            self.hcore, # hcore
-                            eri_, # eris
-                            self.Nocc,
-                            nvir_add_cno,
-                            occ = False,
-                        )
-                        print("vir_cno", vir_cno)
-                    fobjs_.TA = augment_w_cnos(
-                        fobjs_.TA,
-                        nocc_add_cno,
-                        nvir_add_cno,
-                        occ_cno,
-                        vir_cno
-                    )
-
-                    # Update relevant fobjs_ attributes
-                    fobjs_.n_b = fobjs_.n_b + nocc_add_cno + nvir_add_cno
-            """
             # Transform ERIs for each fragment and store in the file
             # ERI Transform Decision Tree
             # Do we have full (ij|kl)?
@@ -1150,16 +1090,11 @@ class BE:
             # Process each fragment
 
             eri = array(file_eri.get(fobjs_.dname))
-            print("eri a", eri.shape)
             _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
-            print("eri b", eri.shape)
-            print("shape fobjs_.TA", fobjs_.TA.T.shape, fobjs_.TA.T )
             assert fobjs_.TA is not None
             fobjs_.h1 = multi_dot((fobjs_.TA.T, self.hcore, fobjs_.TA))
 
             if not restart:
-                print("fobjs_.nao", fobjs_.nao)
-                print("eri", eri.shape)
                 eri = ao2mo.restore(8, eri, fobjs_.nao)
 
             fobjs_.cons_fock(self.hf_veff, self.S, self.hf_dm, eri_=eri)

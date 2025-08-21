@@ -1,4 +1,3 @@
-import sys
 from typing import Literal
 
 import numpy as np
@@ -14,13 +13,13 @@ CNO_Schemes = Literal["Proportional", "ProportionalQQ", "FragSize"]
 class CNOArgs:
     """Additional arguments for CNOs.
     cno_scheme options, for now, includes "Proportional", "ProportionalQQ",
-    and "FragSize"
-    If you specify "FragSize", you also must specify "tot_orbs", which gives
+    and "ExactFragSize"
+    If you specify "ExactFragSize", you also must specify "tot_frag_orbs", which gives
     the total number of orbitals for each fragment. CNOs are added (via some
-    scheme) until the fragment size hits FragSize
+    scheme) until the fragment size hits ExactFragSize
     """
     cno_scheme: CNO_Schemes | None = "Proportional"
-    tot_orbs: int | None = None
+    tot_frag_orbs: int | None = None
 
 def get_cnos(TA, TA_x, hcore_full, eri_full, nocc, occ):
     # TA_x is either TA_occ or TA_vir, aligning with occ=True or False
@@ -47,58 +46,34 @@ def get_cnos(TA, TA_x, hcore_full, eri_full, nocc, occ):
         mf_SC.mo_energy,
         occ
     )
-    print("P", P)
+
     # Transform pair density in SO basis
     P_mat_SO = C_SC @ P @ C_SC.T
-    print("P_mat_SO", P_mat_SO)
 
     # Project out FOs and BOs
     # You can do this all padded with zeros (as described in paper),
     # but reduced to non-zero blocks for cost
     P_mat_SO_env = P_mat_SO[nfb:, nfb:]
-    print("P_mat_SO_env_only",P_mat_SO_env)
 
     # Find the pair natural orbitals by diagonalizing these orbitals
     P_mat_eigvals, P_mat_eigvecs = np.linalg.eig(P_mat_SO_env)
-    print("P_mat_eigvals and vecs", P_mat_eigvals, P_mat_eigvecs)
 
     # Pad pair natural orbitals
-    print("nfb", nfb)
-    print("TA_x", TA_x.shape)
-    print("TA shape", TA.shape)
 
     PNO = np.zeros((TA_x.shape[1], TA_x.shape[1]-nfb))
-    print("PNO shape", PNO.shape)
     PNO[nfb:,:] = P_mat_eigvecs
-    print("PNO", PNO.shape, PNO)
     
     # Generate cluster natural orbitals, rotating into AO basis
     cnos = TA_x @ PNO
 
-    """
-
-    P_mat_SO_env = np.zeros_like(P_mat_SO)
-    P_mat_SO_env[
-        nfb:, nfb:] = P_mat_SO[nfb:, nfb:]
-    print("nfb", nfb)
-    print("P_mat_SO_env", P_mat_SO_env.shape, P_mat_SO_env)
-    # get PNOs by diagonalizing
-    P_mat_eigvals, P_mat_eigvecs = np.linalg.eig(P_mat_SO_env)
-    print("P_mat_eigvals and vecs", P_mat_eigvals, P_mat_eigvecs)
-
-    """
-    # change back to AO basis
-    #full_cnos = TA_x @ P_mat_eigvecs
-
-    #cnos = TA_x @ P_mat_eigvecs 
-    print("cnos", cnos.shape, cnos)
     return cnos
 
 def choose_cnos(file,
                 basis: str, 
                 n_f: float,
                 n_b: float,
-                nocc: float,
+                n_full_occ: float,
+                n_full_vir: float,
                 nsocc: int,
                 args: CNOArgs | None,
                 ):
@@ -106,11 +81,11 @@ def choose_cnos(file,
     Options for CNO schemes:
     1. Proportional: Adding virtual until we reach some threshold
     2. ProportionalQQ: 
-    3. FragSize: Maximum number of orbitals
+    3. ExactFragSize: Maximum number of orbitals
     """
     # Options for CNO schemes:
     ###
-    assert((args.cno_scheme=="FragSize")==(args.tot_orbs is not None))
+    assert((args.cno_scheme=="ExactFragSize")==(args.tot_frag_orbs is not None))
     # Build mini fragment to figure out the number of electrons and orbitals
 
     mol = gto.M()
@@ -118,33 +93,53 @@ def choose_cnos(file,
     mol.basis = basis
     nelec = mol.nelectron
 
-    print("n_f", n_f)
-    print("n_b", n_b)
-    print("nocc", nocc)
-    print("args", args)
-    print("nsocc", nsocc)
-    print("nelec", nelec)
-
-    print("args.cno_scheme", args.cno_scheme)
     if args.cno_scheme == "Proportional":
+        # Ratio of the number of fragment orbitals to the number of expected 
+        # occupied, based on the atoms in the fragment
         prop = n_f / (nelec / 2)
         nocc_cno_add = 0
-        nvir_cno_add = int(np.round(prop * nsocc)) - n_f - n_b
-        print("nvir_cno_acc", nvir_cno_add)
+        # Add virtual orbitals so that the proportion of all fragment orbitals 
+        # (n_f + n_b + nvir_cno_add) to the number of occupied orbitals in the
+        # Schmidt space (nsocc) is the same as the ratio `prop` above
+        nvir_cno_add = np.round(prop * nsocc) - n_f - n_b
 
     elif args.cno_scheme == "ProportionalQQ":
         prop = n_f / (nelec / 2)
-        total_orbs = n_f + n_b + int(prop * n_f)
+        total_orbs = n_f + n_b + prop * n_f
         nocc_cno_add = max(int(np.round(total_orbs / 2 - nsocc)), 0)
         nvir_cno_add = total_orbs - n_b - nocc_cno_add - n_f
-        print("nocc_cno_add", nocc_cno_add)
-        print("nvir_cno_add", nvir_cno_add)
 
-    elif args.cno_scheme == "FragSize":
+    elif args.cno_scheme == "ExactFragSize":
+        # Start by adding virtuals until `Proportional` is hit
         prop = n_f / (nelec / 2)
-        raise NotImplementedError
+        max_vir_add_prop = np.round(prop * nsocc) - n_f - n_b
 
-    return nocc_cno_add, nvir_cno_add
+        # Schmidt state is already bigger than the max fragment size
+        if args.tot_frag_orbs < n_f + n_b:
+            raise ValueError("Max fragment size larger than fragment + bath space")
+        # We will add virtual CNOs until the ratio of the augmented 
+        # fragment space to the number of occupieds in the Schmidt spaces reaches 
+        # the proportion above: see `Proportional`
+        elif 0 <= args.tot_frag_orbs - n_f - n_b <= max_vir_add_prop:
+            nocc_cno_add = 0
+            nvir_cno_add = args.tot_frag_orbs - n_f - n_b
+        # We need to also add occupieds here. We will now try to satisfy the
+        # proportional scheme by adding a certain number of occupieds and virtuals,
+        # as closely as possible
+        else:
+            nocc_cno_add = np.round(args.tot_frag_orbs / prop) - nsocc
+            nvir_cno_add = args.tot_frag_orbs - n_f - n_b - nocc_cno_add
+    
+    if nocc_cno_add +  n_f + n_b > n_full_occ:
+        raise RuntimeError(
+            "Request to add more occupied CNOs than exist. Choose different CNO scheme"
+            )
+    elif nvir_cno_add + n_f + n_b > n_full_vir:
+        raise RuntimeError(
+            "Request to add more virtual CNOs than exist. Choose different CNO scheme"
+            )
+
+    return int(nocc_cno_add), int(nvir_cno_add)
 
 def FormPairDensity(Vs, mo_occs, mo_coeffs, mo_energys, occ):
     OccIdx = np.where(mo_occs > 2.0 - 1e-6)[0]
@@ -159,9 +154,6 @@ def FormPairDensity(Vs, mo_occs, mo_coeffs, mo_energys, occ):
     # Transform 2 e integrals
     V = ao2mo.kernel(Vs, [COcc, CVir, COcc, CVir], compact = False)
     V = V.reshape((nOcc, nVir, nOcc, nVir))
-    print("V shape", V.shape)
-    print("mo_energys", mo_energys.shape)
-    print("nOcc", nOcc)
 
     mo_energy_occ = mo_energys[:nOcc]
     mo_energy_vir = mo_energys[nOcc:]
@@ -174,20 +166,11 @@ def FormPairDensity(Vs, mo_occs, mo_coeffs, mo_energys, occ):
     T = np.swapaxes(T, 1, 2)
 
     delta_T_term = 2 * T - np.swapaxes(T, 2, 3)
-    # Type = 0 or 1 for Occ or Vir
+    
     if occ: # True is occ
-        #P = -1 * np.einsum('ikab,kjab->ij', T, Tt)
-        # Orig
-        #P = 2.0 * np.einsum('kiab,kjab->ij', delta_T_term, T)# + np.einsum('ikab,jkab->ij', t, T)
-        # Leah
         P = 2 * np.einsum('kiab,kjab->ij', T, delta_T_term)
-        #P = np.eye(T.shape[0]) - P
         P = np.eye(T.shape[0]) - P
     else:
-        #P = np.einsum('ijac,ijcb->ab', T, Tt)
-        # Orig
-        #P = 2.0 * np.einsum('ijca,ijcb->ab', delta_T_term, T)# + np.einsum('ij,ijac,ijbc->ab', N, t, T)
-        # Leah
         P = 2.0 * np.einsum('ijac,jicb->ab', T, delta_T_term)
 
     return P
@@ -196,6 +179,5 @@ def augment_w_cnos(TA, nocc_cno, nvir_cno, occ_cno, vir_cno):
     if nocc_cno > 0:
         TA = np.hstack((TA, occ_cno[:, :nocc_cno]))
     if nvir_cno > 0:
-        print("nvir_cno", nvir_cno)
         TA = np.hstack((TA, vir_cno[:, :nvir_cno]))
     return TA

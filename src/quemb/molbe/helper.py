@@ -108,9 +108,7 @@ def get_scfObj(
     mol = gto.M()
     mol.nelectron = nocc * 2
     mol.incore_anyway = True
-    #print("get_scfobj h1", h1)
-    #print("get_scfobj Eri", Eri)
-    #print("get_scfobj nocc", nocc)
+
     # Initialize an RHF object
     mf_ = scf.RHF(mol)
     mf_.get_hcore = lambda *args: h1  # noqa: ARG005

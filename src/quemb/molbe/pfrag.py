@@ -115,8 +115,6 @@ class Frags:
         self.TA_lo_eo: Matrix[float64]
 
         # CNOs
-        self.TA_lo_eo_occ: Matrix[float64]
-        self.TA_lo_eo_vir: Matrix[float64]
         self.TA_cno_occ: Matrix[float64]
         self.TA_cno_vir: Matrix[float64]
 
@@ -176,10 +174,9 @@ class Frags:
             Used for UBE, where different number of alpha and beta orbitals
             Default is None, allowing orbitals to be chosen by threshold
         """
-        print("lmo", lmo.shape, lmo)
-        print("lao", lao.shape, lao)
         if add_cnos:
-            self.TA_lo_eo, delta_TA_lo_eo_occ, delta_TA_lo_eo_vir, self.n_f, self.n_b = schmidt_decomposition_cnos(
+            self.TA_lo_eo, delta_TA_lo_eo_occ, delta_TA_lo_eo_vir, self.n_f, self.n_b \
+                = schmidt_decomposition_cnos(
                 lmo,
                 nocc,
                 self.AO_in_frag,
@@ -200,7 +197,6 @@ class Frags:
            )
             self.TA = lao @ self.TA_lo_eo
             self.nao = self.TA.shape[1]
-            print("self.TA", self.TA.shape, self.TA)
 
 
     def cons_fock(self, hf_veff, S, dm, eri_=None):
@@ -252,9 +248,7 @@ class Frags:
         C_ = multi_dot((self.TA.T, S, C[:, ncore : ncore + nocc]))
         P_ = C_ @ C_.T
         nsocc_ = trace(P_)
-        print("nsocc_", nsocc_)
         nsocc = int(round(nsocc_))
-        print("nsocc", nsocc)
         try:
             mo_coeffs = scipy.linalg.svd(C_)[0]
         except scipy.linalg.LinAlgError:
@@ -588,16 +582,11 @@ def schmidt_decomposition_cnos(
         else:
             VEidx.append(i)
 
-    print("Bidx", len(Bidx), Bidx)
-    print("VEidx", len(VEidx), VEidx)
-    print("OEidx", len(OEidx), OEidx)
-
     # Initialize the transformation matrix (TA)
     TA = zeros([Tot_sites, len(AO_in_frag) + len(Bidx)])
     TA[AO_in_frag, : len(AO_in_frag)] = eye(len(AO_in_frag))  # Fragment part
     TA[Env_sites1, len(AO_in_frag) :] = Evec[:, Bidx]  # Environment part
-    
-    print("TA", TA)
+
     ######################
     # As-written version #
     ######################
@@ -626,9 +615,6 @@ def schmidt_decomposition_cnos(
     delta_TA_virt = zeros([Tot_sites, len(VEidx)])
     delta_TA_virt[Env_sites1, :] = Evec[:, VEidx]
 
-    print("delta_TA_occ", delta_TA_occ)
-    print("delta_TA_virt", delta_TA_virt)
-    # return TA, norbs_frag, norbs_bath
     return TA, delta_TA_occ, delta_TA_virt, Frag_sites1.shape[0], len(Bidx), 
 
 
