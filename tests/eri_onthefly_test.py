@@ -43,7 +43,7 @@ class TestDF_ontheflyERI(unittest.TestCase):
             main.load_scf(chkfile_expensive, "scf", mf)
         else:
             mf.kernel()
-            main.dump_scf(chkfile_expensive, "scf", mf)
+            main.dump_scf(mf, chkfile_expensive)
 
         fobj = fragmentate(frag_type="autogen", n_BE=2, mol=mol)
         mybe = BE(mf, fobj, auxbasis="cc-pvtz-ri", int_transform="int-direct-DF")
@@ -66,7 +66,7 @@ class TestDF_ontheflyERI(unittest.TestCase):
             main.load_scf(chkfile_inexpensive, "scf", mf)
         else:
             mf.kernel()
-            main.dump_scf(chkfile_inexpensive, "scf", mf)
+            main.dump_scf(mf, chkfile_inexpensive)
 
         fobj = fragmentate(frag_type="chemgen", n_BE=2, mol=mol)
 
