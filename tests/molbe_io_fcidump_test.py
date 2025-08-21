@@ -19,7 +19,7 @@ def prepare_system() -> BE:
     # Read in molecular integrals expressed in libint basis ordering
     # numpy.loadtxt takes care of the input under the hood
     mol, mf = libint2pyscf(
-        "data/distorted_octane.xyz",
+        "xyz/distorted_octane.xyz",
         "data/hcore_libint_octane.dat",
         "STO-3G",
         hcore_skiprows=1,
