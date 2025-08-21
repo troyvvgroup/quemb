@@ -81,7 +81,7 @@ mol_cluster = gto.M(
 
 # The different routines and systems to collect data for:
 be_types = [2, 3, 4, 5]
-frag_types = ["graphgen", "chemgen", "autogen"]
+frag_types = ("graphgen", "chemgen", "autogen")
 mol_types = {
     "H_1D": mol_H_1D,
     "H_2D": mol_H_2D,
@@ -111,9 +111,9 @@ if not os.path.exists(data_file):
                 fobj = fragmentate(
                     n_BE=be_type,
                     mol=mol,
-                    frag_type=frag_type,
+                    frag_type=frag_type,  # type: ignore[arg-type]
                     print_frags=True,
-                    additional_args=fragmentate_args.get(frag_type, None),
+                    additional_args=fragmentate_args.get(frag_type, None),  # type: ignore[arg-type]
                 )
                 t1 = time.time()
                 results.update(
