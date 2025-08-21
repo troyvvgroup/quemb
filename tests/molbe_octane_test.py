@@ -83,7 +83,7 @@ def test_cubegen() -> None:
             cube_content = np.fromstring(
                 "".join(f.read().split("\n")[2:]), sep=" ", dtype=float
             )
-        with open("xyz/octane_frag_3_orb_2.cube") as f:
+        with open("data/octane_frag_3_orb_2.cube") as f:
             reference_content = np.fromstring(
                 "".join(f.read().split("\n")[2:]), sep=" ", dtype=float
             )
