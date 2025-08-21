@@ -4,7 +4,6 @@ from __future__ import annotations
 import re
 import time
 from collections.abc import Sequence
-from copy import deepcopy
 from pathlib import Path
 from typing import Final, Generator, Literal
 
@@ -13,7 +12,6 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 from attrs import define
-from networkx import shortest_path
 from numpy.linalg import norm
 from pyscf import gto
 
@@ -507,6 +505,45 @@ def graphgen(
         # sites within some cutoff radius from the center, specified
         # by `cutoff`.)
         t2 = time.time()
+        for adx, node_info in adx_map.items():
+            # Initialize fragment metadata
+            origin_per_frag.append((adx,))
+            center.append(tuple(sites[adx]))
+            add_center_atom.append([])
+
+            fsites_temp = list(sites[adx])
+            fatoms_temp = [adx]
+            edges_temp: list[tuple[int, int]] = []
+            fsites_by_node = [tuple(sites[adx])]
+
+            # Compute all shortest paths from adx in one call
+            shortest_paths = nx.single_source_dijkstra_path(
+                adjacency_graph,
+                source=adx,
+                weight="weight",  # Graph edge attr key
+            )
+            node_info["shortest_paths"].update(shortest_paths)
+
+            # Collect fragments up to cutoff distance
+            for bdx, path in shortest_paths.items():
+                if adx == bdx:
+                    continue
+                path_len = len(path) - 1
+                # If the degree of separation is smaller than the *n*
+                # in your fragment type (BE*n*) then that site is
+                # considered a part of the current fragment.
+                if 0 < path_len < fragment_type_order:
+                    fsites_temp.extend(sites[bdx])
+                    fsites_by_node.append(tuple(sites[bdx]))
+                    fatoms_temp.append(bdx)
+                    edges_temp.extend(nx.utils.pairwise(path))
+
+            # Record results
+            AO_per_frag.append(tuple(fsites_temp))
+            fsites_by_atom.append(tuple(fsites_by_node))
+            edge_list.append(edges_temp)
+            motifs_per_frag.append(tuple(fatoms_temp))
+        """
         for adx, map in adx_map.items():
             origin_per_frag.append((adx,))
             center.append(deepcopy(sites[adx]))
@@ -547,6 +584,7 @@ def graphgen(
             fsites_by_atom.append(tuple(fs_temp))
             edge_list.append(edges_temp)
             motifs_per_frag.append(tuple(fatoms_temp))
+        """
         t3 = time.time()
 
     elif connectivity.lower() in ["resistance_distance", "resistance"]:
@@ -669,14 +707,16 @@ def graphgen(
             for st in GraphGenUtility._graph_to_string(sg):
                 print(st, flush=True)
         t6 = time.time()
+        t_tot = t6 - t0
         title = "VERBOSE: `graphgen` Timing Breakdown"
         print(title, "-" * (80 - len(title)))
-        print(f"Initialization time:                {t1 - t0}")
-        print(f"Adj. graph constr. time:            {t2 - t1}")
-        print(f"Initial indexing time:              {t3 - t2}")
-        print(f"Time to: Remove redundant frags:    {t4 - t3}")
-        print(f"Perform final indexing:             {t5 - t4}")
-        print(f"Print and wrap-up:                  {t6 - t5}")
+        print(f"Initialization time:                {t1 - t0:0.6f}s ({100 * (t1 - t0) / t_tot:0.1f}%)")  # noqa: E501
+        print(f"Adj. graph construction:            {t2 - t1:0.6f}s ({100 * (t2 - t1) / t_tot:0.1f}%)")  # noqa: E501
+        print(f"Shortest path finding:              {t3 - t2:0.6f}s ({100 * (t3 - t2) / t_tot:0.1f}%)")  # noqa: E501
+        print(f"Removing redundant frags:           {t4 - t3:0.6f}s ({100 * (t4 - t3) / t_tot:0.1f}%)")  # noqa: E501
+        print(f"Finalize indexing:                  {t5 - t4:0.6f}s ({100 * (t5 - t4) / t_tot:0.1f}%)")  # noqa: E501
+        print(f"Print and wrap-up:                  {t6 - t5:0.6f}s ({100 * (t6 - t5) / t_tot:0.1f}%)")  # noqa: E501
+        print(f"Total elapsed time:                 {t6 - t0:0.6f}s ({100 * (t6 - t0) / t_tot:0.1f}%)")  # noqa: E501
 
     return FragPart(
         mol=mol,
