@@ -28,7 +28,6 @@ from pyscf import ao2mo, scf
 from pyscf.gto import Mole
 from typing_extensions import assert_never
 
-from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
 from quemb.molbe.eri_sparse_DF import (
     transform_sparse_DF_integral_cpp,
@@ -46,6 +45,7 @@ from quemb.molbe.lo import (
 )
 from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
 from quemb.molbe.pfrag import Frags, union_of_frag_MOs_and_index
+from quemb.shared.be_parallel import be_func_parallel
 from quemb.shared.external.lo_helper import (
     get_aoind_by_atom,
     reorder_by_atom_,
