@@ -28,7 +28,7 @@ expected = get_expected()
 
 
 def test_semi_sparse_3d_tensor() -> None:
-    m = Cartesian.read_xyz("data/octane.xyz")
+    m = Cartesian.read_xyz("xyz/octane.xyz")
     basis = "sto-3g"
     auxbasis = "weigend"
     mol = m.to_pyscf(basis=basis, charge=0)
@@ -49,7 +49,7 @@ def test_semi_sparse_3d_tensor() -> None:
 
 
 def test_sparse_density_fitting() -> None:
-    m = Cartesian.read_xyz("data/octane.xyz")
+    m = Cartesian.read_xyz("xyz/octane.xyz")
     basis = "sto-3g"
     auxbasis = "weigend"
     mol = m.to_pyscf(basis=basis, charge=0)
@@ -73,7 +73,7 @@ def test_sparse_density_fitting() -> None:
 
 
 def test_find_screening_radius() -> None:
-    mol = M("./data/octane.xyz", basis="cc-pvdz", charge=0)
+    mol = M("./xyz/octane.xyz", basis="cc-pvdz", charge=0)
     auxmol = make_auxmol(mol, auxbasis="cc-pvdz-jkfit")
 
     assert find_screening_radius(mol, auxmol, threshold=1e-8) == {
@@ -88,7 +88,7 @@ def test_find_screening_radius() -> None:
 
 
 def test_sparse_DF_BE() -> None:
-    mol = M("data/octane.xyz", basis="sto-3g", cart=True)
+    mol = M("xyz/octane.xyz", basis="sto-3g", cart=True)
 
     mf = scf.RHF(mol)
     mf.kernel()
@@ -104,7 +104,7 @@ def test_sparse_DF_BE() -> None:
         rtol=0,
     ), sparse_DF_BE.ebe_tot - sparse_DF_BE.ebe_hf
 
-    mol = M("data/octane.xyz", basis="sto-3g", cart=False)
+    mol = M("xyz/octane.xyz", basis="sto-3g", cart=False)
 
     mf = scf.RHF(mol)
     mf.kernel()
