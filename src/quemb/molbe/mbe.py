@@ -2,7 +2,6 @@
 
 import logging
 import pickle
-import sys
 from typing import Final, Literal, TypeAlias
 from warnings import warn
 
@@ -158,8 +157,8 @@ class BE:
             Method for calculating orbital population, by default 'meta-lowdin'
             See pyscf.lo for more details and options
         add_cnos : 
-            Whether to run the CNO routine and return cluster natural orbitals to pad the
-            Schmidt space. Default is False
+            Whether to run the CNO routine and return cluster natural orbitals to pad
+            the Schmidt space. Default is False
         compute_hf :
             Whether to compute Hartree-Fock energy, by default True.
         restart :
