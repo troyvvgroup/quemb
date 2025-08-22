@@ -14,9 +14,9 @@ from pyscf import gto, scf
 from quemb.molbe import BE, fragmentate
 from quemb.molbe.mf_interfaces import main
 
-chkfile_expensive = os.path.join(os.path.dirname(__file__), "chk/octane_expensive.h5")
-chkfile_inexpensive = os.path.join(
-    os.path.dirname(__file__), "chk/octane_inexpensive.h5"
+chkfile_large = os.path.join(os.path.dirname(__file__), "chk/octane_large.h5")
+chkfile_small = os.path.join(
+    os.path.dirname(__file__), "chk/octane_small.h5"
 )
 
 
@@ -26,7 +26,7 @@ class TestDF_ontheflyERI(unittest.TestCase):
             os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true"
             and not os.getenv("GITHUB_ACTIONS") == "true"
         ),
-        "Skipped expensive tests for QuEmb.",
+        "Skipped large tests for QuEmb.",
     )
     def test_octane_BE2_large(self):
         # Octane, cc-pvtz
@@ -39,11 +39,11 @@ class TestDF_ontheflyERI(unittest.TestCase):
         mf = scf.RHF(mol)
         mf.direct_scf = True
 
-        if os.path.exists(chkfile_expensive):
-            main.load_scf(chkfile_expensive, "scf", mf)
+        if os.path.exists(chkfile_large):
+            main.load_scf(chkfile_large)
         else:
             mf.kernel()
-            main.dump_scf(mf, chkfile_expensive)
+            main.dump_scf(mf, chkfile_large)
 
         fobj = fragmentate(frag_type="autogen", n_BE=2, mol=mol)
         mybe = BE(mf, fobj, auxbasis="cc-pvtz-ri", int_transform="int-direct-DF")
@@ -62,11 +62,11 @@ class TestDF_ontheflyERI(unittest.TestCase):
 
         mf = scf.RHF(mol)
 
-        if os.path.exists(chkfile_inexpensive):
-            main.load_scf(chkfile_inexpensive, "scf", mf)
+        if os.path.exists(chkfile_small):
+            main.load_scf(chkfile_small)
         else:
             mf.kernel()
-            main.dump_scf(mf, chkfile_inexpensive)
+            main.dump_scf(mf, chkfile_small)
 
         fobj = fragmentate(frag_type="chemgen", n_BE=2, mol=mol)
 
