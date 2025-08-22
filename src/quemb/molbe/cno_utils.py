@@ -2,6 +2,7 @@ from typing import Literal
 
 import numpy as np
 from attrs import define
+from numpy import float64, floating
 from pyscf import ao2mo, gto
 
 from quemb.molbe.helper import get_scfObj
@@ -40,9 +41,9 @@ class CNOArgs:
 
 def get_cnos(
     nfb: int,
-    TA_x: Matrix,
-    hcore_full: Matrix,
-    eri_full: Matrix,
+    TA_x: Matrix[float64],
+    hcore_full: Matrix[floating],
+    eri_full: Matrix[floating],
     nocc: int,
     occ: bool,
     )-> Matrix:
@@ -223,10 +224,10 @@ def choose_cnos(
     return int(nocc_cno_add), int(nvir_cno_add)
 
 def FormPairDensity(
-    Vs: Matrix,
-    mo_occs: Matrix,
-    mo_coeffs: Matrix,
-    mo_energys: Matrix,
+    Vs: Matrix[floating],
+    mo_occs: Matrix[floating],
+    mo_coeffs: Matrix[floating],
+    mo_energys: Matrix[floating],
     occ: bool,
     )-> Matrix:
     """
@@ -288,11 +289,11 @@ def FormPairDensity(
     return P
 
 def augment_w_cnos(
-    TA: Matrix,
+    TA: Matrix[float64],
     nocc_cno: int,
     nvir_cno: int,
-    occ_cno: Matrix,
-    vir_cno: Matrix,
+    occ_cno: Matrix[floating],
+    vir_cno: Matrix[floating],
     )-> Matrix:
     """Augmenting TA with the chosen occupied and virtual CNOs
 

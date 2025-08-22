@@ -913,7 +913,7 @@ class BE:
     def _eri_transform(
         self,
         int_transform: IntTransforms,
-        eri_: Matrix[np.floating] | None,
+        eri_: Matrix[floating] | None,
         file_eri: h5py.File,
     ):
         """
@@ -1304,10 +1304,10 @@ class BE:
         iao_loc_method: IAO_LocMethods = "lowdin",
         iao_valence_only: bool = False,
         pop_method: str | None = None,
-        init_guess: Matrix[np.floating] | None = None,
+        init_guess: Matrix[floating] | None = None,
         hstack: bool = False,
         save: bool = True,
-    ) -> None | Matrix[np.float64]:
+    ) -> None | Matrix[float64]:
         """Molecular orbital localization
 
         Performs molecular orbital localization computations. For large basis,
