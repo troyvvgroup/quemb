@@ -28,7 +28,7 @@ class TestDF_ontheflyERI(unittest.TestCase):
     )
     def test_octane_BE2_large(self):
         # Octane, cc-pvtz
-        if os.path.exists(chkfile_large)
+        if os.path.exists(chkfile_large):
             mol, mf = main.load_scf(chkfile_large)
         else:
             mol = gto.M()
