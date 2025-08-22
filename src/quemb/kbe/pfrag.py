@@ -83,13 +83,15 @@ class Frags:
             in :python:`center` that points to the edge site AOs.
             Read more detailed description in :class:`quemb.kbe.fragment.FragPart`.
         relAO_per_origin :
-            indices of the origin in the fragment, by default None
+            indices of the origin in the fragment, by default None.
         weight_and_relAO_per_center :
-            weight used for energy contributions, by default None
+            weight used for energy contributions, by default None.
         eri_file :
             two-electron integrals stored as h5py file, by default 'eri_file.h5'
         unitcell_nkpt:
+            total number of unit cells, accounting for the k-point grid
         unitcell:
+            number of unit cells used in building fragments
         """
         self.AO_in_frag = AO_in_frag
         self.unitcell = unitcell
