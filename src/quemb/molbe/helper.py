@@ -123,7 +123,7 @@ def get_scfObj(
         mf_.kernel()
     else:
         mf_.kernel(dm0=dm0)
-    #print("mf_.mo_coeff", mf_.mo_coeff)
+
     # Check if the SCF calculation converged
     if not mf_.converged:
         print(flush=True)

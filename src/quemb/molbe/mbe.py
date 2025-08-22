@@ -1094,6 +1094,7 @@ class BE:
                 thr_bath=self.thr_bath,
                 add_cnos=self.add_cnos
                 )
+            # Calculating and Adding CNOs, if requested
             if self.add_cnos:
                 # Run this the first time, to get nsocc
                 # Run again LATER with updated TA!
@@ -1108,11 +1109,18 @@ class BE:
                     fobjs_.nsocc, # number of occupied orbitals in fragment
                     self.additional_args,
                 )
-                print(f"Adding {nocc_add_cno:>3.0f} Occupied CNOs", flush=True)
-                print(f"Adding {nvir_add_cno:>3.0f} Virtual CNOs", flush=True)
+
+                # Update bath orbital count
+                fobjs_.n_b = fobjs_.n_b + nocc_add_cno + nvir_add_cno
+
+                print(f"For Fragment {I:>3.0f}:", flush=True)
+                print(f"          {nocc_add_cno:>3.0f}: Occupied CNOs", flush=True)
+                print(f"          {nvir_add_cno:>3.0f}: Virtual CNOs", flush=True)
+                print(f"{fobjs_.n_f:>3.0f}, {fobjs_.n_b:>3.0f}, {fobjs_.n_f+fobjs_.n_b:>3.0f}: Fragment, Bath, Total Orbitals", flush=True)  # noqa: E501
+
                 occ_cno = 0
                 vir_cno = 0
-                if nocc_add_cno >= 0:
+                if nocc_add_cno > 0:
                     # Generate occupied CNOs
                     occ_cno = get_cnos(
                         fobjs_.TA.shape[1], # number of fragment and bath orbitals
@@ -1122,7 +1130,7 @@ class BE:
                         self.Nocc,
                         occ = True,
                     )
-                if nvir_add_cno >= 0:
+                if nvir_add_cno > 0:
                     # Generate virtual CNOs
                     vir_cno = get_cnos(
                         fobjs_.TA.shape[1], # number of fragment and bath orbitals
@@ -1142,7 +1150,6 @@ class BE:
 
                 # Update relevant fobjs_ attributes
                 fobjs_.nao = fobjs_.TA.shape[1]
-                fobjs_.n_b = fobjs_.n_b + nocc_add_cno + nvir_add_cno
 
             self.Fobjs.append(fobjs_)
 
