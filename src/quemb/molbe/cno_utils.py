@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Tuple
 
 import numpy as np
 from attrs import define
@@ -36,7 +36,7 @@ class CNOArgs:
     If you choose `ExactFragSize`, you also must specify `tot_frag_orbs`, which gives
     the total number of orbitals for each fragment.
     """
-    cno_scheme: CNO_Schemes | None = "Proportional"
+    cno_scheme: CNO_Schemes = "Proportional"
     tot_frag_orbs: int | None = None
 
 def get_cnos(
@@ -117,9 +117,10 @@ def get_cnos(
     # Pad pair natural orbitals
     PNO = np.zeros((TA_x.shape[1], TA_x.shape[1]-nfb))
     PNO[nfb:,:] = P_mat_eigvecs
-    
+
     # Generate cluster natural orbitals, rotating into AO basis
     cnos = TA_x @ PNO
+
     return cnos
 
 def choose_cnos(
@@ -131,7 +132,7 @@ def choose_cnos(
     n_full_vir: int,
     nsocc: int,
     args: CNOArgs | None,
-)->(int,int):
+)->Tuple[int,int]:
     """Chooses the number of Occupied and Virtual CNOs for a given fragment
 
     Parameters
@@ -159,13 +160,14 @@ def choose_cnos(
 
     Returns
     -------
-    nocc_cno_add, nvir_cno_add : int, int
+    nocc_cno_add, nvir_cno_add : tuple(int, int)
         The desired number of occupied and virtual CNOs to augment TA, based
         on the chosen `cno_scheme`.
     
     """
     # Options for CNO schemes:
     ###
+    assert(args is not None)
     assert((args.cno_scheme=="ExactFragSize")==(args.tot_frag_orbs is not None))
     # Build mini fragment to figure out the number of electrons and orbitals
 
@@ -292,8 +294,8 @@ def augment_w_cnos(
     TA: Matrix[float64],
     nocc_cno: int,
     nvir_cno: int,
-    occ_cno: Matrix[floating],
-    vir_cno: Matrix[floating],
+    occ_cno: Matrix[floating] | None,
+    vir_cno: Matrix[floating] | None,
     )-> Matrix:
     """Augmenting TA with the chosen occupied and virtual CNOs
 
@@ -316,7 +318,9 @@ def augment_w_cnos(
         Augmented TA matrix with CNOs
     """
     if nocc_cno > 0:
+        assert(occ_cno is not None)
         TA_aug = np.hstack((TA, occ_cno[:, :nocc_cno]))
     if nvir_cno > 0:
+        assert(vir_cno is not None)
         TA_aug = np.hstack((TA, vir_cno[:, :nvir_cno]))
     return TA_aug

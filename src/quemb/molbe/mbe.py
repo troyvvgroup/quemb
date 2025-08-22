@@ -1099,7 +1099,7 @@ class BE:
                 # Run this the first time, to get nsocc
                 # Run again LATER with updated TA!
                 _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
-                nocc_add_cno, nvir_add_cno = choose_cnos(
+                (nocc_add_cno, nvir_add_cno) = choose_cnos(
                     "f"+str(I)+".xyz", # geometry
                     self.mf.mol.basis, # basis
                     fobjs_.n_f, # number of fragment orbitals
@@ -1118,8 +1118,8 @@ class BE:
                 print(f"          {nvir_add_cno:>3.0f}: Virtual CNOs", flush=True)
                 print(f"{fobjs_.n_f:>3.0f}, {fobjs_.n_b:>3.0f}, {fobjs_.n_f+fobjs_.n_b:>3.0f}: Fragment, Bath, Total Orbitals", flush=True)  # noqa: E501
 
-                occ_cno = 0
-                vir_cno = 0
+                occ_cno = None
+                vir_cno = None
                 if nocc_add_cno > 0:
                     # Generate occupied CNOs
                     occ_cno = get_cnos(
