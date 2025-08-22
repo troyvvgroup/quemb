@@ -28,18 +28,17 @@ class TestDF_ontheflyERI(unittest.TestCase):
     )
     def test_octane_BE2_large(self):
         # Octane, cc-pvtz
-        mol = gto.M()
-        mol.atom = os.path.join(os.path.dirname(__file__), "xyz/octane.xyz")
-        mol.basis = "cc-pvtz"
-        mol.charge = 0.0
-        mol.spin = 0.0
-        mol.build()
-        mf = scf.RHF(mol)
-        mf.direct_scf = True
-
-        if os.path.exists(chkfile_large):
+        if os.path.exists(chkfile_large)
             mol, mf = main.load_scf(chkfile_large)
         else:
+            mol = gto.M()
+            mol.atom = os.path.join(os.path.dirname(__file__), "xyz/octane.xyz")
+            mol.basis = "cc-pvtz"
+            mol.charge = 0.0
+            mol.spin = 0.0
+            mol.build()
+            mf = scf.RHF(mol)
+            mf.direct_scf = True
             mf.kernel()
             main.dump_scf(mf, chkfile_large)
 
@@ -54,15 +53,15 @@ class TestDF_ontheflyERI(unittest.TestCase):
 
     def test_octane_BE2_small(self):
         # Octane, cc-pvtz
-        mol = gto.M(
-            os.path.join(os.path.dirname(__file__), "xyz/octane.xyz"), basis="sto-3g"
-        )
-
-        mf = scf.RHF(mol)
-
         if os.path.exists(chkfile_small):
             mol, mf = main.load_scf(chkfile_small)
         else:
+            mol = gto.M(
+                os.path.join(os.path.dirname(__file__), "xyz/octane.xyz"),
+                basis="sto-3g",
+            )
+
+            mf = scf.RHF(mol)
             mf.kernel()
             main.dump_scf(mf, chkfile_small)
 
