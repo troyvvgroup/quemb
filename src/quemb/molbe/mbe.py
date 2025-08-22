@@ -954,10 +954,10 @@ class BE:
                 print(f"Adding {nvir_add_cno:>3.0f} Virtual CNOs", flush=True)
                 occ_cno = None
                 vir_cno = None
-                if nocc_add_cno >= 0:\
+                if nocc_add_cno >= 0:
                     # Generate occupied CNOs
                     occ_cno = get_cnos(
-                        fobjs_.TA, # number of fragment and bath orbitals
+                        fobjs_.TA.shape[1], # number of fragment and bath orbitals
                         fobjs_.TA_cno_occ, # TA occupied expanded
                         self.hcore, # hcore
                         eri_, # eris
@@ -967,7 +967,7 @@ class BE:
                 if nvir_add_cno >= 0:
                     # Generate virtual CNOs
                     vir_cno = get_cnos(
-                        fobjs_.TA, # number of fragment and bath orbitals
+                        fobjs_.TA.shape[1], # number of fragment and bath orbitals
                         fobjs_.TA_cno_vir, # TA virtual expanded
                         self.hcore, # hcore
                         eri_, # eris
