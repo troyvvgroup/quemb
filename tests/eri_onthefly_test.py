@@ -38,7 +38,7 @@ class TestDF_ontheflyERI(unittest.TestCase):
         mf.direct_scf = True
 
         if os.path.exists(chkfile_large):
-            main.load_scf(chkfile_large)
+            mol, mf = main.load_scf(chkfile_large)
         else:
             mf.kernel()
             main.dump_scf(mf, chkfile_large)
@@ -61,7 +61,7 @@ class TestDF_ontheflyERI(unittest.TestCase):
         mf = scf.RHF(mol)
 
         if os.path.exists(chkfile_small):
-            main.load_scf(chkfile_small)
+            mol, mf = main.load_scf(chkfile_small)
         else:
             mf.kernel()
             main.dump_scf(mf, chkfile_small)
