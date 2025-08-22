@@ -26,7 +26,7 @@ class TestDF_ontheflyERI(unittest.TestCase):
             os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true"
             and not os.getenv("GITHUB_ACTIONS") == "true"
         ),
-        "Skipped large tests for QuEmb.",
+        "Skipped expensive tests for QuEmb.",
     )
     def test_octane_BE2_large(self):
         # Octane, cc-pvtz
