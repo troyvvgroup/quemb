@@ -15,9 +15,7 @@ from quemb.molbe import BE, fragmentate
 from quemb.molbe.mf_interfaces import main
 
 chkfile_large = os.path.join(os.path.dirname(__file__), "chk/octane_large.h5")
-chkfile_small = os.path.join(
-    os.path.dirname(__file__), "chk/octane_small.h5"
-)
+chkfile_small = os.path.join(os.path.dirname(__file__), "chk/octane_small.h5")
 
 
 class TestDF_ontheflyERI(unittest.TestCase):
