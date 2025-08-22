@@ -360,16 +360,18 @@ class TestBE_Fragmentation(unittest.TestCase):
         fobj = fragmentate(
             frag_type=frag_type, n_BE=n_BE, mol=mf.mol, order_by_size=False
         )
-        print(fobj.frag_type)
-        print("AO_per_frag", fobj.AO_per_frag)
-        print("AO_per_edge_per_frag", fobj.AO_per_edge_per_frag)
-        print("motifs_per_frag", fobj.motifs_per_frag)
-        print("relAO_per_edge_per_frag", fobj.relAO_per_edge_per_frag)
-        print("relAO_per_origin_per_frag", fobj.relAO_per_origin_per_frag)
-        print("ref_frag_idx_per_edge_per_frag", fobj.ref_frag_idx_per_edge_per_frag)
-        print("relAO_in_ref_per_edge_per_frag", fobj.relAO_in_ref_per_edge_per_frag)
-        print("H_per_motif", fobj.H_per_motif)
-        print("add_center_atom", fobj.add_center_atom)
+        # print(fobj.frag_type)
+        # print("AO_per_frag", fobj.AO_per_frag)
+        # print("target", target["AO_per_frag"])
+        # print("AO_per_edge_per_frag", fobj.AO_per_edge_per_frag)
+        # print("motifs_per_frag", fobj.motifs_per_frag)
+        # print("relAO_per_edge_per_frag", fobj.relAO_per_edge_per_frag)
+        # print("relAO_per_origin_per_frag", fobj.relAO_per_origin_per_frag)
+        # print("ref_frag_idx_per_edge_per_frag", fobj.ref_frag_idx_per_edge_per_frag)
+        # print("relAO_in_ref_per_edge_per_frag", fobj.relAO_in_ref_per_edge_per_frag)
+        # print("weight_and_relAO_per_center_per_frag", fobj.weight_and_relAO_per_center_per_frag)
+        # print("H_per_motif", fobj.H_per_motif)
+        # print("add_center_atom", fobj.add_center_atom)
         try:
             assert fobj.AO_per_frag == target["AO_per_frag"]
             assert fobj.AO_per_edge_per_frag == target["AO_per_edge_per_frag"]
