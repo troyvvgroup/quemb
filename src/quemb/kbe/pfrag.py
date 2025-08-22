@@ -89,9 +89,9 @@ class Frags:
         eri_file :
             two-electron integrals stored as h5py file, by default 'eri_file.h5'
         unitcell_nkpt:
-            total number of unit cells, accounting for the k-point grid
+            total number of unit cells, accounting for the k-point grid.
         unitcell:
-            number of unit cells used in building fragments
+            number of unit cells used in building fragments.
         """
         self.AO_in_frag = AO_in_frag
         self.unitcell = unitcell
