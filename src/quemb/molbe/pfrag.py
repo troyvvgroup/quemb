@@ -442,8 +442,8 @@ def schmidt_decomposition(
         Molecular orbital coefficients.
     nocc :
         Number of occupied orbitals.
-    Frag_sites : list of int
-        List of fragment sites (indices).
+    AO_in_frag :
+        Sequence of fragment sites (indices).
     thr_bath :
         Threshold for bath orbitals in Schmidt decomposition
     cinv :
@@ -508,8 +508,7 @@ def schmidt_decomposition(
     # Initialize the transformation matrix (TA)
     TA = zeros([Tot_sites, len(AO_in_frag) + len(Bidx)])
     TA[AO_in_frag, : len(AO_in_frag)] = eye(len(AO_in_frag))  # Fragment part
-    TA[Env_sites1, len(AO_in_frag) :] = Evec[:, Bidx]  # Environment part
-    print("TA", TA)
+    TA[Env_sites1, len(AO_in_frag) :] = Evec[:, Bidx]  # Bath part
 
     # return TA, norbs_frag, norbs_bath
     return TA, Frag_sites1.shape[0], len(Bidx)
@@ -519,13 +518,16 @@ def schmidt_decomposition_cnos(
     nocc: int,
     AO_in_frag: Sequence[GlobalAOIdx],
     thr_bath: float = 1.0e-10,
-) -> tuple[Matrix[float64], int, int]:
+) -> tuple[Matrix[float64],Matrix[float64], Matrix[float64], int, int,]:
     """
-    Perform Schmidt decomposition on the molecular orbital coefficients.
+    Perform Schmidt decomposition on the molecular orbital coefficients, when
+    augmenting with CNOs. This includes extra returns (as compared to
+    `schmidt_decomposition`) which are required for manipulating the environment
 
     This function decomposes the molecular orbitals into fragment and environment parts
     using the Schmidt decomposition method. It computes the transformation matrix (TA)
-    which includes both the fragment orbitals and the entangled bath.
+    which includes both the fragment orbitals and the entangled bath. It also returns
+    the occupied and virtual environment orbitals.
 
     Parameters
     ----------
@@ -533,17 +535,19 @@ def schmidt_decomposition_cnos(
         Molecular orbital coefficients.
     nocc :
         Number of occupied orbitals.
-    Frag_sites : list of int
-        List of fragment sites (indices).
+    AO_in_frag :
+        Sequence of fragment sites (indices).
     thr_bath :
         Threshold for bath orbitals in Schmidt decomposition
 
     Returns
     -------
     tuple:
-        TA, norbs_frag, norbs_bath
+        TA, delta_TA_occ, delta_TA_virt, norbs_frag, norbs_bath
 
         Transformation matrix (TA) including both fragment and entangled bath orbitals.
+        This also returns the columns associated with the occupied and virtual
+        environment orbitals, as well as the number of fragment and bath orbitals
     """
 
     # Compute the reduced density matrix (RDM) if not provided
@@ -585,37 +589,17 @@ def schmidt_decomposition_cnos(
     # Initialize the transformation matrix (TA)
     TA = zeros([Tot_sites, len(AO_in_frag) + len(Bidx)])
     TA[AO_in_frag, : len(AO_in_frag)] = eye(len(AO_in_frag))  # Fragment part
-    TA[Env_sites1, len(AO_in_frag) :] = Evec[:, Bidx]  # Environment part
+    TA[Env_sites1, len(AO_in_frag) :] = Evec[:, Bidx]  # Bath part
 
-    ######################
-    # As-written version #
-    ######################
-    """
-    
-    # Augment TA with virtual environment
-    TA_virt = zeros([Tot_sites, TA.shape[1] + len(VEidx)])
-    TA_virt[:TA.shape[0], :TA.shape[1]] = TA
-    TA_virt[Env_sites1, len(AO_in_frag) + len(Bidx):] = Evec[:, VEidx]
-    print("TA_virt", TA_virt.shape, TA_virt)
-
-    # Augment TA with occupied environment
-    TA_occ = zeros([Tot_sites, TA.shape[1] + len(OEidx)])
-    TA_occ[:TA.shape[0], :TA.shape[1]] = TA
-    TA_occ[Env_sites1, len(AO_in_frag) + len(Bidx):] = Evec[:, OEidx]
-    print("TA_occ", TA_occ.shape, TA_occ)
-    """
-    ##########################################
-    # Alt version: avoid redundant rotations #
-    ##########################################
     # Occupied environment columns
     delta_TA_occ = zeros([Tot_sites, len(OEidx)])
     delta_TA_occ[Env_sites1,:] = Evec[:, OEidx]
     
     # Virtual environment columns
-    delta_TA_virt = zeros([Tot_sites, len(VEidx)])
-    delta_TA_virt[Env_sites1, :] = Evec[:, VEidx]
+    delta_TA_vir = zeros([Tot_sites, len(VEidx)])
+    delta_TA_vir[Env_sites1, :] = Evec[:, VEidx]
 
-    return TA, delta_TA_occ, delta_TA_virt, Frag_sites1.shape[0], len(Bidx), 
+    return TA, delta_TA_occ, delta_TA_vir, Frag_sites1.shape[0], len(Bidx)
 
 
 def _get_contained(
