@@ -1,6 +1,6 @@
 # Author(s): Minsik Cho, Leah Weisburn
 
-"""🍠
+"""
 Bootstrap Embedding Calculation with an
 Unrestricted Hartree-Fock Bath
 
@@ -11,6 +11,8 @@ Reference
 TODO
   Add iterative UBE
 """
+
+# 🍠
 
 from pathlib import Path
 from warnings import warn

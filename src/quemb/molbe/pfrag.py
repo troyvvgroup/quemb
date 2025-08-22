@@ -56,7 +56,7 @@ class Frags:
         eri_file: PathLike = "eri_file.h5",
         unrestricted: bool = False,
     ) -> None:
-        """Constructor function for :python:`Frags` class.
+        r"""Constructor function for :python:`Frags` class.
 
         Parameters
         ----------
@@ -64,7 +64,7 @@ class Frags:
             list of AOs in the fragment (i.e. ``BE.AO_per_frag[i]``
             or ``FragPart.AO_per_frag[i]``)
         ifrag :
-            fragment index (∈ [0, BE.n_frag - 1])
+            fragment index (:math:`\in [0, \text{BE.n\_frag} - 1]`)
         AO_per_edge :
             list of lists of edge site AOs for each atom in the fragment.
             Read more detailed description in :class:`quemb.molbe.autofrag.FragPart`.

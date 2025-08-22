@@ -17,6 +17,9 @@ QuEmb includes two libraries: ``quemb.molbe`` and ``quemb.kbe``.
 The ``quemb.molbe`` library implements BE for molecules and supramolecular complexes,
 while the ``quemb.kbe`` library is designed to handle periodic systems such as surfaces and solids using periodic BE.
 
+You can also download the full documentation as a PDF:  
+`PDF documentation <_static/quemb.pdf>`_
+
 References
 ==========
 

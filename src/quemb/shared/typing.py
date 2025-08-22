@@ -11,7 +11,7 @@ i.e. the type is mostly useful to document intent to the developer.
 
 import os
 from collections.abc import Sequence
-from typing import Any, NewType, TypeAlias, TypeVar
+from typing import Any, NewType, Protocol, TypeAlias, TypeVar
 
 import numpy as np
 
@@ -148,3 +148,13 @@ SeqOverFrag: TypeAlias = Sequence
 SeqOverEdge: TypeAlias = Sequence
 SeqOverCenter: TypeAlias = Sequence
 SeqOverMotif: TypeAlias = Sequence
+
+
+_T = TypeVar("_T", bound="SupportsRichComparison")
+
+
+class SupportsRichComparison(Protocol):
+    def __lt__(self: _T, other: _T) -> bool: ...
+    def __le__(self: _T, other: _T) -> bool: ...
+    def __gt__(self: _T, other: _T) -> bool: ...
+    def __ge__(self: _T, other: _T) -> bool: ...

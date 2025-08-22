@@ -69,6 +69,7 @@ IntTransforms: TypeAlias = Literal[
     "sparse-DF-cpp-gpu",  # screen AOs and MOs via S_abs
     "sparse-DF-nb-gpu",  # screen AOs and MOs via S_abs and use jitted numba
 ]
+"""Literal type describing allowed transformation strategies."""
 
 AdditionalArgs: TypeAlias = CNOArgs
 
@@ -120,12 +121,13 @@ class BE:
         self,
         mf: scf.hf.SCF,
         fobj: FragPart[Mole],
+        *,
         eri_file: PathLike = "eri_file.h5",
         lo_method: LocMethods = "lowdin",
         iao_loc_method: IAO_LocMethods = "lowdin",
+        lo_bath_post_schmidt: Literal["cholesky", "ER", "PM", "boys"] | None = None,
         pop_method: str | None = None,
         add_cnos: bool = False,
-        compute_hf: bool = True,
         restart: bool = False,
         restart_file: PathLike = "storebe.pk",
         nproc: int = 1,
@@ -153,14 +155,15 @@ class BE:
             Method for orbital localization, by default "lowdin".
         iao_loc_method :
             Method for IAO localization, by default "lowdin"
+        lo_method_bath_post_schmidt :
+            If not :python:`None`, then perform a localization of the bath orbitals
+            **after** the Schmidt decomposition.
         pop_method :
             Method for calculating orbital population, by default 'meta-lowdin'
             See pyscf.lo for more details and options
         add_cnos : 
             Whether to run the CNO routine and return cluster natural orbitals to pad
             the Schmidt space. Default is False
-        compute_hf :
-            Whether to compute Hartree-Fock energy, by default True.
         restart :
             Whether to restart from a previous calculation, by default False.
         restart_file :
@@ -269,6 +272,17 @@ class BE:
                 "an iao_valence_basis defined."
             )
 
+        if int_transform[:9] == "sparse-DF" and (lo_method != "IAO"):
+            warn(
+                r'Sparse integral screening (int_transform="sparse-DF*") '
+                'works best if lo_method="IAO".\n'
+                "If you anyway used a minimal basis, you can ignore this warning."
+            )
+
+        self.lo_bath_post_schmidt: Literal["cholesky", "ER", "PM", "boys"] | None = (
+            lo_bath_post_schmidt
+        )
+
         self.ebe_hf = 0.0
         self.ebe_tot = 0.0
 
@@ -357,11 +371,9 @@ class BE:
 
         if not restart:
             # Initialize fragments and perform initial calculations
-            self.initialize(
-                mf._eri, compute_hf, restart=False, int_transform=int_transform
-            )
+            self.initialize(mf._eri, restart=False, int_transform=int_transform)
         else:
-            self.initialize(None, compute_hf, restart=True, int_transform=int_transform)
+            self.initialize(None, restart=True, int_transform=int_transform)
 
     def save(self, save_file: PathLike = "storebe.pk") -> None:
         """
@@ -898,10 +910,165 @@ class BE:
         print(flush=True)
 
     @timer.timeit
+    def _eri_transform(
+        self,
+        int_transform: IntTransforms,
+        eri_: Matrix[np.floating] | None,
+        file_eri: h5py.File,
+    ):
+        """
+        Transforms electron repulsion integrals (ERIs) for each fragment
+        and stores them in a file.
+
+        Transformation strategy follows a decision tree:
+
+        1. If full (ij|kl) ERIs are available:
+           - Use in-core ``ao2mo`` transformation.
+        2. Else, if (ij|P) intermediates from density fitting are available:
+           - Use out-of-core ``ao2mo`` transformation with saved (ij|P).
+        3. Else, if ``integral_direct_DF`` is requested:
+           - Use on-the-fly density-fitting integral evaluation.
+        4. Else, for a sparse, DF representation of integrals:
+           - Use ``sparse-DF-cpp`` for ``C++`` implementation.
+           - Use ``sparse-DF-cpp-gpu`` for ``C++`` + ``CUDDA`` implementation.
+           - Use `sparse-DF-nb`` for numba implementation.
+           - Use ``sparse-DF-nb-gpu`` for numba + ``cupy`` implementation.
+
+
+        Parameters
+        ----------
+        int_transform : The transformation strategy.
+        eri_ : The ERIs for the molecule.
+        file_eri : The output file where transformed ERIs are stored.
+        """
+        if int_transform == "in-core":
+            ensure(eri_ is not None, "ERIs have to be available in memory.")
+            for I in range(self.fobj.n_frag):
+                eri = ao2mo.incore.full(eri_, self.Fobjs[I].TA, compact=True)
+                file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
+        elif int_transform == "out-core-DF":
+            ensure(
+                hasattr(self.mf, "with_df") and self.mf.with_df is not None,
+                "Pyscf mean field object has to support `with_df`.",
+            )
+            for I in range(self.fobj.n_frag):
+                eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)
+                file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
+        elif int_transform == "int-direct-DF":
+            ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+            integral_direct_DF(self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis)
+        elif int_transform == "sparse-DF-cpp":
+            ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+            transform_sparse_DF_integral_cpp(
+                self.mf,
+                self.Fobjs,
+                auxbasis=self.auxbasis,
+                file_eri_handler=file_eri,
+                MO_coeff_epsilon=self.MO_coeff_epsilon,
+                AO_coeff_epsilon=self.AO_coeff_epsilon,
+                n_threads=self.n_threads_integral_transform,
+            )
+        elif int_transform == "sparse-DF-cpp-gpu":
+            from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
+                transform_sparse_DF_integral_cpp_gpu,
+            )
+
+            ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+            transform_sparse_DF_integral_cpp_gpu(
+                self.mf,
+                self.Fobjs,
+                auxbasis=self.auxbasis,
+                file_eri_handler=file_eri,
+                MO_coeff_epsilon=self.MO_coeff_epsilon,
+                AO_coeff_epsilon=self.AO_coeff_epsilon,
+                n_threads=self.n_threads_integral_transform,
+            )
+        elif int_transform == "sparse-DF-nb":
+            ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+            transform_sparse_DF_integral_nb(
+                self.mf,
+                self.Fobjs,
+                auxbasis=self.auxbasis,
+                file_eri_handler=file_eri,
+                MO_coeff_epsilon=self.MO_coeff_epsilon,
+                AO_coeff_epsilon=self.AO_coeff_epsilon,
+                n_threads=self.n_threads_integral_transform,
+            )
+        elif int_transform == "sparse-DF-nb-gpu":
+            from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
+                transform_sparse_DF_integral_nb_gpu,
+            )
+
+            ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+            transform_sparse_DF_integral_nb_gpu(
+                self.mf,
+                self.Fobjs,
+                auxbasis=self.auxbasis,
+                file_eri_handler=file_eri,
+                MO_coeff_epsilon=self.MO_coeff_epsilon,
+                AO_coeff_epsilon=self.AO_coeff_epsilon,
+                n_threads=self.n_threads_integral_transform,
+            )
+        else:
+            assert_never(int_transform)
+
+    @timer.timeit
+    def _initialize_fragments(self, file_eri: h5py.File, restart: bool):
+        """
+        Processes all molecular fragments by constructing their Fock matrices,
+        performing SCF, and computing fragment Hartree–Fock (HF) energies.
+
+        This includes:
+
+        - Loading and changing the symmetry of the ERIs (in-core or restored format).
+        - Constructing 1-electron Hamiltonians via basis transformations.
+        - Running fragment-level SCF calculations.
+        - Building initial density matrices for subsequent scf
+        - Computing and accumulating fragment HF energies
+        - Verifying HF-in-HF energy consistency.
+
+        Parameters
+        ----------
+        file_eri : h5py.File
+            HDF5 file containing fragment ERIs.
+        restart : bool
+            If True, skips ERI transformation and file closure.
+        """
+
+        E_hf = 0.0
+        for fobjs_ in self.Fobjs:
+            # Process each fragment
+            eri = array(file_eri.get(fobjs_.dname))
+            _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
+            assert fobjs_.TA is not None
+            fobjs_.h1 = multi_dot((fobjs_.TA.T, self.hcore, fobjs_.TA))
+
+            if not restart:
+                eri = ao2mo.restore(8, eri, fobjs_.nao)
+
+            fobjs_.cons_fock(self.hf_veff, self.S, self.hf_dm, eri_=eri)
+
+            fobjs_.heff = zeros_like(fobjs_.h1)
+            fobjs_.scf(fs=True, eri=eri)
+
+            assert fobjs_.h1 is not None and fobjs_.nsocc is not None
+            fobjs_.dm0 = 2.0 * (
+                fobjs_._mo_coeffs[:, : fobjs_.nsocc]
+                @ fobjs_._mo_coeffs[:, : fobjs_.nsocc].conj().T
+            )
+
+            fobjs_.update_ebe_hf()  # Updates fragment HF energy.
+            E_hf += fobjs_.ebe_hf
+        self.ebe_hf = E_hf + self.enuc + self.E_core
+        hf_err = self.hf_etot - self.ebe_hf
+        print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
+        if abs(hf_err) > 1.0e-5:
+            warn("Large HF-in-HF energy error")
+
+    @timer.timeit
     def initialize(
         self,
         eri_,
-        compute_hf: bool,
         *,
         restart: bool,
         int_transform: IntTransforms,
@@ -913,19 +1080,11 @@ class BE:
         ----------
         eri_ : numpy.ndarray
             Electron repulsion integrals.
-        compute_hf : bool
-            Whether to compute Hartree-Fock energy.
         restart : bool, optional
             Whether to restart from a previous calculation, by default False.
         int_transfrom :
             Which integral transformation to perform.
         """
-        if compute_hf:
-            E_hf = 0.0
-
-        # Create a file to store ERIs
-        if not restart:
-            file_eri = h5py.File(self.eri_file, "w")
         for I in range(self.fobj.n_frag):
             fobjs_ = self.fobj.to_Frags(I, eri_file=self.eri_file)
             fobjs_.sd(
@@ -933,9 +1092,8 @@ class BE:
                 self.lmo_coeff,
                 self.Nocc,
                 thr_bath=self.thr_bath,
-                add_cnos=self.add_cnos,
+                add_cnos=self.add_cnos
                 )
-
             if self.add_cnos:
                 # Run this the first time, to get nsocc
                 # Run again LATER with updated TA!
@@ -952,8 +1110,8 @@ class BE:
                 )
                 print(f"Adding {nocc_add_cno:>3.0f} Occupied CNOs", flush=True)
                 print(f"Adding {nvir_add_cno:>3.0f} Virtual CNOs", flush=True)
-                occ_cno = None
-                vir_cno = None
+                occ_cno = 0
+                vir_cno = 0
                 if nocc_add_cno >= 0:
                     # Generate occupied CNOs
                     occ_cno = get_cnos(
@@ -994,132 +1152,22 @@ class BE:
         for fobj, frag_TA_offset in zip(self.Fobjs, frag_TA_index_per_frag):
             fobj.frag_TA_offset = frag_TA_offset
 
+        if self.lo_bath_post_schmidt is not None:
+            for frag in self.Fobjs:
+                frag.TA[:, frag.n_f :] = get_loc(
+                    self.mf.mol,
+                    frag.TA[:, frag.n_f :],
+                    method=self.lo_bath_post_schmidt,
+                )
+
         if not restart:
-            # Transform ERIs for each fragment and store in the file
-            # ERI Transform Decision Tree
-            # Do we have full (ij|kl)?
-            #   Yes -- ao2mo, incore version
-            #   No  -- Do we have (ij|P) from density fitting?
-            #       Yes -- ao2mo, outcore version, using saved (ij|P)
-            #       No  -- if integral_direct_DF is requested, invoke on-the-fly routine
-            if int_transform == "in-core":
-                ensure(eri_ is not None, "ERIs have to be available in memory.")
-                for I in range(self.fobj.n_frag):
-                    eri = ao2mo.incore.full(eri_, self.Fobjs[I].TA, compact=True)
-                    file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
-            elif int_transform == "out-core-DF":
-                ensure(
-                    hasattr(self.mf, "with_df") and self.mf.with_df is not None,
-                    "Pyscf mean field object has to support `with_df`.",
-                )
-                # pyscf.ao2mo uses DF object in an outcore fashion using (ij|P)
-                #   in pyscf temp directory
-                for I in range(self.fobj.n_frag):
-                    eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)
-                    file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
-            elif int_transform == "int-direct-DF":
-                # If ERIs are not saved on memory, compute fragment ERIs integral-direct
-                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-                integral_direct_DF(
-                    self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis
-                )
-                eri = None
-            elif int_transform == "sparse-DF-cpp":
-                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-                transform_sparse_DF_integral_cpp(
-                    self.mf,
-                    self.Fobjs,
-                    auxbasis=self.auxbasis,
-                    file_eri_handler=file_eri,
-                    MO_coeff_epsilon=self.MO_coeff_epsilon,
-                    AO_coeff_epsilon=self.AO_coeff_epsilon,
-                    n_threads=self.n_threads_integral_transform,
-                )
-                eri = None
-            elif int_transform == "sparse-DF-cpp-gpu":
-                from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
-                    transform_sparse_DF_integral_cpp_gpu,
-                )
+            file_eri = h5py.File(self.eri_file, "w")
+            self._eri_transform(int_transform, eri_, file_eri)
 
-                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-                transform_sparse_DF_integral_cpp_gpu(
-                    self.mf,
-                    self.Fobjs,
-                    auxbasis=self.auxbasis,
-                    file_eri_handler=file_eri,
-                    MO_coeff_epsilon=self.MO_coeff_epsilon,
-                    AO_coeff_epsilon=self.AO_coeff_epsilon,
-                    n_threads=self.n_threads_integral_transform,
-                )
-                eri = None
-            elif int_transform == "sparse-DF-nb":
-                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-                transform_sparse_DF_integral_nb(
-                    self.mf,
-                    self.Fobjs,
-                    auxbasis=self.auxbasis,
-                    file_eri_handler=file_eri,
-                    MO_coeff_epsilon=self.MO_coeff_epsilon,
-                    AO_coeff_epsilon=self.AO_coeff_epsilon,
-                    n_threads=self.n_threads_integral_transform,
-                )
-                eri = None
-            elif int_transform == "sparse-DF-nb-gpu":
-                from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
-                    transform_sparse_DF_integral_nb_gpu,
-                )
-
-                ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-                transform_sparse_DF_integral_nb_gpu(
-                    self.mf,
-                    self.Fobjs,
-                    auxbasis=self.auxbasis,
-                    file_eri_handler=file_eri,
-                    MO_coeff_epsilon=self.MO_coeff_epsilon,
-                    AO_coeff_epsilon=self.AO_coeff_epsilon,
-                    n_threads=self.n_threads_integral_transform,
-                )
-                eri = None
-            else:
-                assert_never(int_transform)
-        else:
-            eri = None
-
-        for fobjs_ in self.Fobjs:
-            # Process each fragment
-
-            eri = array(file_eri.get(fobjs_.dname))
-            _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
-            assert fobjs_.TA is not None
-            fobjs_.h1 = multi_dot((fobjs_.TA.T, self.hcore, fobjs_.TA))
-
-            if not restart:
-                eri = ao2mo.restore(8, eri, fobjs_.nao)
-
-            fobjs_.cons_fock(self.hf_veff, self.S, self.hf_dm, eri_=eri)
-
-            fobjs_.heff = zeros_like(fobjs_.h1)
-            fobjs_.scf(fs=True, eri=eri)
-
-            assert fobjs_.h1 is not None and fobjs_.nsocc is not None
-            fobjs_.dm0 = 2.0 * (
-                fobjs_._mo_coeffs[:, : fobjs_.nsocc]
-                @ fobjs_._mo_coeffs[:, : fobjs_.nsocc].conj().T
-            )
-
-            if compute_hf:
-                fobjs_.update_ebe_hf()  # Updates fragment HF energy.
-                E_hf += fobjs_.ebe_hf
+        self._initialize_fragments(file_eri, restart)
 
         if not restart:
             file_eri.close()
-
-        if compute_hf:
-            self.ebe_hf = E_hf + self.enuc + self.E_core
-            hf_err = self.hf_etot - self.ebe_hf
-            print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
-            if abs(hf_err) > 1.0e-5:
-                warn("Large HF-in-HF energy error")
 
         couti = 0
         for fobj in self.Fobjs:
@@ -1259,7 +1307,7 @@ class BE:
         IAO is recommended augmented with PAO orbitals.
 
         NOTE: For molecular systems, with frozen core, the core and valence are
-        localized TOGETHER. This is not the case of periodic systems.
+        localized TOGETHER. This is not the case for periodic systems.
 
         Parameters
         ----------

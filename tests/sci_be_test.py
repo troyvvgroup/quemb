@@ -13,8 +13,8 @@ from quemb.molbe.solver import SHCI_ArgsUser
 
 
 # BE(1) Jobs
-@unittest.skipIf(
-    not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
+@unittest.skipUnless(
+    os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
     "This test is known to fail.",
 )
 def test_h8_be1_thresh_p1(h8_be1) -> None:
@@ -26,8 +26,8 @@ def test_h8_be1_thresh_p1(h8_be1) -> None:
     assert np.isclose(be1_p1, -0.09546075053560976)
 
 
-@unittest.skipIf(
-    not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
+@unittest.skipUnless(
+    os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
     "This test is known to fail.",
 )
 def test_h8_be1_thresh_p001(h8_be1) -> None:
@@ -39,8 +39,8 @@ def test_h8_be1_thresh_p001(h8_be1) -> None:
     assert np.isclose(be1_p001, -0.09325921453113128)
 
 
-@unittest.skipIf(
-    not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
+@unittest.skipUnless(
+    os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
     "This test is known to fail.",
 )
 def test_h8_be1_thresh_p001_nocum(h8_be1) -> None:
@@ -53,8 +53,8 @@ def test_h8_be1_thresh_p001_nocum(h8_be1) -> None:
 
 
 # BE(2) Jobs
-@unittest.skipIf(
-    not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
+@unittest.skipUnless(
+    os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
     "This test is known to fail.",
 )
 def test_h8_be2_thresh_p1(h8_be2) -> None:
@@ -66,8 +66,8 @@ def test_h8_be2_thresh_p1(h8_be2) -> None:
     assert np.isclose(be2_p1, -0.0428053424438577)
 
 
-@unittest.skipIf(
-    not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
+@unittest.skipUnless(
+    os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
     "This test is known to fail.",
 )
 def test_h8_be2_thresh_p01(h8_be2) -> None:
@@ -79,8 +79,8 @@ def test_h8_be2_thresh_p01(h8_be2) -> None:
     assert np.isclose(be2_p01, -0.08477641560843807)
 
 
-@unittest.skipIf(
-    not os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
+@unittest.skipUnless(
+    os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
     "This test is known to fail.",
 )
 def test_h8_be2_thresh_p01_nocum(h8_be2) -> None:
