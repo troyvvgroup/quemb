@@ -1,0 +1,6 @@
+quemb.shared.solver.SHCI\_ArgsUser.\_\_init\_\_
+===============================================
+
+.. currentmodule:: quemb.shared.solver
+
+.. automethod:: SHCI_ArgsUser.__init__

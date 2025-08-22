@@ -1,0 +1,6 @@
+quemb.shared.solver.solve\_block2
+=================================
+
+.. currentmodule:: quemb.shared.solver
+
+.. autofunction:: solve_block2

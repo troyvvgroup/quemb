@@ -1,0 +1,31 @@
+quemb.shared.opt
+================
+
+.. automodule:: quemb.shared.opt
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: custom-class-template.rst
+   
+      BEOPT
+   
+   
+
+   
+   
+   
+
+
+

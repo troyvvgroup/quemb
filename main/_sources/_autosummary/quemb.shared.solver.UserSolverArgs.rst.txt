@@ -1,0 +1,22 @@
+quemb.shared.solver.UserSolverArgs
+==================================
+
+.. currentmodule:: quemb.shared.solver
+
+.. autoclass:: UserSolverArgs
+
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~UserSolverArgs.__init__
+   
+   

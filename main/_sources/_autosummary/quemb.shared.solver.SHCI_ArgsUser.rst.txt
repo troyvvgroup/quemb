@@ -1,0 +1,29 @@
+quemb.shared.solver.SHCI\_ArgsUser
+==================================
+
+.. currentmodule:: quemb.shared.solver
+
+.. autoclass:: SHCI_ArgsUser
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: SHCI_ArgsUser.hci_cutoff
+   .. autoattribute:: SHCI_ArgsUser.hci_pt
+   .. autoattribute:: SHCI_ArgsUser.return_frag_data
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~SHCI_ArgsUser.__init__
+   
+   

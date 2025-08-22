@@ -1,0 +1,33 @@
+quemb.shared.be\_parallel
+=========================
+
+.. automodule:: quemb.shared.be_parallel
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      be_func_parallel
+      be_func_parallel_u
+      run_solver
+      run_solver_u
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

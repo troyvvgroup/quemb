@@ -29,7 +29,6 @@
    :recursive:
 
    autofrag
-   be_parallel
    chemfrag
    eri_onthefly
    eri_sparse_DF
@@ -40,8 +39,6 @@
    mbe
    mf_interfaces
    misc
-   opt
    pfrag
-   solver
    ube
 
