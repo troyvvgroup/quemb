@@ -12,6 +12,10 @@ from pyscf import gto, scf
 
 from quemb.molbe import BE, fragmentate
 from quemb.molbe.fragment import ChemGenArgs
+from quemb.molbe.mf_interfaces import main
+
+chkfile_h8 = os.path.join(os.path.dirname(__file__), "chk/h8.h5")
+chkfile_octane = os.path.join(os.path.dirname(__file__), "chk/octane.h5")
 
 
 class TestBE_restricted(unittest.TestCase):
@@ -19,14 +23,19 @@ class TestBE_restricted(unittest.TestCase):
         # Linear Equidistant (r=1Å) H8 Chain, STO-3G
         # CCSD Total Energy: -4.306498896 Ha
         # Target BE Total energies from in-house code
-        mol = gto.M()
-        mol.atom = [["H", (0.0, 0.0, i)] for i in range(8)]
-        mol.basis = "sto-3g"
-        mol.charge = 0.0
-        mol.spin = 0.0
-        mol.build()
-        mf = scf.RHF(mol)
-        mf.kernel()
+        if os.path.exists(chkfile_h8):
+            mol, mf = main.load_scf(chkfile_h8)
+        else:
+            mol = gto.M()
+            mol.atom = [["H", (0.0, 0.0, i)] for i in range(8)]
+            mol.basis = "sto-3g"
+            mol.charge = 0.0
+            mol.spin = 0.0
+            mol.build()
+            mf = scf.RHF(mol)
+            mf.kernel()
+            main.dump_scf(mf, chkfile_h8)
+
         self.molecular_restricted_test(
             mol,
             mf,
@@ -51,14 +60,19 @@ class TestBE_restricted(unittest.TestCase):
     def test_octane_sto3g_ben(self):
         # Octane, STO-3G
         # CCSD Total Energy: -310.3344616 Ha
-        mol = gto.M()
-        mol.atom = os.path.join(os.path.dirname(__file__), "xyz/octane.xyz")
-        mol.basis = "sto-3g"
-        mol.charge = 0.0
-        mol.spin = 0.0
-        mol.build()
-        mf = scf.RHF(mol)
-        mf.kernel()
+        if os.path.exists(chkfile_octane):
+            mol, mf = main.load_scf(chkfile_octane)
+        else:
+            mol = gto.M()
+            mol.atom = os.path.join(os.path.dirname(__file__), "xyz/octane.xyz")
+            mol.basis = "sto-3g"
+            mol.charge = 0.0
+            mol.spin = 0.0
+            mol.build()
+            mf = scf.RHF(mol)
+            mf.kernel()
+            main.dump_scf(mf, chkfile_octane)
+
         self.molecular_restricted_test(
             mol, mf, 2, "Octane (BE2)", "autogen", -310.33471581, only_chem=True
         )
