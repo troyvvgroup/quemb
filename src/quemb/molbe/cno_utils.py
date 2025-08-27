@@ -189,8 +189,8 @@ def choose_cnos(
     elif args.cno_scheme == "ProportionalQQ":
         # Same ratio as above
         prop = n_f / (nelec / 2)
-        total_orbs = n_f + n_b + prop * n_f
-        nocc_cno_add = max(int(np.round(total_orbs / 2 - nsocc)), 0)
+        total_orbs = int(1.5 * n_f) + n_b
+        nocc_cno_add = max(int(np.round(total_orbs / prop - nsocc)), 0)
         nvir_cno_add = total_orbs - n_b - nocc_cno_add - n_f
 
     elif args.cno_scheme == "ExactFragSize":
@@ -201,7 +201,7 @@ def choose_cnos(
         # Schmidt state is already bigger than the max fragment size
         if args.tot_frag_orbs < n_f + n_b:
             raise ValueError("Max fragment size larger than fragment + bath space")
-        # We will add virtual CNOs until the ratio of the augmented 
+        # We will add virtual CNOs until the ratio of ;the augmented 
         # fragment space to the number of occupieds in the Schmidt spaces reaches 
         # the proportion above: see `Proportional`
         elif 0 <= args.tot_frag_orbs - n_f - n_b <= max_vir_add_prop:
