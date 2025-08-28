@@ -8,7 +8,8 @@ from pyscf import ao2mo, gto
 from quemb.molbe.helper import get_scfObj
 from quemb.shared.typing import Matrix
 
-CNO_Schemes = Literal["Proportional", "ProportionalQQ", "FragSize"]
+CNO_Schemes = Literal["Proportional", "ProportionalQQ", "ExactFragmentSize"]
+CNO_FragSize_Schemes = Literal["AddVirtuals", "AddBoth"]
 
 
 @define(frozen=True, kw_only=True)
@@ -28,16 +29,22 @@ class CNOArgs:
     2. ProportionalQQ: Similar to the Proportional scheme, but now we are also adding
         occupied orbitals. We first add occupied orbitals until (), then augment with
         virtual orbitals until we reach the proportion in (1).
-    3. ExactFragSize: Enforcing that we add CNOs until each fragment is exactly the
-        size given by `tot_frag_orbs`. To do so, we add virtual CNOs until we reach the
-        proption given in (1). If we request more orbitals to be added, we add both
-        occupied and virtual CNOs to maintain (as close as we can) that ratio.
+    3. ExactFragmentSize: Enforcing that we add CNOs until each fragment is exactly the
+        size given by `tot_active_orbs`. 
+        Coupled with `cno_active_fragsize_scheme` with type `CNO_FragSize_Schemes`, we
+        will add virtual CNOs until we reach the proportion given in (1). If we request
+        more orbitals to be added, we rely on CNO_FragSize_Schemes to either add only
+        virtuals (`AddVirtuals`) or add both occupied and virtual CNOs to maintain (as
+        close as we can) that ratio (`AddBoth`).
 
-    If you choose `ExactFragSize`, you also must specify `tot_frag_orbs`, which gives
-    the total number of orbitals for each fragment.
+    If you choose `ExactFragmentSize`, you also must specify `tot_active_orbs`, which
+    gives the total number of orbitals for each fragment. You can also add specify how
+    these orbitals are chosen with the `cno_active_fragsize_scheme`. Default is
+    `AddVirtuals`.
     """
     cno_scheme: CNO_Schemes = "Proportional"
-    tot_frag_orbs: int | None = None
+    tot_active_orbs: int | None = None
+    cno_active_fragsize_scheme: CNO_FragSize_Schemes | None = "AddVirtuals"
 
 def get_cnos(
     nfb: int,
@@ -153,9 +160,10 @@ def choose_cnos(
         Number of occupied orbitals in the Schmidt space
     args : CNOArgs
         Options for CNO schemes, with keyword `cno_scheme`: `Proportional`,
-        `ProportionalQQ`, and `ExactFragSize`.
-        If using `ExactFragSize`, also include keyword `tot_frag_orbs` to specify
-        the desired size of the fragment.
+        `ProportionalQQ`, and `ExactFragmentSize`.
+        If using `ExactFragmentSize`, also include keyword `tot_active_orbs` to specify
+        the desired size of the fragment. You also can include `cno_tot_frag_scheme`
+        to choose how these are added (using `AddVirtuals` or `AddBoth`).
         Please look at `CNOArgs` to see further description of these options.
 
     Returns
@@ -168,7 +176,7 @@ def choose_cnos(
     # Options for CNO schemes:
     ###
     assert(args is not None)
-    assert((args.cno_scheme=="ExactFragSize")==(args.tot_frag_orbs is not None))
+    assert((args.cno_scheme=="ExactFragmentSize")==(args.tot_active_orbs is not None))
     # Build mini fragment to figure out the number of electrons and orbitals
 
     mol = gto.M()
@@ -189,6 +197,7 @@ def choose_cnos(
     elif args.cno_scheme == "ProportionalQQ":
         # Same ratio as above
         prop = n_f / (nelec / 2)
+        # Add enough orbitals for the 
         total_orbs = int(1.5 * n_f) + n_b
         nocc_cno_add = max(int(np.round(total_orbs / prop - nsocc)), 0)
         nvir_cno_add = total_orbs - n_b - nocc_cno_add - n_f
@@ -199,21 +208,24 @@ def choose_cnos(
         max_vir_add_prop = np.round(prop * nsocc) - n_f - n_b
 
         # Schmidt state is already bigger than the max fragment size
-        if args.tot_frag_orbs < n_f + n_b:
+        if args.tot_active_orbs < n_f + n_b:
             raise ValueError("Max fragment size larger than fragment + bath space")
         # We will add virtual CNOs until the ratio of ;the augmented 
         # fragment space to the number of occupieds in the Schmidt spaces reaches 
         # the proportion above: see `Proportional`
-        elif 0 <= args.tot_frag_orbs - n_f - n_b <= max_vir_add_prop:
+        if args.cno_active_fragsize_scheme == "AddVirtuals":
             nocc_cno_add = 0
             nvir_cno_add = args.tot_frag_orbs - n_f - n_b
-        # We need to also add occupieds here. We will now try to satisfy the
-        # proportional scheme by adding a certain number of occupieds and virtuals,
-        # as closely as possible
-        else:
-            nocc_cno_add = np.round(args.tot_frag_orbs / prop) - nsocc
-            nvir_cno_add = args.tot_frag_orbs - n_f - n_b - nocc_cno_add
-    
+        elif args.cno_tot_frag_scheme == "AddBoth":
+            if 0 <= args.tot_active_orbs - n_f - n_b <= max_vir_add_prop:
+                nocc_cno_add = 0
+                nvir_cno_add = args.tot_active_orbs - n_f - n_b
+            # We need to also add occupieds here. We will now try to satisfy the
+            # proportional scheme by adding a certain number of occupieds and virtuals,
+            # as closely as possible
+            else:
+                nocc_cno_add = np.round(args.tot_active_orbs / prop) - nsocc
+                nvir_cno_add = args.tot_active_orbs - n_f - n_b - nocc_cno_add
     if nocc_cno_add +  n_f + n_b > n_full_occ:
         raise RuntimeError(
             "Request to add more occupied CNOs than exist. Choose different CNO scheme"
