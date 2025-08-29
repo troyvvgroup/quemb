@@ -182,11 +182,10 @@ class Frags:
                 self.AO_in_frag,
                 thr_bath=thr_bath,
             )
-            self.TA = lao @ self.TA_lo_eo
 
+            self.TA = lao @ self.TA_lo_eo
             self.TA_cno_occ = np.hstack((self.TA, lao @ delta_TA_lo_eo_occ))
             self.TA_cno_vir = np.hstack((self.TA, lao @ delta_TA_lo_eo_vir))
-            
         else:
             self.TA_lo_eo, self.n_f, self.n_b = schmidt_decomposition(
                 lmo,
@@ -194,7 +193,8 @@ class Frags:
                 self.AO_in_frag,
                 thr_bath=thr_bath,
                 norb=norb,
-           )
+            )
+            
             self.TA = lao @ self.TA_lo_eo
             self.nao = self.TA.shape[1]
 
@@ -509,7 +509,6 @@ def schmidt_decomposition(
     TA = zeros([Tot_sites, len(AO_in_frag) + len(Bidx)])
     TA[AO_in_frag, : len(AO_in_frag)] = eye(len(AO_in_frag))  # Fragment part
     TA[Env_sites1, len(AO_in_frag) :] = Evec[:, Bidx]  # Bath part
-
     # return TA, norbs_frag, norbs_bath
     return TA, Frag_sites1.shape[0], len(Bidx)
 
@@ -551,8 +550,7 @@ def schmidt_decomposition_cnos(
     """
 
     # Compute the reduced density matrix (RDM) if not provided
-    if mo_coeff is not None:
-        C = mo_coeff[:, :nocc]
+    C = mo_coeff[:, :nocc]
     Dhf = C @ C.T
 
     # Total number of sites
@@ -573,6 +571,7 @@ def schmidt_decomposition_cnos(
     Bidx = []
     VEidx = []
     OEidx = []
+
     # Set the number of orbitals to be taken from the environment orbitals
     # Based on an eigenvalue threshold ordering
     for i in range(len(Eval)):
@@ -580,7 +579,7 @@ def schmidt_decomposition_cnos(
         if thr_bath < np.abs(Eval[i]) < 1.0 - thr_bath:
             Bidx.append(i)
         # Occupied environment index
-        elif thr_bath <= np.abs(Eval[i]):
+        elif 1.0 - thr_bath <= np.abs(Eval[i]):
             OEidx.append(i)
         # Virtual environment index
         else:

@@ -48,6 +48,7 @@ def run_solver(
     weight_and_relAO_per_center: ListOverFrag[tuple[float, list[RelAOIdx]]],
     TA: Matrix[float64],
     h1_e: Matrix[float64],
+    mo_coeff: Matrix[float64],
     solver: Solvers = "CCSD",
     eri_file: str = "eri_file.h5",
     veff: Matrix[float64] | None = None,
@@ -284,6 +285,7 @@ def run_solver(
                 rdm2s -= nc
         e_f = get_frag_energy(
             mf_.mo_coeff,
+            mo_coeff,
             nocc,
             n_frag,
             weight_and_relAO_per_center,
@@ -297,6 +299,10 @@ def run_solver(
             use_cumulant,
             eri_file,
         )
+    print(f"Correlation Energy at iteration: {sum(e_f):>f} Ha")
+    print(f"E F delta P: {e_f[0] + e_f[2]:>f} Ha")
+    print(f"E cumulant: {e_f[1]:>f} Ha")
+    
     if eeval and not ret_vec:
         return e_f
 
@@ -498,6 +504,7 @@ def be_func_parallel(
                     fobj.weight_and_relAO_per_center,
                     fobj.TA,
                     fobj.h1,
+                    fobj._mo_coeffs,
                     solver,
                     fobj.eri_file,
                     fobj.veff if not use_cumulant else None,

@@ -51,6 +51,7 @@ def get_cnos(
     TA_x: Matrix[float64],
     hcore_full: Matrix[floating],
     eri_full: Matrix[floating],
+    nsocc: int,
     nocc: int,
     occ: bool,
     )-> Matrix:
@@ -97,11 +98,12 @@ def get_cnos(
         C_SC = mf_SC.mo_coeff[:, :nocc]
     else:
         C_SC = mf_SC.mo_coeff[:, nocc:]
-
+ 
     # Get 2 e integrals, transformed by semicanonicalized C
     # Then T amplitudes
     # Then pair densities
     # (all in one function)
+    
     P = FormPairDensity(
         eri_schmidt,
         mf_SC.mo_occ,
@@ -274,7 +276,9 @@ def FormPairDensity(
 
     COcc = mo_coeffs[:, OccIdx]
     CVir = mo_coeffs[:, VirIdx]
-
+    print("mo_energys", mo_energys)
+    print("mo_coeffs", mo_coeffs)
+    print("Vs", Vs)
     # Transform 2 e integrals from the augmented Schmidt space
     V = ao2mo.kernel(Vs, [COcc, CVir, COcc, CVir], compact = False)
     V = V.reshape((nOcc, nVir, nOcc, nVir))
@@ -291,15 +295,16 @@ def FormPairDensity(
     T = np.swapaxes(T, 1, 2)
 
     delta_T_term = 2 * T - np.swapaxes(T, 2, 3)
-    
+    print("T", T)
+    print("delta_T_term", delta_T_term)
     if occ:
         # Occupied pair density matrix
-        P = 2 * np.einsum('kiab,kjab->ij', T, delta_T_term)
+        P = 2 * np.einsum('kiab,kjab->ij', T, delta_T_term, optimize=True)
         P = np.eye(T.shape[0]) - P
     else:
         # Virtual pair density matrix
-        P = 2.0 * np.einsum('ijac,jicb->ab', T, delta_T_term)
-
+        P = 2.0 * np.einsum('ijac,jicb->ab', T, delta_T_term, optimize=True)
+    print("P", P)
     return P
 
 def augment_w_cnos(
@@ -326,13 +331,14 @@ def augment_w_cnos(
 
     Returns
     -------
-    TA_aug : Matrix
+    TA : Matrix
         Augmented TA matrix with CNOs
     """
     if nocc_cno > 0:
         assert(occ_cno is not None)
-        TA_aug = np.hstack((TA, occ_cno[:, :nocc_cno]))
+        TA = np.hstack((TA, occ_cno[:, :nocc_cno]))
     if nvir_cno > 0:
         assert(vir_cno is not None)
-        TA_aug = np.hstack((TA, vir_cno[:, :nvir_cno]))
-    return TA_aug
+        TA = np.hstack((TA, vir_cno[:, -nvir_cno:]))
+
+    return TA

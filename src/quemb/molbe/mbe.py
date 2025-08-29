@@ -305,6 +305,11 @@ class BE:
             self.lmo_coeff = None
             self.cinv = None
 
+        print("self.C", self.C)
+        print("self.hcore", self.hcore)
+        print("self.hf_dm", self.hf_dm)
+        print("self.hf_veff", self.hf_veff)
+        print("mf.mo_energy", mf.mo_energy)
         self.print_ini()
         self.Fobjs: list[Frags] = []
         self.pot = initialize_pot(self.fobj.n_frag, self.fobj.relAO_per_edge_per_frag)
@@ -1120,13 +1125,14 @@ class BE:
 
                 occ_cno = None
                 vir_cno = None
-                if nocc_add_cno > 0:
+                if nocc_add_cno >= 0:
                     # Generate occupied CNOs
                     occ_cno = get_cnos(
                         fobjs_.TA.shape[1], # number of fragment and bath orbitals
                         fobjs_.TA_cno_occ, # TA occupied expanded
                         self.hcore, # hcore
                         eri_, # eris
+                        fobjs_.nsocc,
                         self.Nocc,
                         occ = True,
                     )
@@ -1137,6 +1143,7 @@ class BE:
                         fobjs_.TA_cno_vir, # TA virtual expanded
                         self.hcore, # hcore
                         eri_, # eris
+                        fobjs_.nsocc,
                         self.Nocc,
                         occ = False,
                     )
@@ -1150,6 +1157,9 @@ class BE:
 
                 # Update relevant fobjs_ attributes
                 fobjs_.nao = fobjs_.TA.shape[1]
+            else:
+                print(f"For Fragment {I:>3.0f}:", flush=True)
+                print(f"{fobjs_.n_f:>3.0f}, {fobjs_.n_b:>3.0f}, {fobjs_.n_f+fobjs_.n_b:>3.0f}: Fragment, Bath, Total Orbitals", flush=True)  # noqa: E501
 
             self.Fobjs.append(fobjs_)
 

@@ -219,6 +219,7 @@ def get_core(mol: Mole | Cell) -> tuple[int, list[int], list[int]]:
 
 def get_frag_energy(
     mo_coeffs,
+    mo_coeff,
     nsocc,
     n_frag,
     weight_and_relAO_per_center,
@@ -274,13 +275,17 @@ def get_frag_energy(
     list
         List containing the energy contributions: [e1_tmp, e2_tmp, ec_tmp].
     """
-
+    print("mo_coeffs", mo_coeffs)
+    print("rdm1", rdm1)
+    print("nsocc", nsocc)
+    print("mo_coeff", mo_coeff)
     # Rotate the RDM1 into the MO basis
     rdm1s_rot = mo_coeffs @ rdm1 @ mo_coeffs.T * 0.5
 
     # Construct the Hartree-Fock 1-RDM
-    hf_1rdm = mo_coeffs[:, :nsocc] @ mo_coeffs[:, :nsocc].conj().T
-
+    #hf_1rdm = mo_coeffs[:, :nsocc] @ mo_coeffs[:, :nsocc].conj().T
+    hf_1rdm = mo_coeff[:, :nsocc] @ mo_coeff[:, :nsocc].conj().T
+    
     if use_cumulant:
         # Compute the difference between the rotated RDM1 and the Hartree-Fock 1-RDM
         delta_rdm1 = 2 * (rdm1s_rot - hf_1rdm)
@@ -288,7 +293,13 @@ def get_frag_energy(
         # Calculate the one-electron contributions
         e1 = einsum("ij,ij->i", h1[:n_frag], delta_rdm1[:n_frag])
         ec = einsum("ij,ij->i", veff0[:n_frag], delta_rdm1[:n_frag])
-
+        print("rdm1s_rot", rdm1s_rot)
+        print("hf_1rdm", hf_1rdm)
+        print("delta_rdm1", delta_rdm1)
+        print("h1", h1)
+        print("veff0", veff0)
+        print("e1", e1)
+        print("ec", ec)
     else:
         # Calculate the one-electron and effective potential energy contributions
         e1 = 2 * einsum("ij,ij->i", h1[:n_frag], rdm1s_rot[:n_frag])
@@ -302,12 +313,14 @@ def get_frag_energy(
     # Load the electron repulsion integrals from the HDF5 file
     with h5py.File(eri_file, "r") as r:
         eri = r[dname][()]
-
+    print("eri", eri)
     # Rotate the RDM2 into the MO basis
+    #print("pre rot rdm2s[0]", rdm2s[0])
     rdm2s = einsum(
         "ijkl,pi,qj,rk,sl->pqrs", 0.5 * rdm2s, *([mo_coeffs] * 4), optimize=True
     )
 
+    #print("post rot rdm2s[0]", rdm2s[0])
     # Initialize the two-electron energy contribution
     e2 = zeros_like(e1)
 
@@ -319,10 +332,8 @@ def get_frag_energy(
             Gij[diag_indices(jmax)] *= 0.5
             Gij += Gij.T
             e2[i] += Gij[tril_indices(jmax)] @ eri[ij]
-
     # Sum the energy contributions
     e_ = e1 + e2 + ec
-
     # Initialize temporary energy variables
     etmp = 0.0
     e1_tmp = 0.0
