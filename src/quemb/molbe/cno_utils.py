@@ -276,9 +276,7 @@ def FormPairDensity(
 
     COcc = mo_coeffs[:, OccIdx]
     CVir = mo_coeffs[:, VirIdx]
-    print("mo_energys", mo_energys)
-    print("mo_coeffs", mo_coeffs)
-    print("Vs", Vs)
+
     # Transform 2 e integrals from the augmented Schmidt space
     V = ao2mo.kernel(Vs, [COcc, CVir, COcc, CVir], compact = False)
     V = V.reshape((nOcc, nVir, nOcc, nVir))
@@ -295,8 +293,7 @@ def FormPairDensity(
     T = np.swapaxes(T, 1, 2)
 
     delta_T_term = 2 * T - np.swapaxes(T, 2, 3)
-    print("T", T)
-    print("delta_T_term", delta_T_term)
+
     if occ:
         # Occupied pair density matrix
         P = 2 * np.einsum('kiab,kjab->ij', T, delta_T_term, optimize=True)
@@ -304,7 +301,7 @@ def FormPairDensity(
     else:
         # Virtual pair density matrix
         P = 2.0 * np.einsum('ijac,jicb->ab', T, delta_T_term, optimize=True)
-    print("P", P)
+ 
     return P
 
 def augment_w_cnos(
