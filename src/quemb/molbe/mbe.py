@@ -28,7 +28,6 @@ from pyscf import ao2mo, scf
 from pyscf.gto import Mole
 from typing_extensions import assert_never
 
-from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
 from quemb.molbe.eri_sparse_DF import (
     transform_sparse_DF_integral_cpp,
@@ -45,9 +44,8 @@ from quemb.molbe.lo import (
     remove_core_mo,
 )
 from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
-from quemb.molbe.opt import BEOPT
 from quemb.molbe.pfrag import Frags, union_of_frag_MOs_and_index
-from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
+from quemb.shared.be_parallel import be_func_parallel
 from quemb.shared.external.lo_helper import (
     get_aoind_by_atom,
     reorder_by_atom_,
@@ -57,6 +55,8 @@ from quemb.shared.external.optqn import (
 )
 from quemb.shared.helper import copy_docstring, ensure, ncore_, timer, unused
 from quemb.shared.manage_scratch import WorkDir
+from quemb.shared.opt import BEOPT
+from quemb.shared.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.typing import Matrix, PathLike
 
 IntTransforms: TypeAlias = Literal[
@@ -118,9 +118,11 @@ class BE:
         self,
         mf: scf.hf.SCF,
         fobj: FragPart[Mole],
+        *,
         eri_file: PathLike = "eri_file.h5",
         lo_method: LocMethods = "lowdin",
         iao_loc_method: IAO_LocMethods = "lowdin",
+        lo_bath_post_schmidt: Literal["cholesky", "ER", "PM", "boys"] | None = None,
         pop_method: str | None = None,
         restart: bool = False,
         restart_file: PathLike = "storebe.pk",
@@ -148,6 +150,9 @@ class BE:
             Method for orbital localization, by default "lowdin".
         iao_loc_method :
             Method for IAO localization, by default "lowdin"
+        lo_method_bath_post_schmidt :
+            If not :python:`None`, then perform a localization of the bath orbitals
+            **after** the Schmidt decomposition.
         pop_method :
             Method for calculating orbital population, by default 'meta-lowdin'
             See pyscf.lo for more details and options
@@ -254,6 +259,17 @@ class BE:
                 "Likewise, if lo_method != 'IAO', then fobj must not have "
                 "an iao_valence_basis defined."
             )
+
+        if int_transform[:9] == "sparse-DF" and (lo_method != "IAO"):
+            warn(
+                r'Sparse integral screening (int_transform="sparse-DF*") '
+                'works best if lo_method="IAO".\n'
+                "If you anyway used a minimal basis, you can ignore this warning."
+            )
+
+        self.lo_bath_post_schmidt: Literal["cholesky", "ER", "PM", "boys"] | None = (
+            lo_bath_post_schmidt
+        )
 
         self.ebe_hf = 0.0
         self.ebe_tot = 0.0
@@ -1069,6 +1085,14 @@ class BE:
         for fobj, frag_TA_offset in zip(self.Fobjs, frag_TA_index_per_frag):
             fobj.frag_TA_offset = frag_TA_offset
 
+        if self.lo_bath_post_schmidt is not None:
+            for frag in self.Fobjs:
+                frag.TA[:, frag.n_f :] = get_loc(
+                    self.mf.mol,
+                    frag.TA[:, frag.n_f :],
+                    method=self.lo_bath_post_schmidt,
+                )
+
         if not restart:
             file_eri = h5py.File(self.eri_file, "w")
             self._eri_transform(int_transform, eri_, file_eri)
@@ -1216,7 +1240,7 @@ class BE:
         IAO is recommended augmented with PAO orbitals.
 
         NOTE: For molecular systems, with frozen core, the core and valence are
-        localized TOGETHER. This is not the case of periodic systems.
+        localized TOGETHER. This is not the case for periodic systems.
 
         Parameters
         ----------

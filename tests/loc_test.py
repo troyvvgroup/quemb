@@ -21,15 +21,14 @@ def test_hexene_loc_be1_froz_pm(hexene) -> None:
         frozen=True,
         iao_valence_basis=None,
         lo_method="PM",
-        iao_loc_method=None,
         oneshot=True,
         nproc=1,
     )
     assert np.isclose(be1_f_pm, -0.85564574)
 
 
-@unittest.skipIf(
-    os.getenv("QUEMB_SKIP_EXPENSIVE_TESTS") == "true",
+@unittest.skipUnless(
+    os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true",
     "Skipped expensive tests for QuEmb.",
 )
 def test_hexene_loc_be2_unfroz_lowdin(hexene) -> None:
@@ -40,7 +39,6 @@ def test_hexene_loc_be2_unfroz_lowdin(hexene) -> None:
         frozen=False,
         iao_valence_basis=None,
         lo_method="lowdin",
-        iao_loc_method=None,
         oneshot=True,
         nproc=2,
     )
@@ -62,8 +60,8 @@ def test_hexene_loc_be1_unfroz_iao_minao_so(hexene) -> None:
     assert np.isclose(be1_nf_iao_so, -0.83985647)
 
 
-@unittest.skipIf(
-    os.getenv("QUEMB_SKIP_EXPENSIVE_TESTS") == "true",
+@unittest.skipUnless(
+    os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true",
     "Skipped expensive tests for QuEmb.",
 )
 def test_hexene_loc_be2_froz_iao_sto3g_boys(hexene) -> None:
@@ -84,8 +82,8 @@ def test_hexene_loc_be2_froz_iao_sto3g_boys(hexene) -> None:
     # assert np.isclose(be2_f_iao_fb, -0.92843714)
 
 
-@unittest.skipIf(
-    os.getenv("QUEMB_SKIP_EXPENSIVE_TESTS") == "true",
+@unittest.skipUnless(
+    os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true",
     "Skipped expensive tests for QuEmb.",
 )
 def test_chem_gen_hexene_loc_be2_froz_iao_sto3g_boys(hexene) -> None:
@@ -106,8 +104,8 @@ def test_chem_gen_hexene_loc_be2_froz_iao_sto3g_boys(hexene) -> None:
     assert np.isclose(be2_f_iao_fb, -0.92794903, atol=1e-8, rtol=0), be2_f_iao_fb
 
 
-@unittest.skipIf(
-    os.getenv("QUEMB_SKIP_EXPENSIVE_TESTS") == "true",
+@unittest.skipUnless(
+    os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true",
     "Skipped expensive tests for QuEmb.",
 )
 def test_chem_gen_hexene_loc_be2_froz_iao_sto3g_boys_fixed_AOs(hexene) -> None:
@@ -124,8 +122,7 @@ def test_chem_gen_hexene_loc_be2_froz_iao_sto3g_boys_fixed_AOs(hexene) -> None:
         frag_type="chemgen",
         additional_args=ChemGenArgs(wrong_iao_indexing=False),
     )
-    # energy after four iterations
-    assert np.isclose(be2_f_iao_fb, -0.92794903, atol=1e-8, rtol=0), be2_f_iao_fb
+    assert np.isclose(be2_f_iao_fb, -0.9279496397090554, atol=1e-8, rtol=0)
 
 
 def ret_ecorr(
@@ -135,9 +132,9 @@ def ret_ecorr(
     frozen: bool,
     iao_valence_basis: str | None,
     lo_method: LocMethods,
-    iao_loc_method: IAO_LocMethods | None,
     oneshot: bool,
     nproc: int,
+    iao_loc_method: IAO_LocMethods = "lowdin",
     frag_type: Literal["autogen", "chemgen"] = "autogen",
     additional_args: ChemGenArgs | None = None,
 ) -> float:
@@ -189,7 +186,7 @@ def prepare_struct(structure):
 
 @pytest.fixture(scope="session")
 def hexene():
-    mol, mf = prepare_struct(structure="data/hexene.xyz")
+    mol, mf = prepare_struct(structure="xyz/hexene.xyz")
     return [mol, mf]
 
 

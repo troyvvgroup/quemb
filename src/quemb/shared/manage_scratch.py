@@ -1,17 +1,21 @@
 from __future__ import annotations
 
-import atexit
 import os
 from functools import partial
+from logging import getLogger
 from pathlib import Path
 from shutil import rmtree
 from types import TracebackType
 from typing import Annotated, Final, Literal
 
 from attrs import define, field
+from typing_extensions import Self
 
 from quemb.shared.config import settings
+from quemb.shared.helper import clear_directory, register_clean_exit
 from quemb.shared.typing import PathLike
+
+logger = getLogger(__name__)
 
 
 def _determine_path(
@@ -84,14 +88,19 @@ class WorkDir:
 
     path: Final[Annotated[Path, "An absolute path"]] = field(converter=_get_abs_path)
     cleanup_at_end: Final[bool] = True
+    ensure_empty: Final[bool] = False
 
     # The __init__ is automatically created
     # the values `self.path` and `self.cleanup_at_end` are already filled.
     # we define the __attrs_post_init__ to create the directory
     def __attrs_post_init__(self) -> None:
         self.path.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Scratch directory {self} was created.")
+        if self.ensure_empty:
+            clear_directory(self.path)
         if self.cleanup_at_end:
-            atexit.register(partial(self.cleanup, ignore_error=True))
+            logger.info(f"Scratch directory {self} registered for automatic cleanup.")
+            register_clean_exit(partial(self.cleanup, ignore_error=True))
 
     def __enter__(self) -> WorkDir:
         return self
@@ -113,7 +122,8 @@ class WorkDir:
         user_defined_root: PathLike | None = None,
         prefix: str | None = None,
         cleanup_at_end: bool = True,
-    ) -> WorkDir:
+        ensure_empty: bool = False,
+    ) -> Self:
         """Create a WorkDir based on the environment.
 
         The naming scheme is :python:`f"{user_defined_root}/{prefix}{SLURM_JOB_ID}"`
@@ -132,8 +142,14 @@ class WorkDir:
             The prefix for the subdirectory.
         cleanup_at_end:
             Perform cleanup when calling :python:`self.cleanup`.
+        ensure_empty:
+            Delete the contents of the directory, if it already exists.
         """
-        return cls(_determine_path(user_defined_root, prefix), cleanup_at_end)
+        return cls(
+            _determine_path(user_defined_root, prefix),
+            cleanup_at_end=cleanup_at_end,
+            ensure_empty=ensure_empty,
+        )
 
     def cleanup(self, ignore_error: bool = False) -> None:
         """Conditionally cleanup the working directory.
@@ -148,11 +164,32 @@ class WorkDir:
         except FileNotFoundError as e:
             if not ignore_error:
                 raise e
+        logger.info(f"Scratch directory {self} successfully cleaned up.")
+
+    def make_subdir(self, name: str | PathLike, ensure_empty: bool = False) -> Self:
+        """Create a subdirectory with the same cleanup settings as ``self``.
+
+        If the subdirectory already exists, it is also fine.
+        In this case you can use the :python:`ensure_empty` argument to delete existing
+        files.
+
+        Parameters
+        ----------
+        name:
+            The name of the subdirectory. Its path will be :python:`self.path / name`.
+        ensure_empty:
+            If the directory already exists, ensure that it is empty and delete files.
+        """
+        return self.__class__(
+            self.path / Path(name),
+            cleanup_at_end=self.cleanup_at_end,
+            ensure_empty=ensure_empty,
+        )
 
     def __fspath__(self) -> str:
         return self.path.__fspath__()
 
-    def __format__(self, format_spec) -> str:
+    def __format__(self, format_spec: str) -> str:
         return self.path.__format__(format_spec)
 
     def __str__(self) -> str:

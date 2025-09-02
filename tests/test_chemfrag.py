@@ -22,7 +22,7 @@ expected = get_expected()
 
 
 def test_connectivity_data():
-    m = Cartesian.read_xyz("data/octane.xyz")
+    m = Cartesian.read_xyz("xyz/octane.xyz")
 
     assert get_calling_function_name() == "test_connectivity_data"
 
@@ -45,7 +45,7 @@ def test_fragment_generation():
     """This does not yet test the cleanup of subsets, i.e. also fragments
     that are fully contained in others are returned."""
 
-    m = Cartesian.read_xyz("data/octane.xyz")
+    m = Cartesian.read_xyz("xyz/octane.xyz")
 
     fragments = {
         n_BE: BondConnectivity.from_cartesian(m).get_all_BE_fragments(n_BE)
@@ -60,7 +60,7 @@ def test_cleaned_fragments():
     It is also tested if the assignment of an origin, i.e. the center with the
     lowest index whose fragment is a superset of other fragments, reliably works.
     """
-    m = Cartesian.read_xyz("data/octane.xyz")
+    m = Cartesian.read_xyz("xyz/octane.xyz")
 
     cleaned_fragments = {
         n_BE: _cleanup_if_subset(
@@ -73,7 +73,7 @@ def test_cleaned_fragments():
 
 
 def test_pure_structure_fragmented():
-    m = Cartesian.read_xyz("data/octane.xyz")
+    m = Cartesian.read_xyz("xyz/octane.xyz")
     mol = m.to_pyscf()
 
     fragmented = {
@@ -108,7 +108,7 @@ def test_hydrogen_chain():
 
 
 def test_structure_agreement_with_autogen():
-    mol = M("data/octane.xyz")
+    mol = M("xyz/octane.xyz")
 
     for n_BE in range(1, 4):
         chem_frags = PurelyStructureFragmented.from_mole(mol, n_BE)
@@ -126,7 +126,7 @@ def test_structure_agreement_with_autogen():
 
 
 def test_AO_indexing():
-    octane_cart = Cartesian.read_xyz("data/octane.xyz")
+    octane_cart = Cartesian.read_xyz("xyz/octane.xyz")
     bases = [
         ("sto-3g", None),
         ("cc-pvdz", None),
@@ -149,7 +149,7 @@ def test_AO_indexing():
 
 
 def test_match_autogen_output():
-    m = Cartesian.read_xyz("data/octane.xyz")
+    m = Cartesian.read_xyz("xyz/octane.xyz")
     bases = [
         ("sto-3g", None),
         ("cc-pvdz", None),
@@ -239,7 +239,7 @@ def test_periodic_graphene_manipulation_of_bonds_atoms():
 
 
 def test_conn_data_manipulation_of_vdW():
-    m = Cartesian.read_xyz("data/octane.xyz")
+    m = Cartesian.read_xyz("xyz/octane.xyz")
 
     # if hydrogens are shared among motifs we cannot treat H differently
     with pytest.raises(ValueError):

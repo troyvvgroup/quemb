@@ -7,7 +7,7 @@ import numpy as np
 from pyscf import cc, fci, gto, scf
 
 from quemb.molbe import BE, fragmentate
-from quemb.molbe.solver import DMRG_ArgsUser
+from quemb.shared.solver import DMRG_ArgsUser
 
 # We'll consider the dissociation curve for a 1D chain of 8 H-atoms:
 num_points = 3
@@ -89,7 +89,7 @@ mol.charge = 0
 mol.spin = 0
 mol.build()
 fobj = fragmentate(n_BE=2, mol=mol)
-mybe = BE(mf, fobj, lo_method="pipek-mezey", pop_method="lowdin")
+mybe = BE(mf, fobj, lo_method="PM", pop_method="lowdin")
 
 # We automatically construct the fragment DMRG schedules based on user keywords.
 # The following # input, for example, yields a 60 sweep schedule which uses

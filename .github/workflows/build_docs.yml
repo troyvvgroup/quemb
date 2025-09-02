@@ -1,4 +1,4 @@
-# Author(s): Minsik Cho
+#Author(s): Minsik Cho
 # Based on: https://docs.github.com/en/actions/use-cases-and-examples/building-and-testing/building-and-testing-python
 
 name: Test building docs and deploy docs for merges to main
@@ -32,16 +32,31 @@ jobs:
         pip install --upgrade --upgrade-strategy eager -r docs/requirements.txt
         pip install .
 
+    - name: Install LaTeX dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y texlive-latex-recommended \
+                                texlive-latex-extra \
+                                texlive-fonts-recommended \
+                                latexmk
+
     - name: Check if quemb imports
       run: python -c "import quemb; print('quemb imported successfully')"
 
-    - name: Test building docs & Archive the results
+    - name: Test building html doc & Archive the results
       run: |
         cd docs
         sphinx-multiversion -W --keep-going -n source build/html
         ls build/html
         tar czf docs.tar.gz --directory=build/html .
         cd ..
+    
+    - name: Test building LaTeX PDF docs
+      run: |
+        cd docs
+        make latexpdf
+        ls build/latex/*.pdf
+        cp build/latex/*.pdf source/_static/
 
     - name: Redirect to docs for main
       run: |
@@ -53,7 +68,7 @@ jobs:
         name: docs
         path: docs/docs.tar.gz
         retention-days: 3
-
+    
     - name: Publish docs to Github Pages
       if:   github.event_name == 'push' && github.ref == 'refs/heads/main'
       uses: peaceiris/actions-gh-pages@v4
