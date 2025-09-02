@@ -839,11 +839,20 @@
 <h1>quemb.shared.manage_scratch.WorkDir.make_subdir<a class="headerlink" href="#quemb-shared-manage-scratch-workdir-make-subdir" title="Link to this heading">¶</a></h1>
 <dl class="py method">
 <dt class="sig sig-object py" id="quemb.shared.manage_scratch.WorkDir.make_subdir">
-<span class="sig-prename descclassname"><span class="pre">WorkDir.</span></span><span class="sig-name descname"><span class="pre">make_subdir</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#quemb.shared.manage_scratch.WorkDir.make_subdir" title="Link to this definition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">WorkDir.</span></span><span class="sig-name descname"><span class="pre">make_subdir</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ensure_empty</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#quemb.shared.manage_scratch.WorkDir.make_subdir" title="Link to this definition">¶</a></dt>
 <dd><p>Create a subdirectory with the same cleanup settings as <code class="docutils literal notranslate"><span class="pre">self</span></code>.</p>
+<p>If the subdirectory already exists, it is also fine.
+In this case you can use the <code class="code highlight python docutils literal highlight-python"><span class="n">ensure_empty</span></code> argument to delete existing
+files.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Self</span></code></span></p>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a> | <a class="reference external" href="https://docs.python.org/3/library/os.html#os.PathLike" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">PathLike</span></code></a></span>) – The name of the subdirectory. Its path will be <code class="code highlight python docutils literal highlight-python"><span class="bp">self</span><span class="o">.</span><span class="n">path</span> <span class="o">/</span> <span class="n">name</span></code>.</p></li>
+<li><p><strong>ensure_empty</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span>) – If the directory already exists, ensure that it is empty and delete files.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Self</span></code></span></p>
 </dd>
 </dl>
 </dd></dl>
