@@ -167,7 +167,19 @@ class WorkDir:
         logger.info(f"Scratch directory {self} successfully cleaned up.")
 
     def make_subdir(self, name: str | PathLike, ensure_empty: bool = False) -> Self:
-        """Create a subdirectory with the same cleanup settings as ``self``."""
+        """Create a subdirectory with the same cleanup settings as ``self``.
+
+        If the subdirectory already exists, it is also fine.
+        In this case you can use the :python:`ensure_empty` argument to delete existing
+        files.
+
+        Parameters
+        ----------
+        name:
+            The name of the subdirectory. Its path will be :python:`self.path / name`.
+        ensure_empty:
+            If the directory already exists, ensure that it is empty and delete files.
+        """
         return self.__class__(
             self.path / Path(name),
             cleanup_at_end=self.cleanup_at_end,
