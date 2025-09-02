@@ -1,6 +1,7 @@
 # Author(s): Shaun Weatherly
 from __future__ import annotations
 
+import logging
 import re
 import time
 from collections.abc import Sequence
@@ -18,6 +19,8 @@ from pyscf import gto
 from quemb.molbe.autofrag import FragPart
 from quemb.molbe.helper import get_core
 from quemb.shared.typing import Vector
+
+logger = logging.getLogger(__name__)
 
 
 @define(frozen=True, kw_only=True)
@@ -196,17 +199,15 @@ class GraphGenUtility:
         G = adjacency_graph
 
         if node_position in ["coordinates"]:
-            pos: dict = {
-                key: np.ndarray(
-                    (
-                        map["coord"][0] + (map["coord"][2] * z_offset),
-                        map["coord"][1] + (map["coord"][2] * z_offset),
-                    ),
+            pos = [
+                (
+                    map["coord"][0] + (map["coord"][2] * z_offset),
+                    map["coord"][1] + (map["coord"][2] * z_offset),
                 )
-                for key, map in adx_map.items()
-            }
+                for map in adx_map.values()
+            ]
         elif node_position in ["spring"]:
-            pos = nx.spring_layout(G, seed=3068)
+            pos = nx.spring_layout(G, seed=3068)  # type: ignore[assignment]
 
         fig, ax = plt.subplots()
         arc_rads = np.arange(-0.3, 0.3, 0.6 / len(c), dtype=float)
@@ -217,7 +218,7 @@ class GraphGenUtility:
                 G,
                 pos,
                 nodelist=origin_per_frag[fdx],
-                node_color=[color for _ in origin_per_frag[fdx]],
+                node_color=[color for _ in origin_per_frag[fdx]],  # type: ignore[misc]
                 edgecolors="tab:gray",
                 node_size=850,
                 alpha=1.0,
@@ -226,7 +227,7 @@ class GraphGenUtility:
                 G,
                 pos,
                 nodelist=origin_per_frag[fdx],
-                node_color="whitesmoke",
+                node_color="whitesmoke",  # type: ignore[arg-type]
                 edgecolors=color,
                 node_size=700,
                 alpha=0.6,
@@ -238,16 +239,11 @@ class GraphGenUtility:
                 edgelist=edges,
                 width=5,
                 alpha=0.8,
-                edge_color=color,
+                edge_color=color,  # type: ignore[arg-type]
                 connectionstyle=f"arc3,rad={arc_rads[fdx]}",
             )
         nx.draw_networkx_labels(
-            G,
-            pos,
-            labels,
-            font_size=10,
-            font_color="black",
-            alpha=1,
+            G, pos, labels, font_size=10, font_color="black", alpha=1
         )
         plt.tight_layout()
         plt.legend(patches, dnames, loc="upper left", fontsize=8)
@@ -348,7 +344,6 @@ def graphgen(
     iao_valence_basis: str | None = None,
     cutoff: float = 0.0,
     export_graph_to: Path | None = None,
-    print_frags: bool = True,
 ) -> FragPart:
     """Generate fragments via adjacency graph.
 
@@ -397,9 +392,6 @@ def graphgen(
     export_graph_to:
         If not `None`, specifies the path to which the fragment connectivity
         graph will be saved. Defaults to None.
-    print_frags:
-        Whether to print simplified string representations of fragment
-        connectivity graphs. Defaults to True.
 
     """
     t0 = time.time()
@@ -697,47 +689,46 @@ def graphgen(
 
     # Print an ASCII representation of each fragment connectivity
     # graph. All center sites are [bracketed].
-    if print_frags:
-        title = "VERBOSE: `graphgen` Connectivity Graphs"
-        print(title, "-" * (80 - len(title)))
-        print("(Center sites within a fragment are [bracketed])")
-        subgraphs = GraphGenUtility.get_subgraphs(
-            motifs_per_frag=motifs_per_frag,
-            edge_list=edge_list,
-            origin_per_frag=origin_per_frag,
-            adx_map=adx_map,
+    title = "VERBOSE: `graphgen` Connectivity Graphs"
+    logger.info(title, "-" * (80 - len(title)))
+    logger.info("(Center sites within a fragment are [bracketed])")
+    subgraphs = GraphGenUtility.get_subgraphs(
+        motifs_per_frag=motifs_per_frag,
+        edge_list=edge_list,
+        origin_per_frag=origin_per_frag,
+        adx_map=adx_map,
+    )
+    for fdx, sg in subgraphs.items():
+        logger.info(
+            f"Frag `{dnames[fdx]}`:",
         )
-        for fdx, sg in subgraphs.items():
-            print(
-                f"Frag `{dnames[fdx]}`:",
-            )
-            for st in GraphGenUtility._graph_to_string(sg):
-                print(st, flush=True)
-        t6 = time.time()
-        t_tot = t6 - t0
-        title = "VERBOSE: `graphgen` Timing Breakdown"
-        print(title, "-" * (80 - len(title)))
-        print(
-            f"Initialization time:                {t1 - t0:0.6f}s ({100 * (t1 - t0) / t_tot:0.1f}%)"  # noqa: E501
-        )
-        print(
-            f"Adj. graph construction:            {t2 - t1:0.6f}s ({100 * (t2 - t1) / t_tot:0.1f}%)"  # noqa: E501
-        )
-        print(
-            f"Shortest path finding:              {t3 - t2:0.6f}s ({100 * (t3 - t2) / t_tot:0.1f}%)"  # noqa: E501
-        )
-        print(
-            f"Removing redundant frags:           {t4 - t3:0.6f}s ({100 * (t4 - t3) / t_tot:0.1f}%)"  # noqa: E501
-        )
-        print(
-            f"Finalize indexing:                  {t5 - t4:0.6f}s ({100 * (t5 - t4) / t_tot:0.1f}%)"  # noqa: E501
-        )
-        print(
-            f"Print and wrap-up:                  {t6 - t5:0.6f}s ({100 * (t6 - t5) / t_tot:0.1f}%)"  # noqa: E501
-        )
-        print(
-            f"Total elapsed time:                 {t6 - t0:0.6f}s ({100 * (t6 - t0) / t_tot:0.1f}%)"  # noqa: E501
-        )
+        for st in GraphGenUtility._graph_to_string(sg):
+            logger.info(st)
+    t6 = time.time()
+    t_tot = t6 - t0
+    title = "VERBOSE: `graphgen` Timing Breakdown"
+    logger.info(title, "-" * (80 - len(title)))
+    logger.info(
+        f"Initialization time:                {t1 - t0:0.6f}s ({100 * (t1 - t0) / t_tot:0.1f}%)"  # noqa: E501
+    )
+    logger.info(
+        f"Adj. graph construction:            {t2 - t1:0.6f}s ({100 * (t2 - t1) / t_tot:0.1f}%)"  # noqa: E501
+    )
+    logger.info(
+        f"Shortest path finding:              {t3 - t2:0.6f}s ({100 * (t3 - t2) / t_tot:0.1f}%)"  # noqa: E501
+    )
+    logger.info(
+        f"Removing redundant frags:           {t4 - t3:0.6f}s ({100 * (t4 - t3) / t_tot:0.1f}%)"  # noqa: E501
+    )
+    logger.info(
+        f"Finalize indexing:                  {t5 - t4:0.6f}s ({100 * (t5 - t4) / t_tot:0.1f}%)"  # noqa: E501
+    )
+    logger.info(
+        f"Print and wrap-up:                  {t6 - t5:0.6f}s ({100 * (t6 - t5) / t_tot:0.1f}%)"  # noqa: E501
+    )
+    logger.info(
+        f"Total elapsed time:                 {t6 - t0:0.6f}s ({100 * (t6 - t0) / t_tot:0.1f}%)"  # noqa: E501
+    )
 
     return FragPart(
         mol=mol,
