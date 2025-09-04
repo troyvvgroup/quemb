@@ -483,8 +483,7 @@ Matrix eval_via_cholesky(const Matrix &sym_P_pq, const Matrix &L_PQ) noexcept
     // Step 1: Solve L * X = sym_P_pq  →  X = L⁻¹ sym_P_pq
     const Matrix X = L_PQ.triangularView<Eigen::Lower>().solve(sym_P_pq);
     if (LOG_LEVEL <= LogLevel::Info) {
-        cholesky_timer.print("triangular solve "
-                             "completed");
+        cholesky_timer.print("triangular solve completed");
     };
     // Step 2: Return Xᵀ X
     return X.transpose() * X;
@@ -493,6 +492,7 @@ Matrix eval_via_cholesky(const Matrix &sym_P_pq, const Matrix &L_PQ) noexcept
 #ifdef USE_CUDA
 Matrix eval_via_cholesky_cuda(const Matrix &sym_P_pq, const GPU_MatrixHandle &L_PQ)
 {
+    PROFILE_FUNCTION();
     const int n_aux = static_cast<int>(L_PQ.rows());
     const int n_sym_pairs = static_cast<int>(sym_P_pq.cols());
 
