@@ -265,10 +265,10 @@ def autogen(
     print_frags : bool, optional
         Whether to print out the list of resulting fragments. Defaults to True.
     """
-    if not (1 <= n_BE <= 4):
-        raise ValueError(
-            "n_BE > 4 is not supported (and n_BE < 1 does not make sense)."
-        )
+    if n_BE > 4:
+        raise ValueError("n_BE > 4 not supported, use 'chemgen' or 'graphgen' instead.")
+    if n_BE < 1:
+        raise ValueError("n_BE < 1 does not make sense.")
 
     if iao_valence_basis is not None:
         warn(
