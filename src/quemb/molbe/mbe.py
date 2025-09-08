@@ -134,6 +134,7 @@ class BE:
         auxbasis: str | None = None,
         MO_coeff_epsilon: float = 1e-5,
         AO_coeff_epsilon: float = 1e-10,
+        re_eval_HF: bool = False,
     ) -> None:
         r"""
         Constructor for BE object.
@@ -215,6 +216,15 @@ class BE:
             are considered to be connected for sparsity screening.
             Here the absolute overlap matrix is used.
             Smaller value means less screening.
+        re_eval_HF:
+            Re-evaluate the Fock matrix from the given MO-coefficients to determine
+            the HF-in-HF error.
+            This is False by default and has no relevance for "normal", unscreened
+            Hartree-Fock calculations.
+            However, if the Hartree-Fock was obtained from methods that never build
+            one global Fock matrix in the traditional sense, such as ORCA's RIJCOSX,
+            then the energy obtained by building the Fock matrix from the
+            MO coefficients can actually differ from the reported HF energy.
         """
         if restart:
             # Load previous calculation data from restart file
@@ -275,6 +285,7 @@ class BE:
         self.ebe_tot = 0.0
 
         self.mf = mf
+        self.re_eval_HF = re_eval_HF
 
         if not restart:
             self.mo_energy = mf.mo_energy
@@ -1052,6 +1063,12 @@ class BE:
         print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
         if abs(hf_err) > 1.0e-5:
             warn("Large HF-in-HF energy error")
+
+        if self.re_eval_HF:
+            hf_err = self.hf_etot - self.mf.energy_tot()
+            print(f"HF-in-HF error (re-eval global):  {hf_err:>.4e} Ha")
+            if abs(hf_err) > 1.0e-5:
+                warn("Large HF-in-HF energy error")
 
     @timer.timeit
     def initialize(
