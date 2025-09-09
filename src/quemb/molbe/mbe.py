@@ -305,11 +305,6 @@ class BE:
             self.lmo_coeff = None
             self.cinv = None
 
-        print("self.C", self.C) # Same as the msd.Chfocc_no_core, before truncating
-        print("self.hcore", self.hcore)
-        print("self.hf_dm", self.hf_dm)
-        print("self.hf_veff", self.hf_veff)
-        print("mf.mo_energy", mf.mo_energy)
         self.print_ini()
         self.Fobjs: list[Frags] = []
         self.pot = initialize_pot(self.fobj.n_frag, self.fobj.relAO_per_edge_per_frag)
@@ -1407,9 +1402,6 @@ class BE:
                         (self.W.T, self.S, self.C[:, self.ncore :])
                     )
                 else:
-                    print("making lmo_coeff: C", self.C.shape, self.C)
-                    print("making lmo_coeff: S", self.S.shape, self.S)
-                    print("making lmo_coeff: W", self.W.shape, self.W)
                     self.lmo_coeff = multi_dot((self.W.T, self.S, self.C))
             return None
         elif lo_method == "boys" or lo_method == "PM" or lo_method == "ER":

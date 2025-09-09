@@ -92,44 +92,24 @@ def get_cnos(
 
     """
     # TA_x is either TA_occ or TA_vir, aligning with occ=True or False
-    if occ:
-        print("OCCUPIED GET_CNOS")
-    else:
-        print("VIRTUAL GET_CNOS")
 
     # Generate 1 and 2 electron orbitals in modified Schmidt space
     eri_schmidt = ao2mo.incore.full(eri_full, TA_x, compact=True)
     if nocc - nsocc == 0:
         h_schmidt = np.einsum(
             "mp,nq,mn->pq", TA_x, TA_x, hcore_full
-        )  # Matches from kernel_xform
+        )
     else:
         h_schmidt = preparing_h_cnos(C[:,:nocc], S, hcore_full, TA_x, veff_full, eri_schmidt)
 
-    veff_schmidt = np.einsum("mp,nq,mn->pq", TA_x, TA_x, veff_full)
-    print("nsocc", nsocc)
-    print("nocc", nocc)
-    print("S", S.shape, S)
-    print("TA_x", TA_x.shape, TA_x)
-    print("hcore_full", hcore_full.shape, hcore_full)  # same as the pysd h
-    print("h_schmidt", h_schmidt.shape, h_schmidt)
-    print("eri_full", eri_full.shape, eri_full)
-    print("veff_full", veff_full.shape, veff_full)  # Same as Ghf
-    print("eri_schmidt", eri_schmidt.shape, eri_schmidt)
-    print("veff_schmidt", veff_schmidt.shape, veff_schmidt)
-    # if not occ:
-    # h_schmidt = veff_schmidt
-    # print("using veff", h_schmidt)
     # Get semicanonicalized C by solving HF with these 1 and 2 e integrals
     mf_SC = get_scfObj(h_schmidt, eri_schmidt, nsocc)
-    print("mf_SC.mo_coeff", mf_SC.mo_coeff.shape, mf_SC.mo_coeff)
+
     if occ:
         C_SC = mf_SC.mo_coeff[:, :nsocc]
-        #C_SC = mf_SC.mo_coeff[:, :nocc]  # SAME BETWEEN CODES
     else:
         C_SC = mf_SC.mo_coeff[:, nsocc:]
-        #C_SC = mf_SC.mo_coeff[:, nocc:]
-    print("C_SC", C_SC.shape, C_SC)
+
     # Get 2 e integrals, transformed by semicanonicalized C
     # Then T amplitudes
     # Then pair densities
@@ -139,7 +119,6 @@ def get_cnos(
 
     # Transform pair density in SO basis
     P_mat_SO = C_SC @ P @ C_SC.T
-    print(" P_mat_SO", P_mat_SO.shape, P_mat_SO)
 
     # Project out FOs and BOs
     # You can do this all padded with zeros (as described in paper),
@@ -148,15 +127,14 @@ def get_cnos(
 
     # Find the pair natural orbitals by diagonalizing these orbitals
     P_mat_eigvals, P_mat_eigvecs = np.linalg.eigh(P_mat_SO_env)
-    print("P_mat_eigvals", P_mat_eigvals.shape, P_mat_eigvals)
+
     # Pad pair natural orbitals
     PNO = np.zeros((TA_x.shape[1], TA_x.shape[1] - nfb))
     PNO[nfb:, :] = P_mat_eigvecs
 
     # Generate cluster natural orbitals, rotating into AO basis
     cnos = TA_x @ PNO
-    print("PNO", PNO.shape, PNO)
-    print("cnos", cnos.shape, cnos)
+
     return cnos
 
 
@@ -168,35 +146,19 @@ def preparing_h_cnos(
     hf_Veff,
     eri_s,
 ):
-    print("Preparing h_cnos")
-    print("S", S.shape, S)
-    print("hf_Cocc", hf_Cocc.shape, hf_Cocc)
     ST = S @ TA_x
     G_s = TA_x.T @ hf_Veff @ TA_x
-    print("G_s", G_s.shape, G_s)
 
     P_act = hf_Cocc @ hf_Cocc.T
     P_fbs = ST.T @ P_act @ ST
-    print("P_act", P_act.shape, P_act)
-    print("P_fbs", P_fbs.shape, P_fbs)
-
-    print("eri_s", eri_s.shape)
-    #eris = ao2mo.restore(eri_s, TA_x.shape[1])
-    #print("eris", eris.shape)
 
     vj, vk = scf.hf.dot_eri_dm(eri_s, P_fbs, hermi=1)
-    print("vj", vj.shape, vj)
-    print("vk", vk.shape, vk)
     G_fbs = 2.0 * vj - vk
-    print("G_fbs", G_fbs.shape, G_fbs)
 
     h_rot = TA_x.T @ h @ TA_x
-    print("h_rot", h_rot.shape, h_rot)
     G_envs = G_s - G_fbs
-    print("G_envs", G_envs.shape, G_envs)
 
     hs = h_rot + G_envs
-    print("hs", hs.shape, hs)
 
     return hs
 
@@ -260,12 +222,9 @@ def choose_cnos(
     if args.cno_scheme == "Proportional":
         # Ratio of the number of fragment orbitals to the number of expected
         # occupied orbitals, based on the atoms in the fragment
-        print("n_f", n_f)
-        print("n_b", n_b)
-        print("nelec", nelec)
         prop = n_f / (nelec / 2)
         nocc_cno_add = 0
-        print("prop", prop)
+
         # Add virtual orbitals so that the proportion of all fragment orbitals
         # (n_f + n_b + nvir_cno_add) to the number of occupied orbitals in the
         # Schmidt space (nsocc) is the same as the ratio `prop` above
@@ -275,13 +234,13 @@ def choose_cnos(
             nvir_cno_add = prop - n_f - n_b
         else:
             nvir_cno_add = np.round(prop * nsocc) - n_f - n_b
-        print("nsocc", nsocc)
-        print("np.round(prop * nsocc)", np.round(prop * nsocc))
-        print("nvir_cno_add", nvir_cno_add)
+
     elif args.cno_scheme == "ProportionalQQ":
         # Same ratio as above
         prop = n_f / (nelec / 2)
-        # Add enough orbitals for the
+
+        # Add enough orbitals to fit the proportion, where the total number of orbitals
+        # is some 1.5 * the size of the fragment and the bath
         total_orbs = int(1.5 * n_f) + n_b
         nocc_cno_add = max(int(np.round(total_orbs / prop - nsocc)), 0)
         nvir_cno_add = total_orbs - n_b - nocc_cno_add - n_f
@@ -310,6 +269,7 @@ def choose_cnos(
             else:
                 nocc_cno_add = np.round(args.tot_active_orbs / prop) - nsocc
                 nvir_cno_add = args.tot_active_orbs - n_f - n_b - nocc_cno_add
+
     if nocc_cno_add + n_f + n_b > n_full_occ:
         raise RuntimeError(
             "Request to add more occupied CNOs than exist. Choose different CNO scheme"
@@ -359,23 +319,10 @@ def FormPairDensity(
 
     COcc = mo_coeffs[:, OccIdx]
     CVir = mo_coeffs[:, VirIdx]
-    if occ:
-        print("OCCUPIED FORMPAIRDENSITY")
-    else:
-        print("VIRTUAL FORMPAIRDENSITY")
-    print("OccIdx", OccIdx)
-    print("VirIdx", VirIdx)
-    print("nOcc", nOcc)
-    print("nVir", nVir)
-    print("Vs", Vs)
-    print("mo_occs", mo_occs)
-    print("mo_coeffs", mo_coeffs)
-    print("mo_energys", mo_energys)
 
     # Transform 2 e integrals from the augmented Schmidt space
     V = ao2mo.kernel(Vs, [COcc, CVir, COcc, CVir], compact=False)
     V = V.reshape((nOcc, nVir, nOcc, nVir))
-    print("V reshaped", V)
 
     # Generate the T and delta T term from the CNO paper
     mo_energy_occ = mo_energys[:nOcc]
@@ -397,7 +344,7 @@ def FormPairDensity(
     else:
         # Virtual pair density matrix
         P = 2.0 * np.einsum("ijac,jicb->ab", T, delta_T_term, optimize=True)
-    print("FormPairDensity P", P)
+
     return P
 
 
