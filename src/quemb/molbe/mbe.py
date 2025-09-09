@@ -1065,7 +1065,7 @@ class BE:
             warn("Large HF-in-HF energy error")
 
         if self.re_eval_HF:
-            hf_err = self.hf_etot - self.mf.energy_tot()
+            hf_err = self.mf.energy_tot() - self.ebe_hf
             print(f"HF-in-HF error (re-eval global):  {hf_err:>.4e} Ha")
             if abs(hf_err) > 1.0e-5:
                 warn("Large HF-in-HF energy error")
