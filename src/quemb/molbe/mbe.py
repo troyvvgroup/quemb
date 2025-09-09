@@ -1096,7 +1096,13 @@ class BE:
                 )
             # Calculating and Adding CNOs, if requested
             if self.add_cnos:
-                nsocc_standard = fobjs_.return_nsocc_only(self.S, self.C, fobjs_.TA, self.Nocc, ncore=self.ncore)
+                nsocc_standard = fobjs_.return_nsocc_only(
+                    self.S,
+                    self.C,
+                    fobjs_.TA,
+                    self.Nocc,
+                    ncore=self.ncore,
+                )
                 (nocc_add_cno, nvir_add_cno) = choose_cnos(
                     "f"+str(I)+".xyz", # geometry
                     self.mf.mol.basis, # basis
@@ -1120,7 +1126,13 @@ class BE:
                 vir_cno = None
                 if nocc_add_cno >= 0:
                     # Generate occupied CNOs
-                    nsocc_occ = fobjs_.return_nsocc_only(self.S, self.C, fobjs_.TA_cno_occ, self.Nocc, ncore=self.ncore)
+                    nsocc_occ = fobjs_.return_nsocc_only(
+                        self.S,
+                        self.C,
+                        fobjs_.TA_cno_occ,
+                        self.Nocc,
+                        ncore=self.ncore,
+                    )
                     occ_cno = get_cnos(
                         fobjs_.TA.shape[1], # number of fragment and bath orbitals
                         fobjs_.TA_cno_occ, # TA occupied expanded
@@ -1135,7 +1147,13 @@ class BE:
                     )
                 if nvir_add_cno >= 0:
                     # Generate virtual CNOs
-                    nsocc_vir = fobjs_.return_nsocc_only(self.S, self.C, fobjs_.TA_cno_vir, self.Nocc, ncore=self.ncore)
+                    nsocc_vir = fobjs_.return_nsocc_only(
+                        self.S,
+                        self.C,
+                        fobjs_.TA_cno_vir,
+                        self.Nocc,
+                        ncore=self.ncore,
+                    )
                     vir_cno = get_cnos(
                         fobjs_.TA.shape[1], # number of fragment and bath orbitals
                         fobjs_.TA_cno_vir, # TA virtual expanded

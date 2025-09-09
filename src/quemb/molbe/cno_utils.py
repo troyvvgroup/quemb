@@ -95,12 +95,19 @@ def get_cnos(
 
     # Generate 1 and 2 electron orbitals in modified Schmidt space
     eri_schmidt = ao2mo.incore.full(eri_full, TA_x, compact=True)
+
     if nocc - nsocc == 0:
         h_schmidt = np.einsum(
             "mp,nq,mn->pq", TA_x, TA_x, hcore_full
         )
     else:
-        h_schmidt = preparing_h_cnos(C[:,:nocc], S, hcore_full, TA_x, veff_full, eri_schmidt)
+        h_schmidt = preparing_h_cnos(
+            C[:,:nocc],
+            S,
+            hcore_full,
+            TA_x,
+            veff_full,
+            eri_schmidt)
 
     # Get semicanonicalized C by solving HF with these 1 and 2 e integrals
     mf_SC = get_scfObj(h_schmidt, eri_schmidt, nsocc)
@@ -114,7 +121,6 @@ def get_cnos(
     # Then T amplitudes
     # Then pair densities
     # (all in one function)
-
     P = FormPairDensity(eri_schmidt, mf_SC.mo_occ, mf_SC.mo_coeff, mf_SC.mo_energy, occ)
 
     # Transform pair density in SO basis

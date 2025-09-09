@@ -1,6 +1,5 @@
 # Author(s): Oinam Romesh Meitei, Oskar Weser
 
-import sys
 from collections.abc import Sequence
 
 import h5py
