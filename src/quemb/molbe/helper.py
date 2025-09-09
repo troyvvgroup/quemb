@@ -298,6 +298,7 @@ def get_frag_energy(
         print("delta_rdm1", delta_rdm1)
         print("h1", h1)
         print("veff0", veff0)
+        print("red veff0", veff0[:n_frag])
         print("e1", e1)
         print("ec", ec)
     else:

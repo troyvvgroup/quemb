@@ -3,7 +3,7 @@ from typing import Literal, Tuple
 import numpy as np
 from attrs import define
 from numpy import float64, floating
-from pyscf import ao2mo, gto
+from pyscf import ao2mo, gto, scf
 
 from quemb.molbe.helper import get_scfObj
 from quemb.shared.typing import Matrix
@@ -30,10 +30,10 @@ class CNOArgs:
         occupied orbitals. We first add occupied orbitals until (), then augment with
         virtual orbitals until we reach the proportion in (1).
     3. ExactFragmentSize: Enforcing that we add CNOs until each fragment is exactly the
-        size given by `tot_active_orbs`. 
+        size given by `tot_active_orbs`.
         Coupled with `cno_active_fragsize_scheme` with type `CNO_FragSize_Schemes`, we
         will add virtual CNOs until we reach the proportion given in (1). If we request
-        more orbitals to be added, we rely on CNO_FragSize_Schemes to either add only
+       i'm more orbitals to be added, we rely on CNO_FragSize_Schemes to either add only
         virtuals (`AddVirtuals`) or add both occupied and virtual CNOs to maintain (as
         close as we can) that ratio (`AddBoth`).
 
@@ -42,20 +42,25 @@ class CNOArgs:
     these orbitals are chosen with the `cno_active_fragsize_scheme`. Default is
     `AddVirtuals`.
     """
+
     cno_scheme: CNO_Schemes = "Proportional"
     tot_active_orbs: int | None = None
     cno_active_fragsize_scheme: CNO_FragSize_Schemes | None = "AddVirtuals"
+
 
 def get_cnos(
     nfb: int,
     TA_x: Matrix[float64],
     hcore_full: Matrix[floating],
     eri_full: Matrix[floating],
+    veff_full: Matrix[floating],
+    C: Matrix[floating],
+    S: Matrix[floating],
     nsocc: int,
     nocc: int,
     occ: bool,
-    )-> Matrix:
-    """ Generates the occupied or virtual CNOs for a given fragment.
+) -> Matrix:
+    """Generates the occupied or virtual CNOs for a given fragment.
 
     Parameters
     ----------
@@ -87,33 +92,54 @@ def get_cnos(
 
     """
     # TA_x is either TA_occ or TA_vir, aligning with occ=True or False
+    if occ:
+        print("OCCUPIED GET_CNOS")
+    else:
+        print("VIRTUAL GET_CNOS")
 
     # Generate 1 and 2 electron orbitals in modified Schmidt space
-    h_schmidt = np.einsum('mp,nq,mn->pq', TA_x, TA_x, hcore_full)
     eri_schmidt = ao2mo.incore.full(eri_full, TA_x, compact=True)
-
-    # Get semicanonicalized C by solving HF with these 1 and 2 e integrals
-    mf_SC = get_scfObj(h_schmidt, eri_schmidt, nocc)
     if occ:
-        C_SC = mf_SC.mo_coeff[:, :nocc]
+        h_schmidt = np.einsum(
+            "mp,nq,mn->pq", TA_x, TA_x, hcore_full
+        )  # Matches from kernel_xform
     else:
-        C_SC = mf_SC.mo_coeff[:, nocc:]
- 
+        h_schmidt = preparing_h_cnos(C[:,:nocc], S, hcore_full, TA_x, veff_full, eri_schmidt)
+
+    veff_schmidt = np.einsum("mp,nq,mn->pq", TA_x, TA_x, veff_full)
+    print("nsocc", nsocc)
+    print("nocc", nocc)
+    print("S", S.shape, S)
+    print("TA_x", TA_x.shape, TA_x)
+    print("hcore_full", hcore_full.shape, hcore_full)  # same as the pysd h
+    print("h_schmidt", h_schmidt.shape, h_schmidt)
+    print("eri_full", eri_full.shape, eri_full)
+    print("veff_full", veff_full.shape, veff_full)  # Same as Ghf
+    print("eri_schmidt", eri_schmidt.shape, eri_schmidt)
+    print("veff_schmidt", veff_schmidt.shape, veff_schmidt)
+    # if not occ:
+    # h_schmidt = veff_schmidt
+    # print("using veff", h_schmidt)
+    # Get semicanonicalized C by solving HF with these 1 and 2 e integrals
+    mf_SC = get_scfObj(h_schmidt, eri_schmidt, nsocc)
+    print("mf_SC.mo_coeff", mf_SC.mo_coeff.shape, mf_SC.mo_coeff)
+    if occ:
+        C_SC = mf_SC.mo_coeff[:, :nsocc]
+        #C_SC = mf_SC.mo_coeff[:, :nocc]  # SAME BETWEEN CODES
+    else:
+        C_SC = mf_SC.mo_coeff[:, nsocc:]
+        #C_SC = mf_SC.mo_coeff[:, nocc:]
+    print("C_SC", C_SC.shape, C_SC)
     # Get 2 e integrals, transformed by semicanonicalized C
     # Then T amplitudes
     # Then pair densities
     # (all in one function)
-    
-    P = FormPairDensity(
-        eri_schmidt,
-        mf_SC.mo_occ,
-        mf_SC.mo_coeff,
-        mf_SC.mo_energy,
-        occ
-    )
+
+    P = FormPairDensity(eri_schmidt, mf_SC.mo_occ, mf_SC.mo_coeff, mf_SC.mo_energy, occ)
 
     # Transform pair density in SO basis
     P_mat_SO = C_SC @ P @ C_SC.T
+    print(" P_mat_SO", P_mat_SO.shape, P_mat_SO)
 
     # Project out FOs and BOs
     # You can do this all padded with zeros (as described in paper),
@@ -121,27 +147,70 @@ def get_cnos(
     P_mat_SO_env = P_mat_SO[nfb:, nfb:]
 
     # Find the pair natural orbitals by diagonalizing these orbitals
-    P_mat_eigvals, P_mat_eigvecs = np.linalg.eig(P_mat_SO_env)
-
+    P_mat_eigvals, P_mat_eigvecs = np.linalg.eigh(P_mat_SO_env)
+    print("P_mat_eigvals", P_mat_eigvals.shape, P_mat_eigvals)
     # Pad pair natural orbitals
-    PNO = np.zeros((TA_x.shape[1], TA_x.shape[1]-nfb))
-    PNO[nfb:,:] = P_mat_eigvecs
+    PNO = np.zeros((TA_x.shape[1], TA_x.shape[1] - nfb))
+    PNO[nfb:, :] = P_mat_eigvecs
 
     # Generate cluster natural orbitals, rotating into AO basis
     cnos = TA_x @ PNO
-
+    print("PNO", PNO.shape, PNO)
+    print("cnos", cnos.shape, cnos)
     return cnos
+
+
+def preparing_h_cnos(
+    hf_Cocc,
+    S,
+    h,
+    TA_x,
+    hf_Veff,
+    eri_s,
+):
+    print("Preparing h_cnos")
+    print("S", S.shape, S)
+    print("hf_Cocc", hf_Cocc.shape, hf_Cocc)
+    ST = S @ TA_x
+    G_s = TA_x.T @ hf_Veff @ TA_x
+    print("G_s", G_s.shape, G_s)
+
+    P_act = hf_Cocc @ hf_Cocc.T
+    P_fbs = ST.T @ P_act @ ST
+    print("P_act", P_act.shape, P_act)
+    print("P_fbs", P_fbs.shape, P_fbs)
+
+    print("eri_s", eri_s.shape)
+    #eris = ao2mo.restore(eri_s, TA_x.shape[1])
+    #print("eris", eris.shape)
+
+    vj, vk = scf.hf.dot_eri_dm(eri_s, P_fbs, hermi=1)
+    print("vj", vj.shape, vj)
+    print("vk", vk.shape, vk)
+    G_fbs = 2.0 * vj - vk
+    print("G_fbs", G_fbs.shape, G_fbs)
+
+    h_rot = TA_x.T @ h @ TA_x
+    print("h_rot", h_rot.shape, h_rot)
+    G_envs = G_s - G_fbs
+    print("G_envs", G_envs.shape, G_envs)
+
+    hs = h_rot + G_envs
+    print("hs", hs.shape, hs)
+
+    return hs
+
 
 def choose_cnos(
     file: str,
-    basis: str, 
+    basis: str,
     n_f: int,
     n_b: int,
     n_full_occ: int,
     n_full_vir: int,
     nsocc: int,
     args: CNOArgs | None,
-)->Tuple[int,int]:
+) -> Tuple[int, int]:
     """Chooses the number of Occupied and Virtual CNOs for a given fragment
 
     Parameters
@@ -173,12 +242,14 @@ def choose_cnos(
     nocc_cno_add, nvir_cno_add : tuple(int, int)
         The desired number of occupied and virtual CNOs to augment TA, based
         on the chosen `cno_scheme`.
-    
+
     """
     # Options for CNO schemes:
     ###
-    assert(args is not None)
-    assert((args.cno_scheme=="ExactFragmentSize")==(args.tot_active_orbs is not None))
+    assert args is not None
+    assert (args.cno_scheme == "ExactFragmentSize") == (
+        args.tot_active_orbs is not None
+    )
     # Build mini fragment to figure out the number of electrons and orbitals
 
     mol = gto.M()
@@ -187,19 +258,28 @@ def choose_cnos(
     nelec = mol.nelectron
 
     if args.cno_scheme == "Proportional":
-        # Ratio of the number of fragment orbitals to the number of expected 
+        # Ratio of the number of fragment orbitals to the number of expected
         # occupied orbitals, based on the atoms in the fragment
+        print("n_f", n_f)
+        print("nelec", nelec)
         prop = n_f / (nelec / 2)
         nocc_cno_add = 0
-        # Add virtual orbitals so that the proportion of all fragment orbitals 
+        print("prop", prop)
+        # Add virtual orbitals so that the proportion of all fragment orbitals
         # (n_f + n_b + nvir_cno_add) to the number of occupied orbitals in the
         # Schmidt space (nsocc) is the same as the ratio `prop` above
-        nvir_cno_add = np.round(prop * nsocc) - n_f - n_b
-
+        # Kinda ridiculous, but okay for now...
+        # if isinstance(prop, int):
+        nvir_cno_add = prop - n_f - n_b
+        # else:
+        # nvir_cno_add = np.round(prop * nsocc) - n_f - n_b
+        print("nsocc", nsocc)
+        print("np.round(prop * nsocc)", np.round(prop * nsocc))
+        print("nvir_cno_add", nvir_cno_add)
     elif args.cno_scheme == "ProportionalQQ":
         # Same ratio as above
         prop = n_f / (nelec / 2)
-        # Add enough orbitals for the 
+        # Add enough orbitals for the
         total_orbs = int(1.5 * n_f) + n_b
         nocc_cno_add = max(int(np.round(total_orbs / prop - nsocc)), 0)
         nvir_cno_add = total_orbs - n_b - nocc_cno_add - n_f
@@ -212,8 +292,8 @@ def choose_cnos(
         # Schmidt state is already bigger than the max fragment size
         if args.tot_active_orbs < n_f + n_b:
             raise ValueError("Max fragment size larger than fragment + bath space")
-        # We will add virtual CNOs until the ratio of ;the augmented 
-        # fragment space to the number of occupieds in the Schmidt spaces reaches 
+        # We will add virtual CNOs until the ratio of ;the augmented
+        # fragment space to the number of occupieds in the Schmidt spaces reaches
         # the proportion above: see `Proportional`
         if args.cno_active_fragsize_scheme == "AddVirtuals":
             nocc_cno_add = 0
@@ -228,16 +308,17 @@ def choose_cnos(
             else:
                 nocc_cno_add = np.round(args.tot_active_orbs / prop) - nsocc
                 nvir_cno_add = args.tot_active_orbs - n_f - n_b - nocc_cno_add
-    if nocc_cno_add +  n_f + n_b > n_full_occ:
+    if nocc_cno_add + n_f + n_b > n_full_occ:
         raise RuntimeError(
             "Request to add more occupied CNOs than exist. Choose different CNO scheme"
-            )
+        )
     elif nvir_cno_add + n_f + n_b > n_full_vir:
         raise RuntimeError(
             "Request to add more virtual CNOs than exist. Choose different CNO scheme"
-            )
+        )
 
     return int(nocc_cno_add), int(nvir_cno_add)
+
 
 def FormPairDensity(
     Vs: Matrix[floating],
@@ -245,7 +326,7 @@ def FormPairDensity(
     mo_coeffs: Matrix[floating],
     mo_energys: Matrix[floating],
     occ: bool,
-    )-> Matrix:
+) -> Matrix:
     """
     Adapted slightly from Frankenstein, as written by Henry Tran
 
@@ -270,16 +351,29 @@ def FormPairDensity(
     # Determine which MOs are occupied and virtual
     OccIdx = np.where(mo_occs > 2.0 - 1e-6)[0]
     VirIdx = np.where(mo_occs < 1e-6)[0]
-    
+
     nOcc = OccIdx.shape[0]
     nVir = VirIdx.shape[0]
 
     COcc = mo_coeffs[:, OccIdx]
     CVir = mo_coeffs[:, VirIdx]
+    if occ:
+        print("OCCUPIED FORMPAIRDENSITY")
+    else:
+        print("VIRTUAL FORMPAIRDENSITY")
+    print("OccIdx", OccIdx)
+    print("VirIdx", VirIdx)
+    print("nOcc", nOcc)
+    print("nVir", nVir)
+    print("Vs", Vs)
+    print("mo_occs", mo_occs)
+    print("mo_coeffs", mo_coeffs)
+    print("mo_energys", mo_energys)
 
     # Transform 2 e integrals from the augmented Schmidt space
-    V = ao2mo.kernel(Vs, [COcc, CVir, COcc, CVir], compact = False)
+    V = ao2mo.kernel(Vs, [COcc, CVir, COcc, CVir], compact=False)
     V = V.reshape((nOcc, nVir, nOcc, nVir))
+    print("V reshaped", V)
 
     # Generate the T and delta T term from the CNO paper
     mo_energy_occ = mo_energys[:nOcc]
@@ -296,13 +390,14 @@ def FormPairDensity(
 
     if occ:
         # Occupied pair density matrix
-        P = 2 * np.einsum('kiab,kjab->ij', T, delta_T_term, optimize=True)
+        P = 2 * np.einsum("kiab,kjab->ij", T, delta_T_term, optimize=True)
         P = np.eye(T.shape[0]) - P
     else:
         # Virtual pair density matrix
-        P = 2.0 * np.einsum('ijac,jicb->ab', T, delta_T_term, optimize=True)
- 
+        P = 2.0 * np.einsum("ijac,jicb->ab", T, delta_T_term, optimize=True)
+    print("FormPairDensity P", P)
     return P
+
 
 def augment_w_cnos(
     TA: Matrix[float64],
@@ -310,7 +405,7 @@ def augment_w_cnos(
     nvir_cno: int,
     occ_cno: Matrix[floating] | None,
     vir_cno: Matrix[floating] | None,
-    )-> Matrix:
+) -> Matrix:
     """Augmenting TA with the chosen occupied and virtual CNOs
 
     Parameters
@@ -332,10 +427,10 @@ def augment_w_cnos(
         Augmented TA matrix with CNOs
     """
     if nocc_cno > 0:
-        assert(occ_cno is not None)
+        assert occ_cno is not None
         TA = np.hstack((TA, occ_cno[:, :nocc_cno]))
     if nvir_cno > 0:
-        assert(vir_cno is not None)
+        assert vir_cno is not None
         TA = np.hstack((TA, vir_cno[:, -nvir_cno:]))
 
     return TA

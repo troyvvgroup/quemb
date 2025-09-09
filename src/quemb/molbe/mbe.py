@@ -305,7 +305,7 @@ class BE:
             self.lmo_coeff = None
             self.cinv = None
 
-        print("self.C", self.C)
+        print("self.C", self.C) # Same as the msd.Chfocc_no_core, before truncating
         print("self.hcore", self.hcore)
         print("self.hf_dm", self.hf_dm)
         print("self.hf_veff", self.hf_veff)
@@ -1092,18 +1092,21 @@ class BE:
         """
         for I in range(self.fobj.n_frag):
             fobjs_ = self.fobj.to_Frags(I, eri_file=self.eri_file)
+            print("self.lmo_coeff", self.lmo_coeff.shape, self.lmo_coeff)
             fobjs_.sd(
                 self.W,
                 self.lmo_coeff,
                 self.Nocc,
                 thr_bath=self.thr_bath,
-                add_cnos=self.add_cnos
+                add_cnos=self.add_cnos,
+                nfrag=I,
                 )
             # Calculating and Adding CNOs, if requested
             if self.add_cnos:
                 # Run this the first time, to get nsocc
                 # Run again LATER with updated TA!
-                _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
+                _ = fobjs_.get_nsocc_cno(self.S, self.C, fobjs_.TA_cno_occ, self.Nocc, ncore=self.ncore)
+
                 (nocc_add_cno, nvir_add_cno) = choose_cnos(
                     "f"+str(I)+".xyz", # geometry
                     self.mf.mol.basis, # basis
@@ -1132,17 +1135,25 @@ class BE:
                         fobjs_.TA_cno_occ, # TA occupied expanded
                         self.hcore, # hcore
                         eri_, # eris
+                        self.hf_veff,
+                        self.C,
+                        self.S,
                         fobjs_.nsocc,
                         self.Nocc,
                         occ = True,
                     )
-                if nvir_add_cno > 0:
+                if nvir_add_cno >= 0:
                     # Generate virtual CNOs
+                    _ = fobjs_.get_nsocc_cno(self.S, self.C, fobjs_.TA_cno_vir, self.Nocc, ncore=self.ncore)
+                    print("fobjs_.nsocc")
                     vir_cno = get_cnos(
                         fobjs_.TA.shape[1], # number of fragment and bath orbitals
                         fobjs_.TA_cno_vir, # TA virtual expanded
                         self.hcore, # hcore
                         eri_, # eris
+                        self.hf_veff,
+                        self.C,
+                        self.S,
                         fobjs_.nsocc,
                         self.Nocc,
                         occ = False,
@@ -1401,6 +1412,9 @@ class BE:
                         (self.W.T, self.S, self.C[:, self.ncore :])
                     )
                 else:
+                    print("making lmo_coeff: C", self.C.shape, self.C)
+                    print("making lmo_coeff: S", self.S.shape, self.S)
+                    print("making lmo_coeff: W", self.W.shape, self.W)
                     self.lmo_coeff = multi_dot((self.W.T, self.S, self.C))
             return None
         elif lo_method == "boys" or lo_method == "PM" or lo_method == "ER":
