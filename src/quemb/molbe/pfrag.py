@@ -186,7 +186,8 @@ class Frags:
             self.TA = lao @ self.TA_lo_eo
             self.TA_cno_occ = np.hstack((self.TA, lao @ delta_TA_lo_eo_occ))
             self.TA_cno_vir = np.hstack((self.TA, lao @ delta_TA_lo_eo_vir))
-
+            print("self.TA_cno_occ", self.TA_cno_occ.shape, self.TA_cno_occ)
+            print("self.TA_cno_vir", self.TA_cno_vir.shape, self.TA_cno_vir)
         else:
             self.TA_lo_eo, self.n_f, self.n_b = schmidt_decomposition(
                 lmo,
@@ -629,7 +630,8 @@ def schmidt_decomposition_cnos(
     # Virtual environment columns
     delta_TA_vir = zeros([Tot_sites, len(VEidx)])
     delta_TA_vir[Env_sites1, :] = Evec[:, VEidx]
-
+    print("delta_TA_occ", delta_TA_occ.shape, delta_TA_occ)
+    print("delta_TA_vir", delta_TA_vir.shape, delta_TA_vir)
     return TA, delta_TA_occ, delta_TA_vir, Frag_sites1.shape[0], len(Bidx)
 
 

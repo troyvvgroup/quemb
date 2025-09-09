@@ -99,7 +99,7 @@ def get_cnos(
 
     # Generate 1 and 2 electron orbitals in modified Schmidt space
     eri_schmidt = ao2mo.incore.full(eri_full, TA_x, compact=True)
-    if occ:
+    if nocc - nsocc == 0:
         h_schmidt = np.einsum(
             "mp,nq,mn->pq", TA_x, TA_x, hcore_full
         )  # Matches from kernel_xform
@@ -261,6 +261,7 @@ def choose_cnos(
         # Ratio of the number of fragment orbitals to the number of expected
         # occupied orbitals, based on the atoms in the fragment
         print("n_f", n_f)
+        print("n_b", n_b)
         print("nelec", nelec)
         prop = n_f / (nelec / 2)
         nocc_cno_add = 0
@@ -268,11 +269,12 @@ def choose_cnos(
         # Add virtual orbitals so that the proportion of all fragment orbitals
         # (n_f + n_b + nvir_cno_add) to the number of occupied orbitals in the
         # Schmidt space (nsocc) is the same as the ratio `prop` above
+
         # Kinda ridiculous, but okay for now...
-        # if isinstance(prop, int):
-        nvir_cno_add = prop - n_f - n_b
-        # else:
-        # nvir_cno_add = np.round(prop * nsocc) - n_f - n_b
+        if isinstance(prop, int):
+            nvir_cno_add = prop - n_f - n_b
+        else:
+            nvir_cno_add = np.round(prop * nsocc) - n_f - n_b
         print("nsocc", nsocc)
         print("np.round(prop * nsocc)", np.round(prop * nsocc))
         print("nvir_cno_add", nvir_cno_add)
