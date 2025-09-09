@@ -1092,21 +1092,16 @@ class BE:
         """
         for I in range(self.fobj.n_frag):
             fobjs_ = self.fobj.to_Frags(I, eri_file=self.eri_file)
-            print("self.lmo_coeff", self.lmo_coeff.shape, self.lmo_coeff)
             fobjs_.sd(
                 self.W,
                 self.lmo_coeff,
                 self.Nocc,
                 thr_bath=self.thr_bath,
                 add_cnos=self.add_cnos,
-                nfrag=I,
                 )
             # Calculating and Adding CNOs, if requested
             if self.add_cnos:
-                # Run this the first time, to get nsocc
-                # Run again LATER with updated TA!
-                _ = fobjs_.get_nsocc_cno(self.S, self.C, fobjs_.TA_cno_occ, self.Nocc, ncore=self.ncore)
-
+                nsocc_standard = fobjs_.return_nsocc_only(self.S, self.C, fobjs_.TA, self.Nocc, ncore=self.ncore)
                 (nocc_add_cno, nvir_add_cno) = choose_cnos(
                     "f"+str(I)+".xyz", # geometry
                     self.mf.mol.basis, # basis
@@ -1114,7 +1109,7 @@ class BE:
                     fobjs_.n_b, # number of bath orbitals
                     fobjs_.TA_cno_occ.shape[1], # occupied-augmented size 
                     fobjs_.TA_cno_vir.shape[1], # virtual-augmented size
-                    fobjs_.nsocc, # number of occupied orbitals in fragment
+                    nsocc_standard, # number of occupied orbitals in fragment
                     self.additional_args,
                 )
 
@@ -1130,6 +1125,7 @@ class BE:
                 vir_cno = None
                 if nocc_add_cno >= 0:
                     # Generate occupied CNOs
+                    nsocc_occ = fobjs_.return_nsocc_only(self.S, self.C, fobjs_.TA_cno_occ, self.Nocc, ncore=self.ncore)
                     occ_cno = get_cnos(
                         fobjs_.TA.shape[1], # number of fragment and bath orbitals
                         fobjs_.TA_cno_occ, # TA occupied expanded
@@ -1138,14 +1134,13 @@ class BE:
                         self.hf_veff,
                         self.C,
                         self.S,
-                        fobjs_.nsocc,
+                        nsocc_occ,
                         self.Nocc,
                         occ = True,
                     )
                 if nvir_add_cno >= 0:
                     # Generate virtual CNOs
-                    _ = fobjs_.get_nsocc_cno(self.S, self.C, fobjs_.TA_cno_vir, self.Nocc, ncore=self.ncore)
-                    print("fobjs_.nsocc")
+                    nsocc_vir = fobjs_.return_nsocc_only(self.S, self.C, fobjs_.TA_cno_vir, self.Nocc, ncore=self.ncore)
                     vir_cno = get_cnos(
                         fobjs_.TA.shape[1], # number of fragment and bath orbitals
                         fobjs_.TA_cno_vir, # TA virtual expanded
@@ -1154,7 +1149,7 @@ class BE:
                         self.hf_veff,
                         self.C,
                         self.S,
-                        fobjs_.nsocc,
+                        nsocc_vir,
                         self.Nocc,
                         occ = False,
                     )

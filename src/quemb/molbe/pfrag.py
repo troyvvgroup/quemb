@@ -156,7 +156,6 @@ class Frags:
         thr_bath: float,
         norb: int | None = None,
         add_cnos: bool = False,
-        nfrag: int | None = None,
     ) -> None:
         """
         Perform Schmidt decomposition for the fragment.
@@ -183,16 +182,11 @@ class Frags:
                 nocc,
                 self.AO_in_frag,
                 thr_bath=thr_bath,
-                nfrag=nfrag,
             )
             self.TA = lao @ self.TA_lo_eo
             self.TA_cno_occ = np.hstack((self.TA, lao @ delta_TA_lo_eo_occ))
             self.TA_cno_vir = np.hstack((self.TA, lao @ delta_TA_lo_eo_vir))
-            print("lao", lao)
-            print("lao @ delta_TA_lo_eo_occ", lao @ delta_TA_lo_eo_occ)
-            print("lao @ delta_TA_lo_eo_vir", lao @ delta_TA_lo_eo_vir)
-            print("self.TA_cno_occ ", self.TA_cno_occ )
-            print("self.TA_cno_vir ", self.TA_cno_vir )
+
         else:
             self.TA_lo_eo, self.n_f, self.n_b = schmidt_decomposition(
                 lmo,
@@ -232,49 +226,6 @@ class Frags:
         self.veff0 = veff0
         self.fock = self.h1 + veff_.real
 
-    def get_nsocc_cno(self, S, C, T_X, nocc, ncore=0):
-        """
-        Get the number of occupied orbitals for the fragment.
-
-        Parameters
-        ----------
-        S : numpy.ndarray
-            Overlap matrix.
-        C : numpy.ndarray
-            Molecular orbital coefficients.
-        nocc : int
-            Number of occupied orbitals.
-        ncore : int, optional
-            Number of core orbitals, by default 0.
-
-        Returns
-        -------
-        numpy.ndarray
-            Projected density matrix.
-        """
-        print("Get nsocc_cnos")
-        print("Inserting T_X", T_X.shape, T_X)
-        print("S", S.shape, S)
-        print("C", C.shape, C)
-        C_ = multi_dot((T_X.T, S, C[:, ncore : ncore + nocc]))
-        print("C_", C_.shape, C_)
-        P_ = C_ @ C_.T
-        print("P_", P_.shape, P_)
-        nsocc_ = trace(P_)
-        nsocc = int(round(nsocc_))
-        print("nsocc", nsocc)
-        try:
-            mo_coeffs = scipy.linalg.svd(C_)[0]
-            print("Trying SVD in get_nsocc: scipy:", mo_coeffs.shape, mo_coeffs)
-            mo_coeffs_numpy = np.linalg.svd(C_)[0]
-            print("Trying SVD in get_nsocc: numpy:", mo_coeffs_numpy.shape, mo_coeffs_numpy)
-        except scipy.linalg.LinAlgError:
-            mo_coeffs = scipy.linalg.eigh(C_)[1][:, -nsocc:]
-
-        self._mo_coeffs = mo_coeffs
-        self.nsocc = nsocc
-        return P_
-
     def get_nsocc(self, S, C, nocc, ncore=0):
         """
         Get the number of occupied orbitals for the fragment.
@@ -308,6 +259,36 @@ class Frags:
         self._mo_coeffs = mo_coeffs
         self.nsocc = nsocc
         return P_
+
+    def return_nsocc_only(self, S, C, T_X, nocc, ncore=0):
+        """
+        Get the number of occupied orbitals for the fragment, without also finding the
+        mo_coeffs and updating any object attributes. This is used in the CNO routine
+        for occupied and virtual CNOs.
+
+        Parameters
+        ----------
+        S : numpy.ndarray
+            Overlap matrix.
+        C : numpy.ndarray
+            Molecular orbital coefficients.
+        nocc : int
+            Number of occupied orbitals.
+        ncore : int, optional
+            Number of core orbitals, by default 0.
+
+        Returns
+        -------
+        numpy.ndarray
+            Projected density matrix.
+        """
+        C_ = multi_dot((T_X.T, S, C[:, ncore : ncore + nocc]))
+        P_ = C_ @ C_.T
+
+        nsocc_ = trace(P_)
+        nsocc = int(round(nsocc_))
+
+        return nsocc
 
     def scf(
         self, heff=None, fs=False, eri=None, dm0=None, unrestricted=False, spin_ind=None
@@ -568,7 +549,6 @@ def schmidt_decomposition_cnos(
     nocc: int,
     AO_in_frag: Sequence[GlobalAOIdx],
     thr_bath: float = 1.0e-10,
-    nfrag: int | None = None,
 ) -> tuple[Matrix[float64],Matrix[float64], Matrix[float64], int, int,]:
     """
     Perform Schmidt decomposition on the molecular orbital coefficients, when
@@ -601,13 +581,10 @@ def schmidt_decomposition_cnos(
         environment orbitals, as well as the number of fragment and bath orbitals
     """
 
-    print("SD_CNO: mo_coeff", mo_coeff.shape, mo_coeff)
     # Compute the reduced density matrix (RDM) if not provided
     C = mo_coeff[:, :nocc]
     Dhf = C @ C.T
-    print("SD_CNO: nocc", nocc)
-    print("SD_CNO: C", C.shape, C) # Same as the Cacts, but full
-    print("SD_CNO: Dhf", Dhf.shape, Dhf) # Same as Pacts, but full
+
     # Total number of sites
     Tot_sites = Dhf.shape[0]
 
@@ -618,18 +595,10 @@ def schmidt_decomposition_cnos(
 
     # Compute the environment part of the density matrix
     Denv = Dhf[Env_sites, Env_sites.T]
-    print("SD_CNO: Env_sites", Env_sites)
-    print("SD_CNO: Denv", Denv)
+
     # Perform eigenvalue decomposition on the environment density matrix
-    #Eval, Evec = eigh(Denv)
-    #np.save("QuembEval.npy", Eval)
-    #np.save("QuembEvec.npy", Evec)
-    #np.save("Denv.npy", Denv)
-    #sys.exit()
-    Eval = np.load("Eval_"+str(nfrag)+".npy")
-    Evec = np.load("Evec_"+str(nfrag)+".npy")
-    print("SD_CNO: Eval", Eval)
-    print("SD_CNO: Evec", Evec)
+    Eval, Evec = eigh(Denv)
+
     # Identify significant environment orbitals based on eigenvalue threshold
     Bidx = []
     VEidx = []
@@ -647,22 +616,20 @@ def schmidt_decomposition_cnos(
         # Virtual environment index
         else:
             VEidx.append(i)
-    print("SD_CNO: Bidx", Bidx)
-    print("SD_CNO: OEidx", OEidx)
-    print("SD_CNO: VEidx", VEidx)
+
     # Initialize the transformation matrix (TA)
     TA = zeros([Tot_sites, len(AO_in_frag) + len(Bidx)])
     TA[AO_in_frag, : len(AO_in_frag)] = eye(len(AO_in_frag))  # Fragment part
     TA[Env_sites1, len(AO_in_frag) :] = Evec[:, Bidx]  # Bath part
-    print("SD_CNO: intial TA", TA.shape, TA)
+
     # Occupied environment columns
     delta_TA_occ = zeros([Tot_sites, len(OEidx)])
     delta_TA_occ[Env_sites1,:] = Evec[:, OEidx]
-    print("delta_TA_occ", delta_TA_occ.shape, delta_TA_occ)
+
     # Virtual environment columns
     delta_TA_vir = zeros([Tot_sites, len(VEidx)])
     delta_TA_vir[Env_sites1, :] = Evec[:, VEidx]
-    print("delta_TA_vir", delta_TA_vir.shape, delta_TA_vir)
+
     return TA, delta_TA_occ, delta_TA_vir, Frag_sites1.shape[0], len(Bidx)
 
 
