@@ -365,14 +365,11 @@ SemiSparse3DTensor contract_with_TA_1st(const Matrix &TA, const SemiSparseSym3DT
     }
 
     if (LOG_LEVEL <= LogLevel::Info) {
-        std::cout << "(P | mu i) [MEMORY] "
-                     "sparse "
+        std::cout << "(P | mu i) [MEMORY] sparse "
                   << bytes_to_gib(naux * n_unique * sizeof(double)) << " GiB" << "\n";
-        std::cout << "(P | mu i) [MEMORY] "
-                     "dense "
+        std::cout << "(P | mu i) [MEMORY] dense "
                   << bytes_to_gib(naux * nao * nmo * sizeof(double)) << " GiB" << "\n";
-        std::cout << "(P | mu i) [MEMORY] "
-                     "sparsity "
+        std::cout << "(P | mu i) [MEMORY] sparsity "
                   << (1. - static_cast<double>(n_unique) / static_cast<double>(nao * nmo)) * 100. << " %" << "\n";
     };
 
@@ -447,8 +444,8 @@ Matrix contract_with_TA_2nd_to_sym_dense(const SemiSparse3DTensor &int_mu_i_P, c
 
     const auto n_sym_pairs = to_eigen(ravel_symmetric(nmo - 1, nmo - 1) + 1);
 
-    if (LOG_LEVEL <= LogLevel::Debug) {
-        std::cout << "[MEMORY] about to allocate sym_P_pq(naux, n_sym_pairs) with "
+    if (LOG_LEVEL <= LogLevel::Info) {
+        std::cout << "[MEMORY] about to allocate (ij | P) as sym_P_pq(naux, n_sym_pairs) with "
                   << bytes_to_gib(naux * n_sym_pairs * sizeof(double)) << " GiB" << std::endl;
     }
     Matrix sym_P_pq(naux, n_sym_pairs);
