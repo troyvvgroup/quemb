@@ -1042,6 +1042,11 @@ class PurelyStructureFragmented(Generic[_T_chemsystem]):
         return len(self.conn_data.motifs) != sum(len(x) for x in self.centers_per_frag)
 
 
+@define(kw_only=True)
+class ChemFragPart(FragPart):
+    fragmented: Final[Fragmented]
+
+
 @define(frozen=True, kw_only=True)
 class Fragmented(Generic[_T_chemsystem]):
     """Contains the whole BE fragmentation information, including AO indices.
@@ -1332,8 +1337,8 @@ class Fragmented(Generic[_T_chemsystem]):
         """The number of fragments."""
         return len(self.AO_per_frag)
 
-    def _get_FragPart_no_iao(self) -> FragPart:
-        """Transform into a :class:`quemb.molbe.autofrag.FragPart`
+    def _get_FragPart_no_iao(self) -> ChemFragPart:
+        """Transform into a :class:`quemb.molbe.chemfrag.ChemFragPart`
         for further use in quemb.
 
         Matches the output of :func:`quemb.molbe.autofrag.autogen`.
@@ -1359,7 +1364,7 @@ class Fragmented(Generic[_T_chemsystem]):
         origin_per_frag = list(union_of_seqs(*self.frag_structure.origin_per_frag))
         assert len(origin_per_frag) == len(self)
 
-        return FragPart(
+        return ChemFragPart(
             mol=self.mol,
             frag_type="chemgen",
             n_BE=self.frag_structure.n_BE,
@@ -1392,6 +1397,7 @@ class Fragmented(Generic[_T_chemsystem]):
             frozen_core=self.frozen_core,
             iao_valence_basis=None,
             iao_valence_only=False,
+            fragmented=self,
         )
 
     def _get_FragPart_with_iao(self, wrong_iao_indexing: bool) -> FragPart:

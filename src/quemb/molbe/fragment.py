@@ -13,7 +13,7 @@ from quemb.molbe.autofrag import (
     FragType,
     autogen,
 )
-from quemb.molbe.chemfrag import ChemGenArgs, chemgen
+from quemb.molbe.chemfrag import ChemFragPart, ChemGenArgs, chemgen
 from quemb.molbe.graphfrag import GraphGenArgs, graphgen
 
 AdditionalArgs: TypeAlias = AutogenArgs | ChemGenArgs | GraphGenArgs
@@ -31,7 +31,7 @@ def fragmentate(
     frozen_core: bool = False,
     order_by_size: bool = False,
     additional_args: AdditionalArgs | None = None,
-) -> FragPart:
+) -> FragPart | ChemFragPart:
     """Fragment/partitioning definition
 
     Interfaces the fragmentation functions in MolBE. It defines
