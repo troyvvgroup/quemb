@@ -1042,11 +1042,6 @@ class PurelyStructureFragmented(Generic[_T_chemsystem]):
         return len(self.conn_data.motifs) != sum(len(x) for x in self.centers_per_frag)
 
 
-@define(kw_only=True)
-class ChemFragPart(FragPart):
-    fragmented: Final[Fragmented]
-
-
 @define(frozen=True, kw_only=True)
 class Fragmented(Generic[_T_chemsystem]):
     """Contains the whole BE fragmentation information, including AO indices.
@@ -1536,6 +1531,11 @@ class Fragmented(Generic[_T_chemsystem]):
         else:
             assert wrong_iao_indexing is not None
             return self._get_FragPart_with_iao(wrong_iao_indexing)
+
+
+@define(kw_only=True)
+class ChemFragPart(FragPart):
+    fragmented: Final[Fragmented]
 
 
 def _get_AOidx_per_atom(
