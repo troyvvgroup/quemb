@@ -27,10 +27,10 @@ from collections import defaultdict
 from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence, Set
 from itertools import chain
 from pathlib import Path
-from typing import Any, Final, Generic, TypeAlias, TypeVar, cast
+from typing import Any, Final, Generic, TypeAlias, TypeVar, cast, override
 
 import numpy as np
-from attrs import cmp_using, define, field
+from attrs import cmp_using, define, field, fields
 from chemcoord import Cartesian
 from networkx.algorithms.shortest_paths.generic import shortest_path_length
 from networkx.classes.graph import Graph
@@ -56,6 +56,7 @@ from quemb.shared.typing import (
     RelAOIdx,
     RelAOIdxInRef,
     T,
+    Vector,
 )
 
 # NOTE: We rely on the fact that post python 3.7 dictionaries preserve insertion order!
@@ -1395,7 +1396,7 @@ class Fragmented(Generic[_T_chemsystem]):
             fragmented=self,
         )
 
-    def _get_FragPart_with_iao(self, wrong_iao_indexing: bool) -> FragPart:
+    def _get_FragPart_with_iao(self, wrong_iao_indexing: bool) -> ChemFragPart:
         """Transform into a :class:`quemb.molbe.autofrag.FragPart`
         for further use in quemb.
 
@@ -1504,7 +1505,7 @@ class Fragmented(Generic[_T_chemsystem]):
         matched_output_no_iao = self._get_FragPart_no_iao()
 
         # Only are actually different when doing IAOs
-        return FragPart(
+        return ChemFragPart(
             mol=self.mol,
             frag_type="chemgen",
             n_BE=self.frag_structure.n_BE,
@@ -1522,9 +1523,10 @@ class Fragmented(Generic[_T_chemsystem]):
             frozen_core=self.frozen_core,
             iao_valence_basis=self.iao_valence_mol.basis,
             iao_valence_only=False,
+            fragmented=self,
         )
 
-    def get_FragPart(self, wrong_iao_indexing: bool | None = None) -> FragPart:
+    def get_FragPart(self, wrong_iao_indexing: bool | None = None) -> ChemFragPart:
         """Match the output of :func:`quemb.molbe.autofrag.autogen`."""
         if self.iao_valence_mol is None:
             return self._get_FragPart_no_iao()
@@ -1533,9 +1535,62 @@ class Fragmented(Generic[_T_chemsystem]):
             return self._get_FragPart_with_iao(wrong_iao_indexing)
 
 
-@define(kw_only=True)
+@define(kw_only=True, hash=False)
 class ChemFragPart(FragPart):
-    fragmented: Final[Fragmented]
+    """Expose chemgen info, but retain old FragPart behaviour for outside code.
+
+    In particular, the equality comparison uses only FragPart info."""
+
+    fragmented: Final[Fragmented] = field(eq=False)
+
+    __hash__ = None  # explicitly mark as unhashable
+
+    def _get_FragPart(self) -> FragPart:
+        return FragPart(
+            **{f.name: getattr(self, f.name) for f in fields(FragPart) if f.init}
+        )
+
+    @override
+    def __eq__(self, other: Any) -> bool:
+        return self._get_FragPart() == other
+
+    @override
+    def __ne__(self, other: Any) -> bool:
+        return not (self == other)
+
+    @override
+    def reindex(self, idx: Sequence[int] | Vector) -> Self:
+        def _get_elements(seq: Sequence[T], idx: Sequence[int] | Vector) -> list[T]:
+            return [seq[i] for i in idx]  # type: ignore[index]
+
+        return self.__class__(
+            mol=self.mol,
+            frag_type=self.frag_type,
+            n_BE=self.n_BE,
+            AO_per_frag=_get_elements(self.AO_per_frag, idx),
+            AO_per_edge_per_frag=_get_elements(self.AO_per_edge_per_frag, idx),
+            ref_frag_idx_per_edge_per_frag=_get_elements(
+                self.ref_frag_idx_per_edge_per_frag, idx
+            ),
+            relAO_per_edge_per_frag=_get_elements(self.relAO_per_edge_per_frag, idx),
+            relAO_in_ref_per_edge_per_frag=_get_elements(
+                self.relAO_in_ref_per_edge_per_frag, idx
+            ),
+            relAO_per_origin_per_frag=_get_elements(
+                self.relAO_per_origin_per_frag, idx
+            ),
+            weight_and_relAO_per_center_per_frag=_get_elements(
+                self.weight_and_relAO_per_center_per_frag, idx
+            ),
+            motifs_per_frag=_get_elements(self.motifs_per_frag, idx),
+            origin_per_frag=_get_elements(self.origin_per_frag, idx),
+            H_per_motif=self.H_per_motif,
+            add_center_atom=_get_elements(self.add_center_atom, idx),
+            frozen_core=self.frozen_core,
+            iao_valence_basis=self.iao_valence_basis,
+            iao_valence_only=self.iao_valence_only,
+            fragmented=self.fragmented,
+        )
 
 
 def _get_AOidx_per_atom(
