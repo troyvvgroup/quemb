@@ -27,7 +27,7 @@ from collections import defaultdict
 from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence, Set
 from itertools import chain
 from pathlib import Path
-from typing import Any, Final, Generic, TypeAlias, TypeVar, cast, override
+from typing import Any, Final, Generic, TypeAlias, TypeVar, cast
 
 import numpy as np
 from attrs import cmp_using, define, field, fields
@@ -38,7 +38,7 @@ from ordered_set import OrderedSet
 from pyscf.gto import M, Mole, is_au
 from pyscf.lib import param
 from pyscf.pbc.gto import Cell
-from typing_extensions import Self
+from typing_extensions import Self, override
 
 from quemb.molbe.autofrag import FragPart
 from quemb.molbe.helper import are_equal, get_core
