@@ -549,6 +549,10 @@ def be_func_parallel(
         fobj._rdm1 = rdm[2]
         fobj.rdm2__ = rdm[3]
 
+    print(f"Correlation Energy at iteration: {(e_1+e_2+e_c):>f} Ha", flush=True)
+    print(f"E F delta P: {(e_1 + e_c):>f} Ha", flush=True)
+    print(f"E cumulant: {e_2:>f} Ha", flush=True)
+
     del rdms
     ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem)
 

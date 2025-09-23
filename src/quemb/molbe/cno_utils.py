@@ -251,7 +251,7 @@ def choose_cnos(
         nocc_cno_add = max(int(np.round(total_orbs / prop - nsocc)), 0)
         nvir_cno_add = total_orbs - n_b - nocc_cno_add - n_f
 
-    elif args.cno_scheme == "ExactFragSize":
+    elif args.cno_scheme == "ExactFragmentSize":
         # Start by adding virtuals until `Proportional` is hit
         prop = n_f / (nelec / 2)
         max_vir_add_prop = np.round(prop * nsocc) - n_f - n_b
@@ -264,8 +264,8 @@ def choose_cnos(
         # the proportion above: see `Proportional`
         if args.cno_active_fragsize_scheme == "AddVirtuals":
             nocc_cno_add = 0
-            nvir_cno_add = args.tot_frag_orbs - n_f - n_b
-        elif args.cno_tot_frag_scheme == "AddBoth":
+            nvir_cno_add = args.tot_active_orbs - n_f - n_b
+        elif args.cno_active_fragsize_scheme == "AddBoth":
             if 0 <= args.tot_active_orbs - n_f - n_b <= max_vir_add_prop:
                 nocc_cno_add = 0
                 nvir_cno_add = args.tot_active_orbs - n_f - n_b
@@ -275,7 +275,6 @@ def choose_cnos(
             else:
                 nocc_cno_add = np.round(args.tot_active_orbs / prop) - nsocc
                 nvir_cno_add = args.tot_active_orbs - n_f - n_b - nocc_cno_add
-
     if nocc_cno_add + n_f + n_b > n_full_occ:
         raise RuntimeError(
             "Request to add more occupied CNOs than exist. Choose different CNO scheme"
