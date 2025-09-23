@@ -1124,7 +1124,7 @@ class BE:
 
                 occ_cno = None
                 vir_cno = None
-                if nocc_add_cno >= 0:
+                if nocc_add_cno > 0:
                     # Generate occupied CNOs
                     nsocc_occ = fobjs_.return_nsocc_only(
                         self.S,
@@ -1145,7 +1145,7 @@ class BE:
                         self.Nocc,
                         occ = True,
                     )
-                if nvir_add_cno >= 0:
+                if nvir_add_cno > 0:
                     # Generate virtual CNOs
                     nsocc_vir = fobjs_.return_nsocc_only(
                         self.S,
