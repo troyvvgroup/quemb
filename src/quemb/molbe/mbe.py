@@ -768,6 +768,7 @@ class BE:
         max_iter: int = 500,
         trust_region: bool = False,
         solver_args: UserSolverArgs | None = None,
+        # Delta_q: float = 0,
     ) -> None:
         """BE optimization function
 

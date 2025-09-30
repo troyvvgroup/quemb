@@ -6,11 +6,13 @@
 #         The code has been slightly modified.
 #
 import logging
-from collections.abc import Sequence
+from collections.abc import Sequence, Callable
 
 from numpy import array, empty, float64, outer, zeros
+import numpy as np
 from numpy.linalg import inv, norm, pinv
 
+from pyscf import scf
 from quemb.kbe.pfrag import Frags as pFrags
 from quemb.molbe.helper import get_eri, get_scfObj
 from quemb.molbe.pfrag import Frags
@@ -20,6 +22,8 @@ from quemb.shared.external.jac_utils import get_dPccsdurlx_batch_u
 from quemb.shared.typing import GlobalAOIdx, Matrix, RelAOIdx, SeqOverEdge
 
 logger = logging.getLogger(__name__)
+
+ResFunc_T = Callable[[scf.hf.SCF, Sequence[Matrix[np.floating]], int], tuple[list[Matrix[float64]], Matrix[float64]]]
 
 
 def line_search_LF(func, xold, fold, dx, iter_):
@@ -312,7 +316,7 @@ def get_be_error_jacobian(n_frag, Fobjs, jac_solver="HF"):
 
 
 def get_atbe_Jblock_frag(
-    fobj: Frags | pFrags, res_func
+    fobj: Frags | pFrags, res_func: ResFunc_T
 ) -> tuple[Matrix[float64], Matrix[float64], list, list, list, float, int]:
     assert (
         fobj._mo_coeffs is not None
@@ -326,7 +330,7 @@ def get_atbe_Jblock_frag(
     dm0 = 2.0 * (fobj._mo_coeffs[:, : fobj.nsocc] @ fobj._mo_coeffs[:, : fobj.nsocc].T)
     mf_ = get_scfObj(fobj.fock + fobj.heff, eri_, fobj.nsocc, dm0=dm0)
 
-    dPs, dP_mu = res_func(mf_, vpots, eri_, fobj.nsocc)
+    dPs, dP_mu = res_func(mf_, vpots, fobj.nsocc)
 
     Je = []
     Jc = []
@@ -422,39 +426,39 @@ def get_be_error_jacobian_selffrag(self, jac_solver="HF"):
     return J
 
 
-def hfres_func(mf, vpots, eri, nsocc) -> tuple[list[Matrix[float64]], Matrix[float64]]:
+def hfres_func(
+    mf: scf.hf.SCF, vpots: Sequence[Matrix[np.floating]], nsocc: int
+) -> tuple[list[Matrix[float64]], Matrix[float64]]:
     C = mf.mo_coeff
     moe = mf.mo_energy
-    eri = mf._eri
-    no = nsocc
 
-    us = cphf_kernel_batch(C, moe, eri, no, vpots)
-    dPs = [get_rhf_dP_from_u(C, no, us[I]) for I in range(len(vpots) - 1)]
-    dP_mu = get_rhf_dP_from_u(C, no, us[-1])
+    us = cphf_kernel_batch(C, moe, mf._eri, nsocc, vpots)
+    dPs = [get_rhf_dP_from_u(C, nsocc, us[I]) for I in range(len(vpots) - 1)]
+    dP_mu = get_rhf_dP_from_u(C, nsocc, us[-1])
 
     return dPs, dP_mu
 
 
-def mp2res_func(mf, vpots, eri, nsocc):
+def mp2res_func(
+    mf: scf.hf.SCF, vpots: Sequence[Matrix[np.floating]], nsocc: int
+) -> tuple[list[Matrix[float64]], Matrix[float64]]:
     C = mf.mo_coeff
     moe = mf.mo_energy
-    eri = mf._eri
-    no = nsocc
 
-    dPs_an = get_dPmp2_batch_r(C, moe, eri, no, vpots, aorep=True)
+    dPs_an = get_dPmp2_batch_r(C, moe, mf._eri, nsocc, vpots, aorep=True)
     dPs_an = array([dp_ * 0.5 for dp_ in dPs_an])
     dP_mu = dPs_an[-1]
 
     return dPs_an[:-1], dP_mu
 
 
-def ccsdres_func(mf, vpots, eri, nsocc):
+def ccsdres_func(
+    mf: scf.hf.SCF, vpots: Sequence[Matrix[np.floating]], nsocc: int
+) -> tuple[list[Matrix[float64]], Matrix[float64]]:
     C = mf.mo_coeff
     moe = mf.mo_energy
-    eri = mf._eri
-    no = nsocc
 
-    dPs_an = get_dPccsdurlx_batch_u(C, moe, eri, no, vpots)
+    dPs_an = get_dPccsdurlx_batch_u(C, moe, mf._eri, nsocc, vpots)
 
     dP_mu = dPs_an[-1]
 

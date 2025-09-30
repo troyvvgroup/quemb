@@ -30,7 +30,6 @@ from quemb.shared.typing import (
     PathLike,
     RelAOIdx,
     RelAOIdxInRef,
-    SeqOverEdge,
     Vector,
 )
 
@@ -47,10 +46,10 @@ class Frags:
         self,
         AO_in_frag: Sequence[GlobalAOIdx],
         ifrag: int,
-        AO_per_edge: SeqOverEdge[Sequence[GlobalAOIdx]],
-        ref_frag_idx_per_edge: SeqOverEdge[FragmentIdx],
-        relAO_per_edge: SeqOverEdge[Sequence[RelAOIdx]],
-        relAO_in_ref_per_edge: SeqOverEdge[Sequence[RelAOIdxInRef]],
+        AO_per_edge: Sequence[Sequence[GlobalAOIdx]],
+        ref_frag_idx_per_edge: Sequence[FragmentIdx],
+        relAO_per_edge: Sequence[Sequence[RelAOIdx]],
+        relAO_in_ref_per_edge: Sequence[Sequence[RelAOIdxInRef]],
         weight_and_relAO_per_center: tuple[float, Sequence[RelAOIdx]],
         relAO_per_origin: Sequence[RelAOIdx],
         eri_file: PathLike = "eri_file.h5",
