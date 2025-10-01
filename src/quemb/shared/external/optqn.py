@@ -449,7 +449,7 @@ def mp2res_func(
     dPs_an = array([dp_ * 0.5 for dp_ in dPs_an])
     dP_mu = dPs_an[-1]
 
-    return dPs_an[:-1], dP_mu
+    return dPs_an[:-1], dP_mu   # type: ignore[return-value]
 
 
 def ccsdres_func(
