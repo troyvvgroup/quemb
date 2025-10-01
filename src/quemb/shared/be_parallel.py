@@ -421,6 +421,7 @@ def be_func_parallel(
     use_cumulant: bool = True,
     eeval: bool = False,
     return_vec: bool = False,
+    Delta_n_el: float = 0.0,
 ):
     """
     Embarrassingly Parallel High-Level Computation
@@ -461,6 +462,8 @@ def be_func_parallel(
         Use cumulant energy expression. Defaults to True
     return_vec :
         Whether to return the error vector. Defaults to False.
+    Delta_n_el :
+        Additional deviation of the particle number.
 
     Returns
     -------
@@ -543,7 +546,7 @@ def be_func_parallel(
         fobj.rdm2__ = rdm[3]
 
     del rdms
-    ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem)
+    ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem, Delta_n_el=Delta_n_el)
 
     if return_vec:
         return (ernorm, ervec, [e_1 + e_2 + e_c, [e_1, e_2, e_c]])

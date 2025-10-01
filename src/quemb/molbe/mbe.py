@@ -768,7 +768,7 @@ class BE:
         max_iter: int = 500,
         trust_region: bool = False,
         solver_args: UserSolverArgs | None = None,
-        # Delta_q: float = 0,
+        Delta_n_el: float = 0.0,
     ) -> None:
         """BE optimization function
 
@@ -806,9 +806,13 @@ class BE:
             Options include HF, MP2, CCSD
         trust_region :
             Use trust-region based QN optimization, by default False
+        Delta_n_el :
+            Additional deviation of the particle number.
         """
         # Check if only chemical potential optimization is required
-        if not only_chem:
+        if only_chem:
+            pot = [0.0]
+        else:
             pot = self.pot
             if self.fobj.n_BE == 1:
                 raise ValueError(
@@ -829,8 +833,6 @@ class BE:
                     "As a stop gap measure you can use the `swallow_replace=True` "
                     "option when fragmentating with chemgen."
                 )
-        else:
-            pot = [0.0]
 
         # Initialize the BEOPT object
         be_ = BEOPT(
@@ -848,6 +850,7 @@ class BE:
             relax_density=relax_density,
             solver=solver,
             ebe_hf=self.ebe_hf,
+            Delta_n_el=Delta_n_el,
             solver_args=solver_args,
         )
 

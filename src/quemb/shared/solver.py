@@ -2,10 +2,12 @@
 
 import os
 from abc import ABC
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Final, Literal, TypeAlias
+from typing import Final, Literal, TypeAlias, cast
 from warnings import warn
 
+import numpy as np
 from attrs import Factory, define, field
 from numpy import (
     allclose,
@@ -254,6 +256,7 @@ def be_func(
     relax_density: bool = False,
     return_vec: bool = False,
     use_cumulant: bool = True,
+    Delta_n_el: float = 0.0,
 ):
     """
     Perform bootstrap embedding calculations for each fragment.
@@ -550,7 +553,7 @@ def be_func(
         if not return_vec:
             return (Ecorr, total_e)
 
-    ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem)
+    ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem, Delta_n_el=Delta_n_el)
 
     if return_vec:
         return (ernorm, ervec, [Ecorr, total_e])
@@ -676,7 +679,12 @@ def be_func_u(
     return (E, total_e)
 
 
-def solve_error(Fobjs, Nocc, only_chem=False):
+def solve_error(
+    Fobjs: Sequence[Frags] | Sequence[pFrags],
+    Nocc: float,
+    only_chem: bool = False,
+    Delta_n_el: float = 0.0,
+) -> tuple[float, Vector[np.float64]]:
     """
     Compute the error for self-consistent fragment density matrix matching.
 
@@ -686,10 +694,12 @@ def solve_error(Fobjs, Nocc, only_chem=False):
 
     Parameters
     ----------
-    Fobjs : list of quemb.molbe.autofrag.FragPart
+    Fobjs :
         List of fragment objects.
-    Nocc : int
+    Nocc :
         Number of occupied orbitals.
+    Delta_n_el :
+        Additional deviation of the particle number.
 
     Returns
     -------
@@ -705,16 +715,21 @@ def solve_error(Fobjs, Nocc, only_chem=False):
     if only_chem:
         for fobj in Fobjs:
             # Compute chemical potential error for each fragment
+            assert fobj._rdm1 is not None
             for i in fobj.weight_and_relAO_per_center[1]:
                 err_chempot += fobj._rdm1[i, i]
-        err_chempot /= Fobjs[0].unitcell_nkpt
-        err = err_chempot - Nocc
 
-        return abs(err), asarray([err])
+        print(">>>>>", Fobjs[0].unitcell_nkpt)
+        err_chempot /= Fobjs[0].unitcell_nkpt
+        print(Nocc)
+        err = err_chempot - (Nocc + Delta_n_el / 2)
+
+        return abs(err), cast(Vector[np.float64], asarray([err]))
 
     # Compute edge and chemical potential errors
     for fobj in Fobjs:
         # match rdm-edge
+        assert fobj._rdm1 is not None
         for edge in fobj.relAO_per_edge:
             for j_ in range(len(edge)):
                 for k_ in range(len(edge)):
@@ -730,7 +745,7 @@ def solve_error(Fobjs, Nocc, only_chem=False):
 
     # Compute center errors
     err_cen = []
-    for findx, fobj in enumerate(Fobjs):
+    for findx, fobj in enumerate(Fobjs):  # type: ignore[assignment]
         # Match RDM for centers
         for cindx, cens in enumerate(fobj.relAO_in_ref_per_edge):
             lenc = len(cens)
@@ -739,17 +754,15 @@ def solve_error(Fobjs, Nocc, only_chem=False):
                     if j_ > k_:
                         continue
                     err_cen.append(
-                        Fobjs[fobj.ref_frag_idx_per_edge[cindx]]._rdm1[
+                        Fobjs[fobj.ref_frag_idx_per_edge[cindx]]._rdm1[  # type: ignore[call-overload]
                             cens[j_], cens[k_]
                         ]
                     )
 
-    err_cen.append(Nocc)
-    err_edge = array(err_edge)
-    err_cen = array(err_cen)
+    err_cen.append((Nocc + Delta_n_el / 2))
 
     # Compute the error vector
-    err_vec = err_edge - err_cen
+    err_vec = array(err_edge) - array(err_cen)
 
     # Compute the norm of the error vector
     norm_ = mean(err_vec * err_vec) ** 0.5
