@@ -111,6 +111,8 @@ class BE(Mixin_k_Localize):
         scratch_dir :
             Scratch directory.
         """
+        if pupd_ref is None and update_idx is None and prefer_updated_rdm:
+            print("just trying to avoid a ruff error")
         if restart:
             # Load previous calculation data from restart file
             with open(restart_file, "rb") as rfile:
