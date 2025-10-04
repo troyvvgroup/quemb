@@ -74,6 +74,9 @@ class BE(Mixin_k_Localize):
         iao_wannier: bool = False,
         thr_bath: float = 1.0e-10,
         scratch_dir: WorkDir | None = None,
+        pupd_ref=None,
+        update_idx=None,
+        prefer_updated_rdm=False,
     ) -> None:
         """
         Constructor for BE object.
