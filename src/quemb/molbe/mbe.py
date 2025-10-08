@@ -287,6 +287,7 @@ class BE:
         self.ebe_tot = 0.0
 
         self.mf = mf
+        self.re_eval_HF = re_eval_HF
 
         if not restart:
             self.mo_energy = mf.mo_energy
@@ -313,6 +314,7 @@ class BE:
             self.scratch_dir = WorkDir.from_environment()
         else:
             self.scratch_dir = scratch_dir
+        print(f"Scratch dir is in: {self.scratch_dir.path}")
         self.eri_file = self.scratch_dir / eri_file
 
         self.frozen_core = fobj.frozen_core
@@ -348,6 +350,7 @@ class BE:
                 self.hcore += self.core_veff
 
         if not restart:
+            # Localize orbitals
             self.localize(
                 lo_method,
                 fobj=fobj,
@@ -355,7 +358,6 @@ class BE:
                 iao_valence_only=fobj.iao_valence_only,
                 pop_method=pop_method,
             )
-            # self.lmo_coeff is set now
             if fobj.iao_valence_only and lo_method == "IAO":
                 self.Ciao_pao = self.localize(
                     lo_method,
