@@ -323,7 +323,7 @@ def be_func(
                     rdm_return=True,
                     rdm2_return=True,
                 )
-        else:
+            else:
                 # currently passing mycc: likely unnecessary
                 fobj.t1, fobj.t2, rdm1_tmp, _ = solve_ccsd(  # mycc
                     fobj._mf,
