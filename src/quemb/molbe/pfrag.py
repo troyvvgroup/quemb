@@ -229,7 +229,7 @@ class Frags:
             eri_ = get_eri(
                 self.dname, self.TA.shape[1], ignore_symm=True, eri_file=self.eri_file
             )
-        veff_, veff0, vj, vk = get_veff(eri_, dm, S, self.TA, hf_veff)
+        veff_, veff0 = get_veff(eri_, dm, S, self.TA, hf_veff)
         self.veff = veff_.real
         self.veff0 = veff0
         self.vj = vj
