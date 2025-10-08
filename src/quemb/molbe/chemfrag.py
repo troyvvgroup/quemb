@@ -546,7 +546,7 @@ class _SubsetsCleaned:
 
 def _cleanup_if_subset(
     fragment_indices: Mapping[MotifIdx, OrderedSet[MotifIdx]],
-    swallow_replace: bool = False,
+    swallow_replace: bool = True,
 ) -> _SubsetsCleaned:
     """Remove fragments that are subsets of other fragments.
 

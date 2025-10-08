@@ -25,7 +25,7 @@ def fragmentate(
     frag_type: FragType = "autogen",
     iao_valence_basis: str | None = None,
     print_frags: bool = True,
-    write_geom: bool = False,
+    write_geom: bool = True,
     n_BE: int = 2,
     frag_prefix: str = "f",
     frozen_core: bool = False,

@@ -54,8 +54,6 @@ def line_search_LF(func, xold, fold, dx, iter_):
             if lcout == 20:
                 break
 
-    print(" No. of line search steps in QN opt :", lcout, flush=True)
-    print(flush=True)
     return alp, xk, fk
 
 

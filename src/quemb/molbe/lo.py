@@ -110,6 +110,7 @@ def get_iao(
     Ciao :class:`quemb.shared.typing.Matrix`
         (symmetrically orthogonalized)
     """
+    print(f"iao_loc_method is {iao_loc_method}")
     n = Co.shape[0]
 
     if iao_loc_method == "lowdin":
@@ -314,10 +315,11 @@ def get_loc(
         raise NotImplementedError(f"Localization scheme {method} not understood")
         assert_never(method)
 
-    mlo = Localizer(mol, C)
+    mlo = Localizer(mol, C) # creates a PySCF class localization object
     if pop_method is not None:
         assert isinstance(Localizer, PipekMezey)
         mlo.pop_method = pop_method
 
+    mlo.conv_tol = 1e-6
     mlo.init_guess = init_guess
     return mlo.kernel()

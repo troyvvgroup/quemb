@@ -1,0 +1,56 @@
+# Illustrates parallelized BE computation on octane
+
+from pyscf import gto, scf
+
+from quemb.molbe import BE, fragmentate
+
+# Perform pyscf HF calculation to get mol & mf objects
+mol = gto.M(
+    atom="""
+C   0.4419364699  -0.6201930287   0.0000000000
+C  -0.4419364699   0.6201930287   0.0000000000
+H  -1.0972005331   0.5963340874   0.8754771384
+H   1.0972005331  -0.5963340874  -0.8754771384
+H  -1.0972005331   0.5963340874  -0.8754771384
+H   1.0972005331  -0.5963340874   0.8754771384
+C   0.3500410560   1.9208613544   0.0000000000
+C  -0.3500410560  -1.9208613544   0.0000000000
+H   1.0055486349   1.9450494955   0.8754071298
+H  -1.0055486349  -1.9450494955  -0.8754071298
+H   1.0055486349   1.9450494955  -0.8754071298
+H  -1.0055486349  -1.9450494955   0.8754071298
+C  -0.5324834907   3.1620985364   0.0000000000
+C   0.5324834907  -3.1620985364   0.0000000000
+H  -1.1864143468   3.1360988730  -0.8746087226
+H   1.1864143468  -3.1360988730   0.8746087226
+H  -1.1864143468   3.1360988730   0.8746087226
+H   1.1864143468  -3.1360988730  -0.8746087226
+C   0.2759781663   4.4529279755   0.0000000000
+C  -0.2759781663  -4.4529279755   0.0000000000
+H   0.9171145792   4.5073104916   0.8797333088
+H  -0.9171145792  -4.5073104916  -0.8797333088
+H   0.9171145792   4.5073104916  -0.8797333088
+H  -0.9171145792  -4.5073104916   0.8797333088
+H   0.3671153250  -5.3316378285   0.0000000000
+H  -0.3671153250   5.3316378285   0.0000000000
+""",
+    basis="sto-3g",
+    charge=0,
+)
+
+
+mf = scf.RHF(mol)
+mf.conv_tol = 1e-12
+mf.kernel()
+
+# initialize fragments (use frozen core approximation)
+fobj = fragmentate(n_BE=2, mol=mol, frozen_core=True)
+# Initialize BE
+mybe = BE(mf, fobj)
+
+# Perform BE density matching.
+# Uses 20 procs, each fragment calculation assigned OMP_NUM_THREADS to 4
+# effectively running 5 fragment calculations in parallel
+mybe.optimize(solver="CCSD", nproc=20, ompnum=4)
+
+rdm1_ao, rdm2_ao = mybe.rdm1_fullbasis(return_ao=True)

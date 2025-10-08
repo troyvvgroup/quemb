@@ -11,7 +11,6 @@ from pyscf.tools import fcidump
 
 from quemb.molbe.fragment import fragmentate
 
-
 def libint2pyscf(
     xyzfile,
     hcore,

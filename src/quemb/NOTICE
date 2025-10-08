@@ -1,0 +1,13 @@
+Initial development of quemb was started by Oinam Romesh Meitei (2023).
+It partially contained parts from earlier codes of the Van Voorhis group,
+such as the Quasi Newton Optimization which was written by Hong-Zhou Ye,
+
+The development branched off in November 2024 (see the tag `last_version_before_forking`)
+and was henceforth carried in alphabetic order by:
+- Minsik Cho
+- Beck Hanscam
+- Aleksandr Trofimov
+- Oskar Weser
+- Shaun Weatherly
+- Leah Weisburn
+- Hong-Zhou Ye
