@@ -296,7 +296,9 @@ def be_func(
     """
     if eeval:
         total_e = [0.0, 0.0, 0.0]
-    for i, fobj in enumerate(Fobjs):
+
+    # Loop over each fragment and solve using the specified solver
+    for fobj in Fobjs:
         # Update the effective Hamiltonian
         if pot is not None:
             fobj.update_heff(pot, only_chem=only_chem)
@@ -334,195 +336,218 @@ def be_func(
                     rdm2_return=False,
                 )
 
-                assert isinstance(solver_args, SHCI_ArgsUser)
-                SHCI_args = _SHCI_Args.from_user_input(solver_args)
+        elif solver == "FCI":
+            mc = fci.FCI(fobj._mf, fobj._mf.mo_coeff)
+            _, civec = mc.kernel()
+            rdm1_tmp = mc.make_rdm1(civec, mc.norb, mc.nelec)
 
-                assert isinstance(fobj.dname, str)
-                frag_scratch = WorkDir(scratch_dir / fobj.dname)
+        elif solver == "HCI":  # TODO
+            # pylint: disable-next=E0611
+            raise NotImplementedError("HCI solver not implemented")
+            """
+            from pyscf import hci  # type: ignore[attr-defined]  # noqa: PLC0415
 
-                nmo = fobj._mf.mo_coeff.shape[1]
+            assert isinstance(solver_args, SHCI_ArgsUser)
+            SHCI_args = _SHCI_Args.from_user_input(solver_args)
+            nmo = fobj._mf.mo_coeff.shape[1]
 
-                nelec = (fobj.nsocc, fobj.nsocc)
-                mch = shci.SHCISCF(fobj._mf, nmo, nelec, orbpath=fobj.dname)
-                mch.fcisolver.mpiprefix = "mpirun -np " + str(nproc)
-                # need to pass nproc through be_func
-                if SHCI_args.hci_pt:
-                    mch.fcisolver.stochastic = False
-                    mch.fcisolver.epsilon2 = SHCI_args.hci_cutoff
-                else:
-                    mch.fcisolver.stochastic = (
-                        True  # this is for PT and doesnt add PT to rdm
-                    )
-                    mch.fcisolver.nPTiter = 0
-                mch.fcisolver.sweep_iter = [0]
-                mch.fcisolver.DoRDM = True
-                mch.fcisolver.sweep_epsilon = [SHCI_args.hci_cutoff]
-                mch.fcisolver.scratchDirectory = scratch_dir
-                mch.mc1step()
-                rdm1_tmp, rdm2s = mch.fcisolver.make_rdm12(0, nmo, nelec)
-                """
+            eri = ao2mo.kernel(
+                fobj._mf._eri, fobj._mf.mo_coeff, aosym="s4", compact=False
+            ).reshape(4 * ((nmo),))
 
-            elif solver == "SCI":
-                # pylint: disable-next=E0611
-                from pyscf import cornell_shci  # noqa: PLC0415  # optional module
+            ci_ = hci.SCI(fobj._mf.mol)
 
-                assert isinstance(solver_args, SHCI_ArgsUser)
-                SHCI_args = _SHCI_Args.from_user_input(solver_args)
+            ci_.select_cutoff = SHCI_args.select_cutoff
+            ci_.ci_coeff_cutoff = SHCI_args.ci_coeff_cutoff
 
-                assert isinstance(fobj.dname, str)
+            nelec = (fobj.nsocc, fobj.nsocc)
+            h1_ = fobj.fock + fobj.heff
+            h1_ = multi_dot((fobj._mf.mo_coeff.T, h1_, fobj._mf.mo_coeff))
+            eci, civec = ci_.kernel(h1_, eri, nmo, nelec)
+            unused(eci)
+            civec = asarray(civec)
 
-                nmo = fobj._mf.mo_coeff.shape[1]
-                nelec = (fobj.nsocc, fobj.nsocc)
-                cas = mcscf.CASCI(fobj._mf, nmo, nelec)
-                h1, ecore = cas.get_h1eff(mo_coeff=fobj._mf.mo_coeff)
-                unused(ecore)
-                eri = ao2mo.kernel(
-                    fobj._mf._eri, fobj._mf.mo_coeff, aosym="s4", compact=False
-                ).reshape(4 * ((nmo),))
+            (rdm1a_, rdm1b_), (rdm2aa, rdm2ab, rdm2bb) = ci_.make_rdm12s(
+                civec, nmo, nelec
+            )
+            rdm1_tmp = rdm1a_ + rdm1b_
+            rdm2s = rdm2aa + rdm2ab + rdm2ab.transpose(2, 3, 0, 1) + rdm2bb
+            """
+        elif solver == "SHCI":  # TODO
+            # pylint: disable-next=E0611,E0401
+            raise NotImplementedError("SHCI solver not implemented")
+            """
+            from pyscf.shciscf import (  # type: ignore[attr-defined]  # noqa: PLC0415
+                shci,
+            )
 
-                if SHCI_args.return_frag_data:
-                    warn(
-                        "If return_frag_data is True, RDMs and other data"
-                        "are written into a directory which is not"
-                        "cleaned: cleanup_at_end is False"
-                    )
-                    iter = 0
+            assert isinstance(solver_args, SHCI_ArgsUser)
+            SHCI_args = _SHCI_Args.from_user_input(solver_args)
+
+            assert isinstance(fobj.dname, str)
+            frag_scratch = WorkDir(scratch_dir / fobj.dname)
+
+            nmo = fobj._mf.mo_coeff.shape[1]
+
+            nelec = (fobj.nsocc, fobj.nsocc)
+            mch = shci.SHCISCF(fobj._mf, nmo, nelec, orbpath=fobj.dname)
+            mch.fcisolver.mpiprefix = "mpirun -np " + str(nproc)
+            # need to pass nproc through be_func
+            if SHCI_args.hci_pt:
+                mch.fcisolver.stochastic = False
+                mch.fcisolver.epsilon2 = SHCI_args.hci_cutoff
+            else:
+                mch.fcisolver.stochastic = (
+                    True  # this is for PT and doesnt add PT to rdm
+                )
+                mch.fcisolver.nPTiter = 0
+            mch.fcisolver.sweep_iter = [0]
+            mch.fcisolver.DoRDM = True
+            mch.fcisolver.sweep_epsilon = [SHCI_args.hci_cutoff]
+            mch.fcisolver.scratchDirectory = scratch_dir
+            mch.mc1step()
+            rdm1_tmp, rdm2s = mch.fcisolver.make_rdm12(0, nmo, nelec)
+            """
+
+        elif solver == "SCI":
+            # pylint: disable-next=E0611
+            from pyscf import cornell_shci  # noqa: PLC0415  # optional module
+
+            assert isinstance(solver_args, SHCI_ArgsUser)
+            SHCI_args = _SHCI_Args.from_user_input(solver_args)
+
+            assert isinstance(fobj.dname, str)
+
+            nmo = fobj._mf.mo_coeff.shape[1]
+            nelec = (fobj.nsocc, fobj.nsocc)
+            cas = mcscf.CASCI(fobj._mf, nmo, nelec)
+            h1, ecore = cas.get_h1eff(mo_coeff=fobj._mf.mo_coeff)
+            unused(ecore)
+            eri = ao2mo.kernel(
+                fobj._mf._eri, fobj._mf.mo_coeff, aosym="s4", compact=False
+            ).reshape(4 * ((nmo),))
+
+            if SHCI_args.return_frag_data:
+                warn(
+                    "If return_frag_data is True, RDMs and other data"
+                    "are written into a directory which is not"
+                    "cleaned: cleanup_at_end is False"
+                )
+                iter = 0
+                frag_name = (
+                    Path(f"{scratch_dir}-frag_data") / f"{fobj.dname}_iter{iter}"
+                )
+                while frag_name.exists():
+                    iter += 1
                     frag_name = (
                         Path(f"{scratch_dir}-frag_data") / f"{fobj.dname}_iter{iter}"
                     )
-                    while frag_name.exists():
-                        iter += 1
-                        frag_name = (
-                            Path(f"{scratch_dir}-frag_data") / f"{fobj.dname}_iter{iter}"
-                        )
-                    frag_scratch = WorkDir(frag_name, cleanup_at_end=False)
-                    print("Fragment Scratch Directory:", frag_scratch)
-                else:
-                    frag_scratch = WorkDir(scratch_dir / fobj.dname)
-                ci = cornell_shci.SHCI()
-                ci.runtimedir = frag_scratch
-                ci.restart = True
-                # var_only being True means no perturbation is added to the fragment
-                # This is advised
-                ci.config["var_only"] = not SHCI_args.hci_pt
-                ci.config["eps_vars"] = [SHCI_args.hci_cutoff]
-                # Returning the 1RDM and 2RDM as csv can be helpful,
-                # but is false by default to save disc space
-                ci.config["get_1rdm_csv"] = SHCI_args.return_frag_data
-                ci.config["get_2rdm_csv"] = SHCI_args.return_frag_data
-                ci.kernel(h1, eri, nmo, nelec)
-                # We always return 1 and 2rdms, for now
-                rdm1_tmp, rdm2s = ci.make_rdm12(0, nmo, nelec)
-
-            elif solver in ["block2", "DMRG", "DMRGCI", "DMRGSCF"]:
-                assert isinstance(fobj.dname, str)
-                frag_scratch = WorkDir(scratch_dir / fobj.dname)
-
-                assert isinstance(solver_args, DMRG_ArgsUser)
-                DMRG_args = _DMRG_Args.from_user_input(solver_args, fobj._mf)
-
-                assert fobj.nsocc is not None
-                try:
-                    rdm1_tmp, rdm2s = solve_block2(
-                        fobj._mf,
-                        fobj.nsocc,
-                        frag_scratch=frag_scratch,
-                        DMRG_args=DMRG_args,
-                        use_cumulant=use_cumulant,
-                    )
-                except Exception as inst:
-                    raise inst
-                finally:
-                    if DMRG_args.force_cleanup:
-                        delete_multiple_files(
-                            frag_scratch.path.glob("F.*"),
-                            frag_scratch.path.glob("FCIDUMP*"),
-                            frag_scratch.path.glob("node*"),
-                        )
-
+                frag_scratch = WorkDir(frag_name, cleanup_at_end=False)
+                print("Fragment Scratch Directory:", frag_scratch)
             else:
-                raise ValueError("Solver not implemented")
-            assert fobj.mo_coeffs is not None
-            fobj._rdm1 = (
-                multi_dot(
-                    (
-                        fobj.mo_coeffs,
-                        rdm1_tmp,
-                        fobj.mo_coeffs.T,
-                    ),
-                )
-                * 0.5
-            )
-            if eeval:
-                if solver == "FCI" or solver == "SCI":
-                    if solver == "FCI":
-                        rdm2s = mc.make_rdm2(civec, mc.norb, mc.nelec)
-                    if use_cumulant:
-                        assert fobj.nsocc is not None
-                        hf_dm = zeros_like(rdm1_tmp)
-                        hf_dm[diag_indices(fobj.nsocc)] += 2.0
-                        del_rdm1 = rdm1_tmp.copy()
-                        del_rdm1[diag_indices(fobj.nsocc)] -= 2.0
-                        nc = (
-                            einsum("ij,kl->ijkl", hf_dm, hf_dm)
-                            + einsum("ij,kl->ijkl", hf_dm, del_rdm1)
-                            + einsum("ij,kl->ijkl", del_rdm1, hf_dm)
-                        )
-                        nc -= (
-                            einsum("ij,kl->iklj", hf_dm, hf_dm)
-                            + einsum("ij,kl->iklj", hf_dm, del_rdm1)
-                            + einsum("ij,kl->iklj", del_rdm1, hf_dm)
-                        ) * 0.5
-                        rdm2s -= nc
-                # Find the energy of a given fragment.
-                # Return [e1, e2, ec] as e_f and add to the running total_e.
-                e_f, fobj.delta_rdm1_so, fobj.rdm2s_so = get_frag_energy(
-                    mo_coeffs=fobj.mo_coeffs,
-                    nsocc=fobj.nsocc,
-                    n_frag=fobj.n_frag,
-                    weight_and_relAO_per_center=fobj.weight_and_relAO_per_center,
-                    TA=fobj.TA,
-                    h1=fobj.h1,
-                    rdm1=rdm1_tmp,
-                    rdm2s_so=rdm2s,
-                    dname=fobj.dname,
-                    veff0=fobj.veff0,
-                    veff=None if use_cumulant else fobj.veff,
-                    use_cumulant=use_cumulant,
-                    eri_file=fobj.eri_file,
-                )
+                frag_scratch = WorkDir(scratch_dir / fobj.dname)
+            ci = cornell_shci.SHCI()
+            ci.runtimedir = frag_scratch
+            ci.restart = True
+            # var_only being True means no perturbation is added to the fragment
+            # This is advised
+            ci.config["var_only"] = not SHCI_args.hci_pt
+            ci.config["eps_vars"] = [SHCI_args.hci_cutoff]
+            # Returning the 1RDM and 2RDM as csv can be helpful,
+            # but is false by default to save disc space
+            ci.config["get_1rdm_csv"] = SHCI_args.return_frag_data
+            ci.config["get_2rdm_csv"] = SHCI_args.return_frag_data
+            ci.kernel(h1, eri, nmo, nelec)
+            # We always return 1 and 2rdms, for now
+            rdm1_tmp, rdm2s = ci.make_rdm12(0, nmo, nelec)
 
-        elif (update_list is not None and i not in update_list):
-            print(f"not updating fragment {i}")
-            e_f = get_frag_energy_nonupdated(
+        elif solver in ["block2", "DMRG", "DMRGCI", "DMRGSCF"]:
+            assert isinstance(fobj.dname, str)
+            frag_scratch = WorkDir(scratch_dir / fobj.dname)
+
+            assert isinstance(solver_args, DMRG_ArgsUser)
+            DMRG_args = _DMRG_Args.from_user_input(solver_args, fobj._mf)
+
+            assert fobj.nsocc is not None
+            try:
+                rdm1_tmp, rdm2s = solve_block2(
+                    fobj._mf,
+                    fobj.nsocc,
+                    frag_scratch=frag_scratch,
+                    DMRG_args=DMRG_args,
+                    use_cumulant=use_cumulant,
+                )
+            except Exception as inst:
+                raise inst
+            finally:
+                if DMRG_args.force_cleanup:
+                    delete_multiple_files(
+                        frag_scratch.path.glob("F.*"),
+                        frag_scratch.path.glob("FCIDUMP*"),
+                        frag_scratch.path.glob("node*"),
+                    )
+
+        else:
+            raise ValueError("Solver not implemented")
+
+        fobj.rdm1__ = rdm1_tmp.copy()
+
+        assert fobj.mo_coeffs is not None
+        fobj._rdm1 = (
+            multi_dot(
+                (
+                    fobj.mo_coeffs,
+                    rdm1_tmp,
+                    fobj.mo_coeffs.T,
+                ),
+            )
+            * 0.5
+        )
+
+        if eeval:
+            if solver == "FCI" or solver == "SCI":
+                if solver == "FCI":
+                    rdm2s = mc.make_rdm2(civec, mc.norb, mc.nelec)
+                if use_cumulant:
+                    assert fobj.nsocc is not None
+                    hf_dm = zeros_like(rdm1_tmp)
+                    hf_dm[diag_indices(fobj.nsocc)] += 2.0
+                    del_rdm1 = rdm1_tmp.copy()
+                    del_rdm1[diag_indices(fobj.nsocc)] -= 2.0
+                    nc = (
+                        einsum("ij,kl->ijkl", hf_dm, hf_dm)
+                        + einsum("ij,kl->ijkl", hf_dm, del_rdm1)
+                        + einsum("ij,kl->ijkl", del_rdm1, hf_dm)
+                    )
+                    nc -= (
+                        einsum("ij,kl->iklj", hf_dm, hf_dm)
+                        + einsum("ij,kl->iklj", hf_dm, del_rdm1)
+                        + einsum("ij,kl->iklj", del_rdm1, hf_dm)
+                    ) * 0.5
+                    rdm2s -= nc
+            fobj.rdm2__ = rdm2s.copy()
+            # Find the energy of a given fragment.
+            # Return [e1, e2, ec] as e_f and add to the running total_e.
+            e_f = get_frag_energy(
                 mo_coeffs=fobj.mo_coeffs,
                 nsocc=fobj.nsocc,
                 n_frag=fobj.n_frag,
                 weight_and_relAO_per_center=fobj.weight_and_relAO_per_center,
                 TA=fobj.TA,
                 h1=fobj.h1,
-                rdm1=update_list[i].delta_rdm1_so_tilde,
-                rdm2s=update_list[i].rdm2s_so_tilde,
+                rdm1=rdm1_tmp,
+                rdm2s=rdm2s,
                 dname=fobj.dname,
                 veff0=fobj.veff0,
                 veff=None if use_cumulant else fobj.veff,
                 use_cumulant=use_cumulant,
                 eri_file=fobj.eri_file,
             )
-            
-            # need rdm1_tmp, rdm2s
-        #fobj.rdm2__ = rdm2s.copy()
-        #fobj.rdm1__ = rdm1_tmp.copy()
-
-        fobj.e1 = e_f[0]
-        fobj.e2 = e_f[1]
-        fobj.ec = e_f[2]
-        total_e = [sum(x) for x in zip(total_e, e_f)]
-        fobj.update_ebe_hf()
+            total_e = [sum(x) for x in zip(total_e, e_f)]
+            fobj.update_ebe_hf()
     if eeval:
         Ecorr = sum(total_e)
         if not return_vec:
-            print("this return gets executed")
             return (Ecorr, total_e)
 
     ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem)
@@ -853,7 +878,7 @@ def solve_ccsd(
     # Prepare the integrals and Fock matrix
     eris = mycc.ao2mo()
     eris.mo_energy = mo_energy
-    eris.fock = diag(mo_energy) 
+    eris.fock = diag(mo_energy)
 
     # Solve the CCSD equations
     try:
@@ -893,7 +918,7 @@ def solve_ccsd(
                 )
             else:
                 rdm2s = make_rdm2_urlx(t1, t2, with_dm1=not use_cumulant)
-            return (mycc, t1, t2, rdm1a, rdm2s)
+            return (t1, t2, rdm1a, rdm2s)
 
         return (t1, t2, rdm1a, mycc)
 
