@@ -5,12 +5,14 @@ from quemb.molbe.chemfrag import Fragmented
 from quemb.molbe.chemfrag import ChemGenArgs
 from pyscf import grad
 
+
 def printmat(m, fmt="%12.12f"):
     """Prints the matrix m using the format code fmt."""
     for i in range(m.shape[0]):
         for j in range(m.shape[1]):
             print((" " + fmt) % (m[i, j]), end="")
         print("")
+
 
 mol = gto.M(
     atom="""
@@ -27,7 +29,7 @@ H 10 0.000000000 0.000000000
 H 11 0.000000000 0.000000000
 H 12 0.000000000 0.000000000
 """,
-basis="sto-3g",
+    basis="sto-3g",
     charge=0,
     unit="Angstrom",
 )
@@ -42,8 +44,8 @@ gradient_hf_ref = hf_ref_grad_obj.kernel()
 print("HF Gradient:", gradient_hf_ref)
 
 # 4. Full CASCI (equivalent to FCI since all orbitals are active)
-norb = mf.mo_coeff.shape[1]   # total orbitals
-nelec = mol.nelectron         # total electrons
+norb = mf.mo_coeff.shape[1]  # total orbitals
+nelec = mol.nelectron  # total electrons
 mycas = mcscf.CASCI(mf, norb, nelec)
 mycas.kernel()
 
@@ -94,12 +96,12 @@ gradient_hf = np.zeros((natoms, 3))
 for atom_idx in range(natoms):
     print(f"working on {atom_idx} out of {natoms}")
     frag_idx = frag_per_atom[atom_idx]
-    
-    for xyz in range(3):    
+
+    for xyz in range(3):
         print("doing plus perturbation")
         coords_plus = coords0.copy()
         coords_plus[atom_idx, xyz] += delta
-        
+
         mol_plus = mol.copy()
         mol_plus.set_geom_(coords_plus, unit="Bohr")
 
@@ -128,21 +130,42 @@ for atom_idx in range(natoms):
         mybe_minus = BE(mf_minus, fobj, thr_bath=1e-10)
         mybe_minus.oneshot(solver="FCI")
 
-        e_plus_fci = mybe_plus.Fobjs[frag_idx].E_env + mybe_plus.Fobjs[frag_idx]._mf.e_tot + mybe_plus.enuc + mybe_plus.Fobjs[frag_idx].ecorr + mybe_plus.E_core
-        e_minus_fci = mybe_minus.Fobjs[frag_idx].E_env + mybe_minus.Fobjs[frag_idx]._mf.e_tot + mybe_minus.enuc + mybe_minus.Fobjs[frag_idx].ecorr + mybe_minus.E_core 
-        
-        e_plus_hf = mybe_plus.Fobjs[frag_idx].E_env + mybe_plus.Fobjs[frag_idx]._mf.e_tot + mybe_plus.enuc + mybe_plus.E_core
-        e_minus_hf = mybe_minus.Fobjs[frag_idx].E_env + mybe_minus.Fobjs[frag_idx]._mf.e_tot + mybe_minus.enuc + mybe_minus.E_core
-        gradient_fci[atom_idx,xyz] = ( e_plus_fci - e_minus_fci ) / (2*delta)
-        gradient_hf[atom_idx, xyz] = ( e_plus_hf - e_minus_hf ) / (2*delta)
+        e_plus_fci = (
+            mybe_plus.Fobjs[frag_idx].E_env
+            + mybe_plus.Fobjs[frag_idx]._mf.e_tot
+            + mybe_plus.enuc
+            + mybe_plus.Fobjs[frag_idx].ecorr
+            + mybe_plus.E_core
+        )
+        e_minus_fci = (
+            mybe_minus.Fobjs[frag_idx].E_env
+            + mybe_minus.Fobjs[frag_idx]._mf.e_tot
+            + mybe_minus.enuc
+            + mybe_minus.Fobjs[frag_idx].ecorr
+            + mybe_minus.E_core
+        )
 
-    #schmidt_orbitals = mybe_plus.Fobjs[frag_idx].n_f + mybe_plus.Fobjs[frag_idx].n_b
-    #orbitals[atom_idx, 0] = schmidt_orbitals
-    #env_occ_orbitals = mybe_plus.Nocc - mybe_plus.Fobjs[frag_idx].nsocc
-    #orbitals[atom_idx, 1] = env_occ_orbitals
-    #env_virt_orbitals = mybe_plus.Fobjs[frag_idx].TAenv_lo_eo.shape[1]-mybe_plus.Nocc + mybe_plus.Fobjs[frag_idx].nsocc
-    #orbitals[atom_idx, 2] = env_virt_orbitals
+        e_plus_hf = (
+            mybe_plus.Fobjs[frag_idx].E_env
+            + mybe_plus.Fobjs[frag_idx]._mf.e_tot
+            + mybe_plus.enuc
+            + mybe_plus.E_core
+        )
+        e_minus_hf = (
+            mybe_minus.Fobjs[frag_idx].E_env
+            + mybe_minus.Fobjs[frag_idx]._mf.e_tot
+            + mybe_minus.enuc
+            + mybe_minus.E_core
+        )
+        gradient_fci[atom_idx, xyz] = (e_plus_fci - e_minus_fci) / (2 * delta)
+        gradient_hf[atom_idx, xyz] = (e_plus_hf - e_minus_hf) / (2 * delta)
 
+    # schmidt_orbitals = mybe_plus.Fobjs[frag_idx].n_f + mybe_plus.Fobjs[frag_idx].n_b
+    # orbitals[atom_idx, 0] = schmidt_orbitals
+    # env_occ_orbitals = mybe_plus.Nocc - mybe_plus.Fobjs[frag_idx].nsocc
+    # orbitals[atom_idx, 1] = env_occ_orbitals
+    # env_virt_orbitals = mybe_plus.Fobjs[frag_idx].TAenv_lo_eo.shape[1]-mybe_plus.Nocc + mybe_plus.Fobjs[frag_idx].nsocc
+    # orbitals[atom_idx, 2] = env_virt_orbitals
 
 
 diff_fci = np.abs(gradient_fci_ref - gradient_fci)
