@@ -325,7 +325,6 @@ class Frags:
         rdm_hf=None,
         mo_coeffs=None,
         eri=None,
-        return_e=False,
         unrestricted=False,
         spin_ind=None,
     ):
@@ -379,21 +378,13 @@ class Frags:
                     e2[i] += 0.5 * unrestricted_fac * Gij[tril_indices(jmax)] @ eri[ij]
 
         e_ = e1 + e2 + ec
-        etmp = 0.0
-        for i in self.weight_and_relAO_per_center[1]:
-            etmp += self.weight_and_relAO_per_center[0] * e_[i]
 
-        self.ebe_hf = etmp
+        weight, center_AO_indices = self.weight_and_relAO_per_center
 
-        if return_e:
-            e_h1 = 0.0
-            e_coul = 0.0
-            for i in self.weight_and_relAO_per_center[1]:
-                e_h1 += self.weight_and_relAO_per_center[0] * e1[i]
-                e_coul += self.weight_and_relAO_per_center[0] * (e2[i] + ec[i])
-            return (e_h1, e_coul, e1 + e2 + ec)
-        else:
-            return None
+        ebe_hf = sum(weight * e_[i] for i in center_AO_indices)
+        e_h1 = sum(weight * e1[i] for i in center_AO_indices)
+        e_coul = sum(weight * (e2[i] + ec[i]) for i in center_AO_indices)
+        return (ebe_hf, e_h1, e_coul, e1 + e2 + ec)
 
 
 def schmidt_decomposition(

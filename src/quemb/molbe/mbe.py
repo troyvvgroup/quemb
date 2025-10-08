@@ -1062,7 +1062,7 @@ class BE:
                 @ fobjs_._mo_coeffs[:, : fobjs_.nsocc].conj().T
             )
 
-            fobjs_.update_ebe_hf()  # Updates fragment HF energy.
+            fobjs_.ebe_hf = fobjs_.update_ebe_hf()
             E_hf += fobjs_.ebe_hf
         self.ebe_hf = E_hf + self.enuc + self.E_core
         hf_err = self.hf_etot - self.ebe_hf
