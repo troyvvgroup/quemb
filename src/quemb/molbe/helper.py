@@ -274,7 +274,7 @@ def get_frag_energy(
     list
         List containing the energy contributions: [e1_tmp, e2_tmp, ec_tmp].
     """
-    
+
     # Rotate the RDM1 into the MO basis
     rdm1s_rot = mo_coeffs @ rdm1 @ mo_coeffs.T * 0.5
 
