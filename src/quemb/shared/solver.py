@@ -528,7 +528,7 @@ def be_func(
             fobj.rdm2__ = rdm2s.copy()
             # Find the energy of a given fragment.
             # Return [e1, e2, ec] as e_f and add to the running total_e.
-            e_f = get_frag_energy(
+            e_f, fobj.delta_rdm1_so, fobj.rdm2s_so = get_frag_energy(
                 mo_coeffs=fobj.mo_coeffs,
                 nsocc=fobj.nsocc,
                 n_frag=fobj.n_frag,
@@ -536,7 +536,7 @@ def be_func(
                 TA=fobj.TA,
                 h1=fobj.h1,
                 rdm1=rdm1_tmp,
-                rdm2s=rdm2s,
+                rdm2s_so=rdm2s,
                 dname=fobj.dname,
                 veff0=fobj.veff0,
                 veff=None if use_cumulant else fobj.veff,
