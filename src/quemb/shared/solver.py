@@ -338,7 +338,10 @@ def be_func(
 
         elif solver == "FCI":
             mc = fci.FCI(fobj._mf, fobj._mf.mo_coeff)
-            _, civec = mc.kernel()
+            e_fci, civec = mc.kernel()
+            e_hf = fobj._mf.e_tot
+            fobj.ecorr = e_fci - e_hf
+            print(f"the fragment correlation energy is {fobj.ecorr}")
             rdm1_tmp = mc.make_rdm1(civec, mc.norb, mc.nelec)
 
         elif solver == "HCI":  # TODO
