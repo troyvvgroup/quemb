@@ -66,7 +66,7 @@ def get_veff(eri_, dm, S, TA, hf_veff):
     Veff0 = multi_dot((TA.T, hf_veff, TA))
     Veff = Veff0 - Veff_
 
-    return Veff, Veff0, vj, vk
+    return Veff, Veff0
 
 
 # create pyscf pbc scf object
@@ -214,70 +214,6 @@ def get_core(mol: Mole | Cell) -> tuple[int, list[int], list[int]]:
         idx.extend([k for k in range(bas[2] + ncore, bas[3])])
 
     return (Ncore, idx, corelist)
-
-
-def get_frag_energy_nonupdated(
-    mo_coeffs,
-    nsocc,
-    n_frag,
-    weight_and_relAO_per_center,
-    TA,
-    h1,
-    rdm1,
-    rdm2s,
-    dname,
-    veff0=None,
-    veff=None,
-    use_cumulant=True,
-    eri_file="eri_file.h5",
-):
-    # Calculate the one-electron contributions
-    e1 = einsum("ij,ij->i", h1[:n_frag], rdm1[:n_frag])
-    ec = einsum("ij,ij->i", veff0[:n_frag], rdm1[:n_frag])
-
-    if TA.ndim == 3:
-        jmax = TA[0].shape[1]
-    else:
-        jmax = TA.shape[1]
-
-    # Load the electron repulsion integrals from the HDF5 file
-    with h5py.File(eri_file, "r") as r:
-        eri = r[dname][()]
-
-    # Rotate the RDM2 into the MO basis
-    rdm2s = einsum(
-        "ijkl,pi,qj,rk,sl->pqrs", 0.5 * rdm2s, *([mo_coeffs] * 4), optimize=True
-    )
-    # Initialize the two-electron energy contribution
-    e2 = zeros_like(e1)
-
-    print("You can find the cumulant part of the RDM2 that you care about here")
-    # Calculate the two-electron energy contribution
-    for i in range(n_frag):
-        for j in range(jmax):
-            ij = i * (i + 1) // 2 + j if i > j else j * (j + 1) // 2 + i
-            Gij = rdm2s[i, j, :jmax, :jmax].copy()
-            Gij[diag_indices(jmax)] *= 0.5
-            Gij += Gij.T
-            e2[i] += Gij[tril_indices(jmax)] @ eri[ij]
-
-    # Sum the energy contributions
-    e_ = e1 + e2 + ec
-
-    # Initialize temporary energy variables
-    etmp = 0.0
-    e1_tmp = 0.0
-    e2_tmp = 0.0
-    ec_tmp = 0.0
-
-    # Calculate the total energy contribution for the specified fragment indices
-    for i in weight_and_relAO_per_center[1]:
-        etmp += weight_and_relAO_per_center[0] * e_[i]
-        e1_tmp += weight_and_relAO_per_center[0] * e1[i]
-        e2_tmp += weight_and_relAO_per_center[0] * e2[i]
-        ec_tmp += weight_and_relAO_per_center[0] * ec[i]
-
-    return [e1_tmp, e2_tmp, ec_tmp]
 
 
 def get_frag_energy(
