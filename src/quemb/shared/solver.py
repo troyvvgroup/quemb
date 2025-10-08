@@ -332,12 +332,6 @@ def be_func(
                     use_cumulant=use_cumulant,
                     rdm_return=True,
                     rdm2_return=False,
-            elif solver == "SHCI":  # TODO
-                # pylint: disable-next=E0611,E0401
-                raise NotImplementedError("SHCI solver not implemented")
-                """
-                from pyscf.shciscf import (  # type: ignore[attr-defined]  # noqa: PLC0415
-                    shci,
                 )
 
                 assert isinstance(solver_args, SHCI_ArgsUser)
