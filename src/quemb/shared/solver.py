@@ -345,73 +345,9 @@ def be_func(
             rdm1_tmp = mc.make_rdm1(civec, mc.norb, mc.nelec)
 
         elif solver == "HCI":  # TODO
-            # pylint: disable-next=E0611
             raise NotImplementedError("HCI solver not implemented")
-            """
-            from pyscf import hci  # type: ignore[attr-defined]  # noqa: PLC0415
-
-            assert isinstance(solver_args, SHCI_ArgsUser)
-            SHCI_args = _SHCI_Args.from_user_input(solver_args)
-            nmo = fobj._mf.mo_coeff.shape[1]
-
-            eri = ao2mo.kernel(
-                fobj._mf._eri, fobj._mf.mo_coeff, aosym="s4", compact=False
-            ).reshape(4 * ((nmo),))
-
-            ci_ = hci.SCI(fobj._mf.mol)
-
-            ci_.select_cutoff = SHCI_args.select_cutoff
-            ci_.ci_coeff_cutoff = SHCI_args.ci_coeff_cutoff
-
-            nelec = (fobj.nsocc, fobj.nsocc)
-            h1_ = fobj.fock + fobj.heff
-            h1_ = multi_dot((fobj._mf.mo_coeff.T, h1_, fobj._mf.mo_coeff))
-            eci, civec = ci_.kernel(h1_, eri, nmo, nelec)
-            unused(eci)
-            civec = asarray(civec)
-
-            (rdm1a_, rdm1b_), (rdm2aa, rdm2ab, rdm2bb) = ci_.make_rdm12s(
-                civec, nmo, nelec
-            )
-            rdm1_tmp = rdm1a_ + rdm1b_
-            rdm2s = rdm2aa + rdm2ab + rdm2ab.transpose(2, 3, 0, 1) + rdm2bb
-            """
         elif solver == "SHCI":  # TODO
-            # pylint: disable-next=E0611,E0401
             raise NotImplementedError("SHCI solver not implemented")
-            """
-            from pyscf.shciscf import (  # type: ignore[attr-defined]  # noqa: PLC0415
-                shci,
-            )
-
-            assert isinstance(solver_args, SHCI_ArgsUser)
-            SHCI_args = _SHCI_Args.from_user_input(solver_args)
-
-            assert isinstance(fobj.dname, str)
-            frag_scratch = WorkDir(scratch_dir / fobj.dname)
-
-            nmo = fobj._mf.mo_coeff.shape[1]
-
-            nelec = (fobj.nsocc, fobj.nsocc)
-            mch = shci.SHCISCF(fobj._mf, nmo, nelec, orbpath=fobj.dname)
-            mch.fcisolver.mpiprefix = "mpirun -np " + str(nproc)
-            # need to pass nproc through be_func
-            if SHCI_args.hci_pt:
-                mch.fcisolver.stochastic = False
-                mch.fcisolver.epsilon2 = SHCI_args.hci_cutoff
-            else:
-                mch.fcisolver.stochastic = (
-                    True  # this is for PT and doesnt add PT to rdm
-                )
-                mch.fcisolver.nPTiter = 0
-            mch.fcisolver.sweep_iter = [0]
-            mch.fcisolver.DoRDM = True
-            mch.fcisolver.sweep_epsilon = [SHCI_args.hci_cutoff]
-            mch.fcisolver.scratchDirectory = scratch_dir
-            mch.mc1step()
-            rdm1_tmp, rdm2s = mch.fcisolver.make_rdm12(0, nmo, nelec)
-            """
-
         elif solver == "SCI":
             # pylint: disable-next=E0611
             from pyscf import cornell_shci  # noqa: PLC0415  # optional module
