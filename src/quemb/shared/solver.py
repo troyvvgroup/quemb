@@ -324,18 +324,14 @@ def be_func(
                     rdm2_return=True,
                 )
         else:
-            # currently passing mycc: likely unnecessary
-            fobj.t1, fobj.t2, rdm1_tmp, _ = solve_ccsd(  # mycc
-                fobj._mf,
-                mo_energy=fobj._mf.mo_energy,
-                relax=relax_density,
-                use_cumulant=use_cumulant,
-                rdm_return=True,
-                rdm2_return=False,
- 
-                rdm1_tmp = rdm1a_ + rdm1b_
-                rdm2s = rdm2aa + rdm2ab + rdm2ab.transpose(2, 3, 0, 1) + rdm2bb
-                """
+                # currently passing mycc: likely unnecessary
+                fobj.t1, fobj.t2, rdm1_tmp, _ = solve_ccsd(  # mycc
+                    fobj._mf,
+                    mo_energy=fobj._mf.mo_energy,
+                    relax=relax_density,
+                    use_cumulant=use_cumulant,
+                    rdm_return=True,
+                    rdm2_return=False,
             elif solver == "SHCI":  # TODO
                 # pylint: disable-next=E0611,E0401
                 raise NotImplementedError("SHCI solver not implemented")
