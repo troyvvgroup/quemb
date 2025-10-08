@@ -33,6 +33,7 @@ from quemb.shared.typing import (
     SeqOverEdge,
     Vector,
 )
+
 from scipy.linalg import orthogonal_procrustes
 
 class Frags:
