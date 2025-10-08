@@ -435,6 +435,7 @@ def clean_overlap(M: Matrix[np.float64], epsilon: float = 1e-12) -> Matrix[np.in
     M = M.copy()
     very_small = np.abs(M) < epsilon
     M[very_small] = 0
+    print(f"epsilon is {epsilon}")
     assert (np.abs(1 - M[~very_small]) < epsilon).all()
     M[~very_small] = 1
     return M.astype(np.int64)
