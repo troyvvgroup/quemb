@@ -129,12 +129,13 @@ class BE:
         restart_file: PathLike = "storebe.pk",
         nproc: int = 1,
         ompnum: int = 4,
-        thr_bath: float,
+        thr_bath: float = 1.0e-10,
         scratch_dir: WorkDir | None = None,
         int_transform: IntTransforms = "in-core",
         auxbasis: str | None = None,
         MO_coeff_epsilon: float = 1e-5,
         AO_coeff_epsilon: float = 1e-10,
+        re_eval_HF: bool = False,
         eq_fobjs = None,
     ) -> None:
         r"""
@@ -217,6 +218,15 @@ class BE:
             are considered to be connected for sparsity screening.
             Here the absolute overlap matrix is used.
             Smaller value means less screening.
+        re_eval_HF:
+            Re-evaluate the Fock matrix from the given MO-coefficients to determine
+            the HF-in-HF error.
+            This is False by default and has no relevance for "normal", unscreened
+            Hartree-Fock calculations.
+            However, if the Hartree-Fock was obtained from methods that never build
+            one global Fock matrix in the traditional sense, such as ORCA's RIJCOSX,
+            then the energy obtained by building the Fock matrix from the
+            MO coefficients can actually differ from the reported HF energy.
         """
         if restart:
             # Load previous calculation data from restart file
