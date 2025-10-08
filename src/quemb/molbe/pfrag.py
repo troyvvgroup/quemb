@@ -33,6 +33,26 @@ from quemb.shared.typing import (
     SeqOverEdge,
     Vector,
 )
+from scipy.linalg import orthogonal_procrustes
+
+def kabsch_rotation(P, Q):
+  """Calculate the optimal rotation ``R`` from ``P`` unto ``Q``
+
+  The rotation is optimal in the sense that the Frobenius-metric,  i.e. | R P - Q |_2, is minimized.
+  The algorithm is described here http://en.wikipedia.org/wiki/Kabsch_algorithm"""
+
+  # covariance matrix
+  H = P.T @ Q
+
+  U, S, Vt = np.linalg.svd(H)
+
+  # determinant is +-1 for orthogonal matrices
+  #d_val = 1. if np.linalg.det(U @ Vt) > 0 else -1.
+
+  #D = np.eye(len(U))
+  #D[-1, -1] = d_val # gaurentees final result is rotation
+
+  return U @ Vt
 
 
 class Frags:
@@ -150,6 +170,7 @@ class Frags:
         nocc: int,
         thr_bath: float,
         norb: int | None = None,
+        eq_fobjs = None,
     ) -> None:
         """
         Perform Schmidt decomposition for the fragment.
@@ -169,15 +190,24 @@ class Frags:
             Used for UBE, where different number of alpha and beta orbitals
             Default is None, allowing orbitals to be chosen by threshold
         """
-        self.TA_lo_eo, self.n_f, self.n_b = schmidt_decomposition(
+        self.env_occupied, self.env_virtual, self.Dhf, self.TA_lo_eo, self.TAbathenv_lo_eo, self.TAenv_lo_eo, self.n_f, self.n_b = schmidt_decomposition(
             lmo,
             nocc,
             self.AO_in_frag,
             thr_bath=thr_bath,
             norb=norb,
         )
-        self.TA = lao @ self.TA_lo_eo
+        self.TA = lao @ self.TA_lo_eo # (ao by lo) x (lo by eo) = (ao by eo)
+        self.TAbathenv = lao @ self.TAbathenv_lo_eo
         self.nao = self.TA.shape[1]
+        self.TAenv_ao_eo = lao @ self.TAenv_lo_eo 
+        if eq_fobjs is None:
+            print("must be the eq geometry")
+        elif eq_fobjs is not None:
+            print("must be a perturbed geometry, aligning TA matrix to equilibrium TA matrix")
+            self.R_fragbath, scale = orthogonal_procrustes(self.TA, eq_fobjs.TA)
+            self.TA = self.TA @ self.R_fragbath
+            print("done aligining TA matrices")
 
     def cons_fock(self, hf_veff, S, dm, eri_=None):
         """
@@ -199,10 +229,11 @@ class Frags:
             eri_ = get_eri(
                 self.dname, self.TA.shape[1], ignore_symm=True, eri_file=self.eri_file
             )
-
-        veff_, veff0 = get_veff(eri_, dm, S, self.TA, hf_veff)
+        veff_, veff0, vj, vk = get_veff(eri_, dm, S, self.TA, hf_veff)
         self.veff = veff_.real
         self.veff0 = veff0
+        self.vj = vj
+        self.vk = vk
         self.fock = self.h1 + veff_.real
 
     def get_nsocc(self, S, C, nocc, ncore=0):
@@ -279,6 +310,7 @@ class Frags:
                 self._mo_coeffs[:, : self.nsocc]
                 @ self._mo_coeffs[:, : self.nsocc].conj().T
             )
+            self.dm0 = dm0
 
         mf_ = get_scfObj(self.fock + heff, eri, self.nsocc, dm0=dm0)
         if not fs:
@@ -419,7 +451,7 @@ def schmidt_decomposition(
     Parameters
     ----------
     mo_coeff :
-        Molecular orbital coefficients.
+        Molecular orbital coefficients. (localized MO coefficients from IAOs actually)
     nocc :
         Number of occupied orbitals.
     Frag_sites : list of int
@@ -469,30 +501,44 @@ def schmidt_decomposition(
 
     # Identify significant environment orbitals based on eigenvalue threshold
     Bidx = []
+    Eidx = []
+    env_occupied = 0
+    env_virtual = 0
 
     # Set the number of orbitals to be taken from the environment orbitals
     # Based on an eigenvalue threshold ordering
-    if norb is not None:
-        n_frag_ind = len(Frag_sites1)
-        n_bath_ind = norb - n_frag_ind
-        ind_sort = argsort(np.abs(Eval))
-        first_el = [x for x in ind_sort if x < 1.0 - thr_bath][-1 * n_bath_ind]
-        for i in range(len(Eval)):
-            if np.abs(Eval[i]) >= first_el:
-                Bidx.append(i)
-    else:
-        for i in range(len(Eval)):
-            if thr_bath < np.abs(Eval[i]) < 1.0 - thr_bath:
-                Bidx.append(i)
 
-    # Initialize the transformation matrix (TA)
+    for i in range(len(Eval)):
+        if thr_bath < np.abs(Eval[i]) < 1.0 - thr_bath:
+            Bidx.append(i)
+        #elif thr_bath < 1e-14 and np.round(np.abs(Eval[i]), 13) and #add check to see if n fragment orbitals in bath <= 1.0:
+        #    Bidx.append(i)
+        else:
+            Eidx.append(i)
+
+    # Initialize the fragment + bath TA matrix
     TA = zeros([Tot_sites, len(AO_in_frag) + len(Bidx)])
     TA[AO_in_frag, : len(AO_in_frag)] = eye(len(AO_in_frag))  # Fragment part
-    TA[Env_sites1, len(AO_in_frag) :] = Evec[:, Bidx]  # Environment part
+    TA[Env_sites1, len(AO_in_frag) :] = Evec[:, Bidx]  # Bath part
 
-    # return TA, norbs_frag, norbs_bath
-    return TA, Frag_sites1.shape[0], len(Bidx)
+    # Initialize the environment TA matrix
+    if len(Eidx) == 0:
+        print("no environment")
+    TAenv = zeros([Tot_sites, len(Eidx)])
+    TAenv[Env_sites1,:] = Evec[:,Eidx]
 
+    # Initialize the bath and environment TA matrix
+    TAbathenv = zeros([Tot_sites, len(Bidx) + len(Eidx)]) # initialize
+    TAbathenv[Env_sites1, :len(Bidx)] = Evec[:, Bidx] # bath
+    TAbathenv[Env_sites1, len(Bidx):] = Evec[:, Eidx] # env
+
+    #TAfull = np.zeros((Tot_sites, len(AO_in_frag) + len(Bidx) + len(Eidx)))
+    #TAfull[AO_in_frag, :len(AO_in_frag)] = np.eye(len(AO_in_frag))
+    #TAfull[Env_sites1, len(AO_in_frag):len(AO_in_frag) + len(Bidx)] = Evec[:, Bidx]
+    #TAfull[Env_sites1, len(AO_in_frag) + len(Bidx):] = Evec[:, Eidx]
+
+
+    return env_occupied, env_virtual, Dhf, TA, TAbathenv, TAenv, Frag_sites1.shape[0], len(Bidx)
 
 def _get_contained(
     all_fragment_MOs_TA: Matrix[np.float64],

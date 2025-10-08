@@ -23,6 +23,7 @@ from numpy import (
     zeros,
     zeros_like,
 )
+from pyscf.scf import _vhf
 from numpy.linalg import eigh, multi_dot, svd
 from pyscf import ao2mo, scf
 from pyscf.gto import Mole
@@ -128,13 +129,13 @@ class BE:
         restart_file: PathLike = "storebe.pk",
         nproc: int = 1,
         ompnum: int = 4,
-        thr_bath: float = 1.0e-10,
+        thr_bath: float,
         scratch_dir: WorkDir | None = None,
         int_transform: IntTransforms = "in-core",
         auxbasis: str | None = None,
         MO_coeff_epsilon: float = 1e-5,
         AO_coeff_epsilon: float = 1e-10,
-        re_eval_HF: bool = False,
+        eq_fobjs = None,
     ) -> None:
         r"""
         Constructor for BE object.
@@ -216,15 +217,6 @@ class BE:
             are considered to be connected for sparsity screening.
             Here the absolute overlap matrix is used.
             Smaller value means less screening.
-        re_eval_HF:
-            Re-evaluate the Fock matrix from the given MO-coefficients to determine
-            the HF-in-HF error.
-            This is False by default and has no relevance for "normal", unscreened
-            Hartree-Fock calculations.
-            However, if the Hartree-Fock was obtained from methods that never build
-            one global Fock matrix in the traditional sense, such as ORCA's RIJCOSX,
-            then the energy obtained by building the Fock matrix from the
-            MO coefficients can actually differ from the reported HF energy.
         """
         if restart:
             # Load previous calculation data from restart file
@@ -285,7 +277,6 @@ class BE:
         self.ebe_tot = 0.0
 
         self.mf = mf
-        self.re_eval_HF = re_eval_HF
 
         if not restart:
             self.mo_energy = mf.mo_energy
@@ -312,7 +303,6 @@ class BE:
             self.scratch_dir = WorkDir.from_environment()
         else:
             self.scratch_dir = scratch_dir
-        print(f"Scratch dir is in: {self.scratch_dir.path}")
         self.eri_file = self.scratch_dir / eri_file
 
         self.frozen_core = fobj.frozen_core
@@ -348,7 +338,6 @@ class BE:
                 self.hcore += self.core_veff
 
         if not restart:
-            # Localize orbitals
             self.localize(
                 lo_method,
                 fobj=fobj,
@@ -356,7 +345,7 @@ class BE:
                 iao_valence_only=fobj.iao_valence_only,
                 pop_method=pop_method,
             )
-
+            # self.lmo_coeff is set now
             if fobj.iao_valence_only and lo_method == "IAO":
                 self.Ciao_pao = self.localize(
                     lo_method,
@@ -369,8 +358,7 @@ class BE:
                 )
 
         if not restart:
-            # Initialize fragments and perform initial calculations
-            self.initialize(mf._eri, restart=False, int_transform=int_transform)
+            self.initialize(mf._eri, restart=False, int_transform=int_transform, eq_fobjs = eq_fobjs)
         else:
             self.initialize(None, restart=True, int_transform=int_transform)
 
@@ -865,6 +853,7 @@ class BE:
             # Print the energy components
             if use_cumulant:
                 self.ebe_tot = be_.Ebe[0] + self.ebe_hf
+                self.rets0 = be_.Ebe[0]
                 print_energy_cumulant(
                     be_.Ebe[0],
                     be_.Ebe[1][1],
@@ -1046,6 +1035,18 @@ class BE:
                 eri = ao2mo.restore(8, eri, fobjs_.nao)
 
             fobjs_.cons_fock(self.hf_veff, self.S, self.hf_dm, eri_=eri)
+            Penv = 2 * fobjs_.TAenv_lo_eo.T.conj() @ fobjs_.Dhf @ fobjs_.TAenv_lo_eo
+            Eval, Evec = eigh(Penv)
+            
+            Denv = fobjs_.TAenv_ao_eo @ Penv @ fobjs_.TAenv_ao_eo.T.conj()
+
+            vj, vk = _vhf.incore(self.mf._eri, Denv)
+            vhf = vj - vk * .5
+            e1 = numpy.einsum('ij,ji->', self.hcore, Denv).real
+            e_coul = numpy.einsum('ij,ji->', vhf, Denv).real * .5
+            fobjs_.E_env = e_coul + e1
+
+            henv = fobjs_.TA.T.conj() @ vhf @ fobjs_.TA
 
             fobjs_.heff = zeros_like(fobjs_.h1)
             fobjs_.scf(fs=True, eri=eri)
@@ -1060,15 +1061,10 @@ class BE:
             E_hf += fobjs_.ebe_hf
         self.ebe_hf = E_hf + self.enuc + self.E_core
         hf_err = self.hf_etot - self.ebe_hf
+        self.hf_err = hf_err
         print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
         if abs(hf_err) > 1.0e-5:
             warn("Large HF-in-HF energy error")
-
-        if self.re_eval_HF:
-            hf_err = self.mf.energy_tot() - self.ebe_hf
-            print(f"HF-in-HF error (re-eval global):  {hf_err:>.4e} Ha")
-            if abs(hf_err) > 1.0e-5:
-                warn("Large HF-in-HF energy error")
 
     @timer.timeit
     def initialize(
@@ -1077,6 +1073,7 @@ class BE:
         *,
         restart: bool,
         int_transform: IntTransforms,
+        eq_fobjs = None,
     ) -> None:
         """
         Initialize the Bootstrap Embedding calculation.
@@ -1092,15 +1089,20 @@ class BE:
         """
         for I in range(self.fobj.n_frag):
             fobjs_ = self.fobj.to_Frags(I, eri_file=self.eri_file)
-            fobjs_.sd(self.W, self.lmo_coeff, self.Nocc, thr_bath=self.thr_bath)
+            if eq_fobjs is None:
+                fobjs_.sd(self.W, self.lmo_coeff, self.Nocc, thr_bath=self.thr_bath)
+            elif eq_fobjs is not None:
+                fobjs_.sd(self.W, self.lmo_coeff, self.Nocc, thr_bath=self.thr_bath, eq_fobjs = eq_fobjs[I])
+            else:
+                print("something wonky doodles")
 
             self.Fobjs.append(fobjs_)
 
-        self.all_fragment_MO_TA, frag_TA_index_per_frag = union_of_frag_MOs_and_index(
-            self.Fobjs, self.mf.mol.intor("int1e_ovlp"), epsilon=1e-10
-        )
-        for fobj, frag_TA_offset in zip(self.Fobjs, frag_TA_index_per_frag):
-            fobj.frag_TA_offset = frag_TA_offset
+        #self.all_fragment_MO_TA, frag_TA_index_per_frag = union_of_frag_MOs_and_index(
+        #    self.Fobjs, self.mf.mol.intor("int1e_ovlp"), epsilon=1e-10
+        #)
+        #for fobj, frag_TA_offset in zip(self.Fobjs, frag_TA_index_per_frag):
+        #    fobj.frag_TA_offset = frag_TA_offset
 
         if self.lo_bath_post_schmidt is not None:
             for frag in self.Fobjs:
@@ -1132,7 +1134,9 @@ class BE:
         nproc: int = 1,
         ompnum: int = 4,
         solver_args: UserSolverArgs | None = None,
+        update_list = None,
     ) -> None:
+        print("in oneshot")
         """
         Perform a one-shot bootstrap embedding calculation.
 
@@ -1150,6 +1154,7 @@ class BE:
             Number of OpenMP threads, by default 4.
         """
         if nproc == 1:
+            print(f"update_list in oneshot is {update_list}")
             rets = be_func(
                 None,
                 self.Fobjs,
@@ -1161,7 +1166,9 @@ class BE:
                 solver_args=solver_args,
                 use_cumulant=use_cumulant,
                 return_vec=False,
+                update_list = update_list,
             )
+            print("done with be_func")
         else:
             rets = be_func_parallel(
                 None,
@@ -1187,7 +1194,9 @@ class BE:
             print_energy_cumulant(
                 rets[0], rets[1][1], rets[1][0] + rets[1][2], self.ebe_hf
             )
+            self.rets0 = rets[0]
             self.ebe_tot = rets[0] + self.ebe_hf
+            print("done")
         else:
             print_energy_noncumulant(
                 rets[0], rets[1][0], rets[1][2], rets[1][1], self.ebe_hf, self.enuc
@@ -1318,6 +1327,7 @@ class BE:
                     self.W = C_ @ W_
 
             if self.unrestricted:
+                print("doing an unrestricted calculation")
                 if self.frozen_core:
                     self.lmo_coeff_a = multi_dot(
                         (self.W[0].T, self.S, self.C_a[:, self.ncore :])  # type: ignore[attr-defined]
@@ -1402,7 +1412,6 @@ class BE:
                 )
 
                 if iao_loc_method != "lowdin":
-                    # Localize IAOs and PAOs
                     Ciao = get_loc(self.fobj.mol, Ciao, iao_loc_method)
                     Cpao = get_loc(self.fobj.mol, Cpao, iao_loc_method)
             else:
@@ -1419,15 +1428,13 @@ class BE:
                 if iao_loc_method != "lowdin":
                     Ciao = get_loc(self.fobj.mol, Ciao, iao_loc_method)
 
-            # Rearrange by atom
-            aoind_by_atom = get_aoind_by_atom(self.fobj.mol)
+            aoind_by_atom = get_aoind_by_atom(self.fobj.mol) # Return a list across all atoms in the full system. Each element contains a list of AO indices for that atom 
             Ciao, iaoind_by_atom = reorder_by_atom_(Ciao, aoind_by_atom, self.S)
 
             if not iao_valence_only:
                 Cpao, paoind_by_atom = reorder_by_atom_(Cpao, aoind_by_atom, self.S)
 
             if self.frozen_core:
-                # Remove core MOs
                 Cc = self.C[:, : self.ncore]  # Assumes core are first
                 Ciao = remove_core_mo(Ciao, Cc, self.S)
 
