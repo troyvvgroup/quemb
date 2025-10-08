@@ -1075,6 +1075,7 @@ class BE:
         print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
         if abs(hf_err) > 1.0e-5:
             warn("Large HF-in-HF energy error")
+
         if self.re_eval_HF:
             hf_err = self.mf.energy_tot() - self.ebe_hf
             print(f"HF-in-HF error (re-eval global):  {hf_err:>.4e} Ha")
@@ -1149,9 +1150,7 @@ class BE:
         nproc: int = 1,
         ompnum: int = 4,
         solver_args: UserSolverArgs | None = None,
-        update_list = None,
     ) -> None:
-        print("in oneshot")
         """
         Perform a one-shot bootstrap embedding calculation.
 
@@ -1169,7 +1168,6 @@ class BE:
             Number of OpenMP threads, by default 4.
         """
         if nproc == 1:
-            print(f"update_list in oneshot is {update_list}")
             rets = be_func(
                 None,
                 self.Fobjs,
@@ -1183,7 +1181,6 @@ class BE:
                 return_vec=False,
                 update_list = update_list,
             )
-            print("done with be_func")
         else:
             rets = be_func_parallel(
                 None,
@@ -1342,7 +1339,6 @@ class BE:
                     self.W = C_ @ W_
 
             if self.unrestricted:
-                print("doing an unrestricted calculation")
                 if self.frozen_core:
                     self.lmo_coeff_a = multi_dot(
                         (self.W[0].T, self.S, self.C_a[:, self.ncore :])  # type: ignore[attr-defined]
