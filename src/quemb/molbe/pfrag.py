@@ -35,26 +35,6 @@ from quemb.shared.typing import (
 )
 from scipy.linalg import orthogonal_procrustes
 
-def kabsch_rotation(P, Q):
-  """Calculate the optimal rotation ``R`` from ``P`` unto ``Q``
-
-  The rotation is optimal in the sense that the Frobenius-metric,  i.e. | R P - Q |_2, is minimized.
-  The algorithm is described here http://en.wikipedia.org/wiki/Kabsch_algorithm"""
-
-  # covariance matrix
-  H = P.T @ Q
-
-  U, S, Vt = np.linalg.svd(H)
-
-  # determinant is +-1 for orthogonal matrices
-  #d_val = 1. if np.linalg.det(U @ Vt) > 0 else -1.
-
-  #D = np.eye(len(U))
-  #D[-1, -1] = d_val # gaurentees final result is rotation
-
-  return U @ Vt
-
-
 class Frags:
     """
     Class for handling fragments in bootstrap embedding.
@@ -229,6 +209,7 @@ class Frags:
             eri_ = get_eri(
                 self.dname, self.TA.shape[1], ignore_symm=True, eri_file=self.eri_file
             )
+
         veff_, veff0 = get_veff(eri_, dm, S, self.TA, hf_veff)
         self.veff = veff_.real
         self.veff0 = veff0
@@ -308,7 +289,6 @@ class Frags:
                 self._mo_coeffs[:, : self.nsocc]
                 @ self._mo_coeffs[:, : self.nsocc].conj().T
             )
-            self.dm0 = dm0
 
         mf_ = get_scfObj(self.fock + heff, eri, self.nsocc, dm0=dm0)
         if not fs:
@@ -449,7 +429,7 @@ def schmidt_decomposition(
     Parameters
     ----------
     mo_coeff :
-        Molecular orbital coefficients. (localized MO coefficients from IAOs actually)
+        Molecular orbital coefficients.
     nocc :
         Number of occupied orbitals.
     Frag_sites : list of int
