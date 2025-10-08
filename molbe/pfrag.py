@@ -193,9 +193,7 @@ class Frags:
         if eq_fobjs is None:
             print("must be the eq geometry")
         elif eq_fobjs is not None:
-            print(
-                "aligning TA matrix to equilibrium TA matrix"
-            )
+            print("aligning TA matrix to equilibrium TA matrix")
             self.R_fragbath, scale = orthogonal_procrustes(self.TA, eq_fobjs.TA)
             self.TA = self.TA @ self.R_fragbath
             print("done aligining TA matrices")
@@ -428,7 +426,7 @@ def schmidt_decomposition(
     thr_bath: float = 1.0e-10,
     cinv: Matrix[float64] | None = None,
     rdm: Matrix[float64] | None = None,
-    #norb: int | None = None,
+    # norb: int | None = None,
 ) -> tuple[Matrix[float64], int, int]:
     """
     Perform Schmidt decomposition on the molecular orbital coefficients.
