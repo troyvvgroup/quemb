@@ -135,7 +135,7 @@ class BE:
         MO_coeff_epsilon: float = 1e-5,
         AO_coeff_epsilon: float = 1e-10,
         re_eval_HF: bool = False,
-        eq_fobjs = None,
+        eq_fobjs=None,
     ) -> None:
         r"""
         Constructor for BE object.
@@ -371,7 +371,9 @@ class BE:
 
         if not restart:
             # Initialize fragments and perform initial calculations
-            self.initialize(mf._eri, restart=False, int_transform=int_transform, eq_fobjs=eq_fobjs)
+            self.initialize(
+                mf._eri, restart=False, int_transform=int_transform, eq_fobjs=eq_fobjs
+            )
         else:
             self.initialize(None, restart=True, int_transform=int_transform)
 
@@ -1053,9 +1055,9 @@ class BE:
             Denv = fobjs_.TAenv_ao_eo @ Penv @ fobjs_.TAenv_ao_eo.T.conj()
 
             vj, vk = _vhf.incore(self.mf._eri, Denv)
-            vhf = vj - vk * .5
-            e1 = numpy.einsum('ij,ji->', self.hcore, Denv).real
-            e_coul = numpy.einsum('ij,ji->', vhf, Denv).real * .5
+            vhf = vj - vk * 0.5
+            e1 = numpy.einsum("ij,ji->", self.hcore, Denv).real
+            e_coul = numpy.einsum("ij,ji->", vhf, Denv).real * 0.5
             fobjs_.E_env = e_coul + e1
 
             henv = fobjs_.TA.T.conj() @ vhf @ fobjs_.TA
@@ -1091,7 +1093,7 @@ class BE:
         *,
         restart: bool,
         int_transform: IntTransforms,
-        eq_fobjs = None,
+        eq_fobjs=None,
     ) -> None:
         """
         Initialize the Bootstrap Embedding calculation.
@@ -1110,16 +1112,22 @@ class BE:
             if eq_fobjs is None:
                 fobjs_.sd(self.W, self.lmo_coeff, self.Nocc, thr_bath=self.thr_bath)
             elif eq_fobjs is not None:
-                fobjs_.sd(self.W, self.lmo_coeff, self.Nocc, thr_bath=self.thr_bath, eq_fobjs = eq_fobjs[I])
+                fobjs_.sd(
+                    self.W,
+                    self.lmo_coeff,
+                    self.Nocc,
+                    thr_bath=self.thr_bath,
+                    eq_fobjs=eq_fobjs[I],
+                )
             else:
                 print("something wonky doodles")
 
             self.Fobjs.append(fobjs_)
 
-        #self.all_fragment_MO_TA, frag_TA_index_per_frag = union_of_frag_MOs_and_index(
+        # self.all_fragment_MO_TA, frag_TA_index_per_frag = union_of_frag_MOs_and_index(
         #    self.Fobjs, self.mf.mol.intor("int1e_ovlp"), epsilon=1e-10
-        #)
-        #for fobj, frag_TA_offset in zip(self.Fobjs, frag_TA_index_per_frag):
+        # )
+        # for fobj, frag_TA_offset in zip(self.Fobjs, frag_TA_index_per_frag):
         #    fobj.frag_TA_offset = frag_TA_offset
 
         if self.lo_bath_post_schmidt is not None:
