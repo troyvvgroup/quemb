@@ -8,7 +8,7 @@ from quemb.molbe.chemfrag import ChemGenArgs, Fragmented
 def kabsch_rotation(P, Q):
     """Calculate the optimal rotation ``R`` from ``P`` unto ``Q``
 
-    The rotation is optimal in the sense that the Frobenius-metric,  
+    The rotation is optimal in the sense that the Frobenius-metric,
     i.e. | R P - Q |_2, is minimized.
     The algorithm is described here http://en.wikipedia.org/wiki/Kabsch_algorithm"""
 
