@@ -308,72 +308,31 @@ def be_func(
 
         # Solve using the specified solver
         assert fobj._mf is not None
-        # Solve using the specified solver
-        if (update_list is not None and i in update_list) or (update_list is None):
-            print(f"updating fragment {i}")
-            if solver == "MP2":
-                fobj._mc = solve_mp2(fobj._mf, mo_energy=fobj._mf.mo_energy)
-                rdm1_tmp = fobj._mc.make_rdm1()
-                if eeval:
-                    rdm2s = fobj._mc.make_rdm2()
-            elif solver == "CCSD":
-                if eeval:
-                    fobj.mycc, fobj.t1, fobj.t2, rdm1_tmp, rdm2s = solve_ccsd(
-                        fobj._mf,
-                        mo_energy=fobj._mf.mo_energy,
-                        relax=relax_density,
-                        use_cumulant=use_cumulant,
-                        rdm_return=True,
-                        rdm2_return=True,
-                    )
-                else:
-                    # currently passing mycc: likely unnecessary
-                    fobj.t1, fobj.t2, rdm1_tmp, _ = solve_ccsd(  # mycc
-                        fobj._mf,
-                        mo_energy=fobj._mf.mo_energy,
-                        relax=relax_density,
-                        use_cumulant=use_cumulant,
-                        rdm_return=True,
-                        rdm2_return=False,
-                    )
-
-            elif solver == "FCI":
-                mc = fci.FCI(fobj._mf, fobj._mf.mo_coeff)
-                e_fci, civec = mc.kernel()
-                e_hf = fobj._mf.e_tot
-                fobj.ecorr = e_fci - e_hf
-                print(f"the fragment correlation energy is {fobj.ecorr}")
-                rdm1_tmp = mc.make_rdm1(civec, mc.norb, mc.nelec)
-
-            elif solver == "HCI":  # TODO
-                # pylint: disable-next=E0611
-                raise NotImplementedError("HCI solver not implemented")
-                """
-                from pyscf import hci  # type: ignore[attr-defined]  # noqa: PLC0415
-
-                assert isinstance(solver_args, SHCI_ArgsUser)
-                SHCI_args = _SHCI_Args.from_user_input(solver_args)
-                nmo = fobj._mf.mo_coeff.shape[1]
-
-                eri = ao2mo.kernel(
-                    fobj._mf._eri, fobj._mf.mo_coeff, aosym="s4", compact=False
-                ).reshape(4 * ((nmo),))
-
-                ci_ = hci.SCI(fobj._mf.mol)
-
-                ci_.select_cutoff = SHCI_args.select_cutoff
-                ci_.ci_coeff_cutoff = SHCI_args.ci_coeff_cutoff
-
-                nelec = (fobj.nsocc, fobj.nsocc)
-                h1_ = fobj.fock + fobj.heff
-                h1_ = multi_dot((fobj._mf.mo_coeff.T, h1_, fobj._mf.mo_coeff))
-                eci, civec = ci_.kernel(h1_, eri, nmo, nelec)
-                unused(eci)
-                civec = asarray(civec)
-
-                (rdm1a_, rdm1b_), (rdm2aa, rdm2ab, rdm2bb) = ci_.make_rdm12s(
-                    civec, nmo, nelec
+        if solver == "MP2":
+            fobj._mc = solve_mp2(fobj._mf, mo_energy=fobj._mf.mo_energy)
+            rdm1_tmp = fobj._mc.make_rdm1()
+            if eeval:
+                rdm2s = fobj._mc.make_rdm2()
+        elif solver == "CCSD":
+            if eeval:
+                fobj.t1, fobj.t2, rdm1_tmp, rdm2s = solve_ccsd(
+                    fobj._mf,
+                    mo_energy=fobj._mf.mo_energy,
+                    relax=relax_density,
+                    use_cumulant=use_cumulant,
+                    rdm_return=True,
+                    rdm2_return=True,
                 )
+        else:
+            # currently passing mycc: likely unnecessary
+            fobj.t1, fobj.t2, rdm1_tmp, _ = solve_ccsd(  # mycc
+                fobj._mf,
+                mo_energy=fobj._mf.mo_energy,
+                relax=relax_density,
+                use_cumulant=use_cumulant,
+                rdm_return=True,
+                rdm2_return=False,
+ 
                 rdm1_tmp = rdm1a_ + rdm1b_
                 rdm2s = rdm2aa + rdm2ab + rdm2ab.transpose(2, 3, 0, 1) + rdm2bb
                 """
