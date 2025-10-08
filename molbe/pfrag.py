@@ -36,6 +36,7 @@ from quemb.shared.typing import (
 
 from scipy.linalg import orthogonal_procrustes
 
+
 class Frags:
     """
     Class for handling fragments in bootstrap embedding.
@@ -151,7 +152,7 @@ class Frags:
         nocc: int,
         thr_bath: float,
         norb: int | None = None,
-        eq_fobjs = None,
+        eq_fobjs=None,
     ) -> None:
         """
         Perform Schmidt decomposition for the fragment.
@@ -171,21 +172,32 @@ class Frags:
             Used for UBE, where different number of alpha and beta orbitals
             Default is None, allowing orbitals to be chosen by threshold
         """
-        self.env_occupied, self.env_virtual, self.Dhf, self.TA_lo_eo, self.TAbathenv_lo_eo, self.TAenv_lo_eo, self.n_f, self.n_b = schmidt_decomposition(
+        (
+            self.env_occupied,
+            self.env_virtual,
+            self.Dhf,
+            self.TA_lo_eo,
+            self.TAbathenv_lo_eo,
+            self.TAenv_lo_eo,
+            self.n_f,
+            self.n_b,
+        ) = schmidt_decomposition(
             lmo,
             nocc,
             self.AO_in_frag,
             thr_bath=thr_bath,
             norb=norb,
         )
-        self.TA = lao @ self.TA_lo_eo # (ao by lo) x (lo by eo) = (ao by eo)
+        self.TA = lao @ self.TA_lo_eo  # (ao by lo) x (lo by eo) = (ao by eo)
         self.TAbathenv = lao @ self.TAbathenv_lo_eo
         self.nao = self.TA.shape[1]
         self.TAenv_ao_eo = lao @ self.TAenv_lo_eo
         if eq_fobjs is None:
             print("must be the eq geometry")
         elif eq_fobjs is not None:
-            print("must be a perturbed geometry, aligning TA matrix to equilibrium TA matrix")
+            print(
+                "must be a perturbed geometry, aligning TA matrix to equilibrium TA matrix"
+            )
             self.R_fragbath, scale = orthogonal_procrustes(self.TA, eq_fobjs.TA)
             self.TA = self.TA @ self.R_fragbath
             print("done aligining TA matrices")
@@ -489,7 +501,7 @@ def schmidt_decomposition(
     for i in range(len(Eval)):
         if thr_bath < np.abs(Eval[i]) < 1.0 - thr_bath:
             Bidx.append(i)
-        #elif thr_bath < 1e-14 and np.round(np.abs(Eval[i]), 13) and #add check to see if n fragment orbitals in bath <= 1.0:
+        # elif thr_bath < 1e-14 and np.round(np.abs(Eval[i]), 13) and #add check to see if n fragment orbitals in bath <= 1.0:
         #    Bidx.append(i)
         else:
             Eidx.append(i)
@@ -503,20 +515,28 @@ def schmidt_decomposition(
     if len(Eidx) == 0:
         print("no environment")
     TAenv = zeros([Tot_sites, len(Eidx)])
-    TAenv[Env_sites1,:] = Evec[:,Eidx]
+    TAenv[Env_sites1, :] = Evec[:, Eidx]
 
     # Initialize the bath and environment TA matrix
-    TAbathenv = zeros([Tot_sites, len(Bidx) + len(Eidx)]) # initialize
-    TAbathenv[Env_sites1, :len(Bidx)] = Evec[:, Bidx] # bath
-    TAbathenv[Env_sites1, len(Bidx):] = Evec[:, Eidx] # env
+    TAbathenv = zeros([Tot_sites, len(Bidx) + len(Eidx)])  # initialize
+    TAbathenv[Env_sites1, : len(Bidx)] = Evec[:, Bidx]  # bath
+    TAbathenv[Env_sites1, len(Bidx) :] = Evec[:, Eidx]  # env
 
-    #TAfull = np.zeros((Tot_sites, len(AO_in_frag) + len(Bidx) + len(Eidx)))
-    #TAfull[AO_in_frag, :len(AO_in_frag)] = np.eye(len(AO_in_frag))
-    #TAfull[Env_sites1, len(AO_in_frag):len(AO_in_frag) + len(Bidx)] = Evec[:, Bidx]
-    #TAfull[Env_sites1, len(AO_in_frag) + len(Bidx):] = Evec[:, Eidx]
+    # TAfull = np.zeros((Tot_sites, len(AO_in_frag) + len(Bidx) + len(Eidx)))
+    # TAfull[AO_in_frag, :len(AO_in_frag)] = np.eye(len(AO_in_frag))
+    # TAfull[Env_sites1, len(AO_in_frag):len(AO_in_frag) + len(Bidx)] = Evec[:, Bidx]
+    # TAfull[Env_sites1, len(AO_in_frag) + len(Bidx):] = Evec[:, Eidx]
 
-
-    return env_occupied, env_virtual, Dhf, TA, TAbathenv, TAenv, Frag_sites1.shape[0], len(Bidx)
+    return (
+        env_occupied,
+        env_virtual,
+        Dhf,
+        TA,
+        TAbathenv,
+        TAenv,
+        Frag_sites1.shape[0],
+        len(Bidx),
+    )
 
 
 def _get_contained(
