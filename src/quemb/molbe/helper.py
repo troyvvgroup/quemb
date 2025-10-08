@@ -20,7 +20,6 @@ from numpy.linalg import multi_dot
 from pyscf import ao2mo, gto, lib, scf
 from pyscf.gto.mole import Mole
 from pyscf.pbc.gto.cell import Cell
-import numpy as np
 from quemb.shared.helper import ncore_
 from quemb.shared.typing import Matrix
 
