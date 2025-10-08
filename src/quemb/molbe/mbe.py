@@ -358,6 +358,7 @@ class BE:
                 iao_valence_only=fobj.iao_valence_only,
                 pop_method=pop_method,
             )
+
             if fobj.iao_valence_only and lo_method == "IAO":
                 self.Ciao_pao = self.localize(
                     lo_method,
@@ -370,6 +371,7 @@ class BE:
                 )
 
         if not restart:
+            # Initialize fragments and perform initial calculations
             self.initialize(mf._eri, restart=False, int_transform=int_transform, eq_fobjs = eq_fobjs)
         else:
             self.initialize(None, restart=True, int_transform=int_transform)
@@ -865,7 +867,6 @@ class BE:
             # Print the energy components
             if use_cumulant:
                 self.ebe_tot = be_.Ebe[0] + self.ebe_hf
-                self.rets0 = be_.Ebe[0]
                 print_energy_cumulant(
                     be_.Ebe[0],
                     be_.Ebe[1][1],
@@ -1058,8 +1059,6 @@ class BE:
             e_coul = numpy.einsum('ij,ji->', vhf, Denv).real * .5
             fobjs_.E_env = e_coul + e1
 
-            henv = fobjs_.TA.T.conj() @ vhf @ fobjs_.TA
-
             fobjs_.heff = zeros_like(fobjs_.h1)
             fobjs_.scf(fs=True, eri=eri)
 
@@ -1073,10 +1072,14 @@ class BE:
             E_hf += fobjs_.ebe_hf
         self.ebe_hf = E_hf + self.enuc + self.E_core
         hf_err = self.hf_etot - self.ebe_hf
-        self.hf_err = hf_err
         print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
         if abs(hf_err) > 1.0e-5:
             warn("Large HF-in-HF energy error")
+        if self.re_eval_HF:
+            hf_err = self.mf.energy_tot() - self.ebe_hf
+            print(f"HF-in-HF error (re-eval global):  {hf_err:>.4e} Ha")
+            if abs(hf_err) > 1.0e-5:
+                warn("Large HF-in-HF energy error")
 
     @timer.timeit
     def initialize(
