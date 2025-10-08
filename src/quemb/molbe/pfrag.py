@@ -193,9 +193,7 @@ class Frags:
         if eq_fobjs is None:
             print("must be the eq geometry")
         elif eq_fobjs is not None:
-            print(
-                "aligning TA matrix to equilibrium TA matrix"
-            )
+            print("aligning TA matrix to equilibrium TA matrix")
             self.R_fragbath, scale = orthogonal_procrustes(self.TA, eq_fobjs.TA)
             self.TA = self.TA @ self.R_fragbath
             print("done aligining TA matrices")
