@@ -1179,7 +1179,6 @@ class BE:
                 solver_args=solver_args,
                 use_cumulant=use_cumulant,
                 return_vec=False,
-                update_list = update_list,
             )
         else:
             rets = be_func_parallel(
@@ -1206,9 +1205,7 @@ class BE:
             print_energy_cumulant(
                 rets[0], rets[1][1], rets[1][0] + rets[1][2], self.ebe_hf
             )
-            self.rets0 = rets[0]
             self.ebe_tot = rets[0] + self.ebe_hf
-            print("done")
         else:
             print_energy_noncumulant(
                 rets[0], rets[1][0], rets[1][2], rets[1][1], self.ebe_hf, self.enuc
@@ -1423,6 +1420,7 @@ class BE:
                 )
 
                 if iao_loc_method != "lowdin":
+                    # Localize IAOs and PAOs
                     Ciao = get_loc(self.fobj.mol, Ciao, iao_loc_method)
                     Cpao = get_loc(self.fobj.mol, Cpao, iao_loc_method)
             else:
@@ -1439,13 +1437,15 @@ class BE:
                 if iao_loc_method != "lowdin":
                     Ciao = get_loc(self.fobj.mol, Ciao, iao_loc_method)
 
-            aoind_by_atom = get_aoind_by_atom(self.fobj.mol) # Return a list across all atoms in the full system. Each element contains a list of AO indices for that atom 
+            # Rearrange by atom
+            aoind_by_atom = get_aoind_by_atom(self.fobj.mol)
             Ciao, iaoind_by_atom = reorder_by_atom_(Ciao, aoind_by_atom, self.S)
 
             if not iao_valence_only:
                 Cpao, paoind_by_atom = reorder_by_atom_(Cpao, aoind_by_atom, self.S)
 
             if self.frozen_core:
+                # Remove core MOs
                 Cc = self.C[:, : self.ncore]  # Assumes core are first
                 Ciao = remove_core_mo(Ciao, Cc, self.S)
 
