@@ -1,9 +1,8 @@
-from pyscf import gto, scf, cc, fci, mcscf
 import numpy as np
+from pyscf import cc, grad, gto, mcscf, scf
+
 from quemb.molbe import BE, fragmentate
-from quemb.molbe.chemfrag import Fragmented
-from quemb.molbe.chemfrag import ChemGenArgs
-from pyscf import grad
+from quemb.molbe.chemfrag import ChemGenArgs, Fragmented
 
 
 def printmat(m, fmt="%12.12f"):
@@ -59,7 +58,7 @@ args = ChemGenArgs(treat_H_different=False)
 fobj = fragmentate(mol=mol, frag_type="chemgen", n_BE=1, additional_args=args)
 
 mybe = BE(mf, fobj, thr_bath=1e-10)
-print(f"doing the unperturbed calculation")
+print("doing the unperturbed calculation")
 mybe.oneshot(solver="FCI")
 
 #########################################################################
@@ -159,14 +158,6 @@ for atom_idx in range(natoms):
         )
         gradient_fci[atom_idx, xyz] = (e_plus_fci - e_minus_fci) / (2 * delta)
         gradient_hf[atom_idx, xyz] = (e_plus_hf - e_minus_hf) / (2 * delta)
-
-    # schmidt_orbitals = mybe_plus.Fobjs[frag_idx].n_f + mybe_plus.Fobjs[frag_idx].n_b
-    # orbitals[atom_idx, 0] = schmidt_orbitals
-    # env_occ_orbitals = mybe_plus.Nocc - mybe_plus.Fobjs[frag_idx].nsocc
-    # orbitals[atom_idx, 1] = env_occ_orbitals
-    # env_virt_orbitals = mybe_plus.Fobjs[frag_idx].TAenv_lo_eo.shape[1]-mybe_plus.Nocc + mybe_plus.Fobjs[frag_idx].nsocc
-    # orbitals[atom_idx, 2] = env_virt_orbitals
-
 
 diff_fci = np.abs(gradient_fci_ref - gradient_fci)
 rms_diff_fci = np.sqrt(np.mean(diff_fci**2))

@@ -6,7 +6,6 @@ import h5py
 import numpy as np
 import scipy.linalg
 from numpy import (
-    argsort,
     array,
     diag_indices,
     einsum,
@@ -20,6 +19,7 @@ from numpy import (
     zeros_like,
 )
 from numpy.linalg import eigh, multi_dot
+from scipy.linalg import orthogonal_procrustes
 
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
 from quemb.shared.helper import clean_overlap
@@ -33,8 +33,6 @@ from quemb.shared.typing import (
     SeqOverEdge,
     Vector,
 )
-
-from scipy.linalg import orthogonal_procrustes
 
 
 class Frags:
@@ -196,7 +194,7 @@ class Frags:
             print("must be the eq geometry")
         elif eq_fobjs is not None:
             print(
-                "must be a perturbed geometry, aligning TA matrix to equilibrium TA matrix"
+                "aligning TA matrix to equilibrium TA matrix"
             )
             self.R_fragbath, scale = orthogonal_procrustes(self.TA, eq_fobjs.TA)
             self.TA = self.TA @ self.R_fragbath
@@ -430,7 +428,7 @@ def schmidt_decomposition(
     thr_bath: float = 1.0e-10,
     cinv: Matrix[float64] | None = None,
     rdm: Matrix[float64] | None = None,
-    norb: int | None = None,
+    #norb: int | None = None,
 ) -> tuple[Matrix[float64], int, int]:
     """
     Perform Schmidt decomposition on the molecular orbital coefficients.
@@ -501,8 +499,6 @@ def schmidt_decomposition(
     for i in range(len(Eval)):
         if thr_bath < np.abs(Eval[i]) < 1.0 - thr_bath:
             Bidx.append(i)
-        # elif thr_bath < 1e-14 and np.round(np.abs(Eval[i]), 13) and #add check to see if n fragment orbitals in bath <= 1.0:
-        #    Bidx.append(i)
         else:
             Eidx.append(i)
 

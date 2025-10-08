@@ -26,8 +26,9 @@ from numpy import (
 from numpy.linalg import eigh, multi_dot, svd
 from pyscf import ao2mo, scf
 from pyscf.gto import Mole
-from typing_extensions import assert_never
 from pyscf.scf import _vhf
+from typing_extensions import assert_never
+
 from quemb.molbe.eri_onthefly import integral_direct_DF
 from quemb.molbe.eri_sparse_DF import (
     transform_sparse_DF_integral_cpp,
@@ -44,7 +45,7 @@ from quemb.molbe.lo import (
     remove_core_mo,
 )
 from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
-from quemb.molbe.pfrag import Frags, union_of_frag_MOs_and_index
+from quemb.molbe.pfrag import Frags
 from quemb.shared.be_parallel import be_func_parallel
 from quemb.shared.external.lo_helper import (
     get_aoind_by_atom,
@@ -1059,8 +1060,6 @@ class BE:
             e1 = numpy.einsum("ij,ji->", self.hcore, Denv).real
             e_coul = numpy.einsum("ij,ji->", vhf, Denv).real * 0.5
             fobjs_.E_env = e_coul + e1
-
-            henv = fobjs_.TA.T.conj() @ vhf @ fobjs_.TA
 
             fobjs_.heff = zeros_like(fobjs_.h1)
             fobjs_.scf(fs=True, eri=eri)
