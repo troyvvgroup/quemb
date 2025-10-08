@@ -7,7 +7,6 @@ from typing import Final, Literal, TypeAlias
 from warnings import warn
 
 from attrs import Factory, define, field
-import numpy
 from numpy import (
     allclose,
     array,
@@ -255,8 +254,6 @@ def be_func(
     relax_density: bool = False,
     return_vec: bool = False,
     use_cumulant: bool = True,
-    sigma_list = None,
-    update_list = None,
 ):
     """
     Perform bootstrap embedding calculations for each fragment.
@@ -307,7 +304,9 @@ def be_func(
         assert fobj.fock is not None and fobj.heff is not None
 
         # Perform SCF calculation
-        fobj.scf() # defined in pfrag.py
+        fobj.scf()
+
+        # Solve using the specified solver
         assert fobj._mf is not None
         # Solve using the specified solver
         if (update_list is not None and i in update_list) or (update_list is None):
