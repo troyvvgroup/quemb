@@ -1041,7 +1041,9 @@ class BE:
         E_hf = 0.0
         for fobjs_ in self.Fobjs:
             eri = array(file_eri.get(fobjs_.dname))
-            _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
+            _, fobjs_.nsocc = fobjs_.get_nsocc(
+                self.S, self.C, self.Nocc, ncore=self.ncore
+            )
 
             assert fobjs_.TA is not None
             fobjs_.h1 = multi_dot((fobjs_.TA.T, self.hcore, fobjs_.TA))
