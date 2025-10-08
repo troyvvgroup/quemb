@@ -147,6 +147,7 @@ def get_scfObj(
             print(flush=True)
             print("SCF Converged!", flush=True)
             print(flush=True)
+
     return mf_
 
 
@@ -224,7 +225,6 @@ def get_frag_energy(
     TA,
     h1,
     rdm1,
-    rdm2s_so,
     dname,
     veff0=None,
     veff=None,
@@ -274,14 +274,11 @@ def get_frag_energy(
         List containing the energy contributions: [e1_tmp, e2_tmp, ec_tmp].
     """
     # Rotate the RDM1 into the MO basis
-    rdm1s_rot = (
-        mo_coeffs @ rdm1 @ mo_coeffs.T * 0.5
-    )  # contains HF and correlation parts, now in MO basis
+    rdm1s_rot = mo_coeffs @ rdm1 @ mo_coeffs.T * 0.5
 
     # Construct the Hartree-Fock 1-RDM
-    hf_1rdm = (
-        mo_coeffs[:, :nsocc] @ mo_coeffs[:, :nsocc].conj().T
-    )  # just the HF parts, in MO basis
+    hf_1rdm = mo_coeffs[:, :nsocc] @ mo_coeffs[:, :nsocc].conj().T
+
     if use_cumulant:
         delta_rdm1 = 2 * (
             rdm1s_rot - hf_1rdm
@@ -310,7 +307,7 @@ def get_frag_energy(
 
     # Rotate the RDM2 into the MO basis
     rdm2s = einsum(
-        "ijkl,pi,qj,rk,sl->pqrs", 0.5 * rdm2s_so, *([mo_coeffs] * 4), optimize=True
+        "ijkl,pi,qj,rk,sl->pqrs", 0.5 * rdm2s, *([mo_coeffs] * 4), optimize=True
     )
     # Initialize the two-electron energy contribution
     e2 = zeros_like(e1)
@@ -340,7 +337,7 @@ def get_frag_energy(
         e2_tmp += weight_and_relAO_per_center[0] * e2[i]
         ec_tmp += weight_and_relAO_per_center[0] * ec[i]
 
-    return [e1_tmp, e2_tmp, ec_tmp], delta_rdm1_so, rdm2s_so
+    return [e1_tmp, e2_tmp, ec_tmp]
 
 
 def get_frag_energy_u(
