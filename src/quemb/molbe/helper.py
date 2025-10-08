@@ -20,6 +20,7 @@ from numpy.linalg import multi_dot
 from pyscf import ao2mo, gto, lib, scf
 from pyscf.gto.mole import Mole
 from pyscf.pbc.gto.cell import Cell
+
 from quemb.shared.helper import ncore_
 from quemb.shared.typing import Matrix
 
@@ -214,11 +215,12 @@ def get_core(mol: Mole | Cell) -> tuple[int, list[int], list[int]]:
 
     return (Ncore, idx, corelist)
 
+
 def get_frag_energy_nonupdated(
     mo_coeffs,
-    nsocc,                          
-    n_frag,                         
-    weight_and_relAO_per_center,    
+    nsocc,
+    n_frag,
+    weight_and_relAO_per_center,
     TA,
     h1,
     rdm1,
@@ -226,10 +228,9 @@ def get_frag_energy_nonupdated(
     dname,
     veff0=None,
     veff=None,
-    use_cumulant=True,              
+    use_cumulant=True,
     eri_file="eri_file.h5",
 ):
-
     # Calculate the one-electron contributions
     e1 = einsum("ij,ij->i", h1[:n_frag], rdm1[:n_frag])
     ec = einsum("ij,ij->i", veff0[:n_frag], rdm1[:n_frag])
@@ -250,7 +251,7 @@ def get_frag_energy_nonupdated(
     # Initialize the two-electron energy contribution
     e2 = zeros_like(e1)
 
-    print(f"You can find the cumulant part of the RDM2 that you care about here")
+    print("You can find the cumulant part of the RDM2 that you care about here")
     # Calculate the two-electron energy contribution
     for i in range(n_frag):
         for j in range(jmax):
@@ -277,7 +278,7 @@ def get_frag_energy_nonupdated(
         ec_tmp += weight_and_relAO_per_center[0] * ec[i]
 
     return [e1_tmp, e2_tmp, ec_tmp]
- 
+
 
 def get_frag_energy(
     mo_coeffs,
@@ -337,14 +338,22 @@ def get_frag_energy(
         List containing the energy contributions: [e1_tmp, e2_tmp, ec_tmp].
     """
     # Rotate the RDM1 into the MO basis
-    rdm1s_rot = mo_coeffs @ rdm1 @ mo_coeffs.T * 0.5 # contains HF and correlation parts, now in MO basis
+    rdm1s_rot = (
+        mo_coeffs @ rdm1 @ mo_coeffs.T * 0.5
+    )  # contains HF and correlation parts, now in MO basis
 
     # Construct the Hartree-Fock 1-RDM
-    hf_1rdm = mo_coeffs[:, :nsocc] @ mo_coeffs[:, :nsocc].conj().T # just the HF parts, in MO basis
+    hf_1rdm = (
+        mo_coeffs[:, :nsocc] @ mo_coeffs[:, :nsocc].conj().T
+    )  # just the HF parts, in MO basis
     if use_cumulant:
-        delta_rdm1 = 2 * (rdm1s_rot - hf_1rdm) # just the correlation parts, in MO basis
-        delta_rdm1_so = mo_coeffs.T @ delta_rdm1 @ mo_coeffs # rotate back into the SO basis
-        
+        delta_rdm1 = 2 * (
+            rdm1s_rot - hf_1rdm
+        )  # just the correlation parts, in MO basis
+        delta_rdm1_so = (
+            mo_coeffs.T @ delta_rdm1 @ mo_coeffs
+        )  # rotate back into the SO basis
+
         # Calculate the one-electron contributions
         e1 = einsum("ij,ij->i", h1[:n_frag], delta_rdm1[:n_frag])
         ec = einsum("ij,ij->i", veff0[:n_frag], delta_rdm1[:n_frag])
@@ -394,7 +403,7 @@ def get_frag_energy(
         e1_tmp += weight_and_relAO_per_center[0] * e1[i]
         e2_tmp += weight_and_relAO_per_center[0] * e2[i]
         ec_tmp += weight_and_relAO_per_center[0] * ec[i]
- 
+
     return [e1_tmp, e2_tmp, ec_tmp], delta_rdm1_so, rdm2s_so
 
 
