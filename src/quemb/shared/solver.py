@@ -27,7 +27,7 @@ from pyscf.mp.mp2 import MP2
 from pyscf.scf.hf import RHF
 
 from quemb.kbe.pfrag import Frags as pFrags
-from quemb.molbe.helper import get_frag_energy, get_frag_energy_u, get_frag_energy_nonupdated
+from quemb.molbe.helper import get_frag_energy, get_frag_energy_u
 from quemb.molbe.pfrag import Frags
 from quemb.shared.external.ccsd_rdm import (
     make_rdm1_uccsd,
