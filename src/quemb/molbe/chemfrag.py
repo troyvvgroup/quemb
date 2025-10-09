@@ -1051,6 +1051,7 @@ class PurelyStructureFragmented(Generic[_T_chemsystem]):
 
         Can, for example, be used to order the fragments by size.
         """
+        assert set(idx) == set(range(len(idx)))
         return self.__class__(
             mol=self.mol,
             motifs_per_frag=_reorder(self.motifs_per_frag, idx),
@@ -1560,6 +1561,7 @@ class Fragmented(Generic[_T_chemsystem]):
 
         Can, for example, be used to order the fragments by size.
         """
+        assert set(idx) == set(range(len(idx)))
         return self.__class__(
             mol=self.mol,
             conn_data=self.conn_data,
@@ -1609,6 +1611,7 @@ class ChemFragPart(FragPart):
 
         Can, for example, be used to order the fragments by size.
         """
+        assert set(idx) == set(range(len(idx)))
         return self.__class__(
             mol=self.mol,
             frag_type=self.frag_type,
