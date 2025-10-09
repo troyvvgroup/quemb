@@ -139,7 +139,7 @@ def fragmentate(
 def _order_by_decreasing_size(fragments: FragPart) -> FragPart:
     """Order by decreasing fragment size"""
     idx = np.argsort([-len(motifs) for motifs in fragments.AO_per_frag], stable=True)
-    return fragments.reindex(idx)  # type: ignore[arg-type]
+    return fragments.reorder_frags(idx)  # type: ignore[arg-type]
 
 
 def _correct_number_of_centers(fragpart: FragPart) -> bool:

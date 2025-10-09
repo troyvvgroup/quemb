@@ -85,6 +85,10 @@ def _iloc(view: Iterable[T], n: int) -> T:
     return next(x for i, x in enumerate(iter(view)) if i == n)
 
 
+def _reorder(seq: Sequence[T], idx: Sequence[int] | Vector[np.integer]) -> list[T]:
+    return [seq[i] for i in idx]  # type: ignore[index]
+
+
 def _flatten(nested: Iterable[Iterable[T]]) -> list[T]:
     return list(chain(*nested))
 
@@ -1042,6 +1046,19 @@ class PurelyStructureFragmented(Generic[_T_chemsystem]):
         """
         return len(self.conn_data.motifs) != sum(len(x) for x in self.centers_per_frag)
 
+    def reorder_frags(self, idx: Sequence[int] | Vector[np.integer]) -> Self:
+        return self.__class__(
+            mol=self.mol,
+            motifs_per_frag=_reorder(self.motifs_per_frag, idx),
+            centers_per_frag=_reorder(self.centers_per_frag, idx),
+            edges_per_frag=_reorder(self.edges_per_frag, idx),
+            origin_per_frag=_reorder(self.origin_per_frag, idx),
+            atoms_per_frag=_reorder(self.atoms_per_frag, idx),
+            ref_frag_idx_per_edge=_reorder(self.ref_frag_idx_per_edge, idx),
+            conn_data=self.conn_data,
+            n_BE=self.n_BE,
+        )
+
 
 @define(frozen=True, kw_only=True)
 class Fragmented(Generic[_T_chemsystem]):
@@ -1534,6 +1551,26 @@ class Fragmented(Generic[_T_chemsystem]):
             assert wrong_iao_indexing is not None
             return self._get_FragPart_with_iao(wrong_iao_indexing)
 
+    def reorder_frags(self, idx: Sequence[int] | Vector[np.integer]) -> Self:
+        return self.__class__(
+            mol=self.mol,
+            conn_data=self.conn_data,
+            frag_structure=self.frag_structure.reorder_frags(idx),
+            AO_per_atom=self.AO_per_atom,
+            AO_per_frag=_reorder(self.AO_per_frag, idx),
+            AO_per_motif=self.AO_per_motif,
+            AO_per_edge_per_frag=_reorder(self.AO_per_edge_per_frag, idx),
+            relAO_per_center_per_frag=_reorder(self.relAO_per_center_per_frag, idx),
+            relAO_per_origin_per_frag=_reorder(self.relAO_per_origin_per_frag, idx),
+            relAO_in_ref_per_edge_per_frag=_reorder(
+                self.relAO_in_ref_per_edge_per_frag, idx
+            ),
+            relAO_per_motif_per_frag=_reorder(self.relAO_per_motif_per_frag, idx),
+            relAO_per_edge_per_frag=_reorder(self.relAO_per_edge_per_frag, idx),
+            frozen_core=self.frozen_core,
+            iao_valence_mol=self.iao_valence_mol,
+        )
+
 
 @define(kw_only=True, hash=False)
 class ChemFragPart(FragPart):
@@ -1559,37 +1596,32 @@ class ChemFragPart(FragPart):
         return not (self == other)
 
     @override
-    def reindex(self, idx: Sequence[int] | Vector) -> Self:
-        def _get_elements(seq: Sequence[T], idx: Sequence[int] | Vector) -> list[T]:
-            return [seq[i] for i in idx]  # type: ignore[index]
-
+    def reorder_frags(self, idx: Sequence[int] | Vector[np.integer]) -> Self:
         return self.__class__(
             mol=self.mol,
             frag_type=self.frag_type,
             n_BE=self.n_BE,
-            AO_per_frag=_get_elements(self.AO_per_frag, idx),
-            AO_per_edge_per_frag=_get_elements(self.AO_per_edge_per_frag, idx),
-            ref_frag_idx_per_edge_per_frag=_get_elements(
+            AO_per_frag=_reorder(self.AO_per_frag, idx),
+            AO_per_edge_per_frag=_reorder(self.AO_per_edge_per_frag, idx),
+            ref_frag_idx_per_edge_per_frag=_reorder(
                 self.ref_frag_idx_per_edge_per_frag, idx
             ),
-            relAO_per_edge_per_frag=_get_elements(self.relAO_per_edge_per_frag, idx),
-            relAO_in_ref_per_edge_per_frag=_get_elements(
+            relAO_per_edge_per_frag=_reorder(self.relAO_per_edge_per_frag, idx),
+            relAO_in_ref_per_edge_per_frag=_reorder(
                 self.relAO_in_ref_per_edge_per_frag, idx
             ),
-            relAO_per_origin_per_frag=_get_elements(
-                self.relAO_per_origin_per_frag, idx
-            ),
-            weight_and_relAO_per_center_per_frag=_get_elements(
+            relAO_per_origin_per_frag=_reorder(self.relAO_per_origin_per_frag, idx),
+            weight_and_relAO_per_center_per_frag=_reorder(
                 self.weight_and_relAO_per_center_per_frag, idx
             ),
-            motifs_per_frag=_get_elements(self.motifs_per_frag, idx),
-            origin_per_frag=_get_elements(self.origin_per_frag, idx),
+            motifs_per_frag=_reorder(self.motifs_per_frag, idx),
+            origin_per_frag=_reorder(self.origin_per_frag, idx),
             H_per_motif=self.H_per_motif,
-            add_center_atom=_get_elements(self.add_center_atom, idx),
+            add_center_atom=_reorder(self.add_center_atom, idx),
             frozen_core=self.frozen_core,
             iao_valence_basis=self.iao_valence_basis,
             iao_valence_only=self.iao_valence_only,
-            fragmented=self.fragmented,
+            fragmented=self.fragmented.reorder_frags(idx),
         )
 
 
