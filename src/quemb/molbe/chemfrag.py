@@ -1047,6 +1047,10 @@ class PurelyStructureFragmented(Generic[_T_chemsystem]):
         return len(self.conn_data.motifs) != sum(len(x) for x in self.centers_per_frag)
 
     def reorder_frags(self, idx: Sequence[int] | Vector[np.integer]) -> Self:
+        """Reorder the fragments of self.
+
+        Can, for example, be used to order the fragments by size.
+        """
         return self.__class__(
             mol=self.mol,
             motifs_per_frag=_reorder(self.motifs_per_frag, idx),
@@ -1552,6 +1556,10 @@ class Fragmented(Generic[_T_chemsystem]):
             return self._get_FragPart_with_iao(wrong_iao_indexing)
 
     def reorder_frags(self, idx: Sequence[int] | Vector[np.integer]) -> Self:
+        """Reorder the fragments of self.
+
+        Can, for example, be used to order the fragments by size.
+        """
         return self.__class__(
             mol=self.mol,
             conn_data=self.conn_data,
@@ -1597,6 +1605,10 @@ class ChemFragPart(FragPart):
 
     @override
     def reorder_frags(self, idx: Sequence[int] | Vector[np.integer]) -> Self:
+        """Reorder the fragments of self.
+
+        Can, for example, be used to order the fragments by size.
+        """
         return self.__class__(
             mol=self.mol,
             frag_type=self.frag_type,
