@@ -1121,6 +1121,8 @@ class BE:
 
                 occ_cno = None
                 vir_cno = None
+                occ_cno_eigvals = None
+                vir_cno_eigvals = None
                 if nocc_add_cno > 0 or cno_thresh is not None:
                     # Occupied nsocc (using TA_occ)
                     nsocc_occ = fobjs_.return_nsocc_only(
