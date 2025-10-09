@@ -5,7 +5,7 @@ from attrs import define
 from numpy import float64, floating
 from pyscf import ao2mo, gto, scf
 
-from quemb.molbe.helper import get_scfObj
+from quemb.molbe.helper import get_core, get_scfObj
 from quemb.shared.typing import Matrix
 
 CNO_Schemes = Literal["Proportional", "ProportionalQQ", "ExactFragmentSize"]
@@ -27,13 +27,13 @@ class CNOArgs:
         orbitals in the fragment corresponds to the number of electrons in the
         Schmidt space.
     2. ProportionalQQ: Similar to the Proportional scheme, but now we are also adding
-        occupied orbitals. We first add occupied orbitals until (), then augment with
-        virtual orbitals until we reach the proportion in (1).
+        occupied orbitals. We add a total of 1/2 * N_f orbitals. We add both OCNOs and
+        VCNOs until we reach virtual orbitals until we reach the proportion in (1).
     3. ExactFragmentSize: Enforcing that we add CNOs until each fragment is exactly the
         size given by `tot_active_orbs`.
         Coupled with `cno_active_fragsize_scheme` with type `CNO_FragSize_Schemes`, we
         will add virtual CNOs until we reach the proportion given in (1). If we request
-       i'm more orbitals to be added, we rely on CNO_FragSize_Schemes to either add only
+        more orbitals to be added, we rely on CNO_FragSize_Schemes to either add only
         virtuals (`AddVirtuals`) or add both occupied and virtual CNOs to maintain (as
         close as we can) that ratio (`AddBoth`).
 
@@ -58,6 +58,7 @@ def get_cnos(
     S: Matrix[floating],
     nsocc: int,
     nocc: int,
+    core_veff: Matrix[floating] | None,
     occ: bool,
 ) -> Matrix:
     """Generates the occupied or virtual CNOs for a given fragment.
@@ -92,22 +93,18 @@ def get_cnos(
 
     """
     # TA_x is either TA_occ or TA_vir, aligning with occ=True or False
-
-    # Generate 1 and 2 electron orbitals in modified Schmidt space
     eri_schmidt = ao2mo.incore.full(eri_full, TA_x, compact=True)
 
-    if nocc - nsocc == 0:
-        h_schmidt = np.einsum(
-            "mp,nq,mn->pq", TA_x, TA_x, hcore_full
-        )
-    else:
-        h_schmidt = preparing_h_cnos(
+    h_schmidt = preparing_h_cnos(
+            nocc - nsocc,
             C[:,:nocc],
             S,
             hcore_full,
             TA_x,
             veff_full,
-            eri_schmidt)
+            core_veff,
+            eri_schmidt
+    )
 
     # Get semicanonicalized C by solving HF with these 1 and 2 e integrals
     mf_SC = get_scfObj(h_schmidt, eri_schmidt, nsocc)
@@ -145,26 +142,37 @@ def get_cnos(
 
 
 def preparing_h_cnos(
+    nvir,
     hf_Cocc,
     S,
     h,
     TA_x,
-    hf_Veff,
+    hf_veff,
+    core_veff,
     eri_s,
 ):
-    ST = S @ TA_x
-    G_s = TA_x.T @ hf_Veff @ TA_x
+    if nvir == 0:
+        h_rot = np.einsum("mp,nq,mn->pq", TA_x, TA_x, h, optimize=True)
+        G_envs = np.zeros_like(h_rot)
+    
+    else:
+        ST = S @ TA_x
+        G_s = TA_x.T @ hf_veff @ TA_x
 
-    P_act = hf_Cocc @ hf_Cocc.T
-    P_fbs = ST.T @ P_act @ ST
+        P_act = hf_Cocc @ hf_Cocc.T
+        P_fbs = ST.T @ P_act @ ST
 
-    vj, vk = scf.hf.dot_eri_dm(eri_s, P_fbs, hermi=1)
-    G_fbs = 2.0 * vj - vk
+        vj, vk = scf.hf.dot_eri_dm(eri_s, P_fbs, hermi=1)
+        G_fbs = 2.0 * vj - vk
 
-    h_rot = TA_x.T @ h @ TA_x
-    G_envs = G_s - G_fbs
+        h_rot = TA_x.T @ h @ TA_x
+        G_envs = G_s - G_fbs
 
-    hs = h_rot + G_envs
+    G_core = np.zeros_like(h_rot)
+    if core_veff is not None:
+        G_core = TA_x.T @ core_veff @ TA_x
+
+    hs = h_rot + G_envs + G_core
 
     return hs
 
@@ -177,6 +185,7 @@ def choose_cnos(
     n_full_occ: int,
     n_full_vir: int,
     nsocc: int,
+    frz_core: bool,
     args: CNOArgs | None,
 ) -> Tuple[int, int]:
     """Chooses the number of Occupied and Virtual CNOs for a given fragment
@@ -197,6 +206,8 @@ def choose_cnos(
         Total number of virtual environment orbitals for the system
     nsocc : int
         Number of occupied orbitals in the Schmidt space
+    frz_core: bool
+        Whether the core is frozen for the system
     args : CNOArgs
         Options for CNO schemes, with keyword `cno_scheme`: `Proportional`,
         `ProportionalQQ`, and `ExactFragmentSize`.
@@ -218,12 +229,25 @@ def choose_cnos(
     assert (args.cno_scheme == "ExactFragmentSize") == (
         args.tot_active_orbs is not None
     )
-    # Build mini fragment to figure out the number of electrons and orbitals
 
+    # Build mini fragment to figure out the number of electrons and orbitals
     mol = gto.M()
     mol.atom = file
     mol.basis = basis
+    # assigning nelec here rather than after build with charge
     nelec = mol.nelectron
+    try:
+        mol.charge = 0
+        mol.build()
+    except RuntimeError:
+        mol.charge = -1
+        mol.build()
+    
+    if frz_core:
+        # Find number of core orbitals in the fragment
+        frz_core_orbs = get_core(mol)[0]
+        # Update the "expected" number of electrons for the fragment
+        nelec -= 2 * frz_core_orbs
 
     if args.cno_scheme == "Proportional":
         # Ratio of the number of fragment orbitals to the number of expected
@@ -251,7 +275,7 @@ def choose_cnos(
         nocc_cno_add = max(int(np.round(total_orbs / prop - nsocc)), 0)
         nvir_cno_add = total_orbs - n_b - nocc_cno_add - n_f
 
-    elif args.cno_scheme == "ExactFragSize":
+    elif args.cno_scheme == "ExactFragmentSize":
         # Start by adding virtuals until `Proportional` is hit
         prop = n_f / (nelec / 2)
         max_vir_add_prop = np.round(prop * nsocc) - n_f - n_b
@@ -264,8 +288,8 @@ def choose_cnos(
         # the proportion above: see `Proportional`
         if args.cno_active_fragsize_scheme == "AddVirtuals":
             nocc_cno_add = 0
-            nvir_cno_add = args.tot_frag_orbs - n_f - n_b
-        elif args.cno_tot_frag_scheme == "AddBoth":
+            nvir_cno_add = args.tot_active_orbs - n_f - n_b
+        elif args.cno_active_fragsize_scheme == "AddBoth":
             if 0 <= args.tot_active_orbs - n_f - n_b <= max_vir_add_prop:
                 nocc_cno_add = 0
                 nvir_cno_add = args.tot_active_orbs - n_f - n_b

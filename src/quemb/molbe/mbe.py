@@ -1,6 +1,6 @@
 # Author(s): Oinam Romesh Meitei
-
 import logging
+import os
 import pickle
 from typing import Final, Literal, TypeAlias
 from warnings import warn
@@ -1094,8 +1094,10 @@ class BE:
                 thr_bath=self.thr_bath,
                 add_cnos=self.add_cnos,
                 )
+
             # Calculating and Adding CNOs, if requested
             if self.add_cnos:
+                # Standard nsocc for the fragment
                 nsocc_standard = fobjs_.return_nsocc_only(
                     self.S,
                     self.C,
@@ -1111,9 +1113,10 @@ class BE:
                     fobjs_.TA_cno_occ.shape[1], # occupied-augmented size 
                     fobjs_.TA_cno_vir.shape[1], # virtual-augmented size
                     nsocc_standard, # number of occupied orbitals in fragment
-                    self.additional_args,
+                    self.frozen_core, # whether the core is frozen
+                    self.additional_args, # CNO scheme arguments
                 )
-
+                os.remove("f"+str(I)+".xyz")
                 # Update bath orbital count
                 fobjs_.n_b = fobjs_.n_b + nocc_add_cno + nvir_add_cno
 
@@ -1124,8 +1127,8 @@ class BE:
 
                 occ_cno = None
                 vir_cno = None
-                if nocc_add_cno >= 0:
-                    # Generate occupied CNOs
+                if nocc_add_cno > 0:
+                    # Occupied nsocc (using TA_occ)
                     nsocc_occ = fobjs_.return_nsocc_only(
                         self.S,
                         self.C,
@@ -1133,6 +1136,7 @@ class BE:
                         self.Nocc,
                         ncore=self.ncore,
                     )
+                    # Generate occupied CNOs
                     occ_cno = get_cnos(
                         fobjs_.TA.shape[1], # number of fragment and bath orbitals
                         fobjs_.TA_cno_occ, # TA occupied expanded
@@ -1143,10 +1147,11 @@ class BE:
                         self.S,
                         nsocc_occ,
                         self.Nocc,
+                        self.core_veff if self.frozen_core else None,
                         occ = True,
                     )
-                if nvir_add_cno >= 0:
-                    # Generate virtual CNOs
+                if nvir_add_cno > 0:
+                    # Virtual nsocc (using TA_vir)
                     nsocc_vir = fobjs_.return_nsocc_only(
                         self.S,
                         self.C,
@@ -1154,6 +1159,7 @@ class BE:
                         self.Nocc,
                         ncore=self.ncore,
                     )
+                    # Generate virtual CNOs
                     vir_cno = get_cnos(
                         fobjs_.TA.shape[1], # number of fragment and bath orbitals
                         fobjs_.TA_cno_vir, # TA virtual expanded
@@ -1164,6 +1170,7 @@ class BE:
                         self.S,
                         nsocc_vir,
                         self.Nocc,
+                        self.core_veff if self.frozen_core else None,
                         occ = False,
                     )
                 fobjs_.TA = augment_w_cnos(
