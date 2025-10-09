@@ -299,7 +299,6 @@ def choose_cnos(
             else:
                 nocc_cno_add = np.round(args.tot_active_orbs / prop) - nsocc
                 nvir_cno_add = args.tot_active_orbs - n_f - n_b - nocc_cno_add
-
     if nocc_cno_add + n_f + n_b > n_full_occ:
         raise RuntimeError(
             "Request to add more occupied CNOs than exist. Choose different CNO scheme"
