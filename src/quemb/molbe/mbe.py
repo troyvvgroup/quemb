@@ -1105,7 +1105,7 @@ class BE:
                     self.Nocc,
                     ncore=self.ncore,
                 )
-                (nocc_add_cno, nvir_add_cno) = choose_cnos(
+                nocc_add_cno, nvir_add_cno, cno_thresh = choose_cnos(
                     "f"+str(I)+".xyz", # geometry
                     self.mf.mol.basis, # basis
                     fobjs_.n_f, # number of fragment orbitals
@@ -1118,17 +1118,10 @@ class BE:
                     self.additional_args, # CNO scheme arguments
                 )
                 os.remove("f"+str(I)+".xyz")
-                # Update bath orbital count
-                fobjs_.n_b = fobjs_.n_b + nocc_add_cno + nvir_add_cno
-
-                print(f"For Fragment {I:>3.0f}:", flush=True)
-                print(f"          {nocc_add_cno:>3.0f}: Occupied CNOs", flush=True)
-                print(f"          {nvir_add_cno:>3.0f}: Virtual CNOs", flush=True)
-                print(f"{fobjs_.n_f:>3.0f}, {fobjs_.n_b:>3.0f}, {fobjs_.n_f+fobjs_.n_b:>3.0f}: Fragment, Bath, Total Orbitals", flush=True)  # noqa: E501
 
                 occ_cno = None
                 vir_cno = None
-                if nocc_add_cno > 0:
+                if nocc_add_cno > 0 or cno_thresh is not None:
                     # Occupied nsocc (using TA_occ)
                     nsocc_occ = fobjs_.return_nsocc_only(
                         self.S,
@@ -1138,7 +1131,7 @@ class BE:
                         ncore=self.ncore,
                     )
                     # Generate occupied CNOs
-                    occ_cno = get_cnos(
+                    occ_cno, occ_cno_eigvals = get_cnos(
                         fobjs_.TA.shape[1], # number of fragment and bath orbitals
                         fobjs_.TA_cno_occ, # TA occupied expanded
                         self.hcore, # hcore
@@ -1151,7 +1144,7 @@ class BE:
                         self.core_veff if self.frozen_core else None,
                         occ = True,
                     )
-                if nvir_add_cno > 0:
+                if nvir_add_cno > 0 or cno_thresh is not None:
                     # Virtual nsocc (using TA_vir)
                     nsocc_vir = fobjs_.return_nsocc_only(
                         self.S,
@@ -1161,7 +1154,7 @@ class BE:
                         ncore=self.ncore,
                     )
                     # Generate virtual CNOs
-                    vir_cno = get_cnos(
+                    vir_cno, vir_cno_eigvals = get_cnos(
                         fobjs_.TA.shape[1], # number of fragment and bath orbitals
                         fobjs_.TA_cno_vir, # TA virtual expanded
                         self.hcore, # hcore
@@ -1174,13 +1167,24 @@ class BE:
                         self.core_veff if self.frozen_core else None,
                         occ = False,
                     )
-                fobjs_.TA = augment_w_cnos(
+                # Augment TA with the correct number of OCNOs and VCNOs
+                fobjs_.TA, nocc_add_cno, nvir_add_cno = augment_w_cnos(
                     fobjs_.TA,
                     nocc_add_cno,
                     nvir_add_cno,
+                    occ_cno_eigvals,
+                    vir_cno_eigvals,
                     occ_cno,
-                    vir_cno
+                    vir_cno,
+                    cno_thresh,
                 )
+                # Update bath orbital count
+                fobjs_.n_b = fobjs_.TA.shape[1] - fobjs_.n_f
+
+                print(f"For Fragment {I:>3.0f}:", flush=True)
+                print(f"          {nocc_add_cno:>3.0f}: Occupied CNOs", flush=True)
+                print(f"          {nvir_add_cno:>3.0f}: Virtual CNOs", flush=True)
+                print(f"{fobjs_.n_f:>3.0f}, {fobjs_.n_b:>3.0f}, {fobjs_.n_f+fobjs_.n_b:>3.0f}: Fragment, Bath, Total Orbitals", flush=True)  # noqa: E501
 
                 # Update relevant fobjs_ attributes
                 fobjs_.nao = fobjs_.TA.shape[1]

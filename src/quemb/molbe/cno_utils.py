@@ -153,7 +153,7 @@ def get_cnos(
     # Generate cluster natural orbitals, rotating into AO basis
     cnos = TA_x @ PNO
 
-    return cnos
+    return cnos, P_mat_eigvals
 
 
 def preparing_h_cnos(
@@ -267,6 +267,7 @@ def choose_cnos(
         # Update the "expected" number of electrons for the fragment
         nelec -= 2 * frz_core_orbs
 
+    cno_thresh = None
     if args.cno_scheme == "Proportional":
         # Ratio of the number of fragment orbitals to the number of expected
         # occupied orbitals, based on the atoms in the fragment
@@ -281,7 +282,7 @@ def choose_cnos(
         if isinstance(prop, int):
             nvir_cno_add = prop - n_f - n_b
         else:
-            nvir_cno_add = np.round(prop * nsocc) - n_f - n_b
+            nvir_cno_add = int(np.round(prop * nsocc) - n_f - n_b)
 
     elif args.cno_scheme == "ProportionalQQ":
         # Same ratio as above
@@ -290,7 +291,7 @@ def choose_cnos(
         # Add enough orbitals to fit the proportion, where the total number of orbitals
         # is some 1.5 * the size of the fragment and the bath
         total_orbs = int(1.5 * n_f) + n_b
-        nocc_cno_add = max(int(np.round(total_orbs / prop - nsocc)), 0)
+        nocc_cno_add = int(max(int(np.round(total_orbs / prop - nsocc)), 0))
         nvir_cno_add = total_orbs - n_b - nocc_cno_add - n_f
 
     elif args.cno_scheme == "HalfFilled":
@@ -300,8 +301,9 @@ def choose_cnos(
         nvir_cno_add = min(n_f, nocc) - n_b - nocc_cno_add
 
     elif args.cno_scheme == "Threshold":
-        raise NotImplementedError("Threshold not yet implemented")
-        
+        nocc_cno_add = nvir_cno_add = 0
+        cno_thresh = args.cno_thresh
+
     elif args.cno_scheme == "ExactFragmentSize":
         # Start by adding virtuals until `Proportional` is hit
         prop = n_f / (nelec / 2)
@@ -329,16 +331,17 @@ def choose_cnos(
             else:
                 nocc_cno_add = np.round(args.tot_active_orbs / prop) - nsocc
                 nvir_cno_add = args.tot_active_orbs - n_f - n_b - nocc_cno_add
-    if nocc_cno_add + n_f + n_b > n_full_occ:
-        raise RuntimeError(
-            "Request to add more occupied CNOs than exist. Choose different CNO scheme"
-        )
-    elif nvir_cno_add + n_f + n_b > n_full_vir:
-        raise RuntimeError(
-            "Request to add more virtual CNOs than exist. Choose different CNO scheme"
-        )
+    if args.cno_scheme != "Threshold":
+        if nocc_cno_add + n_f + n_b > n_full_occ:
+            raise RuntimeError(
+                "Request to add more OCNOs than exist. Choose different CNO scheme"
+            )
+        elif nvir_cno_add + n_f + n_b > n_full_vir:
+            raise RuntimeError(
+                "Request to add more VCNOs than exist. Choose different CNO scheme"
+            )
 
-    return int(nocc_cno_add), int(nvir_cno_add)
+    return nocc_cno_add, nvir_cno_add, cno_thresh
 
 
 def FormPairDensity(
@@ -409,10 +412,13 @@ def FormPairDensity(
 
 def augment_w_cnos(
     TA: Matrix[float64],
-    nocc_cno: int,
-    nvir_cno: int,
+    nocc_cno: int | None,
+    nvir_cno: int | None,
+    occ_cno_eigvals: Matrix[floating] | None,
+    vir_cno_eigvals: Matrix[floating] | None, 
     occ_cno: Matrix[floating] | None,
     vir_cno: Matrix[floating] | None,
+    thresh: float | None = None,
 ) -> Matrix:
     """Augmenting TA with the chosen occupied and virtual CNOs
 
@@ -420,25 +426,48 @@ def augment_w_cnos(
     ----------
     TA : Matrix
         Original Schmidt space TA matrix
-    nocc_cno : int
-        Number of occupied CNOs to augment
-    nvir_cno : int
-        Number of virtual CNOs to augment
+    nocc_cno : int or None
+        Number of occupied CNOs to augment, if int
+        OR threshold for occupied CNOs, if None
+    nvir_cno : int or None
+        Number of virtual CNOs to augment, if int
+        OR threshold for virtual CNOs, if None
+    occ_cno_eigvals : Matrix or None
+        The eigenvalues from the occupied pair density, used for thesholding
+        OCNOs if thresh is not None
+    vir_cno_eigvals : Matrix or None
+        The eigenvalues from the virtual pair density, used for thesholding
+        VCNOs if thresh is not None
     occ_cno : Matrix
         Full occupied CNO matrix
     vir_cno : Matrix
         Full virtual CNO matrix
+    thresh : float
+        Whether we are selecting CNOs based on a threshold
 
     Returns
     -------
     TA : Matrix
         Augmented TA matrix with CNOs
     """
-    if nocc_cno > 0:
-        assert occ_cno is not None
-        TA = np.hstack((TA, occ_cno[:, :nocc_cno]))
-    if nvir_cno > 0:
-        assert vir_cno is not None
-        TA = np.hstack((TA, vir_cno[:, -nvir_cno:]))
+    if thresh is None:
+        if nocc_cno > 0:
+            assert occ_cno is not None
+            TA = np.hstack((TA, occ_cno[:, :nocc_cno]))
+        if nvir_cno > 0:
+            assert vir_cno is not None
+            TA = np.hstack((TA, vir_cno[:, -nvir_cno:]))
+    else:
+        occ_ind = np.argwhere(occ_cno_eigvals < (1 - thresh))
+        vir_ind = np.argwhere(vir_cno_eigvals > (thresh))
 
-    return TA
+        nocc_cno = occ_ind.shape[0]
+        nvir_cno = vir_ind.shape[0]
+        if nocc_cno > 0:
+            aug_occ = np.asarray([occ_cno[:, i] for [i] in occ_ind])
+            TA = np.hstack((TA, aug_occ.T))
+        if nvir_cno > 0:
+            aug_vir = np.asarray([vir_cno[:, i] for [i] in vir_ind])
+            TA = np.hstack((TA, aug_vir.T))
+
+    return TA, nocc_cno, nvir_cno
