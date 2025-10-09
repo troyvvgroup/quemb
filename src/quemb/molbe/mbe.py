@@ -1113,6 +1113,7 @@ class BE:
                     fobjs_.TA_cno_occ.shape[1], # occupied-augmented size 
                     fobjs_.TA_cno_vir.shape[1], # virtual-augmented size
                     nsocc_standard, # number of occupied orbitals in fragment
+                    self.Nocc, # total number of occupied orbitals
                     self.frozen_core, # whether the core is frozen
                     self.additional_args, # CNO scheme arguments
                 )

@@ -8,7 +8,14 @@ from pyscf import ao2mo, gto, scf
 from quemb.molbe.helper import get_core, get_scfObj
 from quemb.shared.typing import Matrix
 
-CNO_Schemes = Literal["Proportional", "ProportionalQQ", "ExactFragmentSize"]
+CNO_Schemes = Literal[
+    "Proportional",
+    "ProportionalQQ",
+    "HalfFilled",
+    "Threshold",
+    "ExactFragmentSize",
+]
+
 CNO_FragSize_Schemes = Literal["AddVirtuals", "AddBoth"]
 
 
@@ -16,7 +23,7 @@ CNO_FragSize_Schemes = Literal["AddVirtuals", "AddBoth"]
 class CNOArgs:
     """Additional arguments for CNOs.
     cno_scheme options (of type CNO_Schemes), for now, includes "Proportional",
-    "ProportionalQQ", and "ExactFragSize"
+    "ProportionalQQ", "HalfFilled", "Threshold", and "ExactFragSize"
 
     1. Proportional: Adding virtual CNOs ONLY until we reach our condition. We are
         making the fragments satisfy this condition:
@@ -29,7 +36,10 @@ class CNOArgs:
     2. ProportionalQQ: Similar to the Proportional scheme, but now we are also adding
         occupied orbitals. We add a total of 1/2 * N_f orbitals. We add both OCNOs and
         VCNOs until we reach virtual orbitals until we reach the proportion in (1).
-    3. ExactFragmentSize: Enforcing that we add CNOs until each fragment is exactly the
+    3. HalfFilled: We add orbitals until each fragment is half-occupied. Note that this
+        is in practice often a lot of occupied orbitals.
+    4. Threshold: We add orbitals based on a given threshold. Coupled with `cno_thresh`.
+    5. ExactFragmentSize: Enforcing that we add CNOs until each fragment is exactly the
         size given by `tot_active_orbs`.
         Coupled with `cno_active_fragsize_scheme` with type `CNO_FragSize_Schemes`, we
         will add virtual CNOs until we reach the proportion given in (1). If we request
@@ -40,12 +50,17 @@ class CNOArgs:
     If you choose `ExactFragmentSize`, you also must specify `tot_active_orbs`, which
     gives the total number of orbitals for each fragment. You can also add specify how
     these orbitals are chosen with the `cno_active_fragsize_scheme`. Default is
-    `AddVirtuals`.
+    `AddBoth`.
+
+    If you choose `Threshold`, you also must specify `cno_thresh`, which is the
+    the threshold from which CNOs are chosen. OCNOs with values below () and VCNOs with
+    values above () are added. Default value is X.
     """
 
     cno_scheme: CNO_Schemes = "Proportional"
     tot_active_orbs: int | None = None
-    cno_active_fragsize_scheme: CNO_FragSize_Schemes | None = "AddVirtuals"
+    cno_active_fragsize_scheme: CNO_FragSize_Schemes | None = "AddBoth"
+    cno_thresh: float | None = None
 
 
 def get_cnos(
@@ -185,6 +200,7 @@ def choose_cnos(
     n_full_occ: int,
     n_full_vir: int,
     nsocc: int,
+    nocc: int,
     frz_core: bool,
     args: CNOArgs | None,
 ) -> Tuple[int, int]:
@@ -206,6 +222,8 @@ def choose_cnos(
         Total number of virtual environment orbitals for the system
     nsocc : int
         Number of occupied orbitals in the Schmidt space
+    nocc : int
+        Total number of occupied orbitals
     frz_core: bool
         Whether the core is frozen for the system
     args : CNOArgs
@@ -275,6 +293,15 @@ def choose_cnos(
         nocc_cno_add = max(int(np.round(total_orbs / prop - nsocc)), 0)
         nvir_cno_add = total_orbs - n_b - nocc_cno_add - n_f
 
+    elif args.cno_scheme == "HalfFilled":
+        # We add enough occupied and virtual orbitals so that fragment is half filled
+        # Note that in practice, this tends to be a lot of occupied orbitals
+        nocc_cno_add = int(np.round(min(n_f, nocc) - nsocc))
+        nvir_cno_add = min(n_f, nocc) - n_b - nocc_cno_add
+
+    elif args.cno_scheme == "Threshold":
+        raise NotImplementedError("Threshold not yet implemented")
+        
     elif args.cno_scheme == "ExactFragmentSize":
         # Start by adding virtuals until `Proportional` is hit
         prop = n_f / (nelec / 2)
