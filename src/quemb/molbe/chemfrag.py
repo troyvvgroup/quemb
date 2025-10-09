@@ -1050,6 +1050,11 @@ class PurelyStructureFragmented(Generic[_T_chemsystem]):
         """Reorder the fragments of self.
 
         Can, for example, be used to order the fragments by size.
+
+        Parameters
+        ----------
+        idx :
+            The new index, has to be a permutation of :python:`[0, ..., len(self)]`.
         """
         assert set(idx) == set(range(len(idx)))
         return self.__class__(
@@ -1560,6 +1565,11 @@ class Fragmented(Generic[_T_chemsystem]):
         """Reorder the fragments of self.
 
         Can, for example, be used to order the fragments by size.
+
+        Parameters
+        ----------
+        idx :
+            The new index, has to be a permutation of :python:`[0, ..., len(self)]`.
         """
         assert set(idx) == set(range(len(idx)))
         return self.__class__(
@@ -1610,6 +1620,11 @@ class ChemFragPart(FragPart):
         """Reorder the fragments of self.
 
         Can, for example, be used to order the fragments by size.
+
+        Parameters
+        ----------
+        idx :
+            The new index, has to be a permutation of :python:`[0, ..., len(self)]`.
         """
         assert set(idx) == set(range(len(idx)))
         return self.__class__(
