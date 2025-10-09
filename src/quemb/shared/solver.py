@@ -326,7 +326,7 @@ def be_func(
                     rdm2_return=True,
                 )
             else:
-                # currently passing mycc: likely unnecessary
+                # currently passing mycc: this is likely unnecessary
                 fobj.t1, fobj.t2, rdm1_tmp, _ = solve_ccsd(  # mycc
                     fobj._mf,
                     mo_energy=fobj._mf.mo_energy,
