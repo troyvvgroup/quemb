@@ -16,7 +16,7 @@ CNO_Schemes = Literal[
     "ExactFragmentSize",
 ]
 
-CNO_FragSize_Schemes = Literal["AddVirtuals", "AddBoth"]
+CNO_FragSize_Schemes = Literal["AddOccupieds", "AddVirtuals", "AddBoth"]
 
 
 @define(frozen=True, kw_only=True)
@@ -49,8 +49,8 @@ class CNOArgs:
 
     If you choose `ExactFragmentSize`, you also must specify `tot_active_orbs`, which
     gives the total number of orbitals for each fragment. You can also add specify how
-    these orbitals are chosen with the `cno_active_fragsize_scheme`. Default is
-    `AddBoth`.
+    these orbitals are chosen with the `cno_active_fragsize_scheme`. Default (and
+    recommended option) is `AddBoth`.
 
     If you choose `Threshold`, you also must specify `cno_thresh`, which is the
     the threshold from which CNOs are chosen. OCNOs with values below () and VCNOs with
@@ -313,6 +313,9 @@ def choose_cnos(
         # We will add virtual CNOs until the ratio of ;the augmented
         # fragment space to the number of occupieds in the Schmidt spaces reaches
         # the proportion above: see `Proportional`
+        if args.cno_active_fragsize_scheme == "AddOccupieds":
+            nocc_cno_add = args.tot_active_orbs - n_f - n_b
+            nvir_cno_add = 0
         if args.cno_active_fragsize_scheme == "AddVirtuals":
             nocc_cno_add = 0
             nvir_cno_add = args.tot_active_orbs - n_f - n_b
