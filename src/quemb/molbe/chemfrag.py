@@ -76,10 +76,10 @@ from quemb.shared.typing import (
 # For now just stick to ``Sequence``.
 
 HTreatment: TypeAlias = Literal[
-    "treat_H_diff", # Default, treat H and heavy atoms differently, with bond dict
-    "treat_H_like_heavy_atom", # Treat all H as the same as a heavy atom
-    "at_most_one_H", # Enforce each H belonging to at most 1 motif
-    "exactly_one_H", # Enforce each H belonging to exactly 1 motif
+    "treat_H_diff",  # Default, treat H and heavy atoms differently, with bond dict
+    "treat_H_like_heavy_atom",  # Treat all H as the same as a heavy atom
+    "at_most_one_H",  # Enforce each H belonging to at most 1 motif
+    "exactly_one_H",  # Enforce each H belonging to exactly 1 motif
 ]
 
 
@@ -165,9 +165,9 @@ class BondConnectivity:
     H_per_motif: Final[Mapping[MotifIdx, OrderedSet[AtomIdx]]]
     #: All atoms per motif. Lists the motif/heavy atom first.
     atoms_per_motif: Final[Mapping[MotifIdx, OrderedSet[AtomIdx]]]
-    # How do we treat hdyrogen atoms? 
+    #: How do we treat hydrogen atoms?
     h_treatment: Final[HTreatment] = "treat_H_diff"
-    
+
     @classmethod
     def from_cartesian(
         cls,
@@ -278,7 +278,7 @@ class BondConnectivity:
                         for x in i_H_atoms & j_H_atoms:
                             if x not in shared_H:
                                 shared_H.append(x)
-            
+
             for h in shared_H:
                 h_dists = {}
                 for i in processed_bonds_atoms[h]:
@@ -293,9 +293,11 @@ class BondConnectivity:
                     processed_bonds_atoms[b].remove(h)
 
                 if len(min_bonds) > 1:
-                    print(f"H{h} is equidistant from >=2 heavy atoms. Choosing " \
-                    f"to be bound to the lowest index heavy atom {min_bonds[0]} " \
-                    f"of equidistant atoms {min_bonds}")
+                    print(
+                        f"H{h} is equidistant from >=2 heavy atoms. Choosing "
+                        f"to be bound to the lowest index heavy atom {min_bonds[0]} "
+                        f"of equidistant atoms {min_bonds}"
+                    )
                     for b in min_bonds[1:]:
                         processed_bonds_atoms[h].remove(b)
                         processed_bonds_atoms[b].remove(h)
@@ -305,12 +307,12 @@ class BondConnectivity:
         if h_treatment == "treat_H_diff":
             if not all_H_belong_to_motif():
                 raise ValueError(
-                    "Not all H belong to a motif. Modify the bond dictionary or" \
+                    "Not all H belong to a motif. Modify the bond dictionary or"
                     "change `h_treatment` assign all H atoms a motif"
                 )
             elif motifs_share_H():
                 raise ValueError(
-                    "Motifs share H. Modify the bond dictionary or change " \
+                    "Motifs share H. Modify the bond dictionary or change "
                     "h_treatment so that no motifs share a H."
                 )
             else:
@@ -325,18 +327,18 @@ class BondConnectivity:
                 )
         elif h_treatment == "treat_H_like_heavy_atom":
             return cls(
-                    processed_bonds_atoms,
-                    motifs,
-                    bonds_motif,
-                    H_atoms,
-                    H_per_motif,
-                    atoms_per_motif,
-                    h_treatment,
+                processed_bonds_atoms,
+                motifs,
+                bonds_motif,
+                H_atoms,
+                H_per_motif,
+                atoms_per_motif,
+                h_treatment,
             )
         elif h_treatment == "at_most_one_H":
             if not all_H_belong_to_motif():
                 raise ValueError(
-                    "Not all H belong to a motif. Modify the bond dictionary or" \
+                    "Not all H belong to a motif. Modify the bond dictionary or"
                     "change `h_treatment` assign all H atoms a motif"
                 )
 
@@ -347,17 +349,17 @@ class BondConnectivity:
                 return cls.from_cartesian(
                     m,
                     bonds_atoms=mod_bonds_atoms,
-                    h_treatment = "treat_H_diff",
+                    h_treatment="treat_H_diff",
                 )
             else:
                 return cls(
-                        processed_bonds_atoms,
-                        motifs,
-                        bonds_motif,
-                        H_atoms,
-                        H_per_motif,
-                        atoms_per_motif,
-                        h_treatment,
+                    processed_bonds_atoms,
+                    motifs,
+                    bonds_motif,
+                    H_atoms,
+                    H_per_motif,
+                    atoms_per_motif,
+                    h_treatment,
                 )
         elif h_treatment == "exactly_one_H":
             if all_H_belong_to_motif():
@@ -366,7 +368,7 @@ class BondConnectivity:
                     return cls.from_cartesian(
                         m,
                         bonds_atoms=mod_bonds_atoms,
-                        h_treatment = "treat_H_diff",
+                        h_treatment="treat_H_diff",
                     )
                 else:
                     return cls(
@@ -381,7 +383,7 @@ class BondConnectivity:
             else:
                 return NotImplementedError(
                     "Assignment for non-bonded H not yet implemented"
-                    )
+                )
 
     @classmethod
     def from_mole(
