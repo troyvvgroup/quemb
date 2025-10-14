@@ -309,12 +309,12 @@ class BondConnectivity:
                 raise ValueError(
                     "Not all H belong to a motif. Modify the bond dictionary or" \
                     "change `h_treatment` assign all H atoms a motif"
-                    )
+                )
             elif motifs_share_H():
                 raise ValueError(
                     "Motifs share H. Modify the bond dictionary or change " \
                     "h_treatment so that no motifs share a H."
-                    )
+                )
             else:
                 return cls(
                     processed_bonds_atoms,
@@ -334,13 +334,13 @@ class BondConnectivity:
                     H_per_motif,
                     atoms_per_motif,
                     h_treatment,
-                )
+            )
         elif h_treatment == "at_most_one_H":
             if not all_H_belong_to_motif():
                 raise ValueError(
                     "Not all H belong to a motif. Modify the bond dictionary or" \
                     "change `h_treatment` assign all H atoms a motif"
-                    )
+                )
 
             if motifs_share_H():
                 mod_bonds_atoms = enforce_one_H_per_motif()
@@ -350,7 +350,7 @@ class BondConnectivity:
                     m,
                     bonds_atoms=mod_bonds_atoms,
                     h_treatment = "treat_H_diff",
-                    )
+                )
             else:
                 return cls(
                         processed_bonds_atoms,
@@ -360,9 +360,30 @@ class BondConnectivity:
                         H_per_motif,
                         atoms_per_motif,
                         h_treatment,
-                    )
+                )
         elif h_treatment == "exactly_one_H":
-            return NotImplementedError("Not yet implemented!")
+            if all_H_belong_to_motif():
+                if motifs_share_H():
+                    mod_bonds_atoms = enforce_one_H_per_motif()
+                    return cls.from_cartesian(
+                        m,
+                        bonds_atoms=mod_bonds_atoms,
+                        h_treatment = "treat_H_diff",
+                    )
+                else:
+                    return cls(
+                        processed_bonds_atoms,
+                        motifs,
+                        bonds_motif,
+                        H_atoms,
+                        H_per_motif,
+                        atoms_per_motif,
+                        h_treatment,
+                    )
+            else:
+                return NotImplementedError(
+                    "Assignment for non-bonded H not yet implemented"
+                    )
 
     @classmethod
     def from_mole(
