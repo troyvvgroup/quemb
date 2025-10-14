@@ -75,9 +75,10 @@ from quemb.shared.typing import (
 # However, this is (currently) not possible in Python, see this issue:
 # https://github.com/python/mypy/issues/3331
 # For now just stick to ``Sequence``.
+
 HTreatment: TypeAlias = Literal[
     "treat_H_diff", # Default, treat H and heavy atoms differently, with bond dict
-    "treat_h_like_heavy_atoms", # Treat all H as the same as a heavy atom
+    "treat_H_like_heavy_atom", # Treat all H as the same as a heavy atom
     "at_most_one_H", # Enforce each H belonging to at most 1 motif
     "exactly_one_H", # Enforce each H belonging to exactly 1 motif
 ]
@@ -207,7 +208,7 @@ class BondConnectivity:
             How do we treat the hydrogen atoms? Options include:
             * "treat_H_diff": Default, treating each H different from heavy atoms. Using
               the given vdW_radius to determine which H belong to which motif
-            * "treat_h_like_heavy_atoms": Treating each H the same as the heavy atoms when
+            * "treat_H_like_heavy_atom": Treating each H the same as the heavy atoms when
               determining fragments
             * "at_most_one_H": Enforcing that each H can belong to at most one H, if a
               H is assigned to multiple motifs
@@ -239,7 +240,7 @@ class BondConnectivity:
                 ).items()
             }
 
-        if h_treatment == "treat_h_like_heavy_atoms":
+        if h_treatment == "treat_H_like_heavy_atom":
             motifs = OrderedSet(m.index)
         else:
             motifs = OrderedSet(m.loc[m.atom != "H", :].index)
@@ -336,7 +337,7 @@ class BondConnectivity:
                     atoms_per_motif,
                     h_treatment,
                 )
-        elif h_treatment == "treat_h_like_heavy_atoms":
+        elif h_treatment == "treat_H_like_heavy_atom":
             return cls(
                     processed_bonds_atoms,
                     motifs,
@@ -403,7 +404,7 @@ class BondConnectivity:
             How do we treat the hydrogen atoms? Options include:
             * "treat_H_diff": Default, treating each H different from heavy atoms. Using
               the given vdW_radius to determine which H belong to which motif
-            * "treat_h_like_heavy_atoms": Treating each H the same as the heavy atoms when
+            * "treat_H_like_heavy_atom": Treating each H the same as the heavy atoms when
               determining fragments
             * "at_most_one_H": Enforcing that each H can belong to at most one H, if a
               H is assigned to multiple motifs
@@ -460,7 +461,7 @@ class BondConnectivity:
             How do we treat the hydrogen atoms? Options include:
             * "treat_H_diff": Default, treating each H different from heavy atoms. Using
               the given vdW_radius to determine which H belong to which motif
-            * "treat_h_like_heavy_atoms": Treating each H the same as the heavy atoms when
+            * "treat_H_like_heavy_atom": Treating each H the same as the heavy atoms when
               determining fragments
             * "at_most_one_H": Enforcing that each H can belong to at most one H, if a
               H is assigned to multiple motifs
@@ -826,7 +827,7 @@ class PurelyStructureFragmented(Generic[_T_chemsystem]):
             How do we treat the hydrogen atoms? Options include:
             * "treat_H_diff": Default, treating each H different from heavy atoms. Using
               the given vdW_radius to determine which H belong to which motif
-            * "treat_h_like_heavy_atoms": Treating each H the same as the heavy atoms when
+            * "treat_H_like_heavy_atom": Treating each H the same as the heavy atoms when
               determining fragments
             * "at_most_one_H": Enforcing that each H can belong to at most one H, if a
               H is assigned to multiple motifs
@@ -1314,7 +1315,7 @@ class Fragmented(Generic[_T_chemsystem]):
             How do we treat the hydrogen atoms? Options include:
             * "treat_H_diff": Default, treating each H different from heavy atoms. Using
               the given vdW_radius to determine which H belong to which motif
-            * "treat_h_like_heavy_atoms": Treating each H the same as the heavy atoms when
+            * "treat_H_like_heavy_atom": Treating each H the same as the heavy atoms when
               determining fragments
             * "at_most_one_H": Enforcing that each H can belong to at most one H, if a
               H is assigned to multiple motifs
