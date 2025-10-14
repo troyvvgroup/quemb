@@ -155,6 +155,7 @@ class BEOPT:
         trust_region : bool, optional
            Use trust-region based QN optimization, by default False
         """
+
         print("-----------------------------------------------------", flush=True)
         print("             Starting BE optimization ", flush=True)
         print("             Solver : ", self.solver, flush=True)

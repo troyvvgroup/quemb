@@ -365,14 +365,11 @@ SemiSparse3DTensor contract_with_TA_1st(const Matrix &TA, const SemiSparseSym3DT
     }
 
     if (LOG_LEVEL <= LogLevel::Info) {
-        std::cout << "(P | mu i) [MEMORY] "
-                     "sparse "
+        std::cout << "(P | mu i) [MEMORY] sparse "
                   << bytes_to_gib(naux * n_unique * sizeof(double)) << " GiB" << "\n";
-        std::cout << "(P | mu i) [MEMORY] "
-                     "dense "
+        std::cout << "(P | mu i) [MEMORY] dense "
                   << bytes_to_gib(naux * nao * nmo * sizeof(double)) << " GiB" << "\n";
-        std::cout << "(P | mu i) [MEMORY] "
-                     "sparsity "
+        std::cout << "(P | mu i) [MEMORY] sparsity "
                   << (1. - static_cast<double>(n_unique) / static_cast<double>(nao * nmo)) * 100. << " %" << "\n";
     };
 
@@ -447,8 +444,8 @@ Matrix contract_with_TA_2nd_to_sym_dense(const SemiSparse3DTensor &int_mu_i_P, c
 
     const auto n_sym_pairs = to_eigen(ravel_symmetric(nmo - 1, nmo - 1) + 1);
 
-    if (LOG_LEVEL <= LogLevel::Debug) {
-        std::cout << "[MEMORY] about to allocate sym_P_pq(naux, n_sym_pairs) with "
+    if (LOG_LEVEL <= LogLevel::Info) {
+        std::cout << "[MEMORY] about to allocate (ij | P) as sym_P_pq(naux, n_sym_pairs) with "
                   << bytes_to_gib(naux * n_sym_pairs * sizeof(double)) << " GiB" << std::endl;
     }
     Matrix sym_P_pq(naux, n_sym_pairs);
@@ -479,12 +476,11 @@ Matrix contract_with_TA_2nd_to_sym_dense(const SemiSparse3DTensor &int_mu_i_P, c
 // Cholesky factor of the (P | Q) matrix, which is lower triangular.
 Matrix eval_via_cholesky(const Matrix &sym_P_pq, const Matrix &L_PQ) noexcept
 {
-    Timer cholesky_timer{"eval_via_cholesky"};
+    Timer timer{__func__};
     // Step 1: Solve L * X = sym_P_pq  →  X = L⁻¹ sym_P_pq
     const Matrix X = L_PQ.triangularView<Eigen::Lower>().solve(sym_P_pq);
     if (LOG_LEVEL <= LogLevel::Info) {
-        cholesky_timer.print("triangular solve "
-                             "completed");
+        timer.print("triangular solve completed");
     };
     // Step 2: Return Xᵀ X
     return X.transpose() * X;
@@ -493,6 +489,7 @@ Matrix eval_via_cholesky(const Matrix &sym_P_pq, const Matrix &L_PQ) noexcept
 #ifdef USE_CUDA
 Matrix eval_via_cholesky_cuda(const Matrix &sym_P_pq, const GPU_MatrixHandle &L_PQ)
 {
+    Timer timer{__func__};
     const int n_aux = static_cast<int>(L_PQ.rows());
     const int n_sym_pairs = static_cast<int>(sym_P_pq.cols());
 
@@ -520,6 +517,9 @@ Matrix eval_via_cholesky_cuda(const Matrix &sym_P_pq, const GPU_MatrixHandle &L_
     // But X will be initialized with sym_P_pq and then
     // overwritten by the solution.
     CUDA_CHECK_THROW(cudaMemcpy(d_X, sym_P_pq.data(), bytes_sym_P_pq, cudaMemcpyHostToDevice));
+    if (LOG_LEVEL <= LogLevel::Info) {
+        timer.print("copy to GPU finished");
+    };
 
     // cuBLAS handle
     cublasHandle_t handle;
@@ -532,19 +532,32 @@ Matrix eval_via_cholesky_cuda(const Matrix &sym_P_pq, const GPU_MatrixHandle &L_
     // the solution.
     CUBLAS_CHECK_THROW(cublasDtrsm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT,
                                    n_aux, n_sym_pairs, &alpha, L_PQ.cdata(), n_aux, d_X, n_aux));
+    if (LOG_LEVEL <= LogLevel::Info) {
+        timer.print("Triangular solve on GPU completed");
+    };
 
     // Compute: result = Xᵀ * X
     CUBLAS_CHECK_THROW(cublasDsyrk(handle, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_T, n_sym_pairs, n_aux, &alpha, d_X, n_aux,
                                    &alpha, d_result, n_sym_pairs));
+    if (LOG_LEVEL <= LogLevel::Info) {
+        timer.print("Matrix multiplication on GPU completed");
+    };
 
     // Transfer result to host
     Matrix result(n_sym_pairs, n_sym_pairs);
     CUDA_CHECK_THROW(cudaMemcpy(result.data(), d_result, bytes_res, cudaMemcpyDeviceToHost));
 
+    if (LOG_LEVEL <= LogLevel::Info) {
+        timer.print("Copy from GPU completed");
+    };
+
     // Fill lower triangle
-    for (int i = 0; i < n_sym_pairs; ++i)
-        for (int j = i + 1; j < n_sym_pairs; ++j)
-            result(j, i) = result(i, j);
+    result.template triangularView<Eigen::Lower>() =
+        result.transpose().template triangularView<Eigen::Lower>();
+
+    if (LOG_LEVEL <= LogLevel::Info) {
+        timer.print("Filling symmetries completed.");
+    };
 
     // Cleanup
     cublasDestroy(handle);
