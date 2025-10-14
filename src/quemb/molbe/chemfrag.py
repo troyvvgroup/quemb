@@ -23,6 +23,7 @@ There are three main classes:
 
 from __future__ import annotations
 
+import sys
 from collections import defaultdict
 from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence, Set
 from itertools import chain
@@ -269,64 +270,51 @@ class BondConnectivity:
         def all_H_belong_to_motif() -> bool:
             return H_atoms.issubset(union_of_seqs(*(H_per_motif.values())))
 
-        def enforce_one_H_per_motif() -> None:
-            # If a H is in more than one motif, this removes it from all but one.
+        def enforce_one_H_per_motif() -> Mapping[int, set[int]]:
+            shared_H = []
             for i_motif, i_H_atoms in H_per_motif.items():
                 for j_motif, j_H_atoms in H_per_motif.items():
-                    # Cycle through all pairs of motifs, and identify if one H is
-                    # in multiple motifs
                     if i_motif == j_motif:
                         continue
                     if i_H_atoms & j_H_atoms:
-                        # Identify the shared H
-                        shared_H = [x for x in i_H_atoms & j_H_atoms]
-                        # If H is in both motif i and motif j, this lists the atom inds
-                        # in each motif which is not that H
-                        
-                        i_atoms_ind = atoms_per_motif[i_motif] - shared_H
-                        j_atoms_ind = atoms_per_motif[j_motif] - shared_H
-                        # Find the bond lengths of the shared hydrogen with all atoms
-                        # in each motif.
-                        i_dists = []
-                        j_dists = []
-                        for y in shared_H:
-                            for i in i_atoms_ind:
-                                i_dists.append(m.get_bond_lengths((i, y)))
-                            for j in j_atoms_ind:
-                                j_dists.append(m.get_bond_lengths((j, y)))
+                        for x in i_H_atoms & j_H_atoms:
+                            if x not in shared_H:
+                                shared_H.append(x)
+            
+            for h in shared_H:
+                h_dists = {}
+                for i in processed_bonds_atoms[h]:
+                    h_dists[i] = m.get_bond_lengths((h, i))
+                min_dist = min(h_dists.values())
 
-                        # Find the minimum H-X bond length. Note that this assumes that
-                        # the H is not completely equidistant (for now) between multiple
-                        # atoms, which may require a treat_H_different treatment
-                        min_dist = min(i_dists + j_dists)
-                        # Allow H to remain only in the motif with the shortest bond
-                        # length. Remove that H from processed_bonds_atoms,
-                        # H_per_motif, and atoms_per_motif
-                        if min_dist in i_dists:
-                            print(
-                                "Removing shared H"
-                                + str(shared_H)
-                                + " from motif"
-                                + str(j_motif)
-                            )
-                            processed_bonds_atoms[j_motif] -= shared_H
-                            H_per_motif[j_motif] -= shared_H
-                            atoms_per_motif[j_motif] -= shared_H
-                        elif min_dist in j_dists:
-                            print(
-                                "Removing shared H"
-                                + str(shared_H)
-                                + " from motif"
-                                + str(i_motif)
-                            )
-                            processed_bonds_atoms[i_motif] -= shared_H
-                            H_per_motif[i_motif] -= shared_H
-                            atoms_per_motif[i_motif] -= shared_H
+                remove_bonds = [atm for atm, d in h_dists.items() if d != min_dist]
+                min_bonds = [atm for atm, d in h_dists.items() if d == min_dist]
+
+                for b in remove_bonds:
+                    processed_bonds_atoms[h].remove(b)
+                    processed_bonds_atoms[b].remove(h)
+
+                if len(min_bonds) > 1:
+                    print(f"H{h} is equidistant from >=2 heavy atoms. Choosing " \
+                    f"to be bound to the lowest index heavy atom {min_bonds[0]} " \
+                    f"of equidistant atoms {min_bonds}")
+                    for b in min_bonds[1:]:
+                        processed_bonds_atoms[h].remove(b)
+                        processed_bonds_atoms[b].remove(h)
+
+            return processed_bonds_atoms
+
         if h_treatment == "treat_H_diff":
             if not all_H_belong_to_motif():
-                raise ValueError("Not all H belong to a motif")
+                raise ValueError(
+                    "Not all H belong to a motif. Modify the bond dictionary or" \
+                    "change `h_treatment` assign all H atoms a motif"
+                    )
             elif motifs_share_H():
-                raise ValueError("Motifs share H")
+                raise ValueError(
+                    "Motifs share H. Modify the bond dictionary or change " \
+                    "h_treatment so that no motifs share a H."
+                    )
             else:
                 return cls(
                     processed_bonds_atoms,
@@ -349,19 +337,30 @@ class BondConnectivity:
                 )
         elif h_treatment == "at_most_one_H":
             if not all_H_belong_to_motif():
-                raise ValueError("Not all H belong to a motif")
+                raise ValueError(
+                    "Not all H belong to a motif. Modify the bond dictionary or" \
+                    "change `h_treatment` assign all H atoms a motif"
+                    )
 
             if motifs_share_H():
-                enforce_one_H_per_motif()
-            return cls(
-                    processed_bonds_atoms,
-                    motifs,
-                    bonds_motif,
-                    H_atoms,
-                    H_per_motif,
-                    atoms_per_motif,
-                    h_treatment,
-                )
+                mod_bonds_atoms = enforce_one_H_per_motif()
+                # Modify the bond dictionary, then call from_cartesian with the standard
+                # "treat_H_diff" option
+                return cls.from_cartesian(
+                    m,
+                    bonds_atoms=mod_bonds_atoms,
+                    h_treatment = "treat_H_diff",
+                    )
+            else:
+                return cls(
+                        processed_bonds_atoms,
+                        motifs,
+                        bonds_motif,
+                        H_atoms,
+                        H_per_motif,
+                        atoms_per_motif,
+                        h_treatment,
+                    )
         elif h_treatment == "exactly_one_H":
             return NotImplementedError("Not yet implemented!")
 
