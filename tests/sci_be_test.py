@@ -9,7 +9,7 @@ from pyscf import gto, scf
 
 from quemb.molbe import BE, fragmentate
 from quemb.molbe.fragment import ChemGenArgs
-from quemb.shared.solver import SHCI_ArgsUser
+from quemb.molbe.solver import SHCI_ArgsUser
 
 
 # BE(1) Jobs

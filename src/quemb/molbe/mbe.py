@@ -28,6 +28,7 @@ from pyscf import ao2mo, scf
 from pyscf.gto import Mole
 from typing_extensions import assert_never
 
+from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
 from quemb.molbe.eri_sparse_DF import (
     transform_sparse_DF_integral_cpp,
@@ -44,8 +45,9 @@ from quemb.molbe.lo import (
     remove_core_mo,
 )
 from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
+from quemb.molbe.opt import BEOPT
 from quemb.molbe.pfrag import Frags, union_of_frag_MOs_and_index
-from quemb.shared.be_parallel import be_func_parallel
+from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.external.lo_helper import (
     get_aoind_by_atom,
     reorder_by_atom_,
@@ -55,8 +57,6 @@ from quemb.shared.external.optqn import (
 )
 from quemb.shared.helper import copy_docstring, ensure, ncore_, timer, unused
 from quemb.shared.manage_scratch import WorkDir
-from quemb.shared.opt import BEOPT
-from quemb.shared.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.typing import Matrix, PathLike
 
 IntTransforms: TypeAlias = Literal[
@@ -134,6 +134,7 @@ class BE:
         auxbasis: str | None = None,
         MO_coeff_epsilon: float = 1e-5,
         AO_coeff_epsilon: float = 1e-10,
+        re_eval_HF: bool = False,
     ) -> None:
         r"""
         Constructor for BE object.
@@ -215,6 +216,15 @@ class BE:
             are considered to be connected for sparsity screening.
             Here the absolute overlap matrix is used.
             Smaller value means less screening.
+        re_eval_HF:
+            Re-evaluate the Fock matrix from the given MO-coefficients to determine
+            the HF-in-HF error.
+            This is False by default and has no relevance for "normal", unscreened
+            Hartree-Fock calculations.
+            However, if the Hartree-Fock was obtained from methods that never build
+            one global Fock matrix in the traditional sense, such as ORCA's RIJCOSX,
+            then the energy obtained by building the Fock matrix from the
+            MO coefficients can actually differ from the reported HF energy.
         """
         if restart:
             # Load previous calculation data from restart file
@@ -275,6 +285,7 @@ class BE:
         self.ebe_tot = 0.0
 
         self.mf = mf
+        self.re_eval_HF = re_eval_HF
 
         if not restart:
             self.mo_energy = mf.mo_energy
@@ -1052,6 +1063,12 @@ class BE:
         print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
         if abs(hf_err) > 1.0e-5:
             warn("Large HF-in-HF energy error")
+
+        if self.re_eval_HF:
+            hf_err = self.mf.energy_tot() - self.ebe_hf
+            print(f"HF-in-HF error (re-eval global):  {hf_err:>.4e} Ha")
+            if abs(hf_err) > 1.0e-5:
+                warn("Large HF-in-HF energy error")
 
     @timer.timeit
     def initialize(
