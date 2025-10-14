@@ -30,7 +30,7 @@ class TestBE_restricted(unittest.TestCase):
             "H8 (BE2)",
             "chemgen",
             only_chem=False,
-            additional_args=ChemGenArgs(treat_H_different=False),
+            additional_args=ChemGenArgs(h_treatment="treat_h_like_heavy_atoms"),
         )
 
     def molecular_QN_test(

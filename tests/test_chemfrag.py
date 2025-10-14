@@ -100,7 +100,7 @@ def test_hydrogen_chain():
     )
 
     fragmented = {
-        n_BE: PurelyStructureFragmented.from_mole(mol, n_BE, treat_H_different=False)
+        n_BE: PurelyStructureFragmented.from_mole(mol, n_BE, h_treatment="treat_h_like_heavy_atoms")
         for n_BE in range(1, 6)
     }
 
@@ -248,21 +248,21 @@ def test_conn_data_manipulation_of_vdW():
         conn_data = BondConnectivity.from_cartesian(m, vdW_radius={"C": 100})
 
     conn_data = BondConnectivity.from_cartesian(
-        m, vdW_radius=100, treat_H_different=False
+        m, vdW_radius=100, h_treatment="treat_h_like_heavy_atoms"
     )
     for atom, connected in conn_data.bonds_atoms.items():
         # check if everything is connected to everything
         assert {atom} | connected == set(m.index)
 
     conn_data = BondConnectivity.from_cartesian(
-        m, vdW_radius=lambda r: r * 100, treat_H_different=False
+        m, vdW_radius=lambda r: r * 100, h_treatment="treat_h_like_heavy_atoms"
     )
     for atom, connected in conn_data.bonds_atoms.items():
         # check if everything is connected to everything
         assert {atom} | connected == set(m.index)
 
     conn_data = BondConnectivity.from_cartesian(
-        m, vdW_radius={"C": 100}, treat_H_different=False
+        m, vdW_radius={"C": 100}, h_treatment="treat_h_like_heavy_atoms"
     )
     for i_carbon in m.loc[m.atom == "C"].index:
         # check if carbons are connected to everything

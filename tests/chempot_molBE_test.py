@@ -35,7 +35,7 @@ class TestBE_restricted(unittest.TestCase):
             "chemgen",
             -4.30628355,
             only_chem=True,
-            additional_args=ChemGenArgs(treat_H_different=False),
+            additional_args=ChemGenArgs(h_treatment="treat_h_like_heavy_atoms"),
         )
         self.molecular_restricted_test(
             mol,
@@ -45,7 +45,7 @@ class TestBE_restricted(unittest.TestCase):
             "chemgen",
             -4.30649890,
             only_chem=True,
-            additional_args=ChemGenArgs(treat_H_different=False),
+            additional_args=ChemGenArgs(h_treatment="treat_h_like_heavy_atoms"),
         )
 
     def test_octane_sto3g_ben(self):
