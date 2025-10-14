@@ -277,18 +277,13 @@ class BondConnectivity:
                     if i_motif == j_motif:
                         continue
                     if i_H_atoms & j_H_atoms:
-                        print("i_motif", type(i_motif), i_motif)
-                        print("i_H_atoms", type(i_H_atoms), i_H_atoms)
                         # Identify the shared H
                         shared_H = [x for x in i_H_atoms & j_H_atoms]
-                        print("shared_H", type(shared_H), shared_H)
                         # If H is in both motif i and motif j, this lists the atom inds
                         # in each motif which is not that H
                         
                         i_atoms_ind = atoms_per_motif[i_motif] - shared_H
                         j_atoms_ind = atoms_per_motif[j_motif] - shared_H
-                        print("atoms_per_motif[j_motif]", type(atoms_per_motif[j_motif]), atoms_per_motif[j_motif])
-                        print("j_atoms_ind", type(j_atoms_ind), j_atoms_ind)
                         # Find the bond lengths of the shared hydrogen with all atoms
                         # in each motif.
                         i_dists = []
@@ -296,10 +291,8 @@ class BondConnectivity:
                         for y in shared_H:
                             for i in i_atoms_ind:
                                 i_dists.append(m.get_bond_lengths((i, y)))
-                                print("m.get_bond_lengths((i, y))", type(m.get_bond_lengths((i, y))), m.get_bond_lengths((i, y)))
                             for j in j_atoms_ind:
                                 j_dists.append(m.get_bond_lengths((j, y)))
-                        print("i_dists", type(i_dists), i_dists)
 
                         # Find the minimum H-X bond length. Note that this assumes that
                         # the H is not completely equidistant (for now) between multiple
@@ -315,12 +308,6 @@ class BondConnectivity:
                                 + " from motif"
                                 + str(j_motif)
                             )
-                            print("processed_bonds_atoms", type(processed_bonds_atoms), processed_bonds_atoms)
-                            print("processed_bonds_atoms[j_motif]", type(processed_bonds_atoms[j_motif]), processed_bonds_atoms[j_motif])
-                            print("H_per_motif", type(H_per_motif), H_per_motif)
-                            print("H_per_motif[j_motif]", type(H_per_motif[j_motif]), H_per_motif[j_motif])
-                            print("atoms_per_motif", type(atoms_per_motif), atoms_per_motif)
-                            print("atoms_per_motif[j_motif]", type(atoms_per_motif[j_motif]), atoms_per_motif[j_motif])
                             processed_bonds_atoms[j_motif] -= shared_H
                             H_per_motif[j_motif] -= shared_H
                             atoms_per_motif[j_motif] -= shared_H
@@ -331,12 +318,6 @@ class BondConnectivity:
                                 + " from motif"
                                 + str(i_motif)
                             )
-                            print("processed_bonds_atoms", type(processed_bonds_atoms), processed_bonds_atoms)
-                            print("processed_bonds_atoms[i_motif]", type(processed_bonds_atoms[i_motif]), processed_bonds_atoms[i_motif])
-                            print("H_per_motif", type(H_per_motif), H_per_motif)
-                            print("H_per_motif[i_motif]", type(H_per_motif[i_motif]), H_per_motif[i_motif])
-                            print("atoms_per_motif", type(atoms_per_motif), atoms_per_motif)
-                            print("atoms_per_motif[i_motif]", type(atoms_per_motif[i_motif]), atoms_per_motif[i_motif])
                             processed_bonds_atoms[i_motif] -= shared_H
                             H_per_motif[i_motif] -= shared_H
                             atoms_per_motif[i_motif] -= shared_H
