@@ -6,8 +6,8 @@ from pyscf import gto, scf
 
 from quemb.molbe import BE, fragmentate
 from quemb.molbe.chemfrag import ChemGenArgs
+from quemb.molbe.solver import SHCI_ArgsUser
 from quemb.shared.config import settings
-from quemb.shared.solver import SHCI_ArgsUser
 
 # Set the path to the scratch directory
 settings.SCRATCH_ROOT = pathlib.Path("/tmp/")
