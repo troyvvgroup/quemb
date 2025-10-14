@@ -100,7 +100,11 @@ def test_hydrogen_chain():
     )
 
     fragmented = {
-        n_BE: PurelyStructureFragmented.from_mole(mol, n_BE, h_treatment="treat_H_like_heavy_atom")
+        n_BE: PurelyStructureFragmented.from_mole(
+            mol,
+            n_BE,
+            h_treatment="treat_H_like_heavy_atom"
+            )
         for n_BE in range(1, 6)
     }
 

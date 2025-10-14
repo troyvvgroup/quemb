@@ -23,13 +23,11 @@ There are three main classes:
 
 from __future__ import annotations
 
-import sys
 from collections import defaultdict
 from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence, Set
 from itertools import chain
 from pathlib import Path
 from typing import Any, Final, Generic, Literal, TypeAlias, TypeVar, cast
-from warnings import warn
 
 import numpy as np
 from attr import cmp_using, define, field
@@ -209,8 +207,8 @@ class BondConnectivity:
             How do we treat the hydrogen atoms? Options include:
             * "treat_H_diff": Default, treating each H different from heavy atoms. Using
               the given vdW_radius to determine which H belong to which motif
-            * "treat_H_like_heavy_atom": Treating each H the same as the heavy atoms when
-              determining fragments
+            * "treat_H_like_heavy_atom": Treating each H the same as the heavy atoms
+              when determining fragments
             * "at_most_one_H": Enforcing that each H can belong to at most one H, if a
               H is assigned to multiple motifs
             * "exactly_one_H": Enforcing that each H can belong to exactly one H, if a
@@ -424,8 +422,8 @@ class BondConnectivity:
             How do we treat the hydrogen atoms? Options include:
             * "treat_H_diff": Default, treating each H different from heavy atoms. Using
               the given vdW_radius to determine which H belong to which motif
-            * "treat_H_like_heavy_atom": Treating each H the same as the heavy atoms when
-              determining fragments
+            * "treat_H_like_heavy_atom": Treating each H the same as the heavy atoms
+              when determining fragments
             * "at_most_one_H": Enforcing that each H can belong to at most one H, if a
               H is assigned to multiple motifs
             * "exactly_one_H": Enforcing that each H can belong to exactly one H, if a
@@ -481,8 +479,8 @@ class BondConnectivity:
             How do we treat the hydrogen atoms? Options include:
             * "treat_H_diff": Default, treating each H different from heavy atoms. Using
               the given vdW_radius to determine which H belong to which motif
-            * "treat_H_like_heavy_atom": Treating each H the same as the heavy atoms when
-              determining fragments
+            * "treat_H_like_heavy_atom": Treating each H the same as the heavy atoms
+              when determining fragments
             * "at_most_one_H": Enforcing that each H can belong to at most one H, if a
               H is assigned to multiple motifs
             * "exactly_one_H": Enforcing that each H can belong to exactly one H, if a
@@ -847,8 +845,8 @@ class PurelyStructureFragmented(Generic[_T_chemsystem]):
             How do we treat the hydrogen atoms? Options include:
             * "treat_H_diff": Default, treating each H different from heavy atoms. Using
               the given vdW_radius to determine which H belong to which motif
-            * "treat_H_like_heavy_atom": Treating each H the same as the heavy atoms when
-              determining fragments
+            * "treat_H_like_heavy_atom": Treating each H the same as the heavy atoms
+              when determining fragments
             * "at_most_one_H": Enforcing that each H can belong to at most one H, if a
               H is assigned to multiple motifs
             * "exactly_one_H": Enforcing that each H can belong to exactly one H, if a
@@ -1335,8 +1333,8 @@ class Fragmented(Generic[_T_chemsystem]):
             How do we treat the hydrogen atoms? Options include:
             * "treat_H_diff": Default, treating each H different from heavy atoms. Using
               the given vdW_radius to determine which H belong to which motif
-            * "treat_H_like_heavy_atom": Treating each H the same as the heavy atoms when
-              determining fragments
+            * "treat_H_like_heavy_atom": Treating each H the same as the heavy atoms
+              when determining fragments
             * "at_most_one_H": Enforcing that each H can belong to at most one H, if a
               H is assigned to multiple motifs
             * "exactly_one_H": Enforcing that each H can belong to exactly one H, if a

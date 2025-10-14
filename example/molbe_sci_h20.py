@@ -46,8 +46,8 @@ mf.conv_tol = 1e-12
 mf.kernel()
 
 # initialize fragments
-# Using chemgen, h_treatment as treat_H_like_heavy_atom will treat H atoms like heavy atoms,
-# which works for hydrogen chains
+# Using chemgen, h_treatment as treat_H_like_heavy_atom will treat H atoms like
+# heavy atoms, which works for hydrogen chains
 add_args = ChemGenArgs(h_treatment="treat_H_like_heavy_atom")
 fobj = fragmentate(
     n_BE=2,
