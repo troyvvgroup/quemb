@@ -173,7 +173,9 @@ class BondConnectivity:
         cls,
         m: Cartesian,
         *,
-        bonds_atoms: Mapping[int, set[int]] | None = None,
+        bonds_atoms: Mapping[int, set[int]]
+        | dict[AtomIdx, OrderedSet[AtomIdx]]
+        | None = None,
         vdW_radius: InVdWRadius | None = None,
         h_treatment: HTreatment = "treat_H_diff",
     ) -> Self:
@@ -191,6 +193,8 @@ class BondConnectivity:
             Allows it to manually change the connectivity by modifying the output of
             :meth:`chemcoord.Cartesian.get_bonds`.
             The keyword is mutually exclusive with :python:`vdW_radius`.
+            This can also take in a modified processed_bonds_atoms object (dict) when
+            specifying certain h_treatment options
         vdW_radius :
             If :python:`bonds_atoms` is :class:`None`, then the connectivity graph is
             determined by the van der Waals radius of the atoms.
@@ -268,7 +272,8 @@ class BondConnectivity:
         def all_H_belong_to_motif() -> bool:
             return H_atoms.issubset(union_of_seqs(*(H_per_motif.values())))
 
-        def enforce_one_H_per_motif() -> Mapping[int, set[int]]:
+        # def enforce_one_H_per_motif() -> Mapping[int, set[int]]:
+        def enforce_one_H_per_motif() -> dict[AtomIdx, OrderedSet[AtomIdx]]:
             shared_H = []
             for i_motif, i_H_atoms in H_per_motif.items():
                 for j_motif, j_H_atoms in H_per_motif.items():
@@ -282,7 +287,7 @@ class BondConnectivity:
             for h in shared_H:
                 h_dists = {}
                 for i in processed_bonds_atoms[h]:
-                    h_dists[i] = m.get_bond_lengths((h, i))
+                    h_dists[i] = m.get_bond_lengths(np.asarray((h, i)))[0]
                 min_dist = min(h_dists.values())
 
                 remove_bonds = [atm for atm, d in h_dists.items() if d != min_dist]
@@ -381,7 +386,7 @@ class BondConnectivity:
                         h_treatment,
                     )
             else:
-                return NotImplementedError(
+                raise NotImplementedError(
                     "Assignment for non-bonded H not yet implemented"
                 )
 
@@ -400,7 +405,7 @@ class BondConnectivity:
         ----------
         mol :
             The :class:`pyscf.gto.mole.Mole` to extract the connectivity data from.
-        bonds_atoms : Mapping[int, OrderedSet[int]]
+        bonds_atoms : Mapping[int, OrderedSet[int]] | dict[AtomIdx, OrderedSet[AtomIdx]]
             Can be used to specify the connectivity graph of the molecule.
             Has exactly the same format as the output of
             :meth:`chemcoord.Cartesian.get_bonds`,
