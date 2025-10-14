@@ -28,7 +28,6 @@ from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence, Set
 from itertools import chain
 from pathlib import Path
 from typing import Any, Final, Generic, TypeAlias, TypeVar, cast
-from warnings import warn
 
 import numpy as np
 from attrs import cmp_using, define, field
