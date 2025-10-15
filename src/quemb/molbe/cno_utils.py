@@ -166,8 +166,7 @@ def preparing_h_cnos(
     core_veff: Matrix[floating] | None,
     eri_s: Matrix[floating],
 ) -> Matrix[float64]:
-    """Building the correct 1-electron integrals to form the CNOs
-    """
+    """Building the correct 1-electron integrals to form the CNOs"""
     if nvir == 0:
         h_rot = np.einsum("mp,nq,mn->pq", TA_x, TA_x, h, optimize=True)
         G_envs = np.zeros_like(h_rot)
