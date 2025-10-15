@@ -1,12 +1,12 @@
 # Author(s): Oinam Romesh Meitei, Leah Weisburn
 
 import os
-from multiprocessing import Pool
 from pathlib import Path
 from warnings import warn
 
 from numpy import diag_indices, einsum, float64, zeros_like
 from numpy.linalg import multi_dot
+from pathos.pools import ProcessPool
 from pyscf import ao2mo, fci, mcscf
 
 from quemb.kbe.pfrag import Frags as pFrags
@@ -480,7 +480,7 @@ def be_func_parallel(
         for fobj in Fobjs:
             fobj.update_heff(pot, only_chem=only_chem)
 
-    with Pool(nprocs) as pool_:
+    with ProcessPool(nprocs) as pool_:
         results = []  # type: ignore[var-annotated]
         # Run solver in parallel for each fragment
         for fobj in Fobjs:
@@ -488,29 +488,27 @@ def be_func_parallel(
                 fobj.fock is not None and fobj.heff is not None and fobj.dm0 is not None
             )
 
-            result = pool_.apply_async(
+            result = pool_.apipe(
                 run_solver,
-                [
-                    fobj.fock + fobj.heff,
-                    fobj.dm0.copy(),
-                    scratch_dir,
-                    fobj.dname,
-                    fobj.nao,
-                    fobj.nsocc,
-                    fobj.n_frag,
-                    fobj.weight_and_relAO_per_center,
-                    fobj.TA,
-                    fobj.h1,
-                    solver,
-                    fobj.eri_file,
-                    fobj.veff if not use_cumulant else None,
-                    fobj.veff0,
-                    eeval,
-                    return_vec,
-                    use_cumulant,
-                    relax_density,
-                    solver_args,
-                ],
+                fobj.fock + fobj.heff,
+                fobj.dm0.copy(),
+                scratch_dir,
+                fobj.dname,
+                fobj.nao,
+                fobj.nsocc,
+                fobj.n_frag,
+                fobj.weight_and_relAO_per_center,
+                fobj.TA,
+                fobj.h1,
+                solver,
+                fobj.eri_file,
+                fobj.veff if not use_cumulant else None,
+                fobj.veff0,
+                eeval,
+                return_vec,
+                use_cumulant,
+                relax_density,
+                solver_args,
             )
 
             results.append(result)
@@ -607,22 +605,20 @@ def be_func_parallel_u(
     os.system("export OMP_NUM_THREADS=" + str(ompnum))
     nprocs = nproc // ompnum
 
-    with Pool(nprocs) as pool_:
+    with ProcessPool(nprocs) as pool_:
         results = []
         # Run solver in parallel for each fragment
         for fobj_a, fobj_b in Fobjs:
-            result = pool_.apply_async(
+            result = pool_.apipe(
                 run_solver_u,
-                [
-                    fobj_a,
-                    fobj_b,
-                    solver,
-                    enuc,
-                    hf_veff,
-                    relax_density,
-                    frozen,
-                    use_cumulant,
-                ],
+                fobj_a,
+                fobj_b,
+                solver,
+                enuc,
+                hf_veff,
+                relax_density,
+                frozen,
+                use_cumulant,
             )
             results.append(result)
 
