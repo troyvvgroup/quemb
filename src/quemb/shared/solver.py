@@ -2,10 +2,12 @@
 
 import os
 from abc import ABC
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Final, Literal, TypeAlias
+from typing import Final, Literal, TypeAlias, cast
 from warnings import warn
 
+import numpy as np
 from attrs import Factory, define, field
 from numpy import (
     allclose,
@@ -254,6 +256,7 @@ def be_func(
     relax_density: bool = False,
     return_vec: bool = False,
     use_cumulant: bool = True,
+    Delta_n_el: float = 0.0,
 ):
     """
     Perform bootstrap embedding calculations for each fragment.
@@ -342,73 +345,9 @@ def be_func(
             rdm1_tmp = mc.make_rdm1(civec, mc.norb, mc.nelec)
 
         elif solver == "HCI":  # TODO
-            # pylint: disable-next=E0611
             raise NotImplementedError("HCI solver not implemented")
-            """
-            from pyscf import hci  # type: ignore[attr-defined]  # noqa: PLC0415
-
-            assert isinstance(solver_args, SHCI_ArgsUser)
-            SHCI_args = _SHCI_Args.from_user_input(solver_args)
-            nmo = fobj._mf.mo_coeff.shape[1]
-
-            eri = ao2mo.kernel(
-                fobj._mf._eri, fobj._mf.mo_coeff, aosym="s4", compact=False
-            ).reshape(4 * ((nmo),))
-
-            ci_ = hci.SCI(fobj._mf.mol)
-
-            ci_.select_cutoff = SHCI_args.select_cutoff
-            ci_.ci_coeff_cutoff = SHCI_args.ci_coeff_cutoff
-
-            nelec = (fobj.nsocc, fobj.nsocc)
-            h1_ = fobj.fock + fobj.heff
-            h1_ = multi_dot((fobj._mf.mo_coeff.T, h1_, fobj._mf.mo_coeff))
-            eci, civec = ci_.kernel(h1_, eri, nmo, nelec)
-            unused(eci)
-            civec = asarray(civec)
-
-            (rdm1a_, rdm1b_), (rdm2aa, rdm2ab, rdm2bb) = ci_.make_rdm12s(
-                civec, nmo, nelec
-            )
-            rdm1_tmp = rdm1a_ + rdm1b_
-            rdm2s = rdm2aa + rdm2ab + rdm2ab.transpose(2, 3, 0, 1) + rdm2bb
-            """
         elif solver == "SHCI":  # TODO
-            # pylint: disable-next=E0611,E0401
             raise NotImplementedError("SHCI solver not implemented")
-            """
-            from pyscf.shciscf import (  # type: ignore[attr-defined]  # noqa: PLC0415
-                shci,
-            )
-
-            assert isinstance(solver_args, SHCI_ArgsUser)
-            SHCI_args = _SHCI_Args.from_user_input(solver_args)
-
-            assert isinstance(fobj.dname, str)
-            frag_scratch = WorkDir(scratch_dir / fobj.dname)
-
-            nmo = fobj._mf.mo_coeff.shape[1]
-
-            nelec = (fobj.nsocc, fobj.nsocc)
-            mch = shci.SHCISCF(fobj._mf, nmo, nelec, orbpath=fobj.dname)
-            mch.fcisolver.mpiprefix = "mpirun -np " + str(nproc)
-            # need to pass nproc through be_func
-            if SHCI_args.hci_pt:
-                mch.fcisolver.stochastic = False
-                mch.fcisolver.epsilon2 = SHCI_args.hci_cutoff
-            else:
-                mch.fcisolver.stochastic = (
-                    True  # this is for PT and doesnt add PT to rdm
-                )
-                mch.fcisolver.nPTiter = 0
-            mch.fcisolver.sweep_iter = [0]
-            mch.fcisolver.DoRDM = True
-            mch.fcisolver.sweep_epsilon = [SHCI_args.hci_cutoff]
-            mch.fcisolver.scratchDirectory = scratch_dir
-            mch.mc1step()
-            rdm1_tmp, rdm2s = mch.fcisolver.make_rdm12(0, nmo, nelec)
-            """
-
         elif solver == "SCI":
             # pylint: disable-next=E0611
             from pyscf import cornell_shci  # noqa: PLC0415  # optional module
@@ -550,7 +489,7 @@ def be_func(
         if not return_vec:
             return (Ecorr, total_e)
 
-    ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem)
+    ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem, Delta_n_el=Delta_n_el)
 
     if return_vec:
         return (ernorm, ervec, [Ecorr, total_e])
@@ -676,7 +615,12 @@ def be_func_u(
     return (E, total_e)
 
 
-def solve_error(Fobjs, Nocc, only_chem=False):
+def solve_error(
+    Fobjs: Sequence[Frags] | Sequence[pFrags],
+    Nocc: float,
+    only_chem: bool = False,
+    Delta_n_el: float = 0.0,
+) -> tuple[float, Vector[np.float64]]:
     """
     Compute the error for self-consistent fragment density matrix matching.
 
@@ -686,10 +630,12 @@ def solve_error(Fobjs, Nocc, only_chem=False):
 
     Parameters
     ----------
-    Fobjs : list of quemb.molbe.autofrag.FragPart
+    Fobjs :
         List of fragment objects.
-    Nocc : int
+    Nocc :
         Number of occupied orbitals.
+    Delta_n_el :
+        Additional deviation of the particle number.
 
     Returns
     -------
@@ -705,16 +651,21 @@ def solve_error(Fobjs, Nocc, only_chem=False):
     if only_chem:
         for fobj in Fobjs:
             # Compute chemical potential error for each fragment
+            assert fobj._rdm1 is not None
             for i in fobj.weight_and_relAO_per_center[1]:
                 err_chempot += fobj._rdm1[i, i]
-        err_chempot /= Fobjs[0].unitcell_nkpt
-        err = err_chempot - Nocc
 
-        return abs(err), asarray([err])
+        print(">>>>>", Fobjs[0].unitcell_nkpt)
+        err_chempot /= Fobjs[0].unitcell_nkpt
+        print(Nocc)
+        err = err_chempot - (Nocc + Delta_n_el / 2)
+
+        return abs(err), cast(Vector[np.float64], asarray([err]))
 
     # Compute edge and chemical potential errors
     for fobj in Fobjs:
         # match rdm-edge
+        assert fobj._rdm1 is not None
         for edge in fobj.relAO_per_edge:
             for j_ in range(len(edge)):
                 for k_ in range(len(edge)):
@@ -730,7 +681,7 @@ def solve_error(Fobjs, Nocc, only_chem=False):
 
     # Compute center errors
     err_cen = []
-    for findx, fobj in enumerate(Fobjs):
+    for findx, fobj in enumerate(Fobjs):  # type: ignore[assignment]
         # Match RDM for centers
         for cindx, cens in enumerate(fobj.relAO_in_ref_per_edge):
             lenc = len(cens)
@@ -739,17 +690,15 @@ def solve_error(Fobjs, Nocc, only_chem=False):
                     if j_ > k_:
                         continue
                     err_cen.append(
-                        Fobjs[fobj.ref_frag_idx_per_edge[cindx]]._rdm1[
+                        Fobjs[fobj.ref_frag_idx_per_edge[cindx]]._rdm1[  # type: ignore[call-overload]
                             cens[j_], cens[k_]
                         ]
                     )
 
-    err_cen.append(Nocc)
-    err_edge = array(err_edge)
-    err_cen = array(err_cen)
+    err_cen.append((Nocc + Delta_n_el / 2))
 
     # Compute the error vector
-    err_vec = err_edge - err_cen
+    err_vec = array(err_edge) - array(err_cen)
 
     # Compute the norm of the error vector
     norm_ = mean(err_vec * err_vec) ** 0.5
