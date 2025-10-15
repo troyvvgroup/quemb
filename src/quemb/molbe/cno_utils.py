@@ -53,14 +53,14 @@ class CNOArgs:
     recommended option) is `AddBoth`.
 
     If you choose `Threshold`, you also must specify `cno_thresh`, which is the
-    the threshold from which CNOs are chosen. OCNOs with values below () and VCNOs with
-    values above () are added. Default value is X.
+    the threshold from which CNOs are chosen. OCNOs with values below 1-`cno_thresh` and
+    VCNOs with values above `cno_thresh` are added. Default value is 1e-3.
     """
 
     cno_scheme: CNO_Schemes = "Proportional"
     tot_active_orbs: int | None = None
     cno_active_fragsize_scheme: CNO_FragSize_Schemes | None = "AddBoth"
-    cno_thresh: float | None = None
+    cno_thresh: float | None = 1e-3
 
 
 def get_cnos(
@@ -80,18 +80,18 @@ def get_cnos(
 
     Parameters
     ----------
-    nfb : int
+    nfb :
         Number of fragment and bath orbitals, directly from the original
         Schmidt decomposition
-    TA_x : numpy.ndarray
+    TA_x :
         Augmented TA matrix with either the occupied or virtual environment orbitals
-    hcore_full : numpy.ndarray
+    hcore_full :
         hcore for the full system
-    eri_full : numpy.ndarray
+    eri_full :
         ERIs for the full system
-    nocc : int
+    nocc :
         Number of occupied orbitals for the full system
-    occ : bool
+    occ :
         Whether the CNOs being generated are occupied or virtual
 
     Returns
@@ -209,25 +209,25 @@ def choose_cnos(
 
     Parameters
     ----------
-    file : str
+    file :
         File path for the fragment geometry
-    basis : str
+    basis :
         Basis set for the calculation
-    n_f : int
+    n_f :
         Number of fragment orbitals, from the original Schmidt decomposition
-    n_b : int
+    n_b :
         Number of bath orbitals, from the original Schmidt decomposition
-    n_full_occ : int
+    n_full_occ :
         Total number of occupied environment orbitals for the system
-    n_full_virt : int
+    n_full_virt :
         Total number of virtual environment orbitals for the system
-    nsocc : int
+    nsocc :
         Number of occupied orbitals in the Schmidt space
-    nocc : int
+    nocc :
         Total number of occupied orbitals
-    frz_core: bool
+    frz_core:
         Whether the core is frozen for the system
-    args : CNOArgs
+    args :
         Options for CNO schemes, with keyword `cno_scheme`: `Proportional`,
         `ProportionalQQ`, and `ExactFragmentSize`.
         If using `ExactFragmentSize`, also include keyword `tot_active_orbs` to specify
@@ -237,11 +237,11 @@ def choose_cnos(
 
     Returns
     -------
-    nocc_cno_add: int
+    nocc_cno_add:
         The number of OCNOs to add to augment TA, based on `cno_scheme`
-    nvir_cno_add : int
+    nvir_cno_add :
         The number of VCNOs to add to augment TA, based on `cno_scheme`
-    cno_thresh : float | None
+    cno_thresh :
         Threshold to select CNOs, if `cno_scheme`=`Thresholding`, else None
     """
     # Options for CNO schemes:
@@ -358,15 +358,15 @@ def FormPairDensity(
 
     Parameters
     ----------
-    Vs : numpy.ndarray
+    Vs :
         ERIs for the given fragment, rotated into the Schmidt space in `get_cnos`
-    mo_occs : numpy.ndarray
+    mo_occs :
         MO occupancy matrix for the semi-canonicalized fragment
-    mo_coeffs : numpy.ndarray
+    mo_coeffs :
         MO coefficients for the semi-canonicalized fragment
-    mo_energys : numpy.ndarray
+    mo_energys :
         MO energies for the semi-canonicalized fragment
-    occ : bool
+    occ :
         Whether the occupied or virtual pair density matrix is requested
 
     Returns
@@ -426,7 +426,7 @@ def augment_w_cnos(
 
     Parameters
     ----------
-    TA : numpy.ndarray
+    TA :
         Original Schmidt space TA matrix
     nocc_cno : int
         Number of occupied CNOs to augment. If `thresh` is not None,
@@ -434,26 +434,26 @@ def augment_w_cnos(
     nvir_cno : int
         Number of virtual CNOs to augment. If `thresh` is not None,
         we use the threshold to determine the CNOs instead
-    occ_cno_eigvals : numpy.ndarray
+    occ_cno_eigvals :
         The eigenvalues from the occupied pair density, used for thesholding
         OCNOs if thresh is not None
-    vir_cno_eigvals : numpy.ndarray
+    vir_cno_eigvals :
         The eigenvalues from the virtual pair density, used for thesholding
         VCNOs if thresh is not None
-    occ_cno : numpy.ndarray
+    occ_cno :
         Full occupied CNO matrix
-    vir_cno : numpy.ndarray
+    vir_cno :
         Full virtual CNO matrix
-    thresh : float or None
+    thresh :
         If not None, the threshold we use to choose the CNOs
 
     Returns
     -------
-    TA : numpy.ndarray
+    TA :
         Augmented TA matrix with CNOs
-    nocc_cno: int
+    nocc_cno:
         The number of OCNOs added to the fragment
-    nvir_cno: int
+    nvir_cno:
         The number of VCNOs added to the fragment
     """
     if thresh is None:
