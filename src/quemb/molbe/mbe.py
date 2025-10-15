@@ -1204,18 +1204,18 @@ class BE:
                 print(f"          {nocc_add_cno:>3.0f}: Occupied CNOs", flush=True)
                 print(f"          {nvir_add_cno:>3.0f}: Virtual CNOs", flush=True)
                 print(
-                    f"{fobjs_.n_f:>3.0f}, {fobjs_.n_b:>3.0f}, {fobjs_.n_f + fobjs_.n_b:>3.0f}: Fragment, Bath, Total Orbitals",
+                    f"{fobjs_.n_f:>3.0f}, {fobjs_.n_b:>3.0f}, {fobjs_.n_f + fobjs_.n_b:>3.0f}: Fragment, Bath, Total Orbitals",  # noqa: E501
                     flush=True,
-                )  # noqa: E501
+                )
 
                 # Update relevant fobjs_ attributes
                 fobjs_.nao = fobjs_.TA.shape[1]
             else:
                 print(f"For Fragment {I:>3.0f}:", flush=True)
                 print(
-                    f"{fobjs_.n_f:>3.0f}, {fobjs_.n_b:>3.0f}, {fobjs_.n_f + fobjs_.n_b:>3.0f}: Fragment, Bath, Total Orbitals",
+                    f"{fobjs_.n_f:>3.0f}, {fobjs_.n_b:>3.0f}, {fobjs_.n_f + fobjs_.n_b:>3.0f}: Fragment, Bath, Total Orbitals",  # noqa: E501
                     flush=True,
-                )  # noqa: E501
+                )
 
             self.Fobjs.append(fobjs_)
 
