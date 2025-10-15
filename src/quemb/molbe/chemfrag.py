@@ -209,14 +209,14 @@ class BondConnectivity:
             The keyword is mutually exclusive with :python:`bonds_atoms`.
         h_treatment :
             How do we treat the hydrogen atoms? Options include:
+
             * "treat_H_diff": Default, treating each H different from heavy atoms. Using
-              the given vdW_radius to determine which H belong to which motif
+              the given vdW_radius to determine which H belong to which motif,
             * "treat_H_like_heavy_atom": Treating each H the same as the heavy atoms
-              when determining fragments
-            * "at_most_one_H": Enforcing that each H can belong to at most one H, if a
-              H is assigned to multiple motifs
-            * "exactly_one_H": Enforcing that each H can belong to exactly one H, if a
-              H is assigned to multiple motifs or to no motifs
+              when determining fragments,
+            * "at_most_one_H": Enforcing that each H must belong to at most one motif,
+            * "exactly_one_H": Enforcing that each H must belong to exactly one motif,
+
         """
         if not (m.index.min() == 0 and m.index.max() == len(m) - 1):
             raise ValueError("We assume 0-indexed data for the rest of the code.")
@@ -315,21 +315,21 @@ class BondConnectivity:
                     "Not all H belong to a motif. Modify the bond dictionary or"
                     "change `h_treatment` assign all H atoms a motif"
                 )
-            elif motifs_share_H():
+            if motifs_share_H():
                 raise ValueError(
                     "Motifs share H. Modify the bond dictionary or change "
                     "h_treatment so that no motifs share a H."
                 )
-            else:
-                return cls(
-                    processed_bonds_atoms,
-                    motifs,
-                    bonds_motif,
-                    H_atoms,
-                    H_per_motif,
-                    atoms_per_motif,
-                    h_treatment,
-                )
+
+            return cls(
+                processed_bonds_atoms,
+                motifs,
+                bonds_motif,
+                H_atoms,
+                H_per_motif,
+                atoms_per_motif,
+                h_treatment,
+            )
         elif h_treatment == "treat_H_like_heavy_atom":
             return cls(
                 processed_bonds_atoms,
@@ -427,6 +427,7 @@ class BondConnectivity:
             The keyword is mutually exclusive with :python:`bonds_atoms`.
         h_treatment :
             How do we treat the hydrogen atoms? Options include:
+
             * "treat_H_diff": Default, treating each H different from heavy atoms. Using
               the given vdW_radius to determine which H belong to which motif
             * "treat_H_like_heavy_atom": Treating each H the same as the heavy atoms
@@ -435,6 +436,7 @@ class BondConnectivity:
               H is assigned to multiple motifs
             * "exactly_one_H": Enforcing that each H can belong to exactly one H, if a
               H is assigned to multiple motifs or to no motifs
+
         """
         return cls.from_cartesian(
             Cartesian.from_pyscf(mol),
@@ -484,18 +486,18 @@ class BondConnectivity:
             The keyword is mutually exclusive with :python:`bonds_atoms`.
         h_treatment :
             How do we treat the hydrogen atoms? Options include:
+
             * "treat_H_diff": Default, treating each H different from heavy atoms. Using
-              the given vdW_radius to determine which H belong to which motif
+              the given vdW_radius to determine which H belong to which motif,
             * "treat_H_like_heavy_atom": Treating each H the same as the heavy atoms
-              when determining fragments
-            * "at_most_one_H": Enforcing that each H can belong to at most one H, if a
-              H is assigned to multiple motifs
-            * "exactly_one_H": Enforcing that each H can belong to exactly one H, if a
-              H is assigned to multiple motifs or to no motifs
+              when determining fragments,
+            * "at_most_one_H": Enforcing that each H must belong to at most one motif,
+            * "exactly_one_H": Enforcing that each H must belong to exactly one motif,
+
         """
         # If bonds_atoms was given, use the information.
         # Otherwise, use chemcoord to get the connectivity graph.
-        if h_treatment == "at_most_one_H" or h_treatment == "exactly_one_H":
+        if h_treatment in ("at_most_one_H", "exactly_one_H"):
             raise NotImplementedError("H treament not implemented for periodic systems")
         if bonds_atoms is None:
             # Add periodic copies to a fake mol object
@@ -850,14 +852,14 @@ class PurelyStructureFragmented(Generic[_T_chemsystem]):
             The coordination sphere to consider.
         h_treatment :
             How do we treat the hydrogen atoms? Options include:
+
             * "treat_H_diff": Default, treating each H different from heavy atoms. Using
-              the given vdW_radius to determine which H belong to which motif
+              the given vdW_radius to determine which H belong to which motif,
             * "treat_H_like_heavy_atom": Treating each H the same as the heavy atoms
-              when determining fragments
-            * "at_most_one_H": Enforcing that each H can belong to at most one H, if a
-              H is assigned to multiple motifs
-            * "exactly_one_H": Enforcing that each H can belong to exactly one H, if a
-              H is assigned to multiple motifs or to no motifs
+              when determining fragments,
+            * "at_most_one_H": Enforcing that each H must belong to at most one motif,
+            * "exactly_one_H": Enforcing that each H must belong to exactly one motif,
+
         autocratic_matching :
             Assume autocratic matching for possibly shared centers.
             Will call :meth:`get_autocratically_matched` upon construction.
@@ -1338,14 +1340,14 @@ class Fragmented(Generic[_T_chemsystem]):
             The BE fragmentation level.
         h_treatment :
             How do we treat the hydrogen atoms? Options include:
+
             * "treat_H_diff": Default, treating each H different from heavy atoms. Using
-              the given vdW_radius to determine which H belong to which motif
+              the given vdW_radius to determine which H belong to which motif,
             * "treat_H_like_heavy_atom": Treating each H the same as the heavy atoms
-              when determining fragments
-            * "at_most_one_H": Enforcing that each H can belong to at most one H, if a
-              H is assigned to multiple motifs
-            * "exactly_one_H": Enforcing that each H can belong to exactly one H, if a
-              H is assigned to multiple motifs or to no motifs
+              when determining fragments,
+            * "at_most_one_H": Enforcing that each H must belong to at most one motif,
+            * "exactly_one_H": Enforcing that each H must belong to exactly one motif,
+
         bonds_atoms :
             Can be used to specify the connectivity graph of the molecule.
             Has exactly the same format as the output of
