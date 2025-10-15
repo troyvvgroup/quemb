@@ -175,8 +175,13 @@ class Frags:
             Default is None, allowing orbitals to be chosen by threshold
         """
         if add_cnos:
-            self.TA_lo_eo, delta_TA_lo_eo_occ, delta_TA_lo_eo_vir, self.n_f, self.n_b \
-                = schmidt_decomposition_cnos(
+            (
+                self.TA_lo_eo,
+                delta_TA_lo_eo_occ,
+                delta_TA_lo_eo_vir,
+                self.n_f,
+                self.n_b,
+            ) = schmidt_decomposition_cnos(
                 lmo,
                 nocc,
                 self.AO_in_frag,
@@ -194,10 +199,9 @@ class Frags:
                 thr_bath=thr_bath,
                 norb=norb,
             )
-            
+
             self.TA = lao @ self.TA_lo_eo
             self.nao = self.TA.shape[1]
-
 
     def cons_fock(self, hf_veff, S, dm, eri_=None):
         """
@@ -542,12 +546,19 @@ def schmidt_decomposition(
     # return TA, norbs_frag, norbs_bath
     return TA, Frag_sites1.shape[0], len(Bidx)
 
+
 def schmidt_decomposition_cnos(
     mo_coeff: Matrix[float64],
     nocc: int,
     AO_in_frag: Sequence[GlobalAOIdx],
     thr_bath: float = 1.0e-10,
-) -> tuple[Matrix[float64],Matrix[float64], Matrix[float64], int, int,]:
+) -> tuple[
+    Matrix[float64],
+    Matrix[float64],
+    Matrix[float64],
+    int,
+    int,
+]:
     """
     Perform Schmidt decomposition on the molecular orbital coefficients, when
     augmenting with CNOs. This includes extra returns (as compared to
@@ -622,7 +633,7 @@ def schmidt_decomposition_cnos(
 
     # Occupied environment columns
     delta_TA_occ = zeros([Tot_sites, len(OEidx)])
-    delta_TA_occ[Env_sites1,:] = Evec[:, OEidx]
+    delta_TA_occ[Env_sites1, :] = Evec[:, OEidx]
 
     # Virtual environment columns
     delta_TA_vir = zeros([Tot_sites, len(VEidx)])

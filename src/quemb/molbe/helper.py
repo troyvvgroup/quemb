@@ -280,9 +280,8 @@ def get_frag_energy(
     rdm1s_rot = mo_coeffs @ rdm1 @ mo_coeffs.T * 0.5
 
     # Construct the Hartree-Fock 1-RDM
-    #hf_1rdm = mo_coeffs[:, :nsocc] @ mo_coeffs[:, :nsocc].conj().T
     hf_1rdm = mo_coeff[:, :nsocc] @ mo_coeff[:, :nsocc].conj().T
-    
+
     if use_cumulant:
         # Compute the difference between the rotated RDM1 and the Hartree-Fock 1-RDM
         delta_rdm1 = 2 * (rdm1s_rot - hf_1rdm)
@@ -306,12 +305,10 @@ def get_frag_energy(
         eri = r[dname][()]
 
     # Rotate the RDM2 into the MO basis
-    #print("pre rot rdm2s[0]", rdm2s[0])
     rdm2s = einsum(
         "ijkl,pi,qj,rk,sl->pqrs", 0.5 * rdm2s, *([mo_coeffs] * 4), optimize=True
     )
 
-    #print("post rot rdm2s[0]", rdm2s[0])
     # Initialize the two-electron energy contribution
     e2 = zeros_like(e1)
 

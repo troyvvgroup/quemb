@@ -111,14 +111,14 @@ def get_cnos(
     eri_schmidt = ao2mo.incore.full(eri_full, TA_x, compact=True)
 
     h_schmidt = preparing_h_cnos(
-            nocc - nsocc,
-            C[:,:nocc],
-            S,
-            hcore_full,
-            TA_x,
-            veff_full,
-            core_veff,
-            eri_schmidt
+        nocc - nsocc,
+        C[:, :nocc],
+        S,
+        hcore_full,
+        TA_x,
+        veff_full,
+        core_veff,
+        eri_schmidt,
     )
 
     # Get semicanonicalized C by solving HF with these 1 and 2 e integrals
@@ -169,7 +169,7 @@ def preparing_h_cnos(
     if nvir == 0:
         h_rot = np.einsum("mp,nq,mn->pq", TA_x, TA_x, h, optimize=True)
         G_envs = np.zeros_like(h_rot)
-    
+
     else:
         ST = S @ TA_x
         G_s = TA_x.T @ hf_veff @ TA_x
@@ -260,7 +260,7 @@ def choose_cnos(
     except RuntimeError:
         mol.charge = -1
         mol.build()
-    
+
     if frz_core:
         # Find number of core orbitals in the fragment
         frz_core_orbs = get_core(mol)[0]
@@ -415,7 +415,7 @@ def augment_w_cnos(
     nocc_cno: int | None,
     nvir_cno: int | None,
     occ_cno_eigvals: Matrix[floating] | None,
-    vir_cno_eigvals: Matrix[floating] | None, 
+    vir_cno_eigvals: Matrix[floating] | None,
     occ_cno: Matrix[floating] | None,
     vir_cno: Matrix[floating] | None,
     thresh: float | None = None,

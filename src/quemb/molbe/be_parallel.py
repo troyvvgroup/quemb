@@ -299,10 +299,7 @@ def run_solver(
             use_cumulant,
             eri_file,
         )
-    print(f"Correlation Energy at iteration: {sum(e_f):>f} Ha")
-    print(f"E F delta P: {e_f[0] + e_f[2]:>f} Ha")
-    print(f"E cumulant: {e_f[1]:>f} Ha")
-    
+
     if eeval and not ret_vec:
         return e_f
 
@@ -548,10 +545,6 @@ def be_func_parallel(
         fobj.mo_coeffs = rdm[1]
         fobj._rdm1 = rdm[2]
         fobj.rdm2__ = rdm[3]
-
-    print(f"Correlation Energy at iteration: {(e_1+e_2+e_c):>f} Ha", flush=True)
-    print(f"E F delta P: {(e_1 + e_c):>f} Ha", flush=True)
-    print(f"E cumulant: {e_2:>f} Ha", flush=True)
 
     del rdms
     ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem)

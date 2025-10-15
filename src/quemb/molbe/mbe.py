@@ -162,7 +162,7 @@ class BE:
         pop_method :
             Method for calculating orbital population, by default 'meta-lowdin'
             See pyscf.lo for more details and options
-        add_cnos : 
+        add_cnos :
             Whether to run the CNO routine and return cluster natural orbitals to pad
             the Schmidt space. Default is False
         restart :
@@ -1110,7 +1110,7 @@ class BE:
                 self.Nocc,
                 thr_bath=self.thr_bath,
                 add_cnos=self.add_cnos,
-                )
+            )
 
             # Calculating and Adding CNOs, if requested
             if self.add_cnos:
@@ -1123,18 +1123,18 @@ class BE:
                     ncore=self.ncore,
                 )
                 nocc_add_cno, nvir_add_cno, cno_thresh = choose_cnos(
-                    "f"+str(I)+".xyz", # geometry
-                    self.mf.mol.basis, # basis
-                    fobjs_.n_f, # number of fragment orbitals
-                    fobjs_.n_b, # number of bath orbitals
-                    fobjs_.TA_cno_occ.shape[1], # occupied-augmented size 
-                    fobjs_.TA_cno_vir.shape[1], # virtual-augmented size
-                    nsocc_standard, # number of occupied orbitals in fragment
-                    self.Nocc, # total number of occupied orbitals
-                    self.frozen_core, # whether the core is frozen
-                    self.additional_args, # CNO scheme arguments
+                    "f" + str(I) + ".xyz",  # geometry
+                    self.mf.mol.basis,  # basis
+                    fobjs_.n_f,  # number of fragment orbitals
+                    fobjs_.n_b,  # number of bath orbitals
+                    fobjs_.TA_cno_occ.shape[1],  # occupied-augmented size
+                    fobjs_.TA_cno_vir.shape[1],  # virtual-augmented size
+                    nsocc_standard,  # number of occupied orbitals in fragment
+                    self.Nocc,  # total number of occupied orbitals
+                    self.frozen_core,  # whether the core is frozen
+                    self.additional_args,  # CNO scheme arguments
                 )
-                os.remove("f"+str(I)+".xyz")
+                os.remove("f" + str(I) + ".xyz")
 
                 occ_cno = None
                 vir_cno = None
@@ -1151,17 +1151,17 @@ class BE:
                     )
                     # Generate occupied CNOs
                     occ_cno, occ_cno_eigvals = get_cnos(
-                        fobjs_.TA.shape[1], # number of fragment and bath orbitals
-                        fobjs_.TA_cno_occ, # TA occupied expanded
-                        self.hcore, # hcore
-                        eri_, # eris
+                        fobjs_.TA.shape[1],  # number of fragment and bath orbitals
+                        fobjs_.TA_cno_occ,  # TA occupied expanded
+                        self.hcore,
+                        eri_,
                         self.hf_veff,
                         self.C,
                         self.S,
                         nsocc_occ,
                         self.Nocc,
                         self.core_veff if self.frozen_core else None,
-                        occ = True,
+                        occ=True,
                     )
                 if nvir_add_cno > 0 or cno_thresh is not None:
                     # Virtual nsocc (using TA_vir)
@@ -1174,17 +1174,17 @@ class BE:
                     )
                     # Generate virtual CNOs
                     vir_cno, vir_cno_eigvals = get_cnos(
-                        fobjs_.TA.shape[1], # number of fragment and bath orbitals
-                        fobjs_.TA_cno_vir, # TA virtual expanded
-                        self.hcore, # hcore
-                        eri_, # eris
+                        fobjs_.TA.shape[1],  # number of fragment and bath orbitals
+                        fobjs_.TA_cno_vir,  # TA virtual expanded
+                        self.hcore,
+                        eri_,
                         self.hf_veff,
                         self.C,
                         self.S,
                         nsocc_vir,
                         self.Nocc,
                         self.core_veff if self.frozen_core else None,
-                        occ = False,
+                        occ=False,
                     )
                 # Augment TA with the correct number of OCNOs and VCNOs
                 fobjs_.TA, nocc_add_cno, nvir_add_cno = augment_w_cnos(
@@ -1203,13 +1203,19 @@ class BE:
                 print(f"For Fragment {I:>3.0f}:", flush=True)
                 print(f"          {nocc_add_cno:>3.0f}: Occupied CNOs", flush=True)
                 print(f"          {nvir_add_cno:>3.0f}: Virtual CNOs", flush=True)
-                print(f"{fobjs_.n_f:>3.0f}, {fobjs_.n_b:>3.0f}, {fobjs_.n_f+fobjs_.n_b:>3.0f}: Fragment, Bath, Total Orbitals", flush=True)  # noqa: E501
+                print(
+                    f"{fobjs_.n_f:>3.0f}, {fobjs_.n_b:>3.0f}, {fobjs_.n_f + fobjs_.n_b:>3.0f}: Fragment, Bath, Total Orbitals",
+                    flush=True,
+                )  # noqa: E501
 
                 # Update relevant fobjs_ attributes
                 fobjs_.nao = fobjs_.TA.shape[1]
             else:
                 print(f"For Fragment {I:>3.0f}:", flush=True)
-                print(f"{fobjs_.n_f:>3.0f}, {fobjs_.n_b:>3.0f}, {fobjs_.n_f+fobjs_.n_b:>3.0f}: Fragment, Bath, Total Orbitals", flush=True)  # noqa: E501
+                print(
+                    f"{fobjs_.n_f:>3.0f}, {fobjs_.n_b:>3.0f}, {fobjs_.n_f + fobjs_.n_b:>3.0f}: Fragment, Bath, Total Orbitals",
+                    flush=True,
+                )  # noqa: E501
 
             self.Fobjs.append(fobjs_)
 
