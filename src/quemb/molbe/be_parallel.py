@@ -48,7 +48,7 @@ def run_solver(
     weight_and_relAO_per_center: ListOverFrag[tuple[float, list[RelAOIdx]]],
     TA: Matrix[float64],
     h1_e: Matrix[float64],
-    mo_coeff: Matrix[float64],
+    # mo_coeff: Matrix[float64],  # Frankenstein Energy TODO
     solver: Solvers = "CCSD",
     eri_file: str = "eri_file.h5",
     veff: Matrix[float64] | None = None,
@@ -285,7 +285,7 @@ def run_solver(
                 rdm2s -= nc
         e_f = get_frag_energy(
             mf_.mo_coeff,
-            mo_coeff,
+            # mo_coeff,  # Frankenstein energy TODO
             nocc,
             n_frag,
             weight_and_relAO_per_center,
@@ -501,7 +501,7 @@ def be_func_parallel(
                     fobj.weight_and_relAO_per_center,
                     fobj.TA,
                     fobj.h1,
-                    fobj._mo_coeffs,
+                    # fobj._mo_coeffs,  # Frankenstein Energy, TODO
                     solver,
                     fobj.eri_file,
                     fobj.veff if not use_cumulant else None,

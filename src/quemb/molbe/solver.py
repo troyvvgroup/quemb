@@ -530,7 +530,7 @@ def be_func(
             # Return [e1, e2, ec] as e_f and add to the running total_e.
             e_f = get_frag_energy(
                 mo_coeffs=fobj.mo_coeffs,
-                mo_coeff=fobj._mo_coeffs,
+                # mo_coeff=fobj._mo_coeffs,  # to match Frankenstein: TODO
                 nsocc=fobj.nsocc,
                 n_frag=fobj.n_frag,
                 weight_and_relAO_per_center=fobj.weight_and_relAO_per_center,

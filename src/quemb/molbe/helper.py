@@ -219,7 +219,7 @@ def get_core(mol: Mole | Cell) -> tuple[int, list[int], list[int]]:
 
 def get_frag_energy(
     mo_coeffs,
-    mo_coeff,
+    # mo_coeff,  # To match Frankenstein : TODO
     nsocc,
     n_frag,
     weight_and_relAO_per_center,
@@ -280,7 +280,8 @@ def get_frag_energy(
     rdm1s_rot = mo_coeffs @ rdm1 @ mo_coeffs.T * 0.5
 
     # Construct the Hartree-Fock 1-RDM
-    hf_1rdm = mo_coeff[:, :nsocc] @ mo_coeff[:, :nsocc].conj().T
+    # hf_1rdm = mo_coeff[:, :nsocc] @ mo_coeff[:, :nsocc].conj().T  # Frank Energy TODO
+    hf_1rdm = mo_coeffs[:, :nsocc] @ mo_coeffs[:, :nsocc].conj().T
 
     if use_cumulant:
         # Compute the difference between the rotated RDM1 and the Hartree-Fock 1-RDM
