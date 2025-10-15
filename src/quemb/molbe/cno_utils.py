@@ -75,7 +75,7 @@ def get_cnos(
     nocc: int,
     core_veff: Matrix[floating] | None,
     occ: bool,
-) -> Matrix:
+) -> Tuple[Matrix, Matrix]:
     """Generates the occupied or virtual CNOs for a given fragment.
 
     Parameters
@@ -157,15 +157,17 @@ def get_cnos(
 
 
 def preparing_h_cnos(
-    nvir,
-    hf_Cocc,
-    S,
-    h,
-    TA_x,
-    hf_veff,
-    core_veff,
-    eri_s,
-):
+    nvir: int,
+    hf_Cocc: Matrix,
+    S: Matrix[floating],
+    h: Matrix[floating],
+    TA_x: Matrix[float64],
+    hf_veff: Matrix[floating],
+    core_veff: Matrix[floating] | None,
+    eri_s: Matrix[floating],
+) -> Matrix[float64]:
+    """Building the correct 1-electron integrals to form the CNOs
+    """
     if nvir == 0:
         h_rot = np.einsum("mp,nq,mn->pq", TA_x, TA_x, h, optimize=True)
         G_envs = np.zeros_like(h_rot)
@@ -203,7 +205,7 @@ def choose_cnos(
     nocc: int,
     frz_core: bool,
     args: CNOArgs | None,
-) -> Tuple[int, int]:
+) -> Tuple[int, int, float | None]:
     """Chooses the number of Occupied and Virtual CNOs for a given fragment
 
     Parameters
@@ -236,17 +238,16 @@ def choose_cnos(
 
     Returns
     -------
-    nocc_cno_add, nvir_cno_add : tuple(int, int)
-        The desired number of occupied and virtual CNOs to augment TA, based
-        on the chosen `cno_scheme`.
-
+    nocc_cno_add: int
+        The number of OCNOs to add to augment TA, based on `cno_scheme`
+    nvir_cno_add : int
+        The number of VCNOs to add to augment TA, based on `cno_scheme`
+    cno_thresh : float | None
+        Threshold to select CNOs, if `cno_scheme`=`Thresholding`, else None
     """
     # Options for CNO schemes:
     ###
     assert args is not None
-    assert (args.cno_scheme == "ExactFragmentSize") == (
-        args.tot_active_orbs is not None
-    )
 
     # Build mini fragment to figure out the number of electrons and orbitals
     mol = gto.M()
@@ -305,6 +306,8 @@ def choose_cnos(
         cno_thresh = args.cno_thresh
 
     elif args.cno_scheme == "ExactFragmentSize":
+        assert args.tot_active_orbs is not None
+
         # Start by adding virtuals until `Proportional` is hit
         prop = n_f / (nelec / 2)
         max_vir_add_prop = np.round(prop * nsocc) - n_f - n_b
@@ -412,43 +415,47 @@ def FormPairDensity(
 
 def augment_w_cnos(
     TA: Matrix[float64],
-    nocc_cno: int | None,
-    nvir_cno: int | None,
+    nocc_cno: int,
+    nvir_cno: int,
     occ_cno_eigvals: Matrix[floating] | None,
     vir_cno_eigvals: Matrix[floating] | None,
     occ_cno: Matrix[floating] | None,
     vir_cno: Matrix[floating] | None,
     thresh: float | None = None,
-) -> Matrix:
+) -> Tuple[Matrix, int, int]:
     """Augmenting TA with the chosen occupied and virtual CNOs
 
     Parameters
     ----------
     TA : Matrix
         Original Schmidt space TA matrix
-    nocc_cno : int or None
-        Number of occupied CNOs to augment, if int
-        OR threshold for occupied CNOs, if None
-    nvir_cno : int or None
-        Number of virtual CNOs to augment, if int
-        OR threshold for virtual CNOs, if None
-    occ_cno_eigvals : Matrix or None
+    nocc_cno : int
+        Number of occupied CNOs to augment. If `thresh` is not None,
+        we use the threshold to determine the CNOs instead
+    nvir_cno : int
+        Number of virtual CNOs to augment. If `thresh` is not None,
+        we use the threshold to determine the CNOs instead
+    occ_cno_eigvals : Matrix
         The eigenvalues from the occupied pair density, used for thesholding
         OCNOs if thresh is not None
-    vir_cno_eigvals : Matrix or None
+    vir_cno_eigvals : Matrix
         The eigenvalues from the virtual pair density, used for thesholding
         VCNOs if thresh is not None
     occ_cno : Matrix
         Full occupied CNO matrix
     vir_cno : Matrix
         Full virtual CNO matrix
-    thresh : float
-        Whether we are selecting CNOs based on a threshold
+    thresh : float or None
+        If not None, the threshold we use to choose the CNOs
 
     Returns
     -------
     TA : Matrix
         Augmented TA matrix with CNOs
+    nocc_cno: int
+        The number of OCNOs added to the fragment
+    nvir_cno: int
+        The number of VCNOs added to the fragment
     """
     if thresh is None:
         if nocc_cno > 0:
@@ -458,15 +465,20 @@ def augment_w_cnos(
             assert vir_cno is not None
             TA = np.hstack((TA, vir_cno[:, -nvir_cno:]))
     else:
+        assert occ_cno_eigvals is not None
+        assert vir_cno_eigvals is not None
+
         occ_ind = np.argwhere(occ_cno_eigvals < (1 - thresh))
         vir_ind = np.argwhere(vir_cno_eigvals > (thresh))
 
         nocc_cno = occ_ind.shape[0]
         nvir_cno = vir_ind.shape[0]
         if nocc_cno > 0:
+            assert occ_cno is not None
             aug_occ = np.asarray([occ_cno[:, i] for [i] in occ_ind])
             TA = np.hstack((TA, aug_occ.T))
         if nvir_cno > 0:
+            assert vir_cno is not None
             aug_vir = np.asarray([vir_cno[:, i] for [i] in vir_ind])
             TA = np.hstack((TA, aug_vir.T))
 
