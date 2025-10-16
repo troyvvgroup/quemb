@@ -114,6 +114,10 @@ class Frags:
         self.frag_TA_offset: Vector[int64]
         self.TA_lo_eo: Matrix[float64]
 
+        # CNOs
+        self.TA_cno_occ: Matrix[float64]
+        self.TA_cno_vir: Matrix[float64]
+
         self.h1: Matrix[float64]
         self.nao: int
         self.mo_coeffs: Matrix[float64]
@@ -150,6 +154,7 @@ class Frags:
         nocc: int,
         thr_bath: float,
         norb: int | None = None,
+        add_cnos: bool = False,
     ) -> None:
         """
         Perform Schmidt decomposition for the fragment.
@@ -169,15 +174,34 @@ class Frags:
             Used for UBE, where different number of alpha and beta orbitals
             Default is None, allowing orbitals to be chosen by threshold
         """
-        self.TA_lo_eo, self.n_f, self.n_b = schmidt_decomposition(
-            lmo,
-            nocc,
-            self.AO_in_frag,
-            thr_bath=thr_bath,
-            norb=norb,
-        )
-        self.TA = lao @ self.TA_lo_eo
-        self.nao = self.TA.shape[1]
+        if add_cnos:
+            (
+                self.TA_lo_eo,
+                delta_TA_lo_eo_occ,
+                delta_TA_lo_eo_vir,
+                self.n_f,
+                self.n_b,
+            ) = schmidt_decomposition_cnos(
+                lmo,
+                nocc,
+                self.AO_in_frag,
+                thr_bath=thr_bath,
+            )
+
+            self.TA = lao @ self.TA_lo_eo
+            self.TA_cno_occ = np.hstack((self.TA, lao @ delta_TA_lo_eo_occ))
+            self.TA_cno_vir = np.hstack((self.TA, lao @ delta_TA_lo_eo_vir))
+        else:
+            self.TA_lo_eo, self.n_f, self.n_b = schmidt_decomposition(
+                lmo,
+                nocc,
+                self.AO_in_frag,
+                thr_bath=thr_bath,
+                norb=norb,
+            )
+
+            self.TA = lao @ self.TA_lo_eo
+            self.nao = self.TA.shape[1]
 
     def cons_fock(self, hf_veff, S, dm, eri_=None):
         """
@@ -237,6 +261,36 @@ class Frags:
         self._mo_coeffs = mo_coeffs
         self.nsocc = nsocc
         return P_
+
+    def return_nsocc_only(self, S, C, T_X, nocc, ncore=0):
+        """
+        Get the number of occupied orbitals for the fragment, without also finding the
+        mo_coeffs and updating any object attributes. This is used in the CNO routine
+        for occupied and virtual CNOs.
+
+        Parameters
+        ----------
+        S : numpy.ndarray
+            Overlap matrix.
+        C : numpy.ndarray
+            Molecular orbital coefficients.
+        nocc : int
+            Number of occupied orbitals.
+        ncore : int, optional
+            Number of core orbitals, by default 0.
+
+        Returns
+        -------
+        numpy.ndarray
+            Projected density matrix.
+        """
+        C_ = multi_dot((T_X.T, S, C[:, ncore : ncore + nocc]))
+        P_ = C_ @ C_.T
+
+        nsocc_ = trace(P_)
+        nsocc = int(round(nsocc_))
+
+        return nsocc
 
     def scf(
         self, heff=None, fs=False, eri=None, dm0=None, unrestricted=False, spin_ind=None
@@ -422,8 +476,8 @@ def schmidt_decomposition(
         Molecular orbital coefficients.
     nocc :
         Number of occupied orbitals.
-    Frag_sites : list of int
-        List of fragment sites (indices).
+    AO_in_frag :
+        Sequence of fragment sites (indices).
     thr_bath :
         Threshold for bath orbitals in Schmidt decomposition
     cinv :
@@ -488,10 +542,104 @@ def schmidt_decomposition(
     # Initialize the transformation matrix (TA)
     TA = zeros([Tot_sites, len(AO_in_frag) + len(Bidx)])
     TA[AO_in_frag, : len(AO_in_frag)] = eye(len(AO_in_frag))  # Fragment part
-    TA[Env_sites1, len(AO_in_frag) :] = Evec[:, Bidx]  # Environment part
-
+    TA[Env_sites1, len(AO_in_frag) :] = Evec[:, Bidx]  # Bath part
     # return TA, norbs_frag, norbs_bath
     return TA, Frag_sites1.shape[0], len(Bidx)
+
+
+def schmidt_decomposition_cnos(
+    mo_coeff: Matrix[float64],
+    nocc: int,
+    AO_in_frag: Sequence[GlobalAOIdx],
+    thr_bath: float = 1.0e-10,
+) -> tuple[
+    Matrix[float64],
+    Matrix[float64],
+    Matrix[float64],
+    int,
+    int,
+]:
+    """
+    Perform Schmidt decomposition on the molecular orbital coefficients, when
+    augmenting with CNOs. This includes extra returns (as compared to
+    `schmidt_decomposition`) which are required for manipulating the environment
+
+    This function decomposes the molecular orbitals into fragment and environment parts
+    using the Schmidt decomposition method. It computes the transformation matrix (TA)
+    which includes both the fragment orbitals and the entangled bath. It also returns
+    the occupied and virtual environment orbitals.
+
+    Parameters
+    ----------
+    mo_coeff :
+        Molecular orbital coefficients.
+    nocc :
+        Number of occupied orbitals.
+    AO_in_frag :
+        Sequence of fragment sites (indices).
+    thr_bath :
+        Threshold for bath orbitals in Schmidt decomposition
+
+    Returns
+    -------
+    tuple:
+        TA, delta_TA_occ, delta_TA_virt, norbs_frag, norbs_bath
+
+        Transformation matrix (TA) including both fragment and entangled bath orbitals.
+        This also returns the columns associated with the occupied and virtual
+        environment orbitals, as well as the number of fragment and bath orbitals
+    """
+
+    # Compute the reduced density matrix (RDM) if not provided
+    C = mo_coeff[:, :nocc]
+    Dhf = C @ C.T
+
+    # Total number of sites
+    Tot_sites = Dhf.shape[0]
+
+    # Identify environment sites (indices not in Frag_sites)
+    Env_sites1 = array([i for i in range(Tot_sites) if i not in AO_in_frag])
+    Env_sites = array([[i] for i in range(Tot_sites) if i not in AO_in_frag])
+    Frag_sites1 = array([[i] for i in AO_in_frag])
+
+    # Compute the environment part of the density matrix
+    Denv = Dhf[Env_sites, Env_sites.T]
+
+    # Perform eigenvalue decomposition on the environment density matrix
+    Eval, Evec = eigh(Denv)
+
+    # Identify significant environment orbitals based on eigenvalue threshold
+    Bidx = []
+    VEidx = []
+    OEidx = []
+
+    # Set the number of orbitals to be taken from the environment orbitals
+    # Based on an eigenvalue threshold ordering
+    for i in range(len(Eval)):
+        # Entangled bath orbital index
+        if thr_bath < np.abs(Eval[i]) < 1.0 - thr_bath:
+            Bidx.append(i)
+        # Occupied environment index
+        elif 1.0 - thr_bath <= np.abs(Eval[i]):
+            OEidx.append(i)
+        # Virtual environment index
+        else:
+            VEidx.append(i)
+
+    # Initialize the transformation matrix (TA)
+    TA = zeros([Tot_sites, len(AO_in_frag) + len(Bidx)])
+    TA[AO_in_frag, : len(AO_in_frag)] = eye(len(AO_in_frag))  # Fragment part
+    TA[Env_sites1, len(AO_in_frag) :] = Evec[:, Bidx]  # Bath part
+
+    # Occupied environment columns
+    delta_TA_occ = zeros([Tot_sites, len(OEidx)])
+    delta_TA_occ[Env_sites1, :] = Evec[:, OEidx]
+
+    # Virtual environment columns
+    delta_TA_vir = zeros([Tot_sites, len(VEidx)])
+    delta_TA_vir[Env_sites1, :] = Evec[:, VEidx]
+
+    return TA, delta_TA_occ, delta_TA_vir, Frag_sites1.shape[0], len(Bidx)
 
 
 def _get_contained(

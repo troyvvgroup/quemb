@@ -1,5 +1,4 @@
 # Author(s): Oinam Romesh Meitei
-
 import logging
 import pickle
 from typing import Final, Literal, TypeAlias
@@ -28,6 +27,9 @@ from pyscf import ao2mo, scf
 from pyscf.gto import Mole
 from typing_extensions import assert_never
 
+from quemb.molbe.be_parallel import be_func_parallel
+from quemb.molbe.chemfrag import ChemFragPart
+from quemb.molbe.cno_utils import CNOArgs, augment_w_cnos, choose_cnos, get_cnos
 from quemb.molbe.eri_onthefly import integral_direct_DF
 from quemb.molbe.eri_sparse_DF import (
     transform_sparse_DF_integral_cpp,
@@ -44,8 +46,9 @@ from quemb.molbe.lo import (
     remove_core_mo,
 )
 from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
+from quemb.molbe.opt import BEOPT
 from quemb.molbe.pfrag import Frags, union_of_frag_MOs_and_index
-from quemb.shared.be_parallel import be_func_parallel
+from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.external.lo_helper import (
     get_aoind_by_atom,
     reorder_by_atom_,
@@ -55,8 +58,6 @@ from quemb.shared.external.optqn import (
 )
 from quemb.shared.helper import copy_docstring, ensure, ncore_, timer, unused
 from quemb.shared.manage_scratch import WorkDir
-from quemb.shared.opt import BEOPT
-from quemb.shared.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.typing import Matrix, PathLike
 
 IntTransforms: TypeAlias = Literal[
@@ -124,6 +125,8 @@ class BE:
         iao_loc_method: IAO_LocMethods = "lowdin",
         lo_bath_post_schmidt: Literal["cholesky", "ER", "PM", "boys"] | None = None,
         pop_method: str | None = None,
+        add_cnos: bool = False,
+        cno_args: CNOArgs | None = None,
         restart: bool = False,
         restart_file: PathLike = "storebe.pk",
         nproc: int = 1,
@@ -157,6 +160,13 @@ class BE:
         pop_method :
             Method for calculating orbital population, by default 'meta-lowdin'
             See pyscf.lo for more details and options
+        add_cnos :
+            Whether to run the CNO routine and return cluster natural orbitals to pad
+            the Schmidt space. Default is False
+        cno_args :
+            If add_cnos, these are the CNOArgs arguments that can be passed into the CNO
+            routine to determine how CNOs are built. Default option, when cno_args=None,
+            is the `Proportional` scheme. See CNOArgs in cno_utils.py for all options
         restart :
             Whether to restart from a previous calculation, by default False.
         restart_file :
@@ -259,6 +269,10 @@ class BE:
         self.integral_transform = int_transform
         self.auxbasis = auxbasis
         self.thr_bath = thr_bath
+
+        # CNO Parameters
+        self.add_cnos = add_cnos
+        self.cno_args = cno_args
 
         # Fragment information from fobj
         self.fobj = fobj
@@ -912,7 +926,7 @@ class BE:
     def _eri_transform(
         self,
         int_transform: IntTransforms,
-        eri_: Matrix[np.floating] | None,
+        eri_: Matrix[floating] | None,
         file_eri: h5py.File,
     ):
         """
@@ -1036,9 +1050,9 @@ class BE:
 
         E_hf = 0.0
         for fobjs_ in self.Fobjs:
+            # Process each fragment
             eri = array(file_eri.get(fobjs_.dname))
             _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
-
             assert fobjs_.TA is not None
             fobjs_.h1 = multi_dot((fobjs_.TA.T, self.hcore, fobjs_.TA))
 
@@ -1092,7 +1106,121 @@ class BE:
         """
         for I in range(self.fobj.n_frag):
             fobjs_ = self.fobj.to_Frags(I, eri_file=self.eri_file)
-            fobjs_.sd(self.W, self.lmo_coeff, self.Nocc, thr_bath=self.thr_bath)
+            fobjs_.sd(
+                self.W,
+                self.lmo_coeff,
+                self.Nocc,
+                thr_bath=self.thr_bath,
+                add_cnos=self.add_cnos,
+            )
+
+            # Calculating and Adding CNOs, if requested
+            if self.add_cnos:
+                # For now, only ChemGen supported to feed in the molecule geometry
+                assert isinstance(self.fobj, ChemFragPart)
+
+                # Standard nsocc for the fragment
+                nsocc_standard = fobjs_.return_nsocc_only(
+                    self.S,
+                    self.C,
+                    fobjs_.TA,
+                    self.Nocc,
+                    ncore=self.ncore,
+                )
+
+                nocc_add_cno, nvir_add_cno, cno_thresh = choose_cnos(
+                    self.fobj.fragmented.frag_structure.atoms_per_frag[I],  # geometry
+                    self.mf.mol,  # molecule object
+                    fobjs_.n_f,  # number of fragment orbitals
+                    fobjs_.n_b,  # number of bath orbitals
+                    fobjs_.TA_cno_occ.shape[1],  # occupied-augmented size
+                    fobjs_.TA_cno_vir.shape[1],  # virtual-augmented size
+                    nsocc_standard,  # number of occupied orbitals in fragment
+                    self.Nocc,  # total number of occupied orbitals
+                    self.frozen_core,  # whether the core is frozen
+                    self.cno_args,  # CNO scheme arguments
+                )
+
+                occ_cno = None
+                vir_cno = None
+                occ_cno_eigvals = None
+                vir_cno_eigvals = None
+                if nocc_add_cno > 0 or cno_thresh is not None:
+                    # Occupied nsocc (using TA_occ)
+                    nsocc_occ = fobjs_.return_nsocc_only(
+                        self.S,
+                        self.C,
+                        fobjs_.TA_cno_occ,
+                        self.Nocc,
+                        ncore=self.ncore,
+                    )
+                    # Generate occupied CNOs
+                    occ_cno, occ_cno_eigvals = get_cnos(
+                        fobjs_.TA.shape[1],  # number of fragment and bath orbitals
+                        fobjs_.TA_cno_occ,  # TA occupied expanded
+                        self.hcore,
+                        eri_,
+                        self.hf_veff,
+                        self.C,
+                        self.S,
+                        nsocc_occ,
+                        self.Nocc,
+                        self.core_veff if self.frozen_core else None,
+                        occ=True,
+                    )
+                if nvir_add_cno > 0 or cno_thresh is not None:
+                    # Virtual nsocc (using TA_vir)
+                    nsocc_vir = fobjs_.return_nsocc_only(
+                        self.S,
+                        self.C,
+                        fobjs_.TA_cno_vir,
+                        self.Nocc,
+                        ncore=self.ncore,
+                    )
+                    # Generate virtual CNOs
+                    vir_cno, vir_cno_eigvals = get_cnos(
+                        fobjs_.TA.shape[1],  # number of fragment and bath orbitals
+                        fobjs_.TA_cno_vir,  # TA virtual expanded
+                        self.hcore,
+                        eri_,
+                        self.hf_veff,
+                        self.C,
+                        self.S,
+                        nsocc_vir,
+                        self.Nocc,
+                        self.core_veff if self.frozen_core else None,
+                        occ=False,
+                    )
+                # Augment TA with the correct number of OCNOs and VCNOs
+                fobjs_.TA, nocc_add_cno, nvir_add_cno = augment_w_cnos(
+                    fobjs_.TA,
+                    nocc_add_cno,
+                    nvir_add_cno,
+                    occ_cno_eigvals,
+                    vir_cno_eigvals,
+                    occ_cno,
+                    vir_cno,
+                    cno_thresh,
+                )
+                # Update bath orbital count
+                fobjs_.n_b = fobjs_.TA.shape[1] - fobjs_.n_f
+
+                print(f"For Fragment {I:>3.0f}:", flush=True)
+                print(f"          {nocc_add_cno:>3.0f}: Occupied CNOs", flush=True)
+                print(f"          {nvir_add_cno:>3.0f}: Virtual CNOs", flush=True)
+                print(
+                    f"{fobjs_.n_f:>3.0f}, {fobjs_.n_b:>3.0f}, {fobjs_.n_f + fobjs_.n_b:>3.0f}: Fragment, Bath, Total Orbitals",  # noqa: E501
+                    flush=True,
+                )
+
+                # Update relevant fobjs_ attributes
+                fobjs_.nao = fobjs_.TA.shape[1]
+            else:
+                print(f"For Fragment {I:>3.0f}:", flush=True)
+                print(
+                    f"{fobjs_.n_f:>3.0f}, {fobjs_.n_b:>3.0f}, {fobjs_.n_f + fobjs_.n_b:>3.0f}: Fragment, Bath, Total Orbitals",  # noqa: E501
+                    flush=True,
+                )
 
             self.Fobjs.append(fobjs_)
 
@@ -1247,10 +1375,10 @@ class BE:
         iao_loc_method: IAO_LocMethods = "lowdin",
         iao_valence_only: bool = False,
         pop_method: str | None = None,
-        init_guess: Matrix[np.floating] | None = None,
+        init_guess: Matrix[floating] | None = None,
         hstack: bool = False,
         save: bool = True,
-    ) -> None | Matrix[np.float64]:
+    ) -> None | Matrix[float64]:
         """Molecular orbital localization
 
         Performs molecular orbital localization computations. For large basis,
