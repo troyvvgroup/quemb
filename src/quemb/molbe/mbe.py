@@ -71,8 +71,6 @@ IntTransforms: TypeAlias = Literal[
 ]
 """Literal type describing allowed transformation strategies."""
 
-AdditionalArgs: TypeAlias = CNOArgs
-
 logger = logging.getLogger(__name__)
 
 
@@ -128,6 +126,7 @@ class BE:
         lo_bath_post_schmidt: Literal["cholesky", "ER", "PM", "boys"] | None = None,
         pop_method: str | None = None,
         add_cnos: bool = False,
+        cno_args: CNOArgs | None = None,
         restart: bool = False,
         restart_file: PathLike = "storebe.pk",
         nproc: int = 1,
@@ -139,7 +138,6 @@ class BE:
         MO_coeff_epsilon: float = 1e-5,
         AO_coeff_epsilon: float = 1e-10,
         re_eval_HF: bool = False,
-        additional_args: AdditionalArgs | None = None,
     ) -> None:
         r"""
         Constructor for BE object.
@@ -165,6 +163,10 @@ class BE:
         add_cnos :
             Whether to run the CNO routine and return cluster natural orbitals to pad
             the Schmidt space. Default is False
+        cno_args :
+            If add_cnos, these are the CNOArgs arguments that can be passed into the CNO
+            routine to determine how CNOs are built. Default option, when cno_args=None,
+            is the `Proportional` scheme. See CNOArgs in cno_utils.py for all options
         restart :
             Whether to restart from a previous calculation, by default False.
         restart_file :
@@ -270,7 +272,7 @@ class BE:
 
         # CNO Parameters
         self.add_cnos = add_cnos
-        self.additional_args = additional_args
+        self.cno_args = cno_args
 
         # Fragment information from fobj
         self.fobj = fobj
@@ -1136,7 +1138,7 @@ class BE:
                     nsocc_standard,  # number of occupied orbitals in fragment
                     self.Nocc,  # total number of occupied orbitals
                     self.frozen_core,  # whether the core is frozen
-                    self.additional_args,  # CNO scheme arguments
+                    self.cno_args,  # CNO scheme arguments
                 )
 
                 occ_cno = None

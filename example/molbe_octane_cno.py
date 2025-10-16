@@ -4,6 +4,8 @@
 # As such, this calculation takes a while!
 # For now, this supports only ChemGen and GraphGen
 
+import pathlib
+
 from pyscf import gto, scf
 
 from quemb.molbe import BE, fragmentate
@@ -11,7 +13,7 @@ from quemb.molbe.cno_utils import CNOArgs
 from quemb.shared.config import settings
 
 # Set the scratch directory for this calculation (optional scrach setting)
-settings.SCRATCH_ROOT = "path/to/scratch"
+settings.SCRATCH_ROOT = pathlib.Path("path/to/scratch")
 
 # Perform pyscf HF calculation to get mol & mf objects
 mol = gto.M(
@@ -64,6 +66,7 @@ fobj = fragmentate(
 
 # Try multiple basic CNO schemes, using only one keyword
 # For descriptions of each scheme, read about CNOArgs in molbe/cno_utils.py
+
 cno_schemes = ["Proportional", "ProportionalQQ", "HalfFilled"]
 for cno in cno_schemes:
     # Initialize BE
@@ -71,7 +74,7 @@ for cno in cno_schemes:
         mf,
         fobj,
         add_cnos=True,
-        additional_args=CNOArgs(cno_scheme=cno),
+        cno_args=CNOArgs(cno_scheme=cno),
         lo_method="IAO",
         iao_loc_method="boys",
     )
@@ -87,7 +90,7 @@ mybe = BE(
     mf,
     fobj,
     add_cnos=True,
-    additional_args=CNOArgs(cno_scheme="Threshold", cno_thresh=1e-4),
+    cno_args=CNOArgs(cno_scheme="Threshold", cno_thresh=1e-4),
     lo_method="IAO",
     iao_loc_method="boys",
 )
@@ -103,7 +106,7 @@ mybe = BE(
     mf,
     fobj,
     add_cnos=True,
-    additional_args=CNOArgs(
+    cno_args=CNOArgs(
         cno_scheme="ExactFragmentSize",
         cno_active_fragsize_scheme="AddBoth",
         tot_active_orbs=38,
