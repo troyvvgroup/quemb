@@ -171,10 +171,12 @@ def preparing_h_cnos(
 ) -> Matrix[float64]:
     """Building the correct 1-electron integrals to form the CNOs"""
     if nvir == 0:
+        # No environment component is necessary
         h_rot = np.einsum("mp,nq,mn->pq", TA_x, TA_x, h, optimize=True)
         G_envs = np.zeros_like(h_rot)
 
     else:
+        # Build environment component
         ST = S @ TA_x
         G_s = TA_x.T @ hf_veff @ TA_x
 
@@ -187,6 +189,7 @@ def preparing_h_cnos(
         h_rot = TA_x.T @ h @ TA_x
         G_envs = G_s - G_fbs
 
+    # Build core component, if frozen core
     G_core = np.zeros_like(h_rot)
     if core_veff is not None:
         G_core = TA_x.T @ core_veff @ TA_x
@@ -213,9 +216,11 @@ def choose_cnos(
     Parameters
     ----------
     atom_per_frag :
-        Object showing the 
-    basis :
-        Basis set for the calculation
+        OrderedSet showing the atom indices in the given fragment. Used to generate the
+        fragment geometry to build the fragment Mole object.
+    mole :
+        Mole object for the full system. We use this to get the basis set and build the
+        fragment Mole object
     n_f :
         Number of fragment orbitals, from the original Schmidt decomposition
     n_b :
@@ -255,7 +260,7 @@ def choose_cnos(
     all_atoms = Cartesian.from_pyscf(mole.build())
     frag_atoms_full = all_atoms.loc[atom_per_frag, :].to_xyz()
     # Remove the first two lines so that pyscf doesn't hate the colon
-    frag_atoms = '\n'.join(frag_atoms_full.split('\n')[2:])
+    frag_atoms = "\n".join(frag_atoms_full.split("\n")[2:])
 
     # Build mini fragment to figure out the number of electrons and orbitals
     mol = gto.M()
@@ -288,7 +293,6 @@ def choose_cnos(
         # (n_f + n_b + nvir_cno_add) to the number of occupied orbitals in the
         # Schmidt space (nsocc) is the same as the ratio `prop` above
 
-        # Kinda ridiculous, but okay for now...
         if isinstance(prop, int):
             nvir_cno_add = prop - n_f - n_b
         else:
@@ -365,6 +369,8 @@ def FormPairDensity(
 ) -> Matrix:
     """
     Adapted slightly from Frankenstein, as written by Henry Tran
+    Forming the Pair Density with either the occupied or virtual space to generate
+    OCNOs (VCNOs)
 
     Parameters
     ----------
