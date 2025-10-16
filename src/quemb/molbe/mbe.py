@@ -1,6 +1,5 @@
 # Author(s): Oinam Romesh Meitei
 import logging
-import os
 import pickle
 from typing import Final, Literal, TypeAlias
 from warnings import warn
@@ -1114,6 +1113,9 @@ class BE:
 
             # Calculating and Adding CNOs, if requested
             if self.add_cnos:
+                # For now, only ChemGen supported to feed in the molecule geometry
+                # figure out an assert
+
                 # Standard nsocc for the fragment
                 nsocc_standard = fobjs_.return_nsocc_only(
                     self.S,
@@ -1123,8 +1125,8 @@ class BE:
                     ncore=self.ncore,
                 )
                 nocc_add_cno, nvir_add_cno, cno_thresh = choose_cnos(
-                    "f" + str(I) + ".xyz",  # geometry
-                    self.mf.mol.basis,  # basis
+                    self.fobj.fragmented.frag_structure.atoms_per_frag[I],  # geometry
+                    self.mf.mol,  # molecule object
                     fobjs_.n_f,  # number of fragment orbitals
                     fobjs_.n_b,  # number of bath orbitals
                     fobjs_.TA_cno_occ.shape[1],  # occupied-augmented size
@@ -1134,7 +1136,6 @@ class BE:
                     self.frozen_core,  # whether the core is frozen
                     self.additional_args,  # CNO scheme arguments
                 )
-                os.remove("f" + str(I) + ".xyz")
 
                 occ_cno = None
                 vir_cno = None

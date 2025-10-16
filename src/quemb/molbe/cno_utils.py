@@ -2,11 +2,14 @@ from typing import Literal, Tuple
 
 import numpy as np
 from attrs import define
+from chemcoord import Cartesian
 from numpy import float64, floating
+from ordered_set import OrderedSet
 from pyscf import ao2mo, gto, scf
+from pyscf.gto import Mole
 
 from quemb.molbe.helper import get_core, get_scfObj
-from quemb.shared.typing import Matrix
+from quemb.shared.typing import AtomIdx, Matrix
 
 CNO_Schemes = Literal[
     "Proportional",
@@ -194,8 +197,8 @@ def preparing_h_cnos(
 
 
 def choose_cnos(
-    file: str,
-    basis: str,
+    atom_per_frag: OrderedSet[AtomIdx],
+    mole: Mole,
     n_f: int,
     n_b: int,
     n_full_occ: int,
@@ -209,8 +212,8 @@ def choose_cnos(
 
     Parameters
     ----------
-    file :
-        File path for the fragment geometry
+    atom_per_frag :
+        Object showing the 
     basis :
         Basis set for the calculation
     n_f :
@@ -248,10 +251,17 @@ def choose_cnos(
     ###
     assert args is not None
 
+    # Process structure information
+    all_atoms = Cartesian.from_pyscf(mole.build())
+    frag_atoms_full = all_atoms.loc[atom_per_frag, :].to_xyz()
+    # Remove the first two lines so that pyscf doesn't hate the colon
+    frag_atoms = '\n'.join(frag_atoms_full.split('\n')[2:])
+
     # Build mini fragment to figure out the number of electrons and orbitals
     mol = gto.M()
-    mol.atom = file
-    mol.basis = basis
+    mol.atom = frag_atoms
+    mol.basis = mole.basis
+
     # assigning nelec here rather than after build with charge
     nelec = mol.nelectron
     try:
