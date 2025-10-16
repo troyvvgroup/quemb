@@ -1114,7 +1114,11 @@ class BE:
             # Calculating and Adding CNOs, if requested
             if self.add_cnos:
                 # For now, only ChemGen supported to feed in the molecule geometry
-                # figure out an assert
+                assert self.fobj.frag_type == "chemgen","Only ChemGen is supported "
+                "for CNO code"
+                # This means that self.fobj is actually ChemFragPart, not FragPart
+                # and so has "fragmented" (mypy error)
+                # Figure out how to enforce this correctly with more sleep
 
                 # Standard nsocc for the fragment
                 nsocc_standard = fobjs_.return_nsocc_only(
@@ -1124,6 +1128,7 @@ class BE:
                     self.Nocc,
                     ncore=self.ncore,
                 )
+
                 nocc_add_cno, nvir_add_cno, cno_thresh = choose_cnos(
                     self.fobj.fragmented.frag_structure.atoms_per_frag[I],  # geometry
                     self.mf.mol,  # molecule object
