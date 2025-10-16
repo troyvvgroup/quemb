@@ -53,10 +53,13 @@ mf.conv_tol = 1e-12
 mf.kernel()
 
 # initialize fragments, using the IAOs
-# For now, write_geom needs to be turned on to pass structure information into the
-# CNO code: will be removed in future PR!
+# For now, we need to use chemgen to make sure we have the necessary geometry
+# information passed to the fragment
 fobj = fragmentate(
-    n_BE=1, mol=mol, frag_type="chemgen", write_geom=True, iao_valence_basis="minao",
+    n_BE=1,
+    mol=mol,
+    frag_type="chemgen",
+    iao_valence_basis="minao",
 )
 
 # Try multiple basic CNO schemes, using only one keyword
@@ -67,10 +70,10 @@ for cno in cno_schemes:
     mybe = BE(
         mf,
         fobj,
-        add_cnos = True,
-        additional_args = CNOArgs(cno_scheme=cno),
-        lo_method = "IAO",
-        iao_loc_method = "boys",
+        add_cnos=True,
+        additional_args=CNOArgs(cno_scheme=cno),
+        lo_method="IAO",
+        iao_loc_method="boys",
     )
 
     # Perform chemical potential matching for the system
@@ -83,10 +86,10 @@ for cno in cno_schemes:
 mybe = BE(
     mf,
     fobj,
-    add_cnos = True,
-    additional_args = CNOArgs(cno_scheme="Threshold", cno_thresh=1e-4),
-    lo_method = "IAO",
-    iao_loc_method = "boys",
+    add_cnos=True,
+    additional_args=CNOArgs(cno_scheme="Threshold", cno_thresh=1e-4),
+    lo_method="IAO",
+    iao_loc_method="boys",
 )
 
 # Perform chemical potential matching for the system
@@ -99,14 +102,14 @@ mybe.optimize(solver="CCSD", nproc=8, only_chem=True)
 mybe = BE(
     mf,
     fobj,
-    add_cnos = True,
-    additional_args = CNOArgs(
+    add_cnos=True,
+    additional_args=CNOArgs(
         cno_scheme="ExactFragmentSize",
         cno_active_fragsize_scheme="AddBoth",
         tot_active_orbs=38,
     ),
-    lo_method = "IAO",
-    iao_loc_method = "boys",
+    lo_method="IAO",
+    iao_loc_method="boys",
 )
 
 # Perform chemical potential matching for the system
