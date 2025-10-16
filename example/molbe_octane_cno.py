@@ -74,7 +74,7 @@ for cno in cno_schemes:
         mf,
         fobj,
         add_cnos=True,
-        cno_args=CNOArgs(cno_scheme=cno),
+        cno_args=CNOArgs(cno_scheme=cno),  # type: ignore[arg-type]
         lo_method="IAO",
         iao_loc_method="boys",
     )
