@@ -1,0 +1,51 @@
+quemb.molbe.chemfrag.ChemFragPart
+=================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. autoclass:: ChemFragPart
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: ChemFragPart.fragmented
+   .. autoattribute:: ChemFragPart.AO_per_edge_per_frag
+   .. autoattribute:: ChemFragPart.AO_per_frag
+   .. autoattribute:: ChemFragPart.H_per_motif
+   .. autoattribute:: ChemFragPart.add_center_atom
+   .. autoattribute:: ChemFragPart.core_list
+   .. autoattribute:: ChemFragPart.frag_type
+   .. autoattribute:: ChemFragPart.frozen_core
+   .. autoattribute:: ChemFragPart.iao_valence_basis
+   .. autoattribute:: ChemFragPart.iao_valence_only
+   .. autoattribute:: ChemFragPart.mol
+   .. autoattribute:: ChemFragPart.motifs_per_frag
+   .. autoattribute:: ChemFragPart.n_BE
+   .. autoattribute:: ChemFragPart.n_frag
+   .. autoattribute:: ChemFragPart.ncore
+   .. autoattribute:: ChemFragPart.no_core_idx
+   .. autoattribute:: ChemFragPart.origin_per_frag
+   .. autoattribute:: ChemFragPart.ref_frag_idx_per_edge_per_frag
+   .. autoattribute:: ChemFragPart.relAO_in_ref_per_edge_per_frag
+   .. autoattribute:: ChemFragPart.relAO_per_edge_per_frag
+   .. autoattribute:: ChemFragPart.relAO_per_origin_per_frag
+   .. autoattribute:: ChemFragPart.weight_and_relAO_per_center_per_frag
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~ChemFragPart.__init__
+      ~ChemFragPart.all_centers_are_origins
+      ~ChemFragPart.reorder_frags
+      ~ChemFragPart.to_Frags
+   
+   

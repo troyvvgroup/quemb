@@ -28,6 +28,7 @@ quemb.molbe.chemfrag
       :template: custom-class-template.rst
    
       BondConnectivity
+      ChemFragPart
       ChemGenArgs
       Fragmented
       PurelyStructureFragmented

@@ -1,0 +1,6 @@
+quemb.molbe.autofrag.FragPart.reorder\_frags
+============================================
+
+.. currentmodule:: quemb.molbe.autofrag
+
+.. automethod:: FragPart.reorder_frags

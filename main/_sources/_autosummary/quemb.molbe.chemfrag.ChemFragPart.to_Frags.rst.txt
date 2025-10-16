@@ -1,0 +1,6 @@
+quemb.molbe.chemfrag.ChemFragPart.to\_Frags
+===========================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. automethod:: ChemFragPart.to_Frags

@@ -36,6 +36,7 @@ quemb.molbe.chemfrag.PurelyStructureFragmented
       ~PurelyStructureFragmented.get_autocratically_matched
       ~PurelyStructureFragmented.get_string
       ~PurelyStructureFragmented.is_ordered
+      ~PurelyStructureFragmented.reorder_frags
       ~PurelyStructureFragmented.shared_centers_exist
       ~PurelyStructureFragmented.write_geom
    

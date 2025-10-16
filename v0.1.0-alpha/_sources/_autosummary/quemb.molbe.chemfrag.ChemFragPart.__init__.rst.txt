@@ -1,0 +1,6 @@
+quemb.molbe.chemfrag.ChemFragPart.\_\_init\_\_
+==============================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. automethod:: ChemFragPart.__init__

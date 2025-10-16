@@ -1,0 +1,6 @@
+quemb.molbe.chemfrag.ChemFragPart.reorder\_frags
+================================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. automethod:: ChemFragPart.reorder_frags

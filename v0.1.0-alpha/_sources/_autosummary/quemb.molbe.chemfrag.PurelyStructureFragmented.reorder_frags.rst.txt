@@ -1,0 +1,6 @@
+quemb.molbe.chemfrag.PurelyStructureFragmented.reorder\_frags
+=============================================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. automethod:: PurelyStructureFragmented.reorder_frags
