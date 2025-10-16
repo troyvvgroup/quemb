@@ -28,6 +28,7 @@ from pyscf.gto import Mole
 from typing_extensions import assert_never
 
 from quemb.molbe.be_parallel import be_func_parallel
+from quemb.molbe.chemfrag import ChemFragPart
 from quemb.molbe.cno_utils import CNOArgs, augment_w_cnos, choose_cnos, get_cnos
 from quemb.molbe.eri_onthefly import integral_direct_DF
 from quemb.molbe.eri_sparse_DF import (
@@ -1114,11 +1115,7 @@ class BE:
             # Calculating and Adding CNOs, if requested
             if self.add_cnos:
                 # For now, only ChemGen supported to feed in the molecule geometry
-                assert self.fobj.frag_type == "chemgen","Only ChemGen is supported "
-                "for CNO code"
-                # This means that self.fobj is actually ChemFragPart, not FragPart
-                # and so has "fragmented" (mypy error)
-                # Figure out how to enforce this correctly with more sleep
+                assert isinstance(self.fobj, ChemFragPart)
 
                 # Standard nsocc for the fragment
                 nsocc_standard = fobjs_.return_nsocc_only(
