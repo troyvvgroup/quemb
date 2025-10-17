@@ -120,7 +120,7 @@ def prepare_struct(structure):
 
 @pytest.fixture(scope="session")
 def h8_be1():
-    add_args = ChemGenArgs(treat_H_different=False)
+    add_args = ChemGenArgs(h_treatment="treat_H_like_heavy_atom")
     mol, mf = prepare_struct(structure="xyz/h8.xyz")
     fobj = fragmentate(
         n_BE=1,
@@ -135,7 +135,7 @@ def h8_be1():
 
 @pytest.fixture(scope="session")
 def h8_be2():
-    add_args = ChemGenArgs(treat_H_different=False)
+    add_args = ChemGenArgs(h_treatment="treat_H_like_heavy_atom")
     mol, mf = prepare_struct(structure="xyz/h8.xyz")
     fobj = fragmentate(
         n_BE=2,
