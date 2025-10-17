@@ -39,6 +39,10 @@ class SemiSparse3DTensor:
     def __getitem__(self, arg0: tuple[int, int]) -> numpy.ndarray: ...
     @typing.overload
     def __init__(
+        self, shape: tuple[int, int, int], AO_reachable_by_MO: list[list[int]]
+    ) -> None: ...
+    @typing.overload
+    def __init__(
         self,
         dense_data: numpy.ndarray,
         shape: tuple[int, int, int],
@@ -60,6 +64,8 @@ class SemiSparse3DTensor:
     @property
     def dense_data(self) -> numpy.ndarray: ...
     @property
+    def mut_dense_data(self) -> numpy.ndarray: ...
+    @property
     def nonzero_size(self) -> int: ...
     @property
     def offsets(self) -> dict[int, int]: ...
@@ -78,6 +84,10 @@ class SemiSparseSym3DTensor:
       - Example use: 3-center integrals (μν|P)
     """
     def __getitem__(self, arg0: tuple[int, int]) -> numpy.ndarray: ...
+    @typing.overload
+    def __init__(
+        self, shape: tuple[int, int, int], exch_reachable: list[list[int]]
+    ) -> None: ...
     @typing.overload
     def __init__(
         self,
@@ -100,6 +110,8 @@ class SemiSparseSym3DTensor:
     def exch_reachable(self) -> list[list[int]]: ...
     @property
     def exch_reachable_unique(self) -> list[list[int]]: ...
+    @property
+    def mut_unique_dense_data(self) -> numpy.ndarray: ...
     @property
     def nonzero_size(self) -> int: ...
     @property
