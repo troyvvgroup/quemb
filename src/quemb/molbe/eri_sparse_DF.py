@@ -8,6 +8,7 @@ from collections.abc import (
     Callable,
     Collection,
     Hashable,
+    Iterator,
     Mapping,
     Sequence,
     Set,
@@ -30,6 +31,11 @@ from scipy.linalg import cholesky
 from scipy.special import roots_hermite
 
 import quemb.molbe._cpp.eri_sparse_DF as cpp_transforms
+from quemb.molbe._cpp.eri_sparse_DF import (
+    SemiSparseSym3DTensor,
+    set_log_level,
+    transform_integral,
+)
 from quemb.molbe.chemfrag import (
     _get_AOidx_per_atom,
 )
@@ -389,6 +395,15 @@ def get_blocks(reachable: Sequence[_T]) -> list[tuple[_T, _T]]:
     ]
 
 
+def _traverse_reachable(
+    reachable: Mapping[_T_start_orb, Collection[_T_target_orb]],
+) -> Iterator[tuple[_T_start_orb, _T_target_orb]]:
+    """Traverse reachable p, q pairs"""
+    for p in reachable:
+        for q in reachable[p]:
+            yield p, q
+
+
 def get_sparse_P_mu_nu(
     mol: Mole,
     auxmol: Mole,
@@ -424,8 +439,10 @@ def get_sparse_P_mu_nu(
         f"{n_symmetric(mol.nao) * auxmol.nao * 8 * 2**-30} Gb"
     )
     logger.info(f"Sparsity factor is: {(1 - n_unique / n_symmetric(mol.nao)) * 100} %")
-    screened_unique_integrals = np.full(
-        (n_unique, auxmol.nao), fill_value=np.nan, dtype=np.float64, order="C"
+    result = SemiSparseSym3DTensor(
+        np.full((auxmol.nao, n_unique), fill_value=np.nan, dtype=np.float64, order="F"),
+        (auxmol.nao, mol.nao, mol.nao),
+        [v for v in exch_reachable.values()],
     )
 
     shell_id_to_AO, AO_to_shell_id = conversions_AO_shell(mol)
@@ -470,17 +487,15 @@ def get_sparse_P_mu_nu(
                     )
                 ):
                     if ravel_symmetric(p, q) in key_to_offset:
-                        screened_unique_integrals[
-                            key_to_offset[ravel_symmetric(p, q)], :  # type: ignore[arg-type]
+                        result.mut_unique_dense_data[
+                            :, key_to_offset[ravel_symmetric(p, q)]  # type: ignore[arg-type]
                         ] = integrals[i, j, ::1]
 
     logger.info(AO_timer.str_elapsed())
 
-    assert not np.isnan(screened_unique_integrals).any()
+    assert not np.isnan(result.unique_dense_data).any()
 
-    return SemiSparseSym3DTensor(
-        screened_unique_integrals, mol.nao, auxmol.nao, to_numba_input(exch_reachable)
-    )
+    return result
 
 
 def _flatten(
@@ -579,27 +594,22 @@ def transform_sparse_DF_integral_cpp(
     MO_coeff_epsilon: float,
     n_threads: int,
 ) -> None:
-    cpp_transforms.set_log_level(logging.getLogger().getEffectiveLevel())
+    set_log_level(logging.getLogger().getEffectiveLevel())
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
     S_abs = approx_S_abs(mol)
     exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
 
-    py_P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
-    mu_nu_P = cpp_transforms.SemiSparseSym3DTensor(
-        np.asfortranarray(py_P_mu_nu.unique_dense_data.T),
-        tuple(reversed(py_P_mu_nu.shape)),  # type: ignore[arg-type]
-        py_P_mu_nu.exch_reachable,  # type: ignore[arg-type]
-    )
+    P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
     PQ = auxmol.intor("int2c2e")
     low_triang_PQ = cholesky(PQ, lower=True)
 
     def f(fragobj: Frags) -> None:
         eri = restore(
             "4",
-            cpp_transforms.transform_integral(
-                mu_nu_P,
+            transform_integral(
+                P_mu_nu,
                 fragobj.TA,
                 S_abs,
                 low_triang_PQ,
@@ -630,19 +640,14 @@ def transform_sparse_DF_integral_cpp_gpu(
     MO_coeff_epsilon: float,
     n_threads: int,
 ) -> None:
-    cpp_transforms.set_log_level(logging.getLogger().getEffectiveLevel())
+    set_log_level(logging.getLogger().getEffectiveLevel())
     mol = mf.mol
     auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
 
     S_abs = approx_S_abs(mol)
     exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
 
-    py_P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
-    mu_nu_P = cpp_transforms.SemiSparseSym3DTensor(
-        np.asfortranarray(py_P_mu_nu.unique_dense_data.T),
-        tuple(reversed(py_P_mu_nu.shape)),  # type: ignore[arg-type]
-        py_P_mu_nu.exch_reachable,  # type: ignore[arg-type]
-    )
+    P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
     PQ = auxmol.intor("int2c2e")
     low_triang_PQ = cpp_transforms.GPU_MatrixHandle(cholesky(PQ, lower=True))
 
@@ -650,7 +655,7 @@ def transform_sparse_DF_integral_cpp_gpu(
         eri = restore(
             "4",
             cpp_transforms.transform_integral_cuda(
-                mu_nu_P,
+                P_mu_nu,
                 fragobj.TA,
                 S_abs,
                 low_triang_PQ,

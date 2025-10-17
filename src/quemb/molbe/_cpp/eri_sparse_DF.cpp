@@ -375,10 +375,8 @@ SemiSparse3DTensor contract_with_TA_1st(const Matrix &TA, const SemiSparseSym3DT
     }
 
     if (LOG_LEVEL <= LogLevel::Info) {
-        std::cout << "(P | mu i) [MEMORY] sparse "
-                  << bytes_to_gib(naux * n_unique * sizeof(double)) << " GiB" << "\n";
-        std::cout << "(P | mu i) [MEMORY] dense "
-                  << bytes_to_gib(naux * nao * nmo * sizeof(double)) << " GiB" << "\n";
+        std::cout << "(P | mu i) [MEMORY] sparse " << bytes_to_gib(naux * n_unique * sizeof(double)) << " GiB" << "\n";
+        std::cout << "(P | mu i) [MEMORY] dense " << bytes_to_gib(naux * nao * nmo * sizeof(double)) << " GiB" << "\n";
         std::cout << "(P | mu i) [MEMORY] sparsity "
                   << (1. - static_cast<double>(n_unique) / static_cast<double>(nao * nmo)) * 100. << " %" << "\n";
     };
@@ -562,8 +560,7 @@ Matrix eval_via_cholesky_cuda(const Matrix &sym_P_pq, const GPU_MatrixHandle &L_
     };
 
     // Fill lower triangle
-    result.template triangularView<Eigen::Lower>() =
-        result.transpose().template triangularView<Eigen::Lower>();
+    result.template triangularView<Eigen::Lower>() = result.transpose().template triangularView<Eigen::Lower>();
 
     if (LOG_LEVEL <= LogLevel::Info) {
         timer.print("Filling symmetries completed.");
@@ -645,7 +642,8 @@ PYBIND11_MODULE(eri_sparse_DF, m)
             py::arg("unique_dense_data"), py::arg("shape"), py::arg("exch_reachable"), py::arg("exch_reachable_unique"),
             py::arg("exch_reachable_with_offsets"), py::arg("exch_reachable_unique_with_offsets"), py::arg("offsets"))
         .def_property_readonly("unique_dense_data", &SemiSparseSym3DTensor::dense_data)
-        .def_property_readonly("mut_unique_dense_data", &SemiSparseSym3DTensor::mut_dense_data, py::return_value_policy::reference_internal)
+        .def_property_readonly("mut_unique_dense_data", &SemiSparseSym3DTensor::mut_dense_data,
+                               py::return_value_policy::reference_internal)
         .def_property_readonly("shape", &SemiSparseSym3DTensor::get_shape)
         .def_property_readonly("exch_reachable", &SemiSparseSym3DTensor::exch_reachable)
         .def_property_readonly("exch_reachable_unique", &SemiSparseSym3DTensor::exch_reachable_unique)
@@ -684,7 +682,8 @@ PYBIND11_MODULE(eri_sparse_DF, m)
         // Read-only accessors
         .def_property_readonly("shape", &SemiSparse3DTensor::get_shape)
         .def_property_readonly("dense_data", &SemiSparse3DTensor::dense_data)
-        .def_property_readonly("mut_dense_data", &SemiSparse3DTensor::mut_dense_data, py::return_value_policy::reference_internal)
+        .def_property_readonly("mut_dense_data", &SemiSparse3DTensor::mut_dense_data,
+                               py::return_value_policy::reference_internal)
         .def_property_readonly("AO_reachable_by_MO", &SemiSparse3DTensor::exch_reachable)
         .def_property_readonly("AO_reachable_by_MO_with_offsets", &SemiSparse3DTensor::exch_reachable_with_offsets)
         .def_property_readonly("offsets", &SemiSparse3DTensor::get_offsets)
