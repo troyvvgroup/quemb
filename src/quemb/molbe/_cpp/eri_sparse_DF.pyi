@@ -39,6 +39,10 @@ class SemiSparse3DTensor:
     def __getitem__(self, arg0: tuple[int, int]) -> numpy.ndarray: ...
     @typing.overload
     def __init__(
+        self, shape: tuple[int, int, int], AO_reachable_by_MO: list[list[int]]
+    ) -> None: ...
+    @typing.overload
+    def __init__(
         self,
         dense_data: numpy.ndarray,
         shape: tuple[int, int, int],
