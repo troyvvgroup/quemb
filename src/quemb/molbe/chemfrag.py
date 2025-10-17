@@ -178,8 +178,8 @@ class BondConnectivity:
         cls,
         m: Cartesian,
         *,
-        bonds_atoms: Mapping[int, set[int]]
-        | dict[AtomIdx, OrderedSet[AtomIdx]]
+        bonds_atoms: Mapping[int, Set[int]]
+        | Mapping[AtomIdx, OrderedSet[AtomIdx]]
         | None = None,
         vdW_radius: InVdWRadius | None = None,
         h_treatment: HTreatment = "treat_H_diff",
@@ -409,7 +409,7 @@ class BondConnectivity:
         ----------
         mol :
             The :class:`pyscf.gto.mole.Mole` to extract the connectivity data from.
-        bonds_atoms : Mapping[int, OrderedSet[int]] | dict[AtomIdx, OrderedSet[AtomIdx]]
+        bonds_atoms :
             Can be used to specify the connectivity graph of the molecule.
             Has exactly the same format as the output of
             :meth:`chemcoord.Cartesian.get_bonds`,
