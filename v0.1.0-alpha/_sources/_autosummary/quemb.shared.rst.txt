@@ -28,14 +28,11 @@
    :template: custom-module-template.rst
    :recursive:
 
-   be_parallel
    config
    external
    helper
    io
    manage_scratch
    numba_helpers
-   opt
-   solver
    typing
 
