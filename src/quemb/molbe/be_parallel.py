@@ -17,10 +17,7 @@ from quemb.molbe.helper import (
     get_scfObj,
 )
 from quemb.molbe.pfrag import Frags
-from quemb.shared.external.unrestricted_utils import make_uhf_obj
-from quemb.shared.helper import unused
-from quemb.shared.manage_scratch import WorkDir
-from quemb.shared.solver import (
+from quemb.molbe.solver import (
     SHCI_ArgsUser,
     Solvers,
     UserSolverArgs,
@@ -30,6 +27,9 @@ from quemb.shared.solver import (
     solve_mp2,
     solve_uccsd,
 )
+from quemb.shared.external.unrestricted_utils import make_uhf_obj
+from quemb.shared.helper import unused
+from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import (
     ListOverFrag,
     Matrix,
