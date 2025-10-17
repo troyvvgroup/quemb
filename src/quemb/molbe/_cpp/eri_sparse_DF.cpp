@@ -110,6 +110,7 @@ class GPU_MatrixHandle
 class SemiSparseSym3DTensor
 {
   public:
+    // --- 1. Full "expert" constructor: everything already prepared
     explicit SemiSparseSym3DTensor(
         Matrix unique_dense_data, std::tuple<int, int, int> shape, std::vector<std::vector<OrbitalIdx>> exch_reachable,
         std::vector<std::vector<OrbitalIdx>> exch_reachable_unique,
@@ -124,38 +125,23 @@ class SemiSparseSym3DTensor
     {
     }
 
+    // --- 2. Constructor with matrix provided (reuses helper)
     explicit SemiSparseSym3DTensor(Matrix unique_dense_data, std::tuple<int, int, int> shape,
                                    std::vector<std::vector<OrbitalIdx>> exch_reachable)
         : _unique_dense_data(std::move(unique_dense_data)), _shape(std::move(shape)),
           _exch_reachable(std::move(exch_reachable))
     {
+        initialize();
+    }
 
-        _exch_reachable_unique = extract_unique(_exch_reachable);
-
-        std::size_t counter = 0;
-        for (OrbitalIdx mu = 0; mu < to_eigen(_exch_reachable_unique.size()); ++mu) {
-            for (auto nu : _exch_reachable_unique[mu]) {
-                _offsets[ravel_symmetric(mu, nu)] = counter++;
-            }
-        }
+    // --- 3. Constructor that allocates its own matrix
+    explicit SemiSparseSym3DTensor(std::tuple<int, int, int> shape, std::vector<std::vector<OrbitalIdx>> exch_reachable)
+        : _shape(std::move(shape)), _exch_reachable(std::move(exch_reachable))
+    {
+        const std::size_t n_unique = compute_offsets_and_unique();
+        _unique_dense_data = Matrix::Constant(std::get<0>(_shape), n_unique, std::numeric_limits<double>::quiet_NaN());
         _offsets = rebuild_unordered_map(_offsets);
-
-        // Initialize
-        // exch_reachable_with_offsets
-        _exch_reachable_with_offsets.resize(_exch_reachable.size());
-        _exch_reachable_unique_with_offsets.resize(_exch_reachable_unique.size());
-        for (OrbitalIdx mu = 0; mu < to_eigen(_exch_reachable.size()); ++mu) {
-            std::vector<std::pair<std::size_t, OrbitalIdx>> pairs;
-            std::vector<std::pair<std::size_t, OrbitalIdx>> pairs_unique;
-            for (auto nu : _exch_reachable[mu]) {
-                pairs.emplace_back(_offsets[ravel_symmetric(mu, nu)], nu);
-                if (mu <= nu) { // Ensure mu <= nu for symmetry
-                    pairs_unique.emplace_back(_offsets[ravel_symmetric(mu, nu)], nu);
-                }
-            }
-            _exch_reachable_with_offsets[mu] = std::move(pairs);
-            _exch_reachable_unique_with_offsets[mu] = std::move(pairs_unique);
-        }
+        initialize_exch_reachable_with_offsets();
     }
 
     // Public const accessors
@@ -179,7 +165,7 @@ class SemiSparseSym3DTensor
     {
         return _unique_dense_data;
     }
-    // Expose an explicitly mutable handle
+    // Expose an explicitly mutable handle to write into the data array
     Matrix &mut_dense_data()
     {
         return _unique_dense_data;
@@ -206,8 +192,50 @@ class SemiSparseSym3DTensor
     }
 
   private:
-    // We assume (P | mu nu) layout, because Eigen is
-    // column-major
+    // --- Shared initialization routines
+    void initialize()
+    {
+        compute_offsets_and_unique();
+        _offsets = rebuild_unordered_map(_offsets);
+        initialize_exch_reachable_with_offsets();
+    }
+
+    std::size_t compute_offsets_and_unique()
+    {
+        _exch_reachable_unique = extract_unique(_exch_reachable);
+
+        std::size_t counter = 0;
+        for (OrbitalIdx mu = 0; mu < to_eigen(_exch_reachable_unique.size()); ++mu)
+            for (auto nu : _exch_reachable_unique[mu])
+                _offsets[ravel_symmetric(mu, nu)] = counter++;
+
+        return counter;
+    }
+
+    void initialize_exch_reachable_with_offsets()
+    {
+        _exch_reachable_with_offsets.resize(_exch_reachable.size());
+        _exch_reachable_unique_with_offsets.resize(_exch_reachable_unique.size());
+
+        for (OrbitalIdx mu = 0; mu < to_eigen(_exch_reachable.size()); ++mu) {
+            std::vector<std::pair<std::size_t, OrbitalIdx>> pairs;
+            std::vector<std::pair<std::size_t, OrbitalIdx>> pairs_unique;
+
+            for (auto nu : _exch_reachable[mu]) {
+                const auto key = ravel_symmetric(mu, nu);
+                pairs.emplace_back(_offsets[key], nu);
+                if (mu <= nu)
+                    pairs_unique.emplace_back(_offsets[key], nu);
+            }
+
+            _exch_reachable_with_offsets[mu] = std::move(pairs);
+            _exch_reachable_unique_with_offsets[mu] = std::move(pairs_unique);
+        }
+    }
+
+    // --- Member data
+
+    // We assume (P | mu nu) layout, because Eigen is column-major
     Matrix _unique_dense_data;
     // We assume (P | mu nu) layout, because Eigen is
     // column-major, i.e. the shape is (naux, nao, nao)
@@ -630,6 +658,9 @@ PYBIND11_MODULE(eri_sparse_DF, m)
 #endif
 
     py::class_<SemiSparseSym3DTensor>(m, "SemiSparseSym3DTensor")
+        // Minimal constructor with allocation in C++
+        .def(py::init<std::tuple<int, int, int>, std::vector<std::vector<OrbitalIdx>>>(), py::arg("shape"),
+             py::arg("exch_reachable"))
         // Minimal constructor
         .def(py::init<Matrix, std::tuple<int, int, int>, std::vector<std::vector<OrbitalIdx>>>(),
              py::arg("unique_dense_data"), py::arg("shape"), py::arg("exch_reachable"))

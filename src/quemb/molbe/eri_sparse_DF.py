@@ -426,9 +426,14 @@ def get_sparse_P_mu_nu(
         return {k: sorted(v) for k, v in shell_reachable_by_shell.items()}  # type: ignore[type-var]
 
     AO_timer = Timer("Time to compute sparse (mu nu | P)")
+
+    result = SemiSparseSym3DTensor(
+        (auxmol.nao, mol.nao, mol.nao),
+        [v for v in exch_reachable.values()],
+    )
     exch_reachable_unique = account_for_symmetry(exch_reachable)
 
-    n_unique = sum(len(v) for v in exch_reachable_unique.values())
+    n_unique = result.unique_dense_data.shape[1]
 
     logger.info(
         "Semi-Sparse Memory for (mu nu | P) integrals is: "
@@ -439,11 +444,6 @@ def get_sparse_P_mu_nu(
         f"{n_symmetric(mol.nao) * auxmol.nao * 8 * 2**-30} Gb"
     )
     logger.info(f"Sparsity factor is: {(1 - n_unique / n_symmetric(mol.nao)) * 100} %")
-    result = SemiSparseSym3DTensor(
-        np.full((auxmol.nao, n_unique), fill_value=np.nan, dtype=np.float64, order="F"),
-        (auxmol.nao, mol.nao, mol.nao),
-        [v for v in exch_reachable.values()],
-    )
 
     shell_id_to_AO, AO_to_shell_id = conversions_AO_shell(mol)
     shell_reachable_by_shell = to_shell_reachable_by_shell(
