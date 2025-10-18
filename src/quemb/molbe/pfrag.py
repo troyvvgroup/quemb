@@ -1,7 +1,7 @@
 # Author(s): Oinam Romesh Meitei, Oskar Weser
 
 from collections.abc import Sequence
-
+from scipy.linalg import svd
 import h5py
 import numpy as np
 import scipy.linalg
@@ -34,6 +34,25 @@ from quemb.shared.typing import (
     Vector,
 )
 
+def kabsch_rotation(P, Q):
+    """Calculate the optimal rotation ``R`` from ``P`` unto ``Q``
+
+    The rotation is optimal in the sense that the Frobenius-metric,  i.e. | R P - Q |_2, is minimized.
+    The algorithm is described here http://en.wikipedia.org/wiki/Kabsch_algorithm"""
+
+    # covariance matrix
+    H = P.T @ Q
+
+    U, S, Vt = np.linalg.svd(H)
+    new = P @ U @ Vt
+
+    # determinant is +-1 for orthogonal matrices
+    # d_val = 1. if np.linalg.det(U @ Vt) > 0 else -1.
+
+    # D = np.eye(len(U))
+    # D[-1, -1] = d_val # gaurentees final result is rotation
+
+    return new
 
 class Frags:
     """
@@ -150,7 +169,6 @@ class Frags:
         nocc: int,
         thr_bath: float,
         norb: int | None = None,
-        eq_fobjs=None,
     ) -> None:
         """
         Perform Schmidt decomposition for the fragment.
@@ -170,33 +188,48 @@ class Frags:
             Used for UBE, where different number of alpha and beta orbitals
             Default is None, allowing orbitals to be chosen by threshold
         """
-        (
-            self.env_occupied,
-            self.env_virtual,
+        (   self.Evec,
+            self.Bidx,
+            self.Eidx,
             self.Dhf,
+            self.Denv,
             self.TA_lo_eo,
-            self.TAbathenv_lo_eo,
             self.TAenv_lo_eo,
+            self.TAfull_lo_eo,
             self.n_f,
             self.n_b,
-        ) = schmidt_decomposition(
+            ) = schmidt_decomposition(
             lmo,
             nocc,
             self.AO_in_frag,
             thr_bath=thr_bath,
             norb=norb,
-        )
-        self.TA = lao @ self.TA_lo_eo  # (ao by lo) x (lo by eo) = (ao by eo)
-        self.TAbathenv = lao @ self.TAbathenv_lo_eo
-        self.nao = self.TA.shape[1]
+            )
+
+
+        if self.eq_fobj is not None:
+            new_tmp = kabsch_rotation(lmo, self.eq_fobj.eq_TAfull)
+            #new_tmp_occupied = kabsch_rotation(lmo[:, :nocc], self.eq_fobj.eq_TAfull[:, :nocc])
+            #print(f"the difference between new_tmp_occupied and self.eq_fobj.eq_TAfull[] is {np.linalg.norm(new_tmp_occupied - self.eq_fobj.eq_TAfull[:, :nocc])}")
+            #new_tmp_virtual = kabsch_rotation(lmo[:, nocc:], self.eq_fobj.eq_TAfull[:, nocc:])
+            #print(f"the difference between new_tmp_virtual and self.eq_fobj.eq_TAfull[] is {np.linalg.norm(new_tmp_virtual - self.eq_fobj.eq_TAfull[:, nocc:])}")
+            #new_tmp = np.hstack([new_tmp_occupied, new_tmp_virtual])
+            print(f"the difference between new_tmp and self.eq_fobj.eq_TAfull is {np.linalg.norm(new_tmp - self.eq_fobj.eq_TAfull)}")
+            schmidt_occupied = new_tmp[:, :self.eq_fobj.occ_schmidt]
+            env_occupied = new_tmp[:, self.eq_fobj.occ_schmidt:self.eq_fobj.occ_schmidt+self.eq_fobj.occ_env]
+            schmidt_virt = new_tmp[:, self.eq_fobj.occ_schmidt+self.eq_fobj.occ_env:self.eq_fobj.occ_schmidt+self.eq_fobj.occ_env+self.eq_fobj.virt_schmidt]
+            env_virt = new_tmp[:, self.eq_fobj.occ_schmidt+self.eq_fobj.occ_env+self.eq_fobj.virt_schmidt:]
+            new = np.hstack([schmidt_occupied, schmidt_virt, env_occupied, env_virt])
+            print(f"the difference between new and self.eq_fobj.TAfull_lo_eo is {np.linalg.norm(new - self.eq_fobj.TAfull_lo_eo)}")
+            self.TA_lo_eo = new[:, :self.n_f + self.n_b]
+            print(f"the difference between self.TA_lo_eo and self.eq_fobj.TA_lo_eo is {np.linalg.norm(self.TA_lo_eo - self.eq_fobj.TA_lo_eo)}")
+            self.TAenv_lo_eo = new[:, self.n_f + self.n_b:]
+            print(f"the difference between self.TAenv_lo_eo and self.eq_fobj.TAenv_lo_eo is {np.linalg.norm(self.TAenv_lo_eo - self.eq_fobj.TAenv_lo_eo)}")
+        
+        self.TA = lao @ self.TA_lo_eo  # (ao by lo) x (lo by so) = (ao by so)
         self.TAenv_ao_eo = lao @ self.TAenv_lo_eo
-        if eq_fobjs is None:
-            print("must be the eq geometry")
-        elif eq_fobjs is not None:
-            print("aligning TA matrix to equilibrium TA matrix")
-            self.R_fragbath, scale = orthogonal_procrustes(self.TA, eq_fobjs.TA)
-            self.TA = self.TA @ self.R_fragbath
-            print("done aligining TA matrices")
+
+        self.nao = self.TA.shape[1]
 
     def cons_fock(self, hf_veff, S, dm, eri_=None):
         """
@@ -427,6 +460,7 @@ def schmidt_decomposition(
     cinv: Matrix[float64] | None = None,
     rdm: Matrix[float64] | None = None,
     norb: int | None = None,
+    eq_fobj = None,
 ) -> tuple[Matrix[float64], int, int]:
     """
     Perform Schmidt decomposition on the molecular orbital coefficients.
@@ -438,9 +472,9 @@ def schmidt_decomposition(
     Parameters
     ----------
     mo_coeff :
-        Molecular orbital coefficients.
+        Local molecular orbital coefficients, lo by mo
     nocc :
-        Number of occupied orbitals.
+        Number of occupied orbitals in the full system
     Frag_sites : list of int
         List of fragment sites (indices).
     thr_bath :
@@ -462,11 +496,10 @@ def schmidt_decomposition(
         Transformation matrix (TA) including both fragment and entangled bath orbitals.
     """
 
-    # Compute the reduced density matrix (RDM) if not provided
     if mo_coeff is not None:
-        C = mo_coeff[:, :nocc]
+        C = mo_coeff[:, :nocc] #happens, just take the occupied part (which are the first nocc columns)
     if rdm is None:
-        Dhf = C @ C.T
+        Dhf = C @ C.T #happens, lo by lo
         if cinv is not None:
             Dhf = multi_dot((cinv, Dhf, cinv.conj().T))
     else:
@@ -474,7 +507,7 @@ def schmidt_decomposition(
 
     # Total number of sites
     Tot_sites = Dhf.shape[0]
-
+    
     # Identify environment sites (indices not in Frag_sites)
     Env_sites1 = array([i for i in range(Tot_sites) if i not in AO_in_frag])
     Env_sites = array([[i] for i in range(Tot_sites) if i not in AO_in_frag])
@@ -486,22 +519,23 @@ def schmidt_decomposition(
     # Perform eigenvalue decomposition on the environment density matrix
     Eval, Evec = eigh(Denv)
 
+    # Reverse order: largest → smallest
+    Eval = Eval[::-1]
+    Evec = Evec[:, ::-1]
+    
     # Identify significant environment orbitals based on eigenvalue threshold
     Bidx = []
     Eidx = []
-    env_occupied = 0
-    env_virtual = 0
-
+    
     # Set the number of orbitals to be taken from the environment orbitals
     # Based on an eigenvalue threshold ordering
-
     for i in range(len(Eval)):
         if thr_bath < np.abs(Eval[i]) < 1.0 - thr_bath:
             Bidx.append(i)
         else:
             Eidx.append(i)
 
-    # Initialize the fragment + bath TA matrix
+    #Initialize the fragment + bath TA matrix
     TA = zeros([Tot_sites, len(AO_in_frag) + len(Bidx)])
     TA[AO_in_frag, : len(AO_in_frag)] = eye(len(AO_in_frag))  # Fragment part
     TA[Env_sites1, len(AO_in_frag) :] = Evec[:, Bidx]  # Bath part
@@ -512,23 +546,20 @@ def schmidt_decomposition(
     TAenv = zeros([Tot_sites, len(Eidx)])
     TAenv[Env_sites1, :] = Evec[:, Eidx]
 
-    # Initialize the bath and environment TA matrix
-    TAbathenv = zeros([Tot_sites, len(Bidx) + len(Eidx)])  # initialize
-    TAbathenv[Env_sites1, : len(Bidx)] = Evec[:, Bidx]  # bath
-    TAbathenv[Env_sites1, len(Bidx) :] = Evec[:, Eidx]  # env
-
-    # TAfull = np.zeros((Tot_sites, len(AO_in_frag) + len(Bidx) + len(Eidx)))
-    # TAfull[AO_in_frag, :len(AO_in_frag)] = np.eye(len(AO_in_frag))
-    # TAfull[Env_sites1, len(AO_in_frag):len(AO_in_frag) + len(Bidx)] = Evec[:, Bidx]
-    # TAfull[Env_sites1, len(AO_in_frag) + len(Bidx):] = Evec[:, Eidx]
-
+    TAfull = np.zeros((Tot_sites, len(AO_in_frag) + len(Bidx) + len(Eidx)))
+    TAfull[AO_in_frag, :len(AO_in_frag)] = np.eye(len(AO_in_frag))
+    TAfull[Env_sites1, len(AO_in_frag):len(AO_in_frag) + len(Bidx)] = Evec[:, Bidx]
+    TAfull[Env_sites1, len(AO_in_frag) + len(Bidx):] = Evec[:, Eidx]
+    
+    
     return (
-        env_occupied,
-        env_virtual,
+        Evec,
+        Bidx, Eidx,
         Dhf,
+        Denv,
         TA,
-        TAbathenv,
         TAenv,
+        TAfull,
         Frag_sites1.shape[0],
         len(Bidx),
     )

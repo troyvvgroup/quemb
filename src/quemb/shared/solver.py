@@ -547,6 +547,7 @@ def be_func(
                 eri_file=fobj.eri_file,
             )
             total_e = [sum(x) for x in zip(total_e, e_f)]
+            fobj.e_corr = sum(e_f)
             fobj.update_ebe_hf()
     if eeval:
         Ecorr = sum(total_e)

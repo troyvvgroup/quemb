@@ -22,6 +22,7 @@ from numpy import (
     where,
     zeros,
     zeros_like,
+    trace,
 )
 from numpy.linalg import eigh, multi_dot, svd
 from pyscf import ao2mo, scf
@@ -261,6 +262,11 @@ class BE:
         self.integral_transform = int_transform
         self.auxbasis = auxbasis
         self.thr_bath = thr_bath
+        if eq_fobjs is not None:
+            self.eq_fobjs = eq_fobjs
+        else:
+            self.eq_fobjs = None
+
 
         # Fragment information from fobj
         self.fobj = fobj
@@ -373,7 +379,7 @@ class BE:
         if not restart:
             # Initialize fragments and perform initial calculations
             self.initialize(
-                mf._eri, restart=False, int_transform=int_transform, eq_fobjs=eq_fobjs
+                mf._eri, restart=False, int_transform=int_transform,
             )
         else:
             self.initialize(None, restart=True, int_transform=int_transform)
@@ -1091,7 +1097,6 @@ class BE:
         *,
         restart: bool,
         int_transform: IntTransforms,
-        eq_fobjs=None,
     ) -> None:
         """
         Initialize the Bootstrap Embedding calculation.
@@ -1107,19 +1112,11 @@ class BE:
         """
         for I in range(self.fobj.n_frag):
             fobjs_ = self.fobj.to_Frags(I, eri_file=self.eri_file)
-            if eq_fobjs is None:
-                fobjs_.sd(self.W, self.lmo_coeff, self.Nocc, thr_bath=self.thr_bath)
-            elif eq_fobjs is not None:
-                fobjs_.sd(
-                    self.W,
-                    self.lmo_coeff,
-                    self.Nocc,
-                    thr_bath=self.thr_bath,
-                    eq_fobjs=eq_fobjs[I],
-                )
+            if self.eq_fobjs is not None:
+                fobjs_.eq_fobj = self.eq_fobjs[I]
             else:
-                print("something wonky doodles")
-
+                fobjs_.eq_fobj = None
+            fobjs_.sd(self.W, self.lmo_coeff, self.Nocc, thr_bath=self.thr_bath)
             self.Fobjs.append(fobjs_)
 
         # self.all_fragment_MO_TA, frag_TA_index_per_frag = union_of_frag_MOs_and_index(
@@ -1188,6 +1185,7 @@ class BE:
                 use_cumulant=use_cumulant,
                 return_vec=False,
             )
+            self.rets0 = rets[0]
         else:
             rets = be_func_parallel(
                 None,
@@ -1359,7 +1357,7 @@ class BE:
                     self.lmo_coeff = multi_dot(
                         (self.W.T, self.S, self.C[:, self.ncore :])
                     )
-                else:
+                else: # default if nothing special in calculation
                     self.lmo_coeff = multi_dot((self.W.T, self.S, self.C))
             return None
         elif lo_method == "boys" or lo_method == "PM" or lo_method == "ER":
