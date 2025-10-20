@@ -38,7 +38,7 @@ from ordered_set import OrderedSet
 from pyscf.gto import M, Mole, is_au
 from pyscf.lib import param
 from pyscf.pbc.gto import Cell
-from typing_extensions import Self, override
+from typing_extensions import Self, assert_never, override
 
 from quemb.molbe.autofrag import FragPart
 from quemb.molbe.helper import are_equal, get_core
@@ -80,7 +80,6 @@ HTreatment: TypeAlias = Literal[
     "treat_H_diff",  # Default, treat H and heavy atoms differently, with bond dict
     "treat_H_like_heavy_atom",  # Treat all H as the same as a heavy atom
     "at_most_one_H",  # Enforce each H belonging to at most 1 motif
-    "exactly_one_H",  # Enforce each H belonging to exactly 1 motif
 ]
 
 
@@ -222,8 +221,6 @@ class BondConnectivity:
               atoms when determining fragments
             * :python:`"at_most_one_H"`: Enforcing that each H can belong to at most one
               H, if a H is assigned to multiple motifs
-            * :python:`"exactly_one_H"`: Enforcing that each H can belong to exactly one
-              H, if a H is assigned to multiple motifs or to no motifs
 
         """
         if not (m.index.min() == 0 and m.index.max() == len(m) - 1):
@@ -373,29 +370,9 @@ class BondConnectivity:
                     atoms_per_motif,
                     h_treatment,
                 )
-        elif h_treatment == "exactly_one_H":
-            if all_H_belong_to_motif():
-                if motifs_share_H():
-                    mod_bonds_atoms = enforce_one_H_per_motif()
-                    return cls.from_cartesian(
-                        m,
-                        bonds_atoms=mod_bonds_atoms,
-                        h_treatment="treat_H_diff",
-                    )
-                else:
-                    return cls(
-                        processed_bonds_atoms,
-                        motifs,
-                        bonds_motif,
-                        H_atoms,
-                        H_per_motif,
-                        atoms_per_motif,
-                        h_treatment,
-                    )
-            else:
-                raise NotImplementedError(
-                    "Assignment for non-bonded H not yet implemented"
-                )
+        else:
+            raise NotImplementedError(f"h_treatment = {h_treatment} is not implemented")
+            assert_never(h_treatment)
 
     @classmethod
     def from_mole(
@@ -442,8 +419,6 @@ class BondConnectivity:
               atoms when determining fragments
             * :python:`"at_most_one_H"`: Enforcing that each H can belong to at most one
               H, if a H is assigned to multiple motifs
-            * :python:`"exactly_one_H"`: Enforcing that each H can belong to exactly one
-              H, if a H is assigned to multiple motifs or to no motifs
 
         """
         return cls.from_cartesian(
@@ -502,13 +477,11 @@ class BondConnectivity:
               atoms when determining fragments
             * :python:`"at_most_one_H"`: Enforcing that each H can belong to at most one
               H, if a H is assigned to multiple motifs
-            * :python:`"exactly_one_H"`: Enforcing that each H can belong to exactly one
-              H, if a H is assigned to multiple motifs or to no motifs
 
         """
         # If bonds_atoms was given, use the information.
         # Otherwise, use chemcoord to get the connectivity graph.
-        if h_treatment in ("at_most_one_H", "exactly_one_H"):
+        if h_treatment in ("at_most_one_H"):
             raise NotImplementedError("H treament not implemented for periodic systems")
         if bonds_atoms is None:
             # Add periodic copies to a fake mol object
@@ -871,8 +844,6 @@ class PurelyStructureFragmented(Generic[_T_chemsystem]):
               atoms when determining fragments
             * :python:`"at_most_one_H"`: Enforcing that each H can belong to at most one
               H, if a H is assigned to multiple motifs
-            * :python:`"exactly_one_H"`: Enforcing that each H can belong to exactly one
-              H, if a H is assigned to multiple motifs or to no motifs
 
         autocratic_matching :
             Assume autocratic matching for possibly shared centers.
@@ -1385,8 +1356,6 @@ class Fragmented(Generic[_T_chemsystem]):
               atoms when determining fragments
             * :python:`"at_most_one_H"`: Enforcing that each H can belong to at most one
               H, if a H is assigned to multiple motifs
-            * :python:`"exactly_one_H"`: Enforcing that each H can belong to exactly one
-              H, if a H is assigned to multiple motifs or to no motifs
 
         bonds_atoms :
             Can be used to specify the connectivity graph of the molecule.
