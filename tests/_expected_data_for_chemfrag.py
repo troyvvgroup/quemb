@@ -43,6 +43,18 @@ def get_expected():
         spin=0.0,
     )
 
+    metaphosphate_mol = M(
+        atom="xyz/shared_h_metaphosphate.xyz",
+        basis="sto-3g",
+        charge=-1,
+    )
+
+    c3h4_mol = M(
+        atom="xyz/c3h4.xyz",
+        basis="sto-3g",
+        charge=0,
+    )
+
     expected = {}
     expected["test_connectivity_data"] = {}
     expected["test_connectivity_data"]["octane.xyz"] = BondConnectivity(
@@ -72802,5 +72814,230 @@ def get_expected():
             iao_valence_basis=None,
             iao_valence_only=False,
         )
+    }
+
+    expected["test_shared_hydrogens"] = {}
+    expected["test_shared_hydrogens"]["shared_h_metaphosphate"] = {
+        1: PurelyStructureFragmented(
+            mol=metaphosphate_mol,
+            motifs_per_frag=[
+                OrderedSet([0]),
+                OrderedSet([1]),
+                OrderedSet([2]),
+                OrderedSet([3]),
+                OrderedSet([5]),
+                OrderedSet([7]),
+            ],
+            centers_per_frag=[
+                OrderedSet([0]),
+                OrderedSet([1]),
+                OrderedSet([2]),
+                OrderedSet([3]),
+                OrderedSet([5]),
+                OrderedSet([7]),
+            ],
+            edges_per_frag=[
+                OrderedSet(),
+                OrderedSet(),
+                OrderedSet(),
+                OrderedSet(),
+                OrderedSet(),
+                OrderedSet(),
+            ],
+            origin_per_frag=[
+                OrderedSet([0]),
+                OrderedSet([1]),
+                OrderedSet([2]),
+                OrderedSet([3]),
+                OrderedSet([5]),
+                OrderedSet([7]),
+            ],
+            atoms_per_frag=[
+                OrderedSet([0]),
+                OrderedSet([1]),
+                OrderedSet([2]),
+                OrderedSet([3]),
+                OrderedSet([5, 4, 6]),
+                OrderedSet([7, 8, 9]),
+            ],
+            ref_frag_idx_per_edge=[{}, {}, {}, {}, {}, {}],
+            conn_data=BondConnectivity(
+                bonds_atoms={
+                    0: OrderedSet([1, 2, 3, 5]),
+                    1: OrderedSet([0]),
+                    2: OrderedSet([0]),
+                    3: OrderedSet([0]),
+                    4: OrderedSet([5]),
+                    5: OrderedSet([0, 4, 6]),
+                    6: OrderedSet([5]),
+                    7: OrderedSet([8, 9]),
+                    8: OrderedSet([7]),
+                    9: OrderedSet([7]),
+                },
+                motifs=OrderedSet([0, 1, 2, 3, 5, 7]),
+                bonds_motifs={
+                    0: OrderedSet([1, 2, 3, 5]),
+                    1: OrderedSet([0]),
+                    2: OrderedSet([0]),
+                    3: OrderedSet([0]),
+                    5: OrderedSet([0]),
+                    7: OrderedSet(),
+                },
+                H_atoms=OrderedSet([4, 6, 8, 9]),
+                H_per_motif={
+                    0: OrderedSet(),
+                    1: OrderedSet(),
+                    2: OrderedSet(),
+                    3: OrderedSet(),
+                    5: OrderedSet([4, 6]),
+                    7: OrderedSet([8, 9]),
+                },
+                atoms_per_motif={
+                    0: OrderedSet([0]),
+                    1: OrderedSet([1]),
+                    2: OrderedSet([2]),
+                    3: OrderedSet([3]),
+                    5: OrderedSet([5, 4, 6]),
+                    7: OrderedSet([7, 8, 9]),
+                },
+                h_treatment="treat_H_diff",
+            ),
+            n_BE=1,
+        ),
+        2: PurelyStructureFragmented(
+            mol=metaphosphate_mol,
+            motifs_per_frag=[OrderedSet([0, 1, 2, 3, 5]), OrderedSet([7])],
+            centers_per_frag=[OrderedSet([0, 1, 2, 3, 5]), OrderedSet([7])],
+            edges_per_frag=[OrderedSet(), OrderedSet()],
+            origin_per_frag=[OrderedSet([0]), OrderedSet([7])],
+            atoms_per_frag=[OrderedSet([0, 1, 2, 3, 5, 4, 6]), OrderedSet([7, 8, 9])],
+            ref_frag_idx_per_edge=[{}, {}],
+            conn_data=BondConnectivity(
+                bonds_atoms={
+                    0: OrderedSet([1, 2, 3, 5]),
+                    1: OrderedSet([0]),
+                    2: OrderedSet([0]),
+                    3: OrderedSet([0]),
+                    4: OrderedSet([5]),
+                    5: OrderedSet([0, 4, 6]),
+                    6: OrderedSet([5]),
+                    7: OrderedSet([8, 9]),
+                    8: OrderedSet([7]),
+                    9: OrderedSet([7]),
+                },
+                motifs=OrderedSet([0, 1, 2, 3, 5, 7]),
+                bonds_motifs={
+                    0: OrderedSet([1, 2, 3, 5]),
+                    1: OrderedSet([0]),
+                    2: OrderedSet([0]),
+                    3: OrderedSet([0]),
+                    5: OrderedSet([0]),
+                    7: OrderedSet(),
+                },
+                H_atoms=OrderedSet([4, 6, 8, 9]),
+                H_per_motif={
+                    0: OrderedSet(),
+                    1: OrderedSet(),
+                    2: OrderedSet(),
+                    3: OrderedSet(),
+                    5: OrderedSet([4, 6]),
+                    7: OrderedSet([8, 9]),
+                },
+                atoms_per_motif={
+                    0: OrderedSet([0]),
+                    1: OrderedSet([1]),
+                    2: OrderedSet([2]),
+                    3: OrderedSet([3]),
+                    5: OrderedSet([5, 4, 6]),
+                    7: OrderedSet([7, 8, 9]),
+                },
+                h_treatment="treat_H_diff",
+            ),
+            n_BE=2,
+        ),
+    }
+    expected["test_shared_hydrogens"]["c3h3"] = {
+        1: PurelyStructureFragmented(
+            mol=c3h4_mol,
+            motifs_per_frag=[OrderedSet([0]), OrderedSet([1]), OrderedSet([2])],
+            centers_per_frag=[OrderedSet([0]), OrderedSet([1]), OrderedSet([2])],
+            edges_per_frag=[OrderedSet(), OrderedSet(), OrderedSet()],
+            origin_per_frag=[OrderedSet([0]), OrderedSet([1]), OrderedSet([2])],
+            atoms_per_frag=[
+                OrderedSet([0, 4]),
+                OrderedSet([1, 6]),
+                OrderedSet([2, 3, 5]),
+            ],
+            ref_frag_idx_per_edge=[{}, {}, {}],
+            conn_data=BondConnectivity(
+                bonds_atoms={
+                    0: OrderedSet([1, 2, 4]),
+                    1: OrderedSet([0, 2, 6]),
+                    2: OrderedSet([0, 1, 3, 5]),
+                    3: OrderedSet([2]),
+                    4: OrderedSet([0]),
+                    5: OrderedSet([2]),
+                    6: OrderedSet([1]),
+                },
+                motifs=OrderedSet([0, 1, 2]),
+                bonds_motifs={
+                    0: OrderedSet([1, 2]),
+                    1: OrderedSet([0, 2]),
+                    2: OrderedSet([0, 1]),
+                },
+                H_atoms=OrderedSet([3, 4, 5, 6]),
+                H_per_motif={
+                    0: OrderedSet([4]),
+                    1: OrderedSet([6]),
+                    2: OrderedSet([3, 5]),
+                },
+                atoms_per_motif={
+                    0: OrderedSet([0, 4]),
+                    1: OrderedSet([1, 6]),
+                    2: OrderedSet([2, 3, 5]),
+                },
+                h_treatment="treat_H_diff",
+            ),
+            n_BE=1,
+        ),
+        2: PurelyStructureFragmented(
+            mol=c3h4_mol,
+            motifs_per_frag=[OrderedSet([0, 1, 2])],
+            centers_per_frag=[OrderedSet([0, 1, 2])],
+            edges_per_frag=[OrderedSet()],
+            origin_per_frag=[OrderedSet([0])],
+            atoms_per_frag=[OrderedSet([0, 4, 1, 6, 2, 3, 5])],
+            ref_frag_idx_per_edge=[{}],
+            conn_data=BondConnectivity(
+                bonds_atoms={
+                    0: OrderedSet([1, 2, 4]),
+                    1: OrderedSet([0, 2, 6]),
+                    2: OrderedSet([0, 1, 3, 5]),
+                    3: OrderedSet([2]),
+                    4: OrderedSet([0]),
+                    5: OrderedSet([2]),
+                    6: OrderedSet([1]),
+                },
+                motifs=OrderedSet([0, 1, 2]),
+                bonds_motifs={
+                    0: OrderedSet([1, 2]),
+                    1: OrderedSet([0, 2]),
+                    2: OrderedSet([0, 1]),
+                },
+                H_atoms=OrderedSet([3, 4, 5, 6]),
+                H_per_motif={
+                    0: OrderedSet([4]),
+                    1: OrderedSet([6]),
+                    2: OrderedSet([3, 5]),
+                },
+                atoms_per_motif={
+                    0: OrderedSet([0, 4]),
+                    1: OrderedSet([1, 6]),
+                    2: OrderedSet([2, 3, 5]),
+                },
+                h_treatment="treat_H_diff",
+            ),
+            n_BE=2,
+        ),
     }
     return expected
