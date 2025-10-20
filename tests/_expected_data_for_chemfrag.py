@@ -72956,7 +72956,7 @@ def get_expected():
             n_BE=2,
         ),
     }
-    expected["test_shared_hydrogens"]["c3h3"] = {
+    expected["test_shared_hydrogens"]["c3h4"] = {
         1: PurelyStructureFragmented(
             mol=c3h4_mol,
             motifs_per_frag=[OrderedSet([0]), OrderedSet([1]), OrderedSet([2])],
