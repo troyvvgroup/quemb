@@ -72,9 +72,10 @@ def get_veff(eri_, dm, S, TA, hf_veff):
 # create pyscf pbc scf object
 def get_scfObj(
     h1: Matrix[float64],
-    Eri,
+    Eri: Matrix[float64],
     nocc: int,
-    dm0=None,
+    dm0: Matrix[float64] | None = None,
+    max_cycles: int = 50,
 ) -> scf.hf.RHF:
     """Initialize and run a restricted Hartree-Fock (RHF) calculation.
 
@@ -85,19 +86,22 @@ def get_scfObj(
 
     Parameters
     ----------
-    h1 : numpy.ndarray
+    h1 :
         One-electron Hamiltonian matrix.
-    Eri : numpy.ndarray
+    Eri :
         Electron repulsion integrals.
-    nocc : int
+    nocc :
         Number of occupied orbitals.
-    dm0 : numpy.ndarray, optional
+    dm0 :
         Initial density matrix. If not provided, the SCF calculation will start
         from scratch. Defaults to None.
+    max_cycles :
+        Maximum number of SCF cycles performed. If (sufficiently small), then SOSC will
+        not be performed.
 
     Returns
     -------
-    mf_ : pyscf.scf.hf.RHF
+    mf_ :
         The SCF object after running the Hartree-Fock calculation.
     """
     # from 40-customizing_hamiltonian.py in pyscf examples
@@ -115,7 +119,7 @@ def get_scfObj(
     mf_.get_ovlp = lambda *args: S  # noqa: ARG005
     mf_._eri = Eri
     mf_.incore_anyway = True
-    mf_.max_cycle = 50
+    mf_.max_cycle = max_cycles
     mf_.verbose = 0
 
     # Run the SCF calculation
@@ -125,27 +129,30 @@ def get_scfObj(
         mf_.kernel(dm0=dm0)
 
     # Check if the SCF calculation converged
-    if not mf_.converged:
+    if not mf_.converged and max_cycles > 5:
         print(flush=True)
         print(
-            "WARNING!!! SCF not convereged - applying level_shift=0.2, diis_space=25 ",
+            f"Initial SCF not converged in {max_cycles} iterations:"
+            "Switching to SOSCF algorithm for the fragment",
             flush=True,
         )
         print(flush=True)
-        mf_.verbose = 0
-        mf_.level_shift = 0.2
-        mf_.diis_space = 25
+        # Rerun SCF using SOSCF
         if dm0 is None:
-            mf_.kernel()
+            mf_.newton().kernel()
         else:
-            mf_.kernel(dm0=dm0)
+            mf_.newton().kernel(dm0=dm0)
+
         if not mf_.converged:
             print(flush=True)
-            print("WARNING!!! SCF still not convereged!", flush=True)
+            print(
+                "WARNING!!! Fragment SCF still not converged after SOSCF",
+                flush=True,
+            )
             print(flush=True)
         else:
             print(flush=True)
-            print("SCF Converged!", flush=True)
+            print("Fragment SCF converged after SOSCF!", flush=True)
             print(flush=True)
 
     return mf_
