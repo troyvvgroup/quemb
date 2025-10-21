@@ -1,3 +1,4 @@
+import time
 from typing import Literal, Tuple
 
 import numpy as np
@@ -111,8 +112,9 @@ def get_cnos(
 
     """
     # TA_x is either TA_occ or TA_vir, aligning with occ=True or False
+    timea = time.time()
     eri_schmidt = ao2mo.incore.full(eri_full, TA_x, compact=True)
-
+    timeb = time.time()
     h_schmidt = preparing_h_cnos(
         nocc - nsocc,
         C[:, :nocc],
@@ -123,10 +125,10 @@ def get_cnos(
         core_veff,
         eri_schmidt,
     )
-
+    timec = time.time()
     # Get semicanonicalized C by solving HF with these 1 and 2 e integrals
-    mf_SC = get_scfObj(h_schmidt, eri_schmidt, nsocc)
-
+    mf_SC = get_scfObj(h_schmidt, eri_schmidt, nsocc, max_cycles=2, skip_soscf=True)
+    timed = time.time()
     if occ:
         C_SC = mf_SC.mo_coeff[:, :nsocc]
     else:
@@ -137,7 +139,7 @@ def get_cnos(
     # Then pair densities
     # (all in one function)
     P = FormPairDensity(eri_schmidt, mf_SC.mo_occ, mf_SC.mo_coeff, mf_SC.mo_energy, occ)
-
+    timee = time.time()
     # Transform pair density in SO basis
     P_mat_SO = C_SC @ P @ C_SC.T
 
@@ -155,6 +157,13 @@ def get_cnos(
 
     # Generate cluster natural orbitals, rotating into AO basis
     cnos = TA_x @ PNO
+    timef = time.time()
+    print("get_cnos: eri schmidt", timeb - timea, flush=True)
+    print("get_cnos: preparing hcore", timec - timeb, flush=True)
+    print("get_cnos: getting scfObj", timed - timec, flush=True)
+    print("get_cnos: form pair density", timee - timed, flush=True)
+    print("get_cnos: final steps", timef - timee, flush=True)
+    print("Total get_cnos routine", timef - timea, flush=True)
 
     return cnos, P_mat_eigvals
 
@@ -400,10 +409,11 @@ def FormPairDensity(
     COcc = mo_coeffs[:, OccIdx]
     CVir = mo_coeffs[:, VirIdx]
 
+    time1 = time.time()
     # Transform 2 e integrals from the augmented Schmidt space
     V = ao2mo.kernel(Vs, [COcc, CVir, COcc, CVir], compact=False)
     V = V.reshape((nOcc, nVir, nOcc, nVir))
-
+    time2 = time.time()
     # Generate the T and delta T term from the CNO paper
     mo_energy_occ = mo_energys[:nOcc]
     mo_energy_vir = mo_energys[nOcc:]
@@ -416,7 +426,7 @@ def FormPairDensity(
     T = np.swapaxes(T, 1, 2)
 
     delta_T_term = 2 * T - np.swapaxes(T, 2, 3)
-
+    time3 = time.time()
     if occ:
         # Occupied pair density matrix
         P = 2 * np.einsum("kiab,kjab->ij", T, delta_T_term, optimize=True)
@@ -424,7 +434,10 @@ def FormPairDensity(
     else:
         # Virtual pair density matrix
         P = 2.0 * np.einsum("ijac,jicb->ab", T, delta_T_term, optimize=True)
-
+    time4 = time.time()
+    print("Pair density: integral transform", time2 - time1, flush=True)
+    print("Pair density: forming T amplitudes", time3 - time2, flush=True)
+    print("Pair density: form pair density", time4 - time3, flush=True)
     return P
 
 
