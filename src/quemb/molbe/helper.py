@@ -104,7 +104,7 @@ def get_scfObj(
 
     Returns
     -------
-    mf_f :
+    mf_f : pyscf.scf.hf.RHF
         The SCF object after running the Hartree-Fock calculation.
     """
     # from 40-customizing_hamiltonian.py in pyscf examples
