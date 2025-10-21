@@ -76,6 +76,7 @@ def get_scfObj(
     nocc: int,
     dm0: Matrix[float64] | None = None,
     max_cycles: int = 50,
+    skip_soscf: bool = False,
 ) -> scf.hf.RHF:
     """Initialize and run a restricted Hartree-Fock (RHF) calculation.
 
@@ -98,6 +99,9 @@ def get_scfObj(
     max_cycles :
         Maximum number of SCF cycles performed. If (sufficiently small), then SOSC will
         not be performed.
+    skip_soscf :
+        Whether to perform SOSCF if the calculation fails to converge in max_cycles.
+        By default, False
 
     Returns
     -------
@@ -129,7 +133,7 @@ def get_scfObj(
         mf_.kernel(dm0=dm0)
 
     # Check if the SCF calculation converged
-    if not mf_.converged and max_cycles > 5:
+    if not mf_.converged and not skip_soscf:
         print(flush=True)
         print(
             f"Initial SCF not converged in {max_cycles} iterations:"
