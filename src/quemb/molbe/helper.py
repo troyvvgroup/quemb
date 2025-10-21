@@ -69,7 +69,7 @@ def get_veff(eri_, dm, S, TA, hf_veff):
     return Veff, Veff0
 
 
-# create pyscf pbc scf object
+# create pyscf scf object
 def get_scfObj(
     h1: Matrix[float64],
     Eri: Matrix[float64],
@@ -97,8 +97,7 @@ def get_scfObj(
         Initial density matrix. If not provided, the SCF calculation will start
         from scratch. Defaults to None.
     max_cycles :
-        Maximum number of SCF cycles performed. If (sufficiently small), then SOSC will
-        not be performed.
+        Maximum number of SCF cycles performed.
     skip_soscf :
         Whether to perform SOSCF if the calculation fails to converge in max_cycles.
         By default, False
