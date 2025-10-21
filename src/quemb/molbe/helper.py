@@ -69,7 +69,7 @@ def get_veff(eri_, dm, S, TA, hf_veff):
     return Veff, Veff0
 
 
-# create pyscf scf object
+# Create PySCF SCF object for a fragment
 def get_scfObj(
     h1: Matrix[float64],
     Eri: Matrix[float64],
@@ -104,7 +104,7 @@ def get_scfObj(
 
     Returns
     -------
-    mf_ :
+    mf_f :
         The SCF object after running the Hartree-Fock calculation.
     """
     # from 40-customizing_hamiltonian.py in pyscf examples
@@ -117,22 +117,22 @@ def get_scfObj(
     mol.incore_anyway = True
 
     # Initialize an RHF object
-    mf_ = scf.RHF(mol)
-    mf_.get_hcore = lambda *args: h1  # noqa: ARG005
-    mf_.get_ovlp = lambda *args: S  # noqa: ARG005
-    mf_._eri = Eri
-    mf_.incore_anyway = True
-    mf_.max_cycle = max_cycles
-    mf_.verbose = 0
+    mf_f = scf.RHF(mol)
+    mf_f.get_hcore = lambda *args: h1  # noqa: ARG005
+    mf_f.get_ovlp = lambda *args: S  # noqa: ARG005
+    mf_f._eri = Eri
+    mf_f.incore_anyway = True
+    mf_f.max_cycle = max_cycles
+    mf_f.verbose = 0
 
     # Run the SCF calculation
     if dm0 is None:
-        mf_.kernel()
+        mf_f.kernel()
     else:
-        mf_.kernel(dm0=dm0)
+        mf_f.kernel(dm0=dm0)
 
     # Check if the SCF calculation converged
-    if not mf_.converged and not skip_soscf:
+    if not mf_f.converged and not skip_soscf:
         print(flush=True)
         print(
             f"Initial SCF not converged in {max_cycles} iterations:"
@@ -142,11 +142,11 @@ def get_scfObj(
         print(flush=True)
         # Rerun SCF using SOSCF
         if dm0 is None:
-            mf_.newton().kernel()
+            mf_f.newton().kernel()
         else:
-            mf_.newton().kernel(dm0=dm0)
+            mf_f.newton().kernel(dm0=dm0)
 
-        if not mf_.converged:
+        if not mf_f.converged:
             print(flush=True)
             print(
                 "WARNING!!! Fragment SCF still not converged after SOSCF",
@@ -158,7 +158,7 @@ def get_scfObj(
             print("Fragment SCF converged after SOSCF!", flush=True)
             print(flush=True)
 
-    return mf_
+    return mf_f
 
 
 def get_eri(i_frag, Nao, symm=8, ignore_symm=False, eri_file="eri_file.h5"):
