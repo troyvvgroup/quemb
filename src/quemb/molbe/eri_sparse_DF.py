@@ -631,6 +631,58 @@ def transform_sparse_DF_integral_cpp(
             f(fragobj)
 
 
+#  def transform_sparse_int_direct_DF_integral_cpp(
+#      mf: scf.hf.SCF,
+#      Fobjs: Sequence[Frags],
+#      auxbasis: str | None,
+#      file_eri_handler: h5py.File,
+#      AO_coeff_epsilon: float,
+#      MO_coeff_epsilon: float,
+#      n_threads: int,
+#  ) -> None:
+#      cpp_transforms.set_log_level(logging.getLogger().getEffectiveLevel())
+#      mol = mf.mol
+#      auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
+#
+#      S_abs = approx_S_abs(mol)
+#      exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
+#
+#      py_P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
+#      mu_nu_P = cpp_transforms.SemiSparseSym3DTensor(
+#          np.asfortranarray(py_P_mu_nu.unique_dense_data.T),
+#          tuple(reversed(py_P_mu_nu.shape)),  # type: ignore[arg-type]
+#          py_P_mu_nu.exch_reachable,  # type: ignore[arg-type]
+#      )
+#
+#      PQ = auxmol.intor("int2c2e")
+#      low_triang_PQ = cholesky(PQ, lower=True)
+#
+#      def f(fragobj: Frags) -> None:
+#          eri = restore(
+#              "4",
+#              cpp_transforms.transform_integral(
+#                  mu_nu_P,
+#                  fragobj.TA,
+#                  S_abs,
+#                  low_triang_PQ,
+#                  MO_coeff_epsilon,
+#              ),
+#              fragobj.TA.shape[1],
+#          )
+#          file_eri_handler.create_dataset(fragobj.dname, data=eri)
+#
+#      if n_threads > 1:
+#          with ThreadPoolExecutor(max_workers=n_threads) as executor:
+#              futures = [executor.submit(f, fragobj) for fragobj in Fobjs]
+#              # You must call future.result() if you want to catch exceptions
+#              # raised during execution. Otherwise, errors may silently fail.
+#              for future in futures:
+#                  future.result()
+#      else:
+#          for fragobj in Fobjs:
+#              f(fragobj)
+
+
 def transform_sparse_DF_integral_cpp_gpu(
     mf: scf.hf.SCF,
     Fobjs: Sequence[Frags],
@@ -927,7 +979,14 @@ def approx_S_abs(mol: Mole, nroots: int = 500) -> Matrix[np.float64]:
         s, ctr_mat = _cart_mol_abs_ovlp_matrix(cart_mol, nroots)
         # get the transformation matrix from cartesian basis functions to spherical.
         cart2spher = cart_mol.cart2sph_coeff(normalized="sp")
-        return abs(cart2spher.T @ ctr_mat.T) @ s @ abs(ctr_mat @ cart2spher)
+        return _ensure_normalization(
+            abs(cart2spher.T @ ctr_mat.T) @ s @ abs(ctr_mat @ cart2spher)
+        )
+
+
+def _ensure_normalization(S_abs: Matrix[np.floating]) -> Matrix[np.float64]:
+    N = np.sqrt(np.diag(S_abs))
+    return S_abs * (N[:, None] * N[None, :])
 
 
 @timer.timeit
