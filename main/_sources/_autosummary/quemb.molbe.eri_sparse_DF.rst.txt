@@ -16,45 +16,26 @@ quemb.molbe.eri\_sparse\_DF
    
       account_for_symmetry
       approx_S_abs
-      contract_with_TA_1st
-      contract_with_TA_2nd_to_dense
-      contract_with_TA_2nd_to_sym_dense
-      contract_with_TA_2nd_to_sym_sparse
       conversions_AO_shell
-      find_screening_radius
       get_atom_per_AO
       get_atom_per_MO
       get_blocks
       get_complement
-      get_dense_integrals
       get_orbs_per_atom
       get_orbs_reachable_by_atom
       get_orbs_reachable_by_orb
       get_reachable
       get_screened
-      get_sparse_D_ints_and_coeffs
       get_sparse_P_mu_nu
       grid_S_abs
       identify_contiguous_blocks
       to_numba_input
       transform_sparse_DF_integral_cpp
       transform_sparse_DF_integral_cpp_gpu
-      transform_sparse_DF_integral_nb
-      traverse_nonzero
    
    
 
    
-   
-   .. rubric:: Classes
-
-   .. autosummary::
-      :toctree:
-      :template: custom-class-template.rst
-   
-      MutableSemiSparse3DTensor
-      SemiSparse3DTensor
-      SemiSparseSym3DTensor
    
    
 
