@@ -29,7 +29,13 @@ from typing_extensions import assert_never
 
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.chemfrag import ChemFragPart
-from quemb.molbe.cno_utils import CNOArgs, augment_w_cnos, choose_cnos, get_cnos
+from quemb.molbe.cno_utils import (
+    CNOArgs,
+    augment_w_cnos,
+    build_frag_mol,
+    choose_cnos,
+    get_cnos,
+)
 from quemb.molbe.eri_onthefly import integral_direct_DF
 from quemb.molbe.eri_sparse_DF import (
     transform_sparse_DF_integral_cpp,
@@ -1128,9 +1134,13 @@ class BE:
                     ncore=self.ncore,
                 )
 
-                nocc_add_cno, nvir_add_cno, cno_thresh = choose_cnos(
+                frag_mol, _, _, _ = build_frag_mol(
                     self.fobj.fragmented.frag_structure.atoms_per_frag[I],  # geometry
                     self.mf.mol,  # molecule object
+                )
+
+                nocc_add_cno, nvir_add_cno, cno_thresh = choose_cnos(
+                    frag_mol,  # fragment molecule object
                     fobjs_.n_f,  # number of fragment orbitals
                     fobjs_.n_b,  # number of bath orbitals
                     fobjs_.TA_cno_occ.shape[1],  # occupied-augmented size
@@ -1145,7 +1155,7 @@ class BE:
                 vir_cno = None
                 occ_cno_eigvals = None
                 vir_cno_eigvals = None
-                if nocc_add_cno > 0 or cno_thresh is not None:
+                if nocc_add_cno >= 0 or cno_thresh is not None:
                     # Occupied nsocc (using TA_occ)
                     nsocc_occ = fobjs_.return_nsocc_only(
                         self.S,
@@ -1165,10 +1175,11 @@ class BE:
                         self.S,
                         nsocc_occ,
                         self.Nocc,
+                        frag_mol,
                         self.core_veff if self.frozen_core else None,
                         occ=True,
                     )
-                if nvir_add_cno > 0 or cno_thresh is not None:
+                if nvir_add_cno >= 0 or cno_thresh is not None:
                     # Virtual nsocc (using TA_vir)
                     nsocc_vir = fobjs_.return_nsocc_only(
                         self.S,
@@ -1188,6 +1199,7 @@ class BE:
                         self.S,
                         nsocc_vir,
                         self.Nocc,
+                        frag_mol,
                         self.core_veff if self.frozen_core else None,
                         occ=False,
                     )

@@ -9,6 +9,7 @@ from ordered_set import OrderedSet
 from pyscf import ao2mo, gto, scf
 from pyscf.gto import Mole
 
+# from pyscf.mp.dfmp2_native import DFMP2
 from quemb.molbe.helper import get_core, get_scfObj
 from quemb.shared.typing import AtomIdx, Matrix
 
@@ -77,6 +78,7 @@ def get_cnos(
     S: Matrix[floating],
     nsocc: int,
     nocc: int,
+    frag_mol: Mole,
     core_veff: Matrix[floating] | None,
     occ: bool,
 ) -> Tuple[Matrix, Matrix]:
@@ -100,10 +102,12 @@ def get_cnos(
 
     Returns
     -------
-    cnos : numpy.ndarray
+    cnos :
         Generated occupied or virtual orbitals, aligning with `occ`. This returns all
         orbitals in the Schmidt space. Coupled with the `choose_cnos`, a selection of
         these can be selected and directly concatenated to TA.
+    P_mat_eigvals:
+        Eigenvalues from the pair density matrix, used for thresholding routine
 
     Notes
     -----
@@ -126,13 +130,20 @@ def get_cnos(
         eri_schmidt,
     )
     timec = time.time()
-    # Get semicanonicalized C by solving HF with these 1 and 2 e integrals
-    mf_SC = get_scfObj(h_schmidt, eri_schmidt, nsocc, max_cycles=2, skip_soscf=True)
+
+    # Get CANONICALIZED (note, not semicanonicalized!) C by solving HF with these 1 and
+    # 2 e integrals
+    mf_SC = get_scfObj(h_schmidt, eri_schmidt, nsocc, max_cycles=50, skip_soscf=False)
+
+    mf_SC.mol = frag_mol
     timed = time.time()
     if occ:
         C_SC = mf_SC.mo_coeff[:, :nsocc]
     else:
         C_SC = mf_SC.mo_coeff[:, nsocc:]
+
+    # Using RIMP2 Routine:
+    # a, b = DFMP2(mf_SC).run().make_natorbs()
 
     # Get 2 e integrals, transformed by semicanonicalized C
     # Then T amplitudes
@@ -208,9 +219,98 @@ def preparing_h_cnos(
     return hs
 
 
-def choose_cnos(
+def build_frag_mol(
     atom_per_frag: OrderedSet[AtomIdx],
     mole: Mole,
+) -> Tuple[Mole, Mole, Mole, Mole]:
+    """Build fragment Mole object, returning the object and the number of electrons in
+    the neutral fragment
+
+    Parameters
+    ----------
+    atom_per_frag :
+        OrderedSet showing the atom indices in the given fragment. Used to generate the
+        fragment geometry to build the fragment Mole object.
+    mole :
+        Mole object for the full system. We use this to get the basis set and build the
+        fragment Mole object
+
+    Returns
+    -------
+    mol :
+        Fragment molecule object, built
+    ghost_mol :
+        Mole with fragment ghost atoms, built
+    full_mol :
+        Mole with all atoms, built
+    no_f_mol :
+        Mole with only non-fragment atoms, built
+    """
+
+    # Process structure information
+    all_atoms = Cartesian.from_pyscf(mole.build())
+    frag_atoms_full = all_atoms.loc[atom_per_frag, :].to_xyz()
+
+    # Build full molecule
+    full_mol = gto.M()
+    full_mol.atom = "\n".join(all_atoms.to_xyz().split("\n")[2:])
+    full_mol.basis = mole.basis
+    full_mol.charge = mole.charge
+    full_mol.build()
+
+    # Non-fragment atoms in mole
+    ind_not_in_frag = [i not in atom_per_frag for i in range(len(all_atoms))]
+    non_frag_atoms_full = all_atoms.loc[ind_not_in_frag, :].to_xyz()
+
+    # Replace fragment atoms with ghost atoms
+    replace_ghost = Cartesian.from_pyscf(mole.build())
+    for i in atom_per_frag:
+        replace_ghost.loc[i, "atom"] = "X-" + str(replace_ghost.loc[i, "atom"])
+
+    # Remove the first two lines so that pyscf doesn't hate the colon
+    frag_atoms = "\n".join(frag_atoms_full.split("\n")[2:])
+    non_frag_atoms = "\n".join(non_frag_atoms_full.split("\n")[2:])
+    ghost_xyz = "\n".join(replace_ghost.to_xyz().split("\n")[2:])
+
+    # Build mini fragment to figure out the number of electrons and orbitals
+    frag_mol = gto.M()
+    frag_mol.atom = frag_atoms
+    frag_mol.basis = mole.basis
+
+    try:
+        frag_mol.charge = 0
+        frag_mol.build()
+    except RuntimeError:
+        frag_mol.charge = -1
+        frag_mol.build()
+
+    no_f_mol = gto.M()
+    no_f_mol.atom = non_frag_atoms
+    no_f_mol.basis = mole.basis
+
+    try:
+        no_f_mol.charge = 0
+        no_f_mol.build()
+    except RuntimeError:
+        no_f_mol.charge = -1
+        no_f_mol.build()
+
+    ghost_mol = gto.M()
+    ghost_mol.atom = ghost_xyz
+    ghost_mol.basis = mole.basis
+
+    try:
+        ghost_mol.charge = 0
+        ghost_mol.build()
+    except RuntimeError:
+        ghost_mol.charge = -1
+        ghost_mol.build()
+
+    return frag_mol, ghost_mol, full_mol, no_f_mol
+
+
+def choose_cnos(
+    mol: Mole,
     n_f: int,
     n_b: int,
     n_full_occ: int,
@@ -224,12 +324,8 @@ def choose_cnos(
 
     Parameters
     ----------
-    atom_per_frag :
-        OrderedSet showing the atom indices in the given fragment. Used to generate the
-        fragment geometry to build the fragment Mole object.
-    mole :
-        Mole object for the full system. We use this to get the basis set and build the
-        fragment Mole object
+    mol :
+        Mole object for the fragment
     n_f :
         Number of fragment orbitals, from the original Schmidt decomposition
     n_b :
@@ -265,25 +361,8 @@ def choose_cnos(
     ###
     assert args is not None
 
-    # Process structure information
-    all_atoms = Cartesian.from_pyscf(mole.build())
-    frag_atoms_full = all_atoms.loc[atom_per_frag, :].to_xyz()
-    # Remove the first two lines so that pyscf doesn't hate the colon
-    frag_atoms = "\n".join(frag_atoms_full.split("\n")[2:])
-
-    # Build mini fragment to figure out the number of electrons and orbitals
-    mol = gto.M()
-    mol.atom = frag_atoms
-    mol.basis = mole.basis
-
-    # assigning nelec here rather than after build with charge
-    nelec = mol.nelectron
-    try:
-        mol.charge = 0
-        mol.build()
-    except RuntimeError:
-        mol.charge = -1
-        mol.build()
+    # Establish fragment charge
+    nelec = mol.nelectron + mol.charge
 
     if frz_core:
         # Find number of core orbitals in the fragment

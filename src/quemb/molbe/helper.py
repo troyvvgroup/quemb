@@ -121,7 +121,6 @@ def get_scfObj(
     mf_f.get_hcore = lambda *args: h1  # noqa: ARG005
     mf_f.get_ovlp = lambda *args: S  # noqa: ARG005
     mf_f._eri = Eri
-    mf_f.incore_anyway = True
     mf_f.max_cycle = max_cycles
     mf_f.verbose = 0
 
