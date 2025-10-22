@@ -189,7 +189,18 @@ class Frags:
             Used for UBE, where different number of alpha and beta orbitals
             Default is None, allowing orbitals to be chosen by threshold
         """
-        (   self.Dhf,
+        if self.eq_fobj is not None:
+            TA_occ = kabsch_rotation(lmo[:, :nocc], self.eq_fobj.TA_occ)
+            TA_virt = kabsch_rotation(lmo[:, nocc:], self.eq_fobj.TA_virt)
+            TA = np.hstack([TA_occ, TA_virt])
+            TAfull = TA @ self.eq_fobj.eigvecs.T
+            self.TA_lo_eo = TAfull[:, :self.eq_fobj.n_f + self.eq_fobj.n_b]
+            self.TAenv_lo_eo = TAfull[:, self.eq_fobj.n_f + self.eq_fobj.n_b:]
+            self.n_f = self.eq_fobj.n_f
+            self.Dhf = lmo[:, :nocc] @ lmo[:, :nocc].T
+        
+        else:
+            (   self.Dhf,
             self.TA_lo_eo,
             self.TAenv_lo_eo,
             self.TAfull_lo_eo,
@@ -203,24 +214,8 @@ class Frags:
             norb=norb,
             )
 
-        from scipy.linalg import block_diag
-
-        if self.eq_fobj is not None:
-            TA_occ = kabsch_rotation(lmo[:, :nocc], self.eq_fobj.TA_occ)
-            print(f"the difference between new_tmp_occupied and the other thing is {np.linalg.norm(TA_occ - self.eq_fobj.TA_occ)}")
-            TA_virt = kabsch_rotation(lmo[:, nocc:], self.eq_fobj.TA_virt)
-            print(f"the difference between new_tmp_virt and the other thing is {np.linalg.norm(TA_virt - self.eq_fobj.TA_virt)}")
-            TA = np.hstack([TA_occ, TA_virt])
-            TAfull = TA @ self.eq_fobj.eigvecs.T
-            print(f"the difference between TAfull and self.eq_fobj.TAfull_lo_eo is {np.linalg.norm(TAfull - self.eq_fobj.TAfull_lo_eo)}")
-            self.TA_lo_eo = TAfull[:, :self.eq_fobj.n_f + self.eq_fobj.n_b]
-            print(f"the difference between self.TA_lo_eo and the other is {np.linalg.norm(self.TA_lo_eo - self.eq_fobj.TA_lo_eo)}")
-            self.TAenv_lo_eo = TAfull[:, self.eq_fobj.n_f + self.eq_fobj.n_b:]
-            print(f"the difference between self.TAenv_lo_eo and the other is {np.linalg.norm(self.TAenv_lo_eo - self.eq_fobj.TAenv_lo_eo)}")
-
         self.TA = lao @ self.TA_lo_eo  # (ao by lo) x (lo by so) = (ao by so)
         self.TAenv_ao_eo = lao @ self.TAenv_lo_eo
-
         self.nao = self.TA.shape[1]
 
     def cons_fock(self, hf_veff, S, dm, eri_=None):
