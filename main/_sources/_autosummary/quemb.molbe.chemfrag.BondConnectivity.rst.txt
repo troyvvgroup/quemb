@@ -17,7 +17,7 @@ quemb.molbe.chemfrag.BondConnectivity
    .. autoattribute:: BondConnectivity.H_atoms
    .. autoattribute:: BondConnectivity.H_per_motif
    .. autoattribute:: BondConnectivity.atoms_per_motif
-   .. autoattribute:: BondConnectivity.treat_H_different
+   .. autoattribute:: BondConnectivity.h_treatment
    
    
 

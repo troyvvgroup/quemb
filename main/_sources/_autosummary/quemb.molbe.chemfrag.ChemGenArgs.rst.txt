@@ -11,10 +11,9 @@ quemb.molbe.chemfrag.ChemGenArgs
    .. rubric:: Attributes
 
    
-   .. autoattribute:: ChemGenArgs.treat_H_different
+   .. autoattribute:: ChemGenArgs.h_treatment
    .. autoattribute:: ChemGenArgs.bonds_atoms
    .. autoattribute:: ChemGenArgs.vdW_radius
-   .. autoattribute:: ChemGenArgs.modify_atom_data
    .. autoattribute:: ChemGenArgs.swallow_replace
    
    

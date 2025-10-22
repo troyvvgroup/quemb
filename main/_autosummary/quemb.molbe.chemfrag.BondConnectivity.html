@@ -814,7 +814,7 @@
 <h1>quemb.molbe.chemfrag.BondConnectivity<a class="headerlink" href="#quemb-molbe-chemfrag-bondconnectivity" title="Link to this heading">¶</a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="quemb.molbe.chemfrag.BondConnectivity">
-<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">quemb.molbe.chemfrag.</span></span><span class="sig-name descname"><span class="pre">BondConnectivity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bonds_atoms</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">motifs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bonds_motifs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">H_atoms</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">H_per_motif</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">atoms_per_motif</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">treat_H_different</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#quemb.molbe.chemfrag.BondConnectivity" title="Link to this definition">¶</a></dt>
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">quemb.molbe.chemfrag.</span></span><span class="sig-name descname"><span class="pre">BondConnectivity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bonds_atoms</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">motifs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bonds_motifs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">H_atoms</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">H_per_motif</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">atoms_per_motif</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">h_treatment</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'treat_H_diff'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#quemb.molbe.chemfrag.BondConnectivity" title="Link to this definition">¶</a></dt>
 <dd><p>Data structure to store the connectivity data of a molecule.</p>
 <p>This collects all information that is independent of the chosen
 fragmentation scheme, i.e. BE1, BE2, etc., and is independent
@@ -859,9 +859,9 @@ then the values of the dictionary are empty sets.</p>
 </dd></dl>
 
 <dl class="py attribute">
-<dt class="sig sig-object py" id="quemb.molbe.chemfrag.BondConnectivity.treat_H_different">
-<span class="sig-name descname"><span class="pre">treat_H_different</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">Final</span></code><span class="pre">[</span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a><span class="pre">]</span></em><a class="headerlink" href="#quemb.molbe.chemfrag.BondConnectivity.treat_H_different" title="Link to this definition">¶</a></dt>
-<dd><p>Do we treat hydrogens differently?</p>
+<dt class="sig sig-object py" id="quemb.molbe.chemfrag.BondConnectivity.h_treatment">
+<span class="sig-name descname"><span class="pre">h_treatment</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">Final</span></code><span class="pre">[</span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Literal</span></code></a><span class="pre">[</span><code class="docutils literal notranslate"><span class="pre">'treat_H_diff'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'treat_H_like_heavy_atom'</span></code><span class="pre">,</span> <code class="docutils literal notranslate"><span class="pre">'at_most_one_H'</span></code><span class="pre">]]</span></em><a class="headerlink" href="#quemb.molbe.chemfrag.BondConnectivity.h_treatment" title="Link to this definition">¶</a></dt>
+<dd><p>How do we treat hydrogen atoms?</p>
 </dd></dl>
 
 <p class="rubric">Methods</p>
@@ -956,7 +956,7 @@ then the values of the dictionary are empty sets.</p>
 <li><a class="reference internal" href="#quemb.molbe.chemfrag.BondConnectivity.H_atoms"><code class="docutils literal notranslate"><span class="pre">BondConnectivity.H_atoms</span></code></a></li>
 <li><a class="reference internal" href="#quemb.molbe.chemfrag.BondConnectivity.H_per_motif"><code class="docutils literal notranslate"><span class="pre">BondConnectivity.H_per_motif</span></code></a></li>
 <li><a class="reference internal" href="#quemb.molbe.chemfrag.BondConnectivity.atoms_per_motif"><code class="docutils literal notranslate"><span class="pre">BondConnectivity.atoms_per_motif</span></code></a></li>
-<li><a class="reference internal" href="#quemb.molbe.chemfrag.BondConnectivity.treat_H_different"><code class="docutils literal notranslate"><span class="pre">BondConnectivity.treat_H_different</span></code></a></li>
+<li><a class="reference internal" href="#quemb.molbe.chemfrag.BondConnectivity.h_treatment"><code class="docutils literal notranslate"><span class="pre">BondConnectivity.h_treatment</span></code></a></li>
 </ul>
 </li>
 </ul>
