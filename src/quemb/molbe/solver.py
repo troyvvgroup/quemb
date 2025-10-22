@@ -317,7 +317,7 @@ def be_func(
                 rdm2s = fobj._mc.make_rdm2()
         elif solver == "CCSD":
             if eeval:
-                fobj.t1, fobj.t2, rdm1_tmp, rdm2s = solve_ccsd(
+                fobj.mycc, fobj.t1, fobj.t2, rdm1_tmp, rdm2s = solve_ccsd(
                     fobj._mf,
                     mo_energy=fobj._mf.mo_energy,
                     relax=relax_density,
@@ -918,7 +918,7 @@ def solve_ccsd(
                 )
             else:
                 rdm2s = make_rdm2_urlx(t1, t2, with_dm1=not use_cumulant)
-            return (t1, t2, rdm1a, rdm2s)
+            return (mycc, t1, t2, rdm1a, rdm2s)
 
         return (t1, t2, rdm1a, mycc)
 
