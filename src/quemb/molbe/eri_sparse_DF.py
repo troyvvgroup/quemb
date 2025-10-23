@@ -985,7 +985,7 @@ def approx_S_abs(mol: Mole, nroots: int = 500) -> Matrix[np.float64]:
 
 
 def _ensure_normalization(S_abs: Matrix[np.floating]) -> Matrix[np.float64]:
-    N = np.sqrt(np.diag(S_abs))
+    N: Final = np.sqrt(np.diag(S_abs))
     return S_abs / (N[:, None] * N[None, :])
 
 
