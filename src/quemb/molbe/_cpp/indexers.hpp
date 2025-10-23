@@ -204,7 +204,10 @@ class Timer
 
 // Rebuilds an unordered_map to improve lookup performance by reducing collisions
 // and improving memory layout. This is useful if the original map grew inefficiently.
-template <typename Key, typename Value, typename Hash = std::hash<Key>, typename KeyEqual = std::equal_to<Key>,
+template <typename Key,
+          typename Value,
+          typename Hash = std::hash<Key>,
+          typename KeyEqual = std::equal_to<Key>,
           typename Allocator = std::allocator<std::pair<const Key, Value>>>
 std::unordered_map<Key, Value, Hash, KeyEqual, Allocator> rebuild_unordered_map(
     const std::unordered_map<Key, Value, Hash, KeyEqual, Allocator> &original)
