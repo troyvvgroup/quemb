@@ -8,6 +8,7 @@ import h5py
 from numpy import (
     array,
     asarray,
+    concatenate,
     diag_indices,
     einsum,
     eye,
@@ -16,10 +17,11 @@ from numpy import (
     zeros,
     zeros_like,
 )
-from numpy.linalg import multi_dot
+from numpy.linalg import eigh, multi_dot
 from pyscf import ao2mo, gto, lib, scf
 from pyscf.gto.mole import Mole
 from pyscf.pbc.gto.cell import Cell
+from scipy.linalg import block_diag
 
 from quemb.shared.helper import ncore_
 from quemb.shared.typing import Matrix
@@ -158,6 +160,33 @@ def get_scfObj(
             print(flush=True)
 
     return mf_f
+
+
+def semicanonicalize_orbs(fock, nelec):
+    # Find initial mo_coeffs from the initial fock
+    init_e, init_mo_coeff = eigh(fock)
+
+    # Block diagonalize the fock matrix
+    fock_diagonalized = init_mo_coeff.conj().T @ fock @ init_mo_coeff
+    fock_oo = fock_diagonalized[:nelec, :nelec]
+    fock_vv = fock_diagonalized[nelec:, nelec:]
+
+    # Find eigenvalues and eigenvectors in each block
+    en_o, ev_o = eigh(fock_oo)
+    en_v, ev_v = eigh(fock_vv)
+
+    # Build and transform mo_coeffs
+    umat = block_diag(ev_o, ev_v)
+    mo_coeff_sc = asarray(init_mo_coeff @ umat)
+
+    # Assemble mo_energies
+    mo_energy_sc = concatenate((en_o, en_v))
+
+    # Build mo_occ
+    mo_occ_sc = zeros_like(mo_energy_sc)
+    mo_occ_sc[: len(en_o)] = 2
+
+    return mo_coeff_sc, mo_energy_sc, mo_occ_sc
 
 
 def get_eri(i_frag, Nao, symm=8, ignore_symm=False, eri_file="eri_file.h5"):

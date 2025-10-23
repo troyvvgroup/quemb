@@ -1175,7 +1175,6 @@ class BE:
                         self.S,
                         nsocc_occ,
                         self.Nocc,
-                        frag_mol,
                         self.core_veff if self.frozen_core else None,
                         occ=True,
                     )
@@ -1199,7 +1198,6 @@ class BE:
                         self.S,
                         nsocc_vir,
                         self.Nocc,
-                        frag_mol,
                         self.core_veff if self.frozen_core else None,
                         occ=False,
                     )

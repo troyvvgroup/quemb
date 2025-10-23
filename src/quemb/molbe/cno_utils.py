@@ -10,7 +10,7 @@ from pyscf import ao2mo, gto, scf
 from pyscf.gto import Mole
 
 # from pyscf.mp.dfmp2_native import DFMP2
-from quemb.molbe.helper import get_core, get_scfObj
+from quemb.molbe.helper import get_core, get_scfObj, semicanonicalize_orbs
 from quemb.shared.typing import AtomIdx, Matrix
 
 CNO_Schemes = Literal[
@@ -78,7 +78,6 @@ def get_cnos(
     S: Matrix[floating],
     nsocc: int,
     nocc: int,
-    frag_mol: Mole,
     core_veff: Matrix[floating] | None,
     occ: bool,
 ) -> Tuple[Matrix, Matrix]:
@@ -115,42 +114,87 @@ def get_cnos(
     transformation steps can be reduced in cost, which is a TODO
 
     """
-    # TA_x is either TA_occ or TA_vir, aligning with occ=True or False
     timea = time.time()
-    eri_schmidt = ao2mo.incore.full(eri_full, TA_x, compact=True)
-    timeb = time.time()
-    h_schmidt = preparing_h_cnos(
-        nocc - nsocc,
-        C[:, :nocc],
-        S,
-        hcore_full,
-        TA_x,
-        veff_full,
-        core_veff,
-        eri_schmidt,
-    )
-    timec = time.time()
+    semicanonical = True
+    if not semicanonical:
+        print("running canonical")
+        # TA_x is either TA_occ or TA_vir, aligning with occ=True or False
+        eri_schmidt = ao2mo.incore.full(eri_full, TA_x, compact=True)
+        timeb = time.time()
+        h_schmidt = preparing_h_cnos(
+            nocc - nsocc,
+            C[:, :nocc],
+            S,
+            hcore_full,
+            TA_x,
+            veff_full,
+            core_veff,
+            eri_schmidt,
+        )
+        timec = time.time()
+        # Get CANONICALIZED (note, not semicanonicalized!) C by solving HF with these 1
+        # and 2 e integrals
+        mf_SC = get_scfObj(
+            h_schmidt,
+            eri_schmidt,
+            nsocc,
+            max_cycles=50,
+            skip_soscf=False,
+        )
 
-    # Get CANONICALIZED (note, not semicanonicalized!) C by solving HF with these 1 and
-    # 2 e integrals
-    mf_SC = get_scfObj(h_schmidt, eri_schmidt, nsocc, max_cycles=50, skip_soscf=False)
+        timed = time.time()
+        if occ:
+            C_SC = mf_SC.mo_coeff[:, :nsocc]
+        else:
+            C_SC = mf_SC.mo_coeff[:, nsocc:]
+        # Using RIMP2 Routine:
+        # mf_SC.mol = frag_mol
+        # a, b = DFMP2(mf_SC).run().make_natorbs()
 
-    mf_SC.mol = frag_mol
-    timed = time.time()
-    if occ:
-        C_SC = mf_SC.mo_coeff[:, :nsocc]
+        # Get 2 e integrals, transformed by semicanonicalized C
+        # Then T amplitudes
+        # Then pair densities
+        # (all in one function)
+        P = FormPairDensity(
+            eri_schmidt,
+            mf_SC.mo_occ,
+            mf_SC.mo_coeff,
+            mf_SC.mo_energy,
+            occ,
+        )
+        timee = time.time()
+        print("get_cnos: eri schmidt", timeb - timea, flush=True)
+        print("get_cnos: preparing hcore", timec - timeb, flush=True)
+        print("get_cnos: getting scfObj", timed - timec, flush=True)
+        print("get_cnos: form pair density", timee - timed, flush=True)
     else:
-        C_SC = mf_SC.mo_coeff[:, nsocc:]
+        print("running semicanonical")
+        h_rot = np.einsum("mp,nq,mn->pq", TA_x, TA_x, hcore_full, optimize=True)
+        V_rot = np.einsum("mp,nq,mn->pq", TA_x, TA_x, veff_full, optimize=True)
 
-    # Using RIMP2 Routine:
-    # a, b = DFMP2(mf_SC).run().make_natorbs()
+        timeb = time.time()
+        mo_coeff_sc, mo_energy_sc, mo_occ_sc = semicanonicalize_orbs(
+            h_rot + V_rot,
+            nsocc,
+        )
+        timec = time.time()
+        if occ:
+            C_SC = mo_coeff_sc[:, :nsocc]
+        else:
+            C_SC = mo_coeff_sc[:, nsocc:]
+        P = FormPairDensity_SC(
+            eri_full,
+            TA_x,
+            mo_occ_sc,
+            mo_coeff_sc,
+            mo_energy_sc,
+            occ,
+        )
+        timed = time.time()
+        print("get_cnos: initial h and v rot", timeb - timea, flush=True)
+        print("get_cnos: semicanonicalization", timec - timeb, flush=True)
+        print("get_cnos: form pair density", timed - timec, flush=True)
 
-    # Get 2 e integrals, transformed by semicanonicalized C
-    # Then T amplitudes
-    # Then pair densities
-    # (all in one function)
-    P = FormPairDensity(eri_schmidt, mf_SC.mo_occ, mf_SC.mo_coeff, mf_SC.mo_energy, occ)
-    timee = time.time()
     # Transform pair density in SO basis
     P_mat_SO = C_SC @ P @ C_SC.T
 
@@ -169,11 +213,7 @@ def get_cnos(
     # Generate cluster natural orbitals, rotating into AO basis
     cnos = TA_x @ PNO
     timef = time.time()
-    print("get_cnos: eri schmidt", timeb - timea, flush=True)
-    print("get_cnos: preparing hcore", timec - timeb, flush=True)
-    print("get_cnos: getting scfObj", timed - timec, flush=True)
-    print("get_cnos: form pair density", timee - timed, flush=True)
-    print("get_cnos: final steps", timef - timee, flush=True)
+
     print("Total get_cnos routine", timef - timea, flush=True)
 
     return cnos, P_mat_eigvals
@@ -465,11 +505,11 @@ def FormPairDensity(
     Vs :
         ERIs for the given fragment, rotated into the Schmidt space in `get_cnos`
     mo_occs :
-        MO occupancy matrix for the semi-canonicalized fragment
+        MO occupancy matrix for the canonicalized fragment
     mo_coeffs :
-        MO coefficients for the semi-canonicalized fragment
+        MO coefficients for the canonicalized fragment
     mo_energys :
-        MO energies for the semi-canonicalized fragment
+        MO energies for the canonicalized fragment
     occ :
         Whether the occupied or virtual pair density matrix is requested
 
@@ -492,6 +532,85 @@ def FormPairDensity(
     # Transform 2 e integrals from the augmented Schmidt space
     V = ao2mo.kernel(Vs, [COcc, CVir, COcc, CVir], compact=False)
     V = V.reshape((nOcc, nVir, nOcc, nVir))
+
+    time2 = time.time()
+    # Generate the T and delta T term from the CNO paper
+    mo_energy_occ = mo_energys[:nOcc]
+    mo_energy_vir = mo_energys[nOcc:]
+    eMat = np.add.outer(mo_energy_occ, mo_energy_occ)
+    eMat = np.subtract.outer(eMat, mo_energy_vir)
+    eMat = np.subtract.outer(eMat, mo_energy_vir)
+    eMat = np.swapaxes(eMat, 1, 2)
+    eMat = eMat**-1
+    T = -1 * V * eMat
+    T = np.swapaxes(T, 1, 2)
+
+    delta_T_term = 2 * T - np.swapaxes(T, 2, 3)
+    time3 = time.time()
+    if occ:
+        # Occupied pair density matrix
+        P = 2 * np.einsum("kiab,kjab->ij", T, delta_T_term, optimize=True)
+        P = np.eye(T.shape[0]) - P
+    else:
+        # Virtual pair density matrix
+        P = 2.0 * np.einsum("ijac,jicb->ab", T, delta_T_term, optimize=True)
+    time4 = time.time()
+    print("Pair density: integral transform", time2 - time1, flush=True)
+    print("Pair density: forming T amplitudes", time3 - time2, flush=True)
+    print("Pair density: form pair density", time4 - time3, flush=True)
+    return P
+
+
+def FormPairDensity_SC(
+    V_full: Matrix[floating],
+    TA_x: Matrix[floating],
+    mo_occs: Matrix[floating],
+    mo_coeffs: Matrix[floating],
+    mo_energys: Matrix[floating],
+    occ: bool,
+) -> Matrix:
+    """
+    Adapted slightly from Frankenstein, as written by Henry Tran
+    Forming the Pair Density with either the occupied or virtual space to generate
+    OCNOs (VCNOs). This time, working off the semicanonical orbitals, not canonical
+    orbitals.
+
+    Parameters
+    ----------
+    V :
+        ERIs for the full system
+    TA_x :
+        Transformation matrix from the full system to the augmented fragment
+    mo_occs :
+        MO occupancy matrix for the semi-canonicalized fragment
+    mo_coeffs :
+        MO coefficients for the semi-canonicalized fragment
+    mo_energys :
+        MO energies for the semi-canonicalized fragment
+    occ :
+        Whether the occupied or virtual pair density matrix is requested
+
+    Returns
+    -------
+    P : numpy.ndarray
+        Pair density matrix, to be used to generate CNOs
+    """
+    # Determine which MOs are occupied and virtual
+    OccIdx = np.where(mo_occs > 2.0 - 1e-6)[0]
+    VirIdx = np.where(mo_occs < 1e-6)[0]
+
+    nOcc = OccIdx.shape[0]
+    nVir = VirIdx.shape[0]
+
+    # Orbitals to transform from full system to fragment
+    COcc = TA_x @ mo_coeffs[:, OccIdx]
+    CVir = TA_x @ mo_coeffs[:, VirIdx]
+
+    time1 = time.time()
+    # Transform 2 e integrals from the augmented Schmidt space
+    V = ao2mo.general(V_full, [COcc, CVir, COcc, CVir], compact=False)
+    V = V.reshape((nOcc, nVir, nOcc, nVir))
+
     time2 = time.time()
     # Generate the T and delta T term from the CNO paper
     mo_energy_occ = mo_energys[:nOcc]
