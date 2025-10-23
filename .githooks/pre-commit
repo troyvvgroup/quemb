@@ -35,5 +35,9 @@ else
     fi
 fi
 
+if command -v clang-format >/dev/null 2>&1; then
+    find src -regex '.*\.\(cpp\|hpp\|cc\|h\)$' -exec clang-format --dry-run --Werror {} \;
+fi
+
 
 exit 0
