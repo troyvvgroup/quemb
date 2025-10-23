@@ -110,6 +110,7 @@ class GPU_MatrixHandle
 class SemiSparseSym3DTensor
 {
   public:
+    // --- 1. Full "expert" constructor: everything already prepared
     explicit SemiSparseSym3DTensor(
         Matrix unique_dense_data, std::tuple<int, int, int> shape, std::vector<std::vector<OrbitalIdx>> exch_reachable,
         std::vector<std::vector<OrbitalIdx>> exch_reachable_unique,
@@ -124,38 +125,23 @@ class SemiSparseSym3DTensor
     {
     }
 
+    // --- 2. Constructor with matrix provided (reuses helper)
     explicit SemiSparseSym3DTensor(Matrix unique_dense_data, std::tuple<int, int, int> shape,
                                    std::vector<std::vector<OrbitalIdx>> exch_reachable)
         : _unique_dense_data(std::move(unique_dense_data)), _shape(std::move(shape)),
           _exch_reachable(std::move(exch_reachable))
     {
+        initialize();
+    }
 
-        _exch_reachable_unique = extract_unique(_exch_reachable);
-
-        std::size_t counter = 0;
-        for (OrbitalIdx mu = 0; mu < to_eigen(_exch_reachable_unique.size()); ++mu) {
-            for (auto nu : _exch_reachable_unique[mu]) {
-                _offsets[ravel_symmetric(mu, nu)] = counter++;
-            }
-        }
+    // --- 3. Constructor that allocates its own matrix
+    explicit SemiSparseSym3DTensor(std::tuple<int, int, int> shape, std::vector<std::vector<OrbitalIdx>> exch_reachable)
+        : _shape(std::move(shape)), _exch_reachable(std::move(exch_reachable))
+    {
+        const std::size_t n_unique = compute_offsets_and_unique();
+        _unique_dense_data = Matrix::Constant(std::get<0>(_shape), n_unique, std::numeric_limits<double>::quiet_NaN());
         _offsets = rebuild_unordered_map(_offsets);
-
-        // Initialize
-        // exch_reachable_with_offsets
-        _exch_reachable_with_offsets.resize(_exch_reachable.size());
-        _exch_reachable_unique_with_offsets.resize(_exch_reachable_unique.size());
-        for (OrbitalIdx mu = 0; mu < to_eigen(_exch_reachable.size()); ++mu) {
-            std::vector<std::pair<std::size_t, OrbitalIdx>> pairs;
-            std::vector<std::pair<std::size_t, OrbitalIdx>> pairs_unique;
-            for (auto nu : _exch_reachable[mu]) {
-                pairs.emplace_back(_offsets[ravel_symmetric(mu, nu)], nu);
-                if (mu <= nu) { // Ensure mu <= nu for symmetry
-                    pairs_unique.emplace_back(_offsets[ravel_symmetric(mu, nu)], nu);
-                }
-            }
-            _exch_reachable_with_offsets[mu] = std::move(pairs);
-            _exch_reachable_unique_with_offsets[mu] = std::move(pairs_unique);
-        }
+        initialize_exch_reachable_with_offsets();
     }
 
     // Public const accessors
@@ -176,6 +162,11 @@ class SemiSparseSym3DTensor
         return _exch_reachable_unique_with_offsets;
     }
     const Matrix &dense_data() const
+    {
+        return _unique_dense_data;
+    }
+    // Expose an explicitly mutable handle to write into the data array
+    Matrix &mut_dense_data()
     {
         return _unique_dense_data;
     }
@@ -201,8 +192,50 @@ class SemiSparseSym3DTensor
     }
 
   private:
-    // We assume (P | mu nu) layout, because Eigen is
-    // column-major
+    // --- Shared initialization routines
+    void initialize()
+    {
+        compute_offsets_and_unique();
+        _offsets = rebuild_unordered_map(_offsets);
+        initialize_exch_reachable_with_offsets();
+    }
+
+    std::size_t compute_offsets_and_unique()
+    {
+        _exch_reachable_unique = extract_unique(_exch_reachable);
+
+        std::size_t counter = 0;
+        for (OrbitalIdx mu = 0; mu < to_eigen(_exch_reachable_unique.size()); ++mu)
+            for (auto nu : _exch_reachable_unique[mu])
+                _offsets[ravel_symmetric(mu, nu)] = counter++;
+
+        return counter;
+    }
+
+    void initialize_exch_reachable_with_offsets()
+    {
+        _exch_reachable_with_offsets.resize(_exch_reachable.size());
+        _exch_reachable_unique_with_offsets.resize(_exch_reachable_unique.size());
+
+        for (OrbitalIdx mu = 0; mu < to_eigen(_exch_reachable.size()); ++mu) {
+            std::vector<std::pair<std::size_t, OrbitalIdx>> pairs;
+            std::vector<std::pair<std::size_t, OrbitalIdx>> pairs_unique;
+
+            for (auto nu : _exch_reachable[mu]) {
+                const auto key = ravel_symmetric(mu, nu);
+                pairs.emplace_back(_offsets[key], nu);
+                if (mu <= nu)
+                    pairs_unique.emplace_back(_offsets[key], nu);
+            }
+
+            _exch_reachable_with_offsets[mu] = std::move(pairs);
+            _exch_reachable_unique_with_offsets[mu] = std::move(pairs_unique);
+        }
+    }
+
+    // --- Member data
+
+    // We assume (P | mu nu) layout, because Eigen is column-major
     Matrix _unique_dense_data;
     // We assume (P | mu nu) layout, because Eigen is
     // column-major, i.e. the shape is (naux, nao, nao)
@@ -222,6 +255,7 @@ class SemiSparseSym3DTensor
 class SemiSparse3DTensor
 {
   public:
+    // --- 1. Full "expert" constructor: everything already prepared
     explicit SemiSparse3DTensor(
         Matrix dense_data, std::tuple<int, int, int> shape, std::vector<std::vector<OrbitalIdx>> AO_reachable_by_MO,
         std::vector<std::vector<std::pair<std::size_t, OrbitalIdx>>> AO_reachable_by_MO_with_offsets,
@@ -232,26 +266,22 @@ class SemiSparse3DTensor
     {
     }
 
+    // --- 2. Constructor with matrix provided (reuses helper)
     explicit SemiSparse3DTensor(Matrix dense_data, std::tuple<int, int, int> shape,
                                 std::vector<std::vector<OrbitalIdx>> AO_reachable_by_MO)
         : _dense_data(std::move(dense_data)), _shape(std::move(shape)),
           _AO_reachable_by_MO(std::move(AO_reachable_by_MO))
     {
+        build_offsets_and_pairs();
+    }
 
-        const auto [naux, nao, nmo] = _shape;
-        _AO_reachable_by_MO_with_offsets.resize(_AO_reachable_by_MO.size());
-
-        std::size_t counter = 0;
-        for (OrbitalIdx i_MO = 0; i_MO < to_eigen(_AO_reachable_by_MO.size()); ++i_MO) {
-            std::vector<std::pair<std::size_t, OrbitalIdx>> pairs;
-            for (OrbitalIdx nu : _AO_reachable_by_MO[i_MO]) {
-                const std::size_t flat = ravel_Fortran(i_MO, nu, nao);
-                _offsets[flat] = counter++;
-                pairs.emplace_back(_offsets[flat], nu);
-            }
-            _AO_reachable_by_MO_with_offsets[i_MO] = std::move(pairs);
-        }
-        _offsets = rebuild_unordered_map(_offsets);
+    // --- 3. Constructor that allocates its own matrix
+    explicit SemiSparse3DTensor(std::tuple<int, int, int> shape,
+                                std::vector<std::vector<OrbitalIdx>> AO_reachable_by_MO)
+        : _shape(std::move(shape)), _AO_reachable_by_MO(std::move(AO_reachable_by_MO))
+    {
+        const std::size_t n_non_zero = build_offsets_and_pairs();
+        _dense_data = Matrix::Constant(std::get<0>(_shape), n_non_zero, std::numeric_limits<double>::quiet_NaN());
     }
 
     const auto &exch_reachable() const
@@ -262,7 +292,12 @@ class SemiSparse3DTensor
     {
         return _AO_reachable_by_MO_with_offsets;
     }
-    const auto &dense_data() const
+    const Matrix &dense_data() const
+    {
+        return _dense_data;
+    }
+    // Expose an explicitly mutable handle
+    Matrix &mut_dense_data()
     {
         return _dense_data;
     }
@@ -290,6 +325,28 @@ class SemiSparse3DTensor
     }
 
   private:
+    std::size_t build_offsets_and_pairs()
+    {
+        const auto [naux, nao, nmo] = _shape;
+        _AO_reachable_by_MO_with_offsets.resize(_AO_reachable_by_MO.size());
+
+        std::size_t counter = 0;
+        for (OrbitalIdx i_MO = 0; i_MO < to_eigen(_AO_reachable_by_MO.size()); ++i_MO) {
+            std::vector<std::pair<std::size_t, OrbitalIdx>> pairs;
+            pairs.reserve(_AO_reachable_by_MO[i_MO].size());
+            for (OrbitalIdx nu : _AO_reachable_by_MO[i_MO]) {
+                const std::size_t flat = ravel_Fortran(i_MO, nu, nao);
+                _offsets[flat] = counter++;
+                pairs.emplace_back(_offsets[flat], nu);
+            }
+            _AO_reachable_by_MO_with_offsets[i_MO] = std::move(pairs);
+        }
+        _offsets = rebuild_unordered_map(_offsets);
+        return counter;
+    }
+
+    // --- Member data
+
     // We assume (P | mu i) layout, because Eigen is
     // column-major, i.e. the shape is (naux, nao, nmo)
     // where naux is the number of auxiliary basis
@@ -365,10 +422,8 @@ SemiSparse3DTensor contract_with_TA_1st(const Matrix &TA, const SemiSparseSym3DT
     }
 
     if (LOG_LEVEL <= LogLevel::Info) {
-        std::cout << "(P | mu i) [MEMORY] sparse "
-                  << bytes_to_gib(naux * n_unique * sizeof(double)) << " GiB" << "\n";
-        std::cout << "(P | mu i) [MEMORY] dense "
-                  << bytes_to_gib(naux * nao * nmo * sizeof(double)) << " GiB" << "\n";
+        std::cout << "(P | mu i) [MEMORY] sparse " << bytes_to_gib(naux * n_unique * sizeof(double)) << " GiB" << "\n";
+        std::cout << "(P | mu i) [MEMORY] dense " << bytes_to_gib(naux * nao * nmo * sizeof(double)) << " GiB" << "\n";
         std::cout << "(P | mu i) [MEMORY] sparsity "
                   << (1. - static_cast<double>(n_unique) / static_cast<double>(nao * nmo)) * 100. << " %" << "\n";
     };
@@ -552,8 +607,7 @@ Matrix eval_via_cholesky_cuda(const Matrix &sym_P_pq, const GPU_MatrixHandle &L_
     };
 
     // Fill lower triangle
-    result.template triangularView<Eigen::Lower>() =
-        result.transpose().template triangularView<Eigen::Lower>();
+    result.template triangularView<Eigen::Lower>() = result.transpose().template triangularView<Eigen::Lower>();
 
     if (LOG_LEVEL <= LogLevel::Info) {
         timer.print("Filling symmetries completed.");
@@ -623,6 +677,9 @@ PYBIND11_MODULE(eri_sparse_DF, m)
 #endif
 
     py::class_<SemiSparseSym3DTensor>(m, "SemiSparseSym3DTensor")
+        // Minimal constructor with allocation in C++
+        .def(py::init<std::tuple<int, int, int>, std::vector<std::vector<OrbitalIdx>>>(), py::arg("shape"),
+             py::arg("exch_reachable"))
         // Minimal constructor
         .def(py::init<Matrix, std::tuple<int, int, int>, std::vector<std::vector<OrbitalIdx>>>(),
              py::arg("unique_dense_data"), py::arg("shape"), py::arg("exch_reachable"))
@@ -635,6 +692,8 @@ PYBIND11_MODULE(eri_sparse_DF, m)
             py::arg("unique_dense_data"), py::arg("shape"), py::arg("exch_reachable"), py::arg("exch_reachable_unique"),
             py::arg("exch_reachable_with_offsets"), py::arg("exch_reachable_unique_with_offsets"), py::arg("offsets"))
         .def_property_readonly("unique_dense_data", &SemiSparseSym3DTensor::dense_data)
+        .def_property_readonly("mut_unique_dense_data", &SemiSparseSym3DTensor::mut_dense_data,
+                               py::return_value_policy::reference_internal)
         .def_property_readonly("shape", &SemiSparseSym3DTensor::get_shape)
         .def_property_readonly("exch_reachable", &SemiSparseSym3DTensor::exch_reachable)
         .def_property_readonly("exch_reachable_unique", &SemiSparseSym3DTensor::exch_reachable_unique)
@@ -659,6 +718,10 @@ PYBIND11_MODULE(eri_sparse_DF, m)
                  "  - Example use: 3-center integrals (μν|P)";
 
     py::class_<SemiSparse3DTensor>(m, "SemiSparse3DTensor")
+        // Minimal constructor that also does the allocation on the C++ side
+        .def(py::init<std::tuple<int, int, int>, std::vector<std::vector<OrbitalIdx>>>(), py::arg("shape"),
+             py::arg("AO_reachable_by_MO"))
+
         // Minimal constructor
         .def(py::init<Matrix, std::tuple<int, int, int>, std::vector<std::vector<OrbitalIdx>>>(), py::arg("dense_data"),
              py::arg("shape"), py::arg("AO_reachable_by_MO"))
@@ -673,6 +736,8 @@ PYBIND11_MODULE(eri_sparse_DF, m)
         // Read-only accessors
         .def_property_readonly("shape", &SemiSparse3DTensor::get_shape)
         .def_property_readonly("dense_data", &SemiSparse3DTensor::dense_data)
+        .def_property_readonly("mut_dense_data", &SemiSparse3DTensor::mut_dense_data,
+                               py::return_value_policy::reference_internal)
         .def_property_readonly("AO_reachable_by_MO", &SemiSparse3DTensor::exch_reachable)
         .def_property_readonly("AO_reachable_by_MO_with_offsets", &SemiSparse3DTensor::exch_reachable_with_offsets)
         .def_property_readonly("offsets", &SemiSparse3DTensor::get_offsets)

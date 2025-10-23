@@ -37,10 +37,7 @@ from quemb.molbe.cno_utils import (
     get_cnos,
 )
 from quemb.molbe.eri_onthefly import integral_direct_DF
-from quemb.molbe.eri_sparse_DF import (
-    transform_sparse_DF_integral_cpp,
-    transform_sparse_DF_integral_nb,
-)
+from quemb.molbe.eri_sparse_DF import transform_sparse_DF_integral_cpp
 from quemb.molbe.fragment import FragPart
 from quemb.molbe.lo import (
     IAO_LocMethods,
@@ -71,9 +68,7 @@ IntTransforms: TypeAlias = Literal[
     "out-core-DF",
     "int-direct-DF",
     "sparse-DF-cpp",  # screen AOs and MOs via S_abs
-    "sparse-DF-nb",  # screen AOs and MOs via S_abs and use jitted numba
     "sparse-DF-cpp-gpu",  # screen AOs and MOs via S_abs
-    "sparse-DF-nb-gpu",  # screen AOs and MOs via S_abs and use jitted numba
 ]
 """Literal type describing allowed transformation strategies."""
 
@@ -200,20 +195,11 @@ class BE:
               Use a sparse, DF representation of integrals,
               and avoid recomputation of elements that are shared across fragments.
               Uses a ``C++`` implementation for performance heavy code.
-            - :python:`"sparse-DF-nb"`:
-              Use a sparse, DF representation of integrals,
-              and avoid recomputation of elements that are shared across fragments.
-              Uses a numba implementation for performance heavy code.
             - :python:`"sparse-DF-cpp-gpu"`:
               Use a sparse, DF representation of integrals,
               and avoid recomputation of elements that are shared across fragments.
               Uses a ``C++`` + ``CUDDA`` implementation for performance heavy code,
               only available when compiled with CUDABlas.
-            - :python:`"sparse-DF-nb-gpu"`:
-              Use a sparse, DF representation of integrals,
-              and avoid recomputation of elements that are shared across fragments.
-              Uses a numba implementation + ``cupy`` for performance heavy code.
-              Only available if ``cupy`` is installed.
 
         auxbasis :
             Auxiliary basis for density fitting, by default None
@@ -950,8 +936,6 @@ class BE:
         4. Else, for a sparse, DF representation of integrals:
            - Use ``sparse-DF-cpp`` for ``C++`` implementation.
            - Use ``sparse-DF-cpp-gpu`` for ``C++`` + ``CUDDA`` implementation.
-           - Use `sparse-DF-nb`` for numba implementation.
-           - Use ``sparse-DF-nb-gpu`` for numba + ``cupy`` implementation.
 
 
         Parameters
@@ -994,32 +978,6 @@ class BE:
 
             ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
             transform_sparse_DF_integral_cpp_gpu(
-                self.mf,
-                self.Fobjs,
-                auxbasis=self.auxbasis,
-                file_eri_handler=file_eri,
-                MO_coeff_epsilon=self.MO_coeff_epsilon,
-                AO_coeff_epsilon=self.AO_coeff_epsilon,
-                n_threads=self.n_threads_integral_transform,
-            )
-        elif int_transform == "sparse-DF-nb":
-            ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-            transform_sparse_DF_integral_nb(
-                self.mf,
-                self.Fobjs,
-                auxbasis=self.auxbasis,
-                file_eri_handler=file_eri,
-                MO_coeff_epsilon=self.MO_coeff_epsilon,
-                AO_coeff_epsilon=self.AO_coeff_epsilon,
-                n_threads=self.n_threads_integral_transform,
-            )
-        elif int_transform == "sparse-DF-nb-gpu":
-            from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
-                transform_sparse_DF_integral_nb_gpu,
-            )
-
-            ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-            transform_sparse_DF_integral_nb_gpu(
                 self.mf,
                 self.Fobjs,
                 auxbasis=self.auxbasis,
