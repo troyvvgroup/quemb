@@ -8,6 +8,7 @@ import h5py
 from numpy import (
     array,
     asarray,
+    concatenate,
     diag_indices,
     einsum,
     eye,
@@ -16,10 +17,11 @@ from numpy import (
     zeros,
     zeros_like,
 )
-from numpy.linalg import multi_dot
+from numpy.linalg import eigh, multi_dot
 from pyscf import ao2mo, gto, lib, scf
 from pyscf.gto.mole import Mole
 from pyscf.pbc.gto.cell import Cell
+from scipy.linalg import block_diag
 
 from quemb.shared.helper import ncore_
 from quemb.shared.typing import Matrix
@@ -69,12 +71,14 @@ def get_veff(eri_, dm, S, TA, hf_veff):
     return Veff, Veff0
 
 
-# create pyscf pbc scf object
+# Create PySCF SCF object for a fragment
 def get_scfObj(
     h1: Matrix[float64],
-    Eri,
+    Eri: Matrix[float64],
     nocc: int,
-    dm0=None,
+    dm0: Matrix[float64] | None = None,
+    max_cycles: int = 50,
+    skip_soscf: bool = False,
 ) -> scf.hf.RHF:
     """Initialize and run a restricted Hartree-Fock (RHF) calculation.
 
@@ -85,19 +89,24 @@ def get_scfObj(
 
     Parameters
     ----------
-    h1 : numpy.ndarray
+    h1 :
         One-electron Hamiltonian matrix.
-    Eri : numpy.ndarray
+    Eri :
         Electron repulsion integrals.
-    nocc : int
+    nocc :
         Number of occupied orbitals.
-    dm0 : numpy.ndarray, optional
+    dm0 :
         Initial density matrix. If not provided, the SCF calculation will start
         from scratch. Defaults to None.
+    max_cycles :
+        Maximum number of SCF cycles performed.
+    skip_soscf :
+        Whether to perform SOSCF if the calculation fails to converge in max_cycles.
+        By default, False
 
     Returns
     -------
-    mf_ : pyscf.scf.hf.RHF
+    mf_f : pyscf.scf.hf.RHF
         The SCF object after running the Hartree-Fock calculation.
     """
     # from 40-customizing_hamiltonian.py in pyscf examples
@@ -110,45 +119,74 @@ def get_scfObj(
     mol.incore_anyway = True
 
     # Initialize an RHF object
-    mf_ = scf.RHF(mol)
-    mf_.get_hcore = lambda *args: h1  # noqa: ARG005
-    mf_.get_ovlp = lambda *args: S  # noqa: ARG005
-    mf_._eri = Eri
-    mf_.incore_anyway = True
-    mf_.max_cycle = 50
-    mf_.verbose = 0
+    mf_f = scf.RHF(mol)
+    mf_f.get_hcore = lambda *args: h1  # noqa: ARG005
+    mf_f.get_ovlp = lambda *args: S  # noqa: ARG005
+    mf_f._eri = Eri
+    mf_f.max_cycle = max_cycles
+    mf_f.verbose = 0
 
     # Run the SCF calculation
     if dm0 is None:
-        mf_.kernel()
+        mf_f.kernel()
     else:
-        mf_.kernel(dm0=dm0)
+        mf_f.kernel(dm0=dm0)
 
     # Check if the SCF calculation converged
-    if not mf_.converged:
+    if not mf_f.converged and not skip_soscf:
         print(flush=True)
         print(
-            "WARNING!!! SCF not convereged - applying level_shift=0.2, diis_space=25 ",
+            f"Initial SCF not converged in {max_cycles} iterations:"
+            "Switching to SOSCF algorithm for the fragment",
             flush=True,
         )
         print(flush=True)
-        mf_.verbose = 0
-        mf_.level_shift = 0.2
-        mf_.diis_space = 25
+        # Rerun SCF using SOSCF
         if dm0 is None:
-            mf_.kernel()
+            mf_f.newton().kernel()
         else:
-            mf_.kernel(dm0=dm0)
-        if not mf_.converged:
+            mf_f.newton().kernel(dm0=dm0)
+
+        if not mf_f.converged:
             print(flush=True)
-            print("WARNING!!! SCF still not convereged!", flush=True)
+            print(
+                "WARNING!!! Fragment SCF still not converged after SOSCF",
+                flush=True,
+            )
             print(flush=True)
         else:
             print(flush=True)
-            print("SCF Converged!", flush=True)
+            print("Fragment SCF converged after SOSCF!", flush=True)
             print(flush=True)
 
-    return mf_
+    return mf_f
+
+
+def semicanonicalize_orbs(fock, nelec):
+    # Find initial mo_coeffs from the initial fock
+    init_e, init_mo_coeff = eigh(fock)
+
+    # Block diagonalize the fock matrix
+    fock_diagonalized = init_mo_coeff.conj().T @ fock @ init_mo_coeff
+    fock_oo = fock_diagonalized[:nelec, :nelec]
+    fock_vv = fock_diagonalized[nelec:, nelec:]
+
+    # Find eigenvalues and eigenvectors in each block
+    en_o, ev_o = eigh(fock_oo)
+    en_v, ev_v = eigh(fock_vv)
+
+    # Build and transform mo_coeffs
+    umat = block_diag(ev_o, ev_v)
+    mo_coeff_sc = asarray(init_mo_coeff @ umat)
+
+    # Assemble mo_energies
+    mo_energy_sc = concatenate((en_o, en_v))
+
+    # Build mo_occ
+    mo_occ_sc = zeros_like(mo_energy_sc)
+    mo_occ_sc[: len(en_o)] = 2
+
+    return mo_coeff_sc, mo_energy_sc, mo_occ_sc
 
 
 def get_eri(i_frag, Nao, symm=8, ignore_symm=False, eri_file="eri_file.h5"):
@@ -219,6 +257,7 @@ def get_core(mol: Mole | Cell) -> tuple[int, list[int], list[int]]:
 
 def get_frag_energy(
     mo_coeffs,
+    # mo_coeff,  # To match Frankenstein : TODO
     nsocc,
     n_frag,
     weight_and_relAO_per_center,
@@ -279,6 +318,7 @@ def get_frag_energy(
     rdm1s_rot = mo_coeffs @ rdm1 @ mo_coeffs.T * 0.5
 
     # Construct the Hartree-Fock 1-RDM
+    # hf_1rdm = mo_coeff[:, :nsocc] @ mo_coeff[:, :nsocc].conj().T  # Frank Energy TODO
     hf_1rdm = mo_coeffs[:, :nsocc] @ mo_coeffs[:, :nsocc].conj().T
 
     if use_cumulant:
@@ -319,10 +359,8 @@ def get_frag_energy(
             Gij[diag_indices(jmax)] *= 0.5
             Gij += Gij.T
             e2[i] += Gij[tril_indices(jmax)] @ eri[ij]
-
     # Sum the energy contributions
     e_ = e1 + e2 + ec
-
     # Initialize temporary energy variables
     etmp = 0.0
     e1_tmp = 0.0
