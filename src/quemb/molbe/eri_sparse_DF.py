@@ -217,17 +217,6 @@ def _get_AO_per_MO(
     }
 
 
-@njit(nogil=True)
-def _jit_get_AO_per_MO(
-    TA: Matrix[np.float64],
-    S_abs: Matrix[np.float64],
-    epsilon: float,
-) -> List[Vector[np.int64]]:
-    n_MO = TA.shape[-1]
-    X = np.abs(S_abs @ TA)
-    return List([(X[:, i_MO] >= epsilon).nonzero()[0] for i_MO in range(n_MO)])
-
-
 def _get_AO_per_AO(
     S_abs: Matrix[np.floating],
     epsilon: float,
