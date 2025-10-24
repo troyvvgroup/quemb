@@ -51,7 +51,7 @@ jobs:
         run: ruff format --diff
 
       - name: Check formatting C++
-        run: find src -regex '.*\.\(cpp\|hpp\|cc\|h\)$' -exec clang-format --dry-run --Werror {} \;
+        run: find src -type f -regex '.*\.\(cpp\|hpp\|cc\|h\)$' -print0 | xargs -0 -r clang-format --dry-run --Werror
 
       - name: Static analysis python with ruff
         run: ruff check .
