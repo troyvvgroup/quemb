@@ -229,13 +229,20 @@ def _jit_get_AO_per_MO(
 
 
 def _get_AO_per_AO(
-    S_abs: Matrix[np.float64],
+    S_abs: Matrix[np.floating],
     epsilon: float,
+    TA: Matrix[np.floating] | None = None,
 ) -> dict[AOIdx, Sequence[AOIdx]]:
-    n_AO = len(S_abs)
+    if TA is None:
+        n_AO = len(S_abs)
+        sources = cast(Sequence[AOIdx], range(n_AO))
+    else:
+        sources = cast(
+            Sequence[AOIdx], ((S_abs @ abs(TA)).max(axis=1) > epsilon).nonzero()[0]
+        )
     return {
         i_AO: cast(Sequence[AOIdx], (S_abs[:, i_AO] >= epsilon).nonzero()[0])
-        for i_AO in cast(Sequence[AOIdx], range(n_AO))
+        for i_AO in sources
     }
 
 
