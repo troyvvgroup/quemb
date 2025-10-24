@@ -125,6 +125,7 @@ class SemiSparseSym3DTensor
           _exch_reachable_unique_with_offsets(std::move(exch_reachable_unique_with_offsets)),
           _offsets(std::move(offsets))
     {
+        sanity_checks();
     }
 
     // --- 2. Constructor with matrix provided (reuses helper)
@@ -135,6 +136,7 @@ class SemiSparseSym3DTensor
           _exch_reachable(std::move(exch_reachable))
     {
         initialize();
+        sanity_checks();
     }
 
     // --- 3. Constructor that allocates its own matrix
@@ -145,47 +147,48 @@ class SemiSparseSym3DTensor
         _unique_dense_data = Matrix::Constant(std::get<0>(_shape), n_unique, std::numeric_limits<double>::quiet_NaN());
         _offsets = rebuild_unordered_map(_offsets);
         initialize_exch_reachable_with_offsets();
+        sanity_checks();
     }
 
     // Public const accessors
-    const auto &exch_reachable() const
+    const auto &exch_reachable() const noexcept
     {
         return _exch_reachable;
     }
-    const auto &exch_reachable_with_offsets() const
+    const auto &exch_reachable_with_offsets() const noexcept
     {
         return _exch_reachable_with_offsets;
     }
-    const auto &exch_reachable_unique() const
+    const auto &exch_reachable_unique() const noexcept
     {
         return _exch_reachable_unique;
     }
-    const auto &exch_reachable_unique_with_offsets() const
+    const auto &exch_reachable_unique_with_offsets() const noexcept
     {
         return _exch_reachable_unique_with_offsets;
     }
-    const Matrix &dense_data() const
+    const Matrix &dense_data() const noexcept
     {
         return _unique_dense_data;
     }
     // Expose an explicitly mutable handle to write into the data array
-    Matrix &mut_dense_data()
+    Matrix &mut_dense_data() noexcept
     {
         return _unique_dense_data;
     }
-    const auto &get_offsets() const
+    const auto &get_offsets() const noexcept
     {
         return _offsets;
     }
-    std::size_t get_size() const
+    std::size_t get_size() const noexcept
     {
         return std::get<0>(_shape) * std::get<1>(_shape) * std::get<2>(_shape);
     }
-    std::size_t get_nonzero_size() const
+    std::size_t get_nonzero_size() const noexcept
     {
         return _unique_dense_data.size();
     }
-    constexpr auto get_shape() const
+    constexpr auto get_shape() const noexcept
     {
         return _shape;
     }
@@ -194,7 +197,33 @@ class SemiSparseSym3DTensor
         return _unique_dense_data.col(_offsets.at(ravel_symmetric(mu, nu)));
     }
 
+    // TODO: If we switch to C++20, we could use std::format here
+    std::string get_repr() const
+    {
+        const auto [naux, nao1, nao2] = _shape;
+        const double sparsity_ratio = static_cast<double>(get_nonzero_size()) / static_cast<double>(get_size());
+
+        std::ostringstream oss;
+        oss << "Semi-sparse symmetric 3D tensor, shape=(" << naux << ", " << nao1 << ", " << nao2 << "), "
+            << "n non-zero, unique elements = " << get_nonzero_size() << ", " << "n dense elements = " << get_size()
+            << ",\n"
+            << "compression (compared to non-symmetric, dense storage) = " << sparsity_ratio * 100 << "% \n";
+        return oss.str();
+    }
+
   private:
+    void sanity_checks()
+    {
+        const std::size_t nao = std::get<1>(_shape);
+        if (nao != _exch_reachable.size()) {
+            throw std::runtime_error("Mismatch between nao and exch_reachable size: expected " + std::to_string(nao) +
+                                     ", got " + std::to_string(_exch_reachable.size()));
+        }
+        if (_exch_reachable_unique.size() != _exch_reachable.size()) {
+            throw std::runtime_error("Mismatch between exch_reachable and exch_reachable_unique");
+        }
+    }
+
     // --- Shared initialization routines
     void initialize()
     {
@@ -290,36 +319,36 @@ class SemiSparse3DTensor
         _dense_data = Matrix::Constant(std::get<0>(_shape), n_non_zero, std::numeric_limits<double>::quiet_NaN());
     }
 
-    const auto &exch_reachable() const
+    const auto &exch_reachable() const noexcept
     {
         return _AO_reachable_by_MO;
     }
-    const auto &exch_reachable_with_offsets() const
+    const auto &exch_reachable_with_offsets() const noexcept
     {
         return _AO_reachable_by_MO_with_offsets;
     }
-    const Matrix &dense_data() const
+    const Matrix &dense_data() const noexcept
     {
         return _dense_data;
     }
     // Expose an explicitly mutable handle
-    Matrix &mut_dense_data()
+    Matrix &mut_dense_data() noexcept
     {
         return _dense_data;
     }
-    const auto &get_offsets() const
+    const auto &get_offsets() const noexcept
     {
         return _offsets;
     }
-    constexpr auto get_shape() const
+    constexpr auto get_shape() const noexcept
     {
         return _shape;
     }
-    std::size_t get_size() const
+    std::size_t get_size() const noexcept
     {
         return std::get<0>(_shape) * std::get<1>(_shape) * std::get<2>(_shape);
     }
-    std::size_t get_nonzero_size() const
+    std::size_t get_nonzero_size() const noexcept
     {
         return _dense_data.size();
     }
@@ -328,6 +357,20 @@ class SemiSparse3DTensor
     {
         const auto [naux, nao, _] = _shape;
         return _dense_data.col(_offsets.at(ravel_Fortran(mu, i, nao)));
+    }
+
+    // TODO: If we switch to C++20, we could use std::format here
+    std::string get_repr() const
+    {
+        const auto [naux, nao1, nao2] = _shape;
+        const double sparsity_ratio = static_cast<double>(get_nonzero_size()) / static_cast<double>(get_size());
+
+        std::ostringstream oss;
+        oss << "Semi-sparse 3D tensor, shape=(" << naux << ", " << nao1 << ", " << nao2 << "), "
+            << "n non-zero, unique elements = " << get_nonzero_size() << ", " << "n dense elements = " << get_size()
+            << ",\n"
+            << "compression (compared to dense storage) = " << sparsity_ratio * 100 << "% \n";
+        return oss.str();
     }
 
   private:
@@ -757,6 +800,7 @@ PYBIND11_MODULE(eri_sparse_DF, m)
             py::return_value_policy::reference_internal // important to keep
                                                         // reference valid
             )
+        .def("__repr__", &SemiSparseSym3DTensor::get_repr)
         .doc() = "Immutable, semi-sparse, partially symmetric 3-index tensor\n"
                  "\n"
                  "Assumes:\n"
@@ -800,6 +844,7 @@ PYBIND11_MODULE(eri_sparse_DF, m)
         .def_property_readonly("size", &SemiSparse3DTensor::get_size)
         .def_property_readonly("nonzero_size", &SemiSparse3DTensor::get_nonzero_size)
 
+        .def("__repr__", &SemiSparse3DTensor::get_repr)
         .def(
             "__getitem__",
             [](const SemiSparse3DTensor &self, std::tuple<OrbitalIdx, OrbitalIdx> idx) {
@@ -807,8 +852,7 @@ PYBIND11_MODULE(eri_sparse_DF, m)
                 OrbitalIdx i = std::get<1>(idx);
                 return self.get_aux_vector(mu, i);
             },
-            py::return_value_policy::reference_internal // important to keep
-                                                        // reference valid
+            py::return_value_policy::reference_internal // important to keep reference valid
         );
 
     m.def("contract_with_TA_1st",
