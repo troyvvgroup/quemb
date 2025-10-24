@@ -112,7 +112,9 @@ class SemiSparseSym3DTensor
   public:
     // --- 1. Full "expert" constructor: everything already prepared
     explicit SemiSparseSym3DTensor(
-        Matrix unique_dense_data, std::tuple<int, int, int> shape, std::vector<std::vector<OrbitalIdx>> exch_reachable,
+        Matrix unique_dense_data,
+        std::tuple<int, int, int> shape,
+        std::vector<std::vector<OrbitalIdx>> exch_reachable,
         std::vector<std::vector<OrbitalIdx>> exch_reachable_unique,
         std::vector<std::vector<std::pair<std::size_t, OrbitalIdx>>> exch_reachable_with_offsets,
         std::vector<std::vector<std::pair<std::size_t, OrbitalIdx>>> exch_reachable_unique_with_offsets,
@@ -126,7 +128,8 @@ class SemiSparseSym3DTensor
     }
 
     // --- 2. Constructor with matrix provided (reuses helper)
-    explicit SemiSparseSym3DTensor(Matrix unique_dense_data, std::tuple<int, int, int> shape,
+    explicit SemiSparseSym3DTensor(Matrix unique_dense_data,
+                                   std::tuple<int, int, int> shape,
                                    std::vector<std::vector<OrbitalIdx>> exch_reachable)
         : _unique_dense_data(std::move(unique_dense_data)), _shape(std::move(shape)),
           _exch_reachable(std::move(exch_reachable))
@@ -257,7 +260,9 @@ class SemiSparse3DTensor
   public:
     // --- 1. Full "expert" constructor: everything already prepared
     explicit SemiSparse3DTensor(
-        Matrix dense_data, std::tuple<int, int, int> shape, std::vector<std::vector<OrbitalIdx>> AO_reachable_by_MO,
+        Matrix dense_data,
+        std::tuple<int, int, int> shape,
+        std::vector<std::vector<OrbitalIdx>> AO_reachable_by_MO,
         std::vector<std::vector<std::pair<std::size_t, OrbitalIdx>>> AO_reachable_by_MO_with_offsets,
         std::unordered_map<std::size_t, std::size_t> offsets)
         : _dense_data(std::move(dense_data)), _shape(std::move(shape)),
@@ -267,7 +272,8 @@ class SemiSparse3DTensor
     }
 
     // --- 2. Constructor with matrix provided (reuses helper)
-    explicit SemiSparse3DTensor(Matrix dense_data, std::tuple<int, int, int> shape,
+    explicit SemiSparse3DTensor(Matrix dense_data,
+                                std::tuple<int, int, int> shape,
                                 std::vector<std::vector<OrbitalIdx>> AO_reachable_by_MO)
         : _dense_data(std::move(dense_data)), _shape(std::move(shape)),
           _AO_reachable_by_MO(std::move(AO_reachable_by_MO))
@@ -406,7 +412,8 @@ std::vector<std::vector<std::pair<std::size_t, OrbitalIdx>>> get_AO_reachable_by
     return result;
 }
 
-SemiSparse3DTensor contract_with_TA_1st(const Matrix &TA, const SemiSparseSym3DTensor &int_P_mu_nu,
+SemiSparse3DTensor contract_with_TA_1st(const Matrix &TA,
+                                        const SemiSparseSym3DTensor &int_P_mu_nu,
                                         const std::vector<std::vector<OrbitalIdx>> &AO_by_MO) noexcept
 {
     PROFILE_FUNCTION();
@@ -448,8 +455,11 @@ SemiSparse3DTensor contract_with_TA_1st(const Matrix &TA, const SemiSparseSym3DT
             }
         }
     }
-    return SemiSparse3DTensor(std::move(g_unique), std::make_tuple(naux, nao, nmo), AO_by_MO,
-                              std::move(AO_by_MO_with_offsets), std::move(offsets));
+    return SemiSparse3DTensor(std::move(g_unique),
+                              std::make_tuple(naux, nao, nmo),
+                              AO_by_MO,
+                              std::move(AO_by_MO_with_offsets),
+                              std::move(offsets));
 }
 
 py::array_t<double> copy_to_numpy(const Tensor3D &g) noexcept
@@ -585,15 +595,34 @@ Matrix eval_via_cholesky_cuda(const Matrix &sym_P_pq, const GPU_MatrixHandle &L_
     // Solve: L * X = sym_P_pq  → X = L⁻¹ * sym_P_pq
     // X is initialized with sym_P_pq and overwrite it with
     // the solution.
-    CUBLAS_CHECK_THROW(cublasDtrsm(handle, CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT,
-                                   n_aux, n_sym_pairs, &alpha, L_PQ.cdata(), n_aux, d_X, n_aux));
+    CUBLAS_CHECK_THROW(cublasDtrsm(handle,
+                                   CUBLAS_SIDE_LEFT,
+                                   CUBLAS_FILL_MODE_LOWER,
+                                   CUBLAS_OP_N,
+                                   CUBLAS_DIAG_NON_UNIT,
+                                   n_aux,
+                                   n_sym_pairs,
+                                   &alpha,
+                                   L_PQ.cdata(),
+                                   n_aux,
+                                   d_X,
+                                   n_aux));
     if (LOG_LEVEL <= LogLevel::Info) {
         timer.print("Triangular solve on GPU completed");
     };
 
     // Compute: result = Xᵀ * X
-    CUBLAS_CHECK_THROW(cublasDsyrk(handle, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_T, n_sym_pairs, n_aux, &alpha, d_X, n_aux,
-                                   &alpha, d_result, n_sym_pairs));
+    CUBLAS_CHECK_THROW(cublasDsyrk(handle,
+                                   CUBLAS_FILL_MODE_UPPER,
+                                   CUBLAS_OP_T,
+                                   n_sym_pairs,
+                                   n_aux,
+                                   &alpha,
+                                   d_X,
+                                   n_aux,
+                                   &alpha,
+                                   d_result,
+                                   n_sym_pairs));
     if (LOG_LEVEL <= LogLevel::Info) {
         timer.print("Matrix multiplication on GPU completed");
     };
@@ -623,8 +652,11 @@ Matrix eval_via_cholesky_cuda(const Matrix &sym_P_pq, const GPU_MatrixHandle &L_
 #endif
 
 #ifdef USE_CUDA
-Matrix transform_integral_cuda(const SemiSparseSym3DTensor &int_P_mu_nu, const Matrix &TA, const Matrix &S_abs,
-                               const GPU_MatrixHandle &L_PQ, const double MO_coeff_epsilon) noexcept
+Matrix transform_integral_cuda(const SemiSparseSym3DTensor &int_P_mu_nu,
+                               const Matrix &TA,
+                               const Matrix &S_abs,
+                               const GPU_MatrixHandle &L_PQ,
+                               const double MO_coeff_epsilon) noexcept
 
 {
     const auto AO_by_MO = get_AO_per_MO(TA, S_abs, MO_coeff_epsilon);
@@ -635,8 +667,11 @@ Matrix transform_integral_cuda(const SemiSparseSym3DTensor &int_P_mu_nu, const M
 }
 #endif
 
-Matrix transform_integral(const SemiSparseSym3DTensor &int_P_mu_nu, const Matrix &TA, const Matrix &S_abs,
-                          const Matrix &L_PQ, const double MO_coeff_epsilon) noexcept
+Matrix transform_integral(const SemiSparseSym3DTensor &int_P_mu_nu,
+                          const Matrix &TA,
+                          const Matrix &S_abs,
+                          const Matrix &L_PQ,
+                          const double MO_coeff_epsilon) noexcept
 
 {
     const auto AO_by_MO = get_AO_per_MO(TA, S_abs, MO_coeff_epsilon);
@@ -667,7 +702,8 @@ PYBIND11_MODULE(eri_sparse_DF, m)
 
 #ifdef USE_CUDA
     py::class_<GPU_MatrixHandle>(m, "GPU_MatrixHandle")
-        .def(py::init<const Eigen::MatrixXd &>(), py::arg("L_host"),
+        .def(py::init<const Eigen::MatrixXd &>(),
+             py::arg("L_host"),
              "Create a GPU_MatrixHandle from a host matrix.\n"
              "\n"
              "This allocates memory on the GPU and copies the data from the host to the GPU.")
@@ -678,21 +714,32 @@ PYBIND11_MODULE(eri_sparse_DF, m)
 
     py::class_<SemiSparseSym3DTensor>(m, "SemiSparseSym3DTensor")
         // Minimal constructor with allocation in C++
-        .def(py::init<std::tuple<int, int, int>, std::vector<std::vector<OrbitalIdx>>>(), py::arg("shape"),
+        .def(py::init<std::tuple<int, int, int>, std::vector<std::vector<OrbitalIdx>>>(),
+             py::arg("shape"),
              py::arg("exch_reachable"))
         // Minimal constructor
         .def(py::init<Matrix, std::tuple<int, int, int>, std::vector<std::vector<OrbitalIdx>>>(),
-             py::arg("unique_dense_data"), py::arg("shape"), py::arg("exch_reachable"))
+             py::arg("unique_dense_data"),
+             py::arg("shape"),
+             py::arg("exch_reachable"))
         // Full constructor
-        .def(
-            py::init<Matrix, std::tuple<int, int, int>, std::vector<std::vector<OrbitalIdx>>,
-                     std::vector<std::vector<OrbitalIdx>>, std::vector<std::vector<std::pair<std::size_t, OrbitalIdx>>>,
-                     std::vector<std::vector<std::pair<std::size_t, OrbitalIdx>>>,
-                     std::unordered_map<std::size_t, std::size_t>>(),
-            py::arg("unique_dense_data"), py::arg("shape"), py::arg("exch_reachable"), py::arg("exch_reachable_unique"),
-            py::arg("exch_reachable_with_offsets"), py::arg("exch_reachable_unique_with_offsets"), py::arg("offsets"))
+        .def(py::init<Matrix,
+                      std::tuple<int, int, int>,
+                      std::vector<std::vector<OrbitalIdx>>,
+                      std::vector<std::vector<OrbitalIdx>>,
+                      std::vector<std::vector<std::pair<std::size_t, OrbitalIdx>>>,
+                      std::vector<std::vector<std::pair<std::size_t, OrbitalIdx>>>,
+                      std::unordered_map<std::size_t, std::size_t>>(),
+             py::arg("unique_dense_data"),
+             py::arg("shape"),
+             py::arg("exch_reachable"),
+             py::arg("exch_reachable_unique"),
+             py::arg("exch_reachable_with_offsets"),
+             py::arg("exch_reachable_unique_with_offsets"),
+             py::arg("offsets"))
         .def_property_readonly("unique_dense_data", &SemiSparseSym3DTensor::dense_data)
-        .def_property_readonly("mut_unique_dense_data", &SemiSparseSym3DTensor::mut_dense_data,
+        .def_property_readonly("mut_unique_dense_data",
+                               &SemiSparseSym3DTensor::mut_dense_data,
                                py::return_value_policy::reference_internal)
         .def_property_readonly("shape", &SemiSparseSym3DTensor::get_shape)
         .def_property_readonly("exch_reachable", &SemiSparseSym3DTensor::exch_reachable)
@@ -719,24 +766,33 @@ PYBIND11_MODULE(eri_sparse_DF, m)
 
     py::class_<SemiSparse3DTensor>(m, "SemiSparse3DTensor")
         // Minimal constructor that also does the allocation on the C++ side
-        .def(py::init<std::tuple<int, int, int>, std::vector<std::vector<OrbitalIdx>>>(), py::arg("shape"),
+        .def(py::init<std::tuple<int, int, int>, std::vector<std::vector<OrbitalIdx>>>(),
+             py::arg("shape"),
              py::arg("AO_reachable_by_MO"))
 
         // Minimal constructor
-        .def(py::init<Matrix, std::tuple<int, int, int>, std::vector<std::vector<OrbitalIdx>>>(), py::arg("dense_data"),
-             py::arg("shape"), py::arg("AO_reachable_by_MO"))
+        .def(py::init<Matrix, std::tuple<int, int, int>, std::vector<std::vector<OrbitalIdx>>>(),
+             py::arg("dense_data"),
+             py::arg("shape"),
+             py::arg("AO_reachable_by_MO"))
 
         // Full constructor
-        .def(py::init<Matrix, std::tuple<int, int, int>, std::vector<std::vector<OrbitalIdx>>,
+        .def(py::init<Matrix,
+                      std::tuple<int, int, int>,
+                      std::vector<std::vector<OrbitalIdx>>,
                       std::vector<std::vector<std::pair<std::size_t, OrbitalIdx>>>,
                       std::unordered_map<std::size_t, std::size_t>>(),
-             py::arg("dense_data"), py::arg("shape"), py::arg("AO_reachable_by_MO"),
-             py::arg("AO_reachable_by_MO_with_offsets"), py::arg("offsets"))
+             py::arg("dense_data"),
+             py::arg("shape"),
+             py::arg("AO_reachable_by_MO"),
+             py::arg("AO_reachable_by_MO_with_offsets"),
+             py::arg("offsets"))
 
         // Read-only accessors
         .def_property_readonly("shape", &SemiSparse3DTensor::get_shape)
         .def_property_readonly("dense_data", &SemiSparse3DTensor::dense_data)
-        .def_property_readonly("mut_dense_data", &SemiSparse3DTensor::mut_dense_data,
+        .def_property_readonly("mut_dense_data",
+                               &SemiSparse3DTensor::mut_dense_data,
                                py::return_value_policy::reference_internal)
         .def_property_readonly("AO_reachable_by_MO", &SemiSparse3DTensor::exch_reachable)
         .def_property_readonly("AO_reachable_by_MO_with_offsets", &SemiSparse3DTensor::exch_reachable_with_offsets)
@@ -755,32 +811,61 @@ PYBIND11_MODULE(eri_sparse_DF, m)
                                                         // reference valid
         );
 
-    m.def("contract_with_TA_1st", &contract_with_TA_1st, py::arg("TA"), py::arg("int_P_mu_nu"), py::arg("AO_by_MO"),
+    m.def("contract_with_TA_1st",
+          &contract_with_TA_1st,
+          py::arg("TA"),
+          py::arg("int_P_mu_nu"),
+          py::arg("AO_by_MO"),
           py::call_guard<py::gil_scoped_release>());
 
-    m.def("contract_with_TA_2nd_to_sym_dense", &contract_with_TA_2nd_to_sym_dense, py::arg("int_mu_i_P"), py::arg("TA"),
-          py::call_guard<py::gil_scoped_release>(), "Contract with TA to get a symmetric dense tensor (P | i, j)");
+    m.def("contract_with_TA_2nd_to_sym_dense",
+          &contract_with_TA_2nd_to_sym_dense,
+          py::arg("int_mu_i_P"),
+          py::arg("TA"),
+          py::call_guard<py::gil_scoped_release>(),
+          "Contract with TA to get a symmetric dense tensor (P | i, j)");
 
-    m.def("get_AO_per_MO", &get_AO_per_MO, py::arg("TA"), py::arg("S_abs"), py::arg("epsilon"),
+    m.def("get_AO_per_MO",
+          &get_AO_per_MO,
+          py::arg("TA"),
+          py::arg("S_abs"),
+          py::arg("epsilon"),
           py::call_guard<py::gil_scoped_release>(),
           "Get AOs per MO based on TA and S_abs matrices with a threshold epsilon");
 
-    m.def("get_AO_reachable_by_MO_with_offset", &get_AO_reachable_by_MO_with_offset, py::arg("AO_reachable_by_MO"),
+    m.def("get_AO_reachable_by_MO_with_offset",
+          &get_AO_reachable_by_MO_with_offset,
+          py::arg("AO_reachable_by_MO"),
           py::call_guard<py::gil_scoped_release>(),
           "Get AO reachable by MO with offsets based on the\n"
           "provided AO_reachable_by_MO structure");
 
-    m.def("extract_unique", &extract_unique, py::arg("exch_reachable"), py::call_guard<py::gil_scoped_release>(),
+    m.def("extract_unique",
+          &extract_unique,
+          py::arg("exch_reachable"),
+          py::call_guard<py::gil_scoped_release>(),
           "Extract unique reachable AOs from the provided exch_reachable structure");
 
-    m.def("transform_integral", &transform_integral, py::arg("int_P_mu_nu"), py::arg("TA"), py::arg("S_abs"),
-          py::arg("L_PQ"), py::arg("MO_coeff_epsilon"), py::call_guard<py::gil_scoped_release>(),
+    m.def("transform_integral",
+          &transform_integral,
+          py::arg("int_P_mu_nu"),
+          py::arg("TA"),
+          py::arg("S_abs"),
+          py::arg("L_PQ"),
+          py::arg("MO_coeff_epsilon"),
+          py::call_guard<py::gil_scoped_release>(),
           "Transform the integral using TA, int_P_mu_nu, AO_by_MO, and L_PQ,\n"
           "returning the transformed matrix");
 
 #ifdef USE_CUDA
-    m.def("transform_integral_cuda", &transform_integral_cuda, py::arg("int_P_mu_nu"), py::arg("TA"), py::arg("S_abs"),
-          py::arg("L_PQ"), py::arg("MO_coeff_epsilon"), py::call_guard<py::gil_scoped_release>(),
+    m.def("transform_integral_cuda",
+          &transform_integral_cuda,
+          py::arg("int_P_mu_nu"),
+          py::arg("TA"),
+          py::arg("S_abs"),
+          py::arg("L_PQ"),
+          py::arg("MO_coeff_epsilon"),
+          py::call_guard<py::gil_scoped_release>(),
           "Transform the integral using TA, int_P_mu_nu, AO_by_MO, and L_PQ,\n"
           "returning the transformed matrix.\n"
           "This uses CUDA for performance.");
