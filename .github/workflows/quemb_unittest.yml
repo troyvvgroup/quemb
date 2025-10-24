@@ -36,7 +36,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: setup-clang-format
-        run: sudo apt install clang-format
+        run: sudo apt install -y clang-format
 
       - &prepare-pip
         name: Prepare pip
