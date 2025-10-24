@@ -148,44 +148,44 @@ class SemiSparseSym3DTensor
     }
 
     // Public const accessors
-    const auto &exch_reachable() const
+    const auto &exch_reachable() const noexcept
     {
         return _exch_reachable;
     }
-    const auto &exch_reachable_with_offsets() const
+    const auto &exch_reachable_with_offsets() const noexcept
     {
         return _exch_reachable_with_offsets;
     }
-    const auto &exch_reachable_unique() const
+    const auto &exch_reachable_unique() const noexcept
     {
         return _exch_reachable_unique;
     }
-    const auto &exch_reachable_unique_with_offsets() const
+    const auto &exch_reachable_unique_with_offsets() const noexcept
     {
         return _exch_reachable_unique_with_offsets;
     }
-    const Matrix &dense_data() const
+    const Matrix &dense_data() const noexcept
     {
         return _unique_dense_data;
     }
     // Expose an explicitly mutable handle to write into the data array
-    Matrix &mut_dense_data()
+    Matrix &mut_dense_data() noexcept
     {
         return _unique_dense_data;
     }
-    const auto &get_offsets() const
+    const auto &get_offsets() const noexcept
     {
         return _offsets;
     }
-    std::size_t get_size() const
+    std::size_t get_size() const noexcept
     {
         return std::get<0>(_shape) * std::get<1>(_shape) * std::get<2>(_shape);
     }
-    std::size_t get_nonzero_size() const
+    std::size_t get_nonzero_size() const noexcept
     {
         return _unique_dense_data.size();
     }
-    constexpr auto get_shape() const
+    constexpr auto get_shape() const noexcept
     {
         return _shape;
     }
@@ -304,36 +304,36 @@ class SemiSparse3DTensor
         _dense_data = Matrix::Constant(std::get<0>(_shape), n_non_zero, std::numeric_limits<double>::quiet_NaN());
     }
 
-    const auto &exch_reachable() const
+    const auto &exch_reachable() const noexcept
     {
         return _AO_reachable_by_MO;
     }
-    const auto &exch_reachable_with_offsets() const
+    const auto &exch_reachable_with_offsets() const noexcept
     {
         return _AO_reachable_by_MO_with_offsets;
     }
-    const Matrix &dense_data() const
+    const Matrix &dense_data() const noexcept
     {
         return _dense_data;
     }
     // Expose an explicitly mutable handle
-    Matrix &mut_dense_data()
+    Matrix &mut_dense_data() noexcept
     {
         return _dense_data;
     }
-    const auto &get_offsets() const
+    const auto &get_offsets() const noexcept
     {
         return _offsets;
     }
-    constexpr auto get_shape() const
+    constexpr auto get_shape() const noexcept
     {
         return _shape;
     }
-    std::size_t get_size() const
+    std::size_t get_size() const noexcept
     {
         return std::get<0>(_shape) * std::get<1>(_shape) * std::get<2>(_shape);
     }
-    std::size_t get_nonzero_size() const
+    std::size_t get_nonzero_size() const noexcept
     {
         return _dense_data.size();
     }
