@@ -194,6 +194,20 @@ class SemiSparseSym3DTensor
         return _unique_dense_data.col(_offsets.at(ravel_symmetric(mu, nu)));
     }
 
+    // TODO: If we switch to C++20, we could use std::format here
+    std::string get_repr() const
+    {
+        const auto [naux, nao1, nao2] = _shape;
+        const double sparsity_ratio = static_cast<double>(get_nonzero_size()) / static_cast<double>(get_size());
+
+        std::ostringstream oss;
+        oss << "Semi-sparse symmetric 3D tensor, shape=(" << naux << ", " << nao1 << ", " << nao2 << "), "
+            << "n non-zero, unique elements = " << get_nonzero_size() << ", " << "n dense elements = " << get_size()
+            << ",\n"
+            << "compression (compared to non-symmetric, dense storage) = " << sparsity_ratio * 100 << "% \n";
+        return oss.str();
+    }
+
   private:
     // --- Shared initialization routines
     void initialize()
@@ -328,6 +342,20 @@ class SemiSparse3DTensor
     {
         const auto [naux, nao, _] = _shape;
         return _dense_data.col(_offsets.at(ravel_Fortran(mu, i, nao)));
+    }
+
+    // TODO: If we switch to C++20, we could use std::format here
+    std::string get_repr() const
+    {
+        const auto [naux, nao1, nao2] = _shape;
+        const double sparsity_ratio = static_cast<double>(get_nonzero_size()) / static_cast<double>(get_size());
+
+        std::ostringstream oss;
+        oss << "Semi-sparse 3D tensor, shape=(" << naux << ", " << nao1 << ", " << nao2 << "), "
+            << "n non-zero, unique elements = " << get_nonzero_size() << ", " << "n dense elements = " << get_size()
+            << ",\n"
+            << "compression (compared to dense storage) = " << sparsity_ratio * 100 << "% \n";
+        return oss.str();
     }
 
   private:
@@ -757,6 +785,7 @@ PYBIND11_MODULE(eri_sparse_DF, m)
             py::return_value_policy::reference_internal // important to keep
                                                         // reference valid
             )
+        .def("__repr__", &SemiSparseSym3DTensor::get_repr)
         .doc() = "Immutable, semi-sparse, partially symmetric 3-index tensor\n"
                  "\n"
                  "Assumes:\n"
@@ -800,6 +829,7 @@ PYBIND11_MODULE(eri_sparse_DF, m)
         .def_property_readonly("size", &SemiSparse3DTensor::get_size)
         .def_property_readonly("nonzero_size", &SemiSparse3DTensor::get_nonzero_size)
 
+        .def("__repr__", &SemiSparse3DTensor::get_repr)
         .def(
             "__getitem__",
             [](const SemiSparse3DTensor &self, std::tuple<OrbitalIdx, OrbitalIdx> idx) {
@@ -807,8 +837,7 @@ PYBIND11_MODULE(eri_sparse_DF, m)
                 OrbitalIdx i = std::get<1>(idx);
                 return self.get_aux_vector(mu, i);
             },
-            py::return_value_policy::reference_internal // important to keep
-                                                        // reference valid
+            py::return_value_policy::reference_internal // important to keep reference valid
         );
 
     m.def("contract_with_TA_1st",
