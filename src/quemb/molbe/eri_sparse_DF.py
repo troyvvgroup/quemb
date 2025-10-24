@@ -22,7 +22,7 @@ import numpy as np
 from chemcoord import Cartesian
 from numba import prange  # type: ignore[attr-defined]
 from numba.typed import List
-from pyscf import df, dft, gto, scf
+from pyscf import dft, gto, scf
 from pyscf.ao2mo.addons import restore
 from pyscf.df.addons import make_auxmol
 from pyscf.gto import Mole
@@ -528,23 +528,6 @@ def _flatten(
     }
 
 
-@njit(nogil=True, parallel=True)
-def _count_non_zero_2el(
-    exch_reachable: list[Vector[OrbitalIdx]],
-    n_AO: int | None = None,
-) -> int:
-    n_AO = len(exch_reachable) if n_AO is None else n_AO
-    result = 0
-    for p in prange(n_AO):  # type: ignore[attr-defined]
-        for q in exch_reachable[p]:
-            for r in range(p + 1):
-                # perhaps I should account for permutational symmetry here as well.
-                # for l in range(k + 1 if i > k else j + 1):
-                for s in exch_reachable[r]:
-                    result += 1
-    return result
-
-
 def _get_test_mol(atom1: str, atom2: str, r: float, basis: str) -> Mole:
     """Return a PySCF Mole object with two atoms at a distance r."""
     m = Cartesian.set_atom_coords([atom1, atom2], np.array([[0, 0, 0], [0, 0, r]]))
@@ -552,44 +535,6 @@ def _get_test_mol(atom1: str, atom2: str, r: float, basis: str) -> Mole:
         basis=basis,
         charge=m.add_data("atomic_number").loc[:, "atomic_number"].sum() % 2,
     )
-
-
-def _calc_residual(mol: Mole) -> dict[tuple[AOIdx, AOIdx], float]:
-    r"""Return the residual of the 2-electron integrals that are sceened away.
-
-    This is only the diagonal elements of the type :math:`(\mu \nu | \mu \nu)` which
-    give upper bounds to the other 2-electron integrals, due to the
-    Schwarz inequality.
-    """
-    atom_per_AO = get_atom_per_AO(mol)
-    screened_away = account_for_symmetry(
-        get_complement(get_reachable(atom_per_AO, atom_per_AO, get_screened(mol, 0.0)))
-    )
-    g = mol.intor("int2e")
-    return {
-        (p, q): g[p, q, p, q] for p in screened_away.keys() for q in screened_away[p]
-    }
-
-
-def _calc_aux_residual(
-    mol: Mole, auxmol: Mole
-) -> dict[tuple[AOIdx, AOIdx], Vector[np.float64]]:
-    r"""Return the residual of :math:`(\mu,\nu | P)` integrals that are sceened away.
-
-    Here :math:`\mu, \nu` are the AO indices and :math:`P` is the auxiliary basis.
-    For a screened AO pair :math:`(\mu, \nu)`, the whole vector along :math:`P`
-    is returned.
-    """
-    atom_per_AO = get_atom_per_AO(mol)
-    screened_away = account_for_symmetry(
-        get_complement(get_reachable(atom_per_AO, atom_per_AO, get_screened(mol, 0.0)))
-    )
-    ints_3c2e = df.incore.aux_e2(mol, auxmol, intor="int3c2e")
-    return {
-        (p, q): ints_3c2e[p, q, :]
-        for p in screened_away.keys()
-        for q in screened_away[p]
-    }
 
 
 def transform_sparse_DF_integral_cpp(
