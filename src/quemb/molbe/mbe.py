@@ -33,7 +33,6 @@ from quemb.molbe.eri_onthefly import integral_direct_DF
 from quemb.molbe.eri_sparse_DF import (
     transform_sparse_DF_integral_cpp,
     transform_sparse_int_direct_DF_integral_cpp,
-    transform_sparse_int_direct_DF_integral_gpu,
 )
 from quemb.molbe.fragment import FragPart
 from quemb.molbe.lo import (
@@ -984,6 +983,10 @@ class BE:
                 n_threads=self.n_threads_integral_transform,
             )
         elif int_transform == "on-fly-sparse-DF-gpu":
+            from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
+                transform_sparse_int_direct_DF_integral_gpu,
+            )
+
             ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
             transform_sparse_int_direct_DF_integral_gpu(
                 self.mf,
