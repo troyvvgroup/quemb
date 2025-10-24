@@ -436,7 +436,10 @@ def get_sparse_P_mu_nu(
 
     result = SemiSparseSym3DTensor(
         (auxmol.nao, mol.nao, mol.nao),
-        [v for v in exch_reachable.values()],  # type: ignore[misc]
+        [
+            exch_reachable.get(mu, cast(Sequence[AOIdx], []))  # type:ignore[misc]
+            for mu in cast(Sequence[AOIdx], range(mol.nao))
+        ],
     )
     exch_reachable_unique = account_for_symmetry(exch_reachable)
 

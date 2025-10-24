@@ -125,6 +125,7 @@ class SemiSparseSym3DTensor
           _exch_reachable_unique_with_offsets(std::move(exch_reachable_unique_with_offsets)),
           _offsets(std::move(offsets))
     {
+        sanity_checks();
     }
 
     // --- 2. Constructor with matrix provided (reuses helper)
@@ -135,6 +136,7 @@ class SemiSparseSym3DTensor
           _exch_reachable(std::move(exch_reachable))
     {
         initialize();
+        sanity_checks();
     }
 
     // --- 3. Constructor that allocates its own matrix
@@ -145,6 +147,7 @@ class SemiSparseSym3DTensor
         _unique_dense_data = Matrix::Constant(std::get<0>(_shape), n_unique, std::numeric_limits<double>::quiet_NaN());
         _offsets = rebuild_unordered_map(_offsets);
         initialize_exch_reachable_with_offsets();
+        sanity_checks();
     }
 
     // Public const accessors
@@ -209,6 +212,18 @@ class SemiSparseSym3DTensor
     }
 
   private:
+    void sanity_checks()
+    {
+        const std::size_t nao = std::get<1>(_shape);
+        if (nao != _exch_reachable.size()) {
+            throw std::runtime_error("Mismatch between nao and exch_reachable size: expected " + std::to_string(nao) +
+                                     ", got " + std::to_string(_exch_reachable.size()));
+        }
+        if (_exch_reachable_unique.size() != _exch_reachable.size()) {
+            throw std::runtime_error("Mismatch between exch_reachable and exch_reachable_unique");
+        }
+    }
+
     // --- Shared initialization routines
     void initialize()
     {
