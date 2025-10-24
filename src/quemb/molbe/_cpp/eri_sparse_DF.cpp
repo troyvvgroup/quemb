@@ -862,7 +862,9 @@ PYBIND11_MODULE(eri_sparse_DF, m)
           &transform_integral_cuda,
           py::arg("int_P_mu_nu"),
           py::arg("TA"),
-          py::arg("S_abs"), py::arg("L_PQ"), py::arg("MO_coeff_epsilon"),
+          py::arg("S_abs"),
+          py::arg("L_PQ"),
+          py::arg("MO_coeff_epsilon"),
           py::call_guard<py::gil_scoped_release>(),
           "Transform the integral using TA, int_P_mu_nu, AO_by_MO, and L_PQ,\n"
           "returning the transformed matrix.\n"
