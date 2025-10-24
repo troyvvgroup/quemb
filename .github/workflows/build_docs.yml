@@ -50,7 +50,7 @@ jobs:
         ls build/html
         tar czf docs.tar.gz --directory=build/html .
         cd ..
-    
+
     - name: Test building LaTeX PDF docs
       run: |
         cd docs
@@ -68,7 +68,7 @@ jobs:
         name: docs
         path: docs/docs.tar.gz
         retention-days: 3
-    
+
     - name: Publish docs to Github Pages
       if:   github.event_name == 'push' && github.ref == 'refs/heads/main'
       uses: peaceiris/actions-gh-pages@v4
