@@ -20,7 +20,7 @@ def test_sparse_DF_BE() -> None:
     mf.kernel()
 
     fobj = fragmentate(frag_type="chemgen", n_BE=2, mol=mol, print_frags=False)
-    sparse_DF_BE = BE(mf, fobj, auxbasis="weigend", int_transform="sparse-DF-cpp")
+    sparse_DF_BE = BE(mf, fobj, auxbasis="weigend", int_transform="sparse-DF")
     sparse_DF_BE.oneshot(solver="CCSD")
 
     assert np.isclose(
@@ -36,7 +36,41 @@ def test_sparse_DF_BE() -> None:
     mf.kernel()
 
     fobj = fragmentate(frag_type="chemgen", n_BE=2, mol=mol, print_frags=False)
-    sparse_DF_BE = BE(mf, fobj, auxbasis="weigend", int_transform="sparse-DF-cpp")
+    sparse_DF_BE = BE(mf, fobj, auxbasis="weigend", int_transform="sparse-DF")
+    sparse_DF_BE.oneshot(solver="CCSD")
+
+    assert np.isclose(
+        sparse_DF_BE.ebe_tot - sparse_DF_BE.ebe_hf,
+        -0.5498858656383732,
+        atol=1e-10,
+        rtol=0,
+    ), sparse_DF_BE.ebe_tot - sparse_DF_BE.ebe_hf
+
+
+def test_on_the_fly_sparse_DF_BE() -> None:
+    mol = M("xyz/octane.xyz", basis="sto-3g", cart=True)
+
+    mf = scf.RHF(mol)
+    mf.kernel()
+
+    fobj = fragmentate(frag_type="chemgen", n_BE=2, mol=mol, print_frags=False)
+    sparse_DF_BE = BE(mf, fobj, auxbasis="weigend", int_transform="on-fly-sparse-DF")
+    sparse_DF_BE.oneshot(solver="CCSD")
+
+    assert np.isclose(
+        sparse_DF_BE.ebe_tot - sparse_DF_BE.ebe_hf,
+        -0.5499707624383632,
+        atol=1e-10,
+        rtol=0,
+    ), sparse_DF_BE.ebe_tot - sparse_DF_BE.ebe_hf
+
+    mol = M("xyz/octane.xyz", basis="sto-3g", cart=False)
+
+    mf = scf.RHF(mol)
+    mf.kernel()
+
+    fobj = fragmentate(frag_type="chemgen", n_BE=2, mol=mol, print_frags=False)
+    sparse_DF_BE = BE(mf, fobj, auxbasis="weigend", int_transform="on-fly-sparse-DF")
     sparse_DF_BE.oneshot(solver="CCSD")
 
     assert np.isclose(
