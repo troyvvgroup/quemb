@@ -39,6 +39,8 @@ else
     fi
 fi
 
+# Unlike ruff we do not force people to install clang-format as
+# many developers won't touch the C++ parts anyway.
 if command -v clang-format >/dev/null 2>&1; then
     if ! find src -type f -regex '.*\.\(cpp\|hpp\|cc\|h\)$' -print0 \
         | xargs -0 -r clang-format --dry-run --Werror >/dev/null; then
