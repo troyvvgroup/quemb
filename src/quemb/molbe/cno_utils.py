@@ -267,6 +267,20 @@ def preparing_h_cnos(
     return hs
 
 
+def rotate_cno_integrals(
+    V_full: Matrix[floating],
+    COcc: Matrix[floating],
+    CVir: Matrix[floating],
+    nOcc: int,
+    nVir: int,
+) -> Matrix:
+    """Transform the 2-electron integrals into the augmented Schmidt space"""
+    Vs = ao2mo.general(V_full, [COcc, CVir, COcc, CVir], compact=False)
+    Vs = Vs.reshape((nOcc, nVir, nOcc, nVir))
+
+    return Vs
+
+
 def build_frag_mol(
     atom_per_frag: OrderedSet[AtomIdx],
     mole: Mole,
@@ -617,8 +631,7 @@ def FormPairDensity_SC(
 
     time1 = time.time()
     # Transform 2 e integrals into the augmented Schmidt space
-    V = ao2mo.general(V_full, [COcc, CVir, COcc, CVir], compact=False)
-    V = V.reshape((nOcc, nVir, nOcc, nVir))
+    V = rotate_cno_integrals(V_full, COcc, CVir, nOcc, nVir)
 
     time2 = time.time()
     # Generate the T and delta T term from the CNO paper
