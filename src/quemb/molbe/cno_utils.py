@@ -169,12 +169,19 @@ def get_cnos(
         print("get_cnos: form pair density", timee - timed, flush=True)
     else:
         print("running semicanonical")
-        h_rot = np.einsum("mp,nq,mn->pq", TA_x, TA_x, hcore_full, optimize=True)
-        V_rot = np.einsum("mp,nq,mn->pq", TA_x, TA_x, veff_full, optimize=True)
+        # Rotate full-system Fock matrix into augmented Schmdit space
+        F_rot = np.einsum(
+            "mp,nq,mn->pq",
+            TA_x,
+            TA_x,
+            hcore_full + veff_full,
+            optimize=True,
+        )
 
         timeb = time.time()
+        # Semicanonicalize orbitals, after building the augmented fragment Fock matrix
         mo_coeff_sc, mo_energy_sc, mo_occ_sc = semicanonicalize_orbs(
-            h_rot + V_rot,
+            F_rot,
             nsocc,
         )
         timec = time.time()
@@ -182,6 +189,7 @@ def get_cnos(
             C_SC = mo_coeff_sc[:, :nsocc]
         else:
             C_SC = mo_coeff_sc[:, nsocc:]
+        # Make semicanonical pair density (i.e., no integral rotation)
         P = FormPairDensity_SC(
             eri_full,
             TA_x,
@@ -476,6 +484,7 @@ def choose_cnos(
                 nocc_cno_add = np.round(args.tot_active_orbs / prop) - nsocc
                 nvir_cno_add = args.tot_active_orbs - n_f - n_b - nocc_cno_add
     if args.cno_scheme != "Threshold":
+        print("Intended # OCNOs and VCNOs:", nocc_cno_add, nvir_cno_add)
         if nocc_cno_add + n_f + n_b > n_full_occ:
             raise RuntimeError(
                 "Request to add more OCNOs than exist. Choose different CNO scheme"
@@ -529,7 +538,7 @@ def FormPairDensity(
     CVir = mo_coeffs[:, VirIdx]
 
     time1 = time.time()
-    # Transform 2 e integrals from the augmented Schmidt space
+    # Transform 2 e integrals into the augmented Schmidt space
     V = ao2mo.kernel(Vs, [COcc, CVir, COcc, CVir], compact=False)
     V = V.reshape((nOcc, nVir, nOcc, nVir))
 
@@ -607,7 +616,7 @@ def FormPairDensity_SC(
     CVir = TA_x @ mo_coeffs[:, VirIdx]
 
     time1 = time.time()
-    # Transform 2 e integrals from the augmented Schmidt space
+    # Transform 2 e integrals into the augmented Schmidt space
     V = ao2mo.general(V_full, [COcc, CVir, COcc, CVir], compact=False)
     V = V.reshape((nOcc, nVir, nOcc, nVir))
 
