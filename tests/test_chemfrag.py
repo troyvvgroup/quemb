@@ -100,7 +100,9 @@ def test_hydrogen_chain():
     )
 
     fragmented = {
-        n_BE: PurelyStructureFragmented.from_mole(mol, n_BE, treat_H_different=False)
+        n_BE: PurelyStructureFragmented.from_mole(
+            mol, n_BE, h_treatment="treat_H_like_heavy_atom"
+        )
         for n_BE in range(1, 6)
     }
 
@@ -248,21 +250,21 @@ def test_conn_data_manipulation_of_vdW():
         conn_data = BondConnectivity.from_cartesian(m, vdW_radius={"C": 100})
 
     conn_data = BondConnectivity.from_cartesian(
-        m, vdW_radius=100, treat_H_different=False
+        m, vdW_radius=100, h_treatment="treat_H_like_heavy_atom"
     )
     for atom, connected in conn_data.bonds_atoms.items():
         # check if everything is connected to everything
         assert {atom} | connected == set(m.index)
 
     conn_data = BondConnectivity.from_cartesian(
-        m, vdW_radius=lambda r: r * 100, treat_H_different=False
+        m, vdW_radius=lambda r: r * 100, h_treatment="treat_H_like_heavy_atom"
     )
     for atom, connected in conn_data.bonds_atoms.items():
         # check if everything is connected to everything
         assert {atom} | connected == set(m.index)
 
     conn_data = BondConnectivity.from_cartesian(
-        m, vdW_radius={"C": 100}, treat_H_different=False
+        m, vdW_radius={"C": 100}, h_treatment="treat_H_like_heavy_atom"
     )
     for i_carbon in m.loc[m.atom == "C"].index:
         # check if carbons are connected to everything
@@ -335,3 +337,35 @@ def test_swallow_replace():
         frag_type="chemgen",
         additional_args=ChemGenArgs(swallow_replace=True),
     ).all_centers_are_origins()
+
+
+def test_shared_hydrogens():
+    mol_mp = M(
+        atom="xyz/shared_h_metaphosphate.xyz",
+        basis="sto-3g",
+        charge=-1,
+    )
+
+    fos_mp = {
+        n: PurelyStructureFragmented.from_mole(
+            mol_mp, n_BE=n, h_treatment="at_most_one_H"
+        )
+        for n in [1, 2]
+    }
+
+    assert fos_mp == expected[get_calling_function_name()]["shared_h_metaphosphate"]
+
+    mol_c3h4 = M(
+        atom="xyz/c3h4.xyz",
+        basis="sto-3g",
+        charge=0,
+    )
+
+    fos_c3h4 = {
+        n: PurelyStructureFragmented.from_mole(
+            mol_c3h4, n_BE=n, h_treatment="at_most_one_H"
+        )
+        for n in [1, 2]
+    }
+
+    assert fos_c3h4 == expected[get_calling_function_name()]["c3h4"]

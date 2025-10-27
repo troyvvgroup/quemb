@@ -39,7 +39,7 @@ def do_BE(mol, mf, n_BE: int, only_chem: bool, swallow_replace: bool = False):
         frag_type="chemgen",
         mol=mol,
         additional_args=ChemGenArgs(
-            treat_H_different=False, swallow_replace=swallow_replace
+            h_treatment="treat_H_like_heavy_atom", swallow_replace=swallow_replace
         ),
     )
     mybe = BE(mf, fobj)

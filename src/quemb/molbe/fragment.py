@@ -13,7 +13,7 @@ from quemb.molbe.autofrag import (
     FragType,
     autogen,
 )
-from quemb.molbe.chemfrag import ChemGenArgs, chemgen
+from quemb.molbe.chemfrag import ChemFragPart, ChemGenArgs, chemgen
 from quemb.molbe.graphfrag import GraphGenArgs, graphgen
 
 AdditionalArgs: TypeAlias = AutogenArgs | ChemGenArgs | GraphGenArgs
@@ -31,7 +31,7 @@ def fragmentate(
     frozen_core: bool = False,
     order_by_size: bool = False,
     additional_args: AdditionalArgs | None = None,
-) -> FragPart:
+) -> FragPart | ChemFragPart:
     """Fragment/partitioning definition
 
     Interfaces the fragmentation functions in MolBE. It defines
@@ -139,7 +139,7 @@ def fragmentate(
 def _order_by_decreasing_size(fragments: FragPart) -> FragPart:
     """Order by decreasing fragment size"""
     idx = np.argsort([-len(motifs) for motifs in fragments.AO_per_frag], stable=True)
-    return fragments.reindex(idx)  # type: ignore[arg-type]
+    return fragments.reorder_frags(idx)  # type: ignore[arg-type]
 
 
 def _correct_number_of_centers(fragpart: FragPart) -> bool:
