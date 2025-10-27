@@ -975,9 +975,8 @@ class BE:
 
     @timer.timeit
     def _initialize_fragments(self, file_eri: h5py.File, restart: bool):
-        """
-        Processes all molecular fragments by constructing their Fock matrices,
-        performing SCF, and computing fragment Hartree–Fock (HF) energies.
+        """Processes all molecular fragments by constructing their Fock matrices,
+        performing SCF, and computing fragment Hartree-Fock (HF) energies.
 
         This includes:
 
@@ -1020,7 +1019,7 @@ class BE:
                 @ fobjs_._mo_coeffs[:, : fobjs_.nsocc].conj().T
             )
 
-            fobjs_.ebe_hf = fobjs_.update_ebe_hf()
+            fobjs_.ebe_hf, *_ = fobjs_.update_ebe_hf()
             E_hf += fobjs_.ebe_hf
         self.ebe_hf = E_hf + self.enuc + self.E_core
         hf_err = self.hf_etot - self.ebe_hf
