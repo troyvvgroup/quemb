@@ -135,6 +135,9 @@ class Frags:
         self.genvs = None
         self.ebe = 0.0
         self.ebe_hf = 0.0
+
+        # The BE HF energy **after** applying chemical potential etc.
+        self.ebe_hf_with_pot = 0.0
         self.fock = None
         self.veff = None
         self.veff0 = None

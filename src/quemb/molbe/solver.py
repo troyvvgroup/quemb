@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Final, Literal, TypeAlias, cast
 from warnings import warn
 
+import h5py
 import numpy as np
 from attrs import Factory, define, field
 from numpy import (
@@ -19,6 +20,8 @@ from numpy import (
     floating,
     mean,
     ndarray,
+    outer,
+    tril_indices,
     zeros_like,
 )
 from numpy.linalg import multi_dot
@@ -37,7 +40,7 @@ from quemb.shared.external.ccsd_rdm import (
 )
 from quemb.shared.external.uccsd_eri import make_eris_incore
 from quemb.shared.external.unrestricted_utils import make_uhf_obj
-from quemb.shared.helper import delete_multiple_files, unused
+from quemb.shared.helper import delete_multiple_files, ravel_symmetric, unused
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix, Vector
 
@@ -301,6 +304,7 @@ def be_func(
         total_e = [0.0, 0.0, 0.0]
 
     # Loop over each fragment and solve using the specified solver
+    E_hf = 0
     for fobj in Fobjs:
         # Update the effective Hamiltonian
         if pot is not None:
@@ -310,6 +314,37 @@ def be_func(
 
         # Perform SCF calculation
         fobj.scf()
+
+        rdm_hf = (
+            fobj._mf.mo_coeff[:, : fobj.nsocc]
+            @ fobj._mf.mo_coeff[:, : fobj.nsocc].conj().T
+        )
+
+        e1 = 2.0 * einsum("ij,ij->i", fobj.h1[: fobj.n_frag], rdm_hf[: fobj.n_frag])
+
+        ec = einsum("ij,ij->i", fobj.veff[: fobj.n_frag], rdm_hf[: fobj.n_frag])
+
+        jmax = fobj.TA.shape[1]
+
+        with h5py.File(fobj.eri_file, "r") as f:
+            eri = f[fobj.dname][()]
+
+        e2 = zeros_like(e1)
+        for i in range(fobj.n_frag):
+            for j in range(jmax):
+                Gij = (2.0 * rdm_hf[i, j] * rdm_hf - outer(rdm_hf[i], rdm_hf[j]))[
+                    :jmax, :jmax
+                ]
+                Gij[diag_indices(jmax)] *= 0.5
+                Gij += Gij.T
+                e2[i] += Gij[tril_indices(jmax)] @ eri[ravel_symmetric(i, j)]
+
+        e_ = e1 + e2 + ec
+
+        weight, center_AO_indices = fobj.weight_and_relAO_per_center
+
+        fobj.ebe_hf_with_pot = sum(weight * e_[i] for i in center_AO_indices)
+        E_hf += fobj.ebe_hf_with_pot
 
         # Solve using the specified solver
         assert fobj._mf is not None

@@ -124,8 +124,6 @@ def get_scfObj(
     else:
         mf_.kernel(dm0=dm0)
 
-    print(">****>", mf_.e_tot)
-
     # Check if the SCF calculation converged
     if not mf_.converged:
         print(flush=True)
