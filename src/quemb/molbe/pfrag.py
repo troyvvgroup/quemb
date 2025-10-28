@@ -30,7 +30,6 @@ from quemb.shared.typing import (
     PathLike,
     RelAOIdx,
     RelAOIdxInRef,
-    SeqOverEdge,
     Vector,
 )
 
@@ -47,10 +46,10 @@ class Frags:
         self,
         AO_in_frag: Sequence[GlobalAOIdx],
         ifrag: int,
-        AO_per_edge: SeqOverEdge[Sequence[GlobalAOIdx]],
-        ref_frag_idx_per_edge: SeqOverEdge[FragmentIdx],
-        relAO_per_edge: SeqOverEdge[Sequence[RelAOIdx]],
-        relAO_in_ref_per_edge: SeqOverEdge[Sequence[RelAOIdxInRef]],
+        AO_per_edge: Sequence[Sequence[GlobalAOIdx]],
+        ref_frag_idx_per_edge: Sequence[FragmentIdx],
+        relAO_per_edge: Sequence[Sequence[RelAOIdx]],
+        relAO_in_ref_per_edge: Sequence[Sequence[RelAOIdxInRef]],
         weight_and_relAO_per_center: tuple[float, Sequence[RelAOIdx]],
         relAO_per_origin: Sequence[RelAOIdx],
         eri_file: PathLike = "eri_file.h5",
@@ -136,10 +135,12 @@ class Frags:
         self.genvs = None
         self.ebe = 0.0
         self.ebe_hf = 0.0
+
+        # The BE HF energy **after** applying chemical potential etc.
+        self.ebe_hf_with_pot = 0.0
         self.fock = None
         self.veff = None
         self.veff0 = None
-        self.dm_init = None
         self.dm0: Matrix[float64]
         self.unitcell_nkpt = 1.0
 
@@ -205,7 +206,7 @@ class Frags:
         self.veff0 = veff0
         self.fock = self.h1 + veff_.real
 
-    def get_nsocc(self, S, C, nocc, ncore=0):
+    def get_nsocc(self, S, C, nocc, ncore=0) -> tuple[Matrix[np.float64], int]:
         """
         Get the number of occupied orbitals for the fragment.
 
@@ -227,16 +228,14 @@ class Frags:
         """
         C_ = multi_dot((self.TA.T, S, C[:, ncore : ncore + nocc]))
         P_ = C_ @ C_.T
-        nsocc_ = trace(P_)
-        nsocc = int(round(nsocc_))
+        nsocc = int(round(trace(P_)))
         try:
             mo_coeffs = scipy.linalg.svd(C_)[0]
         except scipy.linalg.LinAlgError:
             mo_coeffs = scipy.linalg.eigh(C_)[1][:, -nsocc:]
 
         self._mo_coeffs = mo_coeffs
-        self.nsocc = nsocc
-        return P_
+        return P_, nsocc
 
     def scf(
         self, heff=None, fs=False, eri=None, dm0=None, unrestricted=False, spin_ind=None
@@ -329,7 +328,6 @@ class Frags:
         rdm_hf=None,
         mo_coeffs=None,
         eri=None,
-        return_e=False,
         unrestricted=False,
         spin_ind=None,
     ):
@@ -383,21 +381,13 @@ class Frags:
                     e2[i] += 0.5 * unrestricted_fac * Gij[tril_indices(jmax)] @ eri[ij]
 
         e_ = e1 + e2 + ec
-        etmp = 0.0
-        for i in self.weight_and_relAO_per_center[1]:
-            etmp += self.weight_and_relAO_per_center[0] * e_[i]
 
-        self.ebe_hf = etmp
+        weight, center_AO_indices = self.weight_and_relAO_per_center
 
-        if return_e:
-            e_h1 = 0.0
-            e_coul = 0.0
-            for i in self.weight_and_relAO_per_center[1]:
-                e_h1 += self.weight_and_relAO_per_center[0] * e1[i]
-                e_coul += self.weight_and_relAO_per_center[0] * (e2[i] + ec[i])
-            return (e_h1, e_coul, e1 + e2 + ec)
-        else:
-            return None
+        ebe_hf = sum(weight * e_[i] for i in center_AO_indices)
+        e_h1 = sum(weight * e1[i] for i in center_AO_indices)
+        e_coul = sum(weight * (e2[i] + ec[i]) for i in center_AO_indices)
+        return (ebe_hf, e_h1, e_coul, e1 + e2 + ec)
 
 
 def schmidt_decomposition(
