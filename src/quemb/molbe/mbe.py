@@ -211,7 +211,7 @@ class BE:
             :math:`\mu` are considered to be connected for sparsity screening.
             Smaller value means less screening.
         AO_coeff_epsilon:
-            The cutoff value of the absolute overlap
+           The cutoff value of the absolute overlap
             :math:`\int |\varphi_{\mu}| |\varphi_{\nu}|`
             when two AO coefficient :math:`\mu, \nu`
             are considered to be connected for sparsity screening.
@@ -309,7 +309,7 @@ class BE:
             self.lmo_coeff = None
             self.cinv = None
 
-        self.print_ini()
+        #self.print_ini()
         self.Fobjs: list[Frags] = []
         self.pot = initialize_pot(self.fobj.n_frag, self.fobj.relAO_per_edge_per_frag)
 
@@ -317,7 +317,6 @@ class BE:
             self.scratch_dir = WorkDir.from_environment()
         else:
             self.scratch_dir = scratch_dir
-        print(f"Scratch dir is in: {self.scratch_dir.path}")
         self.eri_file = self.scratch_dir / eri_file
 
         self.frozen_core = fobj.frozen_core
@@ -1072,7 +1071,6 @@ class BE:
             E_hf += fobjs_.ebe_hf
         self.ebe_hf = E_hf + self.enuc + self.E_core
         hf_err = self.hf_etot - self.ebe_hf
-        print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
         if abs(hf_err) > 1.0e-5:
             warn("Large HF-in-HF energy error")
 

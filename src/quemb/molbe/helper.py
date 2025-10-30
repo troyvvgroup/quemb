@@ -120,8 +120,10 @@ def get_scfObj(
 
     # Run the SCF calculation
     if dm0 is None:
+        print("dm0 is none")
         mf_.kernel()
     else:
+        print("dm0 is not none")
         mf_.kernel(dm0=dm0)
 
     # Check if the SCF calculation converged
@@ -288,7 +290,6 @@ def get_frag_energy(
         # Calculate the one-electron contributions
         e1 = einsum("ij,ij->i", h1[:n_frag], delta_rdm1[:n_frag])
         ec = einsum("ij,ij->i", veff0[:n_frag], delta_rdm1[:n_frag])
-
     else:
         # Calculate the one-electron and effective potential energy contributions
         e1 = 2 * einsum("ij,ij->i", h1[:n_frag], rdm1s_rot[:n_frag])
@@ -319,7 +320,6 @@ def get_frag_energy(
             Gij[diag_indices(jmax)] *= 0.5
             Gij += Gij.T
             e2[i] += Gij[tril_indices(jmax)] @ eri[ij]
-
     # Sum the energy contributions
     e_ = e1 + e2 + ec
 

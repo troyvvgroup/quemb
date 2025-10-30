@@ -299,21 +299,21 @@ class Frags:
             Alpha (0) or beta (1) spin for unrestricted calculation, by default None
         """
 
-        if self._mf is not None:
+        if self._mf is not None: # does not execute
             self._mf = None
-        if self._mc is not None:
+        if self._mc is not None: # does not execute
             self._mc = None
-        if heff is None:
+        if heff is None: # executes
             heff = self.heff
 
-        if eri is None:
+        if eri is None: # executes
             if unrestricted:
                 dname = self.dname[spin_ind]
             else:
                 dname = self.dname
             eri = get_eri(dname, self.nao, eri_file=self.eri_file)
 
-        if dm0 is None:
+        if dm0 is None: # executes
             dm0 = 2.0 * (
                 self._mo_coeffs[:, : self.nsocc]
                 @ self._mo_coeffs[:, : self.nsocc].conj().T

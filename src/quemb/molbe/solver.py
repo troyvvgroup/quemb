@@ -543,9 +543,13 @@ def be_func(
                 use_cumulant=use_cumulant,
                 eri_file=fobj.eri_file,
             )
+            fobj.E1 = e_f[0]
+            fobj.E2 = e_f[1]
+            fobj.EC = e_f[2]
             total_e = [sum(x) for x in zip(total_e, e_f)]
             fobj.update_ebe_hf()
     if eeval:
+        print(f"the length of total_e is {len(total_e)}")
         Ecorr = sum(total_e)
         if not return_vec:
             return (Ecorr, total_e)
