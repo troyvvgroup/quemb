@@ -67,7 +67,7 @@ class GPU_MatrixHandle
     explicit GPU_MatrixHandle(const Eigen::MatrixXd &L_host)
         : _n_rows(L_host.rows()), _n_cols(L_host.cols()), _size(static_cast<size_t>(_n_rows * _n_cols))
     {
-        const size_t bytes = _size * sizeof(double);
+        const size_t bytes = _size * sizeof(Real);
         CUDA_CHECK_ALLOC(cudaMalloc(reinterpret_cast<void **>(&d_L), bytes));
         CUDA_CHECK_THROW(cudaMemcpy(d_L, L_host.data(), bytes, cudaMemcpyHostToDevice));
     }
@@ -78,11 +78,11 @@ class GPU_MatrixHandle
             cudaFree(d_L);
     }
 
-    const double *cdata() const noexcept
+    const Real *cdata() const noexcept
     {
         return d_L;
     }
-    double *data() const noexcept
+    Real *data() const noexcept
     {
         return d_L;
     }
@@ -100,7 +100,7 @@ class GPU_MatrixHandle
     }
 
   private:
-    double *d_L = nullptr;
+    Real *d_L = nullptr;
     int_t _n_rows;
     int_t _n_cols;
     size_t _size;
@@ -144,7 +144,20 @@ class SemiSparseSym3DTensor
         : _shape(std::move(shape)), _exch_reachable(std::move(exch_reachable))
     {
         const std::size_t n_unique = compute_offsets_and_unique();
-        _unique_dense_data = Matrix::Constant(std::get<0>(_shape), n_unique, std::numeric_limits<double>::quiet_NaN());
+
+        if (LOG_LEVEL <= LogLevel::Info) {
+            const std::size_t allocated_size = std::get<0>(_shape) * n_unique;
+            const double sparsity_ratio = static_cast<double>(allocated_size) / static_cast<double>(get_size());
+            std::cout << "[MEMORY]; about to allocate (P | mu nu) in " << __func__ << " with "
+                      << bytes_to_gib(allocated_size * sizeof(Real)) << " GiB\n"
+                      << "    with " << std::get<0>(_shape) << " auxiliary P and " << n_unique
+                      << " non-zero, unique mu~nu pairs.\n"
+                      << "    Dense, non-symmetric memory would be: " << bytes_to_gib(get_size() * sizeof(Real))
+                      << " GiB.\n"
+                      << "    compression (compared to non-symmetric, dense storage) = " << sparsity_ratio * 100
+                      << "% \n";
+        };
+        _unique_dense_data = Matrix::Constant(std::get<0>(_shape), n_unique, std::numeric_limits<Real>::quiet_NaN());
         _offsets = rebuild_unordered_map(_offsets);
         initialize_exch_reachable_with_offsets();
         sanity_checks();
@@ -316,7 +329,22 @@ class SemiSparse3DTensor
         : _shape(std::move(shape)), _AO_reachable_by_MO(std::move(AO_reachable_by_MO))
     {
         const std::size_t n_non_zero = build_offsets_and_pairs();
-        _dense_data = Matrix::Constant(std::get<0>(_shape), n_non_zero, std::numeric_limits<double>::quiet_NaN());
+
+        if (LOG_LEVEL <= LogLevel::Info) {
+            const std::size_t allocated_size = std::get<0>(_shape) * n_non_zero;
+            const double sparsity_ratio = static_cast<double>(allocated_size) / static_cast<double>(get_size());
+            std::cout << "[MEMORY]; about to allocate (P | mu i) in " << __func__ << " with "
+                      << bytes_to_gib(n_non_zero * sizeof(Real)) << " Gib\n"
+                      << "    with " << std::get<0>(_shape) << " auxiliary P and " << n_non_zero
+                      << " non-zero mu~nu pairs.\n"
+                      << "    Dense memory would be: " << bytes_to_gib(get_size() * sizeof(Real)) << " GiB\n"
+                      << "    compression (compared to non-symmetric, dense storage) = " << sparsity_ratio * 100
+                      << "% \n";
+        };
+
+        throw std::runtime_error("Something went wrong");
+
+        _dense_data = Matrix::Constant(std::get<0>(_shape), n_non_zero, std::numeric_limits<Real>::quiet_NaN());
     }
 
     const auto &exch_reachable() const noexcept
@@ -472,8 +500,8 @@ SemiSparse3DTensor contract_with_TA_1st(const Matrix &TA,
     }
 
     if (LOG_LEVEL <= LogLevel::Info) {
-        std::cout << "(P | mu i) [MEMORY] sparse " << bytes_to_gib(naux * n_unique * sizeof(double)) << " GiB" << "\n";
-        std::cout << "(P | mu i) [MEMORY] dense " << bytes_to_gib(naux * nao * nmo * sizeof(double)) << " GiB" << "\n";
+        std::cout << "(P | mu i) [MEMORY] sparse " << bytes_to_gib(naux * n_unique * sizeof(Real)) << " GiB" << "\n";
+        std::cout << "(P | mu i) [MEMORY] dense " << bytes_to_gib(naux * nao * nmo * sizeof(Real)) << " GiB" << "\n";
         std::cout << "(P | mu i) [MEMORY] sparsity "
                   << (1. - static_cast<double>(n_unique) / static_cast<double>(nao * nmo)) * 100. << " %" << "\n";
     };
@@ -505,16 +533,16 @@ SemiSparse3DTensor contract_with_TA_1st(const Matrix &TA,
                               std::move(offsets));
 }
 
-py::array_t<double> copy_to_numpy(const Tensor3D &g) noexcept
+py::array_t<Real> copy_to_numpy(const Tensor3D &g) noexcept
 {
     py::gil_scoped_acquire gil;
     auto shape = g.dimensions();
-    py::array_t<double, py::array::f_style> arr({shape[0], shape[1], shape[2]});
-    std::memcpy(arr.mutable_data(), g.data(), sizeof(double) * g.size());
+    py::array_t<Real, py::array::f_style> arr({shape[0], shape[1], shape[2]});
+    std::memcpy(arr.mutable_data(), g.data(), sizeof(Real) * g.size());
     return arr;
 }
 
-Tensor3D copy_from_numpy(py::array_t<double, py::array::f_style> arr)
+Tensor3D copy_from_numpy(py::array_t<Real, py::array::f_style> arr)
 {
     py::gil_scoped_acquire gil;
 
@@ -526,7 +554,7 @@ Tensor3D copy_from_numpy(py::array_t<double, py::array::f_style> arr)
     auto shape = arr.shape();
     Tensor3D tensor(shape[0], shape[1], shape[2]);
 
-    std::memcpy(tensor.data(), arr.data(), sizeof(double) * tensor.size());
+    std::memcpy(tensor.data(), arr.data(), sizeof(Real) * tensor.size());
 
     return tensor;
 }
@@ -554,7 +582,7 @@ Matrix contract_with_TA_2nd_to_sym_dense(const SemiSparse3DTensor &int_mu_i_P, c
 
     if (LOG_LEVEL <= LogLevel::Info) {
         std::cout << "[MEMORY] about to allocate (ij | P) as sym_P_pq(naux, n_sym_pairs) with "
-                  << bytes_to_gib(naux * n_sym_pairs * sizeof(double)) << " GiB" << std::endl;
+                  << bytes_to_gib(naux * n_sym_pairs * sizeof(Real)) << " GiB" << std::endl;
     }
     Matrix sym_P_pq(naux, n_sym_pairs);
 
@@ -601,11 +629,11 @@ Matrix eval_via_cholesky_cuda(const Matrix &sym_P_pq, const GPU_MatrixHandle &L_
     const int n_aux = static_cast<int>(L_PQ.rows());
     const int n_sym_pairs = static_cast<int>(sym_P_pq.cols());
 
-    const size_t bytes_sym_P_pq = sizeof(double) * sym_P_pq.size();
-    const size_t bytes_X = sizeof(double) * n_aux * n_sym_pairs;
-    const size_t bytes_res = sizeof(double) * n_sym_pairs * n_sym_pairs;
+    const size_t bytes_sym_P_pq = sizeof(Real) * sym_P_pq.size();
+    const size_t bytes_X = sizeof(Real) * n_aux * n_sym_pairs;
+    const size_t bytes_res = sizeof(Real) * n_sym_pairs * n_sym_pairs;
 
-    double *d_X = nullptr, *d_result = nullptr;
+    Real *d_X = nullptr, *d_result = nullptr;
 
     if (LOG_LEVEL <= LogLevel::Debug) {
         std::cout << __func__ << "[GPU MEMORY] about to allocate bytes_X " << bytes_to_gib(bytes_X) << " GiB\n";

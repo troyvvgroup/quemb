@@ -43,7 +43,6 @@ from quemb.molbe.pfrag import Frags
 from quemb.shared.helper import (
     Timer,
     gauss_sum,
-    n_symmetric,
     njit,
     ravel_symmetric,
     timer,
@@ -422,7 +421,7 @@ def get_sparse_P_mu_nu(
             }
         return {k: sorted(v) for k, v in shell_reachable_by_shell.items()}  # type: ignore[type-var]
 
-    AO_timer = Timer("Time to compute sparse (mu nu | P)")
+    AO_timer = Timer("Time to compute sparse (P | mu nu)")
 
     result = SemiSparseSym3DTensor(
         (auxmol.nao, mol.nao, mol.nao),
@@ -434,16 +433,6 @@ def get_sparse_P_mu_nu(
     exch_reachable_unique = account_for_symmetry(exch_reachable)
 
     n_unique = result.unique_dense_data.shape[1]
-
-    logger.info(
-        "Semi-Sparse Memory for (mu nu | P) integrals is: "
-        f"{n_unique * auxmol.nao * 8 * 2**-30} Gb"
-    )
-    logger.info(
-        "Dense Memory for (mu nu | P) would be: "
-        f"{n_symmetric(mol.nao) * auxmol.nao * 8 * 2**-30} Gb"
-    )
-    logger.info(f"Sparsity factor is: {(1 - n_unique / n_symmetric(mol.nao)) * 100} %")
 
     shell_id_to_AO, AO_to_shell_id = conversions_AO_shell(mol)
     shell_reachable_by_shell = to_shell_reachable_by_shell(
