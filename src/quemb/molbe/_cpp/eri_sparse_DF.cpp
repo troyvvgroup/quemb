@@ -342,8 +342,6 @@ class SemiSparse3DTensor
                       << "% \n";
         };
 
-        throw std::runtime_error("Something went wrong");
-
         _dense_data = Matrix::Constant(std::get<0>(_shape), n_non_zero, std::numeric_limits<Real>::quiet_NaN());
     }
 
