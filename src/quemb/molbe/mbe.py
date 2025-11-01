@@ -1051,12 +1051,13 @@ class BE:
 
             fobjs_.cons_fock(self.hf_veff, self.S, self.hf_dm, eri_=eri)
 
-            Denv = 2 * fobjs_.TAenv_ao_eo @ fobjs_.TAenv_lo_eo.T.conj() @ fobjs_.Dhf @ fobjs_.TAenv_lo_eo @ fobjs_.TAenv_ao_eo.T.conj()
-            vj, vk = _vhf.incore(self.mf._eri, Denv)
-            vhf = vj - vk * 0.5
-            e1 = numpy.einsum("ij,ji->", self.hcore, Denv).real
-            e_coul = numpy.einsum("ij,ji->", vhf, Denv).real * 0.5
-            fobjs_.E_env = e_coul + e1
+            #Denv = 2 * fobjs_.TAenv_ao_eo @ fobjs_.TAenv_lo_eo.T.conj() @ fobjs_.Dhf @ fobjs_.TAenv_lo_eo @ fobjs_.TAenv_ao_eo.T.conj()
+            #assert self.mf._eri is not None
+            #vj, vk = _vhf.incore(self.mf._eri, Denv)
+            #vhf = vj - vk * 0.5
+            #e1 = numpy.einsum("ij,ji->", self.hcore, Denv).real
+            #e_coul = numpy.einsum("ij,ji->", vhf, Denv).real * 0.5
+            #fobjs_.E_env = e_coul + e1
 
             fobjs_.heff = zeros_like(fobjs_.h1)
             fobjs_.scf(fs=True, eri=eri)

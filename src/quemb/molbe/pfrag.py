@@ -501,6 +501,7 @@ def schmidt_decomposition(
     Frag_sites1 = array([[i] for i in AO_in_frag])
 
     # Compute the environment part of the density matrix
+    print(f"Env_sites is {Env_sites}")
     Denv = Dhf[Env_sites, Env_sites.T]
 
     # Perform eigenvalue decomposition on the environment density matrix
