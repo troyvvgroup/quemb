@@ -275,6 +275,7 @@ def rotate_cno_integrals(
     nVir: int,
 ) -> Matrix:
     """Transform the 2-electron integrals into the augmented Schmidt space"""
+    # Most typical in-core method:
     Vs = ao2mo.general(V_full, [COcc, CVir, COcc, CVir], compact=False)
     Vs = Vs.reshape((nOcc, nVir, nOcc, nVir))
 
@@ -553,8 +554,7 @@ def FormPairDensity(
 
     time1 = time.time()
     # Transform 2 e integrals into the augmented Schmidt space
-    V = ao2mo.kernel(Vs, [COcc, CVir, COcc, CVir], compact=False)
-    V = V.reshape((nOcc, nVir, nOcc, nVir))
+    V = rotate_cno_integrals(Vs, COcc, CVir, nOcc, nVir)
 
     time2 = time.time()
     # Generate the T and delta T term from the CNO paper
