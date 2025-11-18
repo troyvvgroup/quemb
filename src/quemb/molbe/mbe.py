@@ -440,11 +440,14 @@ class BE:
         nao = C_mo.shape[0]
 
         # Initialize density matrices for atomic orbitals (AO)
-        rdm1AO = zeros((nao, nao))
-        rdm2AO = zeros((nao, nao, nao, nao))
+        if not only_rdm2:
+            rdm1AO = zeros((nao, nao))
+        if not only_rdm1:
+            rdm2AO = zeros((nao, nao, nao, nao))
 
         for fobjs in self.Fobjs:
-            rdm2 = fobjs.rdm2__.copy()
+            if not only_rdm1:
+                rdm2 = fobjs.rdm2__.copy()
             if return_RDM2:
                 # Adjust the one-particle reduced density matrix (RDM1)
                 drdm1 = fobjs.rdm1__.copy()
