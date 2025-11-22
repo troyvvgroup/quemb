@@ -1,11 +1,16 @@
 import numpy as np
 import pytest
 from pyscf import scf
-from pyscf.df import make_auxmol
+from pyscf.df.addons import make_auxmol
 from pyscf.gto import M
 
 from quemb.molbe import BE, fragmentate
-from quemb.molbe.eri_sparse_DF import _invert_dict
+from quemb.molbe.eri_sparse_DF import (
+    _get_AO_per_AO,
+    _invert_dict,
+    approx_S_abs,
+    get_sparse_P_mu_nu,
+)
 from quemb.shared.helper import clean_overlap
 
 from ._expected_data_for_eri_sparse_DF import get_expected
@@ -114,3 +119,16 @@ def ikosan():
     fobj = fragmentate(frag_type="chemgen", n_BE=2, mol=mol, print_frags=False)
     my_be = BE(mf, fobj, auxbasis=auxbasis, int_transform="int-direct-DF")
     return mol, auxmol, mf, fobj, my_be
+
+
+def test_uncontracted_basis():
+    mol = M("xyz/E-polyacetylene/8.xyz", basis="def2-svp", cart=True)
+    auxmol = make_auxmol(mol, auxbasis="def2-svp-jkfit")
+    S_abs = approx_S_abs(mol)
+    exch_reachable = _get_AO_per_AO(S_abs, 1e-10)
+
+    get_sparse_P_mu_nu(
+        mol,
+        auxmol,
+        exch_reachable,
+    )
