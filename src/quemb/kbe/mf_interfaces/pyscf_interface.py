@@ -2,7 +2,7 @@ from typing import Final
 
 import numpy as np
 from pyscf.pbc.gto import Cell
-from pyscf.pbc.scf import KRHF
+from pyscf.pbc.scf.khf import KRHF
 
 from quemb.shared.typing import Matrix, Vector
 

@@ -6,7 +6,7 @@ from typing import Final, Literal
 import numpy as np
 from pyscf.pbc.gto import Cell
 from pyscf.pbc.lib.chkfile import load, load_cell, save, save_cell
-from pyscf.pbc.scf import KRHF
+from pyscf.pbc.scf.khf import KRHF
 from typing_extensions import assert_never
 
 from quemb.kbe.mf_interfaces.pyscf_interface import (
