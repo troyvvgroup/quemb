@@ -246,7 +246,7 @@ def conversions_AO_shell(
     mol :
         The molecule.
     """
-    # ao_loc_nr changes behaviour based on mol.cart
+    # ao_loc_nr changes behaviour based on mol.cart (which is what we want)
     offsets = mol.ao_loc_nr()
     shell_id_to_AO = {
         cast(ShellIdx, shell_id): cast(
@@ -254,7 +254,6 @@ def conversions_AO_shell(
         )
         for shell_id in range(mol.nbas)
     }
-    # TODO: can I use invert_dict here?
     AO_to_shell_id = {
         cast(AOIdx, AO): shell_id
         for (shell_id, AOs) in shell_id_to_AO.items()
