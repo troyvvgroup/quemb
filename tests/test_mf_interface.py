@@ -5,7 +5,10 @@ import unittest
 
 import numpy as np
 from pyscf.gto import M
+from pyscf.pbc.gto import C
 
+from quemb.kbe.mf_interfaces.main import get_mf as get_mf_kbe
+from quemb.kbe.mf_interfaces.main import load_scf as load_scf_kbe
 from quemb.molbe.mf_interfaces._pyscf_orbital_order import Orbital
 from quemb.molbe.mf_interfaces.main import AVAILABLE_BACKENDS, get_mf
 from quemb.shared.helper import argsort
@@ -413,6 +416,30 @@ def test_mf_consistent():
         )
 
         assert np.isclose(pyscf_mf.e_tot, orca_mf.e_tot)
+
+
+def test_mf_consistent_kbe():
+    cell = C(
+        atom="./xyz/hbn.xyz",
+        basis="sto-3g",
+        a=np.array(
+            [
+                [2.504, 0.0, 0.0],
+                [-1.252, 2.16852761, 0.0],
+                [0.0, 0.0, 20.0],
+            ]
+        ),
+    )
+
+    pyscf_mf = get_mf_kbe(cell, cell.make_kpts([1, 1, 1]), backend="pyscf")
+    cell, mf_from_chk = load_scf_kbe("./data/hbn_sto3g_krhf.chk")
+
+    assert (
+        np.isclose(pyscf_mf.e_tot, mf_from_chk.e_tot)
+        and np.isclose(pyscf_mf.mo_energy, mf_from_chk.mo_energy).all()
+        and np.isclose(pyscf_mf.mo_occ, mf_from_chk.mo_occ).all()
+        and np.isclose(pyscf_mf.kpts, mf_from_chk.kpts).all()
+    )
 
 
 @unittest.skipUnless(AVAILABLE_BACKENDS["orca"], "ORCA has to be available")
