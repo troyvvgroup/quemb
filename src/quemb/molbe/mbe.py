@@ -62,12 +62,31 @@ IntTransforms: TypeAlias = Literal[
     "in-core",
     "out-core-DF",
     "int-direct-DF",
-    "sparse-DF",  # screen AOs and MOs
-    "sparse-DF-gpu",  # screen AOs and MOs
-    "on-fly-sparse-DF",  # screen AOs and MOs; use less memory but more time
-    "on-fly-sparse-DF-gpu",  # screen AOs and MOs; use less memory but more time
+    "sparse-DF",
+    "sparse-DF-gpu",
+    "on-fly-sparse-DF",
+    "on-fly-sparse-DF-gpu",
 ]
-"""Literal type describing allowed transformation strategies."""
+r"""Literal type describing allowed transformation strategies.
+
+- :python:`"in-core"`: Use a dense representation of integrals
+  in memory without density fitting (DF) and transform in-memory.
+
+- :python:`"out-core-DF"`: Use a dense, DF representation of integrals.
+  The DF integrals :math:`(\mu, \nu | P)` are stored on disc.
+
+- :python:`"int-direct-DF"`: Use a dense, DF representation of integrals.
+  The required DF integrals :math:`(\mu, \nu | P)` are computed and fitted
+  on-demand for each fragment.
+
+- :python:`"sparse-DF"`, :python:`"sparse-DF-gpu"`,
+  :python:`"on-fly-sparse-DF"`, and :python:`"on-fly-sparse-DF-gpu"`:
+  Use a sparse, DF representation of integrals.
+  The :python:`"-gpu"` versions use GPU and require CUDABlas.
+  The :python:`"on-fly-"` versions use less memory but perform more
+  on-the-fly computations.
+"""
+
 
 logger = logging.getLogger(__name__)
 
