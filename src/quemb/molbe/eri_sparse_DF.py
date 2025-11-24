@@ -521,7 +521,32 @@ def _get_test_mol(atom1: str, atom2: str, r: float, basis: str) -> Mole:
     )
 
 
-def transform_sparse_DF_integral_cpp(
+LPQ = TypeVar("LPQ", Matrix[np.float64], cpp_transforms.GPU_MatrixHandle)
+# Take a cholesky decomposed lower triangular matrix and either
+# keep it in memory, just the identity function,
+# or store it on a GPU device
+BuildLowTriPQ = Callable[[Matrix[np.float64]], LPQ]
+
+# Take
+#   (P | mu nu) semi-sparse integrals,
+#   TA matrix,
+#   S_abs,
+#   the lower triangular Cholesky decomposition of (P | Q)
+#   the MO screening threshold
+# and return (P | i j)
+TransformIntegralImpl = Callable[
+    [
+        SemiSparseSym3DTensor,
+        Matrix[np.floating],
+        Matrix[np.floating],
+        LPQ,
+        float,
+    ],
+    Matrix[np.float64],
+]
+
+
+def _run_sparse_df_driver(
     mf: scf.hf.SCF,
     Fobjs: Sequence[Frags],
     auxbasis: str | None,
@@ -529,92 +554,62 @@ def transform_sparse_DF_integral_cpp(
     AO_coeff_epsilon: float,
     MO_coeff_epsilon: float,
     n_threads: int,
+    *,
+    build_lowtri_PQ: BuildLowTriPQ[LPQ],
+    transform_integral_impl: TransformIntegralImpl[LPQ],
+    precompute_P_mu_nu: bool,
 ) -> None:
     set_log_level(logging.getLogger().getEffectiveLevel())
+
     mol = mf.mol
-    auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
-
-    S_abs = approx_S_abs(mol)
-    exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
-
-    P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
-    PQ = auxmol.intor("int2c2e")
-    low_triang_PQ = cholesky(PQ, lower=True)
-
-    def f(fragobj: Frags) -> None:
-        eri = restore(
-            "4",
-            transform_integral(
-                P_mu_nu,
-                fragobj.TA,
-                S_abs,
-                low_triang_PQ,
-                MO_coeff_epsilon,
-            ),
-            fragobj.TA.shape[1],
-        )
-        file_eri_handler.create_dataset(fragobj.dname, data=eri)
-
-    if n_threads > 1:
-        with ThreadPoolExecutor(max_workers=n_threads) as executor:
-            futures = [executor.submit(f, fragobj) for fragobj in Fobjs]
-            # You must call future.result() if you want to catch exceptions
-            # raised during execution. Otherwise, errors may silently fail.
-            for future in futures:
-                future.result()
-    else:
-        for fragobj in Fobjs:
-            f(fragobj)
-
-
-def transform_sparse_int_direct_DF_integral_cpp(
-    mf: scf.hf.SCF,
-    Fobjs: Sequence[Frags],
-    auxbasis: str | None,
-    file_eri_handler: h5py.File,
-    AO_coeff_epsilon: float,
-    MO_coeff_epsilon: float,
-    n_threads: int,
-) -> None:
-    set_log_level(logging.getLogger().getEffectiveLevel())
-    mol = mf.mol
-    auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
+    auxmol = make_auxmol(mol, auxbasis=auxbasis)
 
     S_abs = approx_S_abs(mol)
 
     PQ = auxmol.intor("int2c2e")
-    low_triang_PQ = cholesky(PQ, lower=True)
+    lowtri = build_lowtri_PQ(cholesky(PQ, lower=True))
 
-    def f(fragobj: Frags) -> None:
-        exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon, fragobj.TA)
+    if precompute_P_mu_nu:
+        exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon, None)
         P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
 
-        eri = restore(
-            "4",
-            transform_integral(
+        def worker(fragobj: Frags) -> None:
+            transformed = transform_integral_impl(
                 P_mu_nu,
                 fragobj.TA,
                 S_abs,
-                low_triang_PQ,
+                lowtri,
                 MO_coeff_epsilon,
-            ),
-            fragobj.TA.shape[1],
-        )
-        file_eri_handler.create_dataset(fragobj.dname, data=eri)
+            )
+            eri = restore("4", transformed, fragobj.TA.shape[1])
+            file_eri_handler.create_dataset(fragobj.dname, data=eri)
+    else:
+
+        def worker(fragobj: Frags) -> None:
+            exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon, fragobj.TA)
+            P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
+
+            transformed = transform_integral_impl(
+                P_mu_nu,
+                fragobj.TA,
+                S_abs,
+                lowtri,
+                MO_coeff_epsilon,
+            )
+            eri = restore("4", transformed, fragobj.TA.shape[1])
+            file_eri_handler.create_dataset(fragobj.dname, data=eri)
 
     if n_threads > 1:
-        with ThreadPoolExecutor(max_workers=n_threads) as executor:
-            futures = [executor.submit(f, fragobj) for fragobj in Fobjs]
-            # You must call future.result() if you want to catch exceptions
-            # raised during execution. Otherwise, errors may silently fail.
-            for future in futures:
-                future.result()
+        with ThreadPoolExecutor(max_workers=n_threads) as pool:
+            futures = [pool.submit(worker, fobj) for fobj in Fobjs]
+            for fut in futures:
+                fut.result()
     else:
-        for fragobj in Fobjs:
-            f(fragobj)
+        for fobj in Fobjs:
+            worker(fobj)
 
 
-def transform_sparse_int_direct_DF_integral_gpu(
+def transform_sparse_DF_integral_cpu(
     mf: scf.hf.SCF,
     Fobjs: Sequence[Frags],
     auxbasis: str | None,
@@ -622,46 +617,23 @@ def transform_sparse_int_direct_DF_integral_gpu(
     AO_coeff_epsilon: float,
     MO_coeff_epsilon: float,
     n_threads: int,
+    precompute_P_mu_nu: bool,
 ) -> None:
-    set_log_level(logging.getLogger().getEffectiveLevel())
-    mol = mf.mol
-    auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
-
-    S_abs = approx_S_abs(mol)
-
-    PQ = auxmol.intor("int2c2e")
-    low_triang_PQ = cpp_transforms.GPU_MatrixHandle(cholesky(PQ, lower=True))
-
-    def f(fragobj: Frags) -> None:
-        exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon, fragobj.TA)
-        P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
-
-        eri = restore(
-            "4",
-            cpp_transforms.transform_integral_cuda(
-                P_mu_nu,
-                fragobj.TA,
-                S_abs,
-                low_triang_PQ,
-                MO_coeff_epsilon,
-            ),
-            fragobj.TA.shape[1],
-        )
-        file_eri_handler.create_dataset(fragobj.dname, data=eri)
-
-    if n_threads > 1:
-        with ThreadPoolExecutor(max_workers=n_threads) as executor:
-            futures = [executor.submit(f, fragobj) for fragobj in Fobjs]
-            # You must call future.result() if you want to catch exceptions
-            # raised during execution. Otherwise, errors may silently fail.
-            for future in futures:
-                future.result()
-    else:
-        for fragobj in Fobjs:
-            f(fragobj)
+    return _run_sparse_df_driver(
+        mf=mf,
+        Fobjs=Fobjs,
+        auxbasis=auxbasis,
+        file_eri_handler=file_eri_handler,
+        AO_coeff_epsilon=AO_coeff_epsilon,
+        MO_coeff_epsilon=MO_coeff_epsilon,
+        n_threads=n_threads,
+        build_lowtri_PQ=lambda x: x,
+        transform_integral_impl=transform_integral,
+        precompute_P_mu_nu=precompute_P_mu_nu,
+    )
 
 
-def transform_sparse_DF_integral_cpp_gpu(
+def transform_sparse_DF_integral_gpu(
     mf: scf.hf.SCF,
     Fobjs: Sequence[Frags],
     auxbasis: str | None,
@@ -669,42 +641,20 @@ def transform_sparse_DF_integral_cpp_gpu(
     AO_coeff_epsilon: float,
     MO_coeff_epsilon: float,
     n_threads: int,
+    precompute_P_mu_nu: bool,
 ) -> None:
-    set_log_level(logging.getLogger().getEffectiveLevel())
-    mol = mf.mol
-    auxmol = make_auxmol(mf.mol, auxbasis=auxbasis)
-
-    S_abs = approx_S_abs(mol)
-    exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
-
-    P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
-    PQ = auxmol.intor("int2c2e")
-    low_triang_PQ = cpp_transforms.GPU_MatrixHandle(cholesky(PQ, lower=True))
-
-    def f(fragobj: Frags) -> None:
-        eri = restore(
-            "4",
-            cpp_transforms.transform_integral_cuda(
-                P_mu_nu,
-                fragobj.TA,
-                S_abs,
-                low_triang_PQ,
-                MO_coeff_epsilon,
-            ),
-            fragobj.TA.shape[1],
-        )
-        file_eri_handler.create_dataset(fragobj.dname, data=eri)
-
-    if n_threads > 1:
-        with ThreadPoolExecutor(max_workers=n_threads) as executor:
-            futures = [executor.submit(f, fragobj) for fragobj in Fobjs]
-            # You must call future.result() if you want to catch exceptions
-            # raised during execution. Otherwise, errors may silently fail.
-            for future in futures:
-                future.result()
-    else:
-        for fragobj in Fobjs:
-            f(fragobj)
+    return _run_sparse_df_driver(
+        mf=mf,
+        Fobjs=Fobjs,
+        auxbasis=auxbasis,
+        file_eri_handler=file_eri_handler,
+        AO_coeff_epsilon=AO_coeff_epsilon,
+        MO_coeff_epsilon=MO_coeff_epsilon,
+        n_threads=n_threads,
+        build_lowtri_PQ=cpp_transforms.GPU_MatrixHandle,
+        transform_integral_impl=cpp_transforms.transform_integral_cuda,
+        precompute_P_mu_nu=precompute_P_mu_nu,
+    )
 
 
 @njit(nogil=True, parallel=True)

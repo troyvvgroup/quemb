@@ -31,8 +31,7 @@ from typing_extensions import assert_never
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
 from quemb.molbe.eri_sparse_DF import (
-    transform_sparse_DF_integral_cpp,
-    transform_sparse_int_direct_DF_integral_cpp,
+    transform_sparse_DF_integral_cpu,
 )
 from quemb.molbe.fragment import FragPart
 from quemb.molbe.lo import (
@@ -950,7 +949,7 @@ class BE:
             integral_direct_DF(self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis)
         elif int_transform == "sparse-DF":
             ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-            transform_sparse_DF_integral_cpp(
+            transform_sparse_DF_integral_cpu(
                 self.mf,
                 self.Fobjs,
                 auxbasis=self.auxbasis,
@@ -958,10 +957,11 @@ class BE:
                 MO_coeff_epsilon=self.MO_coeff_epsilon,
                 AO_coeff_epsilon=self.AO_coeff_epsilon,
                 n_threads=self.n_threads_integral_transform,
+                precompute_P_mu_nu=True,
             )
         elif int_transform == "on-fly-sparse-DF":
             ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-            transform_sparse_int_direct_DF_integral_cpp(
+            transform_sparse_DF_integral_cpu(
                 self.mf,
                 self.Fobjs,
                 auxbasis=self.auxbasis,
@@ -969,14 +969,15 @@ class BE:
                 MO_coeff_epsilon=self.MO_coeff_epsilon,
                 AO_coeff_epsilon=self.AO_coeff_epsilon,
                 n_threads=self.n_threads_integral_transform,
+                precompute_P_mu_nu=False,
             )
         elif int_transform == "sparse-DF-gpu":
             from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
-                transform_sparse_DF_integral_cpp_gpu,
+                transform_sparse_DF_integral_gpu,
             )
 
             ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-            transform_sparse_DF_integral_cpp_gpu(
+            transform_sparse_DF_integral_gpu(
                 self.mf,
                 self.Fobjs,
                 auxbasis=self.auxbasis,
@@ -984,14 +985,15 @@ class BE:
                 MO_coeff_epsilon=self.MO_coeff_epsilon,
                 AO_coeff_epsilon=self.AO_coeff_epsilon,
                 n_threads=self.n_threads_integral_transform,
+                precompute_P_mu_nu=True,
             )
         elif int_transform == "on-fly-sparse-DF-gpu":
             from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
-                transform_sparse_int_direct_DF_integral_gpu,
+                transform_sparse_DF_integral_gpu,
             )
 
             ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-            transform_sparse_int_direct_DF_integral_gpu(
+            transform_sparse_DF_integral_gpu(
                 self.mf,
                 self.Fobjs,
                 auxbasis=self.auxbasis,
@@ -999,6 +1001,7 @@ class BE:
                 MO_coeff_epsilon=self.MO_coeff_epsilon,
                 AO_coeff_epsilon=self.AO_coeff_epsilon,
                 n_threads=self.n_threads_integral_transform,
+                precompute_P_mu_nu=False,
             )
         else:
             assert_never(int_transform)
