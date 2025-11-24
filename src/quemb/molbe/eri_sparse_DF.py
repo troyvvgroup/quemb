@@ -521,7 +521,8 @@ def _get_test_mol(atom1: str, atom2: str, r: float, basis: str) -> Mole:
     )
 
 
-LPQ = TypeVar("LPQ", Matrix[np.float64], cpp_transforms.GPU_MatrixHandle)
+LPQ = TypeVar("LPQ", Matrix[np.float64], "cpp_transforms.GPU_MatrixHandle")
+
 # Take a cholesky decomposed lower triangular matrix and either
 # keep it in memory, just the identity function,
 # or store it on a GPU device
