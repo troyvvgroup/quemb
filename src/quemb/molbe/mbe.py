@@ -179,8 +179,8 @@ class BE:
             - :python:`"int-direct-DF"`: Use a dense, DF representation of integrals,
               the required DF integrals :math:`(\mu, \nu | P)` are computed and fitted
               on-demand for each fragment.
-            - :python:`"sparse-DF", "sparse-DF-gpu"`
-              and :python:`"on-fly-sparse-DF", "on-fly-sparse-DF-gpu"`.
+            - :python:`"sparse-DF"`, :python:`"sparse-DF-gpu"`,
+              :python:`"on-fly-sparse-DF"`, and :python:`"on-fly-sparse-DF-gpu"`.
               Use a sparse, DF representation of integrals.
               The :python:`"-gpu"` versions use GPU and require CUDABlas,
               the :python:`"on-fly-"` versions use less memory, but do more
