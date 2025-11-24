@@ -539,6 +539,7 @@ class BE(Mixin_k_Localize):
                         self.mf.cell.a,
                         self.mf.cell.atom,
                         self.mf.cell.basis,
+                        self.mf.cell.unit,
                         self.kpts,
                         self.Fobjs[frg].TA,
                         self.cderi,
@@ -797,7 +798,7 @@ def initialize_pot(n_frag, rel_AO_per_edge_per_frag):
     return pot_
 
 
-def eritransform_parallel(a, atom, basis, kpts, C_ao_emb, cderi):
+def eritransform_parallel(a, atom, basis, unit, kpts, C_ao_emb, cderi):
     """
     Wrapper for parallel eri transformation
     """
@@ -805,6 +806,7 @@ def eritransform_parallel(a, atom, basis, kpts, C_ao_emb, cderi):
     cell.a = a
     cell.atom = atom
     cell.basis = basis
+    cell.unit = unit
     cell.charge = 0
     cell.verbose = 0
     cell.build()

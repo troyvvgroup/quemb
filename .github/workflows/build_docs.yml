@@ -43,6 +43,13 @@ jobs:
     - name: Check if quemb imports
       run: python -c "import quemb; print('quemb imported successfully')"
 
+    - name: Test building LaTeX PDF docs
+      run: |
+        cd docs
+        make latexpdf
+        ls build/latex/*.pdf
+        cp build/latex/*.pdf source/_static/
+
     - name: Test building html doc & Archive the results
       run: |
         cd docs
@@ -50,13 +57,6 @@ jobs:
         ls build/html
         tar czf docs.tar.gz --directory=build/html .
         cd ..
-
-    - name: Test building LaTeX PDF docs
-      run: |
-        cd docs
-        make latexpdf
-        ls build/latex/*.pdf
-        cp build/latex/*.pdf source/_static/
 
     - name: Redirect to docs for main
       run: |
