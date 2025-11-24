@@ -62,6 +62,12 @@ def get_mf(
         work_dir = WorkDir.from_environment(prefix="mf_calculation")
 
     if backend == "pyscf":
+        if additional_args is None:
+            additional_args = PySCFArgs(
+                density_fit="FFDF"
+            )  # PySCF defaults to FFDF for PBC
+        else:
+            assert isinstance(additional_args, PySCFArgs)
         return get_mf_pyscf(cell, kpts, additional_args=additional_args)
     else:
         assert_never(backend)

@@ -36,7 +36,7 @@ def create_mf(
 
 
 def get_mf_pyscf(
-    cell: Cell, kpts: Matrix[np.floating], additional_args: PySCFArgs | None = None
+    cell: Cell, kpts: Matrix[np.floating], additional_args: PySCFArgs
 ) -> KRHF:
     "Run an KRHF calculation in pyscf"
     mf = KRHF(cell, kpts=kpts)
