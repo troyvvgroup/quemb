@@ -179,15 +179,12 @@ class BE:
             - :python:`"int-direct-DF"`: Use a dense, DF representation of integrals,
               the required DF integrals :math:`(\mu, \nu | P)` are computed and fitted
               on-demand for each fragment.
-            - :python:`"sparse-DF"`:
-              Use a sparse, DF representation of integrals,
-              and avoid recomputation of elements that are shared across fragments.
-              Uses a ``C++`` implementation for performance heavy code.
-            - :python:`"sparse-DF-gpu"`:
-              Use a sparse, DF representation of integrals,
-              and avoid recomputation of elements that are shared across fragments.
-              Uses a ``C++`` + ``CUDDA`` implementation for performance heavy code,
-              only available when compiled with CUDABlas.
+            - :python:`"sparse-DF", "sparse-DF-gpu"`
+              and :python:`"on-fly-sparse-DF", "on-fly-sparse-DF-gpu"`.
+              Use a sparse, DF representation of integrals.
+              The :python:`"-gpu"` versions use GPU and require CUDABlas,
+              the :python:`"on-fly-"` versions use less memory, but do more
+              on the fly computations.
 
         auxbasis :
             Auxiliary basis for density fitting, by default None
