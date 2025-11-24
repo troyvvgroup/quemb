@@ -1,12 +1,18 @@
-from typing import Final
+from typing import Final, Literal
 
 import numpy as np
+from attrs import define
 from pyscf.pbc.gto import Cell
 from pyscf.pbc.scf.khf import KRHF
 
 from quemb.shared.typing import Matrix, Vector
 
 PYSCF_AVAILABLE: Final = True
+
+
+@define(frozen=True, kw_only=True)
+class PySCFArgs:
+    density_fit: Literal["GDF", "FFDF", "MDF"] | None = None
 
 
 def create_mf(
@@ -29,9 +35,17 @@ def create_mf(
     return mf
 
 
-def get_mf_pyscf(cell: Cell, kpts: Matrix[np.floating]) -> KRHF:
-    "Run an KRHF (GDF) calculation in pyscf"
-    mf = KRHF(cell, kpts=kpts).density_fit()
+def get_mf_pyscf(
+    cell: Cell, kpts: Matrix[np.floating], additional_args: PySCFArgs | None = None
+) -> KRHF:
+    "Run an KRHF calculation in pyscf"
+    mf = KRHF(cell, kpts=kpts)
+    if additional_args.density_fit == "GDF":
+        mf = mf.density_fit()
+    elif additional_args.density_fit == "MDF":
+        mf = mf.mix_density_fit()
+    else:
+        pass  # PySCF does FFDF by default for PBC calculations
+
     mf.kernel()
-    mf.mo_coeff = mf.mo_coeff
     return mf

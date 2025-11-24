@@ -11,6 +11,7 @@ from typing_extensions import assert_never
 
 from quemb.kbe.mf_interfaces.pyscf_interface import (
     PYSCF_AVAILABLE,
+    PySCFArgs,
     create_mf,
     get_mf_pyscf,
 )
@@ -19,6 +20,8 @@ from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix, PathLike
 
 SCF_Backends = Literal["pyscf"]
+
+AdditionalArgs = PySCFArgs
 
 AVAILABLE_BACKENDS: Final[Mapping[SCF_Backends, bool]] = {
     "pyscf": PYSCF_AVAILABLE,
@@ -32,6 +35,7 @@ def get_mf(
     *,
     work_dir: WorkDir | None = None,
     backend: SCF_Backends = "pyscf",
+    additional_args: AdditionalArgs | None = None,
 ) -> KRHF:
     """
     Compute the mean-field (SCF) object for a given molecule using the selected backend.
@@ -58,7 +62,7 @@ def get_mf(
         work_dir = WorkDir.from_environment(prefix="mf_calculation")
 
     if backend == "pyscf":
-        return get_mf_pyscf(cell, kpts)
+        return get_mf_pyscf(cell, kpts, additional_args=additional_args)
     else:
         assert_never(backend)
 
