@@ -127,8 +127,11 @@ def test_uncontracted_basis():
     S_abs = approx_S_abs(mol)
     exch_reachable = _get_AO_per_AO(S_abs, 1e-10)
 
-    get_sparse_P_mu_nu(
+    P_mu_nu = get_sparse_P_mu_nu(
         mol,
         auxmol,
         exch_reachable,
     )
+
+    ref = np.loadtxt("data/P_mu_nu_ref.npy")
+    assert np.allclose(P_mu_nu[10, 13], ref)
