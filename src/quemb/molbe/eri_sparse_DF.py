@@ -521,30 +521,10 @@ def _get_test_mol(atom1: str, atom2: str, r: float, basis: str) -> Mole:
     )
 
 
+# This type variable prevents mixing of GPU with CPU code.
+# The GPU handle has to be forward-declared using a string,
+# as CUDA-Blas is not alwyas available, then it is not defined.
 LPQ = TypeVar("LPQ", Matrix[np.float64], "cpp_transforms.GPU_MatrixHandle")
-
-# Take a cholesky decomposed lower triangular matrix and either
-# keep it in memory, just the identity function,
-# or store it on a GPU device
-BuildLowTriPQ = Callable[[Matrix[np.float64]], LPQ]
-
-# Take
-#   (P | mu nu) semi-sparse integrals,
-#   TA matrix,
-#   S_abs,
-#   the lower triangular Cholesky decomposition of (P | Q)
-#   the MO screening threshold
-# and return (P | i j)
-TransformIntegralImpl = Callable[
-    [
-        SemiSparseSym3DTensor,
-        Matrix[np.floating],
-        Matrix[np.floating],
-        LPQ,
-        float,
-    ],
-    Matrix[np.float64],
-]
 
 
 def _run_sparse_df_driver(
@@ -556,25 +536,85 @@ def _run_sparse_df_driver(
     MO_coeff_epsilon: float,
     n_threads: int,
     *,
-    build_lowtri_PQ: BuildLowTriPQ[LPQ],
-    transform_integral_impl: TransformIntegralImpl[LPQ],
+    build_lowtri_PQ: Callable[[Matrix[np.float64]], LPQ],
+    transform_integral_impl: Callable[
+        [
+            SemiSparseSym3DTensor,
+            Matrix[np.floating],
+            Matrix[np.floating],
+            LPQ,
+            float,
+        ],
+        Matrix[np.float64],
+    ],
     precompute_P_mu_nu: bool,
 ) -> None:
+    r"""Run the semi-sparse DF ERI transformation.
+
+    Uses dependency injection to handle both CPU vs. GPU transformation
+    in a unified function.
+
+    Parameters
+    ----------
+    mf :
+        Mean-field object providing the molecular orbitals and integrals.
+    Fobjs :
+        Fragment objects controlling the block structure of the transformation.
+    auxbasis :
+        Auxiliary basis used for density fitting. If ``None``, the default
+        auxiliary basis of ``mf`` is used.
+    file_eri_handler :
+        Open HDF5 file handle containing the three-center DF integrals.
+    AO_coeff_epsilon :
+        Threshold for discarding negligible AO coefficients.
+    MO_coeff_epsilon :
+        Threshold for discarding negligible MO coefficients.
+    n_threads :
+        Number of threads used for the transformation.
+    build_lowtri_PQ :
+        Take a cholesky decomposed lower triangular matrix of :math:`(P | Q) and either
+        keep it in memory, i.e. just the identity function,
+        or store it on a GPU device, i.e. return a GPU memory handle.
+    transform_integral_impl :
+        Low-level transformation implementation that performs the
+        semi-sparse DF integral transformation either in CPU or GPU
+        The function takes:
+
+          • :math:`(P \mid \mu\nu)` semi-sparse AO integrals
+          • the AO-MO transformation matrix :math:`T^{\mathrm{A}}`
+          • the absolute-overlap matrix :math:`S_{\mathrm{abs}}`
+          • the lower-triangular Cholesky factors :math:`L_{PQ}`
+            of :math:`(P \mid Q)` (either in memory or on GPU)
+          • the MO screening threshold :math:`\varepsilon_{\mathrm{MO}}`
+
+        and returns the transformed three-centre MO integrals
+        :math:`(P \mid ij)`.
+    precompute_P_mu_nu :
+        Whether to precompute :math:`(P | \mu \nu)`, or compute them on the fly
+        for every fragment (reduces peak memory usage).
+
+    Returns
+    -------
+        None
+    """
     set_log_level(logging.getLogger().getEffectiveLevel())
 
-    mol = mf.mol
-    auxmol = make_auxmol(mol, auxbasis=auxbasis)
+    mol: Final[Mole] = mf.mol
+    auxmol: Final[Mole] = make_auxmol(mol, auxbasis=auxbasis)
 
     S_abs = approx_S_abs(mol)
 
-    PQ = auxmol.intor("int2c2e")
-    lowtri = build_lowtri_PQ(cholesky(PQ, lower=True))
+    PQ: Final = auxmol.intor("int2c2e")
+    lowtri: Final[LPQ] = build_lowtri_PQ(cholesky(PQ, lower=True))
 
     if precompute_P_mu_nu:
-        exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon, None)
-        P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
+        exch_reachable: Final = _get_AO_per_AO(S_abs, AO_coeff_epsilon, None)
+        P_mu_nu: Final[SemiSparseSym3DTensor] = get_sparse_P_mu_nu(
+            mol, auxmol, exch_reachable
+        )
 
         def worker(fragobj: Frags) -> None:
+            "One computation of P_mu_nu for every fragment"
             transformed = transform_integral_impl(
                 P_mu_nu,
                 fragobj.TA,
@@ -587,6 +627,7 @@ def _run_sparse_df_driver(
     else:
 
         def worker(fragobj: Frags) -> None:
+            "On the fly computation of P_mu_nu for every fragment"
             exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon, fragobj.TA)
             P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
 
