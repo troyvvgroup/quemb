@@ -31,7 +31,7 @@ enum class LogLevel : int
     Critical = 50
 };
 
-inline LogLevel LOG_LEVEL = LogLevel::NotSet;
+inline LogLevel LOG_LEVEL = LogLevel::Error;
 
 // Expose int getter of LogLevel
 inline int get_log_level()
