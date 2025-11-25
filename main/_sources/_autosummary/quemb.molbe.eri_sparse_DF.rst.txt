@@ -30,8 +30,8 @@ quemb.molbe.eri\_sparse\_DF
       grid_S_abs
       identify_contiguous_blocks
       to_numba_input
-      transform_sparse_DF_integral_cpp
-      transform_sparse_DF_integral_cpp_gpu
+      transform_sparse_DF_integral_cpu
+      transform_sparse_DF_integral_gpu
    
    
 

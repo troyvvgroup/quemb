@@ -282,8 +282,8 @@
 <li class="toctree-l4"><a class="reference internal" href="quemb.molbe.eri_sparse_DF.grid_S_abs.html">quemb.molbe.eri_sparse_DF.grid_S_abs</a></li>
 <li class="toctree-l4"><a class="reference internal" href="quemb.molbe.eri_sparse_DF.identify_contiguous_blocks.html">quemb.molbe.eri_sparse_DF.identify_contiguous_blocks</a></li>
 <li class="toctree-l4"><a class="reference internal" href="quemb.molbe.eri_sparse_DF.to_numba_input.html">quemb.molbe.eri_sparse_DF.to_numba_input</a></li>
-<li class="toctree-l4"><a class="reference internal" href="quemb.molbe.eri_sparse_DF.transform_sparse_DF_integral_cpp.html">quemb.molbe.eri_sparse_DF.transform_sparse_DF_integral_cpp</a></li>
-<li class="toctree-l4"><a class="reference internal" href="quemb.molbe.eri_sparse_DF.transform_sparse_DF_integral_cpp_gpu.html">quemb.molbe.eri_sparse_DF.transform_sparse_DF_integral_cpp_gpu</a></li>
+<li class="toctree-l4"><a class="reference internal" href="quemb.molbe.eri_sparse_DF.transform_sparse_DF_integral_cpu.html">quemb.molbe.eri_sparse_DF.transform_sparse_DF_integral_cpu</a></li>
+<li class="toctree-l4"><a class="reference internal" href="quemb.molbe.eri_sparse_DF.transform_sparse_DF_integral_gpu.html">quemb.molbe.eri_sparse_DF.transform_sparse_DF_integral_gpu</a></li>
 </ul>
 </li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="quemb.molbe.fragment.html">quemb.molbe.fragment</a><input aria-label="Toggle navigation of quemb.molbe.fragment" class="toctree-checkbox" id="toctree-checkbox-15" name="toctree-checkbox-15" role="switch" type="checkbox"/><label for="toctree-checkbox-15"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
@@ -853,7 +853,7 @@ threaded parallel computation is invoked.</p></li>
 <li><p><strong>ompnum</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a></span>) – Number of OpenMP threads, by default 4.</p></li>
 <li><p><strong>thr_bath</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>,</em>) – Threshold for bath orbitals in Schmidt decomposition</p></li>
 <li><p><strong>scratch_dir</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="quemb.shared.manage_scratch.WorkDir.html#quemb.shared.manage_scratch.WorkDir" title="quemb.shared.manage_scratch.WorkDir"><code class="xref py py-class docutils literal notranslate"><span class="pre">WorkDir</span></code></a> | <a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></a></span>) – Scratch directory.</p></li>
-<li><p><strong>int_transform</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Literal</span></code></a>[<code class="docutils literal notranslate"><span class="pre">'in-core'</span></code>, <code class="docutils literal notranslate"><span class="pre">'out-core-DF'</span></code>, <code class="docutils literal notranslate"><span class="pre">'int-direct-DF'</span></code>, <code class="docutils literal notranslate"><span class="pre">'sparse-DF-cpp'</span></code>, <code class="docutils literal notranslate"><span class="pre">'sparse-DF-cpp-gpu'</span></code>]</span>) – <p>The possible integral transformations.</p>
+<li><p><strong>int_transform</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Literal</span></code></a>[<code class="docutils literal notranslate"><span class="pre">'in-core'</span></code>, <code class="docutils literal notranslate"><span class="pre">'out-core-DF'</span></code>, <code class="docutils literal notranslate"><span class="pre">'int-direct-DF'</span></code>, <code class="docutils literal notranslate"><span class="pre">'sparse-DF'</span></code>, <code class="docutils literal notranslate"><span class="pre">'sparse-DF-gpu'</span></code>, <code class="docutils literal notranslate"><span class="pre">'on-fly-sparse-DF'</span></code>, <code class="docutils literal notranslate"><span class="pre">'on-fly-sparse-DF-gpu'</span></code>]</span>) – <p>The possible integral transformations.</p>
 <ul>
 <li><p><code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;in-core&quot;</span></code> (default): Use a dense representation of integrals
 in memory without density fitting (DF) and transform in-memory.</p></li>
@@ -862,15 +862,12 @@ the DF integrals <span class="math notranslate nohighlight">\((\mu, \nu | P)\)</
 <li><p><code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;int-direct-DF&quot;</span></code>: Use a dense, DF representation of integrals,
 the required DF integrals <span class="math notranslate nohighlight">\((\mu, \nu | P)\)</span> are computed and fitted
 on-demand for each fragment.</p></li>
-<li><p><code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;sparse-DF-cpp&quot;</span></code>:
-Use a sparse, DF representation of integrals,
-and avoid recomputation of elements that are shared across fragments.
-Uses a <code class="docutils literal notranslate"><span class="pre">C++</span></code> implementation for performance heavy code.</p></li>
-<li><p><code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;sparse-DF-cpp-gpu&quot;</span></code>:
-Use a sparse, DF representation of integrals,
-and avoid recomputation of elements that are shared across fragments.
-Uses a <code class="docutils literal notranslate"><span class="pre">C++</span></code> + <code class="docutils literal notranslate"><span class="pre">CUDDA</span></code> implementation for performance heavy code,
-only available when compiled with CUDABlas.</p></li>
+<li><p><code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;sparse-DF&quot;</span></code>, <code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;sparse-DF-gpu&quot;</span></code>,
+<code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;on-fly-sparse-DF&quot;</span></code>, and <code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;on-fly-sparse-DF-gpu&quot;</span></code>.
+Use a sparse, DF representation of integrals.
+The <code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;-gpu&quot;</span></code> versions use GPU and require CUDABlas,
+the <code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;on-fly-&quot;</span></code> versions use less memory, but do more
+on the fly computations.</p></li>
 </ul>
 </p></li>
 <li><p><strong>auxbasis</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a> | <a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></a></span>) – Auxiliary basis for density fitting, by default None

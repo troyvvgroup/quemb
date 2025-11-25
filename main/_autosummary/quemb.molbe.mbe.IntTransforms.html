@@ -494,8 +494,8 @@
 <li class="toctree-l4"><a class="reference internal" href="quemb.molbe.eri_sparse_DF.grid_S_abs.html">quemb.molbe.eri_sparse_DF.grid_S_abs</a></li>
 <li class="toctree-l4"><a class="reference internal" href="quemb.molbe.eri_sparse_DF.identify_contiguous_blocks.html">quemb.molbe.eri_sparse_DF.identify_contiguous_blocks</a></li>
 <li class="toctree-l4"><a class="reference internal" href="quemb.molbe.eri_sparse_DF.to_numba_input.html">quemb.molbe.eri_sparse_DF.to_numba_input</a></li>
-<li class="toctree-l4"><a class="reference internal" href="quemb.molbe.eri_sparse_DF.transform_sparse_DF_integral_cpp.html">quemb.molbe.eri_sparse_DF.transform_sparse_DF_integral_cpp</a></li>
-<li class="toctree-l4"><a class="reference internal" href="quemb.molbe.eri_sparse_DF.transform_sparse_DF_integral_cpp_gpu.html">quemb.molbe.eri_sparse_DF.transform_sparse_DF_integral_cpp_gpu</a></li>
+<li class="toctree-l4"><a class="reference internal" href="quemb.molbe.eri_sparse_DF.transform_sparse_DF_integral_cpu.html">quemb.molbe.eri_sparse_DF.transform_sparse_DF_integral_cpu</a></li>
+<li class="toctree-l4"><a class="reference internal" href="quemb.molbe.eri_sparse_DF.transform_sparse_DF_integral_gpu.html">quemb.molbe.eri_sparse_DF.transform_sparse_DF_integral_gpu</a></li>
 </ul>
 </li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="quemb.molbe.fragment.html">quemb.molbe.fragment</a><input aria-label="Toggle navigation of quemb.molbe.fragment" class="toctree-checkbox" id="toctree-checkbox-39" name="toctree-checkbox-39" role="switch" type="checkbox"/><label for="toctree-checkbox-39"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
@@ -834,7 +834,22 @@
 <dt class="sig sig-object py" id="quemb.molbe.mbe.IntTransforms">
 <span class="sig-prename descclassname"><span class="pre">quemb.molbe.mbe.</span></span><span class="sig-name descname"><span class="pre">IntTransforms</span></span><a class="headerlink" href="#quemb.molbe.mbe.IntTransforms" title="Link to this definition">¶</a></dt>
 <dd><p>Literal type describing allowed transformation strategies.</p>
-<p>alias of <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Literal</span></code></a>[‘in-core’, ‘out-core-DF’, ‘int-direct-DF’, ‘sparse-DF-cpp’, ‘sparse-DF-cpp-gpu’]</p>
+<ul class="simple">
+<li><p><code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;in-core&quot;</span></code>: Use a dense representation of integrals
+in memory without density fitting (DF) and transform in-memory.</p></li>
+<li><p><code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;out-core-DF&quot;</span></code>: Use a dense, DF representation of integrals.
+The DF integrals <span class="math notranslate nohighlight">\((\mu, \nu | P)\)</span> are stored on disc.</p></li>
+<li><p><code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;int-direct-DF&quot;</span></code>: Use a dense, DF representation of integrals.
+The required DF integrals <span class="math notranslate nohighlight">\((\mu, \nu | P)\)</span> are computed and fitted
+on-demand for each fragment.</p></li>
+<li><p><code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;sparse-DF&quot;</span></code>, <code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;sparse-DF-gpu&quot;</span></code>,
+<code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;on-fly-sparse-DF&quot;</span></code>, and <code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;on-fly-sparse-DF-gpu&quot;</span></code>:
+Use a sparse, DF representation of integrals.
+The <code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;-gpu&quot;</span></code> versions use GPU and require CUDABlas.
+The <code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;on-fly-&quot;</span></code> versions use less memory but perform more
+on-the-fly computations.</p></li>
+</ul>
+<p>alias of <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Literal</span></code></a>[‘in-core’, ‘out-core-DF’, ‘int-direct-DF’, ‘sparse-DF’, ‘sparse-DF-gpu’, ‘on-fly-sparse-DF’, ‘on-fly-sparse-DF-gpu’]</p>
 </dd></dl>
 
 </section>
@@ -911,5 +926,6 @@
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
+    <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     </body>
 </html>
