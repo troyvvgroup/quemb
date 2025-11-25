@@ -1,0 +1,6 @@
+quemb.kbe.mf\_interfaces.pyscf\_interface.get\_mf\_pyscf
+========================================================
+
+.. currentmodule:: quemb.kbe.mf_interfaces.pyscf_interface
+
+.. autofunction:: get_mf_pyscf

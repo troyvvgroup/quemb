@@ -1,0 +1,6 @@
+quemb.kbe.mf\_interfaces.main.load\_scf
+=======================================
+
+.. currentmodule:: quemb.kbe.mf_interfaces.main
+
+.. autofunction:: load_scf

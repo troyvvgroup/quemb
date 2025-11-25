@@ -1,0 +1,6 @@
+quemb.kbe.mf\_interfaces.main.get\_mf
+=====================================
+
+.. currentmodule:: quemb.kbe.mf_interfaces.main
+
+.. autofunction:: get_mf

@@ -1,0 +1,6 @@
+quemb.kbe.mf\_interfaces.pyscf\_interface.PySCFArgs.\_\_init\_\_
+================================================================
+
+.. currentmodule:: quemb.kbe.mf_interfaces.pyscf_interface
+
+.. automethod:: PySCFArgs.__init__

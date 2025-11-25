@@ -1,0 +1,27 @@
+quemb.kbe.mf\_interfaces.pyscf\_interface.PySCFArgs
+===================================================
+
+.. currentmodule:: quemb.kbe.mf_interfaces.pyscf_interface
+
+.. autoclass:: PySCFArgs
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: PySCFArgs.density_fit
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~PySCFArgs.__init__
+   
+   
