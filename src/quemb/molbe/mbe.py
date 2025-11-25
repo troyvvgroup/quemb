@@ -30,7 +30,9 @@ from typing_extensions import assert_never
 
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
-from quemb.molbe.eri_sparse_DF import transform_sparse_DF_integral_cpp
+from quemb.molbe.eri_sparse_DF import (
+    transform_sparse_DF_integral_cpu,
+)
 from quemb.molbe.fragment import FragPart
 from quemb.molbe.lo import (
     IAO_LocMethods,
@@ -60,10 +62,31 @@ IntTransforms: TypeAlias = Literal[
     "in-core",
     "out-core-DF",
     "int-direct-DF",
-    "sparse-DF-cpp",  # screen AOs and MOs via S_abs
-    "sparse-DF-cpp-gpu",  # screen AOs and MOs via S_abs
+    "sparse-DF",
+    "sparse-DF-gpu",
+    "on-fly-sparse-DF",
+    "on-fly-sparse-DF-gpu",
 ]
-"""Literal type describing allowed transformation strategies."""
+r"""Literal type describing allowed transformation strategies.
+
+- :python:`"in-core"`: Use a dense representation of integrals
+  in memory without density fitting (DF) and transform in-memory.
+
+- :python:`"out-core-DF"`: Use a dense, DF representation of integrals.
+  The DF integrals :math:`(\mu, \nu | P)` are stored on disc.
+
+- :python:`"int-direct-DF"`: Use a dense, DF representation of integrals.
+  The required DF integrals :math:`(\mu, \nu | P)` are computed and fitted
+  on-demand for each fragment.
+
+- :python:`"sparse-DF"`, :python:`"sparse-DF-gpu"`,
+  :python:`"on-fly-sparse-DF"`, and :python:`"on-fly-sparse-DF-gpu"`:
+  Use a sparse, DF representation of integrals.
+  The :python:`"-gpu"` versions use GPU and require CUDABlas.
+  The :python:`"on-fly-"` versions use less memory but perform more
+  on-the-fly computations.
+"""
+
 
 logger = logging.getLogger(__name__)
 
@@ -175,15 +198,12 @@ class BE:
             - :python:`"int-direct-DF"`: Use a dense, DF representation of integrals,
               the required DF integrals :math:`(\mu, \nu | P)` are computed and fitted
               on-demand for each fragment.
-            - :python:`"sparse-DF-cpp"`:
-              Use a sparse, DF representation of integrals,
-              and avoid recomputation of elements that are shared across fragments.
-              Uses a ``C++`` implementation for performance heavy code.
-            - :python:`"sparse-DF-cpp-gpu"`:
-              Use a sparse, DF representation of integrals,
-              and avoid recomputation of elements that are shared across fragments.
-              Uses a ``C++`` + ``CUDDA`` implementation for performance heavy code,
-              only available when compiled with CUDABlas.
+            - :python:`"sparse-DF"`, :python:`"sparse-DF-gpu"`,
+              :python:`"on-fly-sparse-DF"`, and :python:`"on-fly-sparse-DF-gpu"`.
+              Use a sparse, DF representation of integrals.
+              The :python:`"-gpu"` versions use GPU and require CUDABlas,
+              the :python:`"on-fly-"` versions use less memory, but do more
+              on the fly computations.
 
         auxbasis :
             Auxiliary basis for density fitting, by default None
@@ -917,8 +937,8 @@ class BE:
         3. Else, if ``integral_direct_DF`` is requested:
            - Use on-the-fly density-fitting integral evaluation.
         4. Else, for a sparse, DF representation of integrals:
-           - Use ``sparse-DF-cpp`` for ``C++`` implementation.
-           - Use ``sparse-DF-cpp-gpu`` for ``C++`` + ``CUDDA`` implementation.
+           - Use ``sparse-DF`` for ``C++`` implementation.
+           - Use ``sparse-DF-gpu`` for ``C++`` + ``CUDDA`` implementation.
 
 
         Parameters
@@ -943,9 +963,9 @@ class BE:
         elif int_transform == "int-direct-DF":
             ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
             integral_direct_DF(self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis)
-        elif int_transform == "sparse-DF-cpp":
+        elif int_transform == "sparse-DF":
             ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-            transform_sparse_DF_integral_cpp(
+            transform_sparse_DF_integral_cpu(
                 self.mf,
                 self.Fobjs,
                 auxbasis=self.auxbasis,
@@ -953,14 +973,27 @@ class BE:
                 MO_coeff_epsilon=self.MO_coeff_epsilon,
                 AO_coeff_epsilon=self.AO_coeff_epsilon,
                 n_threads=self.n_threads_integral_transform,
+                precompute_P_mu_nu=True,
             )
-        elif int_transform == "sparse-DF-cpp-gpu":
+        elif int_transform == "on-fly-sparse-DF":
+            ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+            transform_sparse_DF_integral_cpu(
+                self.mf,
+                self.Fobjs,
+                auxbasis=self.auxbasis,
+                file_eri_handler=file_eri,
+                MO_coeff_epsilon=self.MO_coeff_epsilon,
+                AO_coeff_epsilon=self.AO_coeff_epsilon,
+                n_threads=self.n_threads_integral_transform,
+                precompute_P_mu_nu=False,
+            )
+        elif int_transform == "sparse-DF-gpu":
             from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
-                transform_sparse_DF_integral_cpp_gpu,
+                transform_sparse_DF_integral_gpu,
             )
 
             ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-            transform_sparse_DF_integral_cpp_gpu(
+            transform_sparse_DF_integral_gpu(
                 self.mf,
                 self.Fobjs,
                 auxbasis=self.auxbasis,
@@ -968,6 +1001,23 @@ class BE:
                 MO_coeff_epsilon=self.MO_coeff_epsilon,
                 AO_coeff_epsilon=self.AO_coeff_epsilon,
                 n_threads=self.n_threads_integral_transform,
+                precompute_P_mu_nu=True,
+            )
+        elif int_transform == "on-fly-sparse-DF-gpu":
+            from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
+                transform_sparse_DF_integral_gpu,
+            )
+
+            ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+            transform_sparse_DF_integral_gpu(
+                self.mf,
+                self.Fobjs,
+                auxbasis=self.auxbasis,
+                file_eri_handler=file_eri,
+                MO_coeff_epsilon=self.MO_coeff_epsilon,
+                AO_coeff_epsilon=self.AO_coeff_epsilon,
+                n_threads=self.n_threads_integral_transform,
+                precompute_P_mu_nu=False,
             )
         else:
             assert_never(int_transform)
