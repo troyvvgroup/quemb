@@ -4,6 +4,7 @@ import numpy as np
 from attrs import define
 from pyscf.pbc.gto import Cell
 from pyscf.pbc.scf.khf import KRHF
+from typing_extensions import assert_never
 
 from quemb.shared.typing import Matrix, Vector
 
@@ -12,7 +13,9 @@ PYSCF_AVAILABLE: Final = True
 
 @define(frozen=True, kw_only=True)
 class PySCFArgs:
-    density_fit: Literal["GDF", "FFDF", "MDF"] | None = None
+    density_fit: Literal["GDF", "FFDF", "MDF"] = (
+        "FFDF"  # PySCF defaults to FFDF for PBC
+    )
 
 
 def create_mf(
@@ -39,13 +42,14 @@ def get_mf_pyscf(
     cell: Cell, kpts: Matrix[np.floating], additional_args: PySCFArgs
 ) -> KRHF:
     "Run an KRHF calculation in pyscf"
-    mf = KRHF(cell, kpts=kpts)
     if additional_args.density_fit == "GDF":
-        mf = mf.density_fit()
+        mf = KRHF(cell, kpts=kpts).density_fit()
     elif additional_args.density_fit == "MDF":
-        mf = mf.mix_density_fit()
+        mf = KRHF(cell, kpts=kpts).mix_density_fit()
+    elif additional_args.density_fit == "FFDF":
+        mf = KRHF(cell, kpts=kpts)
     else:
-        pass  # PySCF does FFDF by default for PBC calculations
+        assert_never(additional_args.density_fit)
 
     mf.kernel()
     return mf
