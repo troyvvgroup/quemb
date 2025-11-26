@@ -770,7 +770,7 @@ class BE:
         use_cumulant: bool = True,
         conv_tol: float = 1.0e-6,
         relax_density: bool = False,
-        jac_solver: Literal["HF", "MP2", "CCSD"] = "HF",
+        jac_solver: Literal["HF", "MP2", "CCSD", "Numerical"] = "HF",
         nproc: int = 1,
         ompnum: int = 4,
         max_iter: int = 500,
