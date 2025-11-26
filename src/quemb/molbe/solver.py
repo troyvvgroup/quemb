@@ -296,7 +296,7 @@ def be_func(
     """
     if eeval:
         total_e = [0.0, 0.0, 0.0]
-
+    print("POT:", pot)
     # Loop over each fragment and solve using the specified solver
     for fobj in Fobjs:
         # Update the effective Hamiltonian
@@ -545,17 +545,20 @@ def be_func(
             )
             total_e = [sum(x) for x in zip(total_e, e_f)]
             fobj.update_ebe_hf()
-    if eeval:
-        Ecorr = sum(total_e)
-        if not return_vec:
-            return (Ecorr, total_e)
 
     ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem)
 
-    if return_vec:
-        return (ernorm, ervec, [Ecorr, total_e])
-
-    return ernorm
+    if eeval:
+        Ecorr = sum(total_e)
+        if return_vec:
+            return (ernorm, ervec, [Ecorr, total_e])
+        else:
+            return (Ecorr, total_e)
+    else:
+        if return_vec:
+            return (ernorm, ervec, None)
+        else:
+            return ernorm
 
 
 def be_func_u(

@@ -6,7 +6,6 @@ from typing import Final, Literal, TypeAlias
 from warnings import warn
 
 import h5py
-import numpy
 import numpy as np
 from attrs import define
 from numpy import (
@@ -476,9 +475,9 @@ class BE:
                 # Compute the two-particle reduced density matrix (RDM2) and subtract
                 #   non-connected component
                 dm_nc = einsum(
-                    "ij,kl->ijkl", drdm1, drdm1, dtype=numpy.float64, optimize=True
+                    "ij,kl->ijkl", drdm1, drdm1, dtype=float64, optimize=True
                 ) - 0.5 * einsum(
-                    "ij,kl->iklj", drdm1, drdm1, dtype=numpy.float64, optimize=True
+                    "ij,kl->iklj", drdm1, drdm1, dtype=float64, optimize=True
                 )
                 rdm2 -= dm_nc
 
@@ -530,14 +529,14 @@ class BE:
                         "ij,kl->ijkl",
                         rdm1AO,
                         rdm1AO,
-                        dtype=numpy.float64,
+                        dtype=float64,
                         optimize=True,
                     )
                     - einsum(
                         "ij,kl->iklj",
                         rdm1AO,
                         rdm1AO,
-                        dtype=numpy.float64,
+                        dtype=float64,
                         optimize=True,
                     )
                     * 0.5
@@ -861,12 +860,23 @@ class BE:
 
         if method == "QN":
             # Prepare the initial Jacobian matrix
-            if only_chem:
-                J0 = array([[0.0]])
-                J0 = self.get_be_error_jacobian(jac_solver=jac_solver)
-                J0 = J0[-1:, -1:]
+            if jac_solver == "Numerical":
+                if only_chem:
+                    J0 = self.get_be_error_jacobian_numerical(
+                        only_chem, solver, relax_density, solver_args, use_cumulant
+                    )
+                    print("Numerical Jacobian:\n", J0)
+                else:
+                    raise NotImplementedError(
+                        "Numerical Jacobian is only implemented for only_chem=True"
+                    )
             else:
-                J0 = self.get_be_error_jacobian(jac_solver=jac_solver)
+                if only_chem:
+                    J0 = array([[0.0]])
+                    J0 = self.get_be_error_jacobian(jac_solver=jac_solver)
+                    J0 = J0[-1:, -1:]
+                else:
+                    J0 = self.get_be_error_jacobian(jac_solver=jac_solver)
 
             # Perform the optimization
             be_.optimize(method, J0=J0, trust_region=trust_region)
@@ -896,6 +906,52 @@ class BE:
     @copy_docstring(_ext_get_be_error_jacobian)
     def get_be_error_jacobian(self, jac_solver: str = "HF") -> Matrix[floating]:
         return _ext_get_be_error_jacobian(self.fobj.n_frag, self.Fobjs, jac_solver)
+
+    def get_be_error_jacobian_numerical(
+        self,
+        only_chem: bool,
+        solver: Solvers,
+        relax_density: bool,
+        solver_args: UserSolverArgs | None,
+        use_cumulant: bool,
+    ) -> Matrix[floating]:
+        """
+        Obtain the Jacobian matrix for BE Optimization using numerical differentiation.
+        (First-order Central Finite Differences)
+        Note that this function is only implemented for the case
+        where :python:`only_chem=True`.
+
+        Parameters
+        ----------
+        only_chem : bool
+            If True, compute the Jacobian for the chemical potential only.
+        """
+        step_size = 1e-6  # from frankenstein
+
+        def be_func_err(x: Matrix[floating]) -> float:
+            return be_func(
+                x,
+                self.Fobjs,
+                self.Nocc,
+                solver,
+                self.enuc,
+                only_chem=only_chem,
+                relax_density=relax_density,
+                scratch_dir=self.scratch_dir,
+                solver_args=solver_args,
+                use_cumulant=use_cumulant,
+                eeval=False,
+                return_vec=True,
+            )[1]
+
+        if only_chem:
+            return [
+                (be_func_err([step_size]) - be_func_err([-step_size])) / (2 * step_size)
+            ]
+        else:
+            raise NotImplementedError(
+                "Numerical Jacobian is only implemented for only_chem=True"
+            )
 
     def print_ini(self):
         """
