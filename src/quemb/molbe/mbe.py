@@ -928,7 +928,7 @@ class BE:
         """
         step_size = 1e-6  # from frankenstein
 
-        def be_func_err(x: Matrix[floating]) -> float:
+        def be_func_err(x: list[float] | None) -> float:
             return be_func(
                 x,
                 self.Fobjs,
@@ -945,9 +945,12 @@ class BE:
             )[1]
 
         if only_chem:
-            return [
-                (be_func_err([step_size]) - be_func_err([-step_size])) / (2 * step_size)
-            ]
+            return array(
+                [
+                    (be_func_err([step_size]) - be_func_err([-step_size]))
+                    / (2 * step_size)
+                ]
+            )
         else:
             raise NotImplementedError(
                 "Numerical Jacobian is only implemented for only_chem=True"
