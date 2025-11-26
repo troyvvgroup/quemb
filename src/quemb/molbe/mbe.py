@@ -27,7 +27,7 @@ from numpy.linalg import eigh, multi_dot, svd
 from pyscf import ao2mo, scf
 from pyscf.gto import Mole
 from typing_extensions import assert_never
-from pyscf.scf import _vhf
+
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
 from quemb.molbe.eri_sparse_DF import (
@@ -309,7 +309,7 @@ class BE:
             self.lmo_coeff = None
             self.cinv = None
 
-        #self.print_ini()
+        # self.print_ini()
         self.Fobjs: list[Frags] = []
         self.pot = initialize_pot(self.fobj.n_frag, self.fobj.relAO_per_edge_per_frag)
 
@@ -1051,13 +1051,20 @@ class BE:
 
             fobjs_.cons_fock(self.hf_veff, self.S, self.hf_dm, eri_=eri)
 
-            #Denv = 2 * fobjs_.TAenv_ao_eo @ fobjs_.TAenv_lo_eo.T.conj() @ fobjs_.Dhf @ fobjs_.TAenv_lo_eo @ fobjs_.TAenv_ao_eo.T.conj()
-            #assert self.mf._eri is not None
-            #vj, vk = _vhf.incore(self.mf._eri, Denv)
-            #vhf = vj - vk * 0.5
-            #e1 = numpy.einsum("ij,ji->", self.hcore, Denv).real
-            #e_coul = numpy.einsum("ij,ji->", vhf, Denv).real * 0.5
-            #fobjs_.E_env = e_coul + e1
+            # Denv = (
+            #     2
+            #     * fobjs_.TAenv_ao_eo
+            #     @ fobjs_.TAenv_lo_eo.T.conj()
+            #     @ fobjs_.Dhf
+            #     @ fobjs_.TAenv_lo_eo
+            #     @ fobjs_.TAenv_ao_eo.T.conj()
+            # )
+            # assert self.mf._eri is not None
+            # vj, vk = _vhf.incore(self.mf._eri, Denv)
+            # vhf = vj - vk * 0.5
+            # e1 = numpy.einsum("ij,ji->", self.hcore, Denv).real
+            # e_coul = numpy.einsum("ij,ji->", vhf, Denv).real * 0.5
+            # fobjs_.E_env = e_coul + e1
 
             fobjs_.heff = zeros_like(fobjs_.h1)
             fobjs_.scf(fs=False, eri=eri)
