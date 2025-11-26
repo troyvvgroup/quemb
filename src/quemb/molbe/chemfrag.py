@@ -1189,6 +1189,7 @@ class Fragmented(Generic[_T_chemsystem]):
         frag_structure :
             The fragmented structure to use.
         """
+        print("using the from_frag_structure definition")
         conn_data: Final = frag_structure.conn_data
         AO_per_atom: Final = _get_AOidx_per_atom(mol, frozen_core)
         AO_per_frag: Final = [
@@ -1340,6 +1341,7 @@ class Fragmented(Generic[_T_chemsystem]):
             is taken from the smaller fragment.
             This means, there will be no centers other than origins.
         """
+        print("using the from_mole definition")
         return cls.from_frag_structure(
             mol,
             PurelyStructureFragmented.from_mole(

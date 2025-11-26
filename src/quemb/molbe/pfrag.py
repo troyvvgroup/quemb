@@ -190,16 +190,18 @@ class Frags:
             Default is None, allowing orbitals to be chosen by threshold
         """
         if self.eq_fobj is not None:
+            print("doing rdm invariant rotation")
             TA_occ = kabsch_rotation(lmo[:, :nocc], self.eq_fobj.TA_occ)
             TA_virt = kabsch_rotation(lmo[:, nocc:], self.eq_fobj.TA_virt)
             TA = np.hstack([TA_occ, TA_virt])
             TAfull = TA @ self.eq_fobj.eigvecs.T
             self.TA_lo_eo = TAfull[:, :self.eq_fobj.n_f + self.eq_fobj.n_b]
-            self.TAenv_lo_eo = TAfull[:, self.eq_fobj.n_f + self.eq_fobj.n_b:]
+            #self.TAenv_lo_eo = TAfull[:, self.eq_fobj.n_f + self.eq_fobj.n_b:]
             self.n_f = self.eq_fobj.n_f
             self.Dhf = lmo[:, :nocc] @ lmo[:, :nocc].T
         
         else:
+            print("must be the equilibrium calculation")
             (   self.Dhf,
             self.TA_lo_eo,
             self.TAenv_lo_eo,
@@ -213,9 +215,16 @@ class Frags:
             thr_bath=thr_bath,
             norb=norb,
             )
-
+            
+        #if self.eq_fobj is not None:
+        #    print("doing schmidt invariant rotation")
+        #    TA_frag = kabsch_rotation(self.TA_lo_eo[:, :self.n_f], self.eq_fobj.TA_lo_eo_frag)
+        #    TA_bath = kabsch_rotation(self.TA_lo_eo[:, self.n_f:], self.eq_fobj.TA_lo_eo_bath)
+        #    self.TA_lo_eo = np.hstack([TA_frag, TA_bath])
+        #else:
+        #    print("must be an equilibrium calculation")
+            
         self.TA = lao @ self.TA_lo_eo  # (ao by lo) x (lo by so) = (ao by so)
-        self.TAenv_ao_eo = lao @ self.TAenv_lo_eo
         self.nao = self.TA.shape[1]
 
     def cons_fock(self, hf_veff, S, dm, eri_=None):
@@ -269,7 +278,7 @@ class Frags:
         nsocc_ = trace(P_)
         nsocc = int(round(nsocc_))
         try:
-            mo_coeffs = scipy.linalg.svd(C_)[0]
+            mo_coeffs = scipy.linalg.svd(C_, lapack_driver='gesvd')[0]
         except scipy.linalg.LinAlgError:
             mo_coeffs = scipy.linalg.eigh(C_)[1][:, -nsocc:]
 
@@ -501,7 +510,6 @@ def schmidt_decomposition(
     Frag_sites1 = array([[i] for i in AO_in_frag])
 
     # Compute the environment part of the density matrix
-    print(f"Env_sites is {Env_sites}")
     Denv = Dhf[Env_sites, Env_sites.T]
 
     # Perform eigenvalue decomposition on the environment density matrix
@@ -555,7 +563,7 @@ def _get_contained(
     TA: Matrix[np.float64],
     S: Matrix[np.float64],
     epsilon: float,
-) -> Vector[np.bool]:
+) -> Vector[bool]:
     r"""Get a boolean vector of the MOs in TA that are already contained in
     ``all_fragment_MOs_TA``
 

@@ -1060,7 +1060,7 @@ class BE:
             #fobjs_.E_env = e_coul + e1
 
             fobjs_.heff = zeros_like(fobjs_.h1)
-            fobjs_.scf(fs=True, eri=eri)
+            fobjs_.scf(fs=False, eri=eri)
 
             assert fobjs_.h1 is not None and fobjs_.nsocc is not None
             fobjs_.dm0 = 2.0 * (
@@ -1072,6 +1072,7 @@ class BE:
             E_hf += fobjs_.ebe_hf
         self.ebe_hf = E_hf + self.enuc + self.E_core
         hf_err = self.hf_etot - self.ebe_hf
+        print(f"hf_err is {hf_err}")
         if abs(hf_err) > 1.0e-5:
             warn("Large HF-in-HF energy error")
 
@@ -1203,6 +1204,7 @@ class BE:
                 rets[0], rets[1][1], rets[1][0] + rets[1][2], self.ebe_hf
             )
             self.ebe_tot = rets[0] + self.ebe_hf
+            self.rets0 = rets[0]
         else:
             print_energy_noncumulant(
                 rets[0], rets[1][0], rets[1][2], rets[1][1], self.ebe_hf, self.enuc

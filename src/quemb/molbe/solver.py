@@ -549,7 +549,6 @@ def be_func(
             total_e = [sum(x) for x in zip(total_e, e_f)]
             fobj.update_ebe_hf()
     if eeval:
-        print(f"the length of total_e is {len(total_e)}")
         Ecorr = sum(total_e)
         if not return_vec:
             return (Ecorr, total_e)

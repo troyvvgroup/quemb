@@ -120,10 +120,8 @@ def get_scfObj(
 
     # Run the SCF calculation
     if dm0 is None:
-        print("dm0 is none")
         mf_.kernel()
     else:
-        print("dm0 is not none")
         mf_.kernel(dm0=dm0)
 
     # Check if the SCF calculation converged
