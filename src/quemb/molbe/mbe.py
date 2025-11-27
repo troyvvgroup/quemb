@@ -929,20 +929,38 @@ class BE:
         step_size = 1e-6  # from frankenstein
 
         def be_func_err(x: list[float] | None) -> float:
-            return be_func(
-                x,
-                self.Fobjs,
-                self.Nocc,
-                solver,
-                self.enuc,
-                only_chem=only_chem,
-                relax_density=relax_density,
-                scratch_dir=self.scratch_dir,
-                solver_args=solver_args,
-                use_cumulant=use_cumulant,
-                eeval=False,
-                return_vec=True,
-            )[1]
+            if self.nproc == 1:
+                return be_func(
+                    x,
+                    self.Fobjs,
+                    self.Nocc,
+                    solver,
+                    self.enuc,
+                    only_chem=only_chem,
+                    relax_density=relax_density,
+                    scratch_dir=self.scratch_dir,
+                    solver_args=solver_args,
+                    use_cumulant=use_cumulant,
+                    eeval=False,
+                    return_vec=False,
+                )[1]
+            else:  # paralel
+                return be_func_parallel(
+                    x,
+                    self.Fobjs,
+                    self.Nocc,
+                    solver,
+                    self.enuc,
+                    only_chem=only_chem,
+                    nproc=self.nproc,
+                    ompnum=self.ompnum,
+                    relax_density=relax_density,
+                    scratch_dir=self.scratch_dir,
+                    solver_args=solver_args,
+                    use_cumulant=use_cumulant,
+                    eeval=False,
+                    return_vec=True,
+                )[1]
 
         if only_chem:
             return array(
