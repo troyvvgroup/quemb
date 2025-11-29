@@ -169,7 +169,6 @@ class Frags:
         lmo: Matrix[float64],
         nocc: int,
         thr_bath: float,
-        norb: int | None = None,
         gradient_orb_space: Literal[
             "RDM-invariant", "Schmidt-invariant", "Unmodified"
         ] = "Unmodified",
@@ -187,10 +186,6 @@ class Frags:
             Number of occupied orbitals.
         thr_bath : float,
             Threshold for bath orbitals in Schmidt decomposition
-        norb : int, optional
-            Specify number of bath orbitals.
-            Used for UBE, where different number of alpha and beta orbitals
-            Default is None, allowing orbitals to be chosen by threshold
         """
         if self.eq_fobj is None:
             print("must be the equilibrium calculation")
@@ -206,7 +201,6 @@ class Frags:
                 nocc,
                 self.AO_in_frag,
                 thr_bath=thr_bath,
-                norb=norb,
             )
         else:
             if gradient_orb_space == "Unmodified":
@@ -491,9 +485,6 @@ def schmidt_decomposition(
     rdm :
         Reduced density matrix. If not provided, it will be computed from the molecular
         orbitals. Defaults to None.
-    norb :
-        Specifies number of bath orbitals. Used for UBE to make alpha and beta
-        spaces the same size. Defaults to None
 
     Returns
     -------
