@@ -182,8 +182,8 @@ class Frags:
         nocc: int,
         thr_bath: float,
         gradient_orb_space: Literal[
-            "RDM-invariant", "Schmidt-invariant", "Unmodified"
-        ] = "RDM-invariant",
+            "RDM-invariant", "Schmidt-invariant", "Bath-Invariant", "Unmodified"
+        ],
     ) -> None:
         """
         Perform Schmidt decomposition for the fragment.
@@ -199,8 +199,7 @@ class Frags:
         thr_bath : float,
             Threshold for bath orbitals in Schmidt decomposition
         """
-        if self.eq_fobj is None:
-            print("must be the equilibrium calculation")
+        if gradient_orb_space == "Unmodified":
             (
                 self.Dhf,
                 self.TA_lo_eo,
@@ -214,53 +213,38 @@ class Frags:
                 self.AO_in_frag,
                 thr_bath=thr_bath,
             )
+        elif gradient_orb_space == "RDM-invariant":
+            assert self.eq_fobj is not None
+            assert self.eq_fobj.TA_occ is not None
+            assert self.eq_fobj.TA_virt is not None
+            print("doing rdm invariant rotation")
+            TA_occ = lmo[:, :nocc] @ procrustes_right(
+                lmo[:, :nocc], self.eq_fobj.TA_occ
+            )
+            TA_virt = lmo[:, nocc:] @ procrustes_right(
+                lmo[:, nocc:], self.eq_fobj.TA_virt
+            )
+            TA = np.hstack([TA_occ, TA_virt])
+            assert self.eq_fobj.eigvecs is not None
+            TAfull = TA @ self.eq_fobj.eigvecs.T
+            self.TA_lo_eo = TAfull[:, : self.eq_fobj.n_f + self.eq_fobj.n_b]
+            # self.TAenv_lo_eo = TAfull[:, self.eq_fobj.n_f + self.eq_fobj.n_b:]
+            self.n_f = self.eq_fobj.n_f
+            self.Dhf = lmo[:, :nocc] @ lmo[:, :nocc].T
+        elif gradient_orb_space == "Schmidt-invariant":
+            print("doing schmidt invariant rotation")
+            assert self.eq_fobj is not None
+            assert self.eq_fobj.TA_lo_eo_frag is not None
+            assert self.eq_fobj.TA_lo_eo_bath is not None
+            TA_frag = self.TA_lo_eo[:, : self.n_f] @ procrustes_right(
+                self.TA_lo_eo[:, : self.n_f], self.eq_fobj.TA_lo_eo_frag
+            )
+            TA_bath = self.TA_lo_eo[:, self.n_f :] @ procrustes_right(
+                self.TA_lo_eo[:, self.n_f :], self.eq_fobj.TA_lo_eo_bath
+            )
+            self.TA_lo_eo = np.hstack([TA_frag, TA_bath])
         else:
-            if gradient_orb_space == "Unmodified":
-                (
-                    self.Dhf,
-                    self.TA_lo_eo,
-                    self.TAenv_lo_eo,
-                    self.TAfull_lo_eo,
-                    self.n_f,
-                    self.n_b,
-                ) = schmidt_decomposition(
-                    lmo,
-                    nocc,
-                    self.AO_in_frag,
-                    thr_bath=thr_bath,
-                )
-                pass
-            elif gradient_orb_space == "RDM-invariant":
-                assert self.eq_fobj is not None
-                assert self.eq_fobj.TA_occ is not None
-                assert self.eq_fobj.TA_virt is not None
-                print("doing rdm invariant rotation")
-                TA_occ = lmo[:, :nocc] @ procrustes_right(
-                    lmo[:, :nocc], self.eq_fobj.TA_occ
-                )
-                TA_virt = lmo[:, nocc:] @ procrustes_right(
-                    lmo[:, nocc:], self.eq_fobj.TA_virt
-                )
-                TA = np.hstack([TA_occ, TA_virt])
-                assert self.eq_fobj.eigvecs is not None
-                TAfull = TA @ self.eq_fobj.eigvecs.T
-                self.TA_lo_eo = TAfull[:, : self.eq_fobj.n_f + self.eq_fobj.n_b]
-                # self.TAenv_lo_eo = TAfull[:, self.eq_fobj.n_f + self.eq_fobj.n_b:]
-                self.n_f = self.eq_fobj.n_f
-                self.Dhf = lmo[:, :nocc] @ lmo[:, :nocc].T
-            elif gradient_orb_space == "Schmidt-invariant":
-                print("doing schmidt invariant rotation")
-                assert self.eq_fobj.TA_lo_eo_frag is not None
-                assert self.eq_fobj.TA_lo_eo_bath is not None
-                TA_frag = self.TA_lo_eo[:, : self.n_f] @ procrustes_right(
-                    self.TA_lo_eo[:, : self.n_f], self.eq_fobj.TA_lo_eo_frag
-                )
-                TA_bath = self.TA_lo_eo[:, self.n_f :] @ procrustes_right(
-                    self.TA_lo_eo[:, self.n_f :], self.eq_fobj.TA_lo_eo_bath
-                )
-                self.TA_lo_eo = np.hstack([TA_frag, TA_bath])
-            else:
-                assert_never(gradient_orb_space)
+            assert_never(gradient_orb_space)
 
         self.TA = lao @ self.TA_lo_eo  # (ao by lo) x (lo by so) = (ao by so)
         self.nao = self.TA.shape[1]
