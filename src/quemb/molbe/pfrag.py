@@ -1,5 +1,6 @@
 # Author(s): Oinam Romesh Meitei, Oskar Weser
 from __future__ import annotations
+
 from collections.abc import Sequence
 from typing import Literal, assert_never
 
