@@ -903,7 +903,7 @@ class BE:
             raise ValueError("This optimization method for BE is not supported")
 
     @copy_docstring(_ext_get_be_error_jacobian)
-    def get_be_error_jacobian(self, jac_solver: str = "HF") -> Matrix[floating]:
+    def get_be_error_jacobian(self, jac_solver: str = "HF") -> Matrix[float64]:
         return _ext_get_be_error_jacobian(self.fobj.n_frag, self.Fobjs, jac_solver)
 
     def get_be_error_jacobian_numerical(
