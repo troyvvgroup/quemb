@@ -1,12 +1,13 @@
 # Author(s): Oinam Romesh Meitei, Oskar Weser
+from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Literal, assert_never
 
 import h5py
 import numpy as np
 import scipy.linalg
 from numpy import (
-    argsort,
     array,
     diag_indices,
     einsum,
@@ -34,26 +35,26 @@ from quemb.shared.typing import (
     Vector,
 )
 
-def kabsch_rotation(P, Q):
-    """Calculate the optimal rotation ``R`` from ``P`` unto ``Q``
 
-    The rotation is optimal in the sense that the Frobenius-metric,  i.e. | R P - Q |_2, is minimized.
-    The algorithm is described here http://en.wikipedia.org/wiki/Kabsch_algorithm"""
+def procrustes_right(
+    P: Matrix[np.floating], Q: Matrix[np.floating]
+) -> Matrix[np.float64]:
+    """Solve min || P R - Q ||_F subject to R^T R = I.
 
-    # covariance matrix
+    Parameters
+    ----------
+    P, Q : (m, n) arrays
+        Corresponding point sets as row vectors.
+
+    Returns
+    -------
+    R : (n, n) array
+        Optimal orthogonal matrix.
+    """
     H = P.T @ Q
-
     U, S, Vt = np.linalg.svd(H)
-    new = P @ U @ Vt
-    R = U @ Vt
+    return U @ Vt
 
-    # determinant is +-1 for orthogonal matrices
-    # d_val = 1. if np.linalg.det(U @ Vt) > 0 else -1.
-
-    # D = np.eye(len(U))
-    # D[-1, -1] = d_val # gaurentees final result is rotation
-
-    return new
 
 class Frags:
     """
@@ -75,6 +76,12 @@ class Frags:
         relAO_per_origin: Sequence[RelAOIdx],
         eri_file: PathLike = "eri_file.h5",
         unrestricted: bool = False,
+        eq_fobj: Frags | None = None,
+        TA_occ: Matrix[np.floating] | None = None,
+        TA_virt: Matrix[np.floating] | None = None,
+        eigvecs: Matrix[np.floating] | None = None,
+        TA_lo_eo_frag: Matrix[np.floating] | None = None,
+        TA_lo_eo_bath: Matrix[np.floating] | None = None,
     ) -> None:
         r"""Constructor function for :python:`Frags` class.
 
@@ -109,7 +116,12 @@ class Frags:
         unrestricted :
             unrestricted calculation, by default False
         """
-
+        self.eq_fobj = eq_fobj
+        self.TA_occ = TA_occ
+        self.TA_virt = TA_virt
+        self.eigvecs = eigvecs
+        self.TA_lo_eo_frag = TA_lo_eo_frag
+        self.TA_lo_eo_bath = TA_lo_eo_bath
         self.AO_in_frag = AO_in_frag
         self.n_frag = len(AO_in_frag)
         self.AO_per_edge = AO_per_edge
@@ -169,7 +181,9 @@ class Frags:
         lmo: Matrix[float64],
         nocc: int,
         thr_bath: float,
-        norb: int | None = None,
+        gradient_orb_space: Literal[
+            "RDM-invariant", "Schmidt-invariant", "Unmodified"
+        ] = "RDM-invariant",
     ) -> None:
         """
         Perform Schmidt decomposition for the fragment.
@@ -184,46 +198,70 @@ class Frags:
             Number of occupied orbitals.
         thr_bath : float,
             Threshold for bath orbitals in Schmidt decomposition
-        norb : int, optional
-            Specify number of bath orbitals.
-            Used for UBE, where different number of alpha and beta orbitals
-            Default is None, allowing orbitals to be chosen by threshold
         """
-        if self.eq_fobj is not None:
-            print("doing rdm invariant rotation")
-            TA_occ = kabsch_rotation(lmo[:, :nocc], self.eq_fobj.TA_occ)
-            TA_virt = kabsch_rotation(lmo[:, nocc:], self.eq_fobj.TA_virt)
-            TA = np.hstack([TA_occ, TA_virt])
-            TAfull = TA @ self.eq_fobj.eigvecs.T
-            self.TA_lo_eo = TAfull[:, :self.eq_fobj.n_f + self.eq_fobj.n_b]
-            #self.TAenv_lo_eo = TAfull[:, self.eq_fobj.n_f + self.eq_fobj.n_b:]
-            self.n_f = self.eq_fobj.n_f
-            self.Dhf = lmo[:, :nocc] @ lmo[:, :nocc].T
-        
-        else:
+        if self.eq_fobj is None:
             print("must be the equilibrium calculation")
-            (   self.Dhf,
-            self.TA_lo_eo,
-            self.TAenv_lo_eo,
-            self.TAfull_lo_eo,
-            self.n_f,
-            self.n_b,
+            (
+                self.Dhf,
+                self.TA_lo_eo,
+                self.TAenv_lo_eo,
+                self.TAfull_lo_eo,
+                self.n_f,
+                self.n_b,
             ) = schmidt_decomposition(
-            lmo,
-            nocc,
-            self.AO_in_frag,
-            thr_bath=thr_bath,
-            norb=norb,
+                lmo,
+                nocc,
+                self.AO_in_frag,
+                thr_bath=thr_bath,
             )
-            
-        #if self.eq_fobj is not None:
-        #    print("doing schmidt invariant rotation")
-        #    TA_frag = kabsch_rotation(self.TA_lo_eo[:, :self.n_f], self.eq_fobj.TA_lo_eo_frag)
-        #    TA_bath = kabsch_rotation(self.TA_lo_eo[:, self.n_f:], self.eq_fobj.TA_lo_eo_bath)
-        #    self.TA_lo_eo = np.hstack([TA_frag, TA_bath])
-        #else:
-        #    print("must be an equilibrium calculation")
-            
+        else:
+            if gradient_orb_space == "Unmodified":
+                (
+                    self.Dhf,
+                    self.TA_lo_eo,
+                    self.TAenv_lo_eo,
+                    self.TAfull_lo_eo,
+                    self.n_f,
+                    self.n_b,
+                ) = schmidt_decomposition(
+                    lmo,
+                    nocc,
+                    self.AO_in_frag,
+                    thr_bath=thr_bath,
+                )
+                pass
+            elif gradient_orb_space == "RDM-invariant":
+                assert self.eq_fobj is not None
+                assert self.eq_fobj.TA_occ is not None
+                assert self.eq_fobj.TA_virt is not None
+                print("doing rdm invariant rotation")
+                TA_occ = lmo[:, :nocc] @ procrustes_right(
+                    lmo[:, :nocc], self.eq_fobj.TA_occ
+                )
+                TA_virt = lmo[:, nocc:] @ procrustes_right(
+                    lmo[:, nocc:], self.eq_fobj.TA_virt
+                )
+                TA = np.hstack([TA_occ, TA_virt])
+                assert self.eq_fobj.eigvecs is not None
+                TAfull = TA @ self.eq_fobj.eigvecs.T
+                self.TA_lo_eo = TAfull[:, : self.eq_fobj.n_f + self.eq_fobj.n_b]
+                # self.TAenv_lo_eo = TAfull[:, self.eq_fobj.n_f + self.eq_fobj.n_b:]
+                self.n_f = self.eq_fobj.n_f
+                self.Dhf = lmo[:, :nocc] @ lmo[:, :nocc].T
+            elif gradient_orb_space == "Schmidt-invariant":
+                print("doing schmidt invariant rotation")
+                assert self.eq_fobj.TA_lo_eo_frag is not None
+                assert self.eq_fobj.TA_lo_eo_bath is not None
+                TA_frag = self.TA_lo_eo[:, : self.n_f] @ procrustes_right(
+                    self.TA_lo_eo[:, : self.n_f], self.eq_fobj.TA_lo_eo_frag
+                )
+                TA_bath = self.TA_lo_eo[:, self.n_f :] @ procrustes_right(
+                    self.TA_lo_eo[:, self.n_f :], self.eq_fobj.TA_lo_eo_bath
+                )
+                self.TA_lo_eo = np.hstack([TA_frag, TA_bath])
+            else:
+                assert_never(gradient_orb_space)
+
         self.TA = lao @ self.TA_lo_eo  # (ao by lo) x (lo by so) = (ao by so)
         self.nao = self.TA.shape[1]
 
@@ -278,7 +316,7 @@ class Frags:
         nsocc_ = trace(P_)
         nsocc = int(round(nsocc_))
         try:
-            mo_coeffs = scipy.linalg.svd(C_, lapack_driver='gesvd')[0]
+            mo_coeffs = scipy.linalg.svd(C_, lapack_driver="gesvd")[0]
         except scipy.linalg.LinAlgError:
             mo_coeffs = scipy.linalg.eigh(C_)[1][:, -nsocc:]
 
@@ -308,21 +346,21 @@ class Frags:
             Alpha (0) or beta (1) spin for unrestricted calculation, by default None
         """
 
-        if self._mf is not None: # does not execute
+        if self._mf is not None:  # does not execute
             self._mf = None
-        if self._mc is not None: # does not execute
+        if self._mc is not None:  # does not execute
             self._mc = None
-        if heff is None: # executes
+        if heff is None:  # executes
             heff = self.heff
 
-        if eri is None: # executes
+        if eri is None:  # executes
             if unrestricted:
                 dname = self.dname[spin_ind]
             else:
                 dname = self.dname
             eri = get_eri(dname, self.nao, eri_file=self.eri_file)
 
-        if dm0 is None: # executes
+        if dm0 is None:  # executes
             dm0 = 2.0 * (
                 self._mo_coeffs[:, : self.nsocc]
                 @ self._mo_coeffs[:, : self.nsocc].conj().T
@@ -455,9 +493,7 @@ def schmidt_decomposition(
     thr_bath: float = 1.0e-10,
     cinv: Matrix[float64] | None = None,
     rdm: Matrix[float64] | None = None,
-    norb: int | None = None,
-    eq_fobj = None,
-) -> tuple[Matrix[float64], int, int]:
+):
     """
     Perform Schmidt decomposition on the molecular orbital coefficients.
 
@@ -480,9 +516,6 @@ def schmidt_decomposition(
     rdm :
         Reduced density matrix. If not provided, it will be computed from the molecular
         orbitals. Defaults to None.
-    norb :
-        Specifies number of bath orbitals. Used for UBE to make alpha and beta
-        spaces the same size. Defaults to None
 
     Returns
     -------
@@ -493,9 +526,11 @@ def schmidt_decomposition(
     """
 
     if mo_coeff is not None:
-        C = mo_coeff[:, :nocc] #happens, just take the occupied part (which are the first nocc columns)
+        C = mo_coeff[
+            :, :nocc
+        ]  # happens, just take the occupied part (which are the first nocc columns)
     if rdm is None:
-        Dhf = C @ C.T #happens, lo by lo
+        Dhf = C @ C.T  # happens, lo by lo
         if cinv is not None:
             Dhf = multi_dot((cinv, Dhf, cinv.conj().T))
     else:
@@ -531,7 +566,7 @@ def schmidt_decomposition(
         else:
             Eidx.append(i)
 
-    #Initialize the fragment + bath TA matrix
+    # Initialize the fragment + bath TA matrix
     TA = zeros([Tot_sites, len(AO_in_frag) + len(Bidx)])
     TA[AO_in_frag, : len(AO_in_frag)] = eye(len(AO_in_frag))  # Fragment part
     TA[Env_sites1, len(AO_in_frag) :] = Evec[:, Bidx]  # Bath part
@@ -543,10 +578,9 @@ def schmidt_decomposition(
     TAenv[Env_sites1, :] = Evec[:, Eidx]
 
     TAfull = np.zeros((Tot_sites, len(AO_in_frag) + len(Bidx) + len(Eidx)))
-    TAfull[AO_in_frag, :len(AO_in_frag)] = np.eye(len(AO_in_frag))
-    TAfull[Env_sites1, len(AO_in_frag):len(AO_in_frag) + len(Bidx)] = Evec[:, Bidx]
-    TAfull[Env_sites1, len(AO_in_frag) + len(Bidx):] = Evec[:, Eidx]
-
+    TAfull[AO_in_frag, : len(AO_in_frag)] = np.eye(len(AO_in_frag))
+    TAfull[Env_sites1, len(AO_in_frag) : len(AO_in_frag) + len(Bidx)] = Evec[:, Bidx]
+    TAfull[Env_sites1, len(AO_in_frag) + len(Bidx) :] = Evec[:, Eidx]
 
     return (
         Dhf,
@@ -563,7 +597,7 @@ def _get_contained(
     TA: Matrix[np.float64],
     S: Matrix[np.float64],
     epsilon: float,
-) -> Vector[bool]:
+) -> Vector[np.bool]:
     r"""Get a boolean vector of the MOs in TA that are already contained in
     ``all_fragment_MOs_TA``
 
