@@ -597,7 +597,7 @@ def _get_contained(
     TA: Matrix[np.float64],
     S: Matrix[np.float64],
     epsilon: float,
-) -> Vector[bool]:
+) -> Vector[np.bool]:
     r"""Get a boolean vector of the MOs in TA that are already contained in
     ``all_fragment_MOs_TA``
 
