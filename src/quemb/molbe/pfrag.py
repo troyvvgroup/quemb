@@ -77,11 +77,11 @@ class Frags:
         eri_file: PathLike = "eri_file.h5",
         unrestricted: bool = False,
         eq_fobj: Frags | None = None,
-        TA_occ: np.ndarray | None = None,
-        TA_virt: np.ndarray | None = None,
-        eigvecs: np.ndarray | None = None,
-        TA_lo_eo_frag: np.ndarray | None = None,
-        TA_lo_eo_bath: np.ndarray | None = None,
+        TA_occ: Matrix[np.floating] | None = None,
+        TA_virt: Matrix[np.floating] | None = None,
+        eigvecs: Matrix[np.floating] | None = None,
+        TA_lo_eo_frag: Matrix[np.floating] | None = None,
+        TA_lo_eo_bath: Matrix[np.floating] | None = None,
     ) -> None:
         r"""Constructor function for :python:`Frags` class.
 
