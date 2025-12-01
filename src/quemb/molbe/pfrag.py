@@ -1,5 +1,5 @@
 # Author(s): Oinam Romesh Meitei, Oskar Weser
-
+from __future__ import annotations
 from collections.abc import Sequence
 from typing import Literal, assert_never
 
@@ -75,6 +75,12 @@ class Frags:
         relAO_per_origin: Sequence[RelAOIdx],
         eri_file: PathLike = "eri_file.h5",
         unrestricted: bool = False,
+        eq_fobj: Frags | None = None,
+        TA_occ: np.ndarray | None = None,
+        TA_virt: np.ndarray | None = None,
+        eigvecs: np.ndarray | None = None,
+        TA_lo_eo_frag: np.ndarray | None = None,
+        TA_lo_eo_bath: np.ndarray | None = None,
     ) -> None:
         r"""Constructor function for :python:`Frags` class.
 
@@ -109,7 +115,12 @@ class Frags:
         unrestricted :
             unrestricted calculation, by default False
         """
-
+        self.eq_fobj = eq_fobj
+        self.TA_occ = TA_occ
+        self.TA_virt = TA_virt
+        self.eigvecs = eigvecs
+        self.TA_lo_eo_frag = TA_lo_eo_frag
+        self.TA_lo_eo_bath = TA_lo_eo_bath
         self.AO_in_frag = AO_in_frag
         self.n_frag = len(AO_in_frag)
         self.AO_per_edge = AO_per_edge
@@ -171,7 +182,7 @@ class Frags:
         thr_bath: float,
         gradient_orb_space: Literal[
             "RDM-invariant", "Schmidt-invariant", "Unmodified"
-        ] = "Unmodified",
+        ] = "RDM-invariant",
     ) -> None:
         """
         Perform Schmidt decomposition for the fragment.
@@ -204,8 +215,24 @@ class Frags:
             )
         else:
             if gradient_orb_space == "Unmodified":
+                (
+                    self.Dhf,
+                    self.TA_lo_eo,
+                    self.TAenv_lo_eo,
+                    self.TAfull_lo_eo,
+                    self.n_f,
+                    self.n_b,
+                ) = schmidt_decomposition(
+                    lmo,
+                    nocc,
+                    self.AO_in_frag,
+                    thr_bath=thr_bath,
+                )
                 pass
             elif gradient_orb_space == "RDM-invariant":
+                assert self.eq_fobj is not None
+                assert self.eq_fobj.TA_occ is not None
+                assert self.eq_fobj.TA_virt is not None
                 print("doing rdm invariant rotation")
                 TA_occ = lmo[:, :nocc] @ procrustes_right(
                     lmo[:, :nocc], self.eq_fobj.TA_occ
@@ -214,6 +241,7 @@ class Frags:
                     lmo[:, nocc:], self.eq_fobj.TA_virt
                 )
                 TA = np.hstack([TA_occ, TA_virt])
+                assert self.eq_fobj.eigvecs is not None
                 TAfull = TA @ self.eq_fobj.eigvecs.T
                 self.TA_lo_eo = TAfull[:, : self.eq_fobj.n_f + self.eq_fobj.n_b]
                 # self.TAenv_lo_eo = TAfull[:, self.eq_fobj.n_f + self.eq_fobj.n_b:]
@@ -221,6 +249,8 @@ class Frags:
                 self.Dhf = lmo[:, :nocc] @ lmo[:, :nocc].T
             elif gradient_orb_space == "Schmidt-invariant":
                 print("doing schmidt invariant rotation")
+                assert self.eq_fobj.TA_lo_eo_frag is not None
+                assert self.eq_fobj.TA_lo_eo_bath is not None
                 TA_frag = self.TA_lo_eo[:, : self.n_f] @ procrustes_right(
                     self.TA_lo_eo[:, : self.n_f], self.eq_fobj.TA_lo_eo_frag
                 )
@@ -462,7 +492,7 @@ def schmidt_decomposition(
     thr_bath: float = 1.0e-10,
     cinv: Matrix[float64] | None = None,
     rdm: Matrix[float64] | None = None,
-) -> tuple[Matrix[float64], int, int]:
+):
     """
     Perform Schmidt decomposition on the molecular orbital coefficients.
 
