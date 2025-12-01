@@ -243,6 +243,14 @@ class Frags:
                 self.TA_lo_eo[:, self.n_f :], self.eq_fobj.TA_lo_eo_bath
             )
             self.TA_lo_eo = np.hstack([TA_frag, TA_bath])
+        elif gradient_orb_space == "Bath-Invariant":
+            print("doing bath invariant rotation")
+            assert self.eq_fobj is not None
+            assert self.eq_fobj.TA_lo_eo_bath is not None
+            TA_bath = self.TA_lo_eo[:, self.n_f :] @ procrustes_right(
+                self.TA_lo_eo[:, self.n_f :], self.eq_fobj.TA_lo_eo_bath
+            )
+            self.TA_lo_eo = np.hstack([self.TA_lo_eo[:, : self.n_f], TA_bath])
         else:
             assert_never(gradient_orb_space)
 
