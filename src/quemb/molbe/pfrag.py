@@ -82,6 +82,9 @@ class Frags:
         eigvecs: Matrix[np.floating] | None = None,
         TA_lo_eo_frag: Matrix[np.floating] | None = None,
         TA_lo_eo_bath: Matrix[np.floating] | None = None,
+        gradient_orb_space: Literal[
+            "RDM-invariant", "Schmidt-invariant", "Bath-Invariant", "Unmodified"
+        ] = "Unmodified",
     ) -> None:
         r"""Constructor function for :python:`Frags` class.
 
@@ -122,6 +125,7 @@ class Frags:
         self.eigvecs = eigvecs
         self.TA_lo_eo_frag = TA_lo_eo_frag
         self.TA_lo_eo_bath = TA_lo_eo_bath
+        self.gradient_orb_space = gradient_orb_space
         self.AO_in_frag = AO_in_frag
         self.n_frag = len(AO_in_frag)
         self.AO_per_edge = AO_per_edge
@@ -180,10 +184,10 @@ class Frags:
         lao: Matrix[float64],
         lmo: Matrix[float64],
         nocc: int,
-        thr_bath: float,
         gradient_orb_space: Literal[
             "RDM-invariant", "Schmidt-invariant", "Bath-Invariant", "Unmodified"
         ],
+        thr_bath: float = 1.0e-10,
     ) -> None:
         """
         Perform Schmidt decomposition for the fragment.

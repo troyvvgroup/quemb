@@ -136,6 +136,9 @@ class BE:
         AO_coeff_epsilon: float = 1e-10,
         re_eval_HF: bool = False,
         eq_fobjs=None,
+        gradient_orb_space: Literal[
+            "RDM-invariant", "Schmidt-invariant", "Bath-Invariant", "Unmodified"
+        ],
     ) -> None:
         r"""
         Constructor for BE object.
@@ -264,6 +267,7 @@ class BE:
             self.eq_fobjs = eq_fobjs
         else:
             self.eq_fobjs = None
+        self.gradient_orb_space = gradient_orb_space
 
         # Fragment information from fobj
         self.fobj = fobj
@@ -1115,7 +1119,13 @@ class BE:
                 fobjs_.eq_fobj = self.eq_fobjs[I]
             else:
                 fobjs_.eq_fobj = None
-            fobjs_.sd(self.W, self.lmo_coeff, self.Nocc, thr_bath=self.thr_bath)
+            fobjs_.sd(
+                self.W,
+                self.lmo_coeff,
+                self.Nocc,
+                self.gradient_orb_space,
+                thr_bath=self.thr_bath,
+            )
 
             self.Fobjs.append(fobjs_)
 
