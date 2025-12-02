@@ -2,6 +2,7 @@
 
 import logging
 import pickle
+from collections.abc import Sequence
 from typing import Final, Literal, TypeAlias
 from warnings import warn
 
@@ -135,7 +136,7 @@ class BE:
         MO_coeff_epsilon: float = 1e-5,
         AO_coeff_epsilon: float = 1e-10,
         re_eval_HF: bool = False,
-        eq_fobjs=None,
+        eq_fobjs: Sequence[Frags] | None = None,
         gradient_orb_space: Literal[
             "RDM-invariant", "Schmidt-invariant", "Bath-Invariant", "Unmodified"
         ],
@@ -263,10 +264,7 @@ class BE:
         self.integral_transform = int_transform
         self.auxbasis = auxbasis
         self.thr_bath = thr_bath
-        if eq_fobjs is not None:
-            self.eq_fobjs = eq_fobjs
-        else:
-            self.eq_fobjs = None
+        self.eq_fobjs = eq_fobjs
         self.gradient_orb_space = gradient_orb_space
 
         # Fragment information from fobj
@@ -1115,8 +1113,9 @@ class BE:
         """
         for I in range(self.fobj.n_frag):
             fobjs_ = self.fobj.to_Frags(I, eri_file=self.eri_file)
-            if self.eq_fobjs:
+            if self.eq_fobjs is not None:
                 fobjs_.eq_fobj = self.eq_fobjs[I]
+
             fobjs_.sd(
                 self.W,
                 self.lmo_coeff,

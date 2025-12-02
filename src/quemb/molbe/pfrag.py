@@ -134,6 +134,8 @@ class Frags:
         self.frag_TA_offset: Vector[int64]
         self.TA_lo_eo: Matrix[float64]
 
+        self.eq_fobj: Frags | None = None
+
         self.h1: Matrix[float64]
         self.nao: int
         self.mo_coeffs: Matrix[float64]
