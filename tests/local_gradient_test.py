@@ -7,16 +7,15 @@ Author(s): Carina Luo
 import unittest
 
 import numpy as np
-from pyscf import cc, grad, gto, scf
+from pyscf import cc, gto, scf
+
 from quemb.molbe import BE, fragmentate
-from quemb.molbe.chemfrag import Fragmented
-from quemb.molbe.chemfrag import ChemGenArgs
+from quemb.molbe.chemfrag import ChemGenArgs, Fragmented
 
 
 class Test_local_gradient(unittest.TestCase):
     def test_C8alkane_sto3g_BE2(self):
         def compute_energy(
-            mf0,
             mol,
             frag_idx,
             fobj,
@@ -43,7 +42,6 @@ class Test_local_gradient(unittest.TestCase):
             return e_total, e_corr
 
         def compute_grad_component(
-            mf0,
             atom_idx,
             xyz,
             coords,
@@ -57,7 +55,6 @@ class Test_local_gradient(unittest.TestCase):
             coords[atom_idx, xyz] += delta
             mol.set_geom_(coords, unit="Bohr")
             e_plus_hf, e_plus_corr = compute_energy(
-                mf0,
                 mol,
                 frag_idx,
                 fobj,
@@ -68,7 +65,6 @@ class Test_local_gradient(unittest.TestCase):
             coords[atom_idx, xyz] -= 2 * delta
             mol.set_geom_(coords, unit="Bohr")
             e_minus_hf, e_minus_corr = compute_energy(
-                mf0,
                 mol,
                 frag_idx,
                 fobj,
@@ -83,7 +79,6 @@ class Test_local_gradient(unittest.TestCase):
 
         def compute_gradients(
             mol,
-            mf0,
             frag_per_atom,
             fobj,
             eq_fobjs,
@@ -97,7 +92,6 @@ class Test_local_gradient(unittest.TestCase):
             for atom_idx, frag_idx in enumerate(frag_per_atom):
                 for xyz in range(3):
                     grad_ccsd, grad_hf_val = compute_grad_component(
-                        mf0,
                         atom_idx,
                         xyz,
                         coords,
@@ -215,14 +209,6 @@ class Test_local_gradient(unittest.TestCase):
         mf.kernel()
         guess_dm = mf.make_rdm1()
 
-        hf_ref_grad_obj = grad.RHF(mf)
-        gradient_hf_ref = hf_ref_grad_obj.kernel()
-
-        mycc = cc.CCSD(mf)
-        mycc.kernel()
-        grad_ccsd = mycc.nuc_grad_method()
-        gradient_ref = grad_ccsd.kernel()
-
         fobj = fragmentate(
             mol=mol, frag_type="chemgen", n_BE=n_BE, additional_args=args
         )
@@ -234,7 +220,6 @@ class Test_local_gradient(unittest.TestCase):
 
         gradient, gradient_hf = compute_gradients(
             mol,
-            mf,
             frag_per_atom,
             fobj,
             eq_fobjs,
@@ -242,13 +227,11 @@ class Test_local_gradient(unittest.TestCase):
             delta=1e-4,
         )
 
-        rms_diff_ccsd = rms_diff(gradient_ref, gradient)
-        rms_diff_hf = rms_diff(gradient_hf_ref, gradient_hf)
+        expected = np.loadtxt("data/gradient.txt")
+        expected_hf = np.loadtxt("data/gradient_hf.txt")
+        assert np.allclose(gradient, expected)
+        assert np.allclose(gradient_hf, expected_hf)
 
-        expected = np.loadtxt("gradient.txt")
-        expected_hf = np.loadtxt("gradient_hf.txt")
-        assert np.allclose(gradient,expected)
-        assert np.allclose(gradient_hf,expected_hf)
 
 if __name__ == "__main__":
     unittest.main()
