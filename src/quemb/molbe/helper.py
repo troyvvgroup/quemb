@@ -219,6 +219,7 @@ def get_core(mol: Mole | Cell) -> tuple[int, list[int], list[int]]:
 
 def get_frag_energy(
     mo_coeffs,
+    # mo_coeff,  # To match Frankenstein : TODO
     nsocc,
     n_frag,
     weight_and_relAO_per_center,
@@ -279,6 +280,7 @@ def get_frag_energy(
     rdm1s_rot = mo_coeffs @ rdm1 @ mo_coeffs.T * 0.5
 
     # Construct the Hartree-Fock 1-RDM
+    # hf_1rdm = mo_coeff[:, :nsocc] @ mo_coeff[:, :nsocc].conj().T  # Frank Energy TODO
     hf_1rdm = mo_coeffs[:, :nsocc] @ mo_coeffs[:, :nsocc].conj().T
 
     if use_cumulant:
@@ -319,10 +321,8 @@ def get_frag_energy(
             Gij[diag_indices(jmax)] *= 0.5
             Gij += Gij.T
             e2[i] += Gij[tril_indices(jmax)] @ eri[ij]
-
     # Sum the energy contributions
     e_ = e1 + e2 + ec
-
     # Initialize temporary energy variables
     etmp = 0.0
     e1_tmp = 0.0

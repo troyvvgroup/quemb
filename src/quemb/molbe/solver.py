@@ -530,6 +530,7 @@ def be_func(
             # Return [e1, e2, ec] as e_f and add to the running total_e.
             e_f = get_frag_energy(
                 mo_coeffs=fobj.mo_coeffs,
+                # mo_coeff=fobj._mo_coeffs,  # to match Frankenstein: TODO
                 nsocc=fobj.nsocc,
                 n_frag=fobj.n_frag,
                 weight_and_relAO_per_center=fobj.weight_and_relAO_per_center,
@@ -545,6 +546,9 @@ def be_func(
             )
             total_e = [sum(x) for x in zip(total_e, e_f)]
             fobj.update_ebe_hf()
+    print(f"Correlation Energy at iteration: {sum(total_e):>f} Ha")
+    print(f"E F delta P: {total_e[0] + total_e[2]:>f} Ha")
+    print(f"E cumulant: {total_e[1]:>f} Ha")
     if eeval:
         Ecorr = sum(total_e)
         if not return_vec:
