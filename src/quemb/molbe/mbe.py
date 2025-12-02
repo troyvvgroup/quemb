@@ -1115,10 +1115,8 @@ class BE:
         """
         for I in range(self.fobj.n_frag):
             fobjs_ = self.fobj.to_Frags(I, eri_file=self.eri_file)
-            if self.eq_fobjs is not None:
+            if self.eq_fobjs:
                 fobjs_.eq_fobj = self.eq_fobjs[I]
-            else:
-                fobjs_.eq_fobj = None
             fobjs_.sd(
                 self.W,
                 self.lmo_coeff,

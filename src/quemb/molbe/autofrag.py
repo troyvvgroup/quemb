@@ -171,8 +171,7 @@ class FragPart(Generic[_T_chemsystem]):
             relAO_in_ref_per_edge=self.relAO_in_ref_per_edge_per_frag[I],
             weight_and_relAO_per_center=self.weight_and_relAO_per_center_per_frag[I],
             relAO_per_origin=self.relAO_per_origin_per_frag[I],
-            unrestricted=unrestricted,
-        )
+            unrestricted=unrestricted,)
 
     def reorder_frags(self, idx: Sequence[int] | Vector) -> Self:
         def _get_elements(seq: Sequence[T], idx: Sequence[int] | Vector) -> list[T]:

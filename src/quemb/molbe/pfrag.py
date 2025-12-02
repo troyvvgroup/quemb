@@ -76,16 +76,7 @@ class Frags:
         relAO_per_origin: Sequence[RelAOIdx],
         eri_file: PathLike = "eri_file.h5",
         unrestricted: bool = False,
-        eq_fobj: Frags | None = None,
-        TA_occ: Matrix[np.floating] | None = None,
-        TA_virt: Matrix[np.floating] | None = None,
-        eigvecs: Matrix[np.floating] | None = None,
-        TA_lo_eo_frag: Matrix[np.floating] | None = None,
-        TA_lo_eo_bath: Matrix[np.floating] | None = None,
-        gradient_orb_space: Literal[
-            "RDM-invariant", "Schmidt-invariant", "Bath-Invariant", "Unmodified"
-        ] = "Unmodified",
-    ) -> None:
+        ) -> None:
         r"""Constructor function for :python:`Frags` class.
 
         Parameters
@@ -119,13 +110,6 @@ class Frags:
         unrestricted :
             unrestricted calculation, by default False
         """
-        self.eq_fobj = eq_fobj
-        self.TA_occ = TA_occ
-        self.TA_virt = TA_virt
-        self.eigvecs = eigvecs
-        self.TA_lo_eo_frag = TA_lo_eo_frag
-        self.TA_lo_eo_bath = TA_lo_eo_bath
-        self.gradient_orb_space = gradient_orb_space
         self.AO_in_frag = AO_in_frag
         self.n_frag = len(AO_in_frag)
         self.AO_per_edge = AO_per_edge
@@ -203,6 +187,7 @@ class Frags:
         thr_bath : float,
             Threshold for bath orbitals in Schmidt decomposition
         """
+        print(f"gradient_orb_space: {gradient_orb_space}")
         if gradient_orb_space == "Unmodified":
             (
                 self.Dhf,
@@ -218,10 +203,6 @@ class Frags:
                 thr_bath=thr_bath,
             )
         elif gradient_orb_space == "RDM-invariant":
-            assert self.eq_fobj is not None
-            assert self.eq_fobj.TA_occ is not None
-            assert self.eq_fobj.TA_virt is not None
-            print("doing rdm invariant rotation")
             TA_occ = lmo[:, :nocc] @ procrustes_right(
                 lmo[:, :nocc], self.eq_fobj.TA_occ
             )
