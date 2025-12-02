@@ -76,7 +76,7 @@ class Frags:
         relAO_per_origin: Sequence[RelAOIdx],
         eri_file: PathLike = "eri_file.h5",
         unrestricted: bool = False,
-        ) -> None:
+    ) -> None:
         r"""Constructor function for :python:`Frags` class.
 
         Parameters
