@@ -109,7 +109,7 @@ class Test_local_gradient(unittest.TestCase):
 
             return gradient_ccsd, gradient_hf
 
-        def get_eq_fobjs(mybe):
+        def get_eq_fobjs(mybe: BE):
             eq_fobjs = []
             for each_fragment in mybe.Fobjs:  # for each reference fragment
                 Dhf = (

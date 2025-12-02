@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Literal, assert_never
+from typing import TYPE_CHECKING, Literal, assert_never
 
 import h5py
 import numpy as np
@@ -21,6 +21,7 @@ from numpy import (
     zeros_like,
 )
 from numpy.linalg import eigh, multi_dot
+from typing_extensions import Self
 
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
 from quemb.shared.helper import clean_overlap
@@ -34,6 +35,9 @@ from quemb.shared.typing import (
     SeqOverEdge,
     Vector,
 )
+
+if TYPE_CHECKING:
+    from quemb.molbe.mbe import BE
 
 
 def procrustes_right(
@@ -134,7 +138,7 @@ class Frags:
         self.frag_TA_offset: Vector[int64]
         self.TA_lo_eo: Matrix[float64]
 
-        self.eq_fobj: Frags | None = None
+        self.eq_fobj: Ref_Frags | None = None
 
         self.h1: Matrix[float64]
         self.nao: int
@@ -205,6 +209,7 @@ class Frags:
                 thr_bath=thr_bath,
             )
         elif gradient_orb_space == "RDM-invariant":
+            assert self.eq_fobj is not None
             TA_occ = lmo[:, :nocc] @ procrustes_right(
                 lmo[:, :nocc], self.eq_fobj.TA_occ
             )
@@ -219,10 +224,8 @@ class Frags:
             self.n_f = self.eq_fobj.n_f
             self.Dhf = lmo[:, :nocc] @ lmo[:, :nocc].T
         elif gradient_orb_space == "Schmidt-invariant":
-            print("doing schmidt invariant rotation")
             assert self.eq_fobj is not None
-            assert self.eq_fobj.TA_lo_eo_frag is not None
-            assert self.eq_fobj.TA_lo_eo_bath is not None
+            print("doing schmidt invariant rotation")
             TA_frag = self.TA_lo_eo[:, : self.n_f] @ procrustes_right(
                 self.TA_lo_eo[:, : self.n_f], self.eq_fobj.TA_lo_eo_frag
             )
@@ -233,7 +236,6 @@ class Frags:
         elif gradient_orb_space == "Bath-Invariant":
             print("doing bath invariant rotation")
             assert self.eq_fobj is not None
-            assert self.eq_fobj.TA_lo_eo_bath is not None
             TA_bath = self.TA_lo_eo[:, self.n_f :] @ procrustes_right(
                 self.TA_lo_eo[:, self.n_f :], self.eq_fobj.TA_lo_eo_bath
             )
@@ -463,6 +465,61 @@ class Frags:
             return (e_h1, e_coul, e1 + e2 + ec)
         else:
             return None
+
+
+class Ref_Frags(Frags):
+    TA_occ: Matrix[np.float64]
+    TA_virt: Matrix[np.float64]
+
+    # This is natural orbitals
+    eigvecs: Matrix[np.float64]
+
+    TA_lo_eo_frag: Matrix[np.float64]
+    TA_lo_eo_bath: Matrix[np.float64]
+
+    def __init__(
+        self,
+        AO_in_frag: Sequence[GlobalAOIdx],
+        ifrag: int,
+        AO_per_edge: SeqOverEdge[Sequence[GlobalAOIdx]],
+        ref_frag_idx_per_edge: SeqOverEdge[FragmentIdx],
+        relAO_per_edge: SeqOverEdge[Sequence[RelAOIdx]],
+        relAO_in_ref_per_edge: SeqOverEdge[Sequence[RelAOIdxInRef]],
+        weight_and_relAO_per_center: tuple[float, Sequence[RelAOIdx]],
+        relAO_per_origin: Sequence[RelAOIdx],
+        TA_occ: Matrix[np.float64],
+        TA_virt: Matrix[np.float64],
+        eigvecs: Matrix[np.float64],
+        TA_lo_eo_frag: Matrix[np.float64],
+        TA_lo_eo_bath: Matrix[np.float64],
+        eri_file: PathLike = "eri_file.h5",
+        unrestricted: bool = False,
+    ) -> None:
+        super().__init__(
+            AO_in_frag,
+            ifrag,
+            AO_per_edge,
+            ref_frag_idx_per_edge,
+            relAO_per_edge,
+            relAO_in_ref_per_edge,
+            weight_and_relAO_per_center,
+            relAO_per_origin,
+            eri_file=eri_file,
+            unrestricted=unrestricted,
+        )
+        self.TA_occ = TA_occ
+        self.TA_virt = TA_virt
+        self.eigvecs = eigvecs
+        self.TA_lo_eo_frag = TA_lo_eo_frag
+        self.TA_lo_eo_bath = TA_lo_eo_bath
+
+    @classmethod
+    def from_Frag(cls, fobj: Frags, mybe: BE) -> Self:
+        pass
+
+
+def get_ref_frags(mybe: BE) -> list[Ref_Frags]:
+    return [Ref_Frags.from_Frag(fobj, mybe) for fobj in mybe.Fobjs]
 
 
 def schmidt_decomposition(

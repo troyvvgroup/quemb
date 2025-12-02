@@ -47,7 +47,7 @@ from quemb.molbe.lo import (
 )
 from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
 from quemb.molbe.opt import BEOPT
-from quemb.molbe.pfrag import Frags, union_of_frag_MOs_and_index
+from quemb.molbe.pfrag import Frags, Ref_Frags, union_of_frag_MOs_and_index
 from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.external.lo_helper import (
     get_aoind_by_atom,
@@ -136,7 +136,7 @@ class BE:
         MO_coeff_epsilon: float = 1e-5,
         AO_coeff_epsilon: float = 1e-10,
         re_eval_HF: bool = False,
-        eq_fobjs: Sequence[Frags] | None = None,
+        eq_fobjs: Sequence[Ref_Frags] | None = None,
         gradient_orb_space: Literal[
             "RDM-invariant", "Schmidt-invariant", "Bath-Invariant", "Unmodified"
         ],
