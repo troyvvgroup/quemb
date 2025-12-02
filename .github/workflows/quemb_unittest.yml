@@ -55,7 +55,7 @@ jobs:
 
   compilations:
     runs-on: ubuntu-latest
-    needs: analysis
+    # needs: analysis
     strategy:
       matrix:
         compiler: ["gcc", "clang"]
