@@ -125,7 +125,9 @@ class Frags:
         self.eri_file = eri_file
 
         self.ifrag = ifrag
-        if unrestricted:
+
+        self.unrestricted = unrestricted
+        if self.unrestricted:
             self.dname: str | list[str] = [
                 "f" + str(ifrag) + "/aa",
                 "f" + str(ifrag) + "/bb",
@@ -515,21 +517,36 @@ class Ref_Frags(Frags):
 
     @classmethod
     def from_Frag(cls, fobj: Frags, mybe: BE) -> Self:
-        Dhf = (mybe.lmo_coeff[:, : mybe.Nocc] @ mybe.lmo_coeff[:, : mybe.Nocc].T) 
-        D_SO = (fobj.TAfull_lo_eo.T @ Dhf @ fobj.TAfull_lo_eo)  
+        Dhf = mybe.lmo_coeff[:, : mybe.Nocc] @ mybe.lmo_coeff[:, : mybe.Nocc].T
+        D_SO = fobj.TAfull_lo_eo.T @ Dhf @ fobj.TAfull_lo_eo
         eigvals, eigvecs = np.linalg.eigh(D_SO)  # diagonalize
         eigvals = eigvals[::-1]
         eigvecs = eigvecs[:, ::-1]
-        fobj.eigvecs = eigvecs
 
         occ_idx = np.arange(mybe.Nocc)
         virt_idx = np.arange(mybe.Nocc, eigvecs.shape[1])
-        fobj.TA_occ = fobj.TAfull_lo_eo @ eigvecs[:, occ_idx]
-        fobj.TA_virt = fobj.TAfull_lo_eo @ eigvecs[:, virt_idx]
+        TA_occ = fobj.TAfull_lo_eo @ eigvecs[:, occ_idx]
+        TA_virt = fobj.TAfull_lo_eo @ eigvecs[:, virt_idx]
 
-        fobj.TA_lo_eo_frag = fobj.TA_lo_eo[:, : fobj.n_f]
-        fobj.TA_lo_eo_bath = fobj.TA_lo_eo[:, fobj.n_f :]
-        return fobj
+        TA_lo_eo_frag = fobj.TA_lo_eo[:, : fobj.n_f]
+        TA_lo_eo_bath = fobj.TA_lo_eo[:, fobj.n_f :]
+        return cls(
+            fobj.AO_in_frag,
+            fobj.ifrag,
+            fobj.AO_per_edge,
+            fobj.ref_frag_idx_per_edge,
+            fobj.relAO_per_edge,
+            fobj.relAO_in_ref_per_edge,
+            fobj.weight_and_relAO_per_center,
+            fobj.relAO_per_origin,
+            TA_occ,
+            TA_virt,
+            eigvecs,
+            TA_lo_eo_frag,
+            TA_lo_eo_bath,
+            eri_file=fobj.eri_file,
+            unrestricted=fobj.unrestricted,
+        )
 
 
 def get_ref_frags(mybe: BE) -> list[Ref_Frags]:
