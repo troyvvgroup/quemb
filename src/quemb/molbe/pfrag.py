@@ -515,7 +515,21 @@ class Ref_Frags(Frags):
 
     @classmethod
     def from_Frag(cls, fobj: Frags, mybe: BE) -> Self:
-        pass
+        Dhf = (mybe.lmo_coeff[:, : mybe.Nocc] @ mybe.lmo_coeff[:, : mybe.Nocc].T) 
+        D_SO = (fobj.TAfull_lo_eo.T @ Dhf @ fobj.TAfull_lo_eo)  
+        eigvals, eigvecs = np.linalg.eigh(D_SO)  # diagonalize
+        eigvals = eigvals[::-1]
+        eigvecs = eigvecs[:, ::-1]
+        fobj.eigvecs = eigvecs
+
+        occ_idx = np.arange(mybe.Nocc)
+        virt_idx = np.arange(mybe.Nocc, eigvecs.shape[1])
+        fobj.TA_occ = fobj.TAfull_lo_eo @ eigvecs[:, occ_idx]
+        fobj.TA_virt = fobj.TAfull_lo_eo @ eigvecs[:, virt_idx]
+
+        fobj.TA_lo_eo_frag = fobj.TA_lo_eo[:, : fobj.n_f]
+        fobj.TA_lo_eo_bath = fobj.TA_lo_eo[:, fobj.n_f :]
+        return fobj
 
 
 def get_ref_frags(mybe: BE) -> list[Ref_Frags]:
