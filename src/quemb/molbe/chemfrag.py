@@ -1642,7 +1642,6 @@ class Fragmented(Generic[_T_chemsystem]):
 
         Returns
         -------
-        frag_per_atom:
             A list of fragment indices of length ``self.mol.natm``, where the
             i-th entry gives the fragment index to which atom ``i`` belongs.
         """
