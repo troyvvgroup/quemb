@@ -212,6 +212,7 @@ class Frags:
             )
         elif gradient_orb_space == "RDM-invariant":
             assert self.eq_fobj is not None
+            print(f"self.eq_fobj.focc is {self.eq_fobj.focc}")
             TA_occ = lmo[:, :nocc] @ procrustes_right(
                 lmo[:, :nocc], self.eq_fobj.TA_occ
             )
@@ -225,6 +226,7 @@ class Frags:
             # self.TAenv_lo_eo = TAfull[:, self.eq_fobj.n_f + self.eq_fobj.n_b:]
             self.n_f = self.eq_fobj.n_f
             self.Dhf = lmo[:, :nocc] @ lmo[:, :nocc].T
+            
         elif gradient_orb_space == "Schmidt-invariant":
             assert self.eq_fobj is not None
             print("doing schmidt invariant rotation")
@@ -294,6 +296,8 @@ class Frags:
         numpy.ndarray
             Projected density matrix.
         """
+        
+        # first get the number of occupied orbitals in the schmidt space
         C_ = multi_dot((self.TA.T, S, C[:, ncore : ncore + nocc]))
         P_ = C_ @ C_.T
         nsocc_ = trace(P_)
@@ -305,6 +309,13 @@ class Frags:
 
         self._mo_coeffs = mo_coeffs
         self.nsocc = nsocc
+        
+        # then get the number of occupied orbitals in just the fragment
+        C_ = multi_dot((self.TA[:, :self.n_f].T, S, C[:, ncore : ncore + nocc]))
+        P_ = C_ @ C_.T
+        focc_ = trace(P_)
+        focc = int(round(focc_))
+        self.focc = focc
         return P_
 
     def scf(
@@ -496,6 +507,7 @@ class Ref_Frags(Frags):
         TA_lo_eo_bath: Matrix[np.float64],
         n_f: int,
         n_b: int,
+        focc: int,
         eri_file: PathLike = "eri_file.h5",
         unrestricted: bool = False,
     ) -> None:
@@ -518,6 +530,7 @@ class Ref_Frags(Frags):
         self.TA_lo_eo_bath = TA_lo_eo_bath
         self.n_f = n_f
         self.n_b = n_b
+        self.focc = focc
 
     @classmethod
     def from_Frag(cls, fobj: Frags, mybe: BE) -> Self:
@@ -552,6 +565,7 @@ class Ref_Frags(Frags):
             unrestricted=fobj.unrestricted,
             n_f=fobj.n_f,
             n_b=fobj.n_b,
+            focc=fobj.focc,
         )
 
 
