@@ -58,6 +58,8 @@ class Frags:
         eri_file: PathLike,
         unitcell_nkpt: int,
         unitcell: int,
+        n_f: int,
+        n_b: int,
     ) -> None:
         r"""Constructor function for :python:`Frags` class.
 
@@ -103,6 +105,8 @@ class Frags:
         self.relAO_per_origin = relAO_per_origin
         self.weight_and_relAO_per_center = weight_and_relAO_per_center
         self.ifrag = ifrag
+        self.n_f = n_f
+        self.n_b = n_b
 
         self.TA: Matrix[float64]
         self.TA_lo_eo: Matrix[float64]
@@ -265,10 +269,10 @@ class Frags:
             raise ValueError(f"Imaginary Veff {abs(veff_.imag).max()}")
 
         self.fock = self.h1 + veff_.real
-
+    
     def get_nsocc(self, S, C, nocc, ncore=0):
         """
-        Get the number of occupied orbitals for the fragment.
+        Get the number of occupied orbitals for the fragment and bath space.
 
         Parameters
         ----------

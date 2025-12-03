@@ -494,6 +494,8 @@ class Ref_Frags(Frags):
         eigvecs: Matrix[np.float64],
         TA_lo_eo_frag: Matrix[np.float64],
         TA_lo_eo_bath: Matrix[np.float64],
+        n_f: int,
+        n_b: int,
         eri_file: PathLike = "eri_file.h5",
         unrestricted: bool = False,
     ) -> None:
@@ -514,6 +516,8 @@ class Ref_Frags(Frags):
         self.eigvecs = eigvecs
         self.TA_lo_eo_frag = TA_lo_eo_frag
         self.TA_lo_eo_bath = TA_lo_eo_bath
+        self.n_f = n_f
+        self.n_b = n_b
 
     @classmethod
     def from_Frag(cls, fobj: Frags, mybe: BE) -> Self:
@@ -546,6 +550,8 @@ class Ref_Frags(Frags):
             TA_lo_eo_bath,
             eri_file=fobj.eri_file,
             unrestricted=fobj.unrestricted,
+            n_f=fobj.n_f,
+            n_b=fobj.n_b,
         )
 
 
@@ -610,7 +616,7 @@ def schmidt_decomposition(
     Env_sites1 = array([i for i in range(Tot_sites) if i not in AO_in_frag])
     Env_sites = array([[i] for i in range(Tot_sites) if i not in AO_in_frag])
     Frag_sites1 = array([[i] for i in AO_in_frag])
-
+     
     # Compute the environment part of the density matrix
     Denv = Dhf[Env_sites, Env_sites.T]
 
