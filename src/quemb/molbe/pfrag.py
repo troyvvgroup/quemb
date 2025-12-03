@@ -213,20 +213,46 @@ class Frags:
         elif gradient_orb_space == "RDM-invariant":
             assert self.eq_fobj is not None
             print(f"self.eq_fobj.focc is {self.eq_fobj.focc}")
-            TA_occ = lmo[:, :nocc] @ procrustes_right(
-                lmo[:, :nocc], self.eq_fobj.TA_occ
+            print(f"self.eq_fobj.nsocc is {self.eq_fobj.nsocc}")
+            TA_occ_procrustes = procrustes_right(lmo[:, :nocc], self.eq_fobj.TA_occ)[:, : (self.eq_fobj.nsocc)]
+            print(f"the shape of TA_occ_procrustes is {TA_occ_procrustes.shape}")
+            TA_occ = (
+                lmo[:, :nocc]
+                @ procrustes_right(lmo[:, :nocc], self.eq_fobj.TA_occ)[
+                    :, : (self.eq_fobj.nsocc)
+                ]
             )
-            TA_virt = lmo[:, nocc:] @ procrustes_right(
-                lmo[:, nocc:], self.eq_fobj.TA_virt
+            TA_virt_procrustes = procrustes_right(lmo[:, nocc:], self.eq_fobj.TA_virt)[:, : ( self.eq_fobj.n_f + self.eq_fobj.n_b-self.eq_fobj.nsocc)]
+            print(f"the shape of TA_virt_procrustes is {TA_virt_procrustes.shape}")
+            TA_virt = (
+                lmo[:, nocc:]
+                @ procrustes_right(lmo[:, nocc:], self.eq_fobj.TA_virt)[
+                    :, : (self.eq_fobj.n_f + self.eq_fobj.n_b-self.eq_fobj.nsocc)
+                ]
             )
-            TA = np.hstack([TA_occ, TA_virt])
+            fvirt = self.eq_fobj.nsocc - self.eq_fobj.focc
+            TA = np.hstack(
+                [
+                    TA_occ[:, : self.eq_fobj.focc], # occupied fragment
+                    TA_virt[:, :fvirt], # virtual fragment
+                    TA_occ[:, self.eq_fobj.focc :], # occupied bath
+                    TA_virt[:, fvirt:], # virtual bath
+                ]
+            )
             assert self.eq_fobj.eigvecs is not None
-            TAfull = TA @ self.eq_fobj.eigvecs.T
-            self.TA_lo_eo = TAfull[:, : self.eq_fobj.n_f + self.eq_fobj.n_b]
-            # self.TAenv_lo_eo = TAfull[:, self.eq_fobj.n_f + self.eq_fobj.n_b:]
+            print(f"the shape of TA_occ is {TA_occ.shape}")
+            print(f"the shape of TA_virt is {TA_virt.shape}")
+            print(f"the dimension of TA should be {self.eq_fobj.n_f + self.eq_fobj.n_b}")
+            print(f"the shape of TA is {TA.shape}")
+            print(f"the shape of eigvecs is {self.eq_fobj.eigvecs.shape}")
+            print(f"the shape of eigvecs slice is {self.eq_fobj.eigvecs[:, :(self.eq_fobj.n_f + self.eq_fobj.n_b)].T.shape} ")
+            self.TA_lo_eo = (
+                TA @ self.eq_fobj.eigvecs[:, :(self.eq_fobj.n_f + self.eq_fobj.n_b)].T
+            )
+            # self.TA_lo_eo = TAfull[:, : self.eq_fobj.n_f + self.eq_fobj.n_b]
             self.n_f = self.eq_fobj.n_f
             self.Dhf = lmo[:, :nocc] @ lmo[:, :nocc].T
-            
+
         elif gradient_orb_space == "Schmidt-invariant":
             assert self.eq_fobj is not None
             print("doing schmidt invariant rotation")
@@ -296,7 +322,7 @@ class Frags:
         numpy.ndarray
             Projected density matrix.
         """
-        
+
         # first get the number of occupied orbitals in the schmidt space
         C_ = multi_dot((self.TA.T, S, C[:, ncore : ncore + nocc]))
         P_ = C_ @ C_.T
@@ -309,9 +335,9 @@ class Frags:
 
         self._mo_coeffs = mo_coeffs
         self.nsocc = nsocc
-        
+
         # then get the number of occupied orbitals in just the fragment
-        C_ = multi_dot((self.TA[:, :self.n_f].T, S, C[:, ncore : ncore + nocc]))
+        C_ = multi_dot((self.TA[:, : self.n_f].T, S, C[:, ncore : ncore + nocc]))
         P_ = C_ @ C_.T
         focc_ = trace(P_)
         focc = int(round(focc_))
@@ -507,6 +533,7 @@ class Ref_Frags(Frags):
         TA_lo_eo_bath: Matrix[np.float64],
         n_f: int,
         n_b: int,
+        nsocc: int,
         focc: int,
         eri_file: PathLike = "eri_file.h5",
         unrestricted: bool = False,
@@ -531,6 +558,7 @@ class Ref_Frags(Frags):
         self.n_f = n_f
         self.n_b = n_b
         self.focc = focc
+        self.nsocc = nsocc
 
     @classmethod
     def from_Frag(cls, fobj: Frags, mybe: BE) -> Self:
@@ -565,6 +593,7 @@ class Ref_Frags(Frags):
             unrestricted=fobj.unrestricted,
             n_f=fobj.n_f,
             n_b=fobj.n_b,
+            nsocc=fobj.nsocc,
             focc=fobj.focc,
         )
 
@@ -630,7 +659,7 @@ def schmidt_decomposition(
     Env_sites1 = array([i for i in range(Tot_sites) if i not in AO_in_frag])
     Env_sites = array([[i] for i in range(Tot_sites) if i not in AO_in_frag])
     Frag_sites1 = array([[i] for i in AO_in_frag])
-     
+
     # Compute the environment part of the density matrix
     Denv = Dhf[Env_sites, Env_sites.T]
 
