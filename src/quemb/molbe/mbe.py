@@ -865,7 +865,6 @@ class BE:
                     J0 = self.get_be_error_jacobian_numerical(
                         only_chem, solver, relax_density, solver_args, use_cumulant
                     )
-                    print("Numerical Jacobian:\n", J0)
                 else:
                     raise NotImplementedError(
                         "Numerical Jacobian is only implemented for only_chem=True"
@@ -904,7 +903,7 @@ class BE:
             raise ValueError("This optimization method for BE is not supported")
 
     @copy_docstring(_ext_get_be_error_jacobian)
-    def get_be_error_jacobian(self, jac_solver: str = "HF") -> Matrix[floating]:
+    def get_be_error_jacobian(self, jac_solver: str = "HF") -> Matrix[float64]:
         return _ext_get_be_error_jacobian(self.fobj.n_frag, self.Fobjs, jac_solver)
 
     def get_be_error_jacobian_numerical(
@@ -914,17 +913,12 @@ class BE:
         relax_density: bool,
         solver_args: UserSolverArgs | None,
         use_cumulant: bool,
-    ) -> Matrix[floating]:
+    ) -> Matrix[float64]:
         """
         Obtain the Jacobian matrix for BE Optimization using numerical differentiation.
         (First-order Central Finite Differences)
         Note that this function is only implemented for the case
         where :python:`only_chem=True`.
-
-        Parameters
-        ----------
-        only_chem : bool
-            If True, compute the Jacobian for the chemical potential only.
         """
         step_size = 1e-6  # from frankenstein
 
@@ -942,9 +936,9 @@ class BE:
                     solver_args=solver_args,
                     use_cumulant=use_cumulant,
                     eeval=False,
-                    return_vec=False,
+                    return_vec=True,
                 )[1]
-            else:  # paralel
+            else:  # parallel
                 return be_func_parallel(
                     x,
                     self.Fobjs,
