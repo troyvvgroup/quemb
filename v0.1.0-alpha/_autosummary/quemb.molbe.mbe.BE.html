@@ -329,6 +329,7 @@
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.mbe.BE.__init__.html">quemb.molbe.mbe.BE.__init__</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.mbe.BE.compute_energy_full.html">quemb.molbe.mbe.BE.compute_energy_full</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.mbe.BE.get_be_error_jacobian.html">quemb.molbe.mbe.BE.get_be_error_jacobian</a></li>
+<li class="toctree-l5"><a class="reference internal" href="quemb.molbe.mbe.BE.get_be_error_jacobian_numerical.html">quemb.molbe.mbe.BE.get_be_error_jacobian_numerical</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.mbe.BE.initialize.html">quemb.molbe.mbe.BE.initialize</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.mbe.BE.localize.html">quemb.molbe.mbe.BE.localize</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.mbe.BE.oneshot.html">quemb.molbe.mbe.BE.oneshot</a></li>
@@ -432,6 +433,7 @@
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.ube.UBE.__init__.html">quemb.molbe.ube.UBE.__init__</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.ube.UBE.compute_energy_full.html">quemb.molbe.ube.UBE.compute_energy_full</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.ube.UBE.get_be_error_jacobian.html">quemb.molbe.ube.UBE.get_be_error_jacobian</a></li>
+<li class="toctree-l5"><a class="reference internal" href="quemb.molbe.ube.UBE.get_be_error_jacobian_numerical.html">quemb.molbe.ube.UBE.get_be_error_jacobian_numerical</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.ube.UBE.initialize.html">quemb.molbe.ube.UBE.initialize</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.ube.UBE.localize.html">quemb.molbe.ube.UBE.localize</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.ube.UBE.oneshot.html">quemb.molbe.ube.UBE.oneshot</a></li>
@@ -890,34 +892,37 @@ evaluating energies.</p>
 <tr class="row-odd"><td><p><a class="reference internal" href="quemb.molbe.mbe.BE.get_be_error_jacobian.html#quemb.molbe.mbe.BE.get_be_error_jacobian" title="quemb.molbe.mbe.BE.get_be_error_jacobian"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_be_error_jacobian</span></code></a>([jac_solver])</p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="quemb.molbe.mbe.BE.initialize.html#quemb.molbe.mbe.BE.initialize" title="quemb.molbe.mbe.BE.initialize"><code class="xref py py-obj docutils literal notranslate"><span class="pre">initialize</span></code></a>(eri_, *, restart, int_transform)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="quemb.molbe.mbe.BE.get_be_error_jacobian_numerical.html#quemb.molbe.mbe.BE.get_be_error_jacobian_numerical" title="quemb.molbe.mbe.BE.get_be_error_jacobian_numerical"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_be_error_jacobian_numerical</span></code></a>(only_chem, ...)</p></td>
+<td><p>Obtain the Jacobian matrix for BE Optimization using numerical differentiation.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="quemb.molbe.mbe.BE.initialize.html#quemb.molbe.mbe.BE.initialize" title="quemb.molbe.mbe.BE.initialize"><code class="xref py py-obj docutils literal notranslate"><span class="pre">initialize</span></code></a>(eri_, *, restart, int_transform)</p></td>
 <td><p>Initialize the Bootstrap Embedding calculation.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="quemb.molbe.mbe.BE.localize.html#quemb.molbe.mbe.BE.localize" title="quemb.molbe.mbe.BE.localize"><code class="xref py py-obj docutils literal notranslate"><span class="pre">localize</span></code></a>(lo_method, fobj[, iao_loc_method, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="quemb.molbe.mbe.BE.localize.html#quemb.molbe.mbe.BE.localize" title="quemb.molbe.mbe.BE.localize"><code class="xref py py-obj docutils literal notranslate"><span class="pre">localize</span></code></a>(lo_method, fobj[, iao_loc_method, ...])</p></td>
 <td><p>Molecular orbital localization</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="quemb.molbe.mbe.BE.oneshot.html#quemb.molbe.mbe.BE.oneshot" title="quemb.molbe.mbe.BE.oneshot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">oneshot</span></code></a>([solver, use_cumulant, nproc, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="quemb.molbe.mbe.BE.oneshot.html#quemb.molbe.mbe.BE.oneshot" title="quemb.molbe.mbe.BE.oneshot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">oneshot</span></code></a>([solver, use_cumulant, nproc, ...])</p></td>
 <td><p>Perform a one-shot bootstrap embedding calculation.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="quemb.molbe.mbe.BE.optimize.html#quemb.molbe.mbe.BE.optimize" title="quemb.molbe.mbe.BE.optimize"><code class="xref py py-obj docutils literal notranslate"><span class="pre">optimize</span></code></a>([solver, method, only_chem, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="quemb.molbe.mbe.BE.optimize.html#quemb.molbe.mbe.BE.optimize" title="quemb.molbe.mbe.BE.optimize"><code class="xref py py-obj docutils literal notranslate"><span class="pre">optimize</span></code></a>([solver, method, only_chem, ...])</p></td>
 <td><p>BE optimization function</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="quemb.molbe.mbe.BE.print_ini.html#quemb.molbe.mbe.BE.print_ini" title="quemb.molbe.mbe.BE.print_ini"><code class="xref py py-obj docutils literal notranslate"><span class="pre">print_ini</span></code></a>()</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="quemb.molbe.mbe.BE.print_ini.html#quemb.molbe.mbe.BE.print_ini" title="quemb.molbe.mbe.BE.print_ini"><code class="xref py py-obj docutils literal notranslate"><span class="pre">print_ini</span></code></a>()</p></td>
 <td><p>Print initialization banner for the MOLBE calculation.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="quemb.molbe.mbe.BE.rdm1_fullbasis.html#quemb.molbe.mbe.BE.rdm1_fullbasis" title="quemb.molbe.mbe.BE.rdm1_fullbasis"><code class="xref py py-obj docutils literal notranslate"><span class="pre">rdm1_fullbasis</span></code></a>([return_ao, only_rdm1, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="quemb.molbe.mbe.BE.rdm1_fullbasis.html#quemb.molbe.mbe.BE.rdm1_fullbasis" title="quemb.molbe.mbe.BE.rdm1_fullbasis"><code class="xref py py-obj docutils literal notranslate"><span class="pre">rdm1_fullbasis</span></code></a>([return_ao, only_rdm1, ...])</p></td>
 <td><p>Compute the one- and two-particle reduced density matrices (RDM1 and RDM2).</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="quemb.molbe.mbe.BE.read_heff.html#quemb.molbe.mbe.BE.read_heff" title="quemb.molbe.mbe.BE.read_heff"><code class="xref py py-obj docutils literal notranslate"><span class="pre">read_heff</span></code></a>([heff_file])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="quemb.molbe.mbe.BE.read_heff.html#quemb.molbe.mbe.BE.read_heff" title="quemb.molbe.mbe.BE.read_heff"><code class="xref py py-obj docutils literal notranslate"><span class="pre">read_heff</span></code></a>([heff_file])</p></td>
 <td><p>Read the effective Hamiltonian from a file.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="quemb.molbe.mbe.BE.save.html#quemb.molbe.mbe.BE.save" title="quemb.molbe.mbe.BE.save"><code class="xref py py-obj docutils literal notranslate"><span class="pre">save</span></code></a>([save_file])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="quemb.molbe.mbe.BE.save.html#quemb.molbe.mbe.BE.save" title="quemb.molbe.mbe.BE.save"><code class="xref py py-obj docutils literal notranslate"><span class="pre">save</span></code></a>([save_file])</p></td>
 <td><p>Save intermediate results for restart.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="quemb.molbe.mbe.BE.update_fock.html#quemb.molbe.mbe.BE.update_fock" title="quemb.molbe.mbe.BE.update_fock"><code class="xref py py-obj docutils literal notranslate"><span class="pre">update_fock</span></code></a>([heff])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="quemb.molbe.mbe.BE.update_fock.html#quemb.molbe.mbe.BE.update_fock" title="quemb.molbe.mbe.BE.update_fock"><code class="xref py py-obj docutils literal notranslate"><span class="pre">update_fock</span></code></a>([heff])</p></td>
 <td><p>Update the Fock matrix for each fragment with the effective Hamiltonian.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="quemb.molbe.mbe.BE.write_heff.html#quemb.molbe.mbe.BE.write_heff" title="quemb.molbe.mbe.BE.write_heff"><code class="xref py py-obj docutils literal notranslate"><span class="pre">write_heff</span></code></a>([heff_file])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="quemb.molbe.mbe.BE.write_heff.html#quemb.molbe.mbe.BE.write_heff" title="quemb.molbe.mbe.BE.write_heff"><code class="xref py py-obj docutils literal notranslate"><span class="pre">write_heff</span></code></a>([heff_file])</p></td>
 <td><p>Write the effective Hamiltonian to a file.</p></td>
 </tr>
 </tbody>

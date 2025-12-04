@@ -541,6 +541,7 @@
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.mbe.BE.__init__.html">quemb.molbe.mbe.BE.__init__</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.mbe.BE.compute_energy_full.html">quemb.molbe.mbe.BE.compute_energy_full</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.mbe.BE.get_be_error_jacobian.html">quemb.molbe.mbe.BE.get_be_error_jacobian</a></li>
+<li class="toctree-l5"><a class="reference internal" href="quemb.molbe.mbe.BE.get_be_error_jacobian_numerical.html">quemb.molbe.mbe.BE.get_be_error_jacobian_numerical</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.mbe.BE.initialize.html">quemb.molbe.mbe.BE.initialize</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.mbe.BE.localize.html">quemb.molbe.mbe.BE.localize</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.mbe.BE.oneshot.html">quemb.molbe.mbe.BE.oneshot</a></li>
@@ -644,6 +645,7 @@
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.ube.UBE.__init__.html">quemb.molbe.ube.UBE.__init__</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.ube.UBE.compute_energy_full.html">quemb.molbe.ube.UBE.compute_energy_full</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.ube.UBE.get_be_error_jacobian.html">quemb.molbe.ube.UBE.get_be_error_jacobian</a></li>
+<li class="toctree-l5"><a class="reference internal" href="quemb.molbe.ube.UBE.get_be_error_jacobian_numerical.html">quemb.molbe.ube.UBE.get_be_error_jacobian_numerical</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.ube.UBE.initialize.html">quemb.molbe.ube.UBE.initialize</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.ube.UBE.localize.html">quemb.molbe.ube.UBE.localize</a></li>
 <li class="toctree-l5"><a class="reference internal" href="quemb.molbe.ube.UBE.oneshot.html">quemb.molbe.ube.UBE.oneshot</a></li>
@@ -854,7 +856,7 @@ for the distinction between the two</p></li>
 When nproc &gt; 1, Python multithreading is invoked.</p></li>
 <li><p><strong>ompnum</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a></span>) – If nproc &gt; 1, ompnum sets the number of cores for OpenMP parallelization.
 Defaults to 4</p></li>
-<li><p><strong>jac_solver</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Literal</span></code></a>[<code class="docutils literal notranslate"><span class="pre">'HF'</span></code>, <code class="docutils literal notranslate"><span class="pre">'MP2'</span></code>, <code class="docutils literal notranslate"><span class="pre">'CCSD'</span></code>]</span>) – Method to form Jacobian used in optimization routine, by default HF.
+<li><p><strong>jac_solver</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Literal</span></code></a>[<code class="docutils literal notranslate"><span class="pre">'HF'</span></code>, <code class="docutils literal notranslate"><span class="pre">'MP2'</span></code>, <code class="docutils literal notranslate"><span class="pre">'CCSD'</span></code>, <code class="docutils literal notranslate"><span class="pre">'Numerical'</span></code>]</span>) – Method to form Jacobian used in optimization routine, by default HF.
 Options include HF, MP2, CCSD</p></li>
 <li><p><strong>trust_region</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span>) – Use trust-region based QN optimization, by default False</p></li>
 </ul>

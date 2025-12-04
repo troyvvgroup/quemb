@@ -20,6 +20,7 @@ quemb.molbe.mbe.BE
       ~BE.__init__
       ~BE.compute_energy_full
       ~BE.get_be_error_jacobian
+      ~BE.get_be_error_jacobian_numerical
       ~BE.initialize
       ~BE.localize
       ~BE.oneshot
