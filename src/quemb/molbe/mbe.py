@@ -1042,7 +1042,6 @@ class BE:
 
         E_hf = 0.0
         for fobjs_ in self.Fobjs:
-            print(f"fobjs_.n_f is {fobjs_.n_f}")
             eri = array(file_eri.get(fobjs_.dname))
             _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
 

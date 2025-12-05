@@ -115,7 +115,6 @@ class Frags:
         self.mo_coeffs: Matrix[float64]
         self._mo_coeffs: Matrix[float64]
         self.nsocc: int
-        self.focc: int
         self._mf = None
         self._mc = None
 
