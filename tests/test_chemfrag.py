@@ -335,3 +335,101 @@ def test_swallow_replace():
         frag_type="chemgen",
         additional_args=ChemGenArgs(swallow_replace=True),
     ).all_centers_are_origins()
+
+
+def test_shared_hydrogens():
+    mol_mp = M(
+        atom="xyz/shared_h_metaphosphate.xyz",
+        basis="sto-3g",
+        charge=-1,
+    )
+
+    fos_mp = {
+        n: PurelyStructureFragmented.from_mole(
+            mol_mp, n_BE=n, h_treatment="at_most_one_H"
+        )
+        for n in [1, 2]
+    }
+
+    assert fos_mp == expected[get_calling_function_name()]["shared_h_metaphosphate"]
+
+    mol_c3h4 = M(
+        atom="xyz/c3h4.xyz",
+        basis="sto-3g",
+        charge=0,
+    )
+
+    fos_c3h4 = {
+        n: PurelyStructureFragmented.from_mole(
+            mol_c3h4, n_BE=n, h_treatment="at_most_one_H"
+        )
+        for n in [1, 2]
+    }
+
+    assert fos_c3h4 == expected[get_calling_function_name()]["c3h4"]
+
+
+def test_get_frag_per_atom():
+    mol = Cartesian.read_xyz("xyz/octane.xyz").to_pyscf()
+
+    fragmented = Fragmented.from_mole(mol, 2)
+    expected = [
+        0,
+        1,
+        1,
+        0,
+        1,
+        0,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        4,
+        5,
+        4,
+        5,
+        4,
+        5,
+        4,
+        5,
+        4,
+        5,
+        4,
+        5,
+        5,
+        4,
+    ]
+    assert expected == fragmented.get_frag_per_atom()
+
+    fragmented = Fragmented.from_mole(mol, 2, h_treatment="treat_H_like_heavy_atom")
+    expected = [
+        0,
+        1,
+        1,
+        0,
+        1,
+        0,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        4,
+        5,
+        4,
+        5,
+        4,
+        5,
+        6,
+        7,
+        6,
+        7,
+        6,
+        7,
+        7,
+        6,
+    ]
+    assert expected == fragmented.get_frag_per_atom()
