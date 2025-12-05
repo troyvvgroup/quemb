@@ -59,8 +59,6 @@ class Frags:
         eri_file: PathLike,
         unitcell_nkpt: int,
         unitcell: int,
-        n_f: int,
-        n_b: int,
     ) -> None:
         r"""Constructor function for :python:`Frags` class.
 
@@ -106,8 +104,6 @@ class Frags:
         self.relAO_per_origin = relAO_per_origin
         self.weight_and_relAO_per_center = weight_and_relAO_per_center
         self.ifrag = ifrag
-        self.n_f = n_f
-        self.n_b = n_b
 
         self.TA: Matrix[float64]
         self.TA_lo_eo: Matrix[float64]
@@ -273,23 +269,23 @@ class Frags:
 
     def get_nsocc(self, S, C, nocc, ncore=0):
         """
-        Get the number of occupied orbitals for the fragment and bath space.
+        .      Get the number of occupied orbitals for the fragment.
 
-        Parameters
-        ----------
-        S : numpy.ndarray
-            Overlap matrix.
-        C : numpy.ndarray
-            Molecular orbital coefficients.
-        nocc : int
-            Number of occupied orbitals.
-        ncore : int, optional
-            Number of core orbitals, by default 0.
+               Parameters
+               ----------
+               S : numpy.ndarray
+                   Overlap matrix.
+               C : numpy.ndarray
+                   Molecular orbital coefficients.
+               nocc : int
+                   Number of occupied orbitals.
+               ncore : int, optional
+                   Number of core orbitals, by default 0.
 
-        Returns
-        -------
-        numpy.ndarray
-            Projected density matrix.
+               Returns
+               -------
+               numpy.ndarray
+                   Projected density matrix.
         """
 
         nk, nao, neo = self.TA.shape
