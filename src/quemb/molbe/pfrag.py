@@ -527,10 +527,8 @@ class Ref_Frags(Frags):
         eigvals = eigvals[::-1]
         eigvecs = eigvecs[:, ::-1]
 
-        occ_idx = np.arange(mybe.Nocc)
-        virt_idx = np.arange(mybe.Nocc, eigvecs.shape[1])
-        TA_occ = fobj.TAfull_lo_eo @ eigvecs[:, occ_idx]
-        TA_virt = fobj.TAfull_lo_eo @ eigvecs[:, virt_idx]
+        TA_occ = fobj.TAfull_lo_eo @ eigvecs[:, : mybe.Nocc]
+        TA_virt = fobj.TAfull_lo_eo @ eigvecs[:, mybe.Nocc : eigvecs.shape[1]]
 
         TA_lo_eo_frag = fobj.TA_lo_eo[:, : fobj.n_f]
         TA_lo_eo_bath = fobj.TA_lo_eo[:, fobj.n_f :]
