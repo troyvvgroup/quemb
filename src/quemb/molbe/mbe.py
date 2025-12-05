@@ -1042,6 +1042,7 @@ class BE:
 
         E_hf = 0.0
         for fobjs_ in self.Fobjs:
+            print(f"fobjs_.n_f is {fobjs_.n_f}")
             eri = array(file_eri.get(fobjs_.dname))
             _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
 
@@ -1126,11 +1127,11 @@ class BE:
 
             self.Fobjs.append(fobjs_)
 
-        #self.all_fragment_MO_TA, frag_TA_index_per_frag = union_of_frag_MOs_and_index(
-         #   self.Fobjs, self.mf.mol.intor("int1e_ovlp"), epsilon=1e-10
-        #)
-        #for fobj, frag_TA_offset in zip(self.Fobjs, frag_TA_index_per_frag):
-        #    fobj.frag_TA_offset = frag_TA_offset
+        self.all_fragment_MO_TA, frag_TA_index_per_frag = union_of_frag_MOs_and_index(
+            self.Fobjs, self.mf.mol.intor("int1e_ovlp"), epsilon=1e-10
+        )
+        for fobj, frag_TA_offset in zip(self.Fobjs, frag_TA_index_per_frag):
+            fobj.frag_TA_offset = frag_TA_offset
 
         if self.lo_bath_post_schmidt is not None:
             for frag in self.Fobjs:
