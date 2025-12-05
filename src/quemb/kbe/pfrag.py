@@ -269,23 +269,23 @@ class Frags:
 
     def get_nsocc(self, S, C, nocc, ncore=0):
         """
-        .      Get the number of occupied orbitals for the fragment.
+        Get the number of occupied orbitals for the fragment.
 
-               Parameters
-               ----------
-               S : numpy.ndarray
-                   Overlap matrix.
-               C : numpy.ndarray
-                   Molecular orbital coefficients.
-               nocc : int
-                   Number of occupied orbitals.
-               ncore : int, optional
-                   Number of core orbitals, by default 0.
+        Parameters
+        ----------
+        S : numpy.ndarray
+            Overlap matrix.
+        C : numpy.ndarray
+            Molecular orbital coefficients.
+        nocc : int
+            Number of occupied orbitals.
+        ncore : int, optional
+            Number of core orbitals, by default 0.
 
-               Returns
-               -------
-               numpy.ndarray
-                   Projected density matrix.
+        Returns
+        -------
+        numpy.ndarray
+            Projected density matrix.
         """
 
         nk, nao, neo = self.TA.shape
