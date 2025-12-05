@@ -27,7 +27,7 @@ from collections import defaultdict
 from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence, Set
 from itertools import chain
 from pathlib import Path
-from typing import Any, Final, Generic, TypeAlias, TypeVar, cast
+from typing import Any, Final, Generic, Literal, TypeAlias, TypeVar, cast
 
 import numpy as np
 from attrs import cmp_using, define, field, fields
@@ -38,7 +38,7 @@ from ordered_set import OrderedSet
 from pyscf.gto import M, Mole, is_au
 from pyscf.lib import param
 from pyscf.pbc.gto import Cell
-from typing_extensions import Self, override
+from typing_extensions import Self, assert_never, override
 
 from quemb.molbe.autofrag import FragPart
 from quemb.molbe.helper import are_equal, get_core
@@ -75,6 +75,12 @@ from quemb.shared.typing import (
 # However, this is (currently) not possible in Python, see this issue:
 # https://github.com/python/mypy/issues/3331
 # For now just stick to ``Sequence``.
+
+HTreatment: TypeAlias = Literal[
+    "treat_H_diff",  # Default, treat H and heavy atoms differently, with bond dict
+    "treat_H_like_heavy_atom",  # Treat all H as the same as a heavy atom
+    "at_most_one_H",  # Enforce each H belonging to at most 1 motif
+]
 
 
 def _iloc(view: Iterable[T], n: int) -> T:
@@ -163,18 +169,19 @@ class BondConnectivity:
     H_per_motif: Final[Mapping[MotifIdx, OrderedSet[AtomIdx]]]
     #: All atoms per motif. Lists the motif/heavy atom first.
     atoms_per_motif: Final[Mapping[MotifIdx, OrderedSet[AtomIdx]]]
-    #: Do we treat hydrogens differently?
-    treat_H_different: Final[bool] = True
+    #: How do we treat hydrogen atoms?
+    h_treatment: Final[HTreatment] = "treat_H_diff"
 
     @classmethod
     def from_cartesian(
         cls,
         m: Cartesian,
         *,
-        bonds_atoms: Mapping[int, set[int]] | None = None,
+        bonds_atoms: Mapping[int, Set[int]]
+        | Mapping[AtomIdx, OrderedSet[AtomIdx]]
+        | None = None,
         vdW_radius: InVdWRadius | None = None,
-        modify_atom_data: Mapping[int, float] | None = None,
-        treat_H_different: bool = True,
+        h_treatment: HTreatment = "treat_H_diff",
     ) -> Self:
         """Create a :class:`BondConnectivity` from a :class:`chemcoord.Cartesian`.
 
@@ -190,6 +197,8 @@ class BondConnectivity:
             Allows it to manually change the connectivity by modifying the output of
             :meth:`chemcoord.Cartesian.get_bonds`.
             The keyword is mutually exclusive with :python:`vdW_radius`.
+            This can also take in a modified processed_bonds_atoms object (dict) when
+            specifying certain h_treatment options
         vdW_radius :
             If :python:`bonds_atoms` is :class:`None`, then the connectivity graph is
             determined by the van der Waals radius of the atoms.
@@ -202,11 +211,17 @@ class BondConnectivity:
               to change the radius of individual elements, e.g. :python:`{"C": 1.5}`.
 
             The keyword is mutually exclusive with :python:`bonds_atoms`.
-        modify_atom_data :
-            To change the van der Waals radius of one or more specific atoms, pass a
-            dictionary that looks like :python:`{index1: 1.5}`.
-        treat_H_different :
-            If True, we treat hydrogen atoms differently from heavy atoms.
+        h_treatment :
+            How do we treat the hydrogen atoms? Options include:
+
+            * :python:`"treat_H_diff"`: Default, treating each H different from heavy
+              atoms. Using the given vdW_radius to determine which H belong to which
+              motif
+            * :python:`"treat_H_like_heavy_atom"`: Treating each H the same as the heavy
+              atoms when determining fragments
+            * :python:`"at_most_one_H"`: Enforcing that each H can belong to at most one
+              H, if a H is assigned to multiple motifs
+
         """
         if not (m.index.min() == 0 and m.index.max() == len(m) - 1):
             raise ValueError("We assume 0-indexed data for the rest of the code.")
@@ -227,17 +242,16 @@ class BondConnectivity:
             processed_bonds_atoms = {
                 k: OrderedSet(sorted(v))  # type: ignore[type-var]
                 for k, v in m.get_bonds(
-                    modify_atom_data=modify_atom_data,
                     modify_element_data=(lambda r: np.maximum(0.55, 1.2 * r))
                     if vdW_radius is None
-                    else vdW_radius,
+                    else vdW_radius
                 ).items()
             }
 
-        if treat_H_different:
-            motifs = OrderedSet(m.loc[m.atom != "H", :].index)
-        else:
+        if h_treatment == "treat_H_like_heavy_atom":
             motifs = OrderedSet(m.index)
+        else:
+            motifs = OrderedSet(m.loc[m.atom != "H", :].index)
 
         bonds_motif: Mapping[MotifIdx, OrderedSet[MotifIdx]] = {
             motif: motifs & processed_bonds_atoms[motif] for motif in motifs
@@ -260,39 +274,105 @@ class BondConnectivity:
                         return True
             return False
 
-        def identify_share_H() -> set[AtomIdx]:
-            """Identify all hydrogens that are shared between motifs."""
-            return {
-                h
-                for i_motif, i_H_atoms in H_per_motif.items()
-                for j_motif, j_H_atoms in H_per_motif.items()
-                if i_motif != j_motif and (i_H_atoms & j_H_atoms)
-                for h in i_H_atoms & j_H_atoms
-            }
-
         def all_H_belong_to_motif() -> bool:
             return H_atoms.issubset(union_of_seqs(*(H_per_motif.values())))
 
-        if treat_H_different and not (all_H_belong_to_motif() and not motifs_share_H()):
-            raise ValueError(
-                "Cannot treat hydrogens differently if not all hydrogens belong "
-                "to exactly one motif.\nH not contained in any motif: "
-                f"{H_atoms.difference(union_of_seqs(*(H_per_motif.values())))}"
-                "\nH shared between motifs: "
-                f"{identify_share_H()}"
-                "\nBonds between atoms: \n"
-                f"{processed_bonds_atoms}"
-            )
+        def enforce_one_H_per_motif() -> dict[AtomIdx, OrderedSet[AtomIdx]]:
+            shared_H = []
+            for i_motif, i_H_atoms in H_per_motif.items():
+                for j_motif, j_H_atoms in H_per_motif.items():
+                    if i_motif == j_motif:
+                        continue
+                    if i_H_atoms & j_H_atoms:
+                        for x in i_H_atoms & j_H_atoms:
+                            if x not in shared_H:
+                                shared_H.append(x)
 
-        return cls(
-            processed_bonds_atoms,
-            motifs,
-            bonds_motif,
-            H_atoms,
-            H_per_motif,
-            atoms_per_motif,
-            treat_H_different,
-        )
+            for h in shared_H:
+                h_dists = {}
+                for i in processed_bonds_atoms[h]:
+                    h_dists[i] = m.get_bond_lengths(np.asarray((h, i)))[0]
+                min_dist = min(h_dists.values())
+
+                remove_bonds = [atm for atm, d in h_dists.items() if d != min_dist]
+                min_bonds = [atm for atm, d in h_dists.items() if d == min_dist]
+
+                for b in remove_bonds:
+                    processed_bonds_atoms[h].remove(b)
+                    processed_bonds_atoms[b].remove(h)
+
+                if len(min_bonds) > 1:
+                    print(
+                        f"H{h} is equidistant from >=2 heavy atoms. Choosing "
+                        f"to be bound to the lowest index heavy atom {min_bonds[0]} "
+                        f"of equidistant atoms {min_bonds}"
+                    )
+                    for b in min_bonds[1:]:
+                        processed_bonds_atoms[h].remove(b)
+                        processed_bonds_atoms[b].remove(h)
+
+            return processed_bonds_atoms
+
+        if h_treatment == "treat_H_diff":
+            if not all_H_belong_to_motif():
+                raise ValueError(
+                    "Not all H belong to a motif. Modify the bond dictionary or"
+                    "change `h_treatment` assign all H atoms a motif"
+                )
+            if motifs_share_H():
+                raise ValueError(
+                    "Motifs share H. Modify the bond dictionary or change "
+                    "h_treatment so that no motifs share a H."
+                )
+
+            return cls(
+                processed_bonds_atoms,
+                motifs,
+                bonds_motif,
+                H_atoms,
+                H_per_motif,
+                atoms_per_motif,
+                h_treatment,
+            )
+        elif h_treatment == "treat_H_like_heavy_atom":
+            return cls(
+                processed_bonds_atoms,
+                motifs,
+                bonds_motif,
+                H_atoms,
+                H_per_motif,
+                atoms_per_motif,
+                h_treatment,
+            )
+        elif h_treatment == "at_most_one_H":
+            if not all_H_belong_to_motif():
+                raise ValueError(
+                    "Not all H belong to a motif. Modify the bond dictionary or"
+                    "change `h_treatment` assign all H atoms a motif"
+                )
+
+            if motifs_share_H():
+                mod_bonds_atoms = enforce_one_H_per_motif()
+                # Modify the bond dictionary, then call from_cartesian with the standard
+                # "treat_H_diff" option
+                return cls.from_cartesian(
+                    m,
+                    bonds_atoms=mod_bonds_atoms,
+                    h_treatment="treat_H_diff",
+                )
+            else:
+                return cls(
+                    processed_bonds_atoms,
+                    motifs,
+                    bonds_motif,
+                    H_atoms,
+                    H_per_motif,
+                    atoms_per_motif,
+                    h_treatment,
+                )
+        else:
+            raise NotImplementedError(f"h_treatment = {h_treatment} is not implemented")
+            assert_never(h_treatment)
 
     @classmethod
     def from_mole(
@@ -301,8 +381,7 @@ class BondConnectivity:
         *,
         bonds_atoms: Mapping[int, set[int]] | None = None,
         vdW_radius: InVdWRadius | None = None,
-        modify_atom_data: Mapping[int, float] | None = None,
-        treat_H_different: bool = True,
+        h_treatment: HTreatment = "treat_H_diff",
     ) -> Self:
         """Create a :class:`BondConnectivity` from a :class:`pyscf.gto.mole.Mole`.
 
@@ -310,7 +389,7 @@ class BondConnectivity:
         ----------
         mol :
             The :class:`pyscf.gto.mole.Mole` to extract the connectivity data from.
-        bonds_atoms : Mapping[int, OrderedSet[int]]
+        bonds_atoms :
             Can be used to specify the connectivity graph of the molecule.
             Has exactly the same format as the output of
             :meth:`chemcoord.Cartesian.get_bonds`,
@@ -330,18 +409,23 @@ class BondConnectivity:
               to change the radius of individual elements, e.g. :python:`{"C": 1.5}`.
 
             The keyword is mutually exclusive with :python:`bonds_atoms`.
-        modify_atom_data :
-            To change the van der Waals radius of one or more specific atoms, pass a
-            dictionary that looks like :python:`{index1: 1.5}`.
-        treat_H_different :
-            If True, we treat hydrogen atoms differently from heavy atoms.
+        h_treatment :
+            How do we treat the hydrogen atoms? Options include:
+
+            * :python:`"treat_H_diff"`: Default, treating each H different from heavy
+              atoms. Using the given vdW_radius to determine which H belong to which
+              motif
+            * :python:`"treat_H_like_heavy_atom"`: Treating each H the same as the heavy
+              atoms when determining fragments
+            * :python:`"at_most_one_H"`: Enforcing that each H can belong to at most one
+              H, if a H is assigned to multiple motifs
+
         """
         return cls.from_cartesian(
             Cartesian.from_pyscf(mol),
             bonds_atoms=bonds_atoms,
             vdW_radius=vdW_radius,
-            modify_atom_data=modify_atom_data,
-            treat_H_different=treat_H_different,
+            h_treatment=h_treatment,
         )
 
     @classmethod
@@ -351,8 +435,7 @@ class BondConnectivity:
         *,
         bonds_atoms: Mapping[int, set[int]] | None = None,
         vdW_radius: InVdWRadius | None = None,
-        modify_atom_data: Mapping[int, float] | None = None,
-        treat_H_different: bool = True,
+        h_treatment: HTreatment = "treat_H_diff",
     ) -> Self:
         """Create a :class:`BondConnectivity` from a :class:`pyscf.pbc.gto.cell.Cell`.
         This function considers the periodic boundary conditions by adding periodic
@@ -384,99 +467,75 @@ class BondConnectivity:
               to change the radius of individual elements, e.g. :python:`{"C": 1.5}`.
 
             The keyword is mutually exclusive with :python:`bonds_atoms`.
-        modify_atom_data :
-            To change the van der Waals radius of one or more specific atoms, pass a
-            dictionary that looks like :python:`{index1: 1.5}`.
-        treat_H_different :
-            If True, we treat hydrogen atoms differently from heavy atoms.
+        h_treatment :
+            How do we treat the hydrogen atoms? Options include:
+
+            * :python:`"treat_H_diff"`: Default, treating each H different from heavy
+              atoms. Using the given vdW_radius to determine which H belong to which
+              motif
+            * :python:`"treat_H_like_heavy_atom"`: Treating each H the same as the heavy
+              atoms when determining fragments
+            * :python:`"at_most_one_H"`: Enforcing that each H can belong to at most one
+              H, if a H is assigned to multiple motifs
+
         """
-        bonds_atoms = cls._get_periodic_bonds_atoms(
-            cell, bonds_atoms, vdW_radius, modify_atom_data, treat_H_different
-        )
+        # If bonds_atoms was given, use the information.
+        # Otherwise, use chemcoord to get the connectivity graph.
+        if h_treatment in ("at_most_one_H"):
+            raise NotImplementedError("H treament not implemented for periodic systems")
+        if bonds_atoms is None:
+            # Add periodic copies to a fake mol object
+            # Eight copies of the original cell to account for periodicity
+            lattice_vectors = (
+                np.array(cell.a) if is_au(cell.unit) else np.array(cell.a) / param.BOHR
+            )
+            offsets = np.array(
+                [
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                    ],
+                    lattice_vectors[0],
+                    lattice_vectors[1],
+                    lattice_vectors[2],
+                    lattice_vectors[0] + lattice_vectors[1],
+                    lattice_vectors[0] + lattice_vectors[2],
+                    lattice_vectors[1] + lattice_vectors[2],
+                    lattice_vectors[0] + lattice_vectors[1] + lattice_vectors[2],
+                ]
+            )
+            supercell_mol = M(
+                atom=[
+                    (element, (coords + offset).tolist())
+                    for offset in offsets
+                    for element, coords in zip(
+                        cell.elements, cell.atom_coords(unit="Bohr")
+                    )
+                ],
+                basis=cell.basis,
+                unit="bohr",
+            )
+            # Reuse molecular code with periodic copies
+            supercell_connectivity = cls.from_cartesian(
+                Cartesian.from_pyscf(supercell_mol),
+                bonds_atoms=bonds_atoms,
+                vdW_radius=vdW_radius,
+                h_treatment=h_treatment,
+            )
+            # We have to choose unique pairs from the whole
+            # supercell connectivity graph,
+            # because we cannot guarantee that we are in the middle of the supercell.
+            bonds_atoms = defaultdict(set)
+            for idx, connected in supercell_connectivity.bonds_atoms.items():
+                bonds_atoms[idx % cell.natm] |= {j % cell.natm for j in connected}
 
         return cls.from_cartesian(
             Cartesian.from_pyscf(cell.to_mol()),
             bonds_atoms=bonds_atoms,  # always set (from input or molecular code)
             vdW_radius=None,
-            treat_H_different=treat_H_different,
+            h_treatment=h_treatment,
         )
-
-    @classmethod
-    def _get_periodic_bonds_atoms(
-        cls,
-        cell: Cell,
-        bonds_atoms: Mapping[int, set[int]] | None = None,
-        vdW_radius: InVdWRadius | None = None,
-        modify_atom_data: Mapping[int, float] | None = None,
-        treat_H_different: bool = True,
-    ) -> Mapping[int, set[int]]:
-        # Add periodic copies to a fake mol object
-        # Eight copies of the original cell to account for periodicity
-        lattice_vectors = (
-            np.array(cell.a) if is_au(cell.unit) else np.array(cell.a) / param.BOHR
-        )
-        offsets = np.array(
-            [
-                [
-                    0.0,
-                    0.0,
-                    0.0,
-                ],
-                lattice_vectors[0],
-                lattice_vectors[1],
-                lattice_vectors[2],
-                lattice_vectors[0] + lattice_vectors[1],
-                lattice_vectors[0] + lattice_vectors[2],
-                lattice_vectors[1] + lattice_vectors[2],
-                lattice_vectors[0] + lattice_vectors[1] + lattice_vectors[2],
-            ]
-        )
-        supercell_mol = M(
-            atom=[
-                (element, (coords + offset).tolist())
-                for offset in offsets
-                for element, coords in zip(cell.elements, cell.atom_coords(unit="Bohr"))
-            ],
-            basis=cell.basis,
-            unit="bohr",
-        )
-        # Reuse molecular code with periodic copies
-        # These inputs should be duplicated with periodic copies.
-        modify_atom_data = (
-            {
-                idx + offset_idx * cell.natm: radius
-                for offset_idx, offset in enumerate(offsets)
-                for idx, radius in modify_atom_data.items()
-            }
-            if modify_atom_data is not None
-            else None
-        )
-        bonds_atoms = (
-            {
-                idx + offset_idx * cell.natm: set(
-                    j + offset_idx * cell.natm for j in connected
-                )
-                for offset_idx, offset in enumerate(offsets)
-                for idx, connected in bonds_atoms.items()
-            }
-            if bonds_atoms is not None
-            else None
-        )
-        supercell_connectivity = cls.from_cartesian(
-            Cartesian.from_pyscf(supercell_mol),
-            bonds_atoms=bonds_atoms,
-            vdW_radius=vdW_radius,
-            modify_atom_data=modify_atom_data,
-            treat_H_different=treat_H_different,
-        )
-        # We have to choose unique pairs from the whole
-        # supercell connectivity graph,
-        # because we cannot guarantee that we are in the middle of the supercell.
-        bonds_atoms = defaultdict(set)
-        for idx, connected in supercell_connectivity.bonds_atoms.items():
-            bonds_atoms[idx % cell.natm] |= {j % cell.natm for j in connected}
-
-        return bonds_atoms
 
     def get_BE_fragment(self, i_center: MotifIdx, n_BE: int) -> OrderedSet[MotifIdx]:
         """Return the BE fragment around atom :code:`i_center`.
@@ -760,10 +819,9 @@ class PurelyStructureFragmented(Generic[_T_chemsystem]):
         mol: _T_chemsystem,
         n_BE: int,
         *,
-        treat_H_different: bool = True,
+        h_treatment: HTreatment = "treat_H_diff",
         bonds_atoms: Mapping[int, set[int]] | None = None,
         vdW_radius: InVdWRadius | None = None,
-        modify_atom_data: Mapping[int, float] | None = None,
         autocratic_matching: bool = True,
         swallow_replace: bool = False,
     ) -> Self:
@@ -776,31 +834,17 @@ class PurelyStructureFragmented(Generic[_T_chemsystem]):
             The Molecule to extract the connectivity data from.
         n_BE :
             The coordination sphere to consider.
-        treat_H_different :
-            If True, we treat hydrogen atoms differently from heavy atoms.
-        bonds_atoms :
-            Can be used to specify the connectivity graph of the molecule.
-            Has exactly the same format as the output of
-            :meth:`chemcoord.Cartesian.get_bonds`,
-            which is called internally if this argument is not specified.
-            Allows it to manually change the connectivity by modifying the output of
-            :meth:`chemcoord.Cartesian.get_bonds`.
-            The keyword is mutually exclusive with :python:`vdW_radius`.
-        vdW_radius :
-            If :python:`bonds_atoms` is :class:`None`, then the connectivity graph is
-            determined by the van der Waals radius of the atoms.
-            It is possible to pass:
+        h_treatment :
+            How do we treat the hydrogen atoms? Options include:
 
-            * a single number which is used as radius for all atoms,
-            * a callable which is applied to all radii
-              and can be used to e.g. scale via :python:`lambda r: r * 1.1`,
-            * a dictionary which maps the element symbol to the van der Waals radius,
-              to change the radius of individual elements, e.g. :python:`{"C": 1.5}`.
+            * :python:`"treat_H_diff"`: Default, treating each H different from heavy
+              atoms. Using the given vdW_radius to determine which H belong to which
+              motif
+            * :python:`"treat_H_like_heavy_atom"`: Treating each H the same as the heavy
+              atoms when determining fragments
+            * :python:`"at_most_one_H"`: Enforcing that each H can belong to at most one
+              H, if a H is assigned to multiple motifs
 
-            The keyword is mutually exclusive with :python:`bonds_atoms`.
-        modify_atom_data :
-            To change the van der Waals radius of one or more specific atoms, pass a
-            dictionary that looks like :python:`{index1: 1.5}`.
         autocratic_matching :
             Assume autocratic matching for possibly shared centers.
             Will call :meth:`get_autocratically_matched` upon construction.
@@ -816,10 +860,9 @@ class PurelyStructureFragmented(Generic[_T_chemsystem]):
                 mol,
                 BondConnectivity.from_mole(
                     mol,
-                    treat_H_different=treat_H_different,
+                    h_treatment=h_treatment,
                     bonds_atoms=bonds_atoms,
                     vdW_radius=vdW_radius,
-                    modify_atom_data=modify_atom_data,
                 ),
                 n_BE,
                 swallow_replace=swallow_replace,
@@ -829,10 +872,9 @@ class PurelyStructureFragmented(Generic[_T_chemsystem]):
                 mol,
                 BondConnectivity.from_cell(
                     mol,
-                    treat_H_different=treat_H_different,
+                    h_treatment=h_treatment,
                     bonds_atoms=bonds_atoms,
                     vdW_radius=vdW_radius,
-                    modify_atom_data=modify_atom_data,
                 ),
                 n_BE,
                 swallow_replace=swallow_replace,
@@ -1288,10 +1330,9 @@ class Fragmented(Generic[_T_chemsystem]):
         n_BE: int,
         *,
         frozen_core: bool = False,
-        treat_H_different: bool = True,
+        h_treatment: HTreatment = "treat_H_diff",
         bonds_atoms: Mapping[int, set[int]] | None = None,
         vdW_radius: InVdWRadius | None = None,
-        modify_atom_data: Mapping[int, float] | None = None,
         iao_valence_basis: str | None = None,
         autocratic_matching: bool = True,
         swallow_replace: bool = False,
@@ -1306,8 +1347,17 @@ class Fragmented(Generic[_T_chemsystem]):
             to extract the connectivity data from.
         n_BE :
             The BE fragmentation level.
-        treat_H_different :
-            If True, we treat hydrogen atoms differently from heavy atoms.
+        h_treatment :
+            How do we treat the hydrogen atoms? Options include:
+
+            * :python:`"treat_H_diff"`: Default, treating each H different from heavy
+              atoms. Using the given vdW_radius to determine which H belong to which
+              motif
+            * :python:`"treat_H_like_heavy_atom"`: Treating each H the same as the heavy
+              atoms when determining fragments
+            * :python:`"at_most_one_H"`: Enforcing that each H can belong to at most one
+              H, if a H is assigned to multiple motifs
+
         bonds_atoms :
             Can be used to specify the connectivity graph of the molecule.
             Has exactly the same format as the output of
@@ -1328,9 +1378,6 @@ class Fragmented(Generic[_T_chemsystem]):
               to change the radius of individual elements, e.g. :python:`{"C": 1.5}`.
 
             The keyword is mutually exclusive with :python:`bonds_atoms`.
-        modify_atom_data :
-            To change the van der Waals radius of one or more specific atoms, pass a
-            dictionary that looks like :python:`{index1: 1.5}`.
         autocratic_matching :
             Assume autocratic matching for possibly shared centers.
             Will call :meth:`PurelyStructureFragmented.get_autocratically_matched`
@@ -1347,10 +1394,9 @@ class Fragmented(Generic[_T_chemsystem]):
             PurelyStructureFragmented.from_mole(
                 mol,
                 n_BE=n_BE,
-                treat_H_different=treat_H_different,
+                h_treatment=h_treatment,
                 bonds_atoms=bonds_atoms,
                 vdW_radius=vdW_radius,
-                modify_atom_data=modify_atom_data,
                 autocratic_matching=autocratic_matching,
                 swallow_replace=swallow_replace,
             ),
@@ -1736,10 +1782,9 @@ class ChemGenArgs:
     and documented there.
     """
 
-    treat_H_different: Final[bool] = True
+    h_treatment: Final[HTreatment] = "treat_H_diff"
     bonds_atoms: Mapping[int, set[int]] | None = None
     vdW_radius: InVdWRadius | None = None
-    modify_atom_data: Mapping[int, float] | None = None
 
     #: If a fragment would be swallowed, it is instead replaced by the largest
     #: fragment that contains the smaller fragment. The definition of the origin
@@ -1792,10 +1837,9 @@ def chemgen(
             mol,
             n_BE=n_BE,
             frozen_core=frozen_core,
-            treat_H_different=args.treat_H_different,
+            h_treatment=args.h_treatment,
             bonds_atoms=args.bonds_atoms,
             vdW_radius=args.vdW_radius,
-            modify_atom_data=args.modify_atom_data,
             iao_valence_basis=iao_valence_basis,
             swallow_replace=args.swallow_replace,
         )

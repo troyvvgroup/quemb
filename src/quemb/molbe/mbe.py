@@ -7,7 +7,6 @@ from typing import Final, Literal, TypeAlias
 from warnings import warn
 
 import h5py
-import numpy
 import numpy as np
 from attrs import define
 from numpy import (
@@ -32,8 +31,7 @@ from typing_extensions import assert_never
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.eri_onthefly import integral_direct_DF
 from quemb.molbe.eri_sparse_DF import (
-    transform_sparse_DF_integral_cpp,
-    transform_sparse_DF_integral_nb,
+    transform_sparse_DF_integral_cpu,
 )
 from quemb.molbe.fragment import FragPart
 from quemb.molbe.lo import (
@@ -64,12 +62,31 @@ IntTransforms: TypeAlias = Literal[
     "in-core",
     "out-core-DF",
     "int-direct-DF",
-    "sparse-DF-cpp",  # screen AOs and MOs via S_abs
-    "sparse-DF-nb",  # screen AOs and MOs via S_abs and use jitted numba
-    "sparse-DF-cpp-gpu",  # screen AOs and MOs via S_abs
-    "sparse-DF-nb-gpu",  # screen AOs and MOs via S_abs and use jitted numba
+    "sparse-DF",
+    "sparse-DF-gpu",
+    "on-fly-sparse-DF",
+    "on-fly-sparse-DF-gpu",
 ]
-"""Literal type describing allowed transformation strategies."""
+r"""Literal type describing allowed transformation strategies.
+
+- :python:`"in-core"`: Use a dense representation of integrals
+  in memory without density fitting (DF) and transform in-memory.
+
+- :python:`"out-core-DF"`: Use a dense, DF representation of integrals.
+  The DF integrals :math:`(\mu, \nu | P)` are stored on disc.
+
+- :python:`"int-direct-DF"`: Use a dense, DF representation of integrals.
+  The required DF integrals :math:`(\mu, \nu | P)` are computed and fitted
+  on-demand for each fragment.
+
+- :python:`"sparse-DF"`, :python:`"sparse-DF-gpu"`,
+  :python:`"on-fly-sparse-DF"`, and :python:`"on-fly-sparse-DF-gpu"`:
+  Use a sparse, DF representation of integrals.
+  The :python:`"-gpu"` versions use GPU and require CUDABlas.
+  The :python:`"on-fly-"` versions use less memory but perform more
+  on-the-fly computations.
+"""
+
 
 logger = logging.getLogger(__name__)
 
@@ -185,24 +202,12 @@ class BE:
             - :python:`"int-direct-DF"`: Use a dense, DF representation of integrals,
               the required DF integrals :math:`(\mu, \nu | P)` are computed and fitted
               on-demand for each fragment.
-            - :python:`"sparse-DF-cpp"`:
-              Use a sparse, DF representation of integrals,
-              and avoid recomputation of elements that are shared across fragments.
-              Uses a ``C++`` implementation for performance heavy code.
-            - :python:`"sparse-DF-nb"`:
-              Use a sparse, DF representation of integrals,
-              and avoid recomputation of elements that are shared across fragments.
-              Uses a numba implementation for performance heavy code.
-            - :python:`"sparse-DF-cpp-gpu"`:
-              Use a sparse, DF representation of integrals,
-              and avoid recomputation of elements that are shared across fragments.
-              Uses a ``C++`` + ``CUDDA`` implementation for performance heavy code,
-              only available when compiled with CUDABlas.
-            - :python:`"sparse-DF-nb-gpu"`:
-              Use a sparse, DF representation of integrals,
-              and avoid recomputation of elements that are shared across fragments.
-              Uses a numba implementation + ``cupy`` for performance heavy code.
-              Only available if ``cupy`` is installed.
+            - :python:`"sparse-DF"`, :python:`"sparse-DF-gpu"`,
+              :python:`"on-fly-sparse-DF"`, and :python:`"on-fly-sparse-DF-gpu"`.
+              Use a sparse, DF representation of integrals.
+              The :python:`"-gpu"` versions use GPU and require CUDABlas,
+              the :python:`"on-fly-"` versions use less memory, but do more
+              on the fly computations.
 
         auxbasis :
             Auxiliary basis for density fitting, by default None
@@ -460,11 +465,14 @@ class BE:
         nao = C_mo.shape[0]
 
         # Initialize density matrices for atomic orbitals (AO)
-        rdm1AO = zeros((nao, nao))
-        rdm2AO = zeros((nao, nao, nao, nao))
+        if not only_rdm2:
+            rdm1AO = zeros((nao, nao))
+        if not only_rdm1:
+            rdm2AO = zeros((nao, nao, nao, nao))
 
         for fobjs in self.Fobjs:
-            rdm2 = fobjs.rdm2__.copy()
+            if not only_rdm1:
+                rdm2 = fobjs.rdm2__.copy()
             if return_RDM2:
                 # Adjust the one-particle reduced density matrix (RDM1)
                 drdm1 = fobjs.rdm1__.copy()
@@ -473,9 +481,9 @@ class BE:
                 # Compute the two-particle reduced density matrix (RDM2) and subtract
                 #   non-connected component
                 dm_nc = einsum(
-                    "ij,kl->ijkl", drdm1, drdm1, dtype=numpy.float64, optimize=True
+                    "ij,kl->ijkl", drdm1, drdm1, dtype=float64, optimize=True
                 ) - 0.5 * einsum(
-                    "ij,kl->iklj", drdm1, drdm1, dtype=numpy.float64, optimize=True
+                    "ij,kl->iklj", drdm1, drdm1, dtype=float64, optimize=True
                 )
                 rdm2 -= dm_nc
 
@@ -527,14 +535,14 @@ class BE:
                         "ij,kl->ijkl",
                         rdm1AO,
                         rdm1AO,
-                        dtype=numpy.float64,
+                        dtype=float64,
                         optimize=True,
                     )
                     - einsum(
                         "ij,kl->iklj",
                         rdm1AO,
                         rdm1AO,
-                        dtype=numpy.float64,
+                        dtype=float64,
                         optimize=True,
                     )
                     * 0.5
@@ -768,7 +776,7 @@ class BE:
         use_cumulant: bool = True,
         conv_tol: float = 1.0e-6,
         relax_density: bool = False,
-        jac_solver: Literal["HF", "MP2", "CCSD"] = "HF",
+        jac_solver: Literal["HF", "MP2", "CCSD", "Numerical"] = "HF",
         nproc: int = 1,
         ompnum: int = 4,
         max_iter: int = 500,
@@ -858,12 +866,22 @@ class BE:
 
         if method == "QN":
             # Prepare the initial Jacobian matrix
-            if only_chem:
-                J0 = array([[0.0]])
-                J0 = self.get_be_error_jacobian(jac_solver=jac_solver)
-                J0 = J0[-1:, -1:]
+            if jac_solver == "Numerical":
+                if only_chem:
+                    J0 = self.get_be_error_jacobian_numerical(
+                        only_chem, solver, relax_density, solver_args, use_cumulant
+                    )
+                else:
+                    raise NotImplementedError(
+                        "Numerical Jacobian is only implemented for only_chem=True"
+                    )
             else:
-                J0 = self.get_be_error_jacobian(jac_solver=jac_solver)
+                if only_chem:
+                    J0 = array([[0.0]])
+                    J0 = self.get_be_error_jacobian(jac_solver=jac_solver)
+                    J0 = J0[-1:, -1:]
+                else:
+                    J0 = self.get_be_error_jacobian(jac_solver=jac_solver)
 
             # Perform the optimization
             be_.optimize(method, J0=J0, trust_region=trust_region)
@@ -891,8 +909,52 @@ class BE:
             raise ValueError("This optimization method for BE is not supported")
 
     @copy_docstring(_ext_get_be_error_jacobian)
-    def get_be_error_jacobian(self, jac_solver: str = "HF") -> Matrix[floating]:
+    def get_be_error_jacobian(self, jac_solver: str = "HF") -> Matrix[float64]:
         return _ext_get_be_error_jacobian(self.fobj.n_frag, self.Fobjs, jac_solver)
+
+    def get_be_error_jacobian_numerical(
+        self,
+        only_chem: bool,
+        solver: Solvers,
+        relax_density: bool,
+        solver_args: UserSolverArgs | None,
+        use_cumulant: bool,
+    ) -> Matrix[float64]:
+        """
+        Obtain the Jacobian matrix for BE Optimization using numerical differentiation.
+        (First-order Central Finite Differences)
+        Note that this function is only implemented for the case
+        where :python:`only_chem=True`.
+        """
+        step_size = 1e-6  # from frankenstein
+
+        def be_func_err(x: list[float] | None) -> float:
+            return be_func(
+                x,
+                self.Fobjs,
+                self.Nocc,
+                solver,
+                self.enuc,
+                only_chem=only_chem,
+                relax_density=relax_density,
+                scratch_dir=self.scratch_dir,
+                solver_args=solver_args,
+                use_cumulant=use_cumulant,
+                eeval=False,
+                return_vec=True,
+            )[1]
+
+        if only_chem:
+            return array(
+                [
+                    (be_func_err([step_size]) - be_func_err([-step_size]))
+                    / (2 * step_size)
+                ]
+            )
+        else:
+            raise NotImplementedError(
+                "Numerical Jacobian is only implemented for only_chem=True"
+            )
 
     def print_ini(self):
         """
@@ -934,10 +996,8 @@ class BE:
         3. Else, if ``integral_direct_DF`` is requested:
            - Use on-the-fly density-fitting integral evaluation.
         4. Else, for a sparse, DF representation of integrals:
-           - Use ``sparse-DF-cpp`` for ``C++`` implementation.
-           - Use ``sparse-DF-cpp-gpu`` for ``C++`` + ``CUDDA`` implementation.
-           - Use `sparse-DF-nb`` for numba implementation.
-           - Use ``sparse-DF-nb-gpu`` for numba + ``cupy`` implementation.
+           - Use ``sparse-DF`` for ``C++`` implementation.
+           - Use ``sparse-DF-gpu`` for ``C++`` + ``CUDDA`` implementation.
 
 
         Parameters
@@ -962,9 +1022,9 @@ class BE:
         elif int_transform == "int-direct-DF":
             ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
             integral_direct_DF(self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis)
-        elif int_transform == "sparse-DF-cpp":
+        elif int_transform == "sparse-DF":
             ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-            transform_sparse_DF_integral_cpp(
+            transform_sparse_DF_integral_cpu(
                 self.mf,
                 self.Fobjs,
                 auxbasis=self.auxbasis,
@@ -972,14 +1032,27 @@ class BE:
                 MO_coeff_epsilon=self.MO_coeff_epsilon,
                 AO_coeff_epsilon=self.AO_coeff_epsilon,
                 n_threads=self.n_threads_integral_transform,
+                precompute_P_mu_nu=True,
             )
-        elif int_transform == "sparse-DF-cpp-gpu":
+        elif int_transform == "on-fly-sparse-DF":
+            ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+            transform_sparse_DF_integral_cpu(
+                self.mf,
+                self.Fobjs,
+                auxbasis=self.auxbasis,
+                file_eri_handler=file_eri,
+                MO_coeff_epsilon=self.MO_coeff_epsilon,
+                AO_coeff_epsilon=self.AO_coeff_epsilon,
+                n_threads=self.n_threads_integral_transform,
+                precompute_P_mu_nu=False,
+            )
+        elif int_transform == "sparse-DF-gpu":
             from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
-                transform_sparse_DF_integral_cpp_gpu,
+                transform_sparse_DF_integral_gpu,
             )
 
             ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-            transform_sparse_DF_integral_cpp_gpu(
+            transform_sparse_DF_integral_gpu(
                 self.mf,
                 self.Fobjs,
                 auxbasis=self.auxbasis,
@@ -987,25 +1060,15 @@ class BE:
                 MO_coeff_epsilon=self.MO_coeff_epsilon,
                 AO_coeff_epsilon=self.AO_coeff_epsilon,
                 n_threads=self.n_threads_integral_transform,
+                precompute_P_mu_nu=True,
             )
-        elif int_transform == "sparse-DF-nb":
-            ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-            transform_sparse_DF_integral_nb(
-                self.mf,
-                self.Fobjs,
-                auxbasis=self.auxbasis,
-                file_eri_handler=file_eri,
-                MO_coeff_epsilon=self.MO_coeff_epsilon,
-                AO_coeff_epsilon=self.AO_coeff_epsilon,
-                n_threads=self.n_threads_integral_transform,
-            )
-        elif int_transform == "sparse-DF-nb-gpu":
+        elif int_transform == "on-fly-sparse-DF-gpu":
             from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
-                transform_sparse_DF_integral_nb_gpu,
+                transform_sparse_DF_integral_gpu,
             )
 
             ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-            transform_sparse_DF_integral_nb_gpu(
+            transform_sparse_DF_integral_gpu(
                 self.mf,
                 self.Fobjs,
                 auxbasis=self.auxbasis,
@@ -1013,6 +1076,7 @@ class BE:
                 MO_coeff_epsilon=self.MO_coeff_epsilon,
                 AO_coeff_epsilon=self.AO_coeff_epsilon,
                 n_threads=self.n_threads_integral_transform,
+                precompute_P_mu_nu=False,
             )
         else:
             assert_never(int_transform)
