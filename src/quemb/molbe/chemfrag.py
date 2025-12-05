@@ -1637,6 +1637,25 @@ class Fragmented(Generic[_T_chemsystem]):
             iao_valence_mol=self.iao_valence_mol,
         )
 
+    def get_frag_per_atom(self) -> list[FragmentIdx]:
+        """Return the fragment index where each atom is best described.
+
+        Returns
+        -------
+            A list of fragment indices of length ``self.mol.natm``, where the
+            i-th entry gives the fragment index to which atom ``i`` belongs.
+        """
+        frag_per_atom = {
+            atom: cast(FragmentIdx, i_frag)
+            for i_frag, centers in enumerate(self.frag_structure.centers_per_frag)
+            for center in centers
+            for atom in self.conn_data.atoms_per_motif[center]
+        }
+        return [
+            frag_per_atom[i_atom]
+            for i_atom in cast(Sequence[AtomIdx], range(self.mol.natm))
+        ]
+
 
 @define(kw_only=True, hash=False)
 class ChemFragPart(FragPart):
