@@ -269,7 +269,7 @@ class Frags:
             raise ValueError(f"Imaginary Veff {abs(veff_.imag).max()}")
 
         self.fock = self.h1 + veff_.real
-    
+
     def get_nsocc(self, S, C, nocc, ncore=0):
         """
         Get the number of occupied orbitals for the fragment and bath space.
