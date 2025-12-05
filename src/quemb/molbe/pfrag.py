@@ -616,7 +616,7 @@ def schmidt_decomposition(
     Env_sites1 = array([i for i in range(Tot_sites) if i not in AO_in_frag])
     Env_sites = array([[i] for i in range(Tot_sites) if i not in AO_in_frag])
     Frag_sites1 = array([[i] for i in AO_in_frag])
-     
+
     # Compute the environment part of the density matrix
     Denv = Dhf[Env_sites, Env_sites.T]
 
