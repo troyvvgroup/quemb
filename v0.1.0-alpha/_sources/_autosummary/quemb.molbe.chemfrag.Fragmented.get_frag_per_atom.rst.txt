@@ -1,0 +1,6 @@
+quemb.molbe.chemfrag.Fragmented.get\_frag\_per\_atom
+====================================================
+
+.. currentmodule:: quemb.molbe.chemfrag
+
+.. automethod:: Fragmented.get_frag_per_atom

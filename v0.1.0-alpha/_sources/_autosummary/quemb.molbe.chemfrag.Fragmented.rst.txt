@@ -39,6 +39,7 @@ quemb.molbe.chemfrag.Fragmented
       ~Fragmented.from_frag_structure
       ~Fragmented.from_mole
       ~Fragmented.get_FragPart
+      ~Fragmented.get_frag_per_atom
       ~Fragmented.reorder_frags
    
    
