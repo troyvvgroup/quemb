@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Literal, assert_never
+from typing import TYPE_CHECKING, Literal
 
 import h5py
 import numpy as np
@@ -21,7 +21,7 @@ from numpy import (
     zeros_like,
 )
 from numpy.linalg import eigh, multi_dot
-from typing_extensions import Self
+from typing_extensions import Self, assert_never
 
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
 from quemb.shared.helper import clean_overlap
