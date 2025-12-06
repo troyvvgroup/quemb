@@ -316,7 +316,7 @@ class BE:
             self.lmo_coeff = None
             self.cinv = None
 
-        # self.print_ini()
+        self.print_ini()
         self.Fobjs: list[Frags] = []
         self.pot = initialize_pot(self.fobj.n_frag, self.fobj.relAO_per_edge_per_frag)
 
@@ -324,6 +324,7 @@ class BE:
             self.scratch_dir = WorkDir.from_environment()
         else:
             self.scratch_dir = scratch_dir
+        print(f"Scratch dir is in: {self.scratch_dir.path}")
         self.eri_file = self.scratch_dir / eri_file
 
         self.frozen_core = fobj.frozen_core
@@ -1117,23 +1118,8 @@ class BE:
 
             fobjs_.cons_fock(self.hf_veff, self.S, self.hf_dm, eri_=eri)
 
-            # Denv = (
-            #     2
-            #     * fobjs_.TAenv_ao_eo
-            #     @ fobjs_.TAenv_lo_eo.T.conj()
-            #     @ fobjs_.Dhf
-            #     @ fobjs_.TAenv_lo_eo
-            #     @ fobjs_.TAenv_ao_eo.T.conj()
-            # )
-            # assert self.mf._eri is not None
-            # vj, vk = _vhf.incore(self.mf._eri, Denv)
-            # vhf = vj - vk * 0.5
-            # e1 = numpy.einsum("ij,ji->", self.hcore, Denv).real
-            # e_coul = numpy.einsum("ij,ji->", vhf, Denv).real * 0.5
-            # fobjs_.E_env = e_coul + e1
-
             fobjs_.heff = zeros_like(fobjs_.h1)
-            fobjs_.scf(fs=False, eri=eri)
+            fobjs_.scf(fs=True, eri=eri)
 
             assert fobjs_.h1 is not None and fobjs_.nsocc is not None
             fobjs_.dm0 = 2.0 * (
@@ -1145,7 +1131,7 @@ class BE:
             E_hf += fobjs_.ebe_hf
         self.ebe_hf = E_hf + self.enuc + self.E_core
         hf_err = self.hf_etot - self.ebe_hf
-        print(f"hf_err is {hf_err}")
+        print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
         if abs(hf_err) > 1.0e-5:
             warn("Large HF-in-HF energy error")
 
