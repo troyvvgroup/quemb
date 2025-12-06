@@ -220,7 +220,7 @@ class BE:
             :math:`\mu` are considered to be connected for sparsity screening.
             Smaller value means less screening.
         AO_coeff_epsilon:
-           The cutoff value of the absolute overlap
+            The cutoff value of the absolute overlap
             :math:`\int |\varphi_{\mu}| |\varphi_{\nu}|`
             when two AO coefficient :math:`\mu, \nu`
             are considered to be connected for sparsity screening.
