@@ -156,7 +156,7 @@ class BE:
         eq_fobjs: Sequence[Ref_Frags] | None = None,
         gradient_orb_space: Literal[
             "RDM-invariant", "Schmidt-invariant", "Bath-Invariant", "Unmodified"
-        ],
+        ] = "Unmodified",
     ) -> None:
         r"""
         Constructor for BE object.
@@ -1119,7 +1119,7 @@ class BE:
             fobjs_.cons_fock(self.hf_veff, self.S, self.hf_dm, eri_=eri)
 
             fobjs_.heff = zeros_like(fobjs_.h1)
-            fobjs_.scf(fs=True, eri=eri)
+            fobjs_.scf(fs=False, eri=eri)
 
             assert fobjs_.h1 is not None and fobjs_.nsocc is not None
             fobjs_.dm0 = 2.0 * (
