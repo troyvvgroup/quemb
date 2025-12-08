@@ -519,17 +519,21 @@ def be_func(
             )
             total_e = [sum(x) for x in zip(total_e, e_f)]
             fobj.update_ebe_hf()
-    if eeval:
-        Ecorr = sum(total_e)
-        if not return_vec:
-            return (Ecorr, total_e)
+
+    Ecorr = sum(total_e)
+
+    if eeval and not return_vec:
+        return (Ecorr, total_e)
 
     ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem, Delta_n_el=Delta_n_el)
 
-    if return_vec:
+    if eeval:
         return (ernorm, ervec, [Ecorr, total_e])
-
-    return ernorm
+    else:
+        if return_vec:
+            return (ernorm, ervec, None)
+        else:
+            return ernorm
 
 
 def be_func_u(

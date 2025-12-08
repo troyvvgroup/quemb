@@ -16,7 +16,8 @@
 using int_t = int64_t;
 using OrbitalIdx = Eigen::Index;
 using Matrix = Eigen::MatrixXd;
-using Tensor3D = Eigen::Tensor<double, 3, Eigen::ColMajor>;
+using Real = Matrix::Scalar;
+using Tensor3D = Eigen::Tensor<Real, 3, Eigen::ColMajor>;
 
 // Matches python logging levels
 // https://docs.python.org/3/library/logging.html#logging-levels
@@ -30,7 +31,7 @@ enum class LogLevel : int
     Critical = 50
 };
 
-inline LogLevel LOG_LEVEL = LogLevel::NotSet;
+inline LogLevel LOG_LEVEL = LogLevel::Error;
 
 // Expose int getter of LogLevel
 inline int get_log_level()
