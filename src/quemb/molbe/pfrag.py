@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Literal
-
+from typing_extensions import assert_never
 import h5py
 import numpy as np
 import scipy.linalg
@@ -21,7 +21,8 @@ from numpy import (
     zeros_like,
 )
 from numpy.linalg import eigh, multi_dot
-from typing_extensions import Self, assert_never
+from scipy.linalg import svd
+from typing_extensions import Self
 
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
 from quemb.shared.helper import clean_overlap
@@ -56,7 +57,7 @@ def procrustes_right(
         Optimal orthogonal matrix.
     """
     H = P.T @ Q
-    U, S, Vt = np.linalg.svd(H, full_matrices=False, lapack_driver="gesdd")
+    U, S, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
     return U @ Vt
 
 
