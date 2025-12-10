@@ -512,22 +512,22 @@ def be_func_parallel(
 
         rdms = [result.get() for result in results]
 
-    if not return_vec:
-        # Compute and return fragment energy
-        # rdms are the returned energies, not density matrices!
-        e_1 = 0.0
-        e_2 = 0.0
-        e_c = 0.0
-        for i in range(len(rdms)):
-            e_1 += rdms[i][0]
-            e_2 += rdms[i][1]
-            e_c += rdms[i][2]
-        return (e_1 + e_2 + e_c, (e_1, e_2, e_c))
-
     # Compute total energy
     e_1 = 0.0
     e_2 = 0.0
     e_c = 0.0
+
+    if not return_vec:
+        # Compute and return fragment energy
+        # rdms are the returned energies, not density matrices!
+        for i in range(len(rdms)):
+            e_1 += rdms[i][0]
+            e_2 += rdms[i][1]
+            e_c += rdms[i][2]
+        print(f"Correlation Energy at iteration: {e_1 + e_2 + e_c:>f} Ha")
+        print(f"E F delta P: {e_1 + e_c:>f} Ha")
+        print(f"E cumulant: {e_2:>f} Ha")
+        return (e_1 + e_2 + e_c, (e_1, e_2, e_c))
 
     # I have to type ignore here, because of stupid behaviour of
     # :code:`zip` and :code:`enumerate`
@@ -541,6 +541,10 @@ def be_func_parallel(
         fobj.rdm2__ = rdm[3]
 
     del rdms
+    print(f"Correlation Energy at iteration: {e_1 + e_2 + e_c:>f} Ha")
+    print(f"E F delta P: {e_1 + e_c:>f} Ha")
+    print(f"E cumulant: {e_2:>f} Ha")
+
     ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem)
 
     if return_vec:
