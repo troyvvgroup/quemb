@@ -529,7 +529,7 @@ class Ref_Frags(Frags):
         eigvecs = eigvecs[:, ::-1]
 
         TA_occ = fobj.TAfull_lo_eo @ eigvecs[:, : mybe.Nocc]
-        TA_virt = fobj.TAfull_lo_eo @ eigvecs[:, mybe.Nocc : eigvecs.shape[1]]
+        TA_virt = fobj.TAfull_lo_eo @ eigvecs[:, mybe.Nocc :]
 
         TA_lo_eo_frag = fobj.TA_lo_eo[:, : fobj.n_f]
         TA_lo_eo_bath = fobj.TA_lo_eo[:, fobj.n_f :]
