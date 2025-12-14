@@ -221,9 +221,10 @@ class Frags:
             )
             TA = np.hstack([TA_occ, TA_virt])
             assert self.eq_fobj.eigvecs is not None
-            TAfull = TA @ self.eq_fobj.eigvecs.T
+            TAfull = (
+                TA @ self.eq_fobj.eigvecs[: self.eq_fobj.n_f + self.eq_fobj.n_b, :].T
+            )
             self.TA_lo_eo = TAfull[:, : self.eq_fobj.n_f + self.eq_fobj.n_b]
-            # self.TAenv_lo_eo = TAfull[:, self.eq_fobj.n_f + self.eq_fobj.n_b:]
             self.n_f = self.eq_fobj.n_f
             self.Dhf = lmo[:, :nocc] @ lmo[:, :nocc].T
         elif gradient_orb_space == "Schmidt-invariant":
