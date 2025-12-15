@@ -528,6 +528,14 @@ class Ref_Frags(Frags):
         eigvals, eigvecs = np.linalg.eigh(D_SO)  # diagonalize
         eigvals = eigvals[::-1]
         eigvecs = eigvecs[:, ::-1]
+        
+        TAenv = fobj.TAfull_lo_eo[:, fobj.n_f + fobj.n_b:] 
+        overlaps = eigvecs.conj().T @ TAenv
+        results = np.sum(np.abs(overlaps)**2, axis=1)
+
+        print(f"results are {results} with length {len(results)}")
+        print(f"there should be {eigvecs.shape[1]} results")
+
 
         TA_occ = fobj.TAfull_lo_eo @ eigvecs[:, : mybe.Nocc]
         TA_virt = fobj.TAfull_lo_eo @ eigvecs[:, mybe.Nocc :]
