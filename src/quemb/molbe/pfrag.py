@@ -524,18 +524,27 @@ class Ref_Frags(Frags):
     @classmethod
     def from_Frag(cls, fobj: Frags, mybe: BE) -> Self:
         Dhf = mybe.lmo_coeff[:, : mybe.Nocc] @ mybe.lmo_coeff[:, : mybe.Nocc].T
+        eigvals_hf, eigvecs_hf = np.linalg.eigh(Dhf)
+        print(f"eigvals_hf are {eigvals_hf}")
         D_SO = fobj.TAfull_lo_eo.T @ Dhf @ fobj.TAfull_lo_eo
         eigvals, eigvecs = np.linalg.eigh(D_SO)  # diagonalize
+        print(f"eigvals are {eigvals}")
         eigvals = eigvals[::-1]
         eigvecs = eigvecs[:, ::-1]
-        
-        TAenv = fobj.TAfull_lo_eo[:, fobj.n_f + fobj.n_b:] 
-        overlaps = eigvecs.conj().T @ TAenv
-        results = np.sum(np.abs(overlaps)**2, axis=1)
+       
+        #TAfrag = fobj.TAfull_lo_eo[:, :fobj.n_f]
+        #TAbath = fobj.TAfull_lo_eo[:, fobj.n_f:fobj.n_f+fobj.n_b]
+        #TAenv = fobj.TAfull_lo_eo[:, fobj.n_f + fobj.n_b:] 
+        #overlaps_frag = eigvecs.conj().T @ TAfrag
+        #overlaps_bath = eigvecs.conj().T @ TAbath
+        #overlaps_env = eigvecs.conj().T @ TAenv
+        #results_frag = np.sum(np.abs(overlaps_frag)**2, axis=1)
+        #results_bath = np.sum(np.abs(overlaps_bath)**2, axis=1)
+        #results_env = np.sum(np.abs(overlaps_env)**2, axis=1)
 
-        print(f"results are {results} with length {len(results)}")
-        print(f"there should be {eigvecs.shape[1]} results")
-
+        #print(f"results_frag are {results_frag} with length {len(results_frag)}")
+        #print(f"results_bath are {results_bath} with length {len(results_bath)}")
+        #print(f"results_env are {results_env} with length {len(results_env)}")
 
         TA_occ = fobj.TAfull_lo_eo @ eigvecs[:, : mybe.Nocc]
         TA_virt = fobj.TAfull_lo_eo @ eigvecs[:, mybe.Nocc :]
