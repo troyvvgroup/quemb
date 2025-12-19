@@ -18,7 +18,6 @@ from numpy import (
     zeros_like,
 )
 from numpy.linalg import multi_dot
-from scipy.linalg import svd
 
 from quemb.kbe.helper import get_veff
 from quemb.kbe.misc import get_phase, get_phase1
@@ -32,7 +31,6 @@ from quemb.shared.typing import (
     PathLike,
     RelAOIdx,
     RelAOIdxInRef,
-    SeqOverEdge,
     Tensor3D,
 )
 
@@ -50,10 +48,10 @@ class Frags:
         *,
         AO_in_frag: Sequence[GlobalAOIdx],
         ifrag: int,
-        AO_per_edge: SeqOverEdge[Sequence[GlobalAOIdx]],
-        ref_frag_idx_per_edge: SeqOverEdge[FragmentIdx],
-        relAO_per_edge: SeqOverEdge[Sequence[RelAOIdx]],
-        relAO_in_ref_per_edge: SeqOverEdge[Sequence[RelAOIdxInRef]],
+        AO_per_edge: Sequence[Sequence[GlobalAOIdx]],
+        ref_frag_idx_per_edge: Sequence[FragmentIdx],
+        relAO_per_edge: Sequence[Sequence[RelAOIdx]],
+        relAO_in_ref_per_edge: Sequence[Sequence[RelAOIdxInRef]],
         weight_and_relAO_per_center: tuple[float, Sequence[RelAOIdx]],
         relAO_per_origin: Sequence[RelAOIdx],
         eri_file: PathLike,
@@ -133,7 +131,7 @@ class Frags:
         self.fock: Matrix[float64]
         self.veff = None
         self.veff0 = None
-        self.dm_init = None
+        self.dm_init: Matrix[float64]
         self.dm0: Matrix[float64]
         self.eri_file = eri_file
         self.pot = None
@@ -267,7 +265,7 @@ class Frags:
 
         self.fock = self.h1 + veff_.real
 
-    def get_nsocc(self, S, C, nocc, ncore=0):
+    def get_nsocc(self, S, C, nocc, ncore=0) -> tuple[Matrix[np.float64], int]:
         """
         Get the number of occupied orbitals for the fragment.
 
@@ -300,17 +298,12 @@ class Frags:
             P_ += multi_dot((Cinv, dm_[k], Cinv.conj().T))
 
         P_ /= float(nk)
-        if np.abs(P_.imag).max() < 1.0e-6:
-            P_ = P_.real
-        else:
+
+        if np.abs(P_.imag).max() >= 1.0e-6:
             raise ValueError(f"Imaginary density in get_nsocc {abs(P_.imag).max()}")
 
-        nsocc_ = trace(P_)
-        nsocc = int(round(nsocc_.real) / 2)
-
-        self._mo_coeffs = svd(P_)[0]
-        self.nsocc = nsocc
-        return P_
+        nsocc = int(round(trace(P_).real) / 2)
+        return P_.real, nsocc
 
     def scf(
         self,
