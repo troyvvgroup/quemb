@@ -211,22 +211,22 @@ class Frags:
                 self.AO_in_frag,
                 thr_bath=thr_bath,
             )
+            self.TA = lao @ self.TA_lo_eo
+            print(f"the shape of TA from Unmodified is {self.TA.shape}")
         elif gradient_orb_space == "RDM-invariant":
             assert self.eq_fobj is not None
-            TA_occ = lmo[:, :nocc] @ procrustes_right(
-                lmo[:, :nocc], self.eq_fobj.TA_occ
-            )
-            TA_virt = lmo[:, nocc:] @ procrustes_right(
-                lmo[:, nocc:], self.eq_fobj.TA_virt
-            )
-            TA = np.hstack([TA_occ, TA_virt])
             assert self.eq_fobj.eigvecs is not None
-            TAfull = (
-                TA @ self.eq_fobj.eigvecs[: self.eq_fobj.n_f + self.eq_fobj.n_b, :].T
-            )
-            self.TA_lo_eo = TAfull[:, : self.eq_fobj.n_f + self.eq_fobj.n_b]
+
+            lmo_occ = lmo[:, :nocc]
+            lmo_virt = lmo[:, nocc:]
+            TA_occ = lmo_occ @ procrustes_right(lmo_occ, self.eq_fobj.TA_occ)
+            TA_virt = lmo_virt @ procrustes_right(lmo_virt, self.eq_fobj.TA_virt)
+
+            TA_lo_eo = np.concatenate((TA_occ, TA_virt), axis=1) @ self.eq_fobj.eigvecs.T
+            self.TA = lao @ TA_lo_eo
+            #self.TA = lao @ TAfull_lo_eo[:, : self.eq_fobj.n_f + self.eq_fobj.n_b]
+            
             self.n_f = self.eq_fobj.n_f
-            self.Dhf = lmo[:, :nocc] @ lmo[:, :nocc].T
         elif gradient_orb_space == "Schmidt-invariant":
             assert self.eq_fobj is not None
             print("doing schmidt invariant rotation")
@@ -237,6 +237,7 @@ class Frags:
                 self.TA_lo_eo[:, self.n_f :], self.eq_fobj.TA_lo_eo_bath
             )
             self.TA_lo_eo = np.hstack([TA_frag, TA_bath])
+            self.TA = lao @ self.TA_lo_eo
         elif gradient_orb_space == "Bath-Invariant":
             print("doing bath invariant rotation")
             assert self.eq_fobj is not None
@@ -244,10 +245,10 @@ class Frags:
                 self.TA_lo_eo[:, self.n_f :], self.eq_fobj.TA_lo_eo_bath
             )
             self.TA_lo_eo = np.hstack([self.TA_lo_eo[:, : self.n_f], TA_bath])
+            self.TA = lao @ self.TA_lo_eo
         else:
             assert_never(gradient_orb_space)
 
-        self.TA = lao @ self.TA_lo_eo  # (ao by lo) x (lo by so) = (ao by so)
         self.nao = self.TA.shape[1]
 
     def cons_fock(self, hf_veff, S, dm, eri_=None):
@@ -296,10 +297,12 @@ class Frags:
         numpy.ndarray
             Projected density matrix.
         """
-        C_ = multi_dot((self.TA.T, S, C[:, ncore : ncore + nocc]))
-        P_ = C_ @ C_.T
+        C_ = multi_dot((self.TA.T, S, C[:, ncore : ncore + nocc])) # occupied MOs projected into the fragment space (eo, occ ao)
+        P_ = C_ @ C_.T # (eo, eo)
+        
         nsocc_ = trace(P_)
         nsocc = int(round(nsocc_))
+ 
         try:
             mo_coeffs = scipy.linalg.svd(C_, lapack_driver="gesvd")[0]
         except scipy.linalg.LinAlgError:
@@ -524,30 +527,17 @@ class Ref_Frags(Frags):
     @classmethod
     def from_Frag(cls, fobj: Frags, mybe: BE) -> Self:
         Dhf = mybe.lmo_coeff[:, : mybe.Nocc] @ mybe.lmo_coeff[:, : mybe.Nocc].T
-        eigvals_hf, eigvecs_hf = np.linalg.eigh(Dhf)
-        print(f"eigvals_hf are {eigvals_hf}")
-        D_SO = fobj.TAfull_lo_eo.T @ Dhf @ fobj.TAfull_lo_eo
+        D_SO = fobj.TA_lo_eo.T @ Dhf @ fobj.TA_lo_eo # (f+b eo, f+b eo)
         eigvals, eigvecs = np.linalg.eigh(D_SO)  # diagonalize
-        print(f"eigvals are {eigvals}")
+        print(f"the shape of eigvecs is {eigvecs.shape} and there are {D_SO.shape[0]} f+b orbitals")
         eigvals = eigvals[::-1]
         eigvecs = eigvecs[:, ::-1]
-       
-        #TAfrag = fobj.TAfull_lo_eo[:, :fobj.n_f]
-        #TAbath = fobj.TAfull_lo_eo[:, fobj.n_f:fobj.n_f+fobj.n_b]
-        #TAenv = fobj.TAfull_lo_eo[:, fobj.n_f + fobj.n_b:] 
-        #overlaps_frag = eigvecs.conj().T @ TAfrag
-        #overlaps_bath = eigvecs.conj().T @ TAbath
-        #overlaps_env = eigvecs.conj().T @ TAenv
-        #results_frag = np.sum(np.abs(overlaps_frag)**2, axis=1)
-        #results_bath = np.sum(np.abs(overlaps_bath)**2, axis=1)
-        #results_env = np.sum(np.abs(overlaps_env)**2, axis=1)
 
-        #print(f"results_frag are {results_frag} with length {len(results_frag)}")
-        #print(f"results_bath are {results_bath} with length {len(results_bath)}")
-        #print(f"results_env are {results_env} with length {len(results_env)}")
+        nocc_fb = int(round(np.trace(D_SO)))
+        print(f"nocc_fb is {nocc_fb} and mybe.nocc is {mybe.Nocc}")
 
-        TA_occ = fobj.TAfull_lo_eo @ eigvecs[:, : mybe.Nocc]
-        TA_virt = fobj.TAfull_lo_eo @ eigvecs[:, mybe.Nocc :]
+        TA_occ = fobj.TA_lo_eo @ eigvecs[:, : nocc_fb]
+        TA_virt = fobj.TA_lo_eo @ eigvecs[:, nocc_fb :]
 
         TA_lo_eo_frag = fobj.TA_lo_eo[:, : fobj.n_f]
         TA_lo_eo_bath = fobj.TA_lo_eo[:, fobj.n_f :]
