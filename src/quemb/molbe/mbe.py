@@ -2,6 +2,7 @@
 
 import logging
 import pickle
+from collections.abc import Sequence
 from typing import Final, Literal, TypeAlias
 from warnings import warn
 
@@ -44,7 +45,7 @@ from quemb.molbe.lo import (
 )
 from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
 from quemb.molbe.opt import BEOPT
-from quemb.molbe.pfrag import Frags, union_of_frag_MOs_and_index
+from quemb.molbe.pfrag import Frags, Ref_Frags, union_of_frag_MOs_and_index
 from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.external.lo_helper import (
     get_aoind_by_atom,
@@ -152,6 +153,10 @@ class BE:
         MO_coeff_epsilon: float = 1e-5,
         AO_coeff_epsilon: float = 1e-10,
         re_eval_HF: bool = False,
+        eq_fobjs: Sequence[Ref_Frags] | None = None,
+        gradient_orb_space: Literal[
+            "RDM-invariant", "Schmidt-invariant", "Bath-Invariant", "Unmodified"
+        ] = "Unmodified",
     ) -> None:
         r"""
         Constructor for BE object.
@@ -264,6 +269,8 @@ class BE:
         self.integral_transform = int_transform
         self.auxbasis = auxbasis
         self.thr_bath = thr_bath
+        self.eq_fobjs = eq_fobjs
+        self.gradient_orb_space = gradient_orb_space
 
         # Fragment information from fobj
         self.fobj = fobj
@@ -1112,7 +1119,7 @@ class BE:
             fobjs_.cons_fock(self.hf_veff, self.S, self.hf_dm, eri_=eri)
 
             fobjs_.heff = zeros_like(fobjs_.h1)
-            fobjs_.scf(fs=True, eri=eri)
+            fobjs_.scf(fs=False, eri=eri)
 
             assert fobjs_.h1 is not None and fobjs_.nsocc is not None
             fobjs_.dm0 = 2.0 * (
@@ -1156,15 +1163,24 @@ class BE:
         """
         for I in range(self.fobj.n_frag):
             fobjs_ = self.fobj.to_Frags(I, eri_file=self.eri_file)
-            fobjs_.sd(self.W, self.lmo_coeff, self.Nocc, thr_bath=self.thr_bath)
+            if self.eq_fobjs is not None:
+                fobjs_.eq_fobj = self.eq_fobjs[I]
+
+            fobjs_.sd(
+                self.W,
+                self.lmo_coeff,
+                self.Nocc,
+                self.gradient_orb_space,
+                thr_bath=self.thr_bath,
+            )
 
             self.Fobjs.append(fobjs_)
 
-        self.all_fragment_MO_TA, frag_TA_index_per_frag = union_of_frag_MOs_and_index(
-            self.Fobjs, self.mf.mol.intor("int1e_ovlp"), epsilon=1e-10
-        )
-        for fobj, frag_TA_offset in zip(self.Fobjs, frag_TA_index_per_frag):
-            fobj.frag_TA_offset = frag_TA_offset
+        # self.all_fragment_MO_TA, frag_TA_index_per_frag = union_of_frag_MOs_and_index(
+        #    self.Fobjs, self.mf.mol.intor("int1e_ovlp"), epsilon=1e-10
+        # )
+        # for fobj, frag_TA_offset in zip(self.Fobjs, frag_TA_index_per_frag):
+        #    fobj.frag_TA_offset = frag_TA_offset
 
         if self.lo_bath_post_schmidt is not None:
             for frag in self.Fobjs:
@@ -1176,6 +1192,7 @@ class BE:
 
         if not restart:
             file_eri = h5py.File(self.eri_file, "w")
+            print(f"int_transform is {int_transform}")
             self._eri_transform(int_transform, eri_, file_eri)
 
         self._initialize_fragments(file_eri, restart)
@@ -1252,6 +1269,7 @@ class BE:
                 rets[0], rets[1][1], rets[1][0] + rets[1][2], self.ebe_hf
             )
             self.ebe_tot = rets[0] + self.ebe_hf
+            self.rets0 = rets[0]
         else:
             print_energy_noncumulant(
                 rets[0], rets[1][0], rets[1][2], rets[1][1], self.ebe_hf, self.enuc
