@@ -219,12 +219,12 @@ class Frags:
 
             lmo_occ = lmo[:, :nocc]
             lmo_virt = lmo[:, nocc:]
-            TA_occ = lmo_occ @ procrustes_right(lmo_occ, self.eq_fobj.TA_occ)
-            TA_virt = lmo_virt @ procrustes_right(lmo_virt, self.eq_fobj.TA_virt)
+            
+            TA_occ = lmo_occ @ procrustes_right(lmo_occ, self.eq_fobj.TA_lo_eo)
+            TA_virt = lmo_virt @ procrustes_right(lmo_virt, self.eq_fobj.TA_lo_eo)
 
-            TA_lo_eo = np.concatenate((TA_occ, TA_virt), axis=1) @ self.eq_fobj.eigvecs.T
+            TA_lo_eo = np.concatenate((TA_occ, TA_virt), axis=1) #@ self.eq_fobj.eigvecs.T
             self.TA = lao @ TA_lo_eo
-            #self.TA = lao @ TAfull_lo_eo[:, : self.eq_fobj.n_f + self.eq_fobj.n_b]
             
             self.n_f = self.eq_fobj.n_f
         elif gradient_orb_space == "Schmidt-invariant":
@@ -496,6 +496,7 @@ class Ref_Frags(Frags):
         relAO_per_origin: Sequence[RelAOIdx],
         TA_occ: Matrix[np.float64],
         TA_virt: Matrix[np.float64],
+        TA_lo_eo: Matrix[np.float64],
         eigvecs: Matrix[np.float64],
         TA_lo_eo_frag: Matrix[np.float64],
         TA_lo_eo_bath: Matrix[np.float64],
@@ -518,6 +519,7 @@ class Ref_Frags(Frags):
         )
         self.TA_occ = TA_occ
         self.TA_virt = TA_virt
+        self.TA_lo_eo = TA_lo_eo
         self.eigvecs = eigvecs
         self.TA_lo_eo_frag = TA_lo_eo_frag
         self.TA_lo_eo_bath = TA_lo_eo_bath
@@ -533,11 +535,9 @@ class Ref_Frags(Frags):
         eigvals = eigvals[::-1]
         eigvecs = eigvecs[:, ::-1]
 
-        nocc_fb = int(round(np.trace(D_SO)))
-        print(f"nocc_fb is {nocc_fb} and mybe.nocc is {mybe.Nocc}")
-
-        TA_occ = fobj.TA_lo_eo @ eigvecs[:, : nocc_fb]
-        TA_virt = fobj.TA_lo_eo @ eigvecs[:, nocc_fb :]
+        TA_occ = fobj.TA_lo_eo @ eigvecs[:, : fobj.nsocc]
+        TA_virt = fobj.TA_lo_eo @ eigvecs[:, fobj.nsocc :]
+        TA_lo_eo = fobj.TA_lo_eo
 
         TA_lo_eo_frag = fobj.TA_lo_eo[:, : fobj.n_f]
         TA_lo_eo_bath = fobj.TA_lo_eo[:, fobj.n_f :]
@@ -552,6 +552,7 @@ class Ref_Frags(Frags):
             fobj.relAO_per_origin,
             TA_occ,
             TA_virt,
+            TA_lo_eo,
             eigvecs,
             TA_lo_eo_frag,
             TA_lo_eo_bath,
