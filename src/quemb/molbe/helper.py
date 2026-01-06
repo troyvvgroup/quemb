@@ -147,7 +147,7 @@ def get_scfObj(
             print(flush=True)
             print("SCF Converged!", flush=True)
             print(flush=True)
-
+    print("SCF cycles needed:", mf_.cycles)
     return mf_
 
 

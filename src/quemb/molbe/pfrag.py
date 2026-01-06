@@ -217,15 +217,19 @@ class Frags:
             assert self.eq_fobj is not None
             assert self.eq_fobj.eigvecs is not None
 
-            lmo_occ = lmo[:, :nocc]
-            lmo_virt = lmo[:, nocc:]
+            #lmo_occ = lmo[:, :nocc]
+            #lmo_virt = lmo[:, nocc:]
             
-            TA_occ = lmo_occ @ procrustes_right(lmo_occ, self.eq_fobj.TA_lo_eo)
-            TA_virt = lmo_virt @ procrustes_right(lmo_virt, self.eq_fobj.TA_lo_eo)
-
-            TA_lo_eo = np.concatenate((TA_occ, TA_virt), axis=1) #@ self.eq_fobj.eigvecs.T
+            print(f"forming TA_occ from lmo and TA_occ")
+            TA_occ = lmo @ procrustes_right(lmo, self.eq_fobj.TA_occ)
+            print(f"forming TA_virt from lmo and TA_virt")
+            TA_virt = lmo @ procrustes_right(lmo, self.eq_fobj.TA_virt)
+            TA_lo_eo = np.concatenate((TA_occ, TA_virt), axis=1) @ self.eq_fobj.eigvecs.T
+            
+            #TAfull_lo_eo = lmo @ procrustes_right(lmo, self.eq_fobj.TAfull_lo_eo)
+            #TA_lo_eo = TAfull_lo_eo[:, :self.eq_fobj.n_f + self.eq_fobj.n_b]
+            
             self.TA = lao @ TA_lo_eo
-            
             self.n_f = self.eq_fobj.n_f
         elif gradient_orb_space == "Schmidt-invariant":
             assert self.eq_fobj is not None
@@ -497,6 +501,7 @@ class Ref_Frags(Frags):
         TA_occ: Matrix[np.float64],
         TA_virt: Matrix[np.float64],
         TA_lo_eo: Matrix[np.float64],
+        TAfull_lo_eo: Matrix[np.float64],
         eigvecs: Matrix[np.float64],
         TA_lo_eo_frag: Matrix[np.float64],
         TA_lo_eo_bath: Matrix[np.float64],
@@ -520,6 +525,7 @@ class Ref_Frags(Frags):
         self.TA_occ = TA_occ
         self.TA_virt = TA_virt
         self.TA_lo_eo = TA_lo_eo
+        self.TAfull_lo_eo = TAfull_lo_eo
         self.eigvecs = eigvecs
         self.TA_lo_eo_frag = TA_lo_eo_frag
         self.TA_lo_eo_bath = TA_lo_eo_bath
@@ -538,6 +544,7 @@ class Ref_Frags(Frags):
         TA_occ = fobj.TA_lo_eo @ eigvecs[:, : fobj.nsocc]
         TA_virt = fobj.TA_lo_eo @ eigvecs[:, fobj.nsocc :]
         TA_lo_eo = fobj.TA_lo_eo
+        TAfull_lo_eo = fobj.TAfull_lo_eo
 
         TA_lo_eo_frag = fobj.TA_lo_eo[:, : fobj.n_f]
         TA_lo_eo_bath = fobj.TA_lo_eo[:, fobj.n_f :]
@@ -553,6 +560,7 @@ class Ref_Frags(Frags):
             TA_occ,
             TA_virt,
             TA_lo_eo,
+            TAfull_lo_eo,
             eigvecs,
             TA_lo_eo_frag,
             TA_lo_eo_bath,
