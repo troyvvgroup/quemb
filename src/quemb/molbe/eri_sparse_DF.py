@@ -27,8 +27,11 @@ from pyscf.ao2mo.addons import restore
 from pyscf.df.addons import make_auxmol
 from pyscf.gto import Mole
 from pyscf.gto.moleintor import getints
+from pyscf.pbc import dft as pbc_dft
+from pyscf.pbc.gto import Cell
 from scipy.linalg import cholesky
 from scipy.special import roots_hermite
+from typing_extensions import assert_never
 
 import quemb.molbe._cpp.eri_sparse_DF as cpp_transforms
 from quemb.molbe._cpp.eri_sparse_DF import (
@@ -60,6 +63,8 @@ from quemb.shared.typing import (
     Tensor4D,
     Vector,
 )
+
+_T_chemsystem = TypeVar("_T_chemsystem", Mole, Cell)
 
 _T_orb_idx = TypeVar("_T_orb_idx", bound=OrbitalIdx)
 _T_start_orb = TypeVar("_T_start_orb", bound=OrbitalIdx)
@@ -960,7 +965,11 @@ def _ensure_normalization(S_abs: Matrix[np.floating]) -> Matrix[np.float64]:
 
 
 @timer.timeit
-def grid_S_abs(mol: Mole, grid_level: int = 2) -> Matrix[np.float64]:
+def grid_S_abs(
+    mol: _T_chemsystem,
+    grid_level: int = 2,
+    kpts: Matrix[np.floating] = np.zeros((1, 3)),
+) -> Matrix[np.float64]:
     r"""
     Calculates the overlap matrix :math:`S_ij = \int |phi_i(r)| |phi_j(r)| dr`
     using numerical integration on a DFT grid.
@@ -971,12 +980,29 @@ def grid_S_abs(mol: Mole, grid_level: int = 2) -> Matrix[np.float64]:
     grid_level :
         Directly passed on to `pyscf grid generation <https://github.com/pyscf/pyscf/blob/master/examples/dft/11-grid_scheme.py>`_.
     """
-    grids = dft.gen_grid.Grids(mol)
+    if isinstance(mol, Mole):
+        grids = dft.gen_grid.Grids(mol)
+    elif isinstance(mol, Cell):
+        grids = pbc_dft.gen_grid.BeckeGrids(mol)
+    else:
+        raise TypeError(f"Input should be a PySCF Mole or Cell, got {type(mol)}")
+        assert_never(mol)
     grids.level = grid_level
     grids.build()
-    AO_abs_val = np.abs(dft.numint.eval_ao(mol, grids.coords, deriv=0))
-    result = (AO_abs_val * grids.weights[:, np.newaxis]).T @ AO_abs_val
-    assert np.allclose(result, result.T)
+    if isinstance(mol, Mole):
+        AO_abs_val = np.abs(dft.numint.eval_ao(mol, grids.coords, deriv=0))
+        result = (AO_abs_val * grids.weights[:, np.newaxis]).T @ AO_abs_val
+        assert np.allclose(result, result.T)
+    elif isinstance(mol, Cell):  # (nkpt, nao, nao)
+        AO_abs_val = np.abs(
+            pbc_dft.numint.eval_ao_kpts(mol, grids.coords, deriv=0, kpts=kpts)
+        )
+        result = [
+            (AO_abs_val_k * grids.weights[:, np.newaxis]).T @ AO_abs_val_k
+            for AO_abs_val_k in AO_abs_val
+        ]
+        assert np.all([np.allclose(r, r.T) for r in result])
+
     return result
 
 
