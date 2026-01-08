@@ -5,10 +5,10 @@
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="quemb.molbe.be_parallel.run_solver" href="quemb.molbe.be_parallel.run_solver.html"><link rel="prev" title="quemb.molbe.be_parallel.be_func_parallel" href="quemb.molbe.be_parallel.be_func_parallel.html">
 
-    <!-- Generated with Sphinx 8.2.3 and Furo 2025.09.25 -->
+    <!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
         <title>quemb.molbe.be_parallel.be_func_parallel_u - QuEmb documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=580074bf" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
     
     
@@ -849,7 +849,7 @@ Should always be 0, as this is still a one-shot only implementation</p></li>
 <li><p><strong>Fobjs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em> of </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em> of </em><a class="reference internal" href="quemb.molbe.autofrag.FragPart.html#quemb.molbe.autofrag.FragPart" title="quemb.molbe.autofrag.FragPart"><em>FragPart</em></a>) – Fragment definitions, alpha and beta components.</p></li>
 <li><p><strong>solver</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – High-level solver in bootstrap embedding. Supported value is ‘UCCSD’.</p></li>
 <li><p><strong>enuc</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Nuclear component of the energy.</p></li>
-<li><p><strong>hf_veff</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em> of </em><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.3)"><em>ndarray</em></a><em>, </em><em>optional</em>) – Alpha and beta Hartree-Fock effective potential.</p></li>
+<li><p><strong>hf_veff</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em> of </em><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>ndarray</em></a><em>, </em><em>optional</em>) – Alpha and beta Hartree-Fock effective potential.</p></li>
 <li><p><strong>nproc</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>optional</em>) – Total number of processors assigned for the optimization. Defaults to 1.
 When nproc &gt; 1, Python multithreading is invoked.</p></li>
 <li><p><strong>ompnum</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>optional</em>) – If nproc &gt; 1, sets the number of cores for OpenMP parallelization.
