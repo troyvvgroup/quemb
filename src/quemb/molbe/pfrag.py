@@ -42,7 +42,7 @@ if TYPE_CHECKING:
 
 
 def procrustes_right(
-    P: Matrix[np.floating], Q: Matrix[np.floating]
+        P: Matrix[np.floating], Q: Matrix[np.floating], 
 ) -> Matrix[np.float64]:
     """Solve min || P R - Q ||_F subject to R^T R = I.
 
@@ -58,7 +58,8 @@ def procrustes_right(
     """
     H = P.T @ Q
     U, S, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
-    return U @ Vt
+
+    return U, S, Vt #U @ Vt 
 
 
 class Frags:
@@ -217,18 +218,32 @@ class Frags:
             assert self.eq_fobj is not None
             assert self.eq_fobj.eigvecs is not None
 
-            #lmo_occ = lmo[:, :nocc]
-            #lmo_virt = lmo[:, nocc:]
+            lmo_occ = lmo[:, :nocc]
+            lmo_virt = lmo[:, nocc:]
             
-            print(f"forming TA_occ from lmo and TA_occ")
-            TA_occ = lmo @ procrustes_right(lmo, self.eq_fobj.TA_occ)
-            print(f"forming TA_virt from lmo and TA_virt")
-            TA_virt = lmo @ procrustes_right(lmo, self.eq_fobj.TA_virt)
-            TA_lo_eo = np.concatenate((TA_occ, TA_virt), axis=1) @ self.eq_fobj.eigvecs.T
+            # testing section
+            nsocc = self.eq_fobj.nsocc
+            nvirt = self.eq_fobj.TA_lo_eo.shape[1] - self.eq_fobj.nsocc
             
-            #TAfull_lo_eo = lmo @ procrustes_right(lmo, self.eq_fobj.TAfull_lo_eo)
-            #TA_lo_eo = TAfull_lo_eo[:, :self.eq_fobj.n_f + self.eq_fobj.n_b]
+            H = lmo_occ.T @ self.eq_fobj.TA_lo_eo
+            U, S, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
+            U = U[:, :nsocc]
+            Vt = Vt[:nsocc, :]
+            TA_occ = lmo_occ @ U @ Vt
             
+            H = lmo_virt.T @ self.eq_fobj.TA_lo_eo
+            U, S, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
+            U = U[:, :nvirt]
+            Vt = Vt[:nvirt, :]
+            TA_virt = lmo_virt @ U @ Vt
+
+            TA_lo_eo = TA_occ + TA_virt
+
+            # def works
+            #TA_occ = lmo_occ @ procrustes_right(lmo_occ, self.eq_fobj.TA_occ)
+            #TA_virt = lmo_virt @ procrustes_right(lmo_virt, self.eq_fobj.TA_virt)
+            #TA_lo_eo = np.concatenate((TA_occ, TA_virt), axis=1) @ self.eq_fobj.eigvecs.T
+        
             self.TA = lao @ TA_lo_eo
             self.n_f = self.eq_fobj.n_f
         elif gradient_orb_space == "Schmidt-invariant":
@@ -507,6 +522,7 @@ class Ref_Frags(Frags):
         TA_lo_eo_bath: Matrix[np.float64],
         n_f: int,
         n_b: int,
+        nsocc: int,
         eri_file: PathLike = "eri_file.h5",
         unrestricted: bool = False,
     ) -> None:
@@ -531,13 +547,13 @@ class Ref_Frags(Frags):
         self.TA_lo_eo_bath = TA_lo_eo_bath
         self.n_f = n_f
         self.n_b = n_b
+        self.nsocc = nsocc
 
     @classmethod
     def from_Frag(cls, fobj: Frags, mybe: BE) -> Self:
         Dhf = mybe.lmo_coeff[:, : mybe.Nocc] @ mybe.lmo_coeff[:, : mybe.Nocc].T
         D_SO = fobj.TA_lo_eo.T @ Dhf @ fobj.TA_lo_eo # (f+b eo, f+b eo)
         eigvals, eigvecs = np.linalg.eigh(D_SO)  # diagonalize
-        print(f"the shape of eigvecs is {eigvecs.shape} and there are {D_SO.shape[0]} f+b orbitals")
         eigvals = eigvals[::-1]
         eigvecs = eigvecs[:, ::-1]
 
@@ -568,6 +584,7 @@ class Ref_Frags(Frags):
             unrestricted=fobj.unrestricted,
             n_f=fobj.n_f,
             n_b=fobj.n_b,
+            nsocc=fobj.nsocc,
         )
 
 

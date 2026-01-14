@@ -7,6 +7,7 @@ from typing import Final, Literal, TypeAlias
 from warnings import warn
 
 import h5py
+import time
 import numpy as np
 from attrs import define
 from numpy import (
@@ -1192,9 +1193,21 @@ class BE:
 
         if not restart:
             file_eri = h5py.File(self.eri_file, "w")
-            print(f"int_transform is {int_transform}")
             self._eri_transform(int_transform, eri_, file_eri)
 
+        #if not restart:
+        #    max_tries = 100
+        #    for attempt in range(max_tries):
+        #        try:
+        #            file_eri = h5py.File(self.eri_file, "w")
+        #            self._eri_transform(int_transform, eri_, file_eri)
+        #            break
+        #        except BlockingIOError:
+        #            if attempt < max_tries - 1:
+        #                time.sleep(0.5)
+        #            else:
+        #                raise
+        
         self._initialize_fragments(file_eri, restart)
 
         if not restart:
