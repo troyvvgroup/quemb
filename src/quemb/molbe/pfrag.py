@@ -59,7 +59,7 @@ def procrustes_right(
     H = P.T @ Q
     U, S, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
 
-    return U, S, Vt #U @ Vt 
+    return U @ Vt #U, S, Vt #U @ Vt 
 
 
 class Frags:
@@ -176,6 +176,7 @@ class Frags:
     def sd(
         self,
         lao: Matrix[float64],
+        S_butlonger: Matrix[float64],
         lmo: Matrix[float64],
         nocc: int,
         gradient_orb_space: Literal[
@@ -198,6 +199,7 @@ class Frags:
             Threshold for bath orbitals in Schmidt decomposition
         """
         print(f"gradient_orb_space: {gradient_orb_space}")
+        print(f"S_butlonger in sd is {S_butlonger}")
         if gradient_orb_space == "Unmodified":
             (
                 self.Dhf,
@@ -225,14 +227,16 @@ class Frags:
             nsocc = self.eq_fobj.nsocc
             nvirt = self.eq_fobj.TA_lo_eo.shape[1] - self.eq_fobj.nsocc
             
-            H = lmo_occ.T @ self.eq_fobj.TA_lo_eo
-            U, S, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
+            H = lmo_occ.T @ lao.T @ S_butlonger @ self.eq_fobj.lao @ self.eq_fobj.TA_lo_eo # (mo lo) x (lo ao) PERT x (ao ao) x (ao lo) REF x (lo eo)
+            U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
+            print(f"the singular values are {singular_values}")
             U = U[:, :nsocc]
             Vt = Vt[:nsocc, :]
             TA_occ = lmo_occ @ U @ Vt
             
-            H = lmo_virt.T @ self.eq_fobj.TA_lo_eo
-            U, S, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
+            H = lmo_virt.T @ lao.T @ S_butlonger @ self.eq_fobj.lao @ self.eq_fobj.TA_lo_eo
+            U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
+            print(f"the singular values are {singular_values}")
             U = U[:, :nvirt]
             Vt = Vt[:nvirt, :]
             TA_virt = lmo_virt @ U @ Vt
@@ -244,7 +248,7 @@ class Frags:
             #TA_virt = lmo_virt @ procrustes_right(lmo_virt, self.eq_fobj.TA_virt)
             #TA_lo_eo = np.concatenate((TA_occ, TA_virt), axis=1) @ self.eq_fobj.eigvecs.T
         
-            self.TA = lao @ TA_lo_eo
+            self.TA = lao @ TA_lo_eo # (ao lo) (lo eo) = (ao eo)
             self.n_f = self.eq_fobj.n_f
         elif gradient_orb_space == "Schmidt-invariant":
             assert self.eq_fobj is not None
@@ -496,6 +500,7 @@ class Frags:
 class Ref_Frags(Frags):
     TA_occ: Matrix[np.float64]
     TA_virt: Matrix[np.float64]
+    lao: Matrix[np.float64]
 
     # This is natural orbitals
     eigvecs: Matrix[np.float64]
@@ -515,11 +520,10 @@ class Ref_Frags(Frags):
         relAO_per_origin: Sequence[RelAOIdx],
         TA_occ: Matrix[np.float64],
         TA_virt: Matrix[np.float64],
+        lao: Matrix[np.float64],
         TA_lo_eo: Matrix[np.float64],
         TAfull_lo_eo: Matrix[np.float64],
         eigvecs: Matrix[np.float64],
-        TA_lo_eo_frag: Matrix[np.float64],
-        TA_lo_eo_bath: Matrix[np.float64],
         n_f: int,
         n_b: int,
         nsocc: int,
@@ -540,11 +544,10 @@ class Ref_Frags(Frags):
         )
         self.TA_occ = TA_occ
         self.TA_virt = TA_virt
+        self.lao = lao
         self.TA_lo_eo = TA_lo_eo
         self.TAfull_lo_eo = TAfull_lo_eo
         self.eigvecs = eigvecs
-        self.TA_lo_eo_frag = TA_lo_eo_frag
-        self.TA_lo_eo_bath = TA_lo_eo_bath
         self.n_f = n_f
         self.n_b = n_b
         self.nsocc = nsocc
@@ -559,11 +562,10 @@ class Ref_Frags(Frags):
 
         TA_occ = fobj.TA_lo_eo @ eigvecs[:, : fobj.nsocc]
         TA_virt = fobj.TA_lo_eo @ eigvecs[:, fobj.nsocc :]
+        lao = mybe.W
         TA_lo_eo = fobj.TA_lo_eo
         TAfull_lo_eo = fobj.TAfull_lo_eo
 
-        TA_lo_eo_frag = fobj.TA_lo_eo[:, : fobj.n_f]
-        TA_lo_eo_bath = fobj.TA_lo_eo[:, fobj.n_f :]
         return cls(
             fobj.AO_in_frag,
             fobj.ifrag,
@@ -575,11 +577,10 @@ class Ref_Frags(Frags):
             fobj.relAO_per_origin,
             TA_occ,
             TA_virt,
+            lao,
             TA_lo_eo,
             TAfull_lo_eo,
             eigvecs,
-            TA_lo_eo_frag,
-            TA_lo_eo_bath,
             eri_file=fobj.eri_file,
             unrestricted=fobj.unrestricted,
             n_f=fobj.n_f,

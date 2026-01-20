@@ -155,6 +155,7 @@ class BE:
         AO_coeff_epsilon: float = 1e-10,
         re_eval_HF: bool = False,
         eq_fobjs: Sequence[Ref_Frags] | None = None,
+        S_butlonger: Matrix[np.float64] | None = None,
         gradient_orb_space: Literal[
             "RDM-invariant", "Schmidt-invariant", "Bath-Invariant", "Unmodified"
         ] = "Unmodified",
@@ -271,6 +272,7 @@ class BE:
         self.auxbasis = auxbasis
         self.thr_bath = thr_bath
         self.eq_fobjs = eq_fobjs
+        self.S_butlonger = S_butlonger
         self.gradient_orb_space = gradient_orb_space
 
         # Fragment information from fobj
@@ -1169,6 +1171,7 @@ class BE:
 
             fobjs_.sd(
                 self.W,
+                self.S_butlonger,
                 self.lmo_coeff,
                 self.Nocc,
                 self.gradient_orb_space,
