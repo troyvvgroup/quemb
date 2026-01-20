@@ -180,7 +180,7 @@ class Frags:
         lmo: Matrix[float64],
         nocc: int,
         gradient_orb_space: Literal[
-            "RDM-invariant", "Schmidt-invariant", "Bath-Invariant", "Unmodified"
+            "RDM-invariant", "Testing", "Bath-Invariant", "Unmodified"
         ],
         thr_bath: float = 1.0e-10,
     ) -> None:
@@ -199,7 +199,6 @@ class Frags:
             Threshold for bath orbitals in Schmidt decomposition
         """
         print(f"gradient_orb_space: {gradient_orb_space}")
-        print(f"S_butlonger in sd is {S_butlonger}")
         if gradient_orb_space == "Unmodified":
             (
                 self.Dhf,
@@ -215,7 +214,6 @@ class Frags:
                 thr_bath=thr_bath,
             )
             self.TA = lao @ self.TA_lo_eo
-            print(f"the shape of TA from Unmodified is {self.TA.shape}")
         elif gradient_orb_space == "RDM-invariant":
             assert self.eq_fobj is not None
             assert self.eq_fobj.eigvecs is not None
@@ -223,17 +221,36 @@ class Frags:
             lmo_occ = lmo[:, :nocc]
             lmo_virt = lmo[:, nocc:]
             
-            # testing section
+            # def works
+            H = lmo_occ.T @ self.eq_fobj.TA_occ
+            U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
+            TA_occ = lmo_occ @ U @ Vt
+
+            H = lmo_virt.T @ self.eq_fobj.TA_virt
+            U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
+            TA_virt = lmo_virt @ U @ Vt
+
+            TA_lo_eo = np.concatenate((TA_occ, TA_virt), axis=1) @ self.eq_fobj.eigvecs.T
+            
+            self.TA = lao @ TA_lo_eo # (ao lo) (lo eo) = (ao eo)
+            self.n_f = self.eq_fobj.n_f
+
+        elif gradient_orb_space == "Testing":
+            assert self.eq_fobj is not None
+
+            lmo_occ = lmo[:, :nocc]
+            lmo_virt = lmo[:, nocc:]
+
             nsocc = self.eq_fobj.nsocc
             nvirt = self.eq_fobj.TA_lo_eo.shape[1] - self.eq_fobj.nsocc
-            
+
             H = lmo_occ.T @ lao.T @ S_butlonger @ self.eq_fobj.lao @ self.eq_fobj.TA_lo_eo # (mo lo) x (lo ao) PERT x (ao ao) x (ao lo) REF x (lo eo)
             U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
             print(f"the singular values are {singular_values}")
             U = U[:, :nsocc]
             Vt = Vt[:nsocc, :]
             TA_occ = lmo_occ @ U @ Vt
-            
+
             H = lmo_virt.T @ lao.T @ S_butlonger @ self.eq_fobj.lao @ self.eq_fobj.TA_lo_eo
             U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
             print(f"the singular values are {singular_values}")
@@ -243,24 +260,9 @@ class Frags:
 
             TA_lo_eo = TA_occ + TA_virt
 
-            # def works
-            #TA_occ = lmo_occ @ procrustes_right(lmo_occ, self.eq_fobj.TA_occ)
-            #TA_virt = lmo_virt @ procrustes_right(lmo_virt, self.eq_fobj.TA_virt)
-            #TA_lo_eo = np.concatenate((TA_occ, TA_virt), axis=1) @ self.eq_fobj.eigvecs.T
-        
             self.TA = lao @ TA_lo_eo # (ao lo) (lo eo) = (ao eo)
             self.n_f = self.eq_fobj.n_f
-        elif gradient_orb_space == "Schmidt-invariant":
-            assert self.eq_fobj is not None
-            print("doing schmidt invariant rotation")
-            TA_frag = self.TA_lo_eo[:, : self.n_f] @ procrustes_right(
-                self.TA_lo_eo[:, : self.n_f], self.eq_fobj.TA_lo_eo_frag
-            )
-            TA_bath = self.TA_lo_eo[:, self.n_f :] @ procrustes_right(
-                self.TA_lo_eo[:, self.n_f :], self.eq_fobj.TA_lo_eo_bath
-            )
-            self.TA_lo_eo = np.hstack([TA_frag, TA_bath])
-            self.TA = lao @ self.TA_lo_eo
+
         elif gradient_orb_space == "Bath-Invariant":
             print("doing bath invariant rotation")
             assert self.eq_fobj is not None
