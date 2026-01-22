@@ -776,6 +776,7 @@ class BE:
         max_iter: int = 500,
         trust_region: bool = False,
         solver_args: UserSolverArgs | None = None,
+        Delta_n_el: float = 0.0,
     ) -> None:
         """BE optimization function
 
@@ -813,9 +814,13 @@ class BE:
             Options include HF, MP2, CCSD
         trust_region :
             Use trust-region based QN optimization, by default False
+        Delta_n_el :
+            Additional deviation of the particle number.
         """
         # Check if only chemical potential optimization is required
-        if not only_chem:
+        if only_chem:
+            pot = [0.0]
+        else:
             pot = self.pot
             if self.fobj.n_BE == 1:
                 raise ValueError(
@@ -836,8 +841,6 @@ class BE:
                     "As a stop gap measure you can use the `swallow_replace=True` "
                     "option when fragmentating with chemgen."
                 )
-        else:
-            pot = [0.0]
 
         # Initialize the BEOPT object
         be_ = BEOPT(
@@ -855,6 +858,7 @@ class BE:
             relax_density=relax_density,
             solver=solver,
             ebe_hf=self.ebe_hf,
+            Delta_n_el=Delta_n_el,
             solver_args=solver_args,
         )
 
@@ -1095,9 +1099,8 @@ class BE:
 
     @timer.timeit
     def _initialize_fragments(self, file_eri: h5py.File, restart: bool):
-        """
-        Processes all molecular fragments by constructing their Fock matrices,
-        performing SCF, and computing fragment Hartree–Fock (HF) energies.
+        """Processes all molecular fragments by constructing their Fock matrices,
+        performing SCF, and computing fragment Hartree-Fock (HF) energies.
 
         This includes:
 
@@ -1119,7 +1122,9 @@ class BE:
         E_hf = 0.0
         for fobjs_ in self.Fobjs:
             eri = array(file_eri.get(fobjs_.dname))
-            _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
+            _, fobjs_.nsocc = fobjs_.get_nsocc(
+                self.S, self.C, self.Nocc, ncore=self.ncore
+            )
 
             assert fobjs_.TA is not None
             fobjs_.h1 = multi_dot((fobjs_.TA.T, self.hcore, fobjs_.TA))
@@ -1138,7 +1143,7 @@ class BE:
                 @ fobjs_._mo_coeffs[:, : fobjs_.nsocc].conj().T
             )
 
-            fobjs_.update_ebe_hf()  # Updates fragment HF energy.
+            fobjs_.ebe_hf, *_ = fobjs_.update_ebe_hf()
             E_hf += fobjs_.ebe_hf
         self.ebe_hf = E_hf + self.enuc + self.E_core
         hf_err = self.hf_etot - self.ebe_hf

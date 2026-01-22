@@ -74,6 +74,7 @@ class BEOPT:
     ompnum: int = 4
     only_chem: bool = False
     use_cumulant: bool = True
+    Delta_n_el: float = 0.0
 
     max_space: int = 500
     conv_tol: float = 1.0e-6
@@ -119,6 +120,7 @@ class BEOPT:
                 use_cumulant=self.use_cumulant,
                 eeval=True,
                 return_vec=True,
+                Delta_n_el=self.Delta_n_el,
             )
         else:
             err_, errvec_, ebe_ = be_func_parallel(
@@ -136,6 +138,7 @@ class BEOPT:
                 use_cumulant=self.use_cumulant,
                 eeval=True,
                 return_vec=True,
+                Delta_n_el=self.Delta_n_el,
             )
 
         # Update error and BE energy
