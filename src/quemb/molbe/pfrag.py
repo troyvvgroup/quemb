@@ -180,7 +180,7 @@ class Frags:
         lmo: Matrix[float64],
         nocc: int,
         gradient_orb_space: Literal[
-            "RDM-invariant", "Testing", "Bath-Invariant", "Unmodified"
+            "RDM-invariant", "Align-with-TA_lo_eo", "RDM-invariant-with-overlap", "Unmodified"
         ],
         thr_bath: float = 1.0e-10,
     ) -> None:
@@ -235,7 +235,7 @@ class Frags:
             self.TA = lao @ TA_lo_eo # (ao lo) (lo eo) = (ao eo)
             self.n_f = self.eq_fobj.n_f
 
-        elif gradient_orb_space == "Testing":
+        elif gradient_orb_space == "Align-with-TA_lo_eo":
             assert self.eq_fobj is not None
 
             lmo_occ = lmo[:, :nocc]
@@ -246,31 +246,43 @@ class Frags:
 
             H = lmo_occ.T @ lao.T @ S_butlonger @ self.eq_fobj.lao @ self.eq_fobj.TA_lo_eo # (mo lo) x (lo ao) PERT x (ao ao) x (ao lo) REF x (lo eo)
             U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
-            print(f"the singular values are {singular_values}")
             U = U[:, :nsocc]
             Vt = Vt[:nsocc, :]
             TA_occ = lmo_occ @ U @ Vt
 
             H = lmo_virt.T @ lao.T @ S_butlonger @ self.eq_fobj.lao @ self.eq_fobj.TA_lo_eo
             U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
-            print(f"the singular values are {singular_values}")
             U = U[:, :nvirt]
             Vt = Vt[:nvirt, :]
             TA_virt = lmo_virt @ U @ Vt
 
+            #TA_lo_eo = np.concatenate((TA_occ, TA_virt), axis=1) @ self.eq_fobj.eigvecs.T
             TA_lo_eo = TA_occ + TA_virt
 
             self.TA = lao @ TA_lo_eo # (ao lo) (lo eo) = (ao eo)
             self.n_f = self.eq_fobj.n_f
 
-        elif gradient_orb_space == "Bath-Invariant":
-            print("doing bath invariant rotation")
+        elif gradient_orb_space == "RDM-invariant-with-overlap":
             assert self.eq_fobj is not None
-            TA_bath = self.TA_lo_eo[:, self.n_f :] @ procrustes_right(
-                self.TA_lo_eo[:, self.n_f :], self.eq_fobj.TA_lo_eo_bath
-            )
-            self.TA_lo_eo = np.hstack([self.TA_lo_eo[:, : self.n_f], TA_bath])
-            self.TA = lao @ self.TA_lo_eo
+            assert self.eq_fobj.eigvecs is not None
+
+            lmo_occ = lmo[:, :nocc]
+            lmo_virt = lmo[:, nocc:]
+
+            # def works
+            H = lmo_occ.T @ lao.T @ S_butlonger @ self.eq_fobj.lao @ self.eq_fobj.TA_occ
+            U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
+            TA_occ = lmo_occ @ U @ Vt
+
+            H = lmo_virt.T @ lao.T @ S_butlonger @ self.eq_fobj.lao @ self.eq_fobj.TA_virt
+            U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
+            TA_virt = lmo_virt @ U @ Vt
+
+            TA_lo_eo = np.concatenate((TA_occ, TA_virt), axis=1) @ self.eq_fobj.eigvecs.T
+
+            self.TA = lao @ TA_lo_eo # (ao lo) (lo eo) = (ao eo)
+            self.n_f = self.eq_fobj.n_f
+
         else:
             assert_never(gradient_orb_space)
 
