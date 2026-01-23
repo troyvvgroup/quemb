@@ -1212,6 +1212,19 @@ class BE:
         #                raise
         
         self._initialize_fragments(file_eri, restart)
+        
+        for I in range(self.fobj.n_frag):
+            fobjs_ = self.Fobjs[I]
+            print("Checking the (EO, EO) density matrix")
+            D_eo = fobjs_.TA.T @ self.S.T @ self.C @ self.C.T @ self.S @ fobjs_.TA
+            print(f"the trace is {np.trace(D_eo)}")
+            print("D_eo is")
+            print(D_eo)
+            print(f"The number of occupied orbitals in the embedding space is {fobjs_.nsocc}")
+            orth_check = fobjs_.TA.T @ self.S @ fobjs_.TA
+            print(f"Is TA S orthonormal? {np.allclose(fobjs_.TA.T @ self.S @ fobjs_.TA, np.eye(fobjs_.TA.shape[1]))}")
+            print(f"the norm is {np.linalg.norm(np.eye(fobjs_.TA.shape[1]) - fobjs_.TA.T @ self.S @ fobjs_.TA)}")
+            print(fobjs_.TA.T @ self.S @ fobjs_.TA)
 
         if not restart:
             file_eri.close()

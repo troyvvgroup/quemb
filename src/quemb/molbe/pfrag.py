@@ -231,7 +231,7 @@ class Frags:
             TA_virt = lmo_virt @ U @ Vt
 
             TA_lo_eo = np.concatenate((TA_occ, TA_virt), axis=1) @ self.eq_fobj.eigvecs.T
-            
+
             self.TA = lao @ TA_lo_eo # (ao lo) (lo eo) = (ao eo)
             self.n_f = self.eq_fobj.n_f
 
@@ -245,20 +245,31 @@ class Frags:
             nvirt = self.eq_fobj.TA_lo_eo.shape[1] - self.eq_fobj.nsocc
 
             H = lmo_occ.T @ lao.T @ S_butlonger @ self.eq_fobj.lao @ self.eq_fobj.TA_lo_eo # (mo lo) x (lo ao) PERT x (ao ao) x (ao lo) REF x (lo eo)
-            U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
-            U = U[:, :nsocc]
-            Vt = Vt[:nsocc, :]
-            TA_occ = lmo_occ @ U @ Vt
+            U, S, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
+            Sigma = np.zeros_like(S)
+            Sigma[:nsocc] = 1.0      
+            TA_occ = lmo_occ @ (U @ np.diag(Sigma) @ Vt)
 
             H = lmo_virt.T @ lao.T @ S_butlonger @ self.eq_fobj.lao @ self.eq_fobj.TA_lo_eo
-            U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
-            U = U[:, :nvirt]
-            Vt = Vt[:nvirt, :]
-            TA_virt = lmo_virt @ U @ Vt
+            U, S, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
+            Sigma = np.zeros_like(S)
+            Sigma[:nvirt] = 1.0
+            TA_virt = lmo_virt @ (U @ np.diag(Sigma) @ Vt)
+            
+            #TA_check = self.eq_fobj.lao @ self.eq_fobj.TA_lo_eo
+            #print(f"Is TA_check @ TA_check othogonal? {np.allclose(TA_check @ TA_check.T, np.eye(TA_check.shape[0]))}")
+            #print(f"the norm is {np.linalg.norm(np.eye(TA_check.shape[0]) - TA_check @ TA_check.T)}")
+            #print(TA_check @ TA_check.T)
 
-            #TA_lo_eo = np.concatenate((TA_occ, TA_virt), axis=1) @ self.eq_fobj.eigvecs.T
+            #TA_lo_eo = TA_occ + TA_virt
+            #print(f"Is TA_lo_eo from Align-with-TA_lo_eo orthogonal? {np.allclose(TA_lo_eo @ TA_lo_eo.T, np.eye(TA_lo_eo.shape[0]))}")
+            #print(TA_lo_eo @ TA_lo_eo.T)
+            
+            #TA_lo_eo_orth = scipy.linalg.svd(TA_lo_eo)[0]
+            #print(f"Is TA_lo_eo_orth from Align-with-TA_lo_eo orthogonal? {np.allclose(TA_lo_eo_orth @ TA_lo_eo_orth.T, np.eye(TA_lo_eo.shape[0]))}")
+            #print(TA_lo_eo_orth @ TA_lo_eo_orth.T)
+
             TA_lo_eo = TA_occ + TA_virt
-
             self.TA = lao @ TA_lo_eo # (ao lo) (lo eo) = (ao eo)
             self.n_f = self.eq_fobj.n_f
 
