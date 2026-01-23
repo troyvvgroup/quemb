@@ -778,15 +778,41 @@ class BE:
         return ovlp
 
     def match_fragments(self, ref_dyson, frag_dyson, n_ex, extra=3, threshold=0.6):
-        """Hungarian matching (not sure if i need this after all)
-        + phase alignment for left Dyson orbitals (in AO basis)"""
+        """
+        Hungarian matching + phase alignment for
+        left Dyson orbitals (in AO basis)
+
+        Parameters
+        ----------
+        ref_dyson : numpy.ndarray
+            Reference Dyson orbital (currently chosen as fragment 0).
+        frag_dyson : numpy.ndarray
+            Current fragment Dyson orbital.
+        n_ex : int
+            Number of excited states considered.
+        extra : int
+            Number of additional excited states being included.
+            Helpful to solve intruder state issues. Default: 3
+        threshold : float
+            Overlap threshold above which two excited states across the
+            reference and fragment are considered to "match". Default: 0.6.
+
+        Returns
+        -------
+        mapping : Dict[int, int]
+            Map of reference excitation (row index)
+            to current fragment excitation (column index).
+        ovlp : numpy.ndarray
+            Overlap matrix between reference and current fragments.
+        excluded : List[int]
+            List of excitations excluded from the current fragment
+            due to no match being found.
+        """
 
         excluded = []
 
-        ovlp = self.compute_overlap_dyson(ref_dyson, frag_dyson, n_ex, extra)
-        # print(ovlp)
-
         # ovlp: -1 to 1
+        ovlp = self.compute_overlap_dyson(ref_dyson, frag_dyson, n_ex, extra)
 
         cost = -abs(ovlp)
 
@@ -805,24 +831,8 @@ class BE:
             if mag < threshold:
                 print(f"WARNING weak match: ref {i} -> frag {j} |overlap|={mag}")
                 print("SKIP MATCHING")
-                ###found no good match for this excitation pair
-                ###strategy 1 - replace with 0
-                """fobj.dyson_left[j,:]=0
-                fobj.dyson_right[j, :]=0
-                fobj.ex_e[j] = 0"""
-
-                ###strategy 1.5 - fully take out
+                # found no good match for this excitation pair => exclude
                 excluded.append(j)
-
-                ###Strategy 2- replace wth dyson orb
-                ###doesn't work
-
-                """else:
-                    #phase alignment - do we need it?
-                    if (ov<0):
-                        fobj.dyson_left[j, :] = -fobj.dyson_left[j, :]
-                        fobj.dyson_right[j, :] = -fobj.dyson_right[j, :]"""
-
         return mapping, ovlp, excluded
 
     def hij_full(self, n_ex):
