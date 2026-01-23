@@ -19,6 +19,7 @@ from numpy import (
     floating,
     isnan,
     ndarray,
+    save,
     sqrt,
     where,
     zeros,
@@ -268,6 +269,20 @@ class BE:
         self.integral_transform = int_transform
         self.auxbasis = auxbasis
         self.thr_bath = thr_bath
+
+        # Alexa: this is a temporary solution for the EOM-BE code
+        # TO DO: set up better QuEmb - QChem - QuEmb workflow
+
+        # save full system HF Fock matrix to file
+        import os
+
+        if not os.path.exists("files_EOM"):
+            os.makedirs("files_EOM")
+
+        with open("files_EOM/full_syst_fock.npy", "wb") as f:
+            save(f, mf.get_fock())
+
+        # end Alexa
 
         # Fragment information from fobj
         self.fobj = fobj
