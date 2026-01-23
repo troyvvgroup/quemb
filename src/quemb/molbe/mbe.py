@@ -766,8 +766,27 @@ class BE:
             return (rdm1f, RDM2_full)
 
     def compute_overlap_dyson(self, ref_dyson, frag_dyson, n_ex, extra=3):
-        """compute overlaps between two lists of Dyson orbitals
-        (in the MO basis), used for state targetting."""
+        """
+        Compute overlaps between two Dyson orbitals
+        (currently in the SO basis), used for state targetting.
+
+        Parameters
+        ----------
+        ref_dyson : numpy.ndarray
+            Reference Dyson orbital (currently chosen as fragment 0).
+        frag_dyson : numpy.ndarray
+            Current fragment Dyson orbital.
+        n_ex : int
+            Number of excited states considered.
+        extra : int
+            Number of additional excited states being included.
+            Helpful to solve intruder state issues. Default: 3
+
+        Returns
+        -------
+        ovlp : numpy.ndarray
+            Overlap matrix between reference (rows) and current fragments (columns).
+        """
 
         ovlp = zeros((n_ex, n_ex + extra))
 
