@@ -279,7 +279,6 @@ class BE:
         # TO DO: set up better QuEmb - QChem - QuEmb workflow
 
         # save full system HF Fock matrix to file
-        import os
 
         if not os.path.exists("files_EOM"):
             os.makedirs("files_EOM")
@@ -900,9 +899,6 @@ class BE:
         delta_hijMO : numpy.ndarray
             Environment correction term in MO basis.
         """
-
-        from numpy import shape
-
         # Notation: _mo: fragment MO basis
         # MO: full system MO basis
 
