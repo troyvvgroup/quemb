@@ -150,7 +150,7 @@ def be2fcidump(be_obj, fcidump_prefix, basis):
             h1e,
             h2e,
             frag.TA.shape[1],
-            frag.nsocc,
+            frag.nsocc * 2,
             ms=0,
         )
 
