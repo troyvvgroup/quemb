@@ -936,7 +936,7 @@ class BE:
 
         for frag_number, fobjs in enumerate(self.Fobjs):
             output = "qchem_fragment_" + str(frag_number) + "/eom.out"
-            dyson_parser(fobjs, output, n_ex + extra, frag_number)
+            dyson_parser(fobjs, output, n_ex + extra)
 
         # compute overlaps and reorder excitations
         print("EOM-IP FRAGMENT REORDERING")
