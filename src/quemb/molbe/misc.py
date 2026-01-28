@@ -157,7 +157,7 @@ def be2fcidump(be_obj, fcidump_prefix, basis):
 
 def ube2fcidump(be_obj, fcidump_prefix, basis):
     """Construct FCIDUMP file for each fragment in a given BE object
-    Assumes molecular, restricted BE calculation
+    Assumes molecular, unrestricted BE calculation
 
     Parameters
     ----------
