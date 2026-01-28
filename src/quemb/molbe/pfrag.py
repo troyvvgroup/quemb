@@ -230,9 +230,9 @@ class Frags:
             U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
             TA_virt = lmo_virt @ U @ Vt
 
-            TA_lo_eo = np.concatenate((TA_occ, TA_virt), axis=1) @ self.eq_fobj.eigvecs.T
+            self.TA_lo_eo = np.concatenate((TA_occ, TA_virt), axis=1) @ self.eq_fobj.eigvecs.T
 
-            self.TA = lao @ TA_lo_eo # (ao lo) (lo eo) = (ao eo)
+            self.TA = lao @ self.TA_lo_eo # (ao lo) (lo eo) = (ao eo)
             self.n_f = self.eq_fobj.n_f
 
         elif gradient_orb_space == "Align-with-TA_lo_eo":
@@ -244,33 +244,17 @@ class Frags:
             nsocc = self.eq_fobj.nsocc
             nvirt = self.eq_fobj.TA_lo_eo.shape[1] - self.eq_fobj.nsocc
 
-            H = lmo_occ.T @ lao.T @ S_butlonger @ self.eq_fobj.lao @ self.eq_fobj.TA_lo_eo # (mo lo) x (lo ao) PERT x (ao ao) x (ao lo) REF x (lo eo)
-            U, S, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
-            Sigma = np.zeros_like(S)
-            Sigma[:nsocc] = 1.0      
-            TA_occ = lmo_occ @ (U @ np.diag(Sigma) @ Vt)
+            H = lmo_occ.T @ self.eq_fobj.TA_occ
+            U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
+            TA_occ = lmo_occ @ U @ Vt
 
-            H = lmo_virt.T @ lao.T @ S_butlonger @ self.eq_fobj.lao @ self.eq_fobj.TA_lo_eo
-            U, S, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
-            Sigma = np.zeros_like(S)
-            Sigma[:nvirt] = 1.0
-            TA_virt = lmo_virt @ (U @ np.diag(Sigma) @ Vt)
-            
-            #TA_check = self.eq_fobj.lao @ self.eq_fobj.TA_lo_eo
-            #print(f"Is TA_check @ TA_check othogonal? {np.allclose(TA_check @ TA_check.T, np.eye(TA_check.shape[0]))}")
-            #print(f"the norm is {np.linalg.norm(np.eye(TA_check.shape[0]) - TA_check @ TA_check.T)}")
-            #print(TA_check @ TA_check.T)
+            H = lmo_virt.T @ self.eq_fobj.TA_virt
+            U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
+            TA_virt = lmo_virt @ U @ Vt
 
-            #TA_lo_eo = TA_occ + TA_virt
-            #print(f"Is TA_lo_eo from Align-with-TA_lo_eo orthogonal? {np.allclose(TA_lo_eo @ TA_lo_eo.T, np.eye(TA_lo_eo.shape[0]))}")
-            #print(TA_lo_eo @ TA_lo_eo.T)
-            
-            #TA_lo_eo_orth = scipy.linalg.svd(TA_lo_eo)[0]
-            #print(f"Is TA_lo_eo_orth from Align-with-TA_lo_eo orthogonal? {np.allclose(TA_lo_eo_orth @ TA_lo_eo_orth.T, np.eye(TA_lo_eo.shape[0]))}")
-            #print(TA_lo_eo_orth @ TA_lo_eo_orth.T)
+            self.TA_lo_eo = np.concatenate((TA_occ, TA_virt), axis=1) @ self.eq_fobj.eigvecs.T
 
-            TA_lo_eo = TA_occ + TA_virt
-            self.TA = lao @ TA_lo_eo # (ao lo) (lo eo) = (ao eo)
+            self.TA = lao @ self.TA_lo_eo # (ao lo) (lo eo) = (ao eo)
             self.n_f = self.eq_fobj.n_f
 
         elif gradient_orb_space == "RDM-invariant-with-overlap":
@@ -325,7 +309,7 @@ class Frags:
         self.veff0 = veff0
         self.fock = self.h1 + veff_.real
 
-    def get_nsocc(self, S, C, nocc, ncore=0):
+    def get_nsocc(self, lmo_coeff, S, C, nocc, ncore=0):
         """
         Get the number of occupied orbitals for the fragment.
 
@@ -345,12 +329,27 @@ class Frags:
         numpy.ndarray
             Projected density matrix.
         """
-        C_ = multi_dot((self.TA.T, S, C[:, ncore : ncore + nocc])) # occupied MOs projected into the fragment space (eo, occ ao)
-        P_ = C_ @ C_.T # (eo, eo)
+        C_ = multi_dot((self.TA.T, S, C[:, ncore : ncore + nocc])) # (eo ao) @ (ao ao) @ (ao, occ mo) = (eo, occ mo)
+        C = self.TA_lo_eo.T @ lmo_coeff[:, ncore : ncore + nocc]          # (eo lo) @ (lo occ mo) = (eo, occ mo)
+        
+        P_ = C_ @ C_.T # (TA.T @ S @ C @ C^T @ S^T @ TA) 
+        P = C @ C.T
         
         nsocc_ = trace(P_)
         nsocc = int(round(nsocc_))
- 
+        
+        eigvals, eigvecs = np.linalg.eigh(P)
+        idx = np.argsort(eigvals)[::-1]
+        eigvals = eigvals[idx]
+        eigvecs = eigvecs[:, idx]
+
+        # rotate TA so occupied come first
+        TA_occvirt = self.TA_lo_eo @ eigvecs   # (ao, eo)
+
+        self.TA_occ  = TA_occvirt[:, :nsocc]
+        self.TA_virt = TA_occvirt[:, nsocc:]
+        self.eigvecs = eigvecs
+        
         try:
             mo_coeffs = scipy.linalg.svd(C_, lapack_driver="gesvd")[0]
         except scipy.linalg.LinAlgError:
@@ -579,18 +578,6 @@ class Ref_Frags(Frags):
 
     @classmethod
     def from_Frag(cls, fobj: Frags, mybe: BE) -> Self:
-        Dhf = mybe.lmo_coeff[:, : mybe.Nocc] @ mybe.lmo_coeff[:, : mybe.Nocc].T
-        D_SO = fobj.TA_lo_eo.T @ Dhf @ fobj.TA_lo_eo # (f+b eo, f+b eo)
-        eigvals, eigvecs = np.linalg.eigh(D_SO)  # diagonalize
-        eigvals = eigvals[::-1]
-        eigvecs = eigvecs[:, ::-1]
-
-        TA_occ = fobj.TA_lo_eo @ eigvecs[:, : fobj.nsocc]
-        TA_virt = fobj.TA_lo_eo @ eigvecs[:, fobj.nsocc :]
-        lao = mybe.W
-        TA_lo_eo = fobj.TA_lo_eo
-        TAfull_lo_eo = fobj.TAfull_lo_eo
-
         return cls(
             fobj.AO_in_frag,
             fobj.ifrag,
@@ -600,12 +587,12 @@ class Ref_Frags(Frags):
             fobj.relAO_in_ref_per_edge,
             fobj.weight_and_relAO_per_center,
             fobj.relAO_per_origin,
-            TA_occ,
-            TA_virt,
-            lao,
-            TA_lo_eo,
-            TAfull_lo_eo,
-            eigvecs,
+            TA_occ=fobj.TA_occ,
+            TA_virt=fobj.TA_virt,
+            lao=mybe.W,
+            TA_lo_eo=fobj.TA_lo_eo,
+            TAfull_lo_eo=fobj.TAfull_lo_eo,
+            eigvecs=fobj.eigvecs,
             eri_file=fobj.eri_file,
             unrestricted=fobj.unrestricted,
             n_f=fobj.n_f,
