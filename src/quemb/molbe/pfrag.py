@@ -1,12 +1,13 @@
 # Author(s): Oinam Romesh Meitei, Oskar Weser
+from __future__ import annotations
 
 from collections.abc import Sequence
-
+from typing import TYPE_CHECKING, Literal
+from typing_extensions import assert_never
 import h5py
 import numpy as np
 import scipy.linalg
 from numpy import (
-    argsort,
     array,
     diag_indices,
     einsum,
@@ -20,6 +21,8 @@ from numpy import (
     zeros_like,
 )
 from numpy.linalg import eigh, multi_dot
+from scipy.linalg import svd
+from typing_extensions import Self
 
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
 from quemb.shared.helper import clean_overlap
@@ -33,6 +36,30 @@ from quemb.shared.typing import (
     SeqOverEdge,
     Vector,
 )
+
+if TYPE_CHECKING:
+    from quemb.molbe.mbe import BE
+
+
+def procrustes_right(
+        P: Matrix[np.floating], Q: Matrix[np.floating], 
+) -> Matrix[np.float64]:
+    """Solve min || P R - Q ||_F subject to R^T R = I.
+
+    Parameters
+    ----------
+    P, Q : (m, n) arrays
+        Corresponding point sets as row vectors.
+
+    Returns
+    -------
+    R : (n, n) array
+        Optimal orthogonal matrix.
+    """
+    H = P.T @ Q
+    U, S, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
+
+    return U @ Vt #U, S, Vt #U @ Vt 
 
 
 class Frags:
@@ -89,7 +116,6 @@ class Frags:
         unrestricted :
             unrestricted calculation, by default False
         """
-
         self.AO_in_frag = AO_in_frag
         self.n_frag = len(AO_in_frag)
         self.AO_per_edge = AO_per_edge
@@ -101,7 +127,9 @@ class Frags:
         self.eri_file = eri_file
 
         self.ifrag = ifrag
-        if unrestricted:
+
+        self.unrestricted = unrestricted
+        if self.unrestricted:
             self.dname: str | list[str] = [
                 "f" + str(ifrag) + "/aa",
                 "f" + str(ifrag) + "/bb",
@@ -113,6 +141,8 @@ class Frags:
         self.TA: Matrix[float64]
         self.frag_TA_offset: Vector[int64]
         self.TA_lo_eo: Matrix[float64]
+
+        self.eq_fobj: Ref_Frags | None = None
 
         self.h1: Matrix[float64]
         self.nao: int
@@ -146,10 +176,13 @@ class Frags:
     def sd(
         self,
         lao: Matrix[float64],
+        S_butlonger: Matrix[float64],
         lmo: Matrix[float64],
         nocc: int,
-        thr_bath: float,
-        norb: int | None = None,
+        gradient_orb_space: Literal[
+            "RDM-invariant", "Align-with-TA_lo_eo", "RDM-invariant-with-overlap", "Unmodified"
+        ],
+        thr_bath: float = 1.0e-10,
     ) -> None:
         """
         Perform Schmidt decomposition for the fragment.
@@ -164,19 +197,90 @@ class Frags:
             Number of occupied orbitals.
         thr_bath : float,
             Threshold for bath orbitals in Schmidt decomposition
-        norb : int, optional
-            Specify number of bath orbitals.
-            Used for UBE, where different number of alpha and beta orbitals
-            Default is None, allowing orbitals to be chosen by threshold
         """
-        self.TA_lo_eo, self.n_f, self.n_b = schmidt_decomposition(
-            lmo,
-            nocc,
-            self.AO_in_frag,
-            thr_bath=thr_bath,
-            norb=norb,
-        )
-        self.TA = lao @ self.TA_lo_eo
+        print(f"gradient_orb_space: {gradient_orb_space}")
+        if gradient_orb_space == "Unmodified":
+            (
+                self.Dhf,
+                self.TA_lo_eo,
+                self.TAenv_lo_eo,
+                self.TAfull_lo_eo,
+                self.n_f,
+                self.n_b,
+            ) = schmidt_decomposition(
+                lmo,
+                nocc,
+                self.AO_in_frag,
+                thr_bath=thr_bath,
+            )
+            self.TA = lao @ self.TA_lo_eo
+        elif gradient_orb_space == "RDM-invariant":
+            assert self.eq_fobj is not None
+            assert self.eq_fobj.eigvecs is not None
+
+            lmo_occ = lmo[:, :nocc]
+            lmo_virt = lmo[:, nocc:]
+            
+            # def works
+            H = lmo_occ.T @ self.eq_fobj.TA_occ
+            U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
+            TA_occ = lmo_occ @ U @ Vt
+
+            H = lmo_virt.T @ self.eq_fobj.TA_virt
+            U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
+            TA_virt = lmo_virt @ U @ Vt
+
+            self.TA_lo_eo = np.concatenate((TA_occ, TA_virt), axis=1) @ self.eq_fobj.eigvecs.T
+
+            self.TA = lao @ self.TA_lo_eo # (ao lo) (lo eo) = (ao eo)
+            self.n_f = self.eq_fobj.n_f
+
+        elif gradient_orb_space == "Align-with-TA_lo_eo":
+            assert self.eq_fobj is not None
+
+            lmo_occ = lmo[:, :nocc]
+            lmo_virt = lmo[:, nocc:]
+
+            nsocc = self.eq_fobj.nsocc
+            nvirt = self.eq_fobj.TA_lo_eo.shape[1] - self.eq_fobj.nsocc
+
+            H = lmo_occ.T @ self.eq_fobj.TA_occ
+            U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
+            TA_occ = lmo_occ @ U @ Vt
+
+            H = lmo_virt.T @ self.eq_fobj.TA_virt
+            U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
+            TA_virt = lmo_virt @ U @ Vt
+
+            self.TA_lo_eo = np.concatenate((TA_occ, TA_virt), axis=1) @ self.eq_fobj.eigvecs.T
+
+            self.TA = lao @ self.TA_lo_eo # (ao lo) (lo eo) = (ao eo)
+            self.n_f = self.eq_fobj.n_f
+
+        elif gradient_orb_space == "RDM-invariant-with-overlap":
+            assert self.eq_fobj is not None
+            assert self.eq_fobj.eigvecs is not None
+
+            lmo_occ = lmo[:, :nocc]
+            lmo_virt = lmo[:, nocc:]
+
+            # def works
+            H = lmo_occ.T @ lao.T @ S_butlonger @ self.eq_fobj.lao @ self.eq_fobj.TA_occ
+            U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
+            TA_occ = lmo_occ @ U @ Vt
+
+            H = lmo_virt.T @ lao.T @ S_butlonger @ self.eq_fobj.lao @ self.eq_fobj.TA_virt
+            U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
+            TA_virt = lmo_virt @ U @ Vt
+
+            TA_lo_eo = np.concatenate((TA_occ, TA_virt), axis=1) @ self.eq_fobj.eigvecs.T
+
+            self.TA = lao @ TA_lo_eo # (ao lo) (lo eo) = (ao eo)
+            self.n_f = self.eq_fobj.n_f
+
+        else:
+            assert_never(gradient_orb_space)
+
         self.nao = self.TA.shape[1]
 
     def cons_fock(self, hf_veff, S, dm, eri_=None):
@@ -205,7 +309,7 @@ class Frags:
         self.veff0 = veff0
         self.fock = self.h1 + veff_.real
 
-    def get_nsocc(self, S, C, nocc, ncore=0):
+    def get_nsocc(self, lmo_coeff, S, C, nocc, ncore=0):
         """
         Get the number of occupied orbitals for the fragment.
 
@@ -225,12 +329,29 @@ class Frags:
         numpy.ndarray
             Projected density matrix.
         """
-        C_ = multi_dot((self.TA.T, S, C[:, ncore : ncore + nocc]))
-        P_ = C_ @ C_.T
+        C_ = multi_dot((self.TA.T, S, C[:, ncore : ncore + nocc])) # (eo ao) @ (ao ao) @ (ao, occ mo) = (eo, occ mo)
+        C = self.TA_lo_eo.T @ lmo_coeff[:, ncore : ncore + nocc]          # (eo lo) @ (lo occ mo) = (eo, occ mo)
+        
+        P_ = C_ @ C_.T # (TA.T @ S @ C @ C^T @ S^T @ TA) 
+        P = C @ C.T
+        
         nsocc_ = trace(P_)
         nsocc = int(round(nsocc_))
+        
+        eigvals, eigvecs = np.linalg.eigh(P)
+        idx = np.argsort(eigvals)[::-1]
+        eigvals = eigvals[idx]
+        eigvecs = eigvecs[:, idx]
+
+        # rotate TA so occupied come first
+        TA_occvirt = self.TA_lo_eo @ eigvecs   # (ao, eo)
+
+        self.TA_occ  = TA_occvirt[:, :nsocc]
+        self.TA_virt = TA_occvirt[:, nsocc:]
+        self.eigvecs = eigvecs
+        
         try:
-            mo_coeffs = scipy.linalg.svd(C_)[0]
+            mo_coeffs = scipy.linalg.svd(C_, lapack_driver="gesvd")[0]
         except scipy.linalg.LinAlgError:
             mo_coeffs = scipy.linalg.eigh(C_)[1][:, -nsocc:]
 
@@ -260,21 +381,21 @@ class Frags:
             Alpha (0) or beta (1) spin for unrestricted calculation, by default None
         """
 
-        if self._mf is not None:
+        if self._mf is not None:  # does not execute
             self._mf = None
-        if self._mc is not None:
+        if self._mc is not None:  # does not execute
             self._mc = None
-        if heff is None:
+        if heff is None:  # executes
             heff = self.heff
 
-        if eri is None:
+        if eri is None:  # executes
             if unrestricted:
                 dname = self.dname[spin_ind]
             else:
                 dname = self.dname
             eri = get_eri(dname, self.nao, eri_file=self.eri_file)
 
-        if dm0 is None:
+        if dm0 is None:  # executes
             dm0 = 2.0 * (
                 self._mo_coeffs[:, : self.nsocc]
                 @ self._mo_coeffs[:, : self.nsocc].conj().T
@@ -400,6 +521,90 @@ class Frags:
             return None
 
 
+class Ref_Frags(Frags):
+    TA_occ: Matrix[np.float64]
+    TA_virt: Matrix[np.float64]
+    lao: Matrix[np.float64]
+
+    # This is natural orbitals
+    eigvecs: Matrix[np.float64]
+
+    TA_lo_eo_frag: Matrix[np.float64]
+    TA_lo_eo_bath: Matrix[np.float64]
+
+    def __init__(
+        self,
+        AO_in_frag: Sequence[GlobalAOIdx],
+        ifrag: int,
+        AO_per_edge: SeqOverEdge[Sequence[GlobalAOIdx]],
+        ref_frag_idx_per_edge: SeqOverEdge[FragmentIdx],
+        relAO_per_edge: SeqOverEdge[Sequence[RelAOIdx]],
+        relAO_in_ref_per_edge: SeqOverEdge[Sequence[RelAOIdxInRef]],
+        weight_and_relAO_per_center: tuple[float, Sequence[RelAOIdx]],
+        relAO_per_origin: Sequence[RelAOIdx],
+        TA_occ: Matrix[np.float64],
+        TA_virt: Matrix[np.float64],
+        lao: Matrix[np.float64],
+        TA_lo_eo: Matrix[np.float64],
+        TAfull_lo_eo: Matrix[np.float64],
+        eigvecs: Matrix[np.float64],
+        n_f: int,
+        n_b: int,
+        nsocc: int,
+        eri_file: PathLike = "eri_file.h5",
+        unrestricted: bool = False,
+    ) -> None:
+        super().__init__(
+            AO_in_frag,
+            ifrag,
+            AO_per_edge,
+            ref_frag_idx_per_edge,
+            relAO_per_edge,
+            relAO_in_ref_per_edge,
+            weight_and_relAO_per_center,
+            relAO_per_origin,
+            eri_file=eri_file,
+            unrestricted=unrestricted,
+        )
+        self.TA_occ = TA_occ
+        self.TA_virt = TA_virt
+        self.lao = lao
+        self.TA_lo_eo = TA_lo_eo
+        self.TAfull_lo_eo = TAfull_lo_eo
+        self.eigvecs = eigvecs
+        self.n_f = n_f
+        self.n_b = n_b
+        self.nsocc = nsocc
+
+    @classmethod
+    def from_Frag(cls, fobj: Frags, mybe: BE) -> Self:
+        return cls(
+            fobj.AO_in_frag,
+            fobj.ifrag,
+            fobj.AO_per_edge,
+            fobj.ref_frag_idx_per_edge,
+            fobj.relAO_per_edge,
+            fobj.relAO_in_ref_per_edge,
+            fobj.weight_and_relAO_per_center,
+            fobj.relAO_per_origin,
+            TA_occ=fobj.TA_occ,
+            TA_virt=fobj.TA_virt,
+            lao=mybe.W,
+            TA_lo_eo=fobj.TA_lo_eo,
+            TAfull_lo_eo=fobj.TAfull_lo_eo,
+            eigvecs=fobj.eigvecs,
+            eri_file=fobj.eri_file,
+            unrestricted=fobj.unrestricted,
+            n_f=fobj.n_f,
+            n_b=fobj.n_b,
+            nsocc=fobj.nsocc,
+        )
+
+
+def get_ref_frags(mybe: BE) -> list[Ref_Frags]:
+    return [Ref_Frags.from_Frag(fobj, mybe) for fobj in mybe.Fobjs]
+
+
 def schmidt_decomposition(
     mo_coeff: Matrix[float64],
     nocc: int,
@@ -407,8 +612,7 @@ def schmidt_decomposition(
     thr_bath: float = 1.0e-10,
     cinv: Matrix[float64] | None = None,
     rdm: Matrix[float64] | None = None,
-    norb: int | None = None,
-) -> tuple[Matrix[float64], int, int]:
+):
     """
     Perform Schmidt decomposition on the molecular orbital coefficients.
 
@@ -419,9 +623,9 @@ def schmidt_decomposition(
     Parameters
     ----------
     mo_coeff :
-        Molecular orbital coefficients.
+        Local molecular orbital coefficients, lo by mo
     nocc :
-        Number of occupied orbitals.
+        Number of occupied orbitals in the full system
     Frag_sites : list of int
         List of fragment sites (indices).
     thr_bath :
@@ -431,9 +635,6 @@ def schmidt_decomposition(
     rdm :
         Reduced density matrix. If not provided, it will be computed from the molecular
         orbitals. Defaults to None.
-    norb :
-        Specifies number of bath orbitals. Used for UBE to make alpha and beta
-        spaces the same size. Defaults to None
 
     Returns
     -------
@@ -443,11 +644,12 @@ def schmidt_decomposition(
         Transformation matrix (TA) including both fragment and entangled bath orbitals.
     """
 
-    # Compute the reduced density matrix (RDM) if not provided
     if mo_coeff is not None:
-        C = mo_coeff[:, :nocc]
+        C = mo_coeff[
+            :, :nocc
+        ]  # happens, just take the occupied part (which are the first nocc columns)
     if rdm is None:
-        Dhf = C @ C.T
+        Dhf = C @ C.T  # happens, lo by lo
         if cinv is not None:
             Dhf = multi_dot((cinv, Dhf, cinv.conj().T))
     else:
@@ -467,31 +669,46 @@ def schmidt_decomposition(
     # Perform eigenvalue decomposition on the environment density matrix
     Eval, Evec = eigh(Denv)
 
+    # Reverse order: largest → smallest
+    Eval = Eval[::-1]
+    Evec = Evec[:, ::-1]
+
     # Identify significant environment orbitals based on eigenvalue threshold
     Bidx = []
+    Eidx = []
 
     # Set the number of orbitals to be taken from the environment orbitals
     # Based on an eigenvalue threshold ordering
-    if norb is not None:
-        n_frag_ind = len(Frag_sites1)
-        n_bath_ind = norb - n_frag_ind
-        ind_sort = argsort(np.abs(Eval))
-        first_el = [x for x in ind_sort if x < 1.0 - thr_bath][-1 * n_bath_ind]
-        for i in range(len(Eval)):
-            if np.abs(Eval[i]) >= first_el:
-                Bidx.append(i)
-    else:
-        for i in range(len(Eval)):
-            if thr_bath < np.abs(Eval[i]) < 1.0 - thr_bath:
-                Bidx.append(i)
+    for i in range(len(Eval)):
+        if thr_bath < np.abs(Eval[i]) < 1.0 - thr_bath:
+            Bidx.append(i)
+        else:
+            Eidx.append(i)
 
-    # Initialize the transformation matrix (TA)
+    # Initialize the fragment + bath TA matrix
     TA = zeros([Tot_sites, len(AO_in_frag) + len(Bidx)])
     TA[AO_in_frag, : len(AO_in_frag)] = eye(len(AO_in_frag))  # Fragment part
-    TA[Env_sites1, len(AO_in_frag) :] = Evec[:, Bidx]  # Environment part
+    TA[Env_sites1, len(AO_in_frag) :] = Evec[:, Bidx]  # Bath part
 
-    # return TA, norbs_frag, norbs_bath
-    return TA, Frag_sites1.shape[0], len(Bidx)
+    # Initialize the environment TA matrix
+    if len(Eidx) == 0:
+        print("no environment")
+    TAenv = zeros([Tot_sites, len(Eidx)])
+    TAenv[Env_sites1, :] = Evec[:, Eidx]
+
+    TAfull = np.zeros((Tot_sites, len(AO_in_frag) + len(Bidx) + len(Eidx)))
+    TAfull[AO_in_frag, : len(AO_in_frag)] = np.eye(len(AO_in_frag))
+    TAfull[Env_sites1, len(AO_in_frag) : len(AO_in_frag) + len(Bidx)] = Evec[:, Bidx]
+    TAfull[Env_sites1, len(AO_in_frag) + len(Bidx) :] = Evec[:, Eidx]
+
+    return (
+        Dhf,
+        TA,
+        TAenv,
+        TAfull,
+        Frag_sites1.shape[0],
+        len(Bidx),
+    )
 
 
 def _get_contained(

@@ -2,10 +2,12 @@
 
 import logging
 import pickle
+from collections.abc import Sequence
 from typing import Final, Literal, TypeAlias
 from warnings import warn
 
 import h5py
+import time
 import numpy as np
 from attrs import define
 from numpy import (
@@ -44,7 +46,7 @@ from quemb.molbe.lo import (
 )
 from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
 from quemb.molbe.opt import BEOPT
-from quemb.molbe.pfrag import Frags, union_of_frag_MOs_and_index
+from quemb.molbe.pfrag import Frags, Ref_Frags, union_of_frag_MOs_and_index
 from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.external.lo_helper import (
     get_aoind_by_atom,
@@ -152,6 +154,11 @@ class BE:
         MO_coeff_epsilon: float = 1e-5,
         AO_coeff_epsilon: float = 1e-10,
         re_eval_HF: bool = False,
+        eq_fobjs: Sequence[Ref_Frags] | None = None,
+        S_butlonger: Matrix[np.float64] | None = None,
+        gradient_orb_space: Literal[
+            "RDM-invariant", "Schmidt-invariant", "Bath-Invariant", "Unmodified"
+        ] = "Unmodified",
     ) -> None:
         r"""
         Constructor for BE object.
@@ -264,6 +271,9 @@ class BE:
         self.integral_transform = int_transform
         self.auxbasis = auxbasis
         self.thr_bath = thr_bath
+        self.eq_fobjs = eq_fobjs
+        self.S_butlonger = S_butlonger
+        self.gradient_orb_space = gradient_orb_space
 
         # Fragment information from fobj
         self.fobj = fobj
@@ -1119,7 +1129,7 @@ class BE:
         E_hf = 0.0
         for fobjs_ in self.Fobjs:
             eri = array(file_eri.get(fobjs_.dname))
-            _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
+            _ = fobjs_.get_nsocc(self.lmo_coeff, self.S, self.C, self.Nocc, ncore=self.ncore)
 
             assert fobjs_.TA is not None
             fobjs_.h1 = multi_dot((fobjs_.TA.T, self.hcore, fobjs_.TA))
@@ -1130,7 +1140,7 @@ class BE:
             fobjs_.cons_fock(self.hf_veff, self.S, self.hf_dm, eri_=eri)
 
             fobjs_.heff = zeros_like(fobjs_.h1)
-            fobjs_.scf(fs=True, eri=eri)
+            fobjs_.scf(fs=False, eri=eri)
 
             assert fobjs_.h1 is not None and fobjs_.nsocc is not None
             fobjs_.dm0 = 2.0 * (
@@ -1174,15 +1184,25 @@ class BE:
         """
         for I in range(self.fobj.n_frag):
             fobjs_ = self.fobj.to_Frags(I, eri_file=self.eri_file)
-            fobjs_.sd(self.W, self.lmo_coeff, self.Nocc, thr_bath=self.thr_bath)
+            if self.eq_fobjs is not None:
+                fobjs_.eq_fobj = self.eq_fobjs[I]
+
+            fobjs_.sd(
+                self.W,
+                self.S_butlonger,
+                self.lmo_coeff,
+                self.Nocc,
+                self.gradient_orb_space,
+                thr_bath=self.thr_bath,
+            )
 
             self.Fobjs.append(fobjs_)
 
-        self.all_fragment_MO_TA, frag_TA_index_per_frag = union_of_frag_MOs_and_index(
-            self.Fobjs, self.mf.mol.intor("int1e_ovlp"), epsilon=1e-10
-        )
-        for fobj, frag_TA_offset in zip(self.Fobjs, frag_TA_index_per_frag):
-            fobj.frag_TA_offset = frag_TA_offset
+        # self.all_fragment_MO_TA, frag_TA_index_per_frag = union_of_frag_MOs_and_index(
+        #    self.Fobjs, self.mf.mol.intor("int1e_ovlp"), epsilon=1e-10
+        # )
+        # for fobj, frag_TA_offset in zip(self.Fobjs, frag_TA_index_per_frag):
+        #    fobj.frag_TA_offset = frag_TA_offset
 
         if self.lo_bath_post_schmidt is not None:
             for frag in self.Fobjs:
@@ -1196,7 +1216,33 @@ class BE:
             file_eri = h5py.File(self.eri_file, "w")
             self._eri_transform(int_transform, eri_, file_eri)
 
+        #if not restart:
+        #    max_tries = 100
+        #    for attempt in range(max_tries):
+        #        try:
+        #            file_eri = h5py.File(self.eri_file, "w")
+        #            self._eri_transform(int_transform, eri_, file_eri)
+        #            break
+        #        except BlockingIOError:
+        #            if attempt < max_tries - 1:
+        #                time.sleep(0.5)
+        #            else:
+        #                raise
+        
         self._initialize_fragments(file_eri, restart)
+        
+        for I in range(self.fobj.n_frag):
+            fobjs_ = self.Fobjs[I]
+            print("Checking the (EO, EO) density matrix")
+            D_eo = fobjs_.TA.T @ self.S.T @ self.C @ self.C.T @ self.S @ fobjs_.TA
+            print(f"the trace is {np.trace(D_eo)}")
+            print("D_eo is")
+            print(D_eo)
+            print(f"The number of occupied orbitals in the embedding space is {fobjs_.nsocc}")
+            orth_check = fobjs_.TA.T @ self.S @ fobjs_.TA
+            print(f"Is TA S orthonormal? {np.allclose(fobjs_.TA.T @ self.S @ fobjs_.TA, np.eye(fobjs_.TA.shape[1]))}")
+            print(f"the norm is {np.linalg.norm(np.eye(fobjs_.TA.shape[1]) - fobjs_.TA.T @ self.S @ fobjs_.TA)}")
+            print(fobjs_.TA.T @ self.S @ fobjs_.TA)
 
         if not restart:
             file_eri.close()
@@ -1270,6 +1316,7 @@ class BE:
                 rets[0], rets[1][1], rets[1][0] + rets[1][2], self.ebe_hf
             )
             self.ebe_tot = rets[0] + self.ebe_hf
+            self.rets0 = rets[0]
         else:
             print_energy_noncumulant(
                 rets[0], rets[1][0], rets[1][2], rets[1][1], self.ebe_hf, self.enuc
