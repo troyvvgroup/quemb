@@ -860,8 +860,7 @@ class BE:
 
         # if mapping[i]=j => reference excitation i matches fragment excitation j
         row_ind, col_ind = linear_sum_assignment(cost)
-        mapping = {row: col for row, col in zip(row_ind, col_ind)}
-        print(mapping)
+        mapping = {int(row): int(col) for row, col in zip(row_ind, col_ind)}
 
         for i, j in mapping.items():
             ov = ovlp[i, j]
@@ -945,14 +944,16 @@ class BE:
         # Reference Dyson left orbitals - fragment 0:
         ref = self.Fobjs[0]
         # ref_dyson=ref.dyson_left
-        ref_dyson = ref.dyson_ao
+        # ref_dyson = ref.dyson_ao
+        ref_dyson = ref.dyson_right
 
         all_mappings: List[Dict[int, int]] = []
         all_overlaps: List[ndarray] = []
 
         for frag_idx, fobj in enumerate(self.Fobjs):
-            # frag_dyson = fobj.dyson_left
-            frag_dyson = fobj.dyson_ao
+            frag_dyson = fobj.dyson_left
+            # frag_dyson = fobj.dyson_ao
+            # frag_dyson = fobj.dyson_right
 
             mapping, ovlp, excluded = self.match_fragments(
                 ref_dyson, frag_dyson, n_ex, extra
@@ -1027,7 +1028,7 @@ class BE:
             )
 
             # projection matrix
-            cind = [fobjs.fsites[i] for i in fobjs.efac[1]]
+            cind = [fobjs.AO_in_frag[i] for i in fobjs.weight_and_relAO_per_center[1]]
             Pc_ = (
                 fobjs.TA.T
                 @ self.S

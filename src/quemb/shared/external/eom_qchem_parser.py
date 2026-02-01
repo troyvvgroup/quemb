@@ -26,7 +26,8 @@ def dyson_parser(fobj, output="eom.out", n_ex=15):
         r"EOMIP transition\s+\d+/\w+\s+"
         r"Total energy = ([\-\d\.]+) a\.u\.\s+"
         r"Excitation energy = ([\d\.]+) eV\.",
-        re.MULTILINE)
+        re.MULTILINE,
+    )
 
     excitation_energies = [float(match[1]) for match in energy_pattern.findall(content)]
     excitation_energies = array(excitation_energies)
@@ -35,37 +36,54 @@ def dyson_parser(fobj, output="eom.out", n_ex=15):
     dyson_pattern = re.compile(
         r"Left alpha Dyson orbital in the MO basis "
         r"\(canonical Q-Chem's ordering\):\s*\n((?:\s*\d+\s+[\-\d\.Ee+]+\s*\n)+)",
-        re.MULTILINE)
+        re.MULTILINE,
+    )
     dyson_matches_left = dyson_pattern.findall(content)
 
     # extract right Dyson orbitals
     dyson_pattern = re.compile(
         r"Right alpha Dyson orbital in the MO basis "
         r"\(canonical Q-Chem's ordering\):\s*\n((?:\s*\d+\s+[\-\d\.Ee+]+\s*\n)+)",
-        re.MULTILINE)
+        re.MULTILINE,
+    )
     dyson_matches_right = dyson_pattern.findall(content)
 
+    coeff_matrix_left = array(
+        [
+            [float(line.strip().split()[1]) for line in block.strip().splitlines()]
+            for block in dyson_matches_left[:n_ex]
+        ]
+    )
+
+    coeff_matrix_right = array(
+        [
+            [float(line.strip().split()[1]) for line in block.strip().splitlines()]
+            for block in dyson_matches_right[:n_ex]
+        ]
+    )
+
     # extract Dyson orbitals (AO basis)
-    dyson_pattern_ao = re.compile(
-        r"Decomposition over AOs for the left alpha Dyson orbital:"
-        r"\s*\n((?:\s*\d+\s+[\-\d\.Ee+]+\s*\n)+)",
-        re.MULTILINE)
-    dyson_matches_ao = dyson_pattern_ao.findall(content)
 
-    coeff_matrix_left = array([
-        [float(line.strip().split()[1]) for line in block.strip().splitlines()]
-        for block in dyson_matches_left[:n_ex]
-    ])
+    blocks = []
+    lines = content.splitlines()
 
-    coeff_matrix_right = array([
-        [float(line.strip().split()[1]) for line in block.strip().splitlines()]
-        for block in dyson_matches_right[:n_ex]
-    ])
+    i = 0
+    while i < len(lines):
+        if lines[i].startswith(
+            "Decomposition over AOs for the left alpha Dyson orbital:"
+        ):
+            i += 1
+            coeffs = []
 
-    coeff_matrix_ao = array([
-        [float(line.strip().split()[1]) for line in block.strip().splitlines()]
-        for block in dyson_matches_ao[:n_ex]
-    ])
+            while i < len(lines) and lines[i].strip() != "*****":
+                coeffs.append(float(lines[i].strip()))
+                i += 1
+
+            blocks.append(coeffs)
+
+        i += 1
+
+    coeff_matrix_ao = array(blocks[:n_ex])
 
     # save results to fobj
     fobj.ex_e = excitation_energies
