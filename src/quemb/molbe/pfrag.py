@@ -139,6 +139,10 @@ class Frags:
             self.dname = "f" + str(ifrag)
 
         self.TA: Matrix[float64]
+        self.TA_occ: Matrix[float64]
+        self.TA_virt: Matrix[float64]
+        self.eigvecs: Matrix[float64]
+        self.lao: Matrix[float64]
         self.frag_TA_offset: Vector[int64]
         self.TA_lo_eo: Matrix[float64]
 
@@ -244,15 +248,19 @@ class Frags:
             nsocc = self.eq_fobj.nsocc
             nvirt = self.eq_fobj.TA_lo_eo.shape[1] - self.eq_fobj.nsocc
 
-            H = lmo_occ.T @ self.eq_fobj.TA_occ
+            H = lmo_occ.T @ lao.T @ S_butlonger @ self.eq_fobj.lao @ self.eq_fobj.TA_lo_eo
             U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
-            TA_occ = lmo_occ @ U @ Vt
+            TA_occ = lmo_occ @ U[:, :nsocc] # (lo, r)
 
-            H = lmo_virt.T @ self.eq_fobj.TA_virt
+            H = lmo_virt.T @ lao.T @ S_butlonger @ self.eq_fobj.lao @ self.eq_fobj.TA_lo_eo
             U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
-            TA_virt = lmo_virt @ U @ Vt
+            TA_virt = lmo_virt @ U[:, :nvirt] # (lo, r)
 
-            self.TA_lo_eo = np.concatenate((TA_occ, TA_virt), axis=1) @ self.eq_fobj.eigvecs.T
+            # third rotation
+            TA_tmp = np.concatenate((TA_occ, TA_virt), axis=1)
+            H = TA_tmp.T @ self.eq_fobj.TA_lo_eo
+            U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
+            self.TA_lo_eo = TA_tmp @ U @ Vt
 
             self.TA = lao @ self.TA_lo_eo # (ao lo) (lo eo) = (ao eo)
             self.n_f = self.eq_fobj.n_f
@@ -273,9 +281,9 @@ class Frags:
             U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
             TA_virt = lmo_virt @ U @ Vt
 
-            TA_lo_eo = np.concatenate((TA_occ, TA_virt), axis=1) @ self.eq_fobj.eigvecs.T
+            self.TA_lo_eo = np.concatenate((TA_occ, TA_virt), axis=1) @ self.eq_fobj.eigvecs.T
 
-            self.TA = lao @ TA_lo_eo # (ao lo) (lo eo) = (ao eo)
+            self.TA = lao @ self.TA_lo_eo # (ao lo) (lo eo) = (ao eo)
             self.n_f = self.eq_fobj.n_f
 
         else:
@@ -522,15 +530,6 @@ class Frags:
 
 
 class Ref_Frags(Frags):
-    TA_occ: Matrix[np.float64]
-    TA_virt: Matrix[np.float64]
-    lao: Matrix[np.float64]
-
-    # This is natural orbitals
-    eigvecs: Matrix[np.float64]
-
-    TA_lo_eo_frag: Matrix[np.float64]
-    TA_lo_eo_bath: Matrix[np.float64]
 
     def __init__(
         self,
@@ -546,7 +545,6 @@ class Ref_Frags(Frags):
         TA_virt: Matrix[np.float64],
         lao: Matrix[np.float64],
         TA_lo_eo: Matrix[np.float64],
-        TAfull_lo_eo: Matrix[np.float64],
         eigvecs: Matrix[np.float64],
         n_f: int,
         n_b: int,
@@ -570,7 +568,6 @@ class Ref_Frags(Frags):
         self.TA_virt = TA_virt
         self.lao = lao
         self.TA_lo_eo = TA_lo_eo
-        self.TAfull_lo_eo = TAfull_lo_eo
         self.eigvecs = eigvecs
         self.n_f = n_f
         self.n_b = n_b
@@ -591,7 +588,6 @@ class Ref_Frags(Frags):
             TA_virt=fobj.TA_virt,
             lao=mybe.W,
             TA_lo_eo=fobj.TA_lo_eo,
-            TAfull_lo_eo=fobj.TAfull_lo_eo,
             eigvecs=fobj.eigvecs,
             eri_file=fobj.eri_file,
             unrestricted=fobj.unrestricted,
