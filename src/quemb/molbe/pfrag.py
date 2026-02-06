@@ -40,6 +40,23 @@ from quemb.shared.typing import (
 if TYPE_CHECKING:
     from quemb.molbe.mbe import BE
 
+def Q_interpolated(lam):
+    Q_lam = np.zeros_like(Q_full)
+
+    Q_lam[:nvirt, :nvirt] = Q_vv
+    Q_lam[nvirt:, nvirt:] = Q_oo
+    Q_lam[:nvirt, nvirt:] = lam * Q_vo
+    Q_lam[nvirt:, :nvirt] = lam * Q_ov
+
+    # re-orthogonalize within blocks
+    Uv, _, Vtv = svd(Q_lam[:nvirt, :nvirt], full_matrices=False)
+    Uo, _, Vto = svd(Q_lam[nvirt:, nvirt:], full_matrices=False)
+
+    Q_lam[:nvirt, :nvirt] = Uv @ Vtv
+    Q_lam[nvirt:, nvirt:] = Uo @ Vto
+
+    return Q_lam
+
 
 def procrustes_right(
         P: Matrix[np.floating], Q: Matrix[np.floating], 
@@ -184,7 +201,7 @@ class Frags:
         lmo: Matrix[float64],
         nocc: int,
         gradient_orb_space: Literal[
-            "RDM-invariant", "Align-with-TA_lo_eo", "RDM-invariant-with-overlap", "Unmodified"
+            "full-first", "RDM-invariant", "three-alignment", "project", "Unmodified"
         ],
         thr_bath: float = 1.0e-10,
     ) -> None:
@@ -218,72 +235,121 @@ class Frags:
                 thr_bath=thr_bath,
             )
             self.TA = lao @ self.TA_lo_eo
-        elif gradient_orb_space == "RDM-invariant":
+
+        elif gradient_orb_space == "experiment":
             assert self.eq_fobj is not None
             assert self.eq_fobj.eigvecs is not None
 
-            lmo_occ = lmo[:, :nocc]
-            lmo_virt = lmo[:, nocc:]
-            
-            # def works
-            H = lmo_occ.T @ self.eq_fobj.TA_occ
-            U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
-            TA_occ = lmo_occ @ U @ Vt
-
-            H = lmo_virt.T @ self.eq_fobj.TA_virt
-            U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
-            TA_virt = lmo_virt @ U @ Vt
-
-            self.TA_lo_eo = np.concatenate((TA_occ, TA_virt), axis=1) @ self.eq_fobj.eigvecs.T
-
-            self.TA = lao @ self.TA_lo_eo # (ao lo) (lo eo) = (ao eo)
-            self.n_f = self.eq_fobj.n_f
-
-        elif gradient_orb_space == "Align-with-TA_lo_eo":
-            assert self.eq_fobj is not None
-
-            lmo_occ = lmo[:, :nocc]
-            lmo_virt = lmo[:, nocc:]
+            ao_occ = self.eq_fobj.lao @ self.eq_fobj.lmo_coeff[:, :nocc]
+            ao_virt = self.eq_fobj.lao @ self.eq_fobj.lmo_coeff[:, nocc:]
 
             nsocc = self.eq_fobj.nsocc
             nvirt = self.eq_fobj.TA_lo_eo.shape[1] - self.eq_fobj.nsocc
 
-            H = lmo_occ.T @ lao.T @ S_butlonger @ self.eq_fobj.lao @ self.eq_fobj.TA_lo_eo
+            H = ao_occ.T @ self.eq_fobj.S @ self.eq_fobj.TA @ self.eq_fobj.eigvecs 
             U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
-            TA_occ = lmo_occ @ U[:, :nsocc] # (lo, r)
+            TA_occ = ao_occ @ U @ Vt[:, :nsocc]
 
-            H = lmo_virt.T @ lao.T @ S_butlonger @ self.eq_fobj.lao @ self.eq_fobj.TA_lo_eo
+            H = ao_virt.T @ self.eq_fobj.S @ self.eq_fobj.TA @ self.eq_fobj.eigvecs 
             U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
-            TA_virt = lmo_virt @ U[:, :nvirt] # (lo, r)
+            print(f"singular_values are {singular_values} and there should be {nvirt} of them", flush=True)
+            TA_virt = ao_virt @ U @ Vt[:, :nvirt]
 
-            # third rotation
-            TA_tmp = np.concatenate((TA_occ, TA_virt), axis=1)
-            H = TA_tmp.T @ self.eq_fobj.TA_lo_eo
-            U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
-            self.TA_lo_eo = TA_tmp @ U @ Vt
-
-            self.TA = lao @ self.TA_lo_eo # (ao lo) (lo eo) = (ao eo)
+            self.TA = np.concatenate((TA_occ, TA_virt), axis=1) @ self.eq_fobj.eigvecs.T
             self.n_f = self.eq_fobj.n_f
 
-        elif gradient_orb_space == "RDM-invariant-with-overlap":
+        elif gradient_orb_space == "RDM-invariant":
             assert self.eq_fobj is not None
             assert self.eq_fobj.eigvecs is not None
 
-            lmo_occ = lmo[:, :nocc]
-            lmo_virt = lmo[:, nocc:]
+            ao_occ = lao @ lmo[:, :nocc]
+            ao_virt = lao @ lmo[:, nocc:]
+            ao_both = lao @ lmo
 
-            # def works
-            H = lmo_occ.T @ lao.T @ S_butlonger @ self.eq_fobj.lao @ self.eq_fobj.TA_occ
+            nsocc = self.eq_fobj.nsocc
+            nvirt = self.eq_fobj.TA_lo_eo.shape[1] - self.eq_fobj.nsocc
+            
+            H = ao_occ.T @ S_butlonger @ self.eq_fobj.TA @ self.eq_fobj.eigvecs[:, -nsocc:]
             U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
-            TA_occ = lmo_occ @ U @ Vt
+            print(f"singular_values are {singular_values} and there should be {nsocc} of them", flush=True)
+            Q_occ = U @ Vt
 
-            H = lmo_virt.T @ lao.T @ S_butlonger @ self.eq_fobj.lao @ self.eq_fobj.TA_virt
+            H = ao_virt.T @ S_butlonger @ self.eq_fobj.TA @ self.eq_fobj.eigvecs[:, :nvirt]
             U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
-            TA_virt = lmo_virt @ U @ Vt
+            print(f"singular_values are {singular_values} and there should be {nvirt} of them", flush=True)
+            Q_virt = U @ Vt
 
-            self.TA_lo_eo = np.concatenate((TA_occ, TA_virt), axis=1) @ self.eq_fobj.eigvecs.T
+            Q = np.zeros((ao_both.shape[1], self.eq_fobj.eigvecs.T.shape[0]))
 
-            self.TA = lao @ self.TA_lo_eo # (ao lo) (lo eo) = (ao eo)
+            #        |  0        Q_occ |
+            #Q   =   |                 |
+            #        | Q_virt     0    |
+
+            
+            Q[nocc:, :nvirt] = Q_virt
+            Q[:nocc, nvirt:] = Q_occ
+
+            self.TA = ao_both @ Q @ self.eq_fobj.eigvecs.T
+            self.n_f = self.eq_fobj.n_f
+
+        elif gradient_orb_space == "one-step-RDM-invariant":
+            assert self.eq_fobj is not None
+
+            ao_occ = lao @ lmo[:, :nocc]
+            ao_virt = lao @ lmo[:, nocc:]
+            ao_both = lao @ lmo
+
+            nsocc = self.eq_fobj.nsocc
+            nvirt = self.eq_fobj.TA_lo_eo.shape[1] - self.eq_fobj.nsocc
+
+            H = ao_both.T @ S_butlonger @ self.eq_fobj.TA @ self.eq_fobj.eigvecs
+            
+            # --- BLOCK DIAGONAL PROJECTION ---
+            H_proj = np.zeros_like(H)
+            H_proj[nocc:, :nvirt] = H[nocc:, :nvirt] # Q_occ 
+            H_proj[:nocc, nvirt:] = H[:nocc, nvirt:] # Q_virt
+
+            # --- SINGLE SVD ---
+            U, s, Vt = svd(H_proj, full_matrices=False, lapack_driver="gesvd")
+            
+            Q = U @ Vt
+            self.TA = ao_both @ Q @ self.eq_fobj.eigvecs.T
+            self.n_f = self.eq_fobj.n_f
+
+        elif gradient_orb_space == "project":
+            assert self.eq_fobj is not None
+            assert self.eq_fobj.eigvecs is not None
+
+            ao_occ = lao @ lmo[:, :nocc]
+            ao_virt = lao @ lmo[:, nocc:]
+
+            nsocc = self.eq_fobj.nsocc
+            nvirt = self.eq_fobj.TA_lo_eo.shape[1] - self.eq_fobj.nsocc
+
+            # project the perturbed-occupied AO space into the EO basis
+            P_occ_EO = self.eq_fobj.TA.T @ S_butlonger.T @ ao_occ @ ao_occ.T @ S_butlonger @ self.eq_fobj.TA # (eo ao) @ (ao ao) (ao mo) (mo ao) (ao ao) @ (ao eo)
+
+            # extract nsocc embedding orbitals
+            vals, vecs = np.linalg.eigh(P_occ_EO)
+            idx = np.argsort(vals)[::-1]
+
+            vals = vals[idx]
+            vecs = vecs[:, idx]
+
+            print("EO occupied projector eigenvalues:", vals[:nsocc])
+
+            TA_occ = self.eq_fobj.TA @ vecs[:, :nsocc]
+
+            # get virtual embedding orbitals
+            P_virt_EO = np.eye(self.eq_fobj.TA.shape[1]) - P_occ_EO
+
+            vals, vecs = np.linalg.eigh(P_virt_EO)
+            idx = np.argsort(vals)[::-1]
+
+            TA_virt = self.eq_fobj.TA @ vecs[:, :nvirt]
+
+            # assemble final TA
+            self.TA = np.concatenate((TA_occ, TA_virt), axis=1)
             self.n_f = self.eq_fobj.n_f
 
         else:
@@ -337,25 +403,16 @@ class Frags:
         numpy.ndarray
             Projected density matrix.
         """
-        C_ = multi_dot((self.TA.T, S, C[:, ncore : ncore + nocc])) # (eo ao) @ (ao ao) @ (ao, occ mo) = (eo, occ mo)
-        C = self.TA_lo_eo.T @ lmo_coeff[:, ncore : ncore + nocc]          # (eo lo) @ (lo occ mo) = (eo, occ mo)
+        C_ = multi_dot((self.TA.T, S, C[:, ncore : ncore + nocc])) 
         
-        P_ = C_ @ C_.T # (TA.T @ S @ C @ C^T @ S^T @ TA) 
-        P = C @ C.T
+        P_ = C_ @ C_.T
         
         nsocc_ = trace(P_)
         nsocc = int(round(nsocc_))
         
-        eigvals, eigvecs = np.linalg.eigh(P)
-        idx = np.argsort(eigvals)[::-1]
-        eigvals = eigvals[idx]
-        eigvecs = eigvecs[:, idx]
+        eigvals, eigvecs = np.linalg.eigh(P_)
+        print(f"eigvals are {eigvals}", flush=True)
 
-        # rotate TA so occupied come first
-        TA_occvirt = self.TA_lo_eo @ eigvecs   # (ao, eo)
-
-        self.TA_occ  = TA_occvirt[:, :nsocc]
-        self.TA_virt = TA_occvirt[:, nsocc:]
         self.eigvecs = eigvecs
         
         try:
@@ -541,9 +598,10 @@ class Ref_Frags(Frags):
         relAO_in_ref_per_edge: SeqOverEdge[Sequence[RelAOIdxInRef]],
         weight_and_relAO_per_center: tuple[float, Sequence[RelAOIdx]],
         relAO_per_origin: Sequence[RelAOIdx],
-        TA_occ: Matrix[np.float64],
-        TA_virt: Matrix[np.float64],
+        TA: Matrix[np.float64],
         lao: Matrix[np.float64],
+        S: Matrix[np.float64],
+        lmo_coeff: Matrix[np.float64],
         TA_lo_eo: Matrix[np.float64],
         eigvecs: Matrix[np.float64],
         n_f: int,
@@ -564,9 +622,10 @@ class Ref_Frags(Frags):
             eri_file=eri_file,
             unrestricted=unrestricted,
         )
-        self.TA_occ = TA_occ
-        self.TA_virt = TA_virt
+        self.TA = TA
         self.lao = lao
+        self.S = S
+        self.lmo_coeff = lmo_coeff
         self.TA_lo_eo = TA_lo_eo
         self.eigvecs = eigvecs
         self.n_f = n_f
@@ -584,9 +643,10 @@ class Ref_Frags(Frags):
             fobj.relAO_in_ref_per_edge,
             fobj.weight_and_relAO_per_center,
             fobj.relAO_per_origin,
-            TA_occ=fobj.TA_occ,
-            TA_virt=fobj.TA_virt,
+            TA = fobj.TA,
             lao=mybe.W,
+            S=mybe.S,
+            lmo_coeff=mybe.lmo_coeff,
             TA_lo_eo=fobj.TA_lo_eo,
             eigvecs=fobj.eigvecs,
             eri_file=fobj.eri_file,

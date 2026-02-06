@@ -255,6 +255,7 @@ def be_func(
     return_vec: bool = False,
     use_cumulant: bool = True,
 ):
+    print("inside be_func")
     """
     Perform bootstrap embedding calculations for each fragment.
 
@@ -552,12 +553,13 @@ def be_func(
     Ecorr = sum(total_e)
 
     if eeval and not return_vec:
-        return (Ecorr, total_e)
+        _, _, num_err = solve_error(Fobjs, Nocc, only_chem=True)
+        return (Ecorr, total_e, num_err)
 
-    ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem)
+    ernorm, ervec, num_err = solve_error(Fobjs, Nocc, only_chem=only_chem)
 
     if eeval:
-        return (ernorm, ervec, [Ecorr, total_e])
+        return (ernorm, ervec, [Ecorr, total_e], num_err)
     else:
         if return_vec:
             return (ernorm, ervec, None)
@@ -715,9 +717,9 @@ def solve_error(Fobjs, Nocc, only_chem=False):
             for i in fobj.weight_and_relAO_per_center[1]:
                 err_chempot += fobj._rdm1[i, i]
         err_chempot /= Fobjs[0].unitcell_nkpt
-        err = err_chempot - Nocc
+        num_err = err_chempot - Nocc
 
-        return abs(err), asarray([err])
+        return abs(num_err), asarray([num_err]), num_err
 
     # Compute edge and chemical potential errors
     for fobj in Fobjs:
@@ -731,6 +733,7 @@ def solve_error(Fobjs, Nocc, only_chem=False):
         # chem potential
         for i in fobj.weight_and_relAO_per_center[1]:
             err_chempot += fobj._rdm1[i, i]
+        num_err = err_chempot - Nocc
 
     err_chempot /= Fobjs[0].unitcell_nkpt
     err_edge.append(err_chempot)  # far-end edges are included as err_chempot
@@ -761,7 +764,7 @@ def solve_error(Fobjs, Nocc, only_chem=False):
     # Compute the norm of the error vector
     norm_ = mean(err_vec * err_vec) ** 0.5
 
-    return norm_, err_vec
+    return norm_, err_vec, num_err
 
 
 def solve_mp2(

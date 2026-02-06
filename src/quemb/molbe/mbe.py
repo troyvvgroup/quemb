@@ -889,6 +889,8 @@ class BE:
 
             # Perform the optimization
             be_.optimize(method, J0=J0, trust_region=trust_region)
+            # Save num_err
+            self.num_err = be_.num_err
 
             # Print the energy components
             if use_cumulant:
@@ -1263,6 +1265,7 @@ class BE:
                 use_cumulant=use_cumulant,
                 return_vec=False,
             )
+            self.num_err = rets[2]
         else:
             rets = be_func_parallel(
                 None,
@@ -1295,6 +1298,7 @@ class BE:
                 rets[0], rets[1][0], rets[1][2], rets[1][1], self.ebe_hf, self.enuc
             )
             self.ebe_tot = rets[0] + self.enuc + self.ebe_hf
+            self.rets0 = rets[0]
 
     def update_fock(self, heff: list[Matrix[floating]] | None = None) -> None:
         """
