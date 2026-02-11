@@ -6,8 +6,8 @@ from pyscf import gto, scf
 
 from quemb.molbe import BE, fragmentate
 from quemb.molbe.chemfrag import ChemGenArgs
+from quemb.molbe.solver import SHCI_ArgsUser
 from quemb.shared.config import settings
-from quemb.shared.solver import SHCI_ArgsUser
 
 # Set the path to the scratch directory
 settings.SCRATCH_ROOT = pathlib.Path("/tmp/")
@@ -46,8 +46,9 @@ mf.conv_tol = 1e-12
 mf.kernel()
 
 # initialize fragments
-# Using chemgen, treat_H_different is False to treat the hydrogen chain correctly
-add_args = ChemGenArgs(treat_H_different=False)
+# Using chemgen, h_treatment as treat_H_like_heavy_atom will treat H atoms like
+# heavy atoms, which works for hydrogen chains
+add_args = ChemGenArgs(h_treatment="treat_H_like_heavy_atom")
 fobj = fragmentate(
     n_BE=2,
     mol=mol,

@@ -35,6 +35,9 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: setup-clang-format
+        run: sudo apt install -y clang-format
+
       - &prepare-pip
         name: Prepare pip
         run: python -m pip install --upgrade pip
@@ -44,10 +47,13 @@ jobs:
           pip install -r tests/static_analysis_requirements.txt
           pip install . --config-settings=cmake.args=-DCMAKE_BUILD_TYPE=RelWithDebInfo
 
-      - name: Check formatting
+      - name: Check formatting python
         run: ruff format --diff
 
-      - name: Static analysis with ruff
+      - name: Check formatting C++
+        run: find src -type f -regex '.*\.\(cpp\|hpp\|cc\|h\)$' -print0 | xargs -0 -r clang-format --dry-run --Werror
+
+      - name: Static analysis python with ruff
         run: ruff check .
 
       - name: Static analysis with mypy

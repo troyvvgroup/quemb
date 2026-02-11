@@ -31,15 +31,14 @@ def _determine_path(
     scratch_root = Path(root) if root else Path(settings.SCRATCH_ROOT)
     subdir_prefix = "QuEmb_" if subdir_prefix is None else subdir_prefix
     if "SLURM_JOB_ID" in os.environ:
-        # we can safely assume that the SLURM_JOB_ID is unique
-        subdir = Path(f"{subdir_prefix}{os.environ['SLURM_JOB_ID']}/")
+        id = int(os.environ["SLURM_JOB_ID"])
     else:
-        # We cannot safely assume that PIDs are unique
-        id = os.getpid()
+        id = int(os.getpid())
+    subdir = Path(f"{subdir_prefix}{id}/")
+    # We cannot safely assume that the ids are unique
+    while (scratch_root / subdir).exists():
+        id = id + 1
         subdir = Path(f"{subdir_prefix}{id}/")
-        while (scratch_root / subdir).exists():
-            id = id + 1
-            subdir = Path(f"{subdir_prefix}{id}/")
     return scratch_root / subdir
 
 

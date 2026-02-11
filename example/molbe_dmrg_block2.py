@@ -7,7 +7,7 @@ import numpy as np
 from pyscf import cc, fci, gto, scf
 
 from quemb.molbe import BE, fragmentate
-from quemb.shared.solver import DMRG_ArgsUser
+from quemb.molbe.solver import DMRG_ArgsUser
 
 # We'll consider the dissociation curve for a 1D chain of 8 H-atoms:
 num_points = 3

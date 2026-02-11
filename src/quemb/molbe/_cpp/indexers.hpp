@@ -16,7 +16,8 @@
 using int_t = int64_t;
 using OrbitalIdx = Eigen::Index;
 using Matrix = Eigen::MatrixXd;
-using Tensor3D = Eigen::Tensor<double, 3, Eigen::ColMajor>;
+using Real = Matrix::Scalar;
+using Tensor3D = Eigen::Tensor<Real, 3, Eigen::ColMajor>;
 
 // Matches python logging levels
 // https://docs.python.org/3/library/logging.html#logging-levels
@@ -30,7 +31,7 @@ enum class LogLevel : int
     Critical = 50
 };
 
-inline LogLevel LOG_LEVEL = LogLevel::NotSet;
+inline LogLevel LOG_LEVEL = LogLevel::Error;
 
 // Expose int getter of LogLevel
 inline int get_log_level()
@@ -204,7 +205,10 @@ class Timer
 
 // Rebuilds an unordered_map to improve lookup performance by reducing collisions
 // and improving memory layout. This is useful if the original map grew inefficiently.
-template <typename Key, typename Value, typename Hash = std::hash<Key>, typename KeyEqual = std::equal_to<Key>,
+template <typename Key,
+          typename Value,
+          typename Hash = std::hash<Key>,
+          typename KeyEqual = std::equal_to<Key>,
           typename Allocator = std::allocator<std::pair<const Key, Value>>>
 std::unordered_map<Key, Value, Hash, KeyEqual, Allocator> rebuild_unordered_map(
     const std::unordered_map<Key, Value, Hash, KeyEqual, Allocator> &original)

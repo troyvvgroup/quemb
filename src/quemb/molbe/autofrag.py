@@ -174,7 +174,7 @@ class FragPart(Generic[_T_chemsystem]):
             unrestricted=unrestricted,
         )
 
-    def reindex(self, idx: Sequence[int] | Vector) -> Self:
+    def reorder_frags(self, idx: Sequence[int] | Vector) -> Self:
         def _get_elements(seq: Sequence[T], idx: Sequence[int] | Vector) -> list[T]:
             return [seq[i] for i in idx]  # type: ignore[index]
 

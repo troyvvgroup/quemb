@@ -4,13 +4,13 @@ import contextlib
 import io
 import os
 import pickle
-from multiprocessing import Pool
 from typing import Literal
 from warnings import warn
 
 import h5py
 import numpy as np
 from numpy import array, einsum, floating, result_type, zeros, zeros_like
+from pathos.pools import ProcessPool
 from pyscf import ao2mo
 from pyscf.pbc import df, gto, scf
 from pyscf.pbc.df.df_jk import _ewald_exxdiv_for_G0
@@ -19,15 +19,15 @@ from quemb.kbe.fragment import FragPart
 from quemb.kbe.lo import Mixin_k_Localize
 from quemb.kbe.misc import print_energy, storePBE
 from quemb.kbe.pfrag import Frags
+from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
-from quemb.shared.be_parallel import be_func_parallel
+from quemb.molbe.opt import BEOPT
+from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
 from quemb.shared.helper import copy_docstring, timer
 from quemb.shared.manage_scratch import WorkDir
-from quemb.shared.opt import BEOPT
-from quemb.shared.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.typing import Matrix, PathLike
 
 with contextlib.redirect_stdout(io.StringIO()):
@@ -531,19 +531,18 @@ class BE(Mixin_k_Localize):
 
             nprocs = self.nproc // self.ompnum
             os.system("export OMP_NUM_THREADS=" + str(self.ompnum))
-            with Pool(nprocs) as pool_:
+            with ProcessPool(nprocs) as pool_:
                 results = []
                 for frg in range(self.fobj.n_frag):
-                    result = pool_.apply_async(
+                    result = pool_.apipe(
                         eritransform_parallel,
-                        [
-                            self.mf.cell.a,
-                            self.mf.cell.atom,
-                            self.mf.cell.basis,
-                            self.kpts,
-                            self.Fobjs[frg].TA,
-                            self.cderi,
-                        ],
+                        self.mf.cell.a,
+                        self.mf.cell.atom,
+                        self.mf.cell.basis,
+                        self.mf.cell.unit,
+                        self.kpts,
+                        self.Fobjs[frg].TA,
+                        self.cderi,
                     )
                     results.append(result)
                 eris = [result.get() for result in results]
@@ -554,20 +553,18 @@ class BE(Mixin_k_Localize):
             file_eri.close()
 
             nprocs = self.nproc // self.ompnum
-            with Pool(nprocs) as pool_:
+            with ProcessPool(nprocs) as pool_:
                 results = []
                 for frg in range(self.fobj.n_frag):
-                    result = pool_.apply_async(
+                    result = pool_.apipe(
                         parallel_fock_wrapper,
-                        [
-                            self.Fobjs[frg].dname,
-                            self.Fobjs[frg].nao,
-                            self.hf_dm,
-                            self.S,
-                            self.Fobjs[frg].TA,
-                            self.hf_veff,
-                            self.eri_file,
-                        ],
+                        self.Fobjs[frg].dname,
+                        self.Fobjs[frg].nao,
+                        self.hf_dm,
+                        self.S,
+                        self.Fobjs[frg].TA,
+                        self.hf_veff,
+                        self.eri_file,
                     )
                     results.append(result)
                 veffs = [result.get() for result in results]
@@ -590,7 +587,7 @@ class BE(Mixin_k_Localize):
                 self.Fobjs[frg].scf(fs=True, dm0=self.Fobjs[frg].dm_init)
         else:
             nprocs = int(self.nproc / self.ompnum)
-            with Pool(nprocs) as pool_:
+            with ProcessPool(nprocs) as pool_:
                 os.system("export OMP_NUM_THREADS=" + str(self.ompnum))
                 results = []
                 for frg in range(self.fobj.n_frag):
@@ -598,9 +595,14 @@ class BE(Mixin_k_Localize):
                     nocc = self.Fobjs[frg].nsocc
                     dname = self.Fobjs[frg].dname
                     h1 = self.Fobjs[frg].fock + self.Fobjs[frg].heff
-                    result = pool_.apply_async(
+                    result = pool_.apipe(
                         parallel_scf_wrapper,
-                        [dname, nao, nocc, h1, self.Fobjs[frg].dm_init, self.eri_file],
+                        dname,
+                        nao,
+                        nocc,
+                        h1,
+                        self.Fobjs[frg].dm_init,
+                        self.eri_file,
                     )
                     results.append(result)
                 mo_coeffs = [result.get() for result in results]
@@ -796,7 +798,7 @@ def initialize_pot(n_frag, rel_AO_per_edge_per_frag):
     return pot_
 
 
-def eritransform_parallel(a, atom, basis, kpts, C_ao_emb, cderi):
+def eritransform_parallel(a, atom, basis, unit, kpts, C_ao_emb, cderi):
     """
     Wrapper for parallel eri transformation
     """
@@ -804,6 +806,7 @@ def eritransform_parallel(a, atom, basis, kpts, C_ao_emb, cderi):
     cell.a = a
     cell.atom = atom
     cell.basis = basis
+    cell.unit = unit
     cell.charge = 0
     cell.verbose = 0
     cell.build()

@@ -3,3 +3,8 @@ ColumnLimit: 120
 
 BraceWrapping:
   AfterControlStatement: false
+
+BinPackArguments: false
+BinPackParameters: false
+AllowAllArgumentsOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false

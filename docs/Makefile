@@ -12,13 +12,16 @@ BUILDDIR      = build
 help:
 	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
-.PHONY: help Makefile
+
+.PHONY: help Makefile html_with_latexpdf
 
 latexpdf:
 	@$(SPHINXBUILD) -M latexpdf "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
-html: latexpdf
+html:
 	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+
+html_with_latexpdf: latexpdf html
 	@cp "$(BUILDDIR)/latex/quemb.pdf" "$(BUILDDIR)/html/_static/"
 
 %: Makefile
