@@ -159,6 +159,7 @@ class BE:
         gradient_orb_space: Literal[
             "RDM-invariant", "Schmidt-invariant", "Bath-Invariant", "Unmodified"
         ] = "Unmodified",
+        alpha: float = 1e-15,
     ) -> None:
         r"""
         Constructor for BE object.
@@ -274,6 +275,7 @@ class BE:
         self.eq_fobjs = eq_fobjs
         self.S_butlonger = S_butlonger
         self.gradient_orb_space = gradient_orb_space
+        self.alpha = alpha
 
         # Fragment information from fobj
         self.fobj = fobj
@@ -787,6 +789,7 @@ class BE:
         trust_region: bool = False,
         solver_args: UserSolverArgs | None = None,
     ) -> None:
+        print("calling optimize function on BE object")
         """BE optimization function
 
         Interfaces BEOPT to perform bootstrap embedding optimization.
@@ -887,12 +890,8 @@ class BE:
                 else:
                     J0 = self.get_be_error_jacobian(jac_solver=jac_solver)
 
-            # Perform the optimization
             be_.optimize(method, J0=J0, trust_region=trust_region)
-            # Save num_err
-            self.num_err = be_.num_err
 
-            # Print the energy components
             if use_cumulant:
                 self.ebe_tot = be_.Ebe[0] + self.ebe_hf
                 print_energy_cumulant(
@@ -912,6 +911,7 @@ class BE:
                     self.ebe_hf,
                     self.enuc,
                 )
+                self.rets0 = be_.Ebe[0] + self.enuc - self.ebe_hf 
         else:
             raise ValueError("This optimization method for BE is not supported")
 
@@ -1179,6 +1179,7 @@ class BE:
                 self.Nocc,
                 self.gradient_orb_space,
                 thr_bath=self.thr_bath,
+                alpha=self.alpha,
             )
 
             self.Fobjs.append(fobjs_)
@@ -1298,7 +1299,7 @@ class BE:
                 rets[0], rets[1][0], rets[1][2], rets[1][1], self.ebe_hf, self.enuc
             )
             self.ebe_tot = rets[0] + self.enuc + self.ebe_hf
-            self.rets0 = rets[0]
+            self.rets0 = rets[0] + self.enuc - self.ebe_hf
 
     def update_fock(self, heff: list[Matrix[floating]] | None = None) -> None:
         """

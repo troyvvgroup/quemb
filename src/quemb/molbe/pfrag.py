@@ -1,6 +1,6 @@
 # Author(s): Oinam Romesh Meitei, Oskar Weser
 from __future__ import annotations
-
+import matplotlib.pyplot as plt
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Literal
 from typing_extensions import assert_never
@@ -197,13 +197,14 @@ class Frags:
     def sd(
         self,
         lao: Matrix[float64],
-        S_butlonger: Matrix[float64],
+        S_cross: Matrix[float64],
         lmo: Matrix[float64],
         nocc: int,
         gradient_orb_space: Literal[
             "full-first", "RDM-invariant", "three-alignment", "project", "Unmodified"
         ],
         thr_bath: float = 1.0e-10,
+        alpha: float = 1e-15,
     ) -> None:
         """
         Perform Schmidt decomposition for the fragment.
@@ -236,27 +237,21 @@ class Frags:
             )
             self.TA = lao @ self.TA_lo_eo
 
-        elif gradient_orb_space == "experiment":
-            assert self.eq_fobj is not None
-            assert self.eq_fobj.eigvecs is not None
-
-            ao_occ = self.eq_fobj.lao @ self.eq_fobj.lmo_coeff[:, :nocc]
-            ao_virt = self.eq_fobj.lao @ self.eq_fobj.lmo_coeff[:, nocc:]
-
-            nsocc = self.eq_fobj.nsocc
-            nvirt = self.eq_fobj.TA_lo_eo.shape[1] - self.eq_fobj.nsocc
-
-            H = ao_occ.T @ self.eq_fobj.S @ self.eq_fobj.TA @ self.eq_fobj.eigvecs 
-            U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
-            TA_occ = ao_occ @ U @ Vt[:, :nsocc]
-
-            H = ao_virt.T @ self.eq_fobj.S @ self.eq_fobj.TA @ self.eq_fobj.eigvecs 
-            U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
-            print(f"singular_values are {singular_values} and there should be {nvirt} of them", flush=True)
-            TA_virt = ao_virt @ U @ Vt[:, :nvirt]
-
-            self.TA = np.concatenate((TA_occ, TA_virt), axis=1) @ self.eq_fobj.eigvecs.T
-            self.n_f = self.eq_fobj.n_f
+        elif gradient_orb_space == "for-visual":
+            (
+                self.Dhf,
+                self.TA_lo_eo,
+                self.TAenv_lo_eo,
+                self.TAfull_lo_eo,
+                self.n_f,
+                self.n_b,
+            ) = schmidt_decomposition(
+                lmo,
+                nocc,
+                self.AO_in_frag,
+                thr_bath=thr_bath,
+            )
+            self.TA = lao @ self.TA_lo_eo
 
         elif gradient_orb_space == "RDM-invariant":
             assert self.eq_fobj is not None
@@ -269,14 +264,12 @@ class Frags:
             nsocc = self.eq_fobj.nsocc
             nvirt = self.eq_fobj.TA_lo_eo.shape[1] - self.eq_fobj.nsocc
             
-            H = ao_occ.T @ S_butlonger @ self.eq_fobj.TA @ self.eq_fobj.eigvecs[:, -nsocc:]
+            H = ao_occ.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs[:, -nsocc:]
             U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
-            print(f"singular_values are {singular_values} and there should be {nsocc} of them", flush=True)
             Q_occ = U @ Vt
 
-            H = ao_virt.T @ S_butlonger @ self.eq_fobj.TA @ self.eq_fobj.eigvecs[:, :nvirt]
+            H = ao_virt.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs[:, :nvirt]
             U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
-            print(f"singular_values are {singular_values} and there should be {nvirt} of them", flush=True)
             Q_virt = U @ Vt
 
             Q = np.zeros((ao_both.shape[1], self.eq_fobj.eigvecs.T.shape[0]))
@@ -288,6 +281,15 @@ class Frags:
             
             Q[nocc:, :nvirt] = Q_virt
             Q[:nocc, nvirt:] = Q_occ
+
+            #plt.imshow(Q)
+            #plt.colorbar()
+            #plt.xlabel("Column Index")
+            #plt.ylabel("Row Index")
+            
+            #plt.savefig("heatmap.png", dpi=600)
+            #print("saved to heatmap.png")
+            #sys.exit()
 
             self.TA = ao_both @ Q @ self.eq_fobj.eigvecs.T
             self.n_f = self.eq_fobj.n_f
@@ -302,15 +304,23 @@ class Frags:
             nsocc = self.eq_fobj.nsocc
             nvirt = self.eq_fobj.TA_lo_eo.shape[1] - self.eq_fobj.nsocc
 
-            H = ao_both.T @ S_butlonger @ self.eq_fobj.TA @ self.eq_fobj.eigvecs
+            # --- full overlap ---
+            H = ao_both.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs
             
-            # --- BLOCK DIAGONAL PROJECTION ---
-            H_proj = np.zeros_like(H)
-            H_proj[nocc:, :nvirt] = H[nocc:, :nvirt] # Q_occ 
-            H_proj[:nocc, nvirt:] = H[:nocc, nvirt:] # Q_virt
+            # --- soft block projection ---
+            H_soft = H.copy()
+
+            print(f"alpha is {alpha}", flush=True)
+            # forbidden blocks: damp them
+            H_soft[:nocc, :nvirt] *= alpha   # upper left 
+            H_soft[nocc:, nvirt:] *= alpha # bottom right
+
+            # allowed blocks untouched:
+            # H_soft[nocc:, :nvirt]
+            # H_soft[:nocc, nvirt:]
 
             # --- SINGLE SVD ---
-            U, s, Vt = svd(H_proj, full_matrices=False, lapack_driver="gesvd")
+            U, s, Vt = svd(H_soft, full_matrices=False, lapack_driver="gesvd")
             
             Q = U @ Vt
             self.TA = ao_both @ Q @ self.eq_fobj.eigvecs.T
@@ -411,7 +421,6 @@ class Frags:
         nsocc = int(round(nsocc_))
         
         eigvals, eigvecs = np.linalg.eigh(P_)
-        print(f"eigvals are {eigvals}", flush=True)
 
         self.eigvecs = eigvecs
         

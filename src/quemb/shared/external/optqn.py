@@ -219,6 +219,7 @@ class FrankQN:
             # udpate vs, dxs, and fs
             self.vs[iter] = self.B0 @ self.fnew
         self.dxs[iter] = self.xnew - self.xold
+
         if iter + 1 < self.max_subspace:
             self.fs[iter + 1] = self.fnew.copy()
         else:
