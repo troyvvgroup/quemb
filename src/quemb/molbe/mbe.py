@@ -787,7 +787,7 @@ class BE:
     def compute_overlap_dyson(self, ref_dyson, frag_dyson, n_ex, extra=3):
         """
         Compute overlaps between two Dyson orbitals
-        (currently in the AO basis), used for state targetting.
+        (currently in the MO basis), used for state targetting.
 
         Parameters
         ----------
@@ -812,13 +812,18 @@ class BE:
         for i in range(n_ex):
             for j in range(n_ex + extra):
                 # no need to normalize these - Dyson orbs. don't have norm 1
-                ovlp[i, j] = ref_dyson[i, :] @ frag_dyson[j, :]
+                # print(shape(ref_dyson[i, :]))
+                # print(shape(self.S))
+                # print(shape(frag_dyson[:,j]))
+                ovlp[i, j] = (
+                    ref_dyson[i, :] @ frag_dyson[j, :]
+                )  ###if change TO AOS - NEED self.S!!!
         return ovlp
 
-    def match_fragments(self, ref_dyson, frag_dyson, n_ex, extra=3, threshold=0.6):
+    def match_fragments(self, ref_dyson, frag_dyson, n_ex, extra=3, threshold=0.8):
         """
         Hungarian matching + phase alignment for
-        left Dyson orbitals (in AO basis)
+        left Dyson orbitals (in MO basis)
 
         Parameters
         ----------
@@ -905,7 +910,8 @@ class BE:
 
         # extra = compute additional excitations in case of intruder states
         extra = 0
-        extra_koop = 0
+        # extra_koop = 0
+        extra_koop = self.Nocc - n_ex
 
         # Copy the full system MO coefficients
         C_MO = self.C.copy()
@@ -937,15 +943,25 @@ class BE:
             output = "qchem_fragment_" + str(frag_number) + "/eom.out"
             dyson_parser(fobjs, output, n_ex + extra)
 
+        ###ATTEMPT A DIFFERENT STYLE OF MATCHING - in AO basis
+        """for frag_ref, fobj_ref in enumerate(self.Fobjs):
+            ref_dyson=fobj_ref.dyson_ao
+            for frag_idx, fobj in enumerate(self.Fobjs):
+                frag_dyson=fobj.dyson_ao
+                #print(frag_ref, frag_idx)
+                ovlp = ref_dyson @ self.S @ frag_dyson.T"""
+        # ovlp = self.compute_overlap_dyson(ref_dyson, frag_dyson, n_ex)
+        # print(ovlp)
+
         # compute overlaps and reorder excitations
         print("EOM-IP FRAGMENT REORDERING")
         print("Compute overlaps between Dyson orbital fragments: ")
 
-        # Reference Dyson left orbitals - fragment 0:
+        # Reference Dyson left orbitals - fragment 5:
         ref = self.Fobjs[0]
-        # ref_dyson=ref.dyson_left
+        ref_dyson = ref.dyson_left
         # ref_dyson = ref.dyson_ao
-        ref_dyson = ref.dyson_right
+        # ref_dyson = ref.dyson_right
 
         all_mappings: List[Dict[int, int]] = []
         all_overlaps: List[ndarray] = []
@@ -972,9 +988,10 @@ class BE:
             print(new_order)
 
             # fobj.dyson_left: in fragment SO basis
-            fobj.dyson_left = fobj.dyson_left[new_order, :]
-            fobj.dyson_right = fobj.dyson_right[new_order, :]
-            fobj.ex_e = fobj.ex_e[new_order]
+            # does state tracking hurt more than help?
+            # fobj.dyson_left = fobj.dyson_left[new_order, :]
+            # fobj.dyson_right = fobj.dyson_right[new_order, :]
+            # fobj.ex_e = fobj.ex_e[new_order]
 
         # build fragment contributions
 
@@ -983,6 +1000,9 @@ class BE:
             occ_tot = self.Nocc  # full system
             SO_tot = shape(fobjs.TA)[1]
             SO_occ = fobjs.nsocc  # Schmidt space
+
+            ###NEW!
+            # extra_koop=SO_occ-n_ex
 
             # fragment environment correction - simple Koopman's theorem IP
 
@@ -1042,12 +1062,19 @@ class BE:
             # and transform to AO basis
             hij_so = fobjs.mo_coeffs @ hij_mo @ fobjs.mo_coeffs.T
             hij_center = Pc_ @ hij_so
+            # do we apply projection correctly?
+            # hij_center = Pc_ @ hij_so @ Pc_
+
+            # print("ARE NON-CENTER CONTRIBUTIONS IMPORTANT?")
+            ###half of non-diag contributions important? - keep projection only on left?
+
             hij_ao = fobjs.TA @ hij_center @ fobjs.TA.T  ###!!!just center!
             hijAO += hij_ao
             fobjs.hij_mo = hij_mo
 
             delta_hij_so = fobjs.mo_coeffs @ delta_hij_mo @ fobjs.mo_coeffs.T
             delta_hij_center = Pc_ @ delta_hij_so
+            # delta_hij_center = Pc_ @ delta_hij_so @ Pc_
             delta_hij_ao = fobjs.TA @ delta_hij_center @ fobjs.TA.T
             delta_hijAO += delta_hij_ao
 
@@ -1061,7 +1088,15 @@ class BE:
             ###TO DO: also need to match full system ip_full
             # and eigvecs_mf (from delta_hijAO) to eigvecs from hijAO!!!
 
-        return hijAO, delta_hijAO, ip_full, dyson_ip_full, hijMO, delta_hijMO
+        return (
+            hijAO,
+            delta_hijAO,
+            ip_full,
+            dyson_ip_full,
+            hijMO,
+            delta_hijMO,
+            dyson_ip_full_MO,
+        )
 
     @timer.timeit
     def optimize(

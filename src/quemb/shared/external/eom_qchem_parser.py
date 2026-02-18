@@ -2,7 +2,7 @@
 
 import re
 
-from numpy import array
+from numpy import array, linalg
 
 
 def dyson_parser(fobj, output="eom.out", n_ex=15):
@@ -32,35 +32,59 @@ def dyson_parser(fobj, output="eom.out", n_ex=15):
     excitation_energies = [float(match[1]) for match in energy_pattern.findall(content)]
     excitation_energies = array(excitation_energies)
 
+    # fixes bug FOR MO BASIS DYSON ORBITALS (where NAO>100)
+
     # extract left Dyson orbitals
+    # match everything until "Excitation energy" or end of file
     dyson_pattern = re.compile(
         r"Left alpha Dyson orbital in the MO basis "
-        r"\(canonical Q-Chem's ordering\):\s*\n((?:\s*\d+\s+[\-\d\.Ee+]+\s*\n)+)",
-        re.MULTILINE,
+        r"\(canonical Q-Chem's ordering\):\s*\n(.*?)(?:\n\n|\Z)",
+        re.MULTILINE | re.DOTALL,
     )
     dyson_matches_left = dyson_pattern.findall(content)
 
     # extract right Dyson orbitals
     dyson_pattern = re.compile(
         r"Right alpha Dyson orbital in the MO basis "
-        r"\(canonical Q-Chem's ordering\):\s*\n((?:\s*\d+\s+[\-\d\.Ee+]+\s*\n)+)",
-        re.MULTILINE,
+        r"\(canonical Q-Chem's ordering\):\s*\n(.*?)(?:\n\n|\Z)",
+        re.MULTILINE | re.DOTALL,
     )
+
     dyson_matches_right = dyson_pattern.findall(content)
 
-    coeff_matrix_left = array(
-        [
-            [float(line.strip().split()[1]) for line in block.strip().splitlines()]
-            for block in dyson_matches_left[:n_ex]
-        ]
-    )
+    coeff_matrix_left = []
 
-    coeff_matrix_right = array(
-        [
-            [float(line.strip().split()[1]) for line in block.strip().splitlines()]
-            for block in dyson_matches_right[:n_ex]
-        ]
-    )
+    line_regex = re.compile(r"(\d+)\s*([+-]?\d+(?:\.\d*)?(?:[Ee][+-]?\d+)?)")
+
+    for block in dyson_matches_left[:n_ex]:
+        block_coeffs = []
+        for line in block.strip().splitlines():
+            m = line_regex.match(line.strip())
+            if m:
+                index, coeff = m.groups()
+                block_coeffs.append(float(coeff))
+            else:
+                print("Could not parse line:", line)
+        coeff_matrix_left.append(block_coeffs)
+
+    coeff_matrix_left = array(coeff_matrix_left)
+
+    coeff_matrix_right = []
+
+    line_regex = re.compile(r"(\d+)\s*([+-]?\d+(?:\.\d*)?(?:[Ee][+-]?\d+)?)")
+
+    for block in dyson_matches_right[:n_ex]:
+        block_coeffs = []
+        for line in block.strip().splitlines():
+            m = line_regex.match(line.strip())
+            if m:
+                index, coeff = m.groups()
+                block_coeffs.append(float(coeff))
+            else:
+                print("Could not parse line:", line)
+        coeff_matrix_right.append(block_coeffs)
+
+    coeff_matrix_right = array(coeff_matrix_right)
 
     # extract Dyson orbitals (AO basis)
 
@@ -84,6 +108,15 @@ def dyson_parser(fobj, output="eom.out", n_ex=15):
         i += 1
 
     coeff_matrix_ao = array(blocks[:n_ex])
+
+    ###NEW: normalize MO basis Dyson orbitals!
+    for i in range(n_ex):
+        coeff_matrix_left[i, :] = coeff_matrix_left[i, :] / linalg.norm(
+            coeff_matrix_left[i, :]
+        )
+        coeff_matrix_right[i, :] = coeff_matrix_right[i, :] / linalg.norm(
+            coeff_matrix_right[i, :]
+        )
 
     # save results to fobj
     fobj.ex_e = excitation_energies
