@@ -201,10 +201,9 @@ class Frags:
         lmo: Matrix[float64],
         nocc: int,
         gradient_orb_space: Literal[
-            "full-first", "RDM-invariant", "three-alignment", "project", "Unmodified"
+            "full-first", "RDM-invariant", "one-step", "project", "Unmodified"
         ],
         thr_bath: float = 1.0e-10,
-        alpha: float = 1e-15,
     ) -> None:
         """
         Perform Schmidt decomposition for the fragment.
@@ -294,36 +293,25 @@ class Frags:
             self.TA = ao_both @ Q @ self.eq_fobj.eigvecs.T
             self.n_f = self.eq_fobj.n_f
 
-        elif gradient_orb_space == "one-step-RDM-invariant":
-            assert self.eq_fobj is not None
-
+        elif gradient_orb_space == "one-step":
+            print("this is one step") 
             ao_occ = lao @ lmo[:, :nocc]
             ao_virt = lao @ lmo[:, nocc:]
             ao_both = lao @ lmo
-
             nsocc = self.eq_fobj.nsocc
             nvirt = self.eq_fobj.TA_lo_eo.shape[1] - self.eq_fobj.nsocc
 
-            # --- full overlap ---
-            H = ao_both.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs
-            
-            # --- soft block projection ---
-            H_soft = H.copy()
+            H_occ = ao_occ.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs[:,-nsocc:]
+            H_virt = ao_virt.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs[:, :nvirt]
 
-            print(f"alpha is {alpha}", flush=True)
-            # forbidden blocks: damp them
-            H_soft[:nocc, :nvirt] *= alpha   # upper left 
-            H_soft[nocc:, nvirt:] *= alpha # bottom right
+            zero_top_left = np.zeros((H_occ.shape[0], H_virt.shape[1]))
+            zero_bottom_right = np.zeros((H_virt.shape[0], H_occ.shape[1]))
 
-            # allowed blocks untouched:
-            # H_soft[nocc:, :nvirt]
-            # H_soft[:nocc, nvirt:]
+            H = np.block([[zero_top_left, H_occ],
+                         [H_virt,        zero_bottom_right]])
 
-            # --- SINGLE SVD ---
-            U, s, Vt = svd(H_soft, full_matrices=False, lapack_driver="gesvd")
-            
-            Q = U @ Vt
-            self.TA = ao_both @ Q @ self.eq_fobj.eigvecs.T
+            U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
+            self.TA = ao_both @ U @ Vt @ self.eq_fobj.eigvecs.T
             self.n_f = self.eq_fobj.n_f
 
         elif gradient_orb_space == "project":

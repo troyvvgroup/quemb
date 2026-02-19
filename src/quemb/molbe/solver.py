@@ -255,7 +255,6 @@ def be_func(
     return_vec: bool = False,
     use_cumulant: bool = True,
 ):
-    print(f"pot inside be_func is {pot}")
     """
     Perform bootstrap embedding calculations for each fragment.
 

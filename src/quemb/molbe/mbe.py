@@ -159,7 +159,6 @@ class BE:
         gradient_orb_space: Literal[
             "RDM-invariant", "Schmidt-invariant", "Bath-Invariant", "Unmodified"
         ] = "Unmodified",
-        alpha: float = 1e-15,
     ) -> None:
         r"""
         Constructor for BE object.
@@ -275,7 +274,6 @@ class BE:
         self.eq_fobjs = eq_fobjs
         self.S_butlonger = S_butlonger
         self.gradient_orb_space = gradient_orb_space
-        self.alpha = alpha
 
         # Fragment information from fobj
         self.fobj = fobj
@@ -1179,7 +1177,6 @@ class BE:
                 self.Nocc,
                 self.gradient_orb_space,
                 thr_bath=self.thr_bath,
-                alpha=self.alpha,
             )
 
             self.Fobjs.append(fobjs_)
