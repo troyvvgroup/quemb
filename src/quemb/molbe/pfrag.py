@@ -301,18 +301,28 @@ class Frags:
             nsocc = self.eq_fobj.nsocc
             nvirt = self.eq_fobj.TA_lo_eo.shape[1] - self.eq_fobj.nsocc
 
-            H_occ = ao_occ.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs[:,-nsocc:]
-            H_virt = ao_virt.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs[:, :nvirt]
+            H_occ = ao_occ.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs[:,:nsocc]
+            H_virt = ao_virt.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs[:,nsocc:]
 
-            zero_top_left = np.zeros((H_occ.shape[0], H_virt.shape[1]))
-            zero_bottom_right = np.zeros((H_virt.shape[0], H_occ.shape[1]))
+            zero_top_right = np.zeros((H_occ.shape[0], H_virt.shape[1]))
+            zero_bottom_left = np.zeros((H_virt.shape[0], H_occ.shape[1]))
 
-            H = np.block([[zero_top_left, H_occ],
-                         [H_virt,        zero_bottom_right]])
+
+            H = np.block([[H_occ, zero_top_right],
+                         [zero_bottom_left, H_virt]])
 
             U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
-            self.TA = ao_both @ U @ Vt @ self.eq_fobj.eigvecs.T
+            TA = ao_both @ U @ Vt
+            self.TA = TA @ self.eq_fobj.eigvecs.T
             self.n_f = self.eq_fobj.n_f
+
+            overlap = TA.T @ S_cross @ (self.eq_fobj.TA @ self.eq_fobj.eigvecs)
+            n1 = self.eq_fobj.nsocc
+            off_block_1 = overlap[:n1, n1:]
+            off_block_2 = overlap[n1:, :n1]
+            print("Are we mixing occupied and virtual?")
+            print(np.max(np.abs(off_block_1)))
+            print(np.max(np.abs(off_block_2)))
 
         elif gradient_orb_space == "project":
             assert self.eq_fobj is not None
@@ -409,6 +419,10 @@ class Frags:
         nsocc = int(round(nsocc_))
         
         eigvals, eigvecs = np.linalg.eigh(P_)
+        idx = np.argsort(eigvals)[::-1]
+
+        eigvals = eigvals[idx]
+        eigvecs = eigvecs[:, idx]
 
         self.eigvecs = eigvecs
         
