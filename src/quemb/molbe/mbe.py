@@ -787,7 +787,6 @@ class BE:
         trust_region: bool = False,
         solver_args: UserSolverArgs | None = None,
     ) -> None:
-        print("calling optimize function on BE object")
         """BE optimization function
 
         Interfaces BEOPT to perform bootstrap embedding optimization.
@@ -848,6 +847,7 @@ class BE:
                     "option when fragmentating with chemgen."
                 )
         else:
+            print(f"only_chem inside optimize is {only_chem}")
             pot = [0.0]
 
         # Initialize the BEOPT object
@@ -899,6 +899,7 @@ class BE:
                     self.ebe_hf,
                 )
                 self.rets0 = be_.Ebe[0]
+                self.num_err = be_.num_err
             else:
                 self.ebe_tot = be_.Ebe[0] + self.enuc
                 print_energy_noncumulant(
@@ -910,6 +911,7 @@ class BE:
                     self.enuc,
                 )
                 self.rets0 = be_.Ebe[0] + self.enuc - self.ebe_hf 
+                self.num_err = be_.num_err
         else:
             raise ValueError("This optimization method for BE is not supported")
 
@@ -1188,6 +1190,7 @@ class BE:
         #    fobj.frag_TA_offset = frag_TA_offset
 
         if self.lo_bath_post_schmidt is not None:
+            print("meow lo bath")
             for frag in self.Fobjs:
                 frag.TA[:, frag.n_f :] = get_loc(
                     self.mf.mol,

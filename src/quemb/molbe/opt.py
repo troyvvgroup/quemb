@@ -173,7 +173,6 @@ class BEOPT:
             print("-- Beginning optimization iteration ", self.iter, flush=True)
 
             # Initial step
-            print(f"self.pot in the initial step is {self.pot}")
             f0 = self.objfunc(self.pot)
 
             print(
@@ -198,7 +197,6 @@ class BEOPT:
                     iter_timer = Timer("Time to complete Iteration " + str(self.iter))
                     print("-- In iter ", self.iter, flush=True)
                     optQN.next_step(self.iter, trust_region=trust_region)
-                    print(f"optQN.xnew is {optQN.xnew}") 
                     self.iter += 1
                     
                     if self.err < self.conv_tol:

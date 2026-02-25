@@ -75,6 +75,7 @@ def get_scfObj(
     Eri,
     nocc: int,
     dm0=None,
+    S_frag=None,
 ) -> scf.hf.RHF:
     """Initialize and run a restricted Hartree-Fock (RHF) calculation.
 
@@ -104,7 +105,10 @@ def get_scfObj(
     nao = h1.shape[0]
 
     # Initialize a dummy molecule with the required number of electrons
-    S = eye(nao)
+    if S_frag is None:
+        S_frag = eye(nao)
+    else:
+        print(f"S_frag is not None")
     mol = gto.M()
     mol.nelectron = nocc * 2
     mol.incore_anyway = True
@@ -112,7 +116,7 @@ def get_scfObj(
     # Initialize an RHF object
     mf_ = scf.RHF(mol)
     mf_.get_hcore = lambda *args: h1  # noqa: ARG005
-    mf_.get_ovlp = lambda *args: S  # noqa: ARG005
+    mf_.get_ovlp = lambda *args: S_frag  # noqa: ARG005
     mf_._eri = Eri
     mf_.incore_anyway = True
     mf_.max_cycle = 50

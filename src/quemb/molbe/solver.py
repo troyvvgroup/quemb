@@ -716,6 +716,7 @@ def solve_error(Fobjs, Nocc, only_chem=False):
                 err_chempot += fobj._rdm1[i, i]
         err_chempot /= Fobjs[0].unitcell_nkpt
         num_err = err_chempot - Nocc
+        print(f"num_err inside solve_error is {num_err}")
 
         return abs(num_err), asarray([num_err]), num_err
 
@@ -732,6 +733,7 @@ def solve_error(Fobjs, Nocc, only_chem=False):
         for i in fobj.weight_and_relAO_per_center[1]:
             err_chempot += fobj._rdm1[i, i]
         num_err = err_chempot - Nocc
+        print(f"num_err inside solve_error is {num_err}")
 
     err_chempot /= Fobjs[0].unitcell_nkpt
     err_edge.append(err_chempot)  # far-end edges are included as err_chempot

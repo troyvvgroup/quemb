@@ -312,6 +312,11 @@ class Frags:
                          [zero_bottom_left, H_virt]])
 
             U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
+            
+            UVt = U @ Vt
+            max_dev = np.max(np.abs(UVt.conj().T @ UVt - np.eye(UVt.shape[1])))
+            print("Max deviation from unitary:", max_dev)
+
             TA = ao_both @ U @ Vt
             self.TA = TA @ self.eq_fobj.eigvecs.T
             self.n_f = self.eq_fobj.n_f
@@ -324,41 +329,29 @@ class Frags:
             print(np.max(np.abs(off_block_1)))
             print(np.max(np.abs(off_block_2)))
 
-        elif gradient_orb_space == "project":
-            assert self.eq_fobj is not None
-            assert self.eq_fobj.eigvecs is not None
+        elif gradient_orb_space == "minsik":
+            (
+                self.Dhf,
+                self.TA_lo_eo,
+                self.TAenv_lo_eo,
+                self.TAfull_lo_eo,
+                self.n_f,
+                self.n_b,
+            ) = schmidt_decomposition(
+                lmo,
+                nocc,
+                self.AO_in_frag,
+                thr_bath=thr_bath,
+            )
+            TA = lao @ self.TA_lo_eo
 
-            ao_occ = lao @ lmo[:, :nocc]
-            ao_virt = lao @ lmo[:, nocc:]
+            U, S, Vt = svd(TA.T @ S_cross @ self.eq_fobj.TA, full_matrices=False)
+            
+            UVt = U @ Vt
+            max_dev = np.max(np.abs(UVt.conj().T @ UVt - np.eye(UVt.shape[0])))
+            print("Max deviation from unitary:", max_dev)
 
-            nsocc = self.eq_fobj.nsocc
-            nvirt = self.eq_fobj.TA_lo_eo.shape[1] - self.eq_fobj.nsocc
-
-            # project the perturbed-occupied AO space into the EO basis
-            P_occ_EO = self.eq_fobj.TA.T @ S_butlonger.T @ ao_occ @ ao_occ.T @ S_butlonger @ self.eq_fobj.TA # (eo ao) @ (ao ao) (ao mo) (mo ao) (ao ao) @ (ao eo)
-
-            # extract nsocc embedding orbitals
-            vals, vecs = np.linalg.eigh(P_occ_EO)
-            idx = np.argsort(vals)[::-1]
-
-            vals = vals[idx]
-            vecs = vecs[:, idx]
-
-            print("EO occupied projector eigenvalues:", vals[:nsocc])
-
-            TA_occ = self.eq_fobj.TA @ vecs[:, :nsocc]
-
-            # get virtual embedding orbitals
-            P_virt_EO = np.eye(self.eq_fobj.TA.shape[1]) - P_occ_EO
-
-            vals, vecs = np.linalg.eigh(P_virt_EO)
-            idx = np.argsort(vals)[::-1]
-
-            TA_virt = self.eq_fobj.TA @ vecs[:, :nvirt]
-
-            # assemble final TA
-            self.TA = np.concatenate((TA_occ, TA_virt), axis=1)
-            self.n_f = self.eq_fobj.n_f
+            self.TA = TA @ U @ Vt
 
         else:
             assert_never(gradient_orb_space)
@@ -436,7 +429,7 @@ class Frags:
         return P_
 
     def scf(
-        self, heff=None, fs=False, eri=None, dm0=None, unrestricted=False, spin_ind=None
+        self, S=None, heff=None, fs=False, eri=None, dm0=None, unrestricted=False, spin_ind=None
     ):
         """
         Perform self-consistent field (SCF) calculation for the fragment.
@@ -477,12 +470,23 @@ class Frags:
                 @ self._mo_coeffs[:, : self.nsocc].conj().T
             )
 
-        mf_ = get_scfObj(self.fock + heff, eri, self.nsocc, dm0=dm0)
+        #print("orthonormal in euclidean basis?")
+        #print(np.max(np.abs(self.TA.T @ self.TA - np.eye(self.TA.shape[1]))))
+        #print("orthonormal in S?")
+        #print(f"the shape of S is {S.shape}")
+        #print(np.max(np.abs(self.TA.T @ S @ self.TA - np.eye(self.TA.shape[1]))))
+
+        #S_frag = self.TA.T @ S @ self.TA
+
+        mf_ = get_scfObj(self.fock + heff, eri, self.nsocc, dm0=dm0, S_frag=None)
         if not fs:
             self._mf = mf_
             self.mo_coeffs = mf_.mo_coeff.copy()
         else:
             self._mo_coeffs = mf_.mo_coeff.copy()
+
+
+
 
     def update_heff(self, u, cout=None, only_chem=False):
         """Update the effective Hamiltonian for the fragment."""
