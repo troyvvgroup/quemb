@@ -526,8 +526,9 @@ def are_equal(m1: _T, m2: _T) -> bool:
     else:
         raise TypeError("Both objects must be of the same type (Mole or Cell).")
 
+
 def corr_orbital(mo_coeff_1, mo_coeff_2, cross_ovlp):
-    """ Evaluate corresponding orbital transformation between two set of orbitals.
+    """Evaluate corresponding orbital transformation between two set of orbitals.
 
     Parameters
     ----------
@@ -547,8 +548,9 @@ def corr_orbital(mo_coeff_1, mo_coeff_2, cross_ovlp):
     # U d V = S_cross
     return svd(multi_dot((mo_coeff_1, cross_ovlp, mo_coeff_2)))
 
+
 def corr_orbital_frag_idx(be_obj_1: BE, be_obj_2: BE, idx_list: list | None = None):
-    """ Evaluate corresponding orbital transformation between two BE objects.
+    """Evaluate corresponding orbital transformation between two BE objects.
 
     Parameters
     ----------
@@ -557,20 +559,28 @@ def corr_orbital_frag_idx(be_obj_1: BE, be_obj_2: BE, idx_list: list | None = No
     be_obj_2 : BE
         Initialized BE object 2
     idx_list : list | None, optional
-        List of fragments to evaluate corresponding orbital transformation, by default every fragment in the BE object
+        List of fragments to evaluate corresponding orbital transformation,
+        by default every fragment in the BE object
 
     Returns
     -------
     list
-        List of (U, d, VT) that specifies corresponding orbital transformation of the fragments.
-        i-th element contains (U, d, VT) that connect i-th fragment in be_obj_1 and be_obj_2.
+        List of (U, d, VT) that specifies corresponding orbital transformation between
+        fragments. i-th element contains (U, d, VT) that connect i-th fragment in
+        be_obj_1 and be_obj_2.
     """
     # If idx_list is not given, assume whole list
     if idx_list is None:
-        assert len(be_obj_1.Fobjs) == len(be_obj_2.Fobjs), "No idx_list was given, but the two BE objects have different number of fragments."
+        assert len(be_obj_1.Fobjs) == len(be_obj_2.Fobjs), (
+            "No idx_list was given, but the two BE objects have different number of"
+            "fragments."
+        )
         idx_list = list(range(len(be_obj_1.Fobjs)))
 
     # Evaluate cross overlap matrix
     cross_ovlp = gto.intor_cross("int1e_ovlp", be_obj_1.mf.mol, be_obj_2.mf.mol)
 
-    return [corr_orbital(be_obj_1.Fobjs[i].TA, be_obj_2.Fobjs[i].TA, cross_ovlp) for i in idx_list]
+    return [
+        corr_orbital(be_obj_1.Fobjs[i].TA, be_obj_2.Fobjs[i].TA, cross_ovlp)
+        for i in idx_list
+    ]

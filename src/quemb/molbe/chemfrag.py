@@ -1209,8 +1209,10 @@ class Fragmented(Generic[_T_chemsystem]):
     #: The molecule with the valence/minimal basis, if we use IAO.
     iao_valence_mol: _T_chemsystem | None = field(
         eq=cmp_using(
-            lambda x, y: (x is None and y is None)
-            or (x is not None and y is not None and are_equal(x, y))
+            lambda x, y: (
+                (x is None and y is None)
+                or (x is not None and y is not None and are_equal(x, y))
+            )
         )
     )
 

@@ -397,7 +397,8 @@ def test_pyscf_parsing() -> None:
     assert computed == expected
 
     computed_idx = argsort(
-        mol.ao_labels(), key=lambda label: Orbital.from_pyscf_label(label)
+        mol.ao_labels(),
+        key=lambda label: Orbital.from_pyscf_label(label),  # noqa: PLW0108
     )
 
     # Surprise, Surprise 🥳
