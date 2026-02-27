@@ -19,9 +19,8 @@ class BEGrad:
     Gradient routine for Bootstrap Embedding
     """
 
-    def __init__(self, ref_be_obj: BE, grad_method: Grad_Method):
+    def __init__(self, ref_be_obj: BE):
         self.ref_be_obj: BE = ref_be_obj
-        self.grad_method = grad_method
 
         self.delta = 1e-4  # in Angstroms
 
@@ -31,7 +30,31 @@ class BEGrad:
                 "Gradient calculation with IAO is not supported yet."
             )
 
-    def _displacement_vector(
+    @property
+    def grad_method(self) -> Grad_Method:
+        return self._grad_method
+
+    def set_grad_method(self, grad_method: Grad_Method):
+        self._grad_method = grad_method
+        self.displacement_vector_list = self._displacement_vector_list(
+            grad_method, self.delta
+        )
+        if "force" in grad_method:
+            self.displaced_pfrags = self._force_displaced_pfrags(
+                self.displacement_vector_list
+            )
+        else:
+            raise NotImplementedError(f"Unsupported gradient method: {grad_method}")
+
+    def compute_grad(self):
+        if "force" in self.grad_method:
+            return self._compute_force_grad()
+        else:
+            raise NotImplementedError(
+                f"Unsupported gradient method: {self.grad_method}"
+            )
+
+    def _displacement_vector_list(
         self, grad_method: Grad_Method, delta: float
     ) -> list[list[float]]:
         """Get the displacement vector for finite difference"""
@@ -100,6 +123,8 @@ class BEGrad:
             auxbasis=self.ref_be_obj.auxbasis,
             MO_coeff_epsilon=self.ref_be_obj.MO_coeff_epsilon,
             AO_coeff_epsilon=self.ref_be_obj.AO_coeff_epsilon,
-        )
+        )  # TODO: avoid unnecessary integral transformation in the future.
+        #       This would require modification of the BE class to allow
+        #       lazy initialization.
 
         return displaced_be_obj
