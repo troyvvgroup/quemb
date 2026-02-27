@@ -21,7 +21,6 @@ from pyscf import ao2mo, gto, lib, scf
 from pyscf.gto.mole import Mole
 from pyscf.pbc.gto.cell import Cell
 
-from quemb.molbe import BE
 from quemb.shared.helper import ncore_
 from quemb.shared.typing import Matrix
 
@@ -549,7 +548,7 @@ def corr_orbital(mo_coeff_1, mo_coeff_2, cross_ovlp):
     return svd(multi_dot((mo_coeff_1, cross_ovlp, mo_coeff_2)))
 
 
-def corr_orbital_frag_idx(be_obj_1: BE, be_obj_2: BE, idx_list: list | None = None):
+def corr_orbital_frag_idx(be_obj_1, be_obj_2, idx_list=None):
     """Evaluate corresponding orbital transformation between two BE objects.
 
     Parameters
