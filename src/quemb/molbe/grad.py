@@ -1,10 +1,21 @@
+from os import system
 from os.path import dirname, join
 from re import findall
 from typing import Literal, TypeAlias
 
+from numpy import diag, float64, zeros
+from pathos.pools import ProcessPool
+from pyscf.cc import CCSD
 from pyscf.scf import RHF
 
+from quemb.molbe.helper import get_eri, get_scfObj
 from quemb.molbe.mbe import BE
+from quemb.molbe.pfrag import Frags
+from quemb.molbe.solver import Solvers, UserSolverArgs
+from quemb.shared.manage_scratch import WorkDir
+from quemb.shared.typing import (
+    Matrix,
+)
 
 Grad_Method: TypeAlias = Literal[
     "force_fd1_ctr_cart",
@@ -43,16 +54,81 @@ class BEGrad:
             self.displaced_pfrags = self._force_displaced_pfrags(
                 self.displacement_vector_list
             )
+        elif "energy" in grad_method:
+            pass  # energy embedding does not require preparation of displaced pfrags
         else:
             raise NotImplementedError(f"Unsupported gradient method: {grad_method}")
 
-    def compute_grad(self):
+    def compute_grad(self, solver="MP2", nproc=None, ompnum=None):
+        if nproc is not None:
+            self.ref_be_obj.nproc = nproc
+        if ompnum is not None:
+            self.ref_be_obj.ompnum = ompnum
         if "force" in self.grad_method:
-            return self._compute_force_grad()
+            return self._compute_force_grad(solver)
+        elif "energy" in self.grad_method:
+            return self._compute_energy_grad(solver)
         else:
             raise NotImplementedError(
                 f"Unsupported gradient method: {self.grad_method}"
             )
+
+    def _compute_force_grad(self, solver):
+        """Gradient using force embedding"""
+        # Evaluate fragment objects in parallel
+        system(f"export OMP_NUM_THREADS={self.ref_be_obj.ompnum}")
+        nprocs = max(1, self.ref_be_obj.nproc // self.ref_be_obj.ompnum)
+        with ProcessPool(nprocs) as pool_:
+            results = []
+            for fobj in self.displaced_pfrags:
+                result = pool_.apipe(
+                    _compute_frag,
+                    fobj.fock,
+                    fobj.dm0.copy(),
+                    fobj.dname,
+                    fobj.nao,
+                    fobj.nsocc,
+                    solver,
+                    fobj.eri_file,
+                    None,
+                )
+                results.append(result)
+
+            frag_cc_energies = [result.get() for result in results]
+
+        if "fd1" in self.grad_method:
+            # First-order central finite difference
+            # f'(x) ≈ (f(x + δ) - f(x - δ)) / (2δ)
+            grad = zeros((self.ref_be_obj.mf.mol.natm * 3))
+            for idx, _ in enumerate(grad):
+                # +δ
+                grad[idx] += frag_cc_energies[2 * idx]
+                # -δ
+                grad[idx] -= frag_cc_energies[2 * idx + 1]
+            grad /= 2 * self.delta
+            return grad.reshape((self.ref_be_obj.mf.mol.natm, 3))
+
+    def _compute_energy_grad(self, solver):
+        """Gradient using energy embedding"""
+        if "fd1" in self.grad_method:
+            # First-order central finite difference
+            # f'(x) ≈ (f(x + δ) - f(x - δ)) / (2δ)
+            grad = zeros((self.ref_be_obj.mf.mol.natm, 3))
+            for atomidx in range(self.ref_be_obj.mf.mol.natm):
+                for idx, disp in enumerate(self.displacement_vector_list):
+                    displaced_be_obj = self._build_displaced_be_objs(atomidx, disp)
+                    displaced_be_obj.oneshot(
+                        solver=solver,
+                        use_cumulant=True,
+                        nproc=self.ref_be_obj.nproc,
+                        ompnum=self.ref_be_obj.ompnum,
+                    )
+                    if idx % 2 == 0:  # +δ
+                        grad[atomidx, idx // 2] += displaced_be_obj.ebe_tot
+                    else:  # -δ
+                        grad[atomidx, idx // 2] -= displaced_be_obj.ebe_tot
+            grad /= 2 * self.delta
+            return grad
 
     def _displacement_vector_list(
         self, grad_method: Grad_Method, delta: float
@@ -76,25 +152,31 @@ class BEGrad:
         else:
             raise NotImplementedError(f"Unsupported gradient method: {grad_method}")
 
-    def _force_displaced_pfrags(self, displacement_vector_list: list[list[float]]):
+    def _force_displaced_pfrags(
+        self, displacement_vector_list: list[list[float]]
+    ) -> list[Frags]:
         """Prepare displaced BE objects"""
         displaced_pfrags = []
         # [Fobj for atom 0 x+, Fobj for atom 0 x-, ..., Fobj for atom N z-]
         for atomidx in range(self.ref_be_obj.mf.mol.natm):
             fragidx = self.ref_be_obj.fobj.fragmented.get_frag_per_atom()[atomidx]
             for disp in displacement_vector_list:
-                displaced_be_obj = self._build_displaced_be_objs(disp)
+                displaced_be_obj = self._build_displaced_be_objs(atomidx, disp)
                 displaced_pfrags.append(displaced_be_obj.Fobjs[fragidx])
         return displaced_pfrags
 
-    def _build_displaced_be_objs(self, displacement_vector: list[float]) -> BE:
+    def _build_displaced_be_objs(
+        self, atomidx: int, displacement_vector: list[float]
+    ) -> BE:
         """Build BE object for the displaced molecule"""
         displaced_mol = self.ref_be_obj.mf.mol.copy()
         displaced_mol.atom = [
             [
                 self.ref_be_obj.mf.mol.atom_symbol(i),
                 self.ref_be_obj.mf.mol.atom_coord(i, unit="Angstrom")
-                + displacement_vector,
+                + displacement_vector
+                if i == atomidx
+                else self.ref_be_obj.mf.mol.atom_coord(i, unit="Angstrom"),
             ]
             for i in range(self.ref_be_obj.mf.mol.natm)
         ]
@@ -107,19 +189,21 @@ class BEGrad:
         )  # use reference 1-RDM as initial guess
 
         # use randomized ERI file name for each displaced BE obj to avoid conflict
-        scratch_dir = join(
-            dirname(self.ref_be_obj.eri_file), f"eri_{id(self)}_{id(displaced_mf)}"
+        scratch_dir = WorkDir(
+            join(
+                dirname(self.ref_be_obj.eri_file), f"eri_{id(self)}_{id(displaced_mf)}"
+            )
         )
         displaced_be_obj = BE(
             displaced_mf,
             self.ref_be_obj.fobj,
-            eri_file=join(scratch_dir, "eri_file.h5"),
+            eri_file=scratch_dir / "eri_file.h5",
             lo_method=self.ref_be_obj.lo_method,
             nproc=self.ref_be_obj.nproc,
             ompnum=self.ref_be_obj.ompnum,
             thr_bath=self.ref_be_obj.thr_bath,
             scratch_dir=scratch_dir,
-            int_transform=self.ref_be_obj.int_transform,
+            int_transform=self.ref_be_obj.integral_transform,
             auxbasis=self.ref_be_obj.auxbasis,
             MO_coeff_epsilon=self.ref_be_obj.MO_coeff_epsilon,
             AO_coeff_epsilon=self.ref_be_obj.AO_coeff_epsilon,
@@ -128,3 +212,35 @@ class BEGrad:
         #       lazy initialization.
 
         return displaced_be_obj
+
+
+def _compute_frag(
+    h1: Matrix[float64],
+    dm0: Matrix[float64],
+    dname: str,
+    nao: int,
+    nocc: int,
+    solver: Solvers = "CCSD",
+    eri_file: str = "eri_file.h5",
+    solver_args: UserSolverArgs | None = None,  # noqa: ARG001
+):
+    if solver != "CCSD":
+        raise NotImplementedError
+    eri = get_eri(dname, nao, eri_file=eri_file)
+    mf = get_scfObj(h1, eri, nocc, dm0=dm0)
+
+    if solver == "CCSD":
+        mc = CCSD(mf, mo_coeff=mf.mo_coeff, mo_occ=mf.mo_occ)
+        mc.verbose = 0
+        mc.incore_complete = True
+        eri_embmo = mc.ao2mo()
+        eri_embmo.mo_energy = mf.mo_energy
+        eri_embmo.fock = diag(mf.mo_energy)
+
+        try:
+            mc.kernel(eris=eri_embmo)
+        except Exception as e:
+            print(f"Exception during CCSD in Fragment {dname}")
+            raise e
+
+        return mc.e_tot

@@ -75,6 +75,7 @@ class UBE(BE):  # 🍠
         thr_bath : float,
             Threshold for bath orbitals in Schmidt decomposition
         """
+        self.lo_method = lo_method
         self.unrestricted = True
         self.thr_bath = thr_bath
 

@@ -300,7 +300,13 @@ def run_solver(
     if eeval and not ret_vec:
         return e_f
 
-    return (e_f, mf_.mo_coeff, rdm1, rdm2s, rdm1_tmp)
+    return (
+        e_f,
+        mf_.mo_coeff,
+        rdm1,
+        rdm2s,
+        rdm1_tmp,
+    )
 
 
 def run_solver_u(

@@ -128,6 +128,7 @@ class BE(Mixin_k_Localize):
             self.P_core = store_.P_core
             self.core_veff = store_.core_veff
 
+        self.lo_method = lo_method
         self.nproc = nproc
         self.ompnum = ompnum
         self.thr_bath = thr_bath

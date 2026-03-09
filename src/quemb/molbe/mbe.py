@@ -258,6 +258,7 @@ class BE:
         # to use the parallelization in each fragment.
         self.n_threads_integral_transform: Final = 1
 
+        self.lo_method = lo_method
         self.unrestricted = False
         self.nproc = nproc
         self.ompnum = ompnum
