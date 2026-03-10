@@ -1,21 +1,23 @@
+import uuid
 from os import system
 from os.path import dirname, join
 from re import findall
 from typing import Literal, TypeAlias
 
-from numpy import diag, float64, zeros
+import h5py
+from numpy import diag, float64, zeros, zeros_like
+from numpy.linalg import multi_dot
 from pathos.pools import ProcessPool
+from pyscf.ao2mo import incore, restore
 from pyscf.cc import CCSD
 from pyscf.scf import RHF
 
-from quemb.molbe.helper import get_eri, get_scfObj
+from quemb.molbe.helper import corr_orbital_frag_idx, get_eri, get_scfObj
 from quemb.molbe.mbe import BE
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import Solvers, UserSolverArgs
 from quemb.shared.manage_scratch import WorkDir
-from quemb.shared.typing import (
-    Matrix,
-)
+from quemb.shared.typing import Matrix, PathLike
 
 Grad_Method: TypeAlias = Literal[
     "force_fd1_ctr_cart",
@@ -45,14 +47,18 @@ class BEGrad:
     def grad_method(self) -> Grad_Method:
         return self._grad_method
 
-    def set_grad_method(self, grad_method: Grad_Method):
+    def set_grad_method(
+        self,
+        grad_method: Grad_Method,
+        alignment: Literal["corr_full", "no_alignment"] | None = "corr_full",
+    ):
         self._grad_method = grad_method
         self.displacement_vector_list = self._displacement_vector_list(
             grad_method, self.delta
         )
         if "force" in grad_method:
             self.displaced_pfrags = self._force_displaced_pfrags(
-                self.displacement_vector_list
+                self.displacement_vector_list, alignment=alignment
             )
         elif "energy" in grad_method:
             pass  # energy embedding does not require preparation of displaced pfrags
@@ -65,16 +71,22 @@ class BEGrad:
         if ompnum is not None:
             self.ref_be_obj.ompnum = ompnum
         if "force" in self.grad_method:
-            return self._compute_force_grad(solver)
+            self.de = self._compute_force_grad(solver)
         elif "energy" in self.grad_method:
-            return self._compute_energy_grad(solver)
+            self.de = self._compute_energy_grad(solver)
         else:
             raise NotImplementedError(
                 f"Unsupported gradient method: {self.grad_method}"
             )
+        return self.de
 
     def _compute_force_grad(self, solver):
         """Gradient using force embedding"""
+        # HF contribution (analytical)
+        grad_hf = self.ref_be_obj.mf.Gradients()
+        grad_hf.verbose = 0
+        grad_hf.kernel()
+
         # Evaluate fragment objects in parallel
         system(f"export OMP_NUM_THREADS={self.ref_be_obj.ompnum}")
         nprocs = max(1, self.ref_be_obj.nproc // self.ref_be_obj.ompnum)
@@ -94,7 +106,7 @@ class BEGrad:
                 )
                 results.append(result)
 
-            frag_cc_energies = [result.get() for result in results]
+            frag_energies = [result.get() for result in results]
 
         if "fd1" in self.grad_method:
             # First-order central finite difference
@@ -102,11 +114,13 @@ class BEGrad:
             grad = zeros((self.ref_be_obj.mf.mol.natm * 3))
             for idx, _ in enumerate(grad):
                 # +δ
-                grad[idx] += frag_cc_energies[2 * idx]
+                grad[idx] += frag_energies[2 * idx]
                 # -δ
-                grad[idx] -= frag_cc_energies[2 * idx + 1]
+                grad[idx] -= frag_energies[2 * idx + 1]
             grad /= 2 * self.delta
-            return grad.reshape((self.ref_be_obj.mf.mol.natm, 3))
+            return (
+                grad.reshape((self.ref_be_obj.mf.mol.natm, 3)) + grad_hf.de / 0.529177
+            )
 
     def _compute_energy_grad(self, solver):
         """Gradient using energy embedding"""
@@ -153,7 +167,9 @@ class BEGrad:
             raise NotImplementedError(f"Unsupported gradient method: {grad_method}")
 
     def _force_displaced_pfrags(
-        self, displacement_vector_list: list[list[float]]
+        self,
+        displacement_vector_list: list[list[float]],
+        alignment: Literal["corr_full", "no_alignment"] = "corr_full",
     ) -> list[Frags]:
         """Prepare displaced BE objects"""
         displaced_pfrags = []
@@ -162,8 +178,68 @@ class BEGrad:
             fragidx = self.ref_be_obj.fobj.fragmented.get_frag_per_atom()[atomidx]
             for disp in displacement_vector_list:
                 displaced_be_obj = self._build_displaced_be_objs(atomidx, disp)
-                displaced_pfrags.append(displaced_be_obj.Fobjs[fragidx])
+                if alignment == "corr_full":
+                    # Corresponding Orbital Transformation to reference geometry
+                    cot = corr_orbital_frag_idx(
+                        displaced_be_obj,
+                        self.ref_be_obj,
+                        idx_list=[fragidx],
+                    )[0]
+                    cot = cot[0] @ cot[2]  # Σ = U @ V^T
+                    aligned_TA = displaced_be_obj.Fobjs[fragidx].TA @ cot
+                    displaced_pfrags.append(
+                        self._update_pfrag_with_TA(
+                            displaced_be_obj.Fobjs[fragidx],
+                            aligned_TA,
+                            displaced_be_obj.eri_file,
+                            displaced_be_obj.hcore,
+                            displaced_be_obj.hf_veff,
+                            displaced_be_obj.S,
+                            displaced_be_obj.hf_dm,
+                            displaced_be_obj.mf._eri,
+                        )
+                    )
+                elif alignment == "no_alignment":
+                    displaced_pfrags.append(displaced_be_obj.Fobjs[fragidx])
+                else:
+                    raise NotImplementedError(
+                        f"Unsupported alignment method: {alignment}"
+                    )
         return displaced_pfrags
+
+    def _update_pfrag_with_TA(
+        self,
+        frag_obj: Frags,
+        TA: Matrix[float64],
+        eri_file: PathLike,
+        h1: Matrix[float64],
+        hf_veff: Matrix[float64],
+        ao_ovlp: Matrix[float64],
+        hf_dm: Matrix[float64],
+        ao_eri: Matrix[float64] | None = None,
+    ) -> Frags:
+        """Update the pfrag object with the aligned TA"""
+        # TODO: Parallelize after checking pickle-ability
+        frag_obj.TA = TA
+        # ERI Transform
+        # TODO: Support other types of ERI transformation.
+        file_eri = h5py.File(eri_file, "r+")
+        del file_eri[frag_obj.dname]  # delete the existing ERI dataset for the fragment
+        eri_eo = incore.full(ao_eri, TA, compact=True)
+        file_eri.create_dataset(frag_obj.dname, data=eri_eo)
+        frag_obj.h1 = multi_dot((TA.T, h1, TA))
+        eri_eo = restore(8, eri_eo, frag_obj.nao)
+        frag_obj.cons_fock(hf_veff, ao_ovlp, hf_dm, eri_=eri_eo)
+        # this implicitly changes P_env
+        frag_obj.heff = zeros_like(frag_obj.h1)
+        frag_obj.scf(fs=True, eri=eri_eo)
+        frag_obj.dm0 = 2.0 * (
+            frag_obj._mo_coeffs[:, : frag_obj.nsocc]
+            @ frag_obj._mo_coeffs[:, : frag_obj.nsocc].T
+        )
+        frag_obj.update_ebe_hf()
+        file_eri.close()
+        return frag_obj
 
     def _build_displaced_be_objs(
         self, atomidx: int, displacement_vector: list[float]
@@ -191,7 +267,9 @@ class BEGrad:
         # use randomized ERI file name for each displaced BE obj to avoid conflict
         scratch_dir = WorkDir(
             join(
-                dirname(self.ref_be_obj.eri_file), f"eri_{id(self)}_{id(displaced_mf)}"
+                dirname(self.ref_be_obj.eri_file),
+                f"eri_{id(self)}_{id(displaced_mf)}",
+                str(uuid.uuid4()),
             )
         )
         displaced_be_obj = BE(
@@ -243,4 +321,4 @@ def _compute_frag(
             print(f"Exception during CCSD in Fragment {dname}")
             raise e
 
-        return mc.e_tot
+        return mc.e_tot - mf.e_tot
