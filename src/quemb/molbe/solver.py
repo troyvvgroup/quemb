@@ -297,7 +297,9 @@ def be_func(
     if eeval:
         total_e = [0.0, 0.0, 0.0]
 
+    # Loop over each fragment and solve using the specified solver
     for fobj in Fobjs:
+        # Update the effective Hamiltonian
         if pot is not None:
             fobj.update_heff(pot, only_chem=only_chem)
 
@@ -541,10 +543,10 @@ def be_func(
                 use_cumulant=use_cumulant,
                 eri_file=fobj.eri_file,
             )
-            fobj.E1 = e_f[0]
-            fobj.E2 = e_f[1]
-            fobj.EC = e_f[2]
-            fobj.fragment_correlation = e_f[0] + e_f[1] + e_f[2]
+            #fobj.E1 = e_f[0]
+            #fobj.E2 = e_f[1]
+            #fobj.EC = e_f[2]
+            #fobj.fragment_correlation = e_f[0] + e_f[1] + e_f[2]
             total_e = [sum(x) for x in zip(total_e, e_f)]
             fobj.update_ebe_hf()
 

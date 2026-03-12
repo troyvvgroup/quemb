@@ -203,7 +203,6 @@ class BEOPT:
                         flush=True,
                     )
                     logger.info(f"Iteration time: {iter_timer.str_elapsed()}")
-
                     if self.err < self.conv_tol:
                         print(flush=True)
                         print("CONVERGED", flush=True)
@@ -213,7 +212,6 @@ class BEOPT:
                             )
                         )
                         break
-
                 if self.err >= self.conv_tol:
                     warnings.warn(f"BE DID NOT CONVERGE IN {self.max_space} STEPS")
         else:

@@ -1132,9 +1132,7 @@ class BE:
         E_hf = 0.0
         for fobjs_ in self.Fobjs:
             eri = array(file_eri.get(fobjs_.dname))
-            _ = fobjs_.get_nsocc(
-                self.S, self.C, self.Nocc, ncore=self.ncore
-            )
+            _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
 
             assert fobjs_.TA is not None
             fobjs_.h1 = multi_dot((fobjs_.TA.T, self.hcore, fobjs_.TA))
@@ -1229,8 +1227,8 @@ class BE:
 
         self._initialize_fragments(file_eri, restart)
 
-        for I in range(self.fobj.n_frag):
-            fobjs_ = self.Fobjs[I]
+        #for I in range(self.fobj.n_frag):
+        #    fobjs_ = self.Fobjs[I]
 
         if not restart:
             file_eri.close()
