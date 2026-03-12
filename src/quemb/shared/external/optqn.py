@@ -254,6 +254,7 @@ def get_be_error_jacobian(n_frag, Fobjs, jac_solver="HF"):
     xes = [None] * n_frag
     xcs = [None] * n_frag
     ys = [None] * n_frag
+    Ncout = [None] * n_frag
     alphas = [None] * n_frag
 
     if jac_solver.upper() == "MP2":
@@ -265,7 +266,7 @@ def get_be_error_jacobian(n_frag, Fobjs, jac_solver="HF"):
     else:
         raise NotImplementedError("Jacobian solver input not implemented")
 
-    Ncout = [None] * n_frag
+    #Ncout = [None] * n_frag
     for A in range(n_frag):
         Jes[A], Jcs[A], xes[A], xcs[A], ys[A], alphas[A], Ncout[A] = (
             get_atbe_Jblock_frag(Fobjs[A], res_func)
@@ -285,8 +286,8 @@ def get_be_error_jacobian(n_frag, Fobjs, jac_solver="HF"):
     M4             C2-2   E3
     """
     N_ = sum(Ncout)
-    J = zeros((N_ + 1, N_ + 1))
-    cout = 0
+    J = zeros((N_ + 1, N_ + 1)) # 2x2 matrix
+    cout = 0 # row index of current fragment block
 
     for findx, fobj in enumerate(Fobjs):
         J[cout : Ncout[findx] + cout, cout : Ncout[findx] + cout] = Jes[findx]

@@ -198,10 +198,11 @@ class Frags:
         self,
         lao: Matrix[float64],
         S_cross: Matrix[float64],
+        C: Matrix[float64],
         lmo: Matrix[float64],
         nocc: int,
         gradient_orb_space: Literal[
-            "full-first", "RDM-invariant", "one-step", "project", "Unmodified"
+            "one-step", "Unmodified"
         ],
         thr_bath: float = 1.0e-10,
     ) -> None:
@@ -219,6 +220,7 @@ class Frags:
         thr_bath : float,
             Threshold for bath orbitals in Schmidt decomposition
         """
+
         print(f"gradient_orb_space: {gradient_orb_space}")
         if gradient_orb_space == "Unmodified":
             (
@@ -236,122 +238,41 @@ class Frags:
             )
             self.TA = lao @ self.TA_lo_eo
 
-        elif gradient_orb_space == "for-visual":
-            (
-                self.Dhf,
-                self.TA_lo_eo,
-                self.TAenv_lo_eo,
-                self.TAfull_lo_eo,
-                self.n_f,
-                self.n_b,
-            ) = schmidt_decomposition(
-                lmo,
-                nocc,
-                self.AO_in_frag,
-                thr_bath=thr_bath,
-            )
-            self.TA = lao @ self.TA_lo_eo
-
-        elif gradient_orb_space == "RDM-invariant":
-            assert self.eq_fobj is not None
-            assert self.eq_fobj.eigvecs is not None
-
-            ao_occ = lao @ lmo[:, :nocc]
-            ao_virt = lao @ lmo[:, nocc:]
-            ao_both = lao @ lmo
-
-            nsocc = self.eq_fobj.nsocc
-            nvirt = self.eq_fobj.TA_lo_eo.shape[1] - self.eq_fobj.nsocc
-            
-            H = ao_occ.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs[:, -nsocc:]
-            U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
-            Q_occ = U @ Vt
-
-            H = ao_virt.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs[:, :nvirt]
-            U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
-            Q_virt = U @ Vt
-
-            Q = np.zeros((ao_both.shape[1], self.eq_fobj.eigvecs.T.shape[0]))
-
-            #        |  0        Q_occ |
-            #Q   =   |                 |
-            #        | Q_virt     0    |
-
-            
-            Q[nocc:, :nvirt] = Q_virt
-            Q[:nocc, nvirt:] = Q_occ
-
-            #plt.imshow(Q)
-            #plt.colorbar()
-            #plt.xlabel("Column Index")
-            #plt.ylabel("Row Index")
-            
-            #plt.savefig("heatmap.png", dpi=600)
-            #print("saved to heatmap.png")
-            #sys.exit()
-
-            self.TA = ao_both @ Q @ self.eq_fobj.eigvecs.T
-            self.n_f = self.eq_fobj.n_f
-
         elif gradient_orb_space == "one-step":
-            print("this is one step") 
-            ao_occ = lao @ lmo[:, :nocc]
-            ao_virt = lao @ lmo[:, nocc:]
-            ao_both = lao @ lmo
+            # separate the MOs into occupied and virtual
+            C_occ = C[:, :nocc]
+            C_virt = C[:, nocc:]
+
+            # get the number of occupied and virtual orbitals in the fragment
             nsocc = self.eq_fobj.nsocc
             nvirt = self.eq_fobj.TA_lo_eo.shape[1] - self.eq_fobj.nsocc
 
-            H_occ = ao_occ.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs[:,:nsocc]
-            H_virt = ao_virt.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs[:,nsocc:]
+            # ignore, this is just for printing later
+            self.mo_no = C.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs
+            self.mo_eo = C.T @ S_cross @ self.eq_fobj.TA
 
+            # get the overlaps between MOs and NOs, occupied and virtual separately
+            H_occ = C_occ.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs[:, :nsocc]
+            H_virt = C_virt.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs[:, nsocc:]
+
+            # prepare zeros of the right size
             zero_top_right = np.zeros((H_occ.shape[0], H_virt.shape[1]))
             zero_bottom_left = np.zeros((H_virt.shape[0], H_occ.shape[1]))
 
-
+            # construct MO NO overlap as explicitly block diagonal
             H = np.block([[H_occ, zero_top_right],
                          [zero_bottom_left, H_virt]])
 
             U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
             
-            UVt = U @ Vt
-            max_dev = np.max(np.abs(UVt.conj().T @ UVt - np.eye(UVt.shape[1])))
-            print("Max deviation from unitary:", max_dev)
-
-            TA = ao_both @ U @ Vt
-            self.TA = TA @ self.eq_fobj.eigvecs.T
-            self.n_f = self.eq_fobj.n_f
-
-            overlap = TA.T @ S_cross @ (self.eq_fobj.TA @ self.eq_fobj.eigvecs)
-            n1 = self.eq_fobj.nsocc
-            off_block_1 = overlap[:n1, n1:]
-            off_block_2 = overlap[n1:, :n1]
-            print("Are we mixing occupied and virtual?")
-            print(np.max(np.abs(off_block_1)))
-            print(np.max(np.abs(off_block_2)))
-
-        elif gradient_orb_space == "minsik":
-            (
-                self.Dhf,
-                self.TA_lo_eo,
-                self.TAenv_lo_eo,
-                self.TAfull_lo_eo,
-                self.n_f,
-                self.n_b,
-            ) = schmidt_decomposition(
-                lmo,
-                nocc,
-                self.AO_in_frag,
-                thr_bath=thr_bath,
-            )
-            TA = lao @ self.TA_lo_eo
-
-            U, S, Vt = svd(TA.T @ S_cross @ self.eq_fobj.TA, full_matrices=False)
+            # ignore, for printing later
+            self.aligner = U @ Vt @ self.eq_fobj.eigvecs.T
             
-            UVt = U @ Vt
-            max_dev = np.max(np.abs(UVt.conj().T @ UVt - np.eye(UVt.shape[0])))
-            print("Max deviation from unitary:", max_dev)
+            # align the perturbed MOs to reference EOs 
+            self.TA = C @ U @ Vt @ self.eq_fobj.eigvecs.T
 
-            self.TA = TA @ U @ Vt
+            # this is just because the schmidt decomposition usually returns this info
+            self.n_f = self.eq_fobj.n_f
 
         else:
             assert_never(gradient_orb_space)
@@ -407,6 +328,7 @@ class Frags:
         C_ = multi_dot((self.TA.T, S, C[:, ncore : ncore + nocc])) 
         
         P_ = C_ @ C_.T
+        self.Demb = P_
         
         nsocc_ = trace(P_)
         nsocc = int(round(nsocc_))
@@ -478,7 +400,7 @@ class Frags:
 
         #S_frag = self.TA.T @ S @ self.TA
 
-        mf_ = get_scfObj(self.fock + heff, eri, self.nsocc, dm0=dm0, S_frag=None)
+        mf_ = get_scfObj(self.fock + heff, eri, self.nsocc, dm0=dm0)
         if not fs:
             self._mf = mf_
             self.mo_coeffs = mf_.mo_coeff.copy()
@@ -741,8 +663,8 @@ def schmidt_decomposition(
     Eval, Evec = eigh(Denv)
 
     # Reverse order: largest → smallest
-    Eval = Eval[::-1]
-    Evec = Evec[:, ::-1]
+#    Eval = Eval[::-1]
+#    Evec = Evec[:, ::-1]
 
     # Identify significant environment orbitals based on eigenvalue threshold
     Bidx = []

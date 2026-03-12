@@ -1175,6 +1175,7 @@ class BE:
             fobjs_.sd(
                 self.W,
                 self.S_butlonger,
+                self.C,
                 self.lmo_coeff,
                 self.Nocc,
                 self.gradient_orb_space,
@@ -1197,6 +1198,13 @@ class BE:
                     frag.TA[:, frag.n_f :],
                     method=self.lo_bath_post_schmidt,
                 )
+
+        print("PRINT WITHIN INITIALIZE FUNCTION")
+        
+        # print TA
+        self.Fobjs[0].TA_in_initialize = self.Fobjs[0].TA
+        self.eri_in_initialize = eri_
+        self.eri_file_in_initialize = self.eri_file
 
         if not restart:
             file_eri = h5py.File(self.eri_file, "w")
