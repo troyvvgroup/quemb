@@ -198,10 +198,22 @@ class BEOPT:
                     print("-- In iter ", self.iter, flush=True)
                     optQN.next_step(self.iter, trust_region=trust_region)
                     self.iter += 1
-                    
+                    print(
+                        f"Error in density matching      :   {self.err:>2.4e}",
+                        flush=True,
+                    )
+                    logger.info(f"Iteration time: {iter_timer.str_elapsed()}")
+
                     if self.err < self.conv_tol:
+                        print(flush=True)
+                        print("CONVERGED", flush=True)
+                        logger.info(
+                            step0_timer.str_elapsed(
+                                "Total time to complete BE optimization"
+                            )
+                        )
                         break
-                        
+
                 if self.err >= self.conv_tol:
                     warnings.warn(f"BE DID NOT CONVERGE IN {self.max_space} STEPS")
         else:

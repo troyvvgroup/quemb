@@ -1,9 +1,9 @@
 # Author(s): Oinam Romesh Meitei, Oskar Weser
 from __future__ import annotations
-import matplotlib.pyplot as plt
+
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Literal
-from typing_extensions import assert_never
+
 import h5py
 import numpy as np
 import scipy.linalg
@@ -22,7 +22,7 @@ from numpy import (
 )
 from numpy.linalg import eigh, multi_dot
 from scipy.linalg import svd
-from typing_extensions import Self
+from typing_extensions import Self, assert_never
 
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
 from quemb.shared.helper import clean_overlap
@@ -39,6 +39,7 @@ from quemb.shared.typing import (
 
 if TYPE_CHECKING:
     from quemb.molbe.mbe import BE
+
 
 def Q_interpolated(lam):
     Q_lam = np.zeros_like(Q_full)
@@ -59,7 +60,8 @@ def Q_interpolated(lam):
 
 
 def procrustes_right(
-        P: Matrix[np.floating], Q: Matrix[np.floating], 
+    P: Matrix[np.floating],
+    Q: Matrix[np.floating],
 ) -> Matrix[np.float64]:
     """Solve min || P R - Q ||_F subject to R^T R = I.
 
@@ -76,7 +78,7 @@ def procrustes_right(
     H = P.T @ Q
     U, S, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
 
-    return U @ Vt #U, S, Vt #U @ Vt 
+    return U @ Vt  # U, S, Vt #U @ Vt
 
 
 class Frags:
@@ -201,9 +203,7 @@ class Frags:
         C: Matrix[float64],
         lmo: Matrix[float64],
         nocc: int,
-        gradient_orb_space: Literal[
-            "one-step", "Unmodified"
-        ],
+        gradient_orb_space: Literal["one-step", "Unmodified"],
         thr_bath: float = 1.0e-10,
     ) -> None:
         """
@@ -252,24 +252,50 @@ class Frags:
             self.mo_eo = C.T @ S_cross @ self.eq_fobj.TA
 
             # get the overlaps between MOs and NOs, occupied and virtual separately
-            H_occ = C_occ.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs[:, :nsocc]
-            H_virt = C_virt.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs[:, nsocc:]
+            H_occ = (
+                C_occ.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs[:, :nsocc]
+            )
+            H_virt = (
+                C_virt.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs[:, nsocc:]
+            )
 
             # prepare zeros of the right size
             zero_top_right = np.zeros((H_occ.shape[0], H_virt.shape[1]))
             zero_bottom_left = np.zeros((H_virt.shape[0], H_occ.shape[1]))
 
             # construct MO NO overlap as explicitly block diagonal
-            H = np.block([[H_occ, zero_top_right],
-                         [zero_bottom_left, H_virt]])
+            H = np.block([[H_occ, zero_top_right], [zero_bottom_left, H_virt]])
+            # H = C.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs
 
-            U, singular_values, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
-            
+            U, singular_values, Vt = np.linalg.svd(H, full_matrices=False)
+
             # ignore, for printing later
             self.aligner = U @ Vt @ self.eq_fobj.eigvecs.T
-            
-            # align the perturbed MOs to reference EOs 
+
+            # align the perturbed MOs to reference EOs
             self.TA = C @ U @ Vt @ self.eq_fobj.eigvecs.T
+
+            # this is just because the schmidt decomposition usually returns this info
+            self.n_f = self.eq_fobj.n_f
+
+        elif gradient_orb_space == "align-lo":
+            # get the number of occupied and virtual orbitals in the fragment
+            nsocc = self.eq_fobj.nsocc
+
+            # ignore, this is just for printing later
+            self.lo_no = lao.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs
+            self.lo_eo = lao.T @ S_cross @ self.eq_fobj.TA
+
+            # get the overlaps between LOs and NOs
+            H = lao.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs
+
+            U, singular_values, Vt = np.linalg.svd(H, full_matrices=False)
+
+            # ignore, for printing later
+            self.aligner = U @ Vt @ self.eq_fobj.eigvecs.T
+
+            # align the perturbed LOs to reference EOs
+            self.TA = lao @ U @ Vt @ self.eq_fobj.eigvecs.T
 
             # this is just because the schmidt decomposition usually returns this info
             self.n_f = self.eq_fobj.n_f
@@ -305,7 +331,7 @@ class Frags:
         self.veff0 = veff0
         self.fock = self.h1 + veff_.real
 
-    def get_nsocc(self, lmo_coeff, S, C, nocc, ncore=0):
+    def get_nsocc(self, S, C, nocc, ncore=0):
         """
         Get the number of occupied orbitals for the fragment.
 
@@ -325,14 +351,14 @@ class Frags:
         numpy.ndarray
             Projected density matrix.
         """
-        C_ = multi_dot((self.TA.T, S, C[:, ncore : ncore + nocc])) 
-        
+        C_ = multi_dot((self.TA.T, S, C[:, ncore : ncore + nocc]))
+
         P_ = C_ @ C_.T
         self.Demb = P_
-        
+
         nsocc_ = trace(P_)
         nsocc = int(round(nsocc_))
-        
+
         eigvals, eigvecs = np.linalg.eigh(P_)
         idx = np.argsort(eigvals)[::-1]
 
@@ -340,7 +366,7 @@ class Frags:
         eigvecs = eigvecs[:, idx]
 
         self.eigvecs = eigvecs
-        
+
         try:
             mo_coeffs = scipy.linalg.svd(C_, lapack_driver="gesvd")[0]
         except scipy.linalg.LinAlgError:
@@ -351,7 +377,14 @@ class Frags:
         return P_
 
     def scf(
-        self, S=None, heff=None, fs=False, eri=None, dm0=None, unrestricted=False, spin_ind=None
+        self,
+        #S=None,
+        heff=None,
+        fs=False,
+        eri=None,
+        dm0=None,
+        unrestricted=False,
+        spin_ind=None,
     ):
         """
         Perform self-consistent field (SCF) calculation for the fragment.
@@ -392,13 +425,13 @@ class Frags:
                 @ self._mo_coeffs[:, : self.nsocc].conj().T
             )
 
-        #print("orthonormal in euclidean basis?")
-        #print(np.max(np.abs(self.TA.T @ self.TA - np.eye(self.TA.shape[1]))))
-        #print("orthonormal in S?")
-        #print(f"the shape of S is {S.shape}")
-        #print(np.max(np.abs(self.TA.T @ S @ self.TA - np.eye(self.TA.shape[1]))))
+        # print("orthonormal in euclidean basis?")
+        # print(np.max(np.abs(self.TA.T @ self.TA - np.eye(self.TA.shape[1]))))
+        # print("orthonormal in S?")
+        # print(f"the shape of S is {S.shape}")
+        # print(np.max(np.abs(self.TA.T @ S @ self.TA - np.eye(self.TA.shape[1]))))
 
-        #S_frag = self.TA.T @ S @ self.TA
+        # S_frag = self.TA.T @ S @ self.TA
 
         mf_ = get_scfObj(self.fock + heff, eri, self.nsocc, dm0=dm0)
         if not fs:
@@ -406,9 +439,6 @@ class Frags:
             self.mo_coeffs = mf_.mo_coeff.copy()
         else:
             self._mo_coeffs = mf_.mo_coeff.copy()
-
-
-
 
     def update_heff(self, u, cout=None, only_chem=False):
         """Update the effective Hamiltonian for the fragment."""
@@ -524,7 +554,6 @@ class Frags:
 
 
 class Ref_Frags(Frags):
-
     def __init__(
         self,
         AO_in_frag: Sequence[GlobalAOIdx],
@@ -580,7 +609,7 @@ class Ref_Frags(Frags):
             fobj.relAO_in_ref_per_edge,
             fobj.weight_and_relAO_per_center,
             fobj.relAO_per_origin,
-            TA = fobj.TA,
+            TA=fobj.TA,
             lao=mybe.W,
             S=mybe.S,
             lmo_coeff=mybe.lmo_coeff,
@@ -663,8 +692,8 @@ def schmidt_decomposition(
     Eval, Evec = eigh(Denv)
 
     # Reverse order: largest → smallest
-#    Eval = Eval[::-1]
-#    Evec = Evec[:, ::-1]
+    #    Eval = Eval[::-1]
+    #    Evec = Evec[:, ::-1]
 
     # Identify significant environment orbitals based on eigenvalue threshold
     Bidx = []

@@ -7,7 +7,6 @@ from typing import Final, Literal, TypeAlias
 from warnings import warn
 
 import h5py
-import time
 import numpy as np
 from attrs import define
 from numpy import (
@@ -46,7 +45,7 @@ from quemb.molbe.lo import (
 )
 from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
 from quemb.molbe.opt import BEOPT
-from quemb.molbe.pfrag import Frags, Ref_Frags, union_of_frag_MOs_and_index
+from quemb.molbe.pfrag import Frags, Ref_Frags
 from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.external.lo_helper import (
     get_aoind_by_atom,
@@ -155,7 +154,7 @@ class BE:
         AO_coeff_epsilon: float = 1e-10,
         re_eval_HF: bool = False,
         eq_fobjs: Sequence[Ref_Frags] | None = None,
-        S_butlonger: Matrix[np.float64] | None = None,
+        S_cross: Matrix[np.float64] | None = None,
         gradient_orb_space: Literal[
             "RDM-invariant", "Schmidt-invariant", "Bath-Invariant", "Unmodified"
         ] = "Unmodified",
@@ -272,7 +271,7 @@ class BE:
         self.auxbasis = auxbasis
         self.thr_bath = thr_bath
         self.eq_fobjs = eq_fobjs
-        self.S_butlonger = S_butlonger
+        self.S_cross = S_cross
         self.gradient_orb_space = gradient_orb_space
 
         # Fragment information from fobj
@@ -847,7 +846,6 @@ class BE:
                     "option when fragmentating with chemgen."
                 )
         else:
-            print(f"only_chem inside optimize is {only_chem}")
             pot = [0.0]
 
         # Initialize the BEOPT object
@@ -888,8 +886,10 @@ class BE:
                 else:
                     J0 = self.get_be_error_jacobian(jac_solver=jac_solver)
 
+            # Perform the optimization
             be_.optimize(method, J0=J0, trust_region=trust_region)
 
+            # Print the energy components
             if use_cumulant:
                 self.ebe_tot = be_.Ebe[0] + self.ebe_hf
                 print_energy_cumulant(
@@ -910,7 +910,7 @@ class BE:
                     self.ebe_hf,
                     self.enuc,
                 )
-                self.rets0 = be_.Ebe[0] + self.enuc - self.ebe_hf 
+                self.rets0 = be_.Ebe[0] + self.enuc - self.ebe_hf
                 self.num_err = be_.num_err
         else:
             raise ValueError("This optimization method for BE is not supported")
@@ -1114,7 +1114,9 @@ class BE:
         E_hf = 0.0
         for fobjs_ in self.Fobjs:
             eri = array(file_eri.get(fobjs_.dname))
-            _ = fobjs_.get_nsocc(self.lmo_coeff, self.S, self.C, self.Nocc, ncore=self.ncore)
+            _ = fobjs_.get_nsocc(
+                self.S, self.C, self.Nocc, ncore=self.ncore
+            )
 
             assert fobjs_.TA is not None
             fobjs_.h1 = multi_dot((fobjs_.TA.T, self.hcore, fobjs_.TA))
@@ -1174,7 +1176,7 @@ class BE:
 
             fobjs_.sd(
                 self.W,
-                self.S_butlonger,
+                self.S_cross,
                 self.C,
                 self.lmo_coeff,
                 self.Nocc,
@@ -1191,7 +1193,6 @@ class BE:
         #    fobj.frag_TA_offset = frag_TA_offset
 
         if self.lo_bath_post_schmidt is not None:
-            print("meow lo bath")
             for frag in self.Fobjs:
                 frag.TA[:, frag.n_f :] = get_loc(
                     self.mf.mol,
@@ -1199,8 +1200,6 @@ class BE:
                     method=self.lo_bath_post_schmidt,
                 )
 
-        print("PRINT WITHIN INITIALIZE FUNCTION")
-        
         # print TA
         self.Fobjs[0].TA_in_initialize = self.Fobjs[0].TA
         self.eri_in_initialize = eri_
@@ -1210,21 +1209,8 @@ class BE:
             file_eri = h5py.File(self.eri_file, "w")
             self._eri_transform(int_transform, eri_, file_eri)
 
-        #if not restart:
-        #    max_tries = 100
-        #    for attempt in range(max_tries):
-        #        try:
-        #            file_eri = h5py.File(self.eri_file, "w")
-        #            self._eri_transform(int_transform, eri_, file_eri)
-        #            break
-        #        except BlockingIOError:
-        #            if attempt < max_tries - 1:
-        #                time.sleep(0.5)
-        #            else:
-        #                raise
-        
         self._initialize_fragments(file_eri, restart)
-        
+
         for I in range(self.fobj.n_frag):
             fobjs_ = self.Fobjs[I]
 
