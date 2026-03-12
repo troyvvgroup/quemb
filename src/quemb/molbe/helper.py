@@ -545,7 +545,7 @@ def corr_orbital(mo_coeff_1, mo_coeff_2, cross_ovlp):
     assert mo_coeff_2.shape[0] == cross_ovlp.shape[1]
 
     # U d V = S_cross
-    return svd(multi_dot((mo_coeff_1.T, cross_ovlp, mo_coeff_2)))
+    return svd(multi_dot((mo_coeff_1.T, cross_ovlp, mo_coeff_2)), full_matrices=False)
 
 
 def corr_orbital_frag_idx(be_obj_1, be_obj_2, idx_list=None):

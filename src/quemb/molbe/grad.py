@@ -5,14 +5,15 @@ from re import findall
 from typing import Literal, TypeAlias
 
 import h5py
-from numpy import diag, float64, zeros, zeros_like
-from numpy.linalg import multi_dot
+from numpy import diag, float64, trace, zeros, zeros_like
+from numpy.linalg import eigh, multi_dot
 from pathos.pools import ProcessPool
+from pyscf import gto
 from pyscf.ao2mo import incore, restore
 from pyscf.cc import CCSD
 from pyscf.scf import RHF
 
-from quemb.molbe.helper import corr_orbital_frag_idx, get_eri, get_scfObj
+from quemb.molbe.helper import corr_orbital, corr_orbital_frag_idx, get_eri, get_scfObj
 from quemb.molbe.mbe import BE
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import Solvers, UserSolverArgs
@@ -199,6 +200,48 @@ class BEGrad:
                             displaced_be_obj.mf._eri,
                         )
                     )
+                elif alignment == "mop_noo":  # MO(perturbed) x NO(ref)
+                    # This version tracks Carina's original implementation.
+                    # It performs COT between the perturbed MOs and
+                    # reference embedding space NOs
+                    cross_ovlp = gto.intor_cross(
+                        "int1e_ovlp", displaced_be_obj.mf.mol, self.ref_be_obj.mf.mol
+                    )
+
+                    # Evaluate natural orbitals for the reference fragment
+                    emb_nelec = trace(self.ref_be_obj.Fobjs[fragidx].dm0)
+                    no_occ, no_coeff_in_EObasis = eigh(
+                        self.ref_be_obj.Fobjs[fragidx].dm0
+                    )  # numpy eigh returns ascending order
+                    no_occ = no_occ[::-1]
+                    no_coeff_in_EObasis = no_coeff_in_EObasis[
+                        :, ::-1
+                    ]  # reverse to descending order
+                    no_occ = [
+                        2 * (x < (emb_nelec / 2)) for x in range(len(no_occ))
+                    ]  # peg to exactly 2
+                    no_in_AObasis = (
+                        self.ref_be_obj.Fobjs[fragidx].TA @ no_coeff_in_EObasis
+                    )
+
+                    # Note that Carina's version enforces block diagonal form for
+                    # occ-virt separation unlike what is done here.
+                    cot = corr_orbital(displaced_be_obj.C, no_in_AObasis, cross_ovlp)
+                    cot = cot[0] @ cot[2]  # Σ = U @ V^T
+
+                    aligned_TA = displaced_be_obj.C @ cot @ no_coeff_in_EObasis.T
+                    displaced_pfrags.append(
+                        self._update_pfrag_with_TA(
+                            displaced_be_obj.Fobjs[fragidx],
+                            aligned_TA,
+                            displaced_be_obj.eri_file,
+                            displaced_be_obj.hcore,
+                            displaced_be_obj.hf_veff,
+                            displaced_be_obj.S,
+                            displaced_be_obj.hf_dm,
+                            displaced_be_obj.mf._eri,
+                        )
+                    )
                 elif alignment == "no_alignment":
                     displaced_pfrags.append(displaced_be_obj.Fobjs[fragidx])
                 else:
@@ -221,6 +264,7 @@ class BEGrad:
         """Update the pfrag object with the aligned TA"""
         # TODO: Parallelize after checking pickle-ability
         frag_obj.TA = TA
+        frag_obj.nao = TA.shape[1]
         # ERI Transform
         # TODO: Support other types of ERI transformation.
         file_eri = h5py.File(eri_file, "r+")
@@ -232,6 +276,7 @@ class BEGrad:
         frag_obj.cons_fock(hf_veff, ao_ovlp, hf_dm, eri_=eri_eo)
         # this implicitly changes P_env
         frag_obj.heff = zeros_like(frag_obj.h1)
+        # TODO: Set _mo_coeffs appropriately (get_nsocc)
         frag_obj.scf(fs=True, eri=eri_eo)
         frag_obj.dm0 = 2.0 * (
             frag_obj._mo_coeffs[:, : frag_obj.nsocc]
