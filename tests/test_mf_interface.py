@@ -396,10 +396,7 @@ def test_pyscf_parsing() -> None:
 
     assert computed == expected
 
-    computed_idx = argsort(
-        mol.ao_labels(),
-        key=lambda label: Orbital.from_pyscf_label(label),  # noqa: PLW0108
-    )
+    computed_idx = argsort(mol.ao_labels(), key=Orbital.from_pyscf_label)
 
     # Surprise, Surprise 🥳
     # PYSCF is ordered by PYSCF convention
