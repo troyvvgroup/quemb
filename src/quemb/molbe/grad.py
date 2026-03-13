@@ -5,13 +5,14 @@ from re import findall
 from typing import Literal, TypeAlias
 
 import h5py
-from numpy import diag, float64, trace, zeros, zeros_like
-from numpy.linalg import eigh, multi_dot
+from numpy import block, diag, float64, zeros, zeros_like
+from numpy.linalg import eigh, multi_dot, svd
 from pathos.pools import ProcessPool
 from pyscf import gto
 from pyscf.ao2mo import incore, restore
 from pyscf.cc import CCSD
 from pyscf.scf import RHF
+from pyscf.scf.hf import dot_eri_dm
 
 from quemb.molbe.helper import corr_orbital, corr_orbital_frag_idx, get_eri, get_scfObj
 from quemb.molbe.mbe import BE
@@ -209,7 +210,7 @@ class BEGrad:
                     )
 
                     # Evaluate natural orbitals for the reference fragment
-                    emb_nelec = trace(self.ref_be_obj.Fobjs[fragidx].dm0)
+                    emb_nocc = self.ref_be_obj.Fobjs[fragidx].nsocc
                     no_occ, no_coeff_in_EObasis = eigh(
                         self.ref_be_obj.Fobjs[fragidx].dm0
                     )  # numpy eigh returns ascending order
@@ -218,7 +219,131 @@ class BEGrad:
                         :, ::-1
                     ]  # reverse to descending order
                     no_occ = [
-                        2 * (x < (emb_nelec / 2)) for x in range(len(no_occ))
+                        2 * (x < emb_nocc) for x in range(len(no_occ))
+                    ]  # peg to exactly 2
+                    no_in_AObasis = (
+                        self.ref_be_obj.Fobjs[fragidx].TA @ no_coeff_in_EObasis
+                    )
+
+                    # Note that Carina's version enforces block diagonal form for
+                    # occ-virt separation unlike what is done here.
+                    cot = corr_orbital(displaced_be_obj.C, no_in_AObasis, cross_ovlp)
+                    cot = cot[0] @ cot[2]  # Σ = U @ V^T
+
+                    aligned_TA = displaced_be_obj.C @ cot @ no_coeff_in_EObasis.T
+                    displaced_pfrags.append(
+                        self._update_pfrag_with_TA(
+                            displaced_be_obj.Fobjs[fragidx],
+                            aligned_TA,
+                            displaced_be_obj.eri_file,
+                            displaced_be_obj.hcore,
+                            displaced_be_obj.hf_veff,
+                            displaced_be_obj.S,
+                            displaced_be_obj.hf_dm,
+                            displaced_be_obj.mf._eri,
+                        )
+                    )
+                elif alignment == "mop_noo_forceblk":  # MO(perturbed) x NO(ref)
+                    # This version tracks Carina's original implementation.
+                    # It performs COT between the perturbed MOs and
+                    # reference embedding space NOs
+                    cross_ovlp = gto.intor_cross(
+                        "int1e_ovlp", displaced_be_obj.mf.mol, self.ref_be_obj.mf.mol
+                    )
+
+                    # Evaluate natural orbitals for the reference fragment
+                    emb_nocc = self.ref_be_obj.Fobjs[fragidx].nsocc
+                    no_occ, no_coeff_in_EObasis = eigh(
+                        self.ref_be_obj.Fobjs[fragidx].dm0
+                    )  # numpy eigh returns ascending order
+                    no_occ = no_occ[::-1]
+                    no_coeff_in_EObasis = no_coeff_in_EObasis[
+                        :, ::-1
+                    ]  # reverse to descending order
+                    no_occ = [
+                        2 * (x < emb_nocc) for x in range(len(no_occ))
+                    ]  # peg to exactly 2
+                    no_in_AObasis = (
+                        self.ref_be_obj.Fobjs[fragidx].TA @ no_coeff_in_EObasis
+                    )
+
+                    # Force block diagonal form for cross overlap
+                    cross_ovlp = block(
+                        [
+                            [
+                                multi_dot(
+                                    (
+                                        displaced_be_obj.C[
+                                            :, : displaced_be_obj.Nocc
+                                        ].T,
+                                        cross_ovlp,
+                                        no_in_AObasis[:, :emb_nocc],
+                                    )
+                                ),
+                                zeros(
+                                    (
+                                        displaced_be_obj.Nocc,
+                                        no_in_AObasis.shape[1] - emb_nocc,
+                                    )
+                                ),
+                            ],
+                            [
+                                zeros(
+                                    (
+                                        displaced_be_obj.C.shape[1]
+                                        - displaced_be_obj.Nocc,
+                                        emb_nocc,
+                                    )
+                                ),
+                                multi_dot(
+                                    (
+                                        displaced_be_obj.C[
+                                            :, displaced_be_obj.Nocc :
+                                        ].T,
+                                        cross_ovlp,
+                                        no_in_AObasis[:, emb_nocc:],
+                                    )
+                                ),
+                            ],
+                        ]
+                    )
+                    cot = svd(cross_ovlp, full_matrices=False)
+                    cot = cot[0] @ cot[2]  # Σ = U @ V^T
+
+                    aligned_TA = displaced_be_obj.C @ cot @ no_coeff_in_EObasis.T
+                    displaced_pfrags.append(
+                        self._update_pfrag_with_TA(
+                            displaced_be_obj.Fobjs[fragidx],
+                            aligned_TA,
+                            displaced_be_obj.eri_file,
+                            displaced_be_obj.hcore,
+                            displaced_be_obj.hf_veff,
+                            displaced_be_obj.S,
+                            displaced_be_obj.hf_dm,
+                            displaced_be_obj.mf._eri,
+                        )
+                    )
+                elif alignment == "lop_noo":  # Cocc,env(perturbed) x BO(ref)
+                    return NotImplementedError(
+                        "LOP_NOO alignment is not implemented yet."
+                    )
+                    # It performs COT between the perturbed LOs and
+                    # reference embedding space NOs
+                    cross_ovlp = gto.intor_cross(
+                        "int1e_ovlp", displaced_be_obj.mf.mol, self.ref_be_obj.mf.mol
+                    )
+
+                    # Evaluate natural orbitals for the reference fragment
+                    emb_nocc = self.ref_be_obj.Fobjs[fragidx].nsocc
+                    no_occ, no_coeff_in_EObasis = eigh(
+                        self.ref_be_obj.Fobjs[fragidx].dm0
+                    )  # numpy eigh returns ascending order
+                    no_occ = no_occ[::-1]
+                    no_coeff_in_EObasis = no_coeff_in_EObasis[
+                        :, ::-1
+                    ]  # reverse to descending order
+                    no_occ = [
+                        2 * (x < emb_nocc) for x in range(len(no_occ))
                     ]  # peg to exactly 2
                     no_in_AObasis = (
                         self.ref_be_obj.Fobjs[fragidx].TA @ no_coeff_in_EObasis
@@ -256,7 +381,7 @@ class BEGrad:
         TA: Matrix[float64],
         eri_file: PathLike,
         h1: Matrix[float64],
-        hf_veff: Matrix[float64],
+        hf_veff: Matrix[float64],  # noqa: ARG002
         ao_ovlp: Matrix[float64],
         hf_dm: Matrix[float64],
         ao_eri: Matrix[float64] | None = None,
@@ -273,7 +398,12 @@ class BEGrad:
         file_eri.create_dataset(frag_obj.dname, data=eri_eo)
         frag_obj.h1 = multi_dot((TA.T, h1, TA))
         eri_eo = restore(8, eri_eo, frag_obj.nao)
-        frag_obj.cons_fock(hf_veff, ao_ovlp, hf_dm, eri_=eri_eo)
+        P_emb = TA.T @ ao_ovlp @ hf_dm @ ao_ovlp @ TA  # HF 1-RDM in embedding space
+        P_env = hf_dm - TA @ P_emb @ TA.T  # Environment 1-RDM in AO basis
+        vj, vk = dot_eri_dm(ao_eri, P_env, hermi=1)
+        frag_obj.veff = TA.T @ (vj - vk * 0.5) @ TA
+        frag_obj.fock = frag_obj.h1 + frag_obj.veff
+        # frag_obj.cons_fock(hf_veff, ao_ovlp, hf_dm, eri_=eri_eo)
         # this implicitly changes P_env
         frag_obj.heff = zeros_like(frag_obj.h1)
         # TODO: Set _mo_coeffs appropriately (get_nsocc)
