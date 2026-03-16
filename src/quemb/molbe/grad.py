@@ -6,18 +6,18 @@ from typing import Literal, TypeAlias
 
 import h5py
 from numpy import block, diag, float64, zeros, zeros_like
-from numpy.linalg import eigh, multi_dot, svd
+from numpy.linalg import eigh, inv, multi_dot, svd
 from pathos.pools import ProcessPool
 from pyscf import gto
 from pyscf.ao2mo import incore, restore
 from pyscf.cc import CCSD
 from pyscf.scf import RHF
-from pyscf.scf.hf import dot_eri_dm
 
 from quemb.molbe.helper import corr_orbital, corr_orbital_frag_idx, get_eri, get_scfObj
 from quemb.molbe.mbe import BE
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import Solvers, UserSolverArgs
+from quemb.shared.external.lo_helper import symm_orth
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix, PathLike
 
@@ -67,7 +67,7 @@ class BEGrad:
         else:
             raise NotImplementedError(f"Unsupported gradient method: {grad_method}")
 
-    def compute_grad(self, solver="MP2", nproc=None, ompnum=None):
+    def compute_grad(self, solver="MP2", nproc=None, ompnum=None, basis_proj=False):
         if nproc is not None:
             self.ref_be_obj.nproc = nproc
         if ompnum is not None:
@@ -75,7 +75,7 @@ class BEGrad:
         if "force" in self.grad_method:
             self.de = self._compute_force_grad(solver)
         elif "energy" in self.grad_method:
-            self.de = self._compute_energy_grad(solver)
+            self.de = self._compute_energy_grad(solver, basis_proj=basis_proj)
         else:
             raise NotImplementedError(
                 f"Unsupported gradient method: {self.grad_method}"
@@ -124,7 +124,7 @@ class BEGrad:
                 grad.reshape((self.ref_be_obj.mf.mol.natm, 3)) + grad_hf.de / 0.529177
             )
 
-    def _compute_energy_grad(self, solver):
+    def _compute_energy_grad(self, solver, basis_proj=False):
         """Gradient using energy embedding"""
         if "fd1" in self.grad_method:
             # First-order central finite difference
@@ -133,6 +133,38 @@ class BEGrad:
             for atomidx in range(self.ref_be_obj.mf.mol.natm):
                 for idx, disp in enumerate(self.displacement_vector_list):
                     displaced_be_obj = self._build_displaced_be_objs(atomidx, disp)
+                    if basis_proj:
+                        s2inv = inv(displaced_be_obj.S)
+                        cross_ovlp = gto.intor_cross(
+                            "int1e_ovlp",
+                            displaced_be_obj.mf.mol,
+                            self.ref_be_obj.mf.mol,
+                        )
+                        for fragidx in range(len(self.ref_be_obj.Fobjs)):
+                            basis_proj_TA = multi_dot(
+                                (
+                                    s2inv,
+                                    cross_ovlp,
+                                    self.ref_be_obj.Fobjs[fragidx].TA,
+                                )
+                            )
+                            # Orthonormalize
+                            basis_proj_TA = symm_orth(
+                                basis_proj_TA, 1e-6, displaced_be_obj.S
+                            )
+                            displaced_be_obj.Fobjs[fragidx] = (
+                                self._update_pfrag_with_TA(
+                                    displaced_be_obj.Fobjs[fragidx],
+                                    basis_proj_TA,
+                                    displaced_be_obj.eri_file,
+                                    displaced_be_obj.hcore,
+                                    displaced_be_obj.hf_veff,
+                                    displaced_be_obj.S,
+                                    displaced_be_obj.hf_dm,
+                                    displaced_be_obj.mf._eri,
+                                )
+                            )
+
                     displaced_be_obj.oneshot(
                         solver=solver,
                         use_cumulant=True,
@@ -179,7 +211,11 @@ class BEGrad:
         for atomidx in range(self.ref_be_obj.mf.mol.natm):
             fragidx = self.ref_be_obj.fobj.fragmented.get_frag_per_atom()[atomidx]
             for disp in displacement_vector_list:
-                displaced_be_obj = self._build_displaced_be_objs(atomidx, disp)
+                displaced_be_obj = self._build_displaced_be_objs(
+                    atomidx, disp
+                )  # TODO: reinstate after upstream fix,
+                # initialize_fragment_idx = [fragidx])
+                s2inv = inv(displaced_be_obj.S)
                 if alignment == "corr_full":
                     # Corresponding Orbital Transformation to reference geometry
                     cot = corr_orbital_frag_idx(
@@ -323,42 +359,24 @@ class BEGrad:
                             displaced_be_obj.mf._eri,
                         )
                     )
-                elif alignment == "lop_noo":  # Cocc,env(perturbed) x BO(ref)
-                    return NotImplementedError(
-                        "LOP_NOO alignment is not implemented yet."
-                    )
-                    # It performs COT between the perturbed LOs and
-                    # reference embedding space NOs
+                elif alignment == "basis_proj":
+                    # Basis projection of reference TA to perturbed geometry
                     cross_ovlp = gto.intor_cross(
                         "int1e_ovlp", displaced_be_obj.mf.mol, self.ref_be_obj.mf.mol
                     )
-
-                    # Evaluate natural orbitals for the reference fragment
-                    emb_nocc = self.ref_be_obj.Fobjs[fragidx].nsocc
-                    no_occ, no_coeff_in_EObasis = eigh(
-                        self.ref_be_obj.Fobjs[fragidx].dm0
-                    )  # numpy eigh returns ascending order
-                    no_occ = no_occ[::-1]
-                    no_coeff_in_EObasis = no_coeff_in_EObasis[
-                        :, ::-1
-                    ]  # reverse to descending order
-                    no_occ = [
-                        2 * (x < emb_nocc) for x in range(len(no_occ))
-                    ]  # peg to exactly 2
-                    no_in_AObasis = (
-                        self.ref_be_obj.Fobjs[fragidx].TA @ no_coeff_in_EObasis
+                    basis_proj_TA = multi_dot(
+                        (
+                            s2inv,
+                            cross_ovlp,
+                            self.ref_be_obj.Fobjs[fragidx].TA,
+                        )
                     )
-
-                    # Note that Carina's version enforces block diagonal form for
-                    # occ-virt separation unlike what is done here.
-                    cot = corr_orbital(displaced_be_obj.C, no_in_AObasis, cross_ovlp)
-                    cot = cot[0] @ cot[2]  # Σ = U @ V^T
-
-                    aligned_TA = displaced_be_obj.C @ cot @ no_coeff_in_EObasis.T
+                    # Orthonormalize
+                    basis_proj_TA = symm_orth(basis_proj_TA, 1e-6, displaced_be_obj.S)
                     displaced_pfrags.append(
                         self._update_pfrag_with_TA(
                             displaced_be_obj.Fobjs[fragidx],
-                            aligned_TA,
+                            basis_proj_TA,
                             displaced_be_obj.eri_file,
                             displaced_be_obj.hcore,
                             displaced_be_obj.hf_veff,
@@ -398,12 +416,12 @@ class BEGrad:
         file_eri.create_dataset(frag_obj.dname, data=eri_eo)
         frag_obj.h1 = multi_dot((TA.T, h1, TA))
         eri_eo = restore(8, eri_eo, frag_obj.nao)
-        P_emb = TA.T @ ao_ovlp @ hf_dm @ ao_ovlp @ TA  # HF 1-RDM in embedding space
-        P_env = hf_dm - TA @ P_emb @ TA.T  # Environment 1-RDM in AO basis
-        vj, vk = dot_eri_dm(ao_eri, P_env, hermi=1)
-        frag_obj.veff = TA.T @ (vj - vk * 0.5) @ TA
-        frag_obj.fock = frag_obj.h1 + frag_obj.veff
-        # frag_obj.cons_fock(hf_veff, ao_ovlp, hf_dm, eri_=eri_eo)
+        # P_emb = TA.T @ ao_ovlp @ hf_dm @ ao_ovlp @ TA  # HF 1-RDM in embedding space
+        # P_env = hf_dm - TA @ P_emb @ TA.T  # Environment 1-RDM in AO basis
+        # vj, vk = dot_eri_dm(ao_eri, P_env, hermi=1)
+        # frag_obj.veff = TA.T @ (vj - vk * 0.5) @ TA
+        # frag_obj.fock = frag_obj.h1 + frag_obj.veff
+        frag_obj.cons_fock(hf_veff, ao_ovlp, hf_dm, eri_=eri_eo)
         # this implicitly changes P_env
         frag_obj.heff = zeros_like(frag_obj.h1)
         # TODO: Set _mo_coeffs appropriately (get_nsocc)
@@ -417,7 +435,10 @@ class BEGrad:
         return frag_obj
 
     def _build_displaced_be_objs(
-        self, atomidx: int, displacement_vector: list[float]
+        self,
+        atomidx: int,
+        displacement_vector: list[float],
+        initialize_fragment_idx: list[int] | None = None,
     ) -> BE:
         """Build BE object for the displaced molecule"""
         displaced_mol = self.ref_be_obj.mf.mol.copy()
@@ -460,6 +481,7 @@ class BEGrad:
             auxbasis=self.ref_be_obj.auxbasis,
             MO_coeff_epsilon=self.ref_be_obj.MO_coeff_epsilon,
             AO_coeff_epsilon=self.ref_be_obj.AO_coeff_epsilon,
+            initialize_fragment_idx=initialize_fragment_idx,
         )  # TODO: avoid unnecessary integral transformation in the future.
         #       This would require modification of the BE class to allow
         #       lazy initialization.
