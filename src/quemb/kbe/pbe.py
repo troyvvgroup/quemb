@@ -503,7 +503,7 @@ class BE(Mixin_k_Localize):
 
             fobjs_.cons_h1(self.hcore)
             fobjs_.heff = zeros_like(fobjs_.h1)
-            fobjs_.dm_init = fobjs_.get_nsocc(
+            fobjs_.dm_init, fobjs_.nsocc = fobjs_.get_nsocc(
                 self.S, self.C, self.Nocc, ncore=self.ncore
             )
 

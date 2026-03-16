@@ -1777,7 +1777,7 @@ def _extract_values(
 class ChemGenArgs:
     """Additional arguments for ChemGen fragmentation.
 
-    These are passed on to
+    These are passed to
     :func:`quemb.molbe.chemfrag.PurelyStructureFragmented.from_mole`
     and documented there.
     """
