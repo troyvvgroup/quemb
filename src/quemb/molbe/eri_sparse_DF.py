@@ -189,7 +189,7 @@ def get_atom_per_MO(
 ) -> dict[MOIdx, set[AtomIdx]]:
     n_MO = TA.shape[-1]
     large_enough = {
-        i_MO: (TA[:, i_MO] ** 2 > epsilon).nonzero()[0]
+        i_MO: cast(Sequence[AOIdx], (TA[:, i_MO] ** 2 > epsilon).nonzero()[0])
         for i_MO in cast(Sequence[MOIdx], range(n_MO))
     }
     return {
@@ -607,7 +607,7 @@ def _run_sparse_df_driver(
     mol: Final[Mole] = mf.mol
     auxmol: Final[Mole] = make_auxmol(mol, auxbasis=auxbasis)
 
-    S_abs = approx_S_abs(mol)
+    S_abs: Final[Matrix[np.floating]] = approx_S_abs(mol)
 
     PQ: Final = auxmol.intor("int2c2e")
     lowtri: Final[LPQ] = build_lowtri_PQ(cholesky(PQ, lower=True))

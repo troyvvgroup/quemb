@@ -37,49 +37,8 @@ from quemb.shared.typing import (
     Vector,
 )
 
-if TYPE_CHECKING:
-    from quemb.molbe.mbe import BE
-
-
-def Q_interpolated(lam):
-    Q_lam = np.zeros_like(Q_full)
-
-    Q_lam[:nvirt, :nvirt] = Q_vv
-    Q_lam[nvirt:, nvirt:] = Q_oo
-    Q_lam[:nvirt, nvirt:] = lam * Q_vo
-    Q_lam[nvirt:, :nvirt] = lam * Q_ov
-
-    # re-orthogonalize within blocks
-    Uv, _, Vtv = svd(Q_lam[:nvirt, :nvirt], full_matrices=False)
-    Uo, _, Vto = svd(Q_lam[nvirt:, nvirt:], full_matrices=False)
-
-    Q_lam[:nvirt, :nvirt] = Uv @ Vtv
-    Q_lam[nvirt:, nvirt:] = Uo @ Vto
-
-    return Q_lam
-
-
-def procrustes_right(
-    P: Matrix[np.floating],
-    Q: Matrix[np.floating],
-) -> Matrix[np.float64]:
-    """Solve min || P R - Q ||_F subject to R^T R = I.
-
-    Parameters
-    ----------
-    P, Q : (m, n) arrays
-        Corresponding point sets as row vectors.
-
-    Returns
-    -------
-    R : (n, n) array
-        Optimal orthogonal matrix.
-    """
-    H = P.T @ Q
-    U, S, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
-
-    return U @ Vt  # U, S, Vt #U @ Vt
-
+#if TYPE_CHECKING:
+#    from quemb.molbe.mbe import BE
 
 class Frags:
     """
@@ -199,11 +158,12 @@ class Frags:
     def sd(
         self,
         lao: Matrix[float64],
+        S: Matrix[float64], 
         S_cross: Matrix[float64],
         C: Matrix[float64],
         lmo: Matrix[float64],
         nocc: int,
-        gradient_orb_space: Literal["one-step", "Unmodified"],
+        gradient_orb_space: Literal["Unmodified", "ao-basis", "basis-change", "lo-basis", "mimic-existing-approach"],
         thr_bath: float = 1.0e-10,
     ) -> None:
         """
@@ -237,21 +197,23 @@ class Frags:
                 thr_bath=thr_bath,
             )
             self.TA = lao @ self.TA_lo_eo
+            self.lao = lao
+            print(f"assigning lmo")
+            self.lmo = lmo
 
-        elif gradient_orb_space == "one-step":
-            # separate the MOs into occupied and virtual
+            TA = self.TA
+
+            needs_orthogonalization = not np.allclose(TA.T @ S @ TA, np.eye(TA.shape[1]), atol=1e-10)
+            print("does TA need orthgonalization?")
+            print(needs_orthogonalization)
+
+        elif gradient_orb_space == "ao-basis":
             C_occ = C[:, :nocc]
             C_virt = C[:, nocc:]
 
-            # get the number of occupied and virtual orbitals in the fragment
             nsocc = self.eq_fobj.nsocc
             nvirt = self.eq_fobj.TA_lo_eo.shape[1] - self.eq_fobj.nsocc
 
-            # ignore, this is just for printing later
-            self.mo_no = C.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs
-            self.mo_eo = C.T @ S_cross @ self.eq_fobj.TA
-
-            # get the overlaps between MOs and NOs, occupied and virtual separately
             H_occ = (
                 C_occ.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs[:, :nsocc]
             )
@@ -259,47 +221,79 @@ class Frags:
                 C_virt.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs[:, nsocc:]
             )
 
-            # prepare zeros of the right size
             zero_top_right = np.zeros((H_occ.shape[0], H_virt.shape[1]))
             zero_bottom_left = np.zeros((H_virt.shape[0], H_occ.shape[1]))
 
-            # construct MO NO overlap as explicitly block diagonal
             H = np.block([[H_occ, zero_top_right], [zero_bottom_left, H_virt]])
-            # H = C.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs
 
             U, singular_values, Vt = np.linalg.svd(H, full_matrices=False)
 
-            # ignore, for printing later
-            self.aligner = U @ Vt @ self.eq_fobj.eigvecs.T
-
-            # align the perturbed MOs to reference EOs
             self.TA = C @ U @ Vt @ self.eq_fobj.eigvecs.T
 
+            self.n_f = self.eq_fobj.n_f
+            
+        elif gradient_orb_space == "basis-change":
+            self.TA = np.linalg.inv(S) @ S_cross @ self.eq_fobj.TA
+
+            TA = self.TA
+            M = TA.T @ S @ TA
+            eigvals, eigvecs = np.linalg.eigh(M)
+            M_inv_half = eigvecs @ np.diag(eigvals**(-0.5)) @ eigvecs.T
+            self.TA = TA @ M_inv_half
+            TA = self.TA
+
+            
+            needs_orthogonalization = not np.allclose(TA.T @ S @ TA, np.eye(TA.shape[1]), atol=1e-10)
+            print("does TA need orthgonalization?")
+            print(needs_orthogonalization)
+
+
             # this is just because the schmidt decomposition usually returns this info
             self.n_f = self.eq_fobj.n_f
 
-        elif gradient_orb_space == "align-lo":
-            # get the number of occupied and virtual orbitals in the fragment
+        elif gradient_orb_space == "lo-basis":
+            lo_lo_overlap = lao.T @ S_cross @ self.eq_fobj.lao
+
+            TA_ref = self.eq_fobj.TA_lo_eo @ self.eq_fobj.eigvecs
             nsocc = self.eq_fobj.nsocc
 
-            # ignore, this is just for printing later
-            self.lo_no = lao.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs
-            self.lo_eo = lao.T @ S_cross @ self.eq_fobj.TA
+            H = lmo.T @ lo_lo_overlap @ TA_ref
+            self.H = H
+            H[:nocc, nsocc:] = 0
+            H[nocc:, :nsocc] = 0
 
-            # get the overlaps between LOs and NOs
-            H = lao.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs
+            U, _, Vt = np.linalg.svd(H, full_matrices=False)
+            R = U @ Vt
+            
+            self.TA_lo_eo = lmo @ R @ self.eq_fobj.eigvecs.T
+            self.TA = lao @ lmo @ R @ self.eq_fobj.eigvecs.T
+            self.n_f = self.eq_fobj.n_f
+        elif gradient_orb_space == "mimic-existing-approach":
+            (
+                self.Dhf,
+                self.TA_lo_eo,
+                self.TAenv_lo_eo,
+                self.TAfull_lo_eo,
+                self.n_f,
+                self.n_b,
+            ) = schmidt_decomposition(
+                lmo,
+                nocc,
+                self.AO_in_frag,
+                thr_bath=thr_bath,
+            )
+
+            lo_lo_overlap = lao.T @ S_cross @ self.eq_fobj.lao
+            
+            TA_bath = self.TAfull_lo_eo[:, self.eq_fobj.n_f:]
+            TA_ref_bath = self.eq_fobj.TA_lo_eo[:, self.eq_fobj.n_f:]
+
+            H = TA_bath.T @ TA_ref_bath
 
             U, singular_values, Vt = np.linalg.svd(H, full_matrices=False)
 
-            # ignore, for printing later
-            self.aligner = U @ Vt @ self.eq_fobj.eigvecs.T
-
-            # align the perturbed LOs to reference EOs
-            self.TA = lao @ U @ Vt @ self.eq_fobj.eigvecs.T
-
-            # this is just because the schmidt decomposition usually returns this info
-            self.n_f = self.eq_fobj.n_f
-
+            TA_aligned_bath = TA_bath @ U @ Vt
+            self.TA = lao @ np.hstack((self.TA_lo_eo[:, :self.n_f], TA_aligned_bath))
         else:
             assert_never(gradient_orb_space)
 
@@ -424,14 +418,6 @@ class Frags:
                 self._mo_coeffs[:, : self.nsocc]
                 @ self._mo_coeffs[:, : self.nsocc].conj().T
             )
-
-        # print("orthonormal in euclidean basis?")
-        # print(np.max(np.abs(self.TA.T @ self.TA - np.eye(self.TA.shape[1]))))
-        # print("orthonormal in S?")
-        # print(f"the shape of S is {S.shape}")
-        # print(np.max(np.abs(self.TA.T @ S @ self.TA - np.eye(self.TA.shape[1]))))
-
-        # S_frag = self.TA.T @ S @ self.TA
 
         mf_ = get_scfObj(self.fock + heff, eri, self.nsocc, dm0=dm0)
         if not fs:

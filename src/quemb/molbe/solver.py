@@ -934,7 +934,7 @@ def solve_ccsd(
 
         return (t1, t2, rdm1a, mycc)
 
-    return (t1, t2)
+    return (mycc, t1, t2)
 
 
 def solve_block2(

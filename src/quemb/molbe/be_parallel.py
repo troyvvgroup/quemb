@@ -128,7 +128,7 @@ def run_solver(
 
     elif solver == "CCSD":
         if eeval:
-            mycc, t1, t2, rdm1_tmp, rdm2s = solve_ccsd(
+            t1, t2, rdm1_tmp, rdm2s = solve_ccsd(
                 mf_,
                 mo_energy=mf_.mo_energy,
                 relax=relax_density,
@@ -137,7 +137,7 @@ def run_solver(
                 rdm2_return=True,
             )
         else:
-            mycc, t1, t2, rdm1_tmp, _ = solve_ccsd(
+            t1, t2, rdm1_tmp, _ = solve_ccsd(
                 mf_,
                 mo_energy=mf_.mo_energy,
                 relax=relax_density,
