@@ -318,6 +318,25 @@ class BE:
             "All indices in initialize_fragment_idx must be valid fragment indices."
         )
 
+        # Check validity of the initialize_fragment_idx input
+        if initialize_fragment_idx is not None and int_transform not in [
+            "in-core",
+            "out-core-DF",
+        ]:
+            raise NotImplementedError(
+                "Selective fragment initialization is only implemented for 'in-core' "
+                "and 'out-core-DF' integral transformations."
+            )
+
+        initialize_fragment_idx = (
+            list(range(fobj.n_frag))
+            if initialize_fragment_idx is None
+            else initialize_fragment_idx
+        )
+        assert all(idx in range(fobj.n_frag) for idx in initialize_fragment_idx), (
+            "All indices in initialize_fragment_idx must be valid fragment indices."
+        )
+
         self.ebe_hf = 0.0
         self.ebe_tot = 0.0
 
