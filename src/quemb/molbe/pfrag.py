@@ -1,13 +1,13 @@
 # Author(s): Oinam Romesh Meitei, Oskar Weser
 from __future__ import annotations
-
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
 
 import h5py
 import numpy as np
 import scipy.linalg
 from numpy import (
+    argsort,
     array,
     diag_indices,
     einsum,
@@ -36,9 +36,6 @@ from quemb.shared.typing import (
     SeqOverEdge,
     Vector,
 )
-
-#if TYPE_CHECKING:
-#    from quemb.molbe.mbe import BE
 
 class Frags:
     """
@@ -94,6 +91,7 @@ class Frags:
         unrestricted :
             unrestricted calculation, by default False
         """
+
         self.AO_in_frag = AO_in_frag
         self.n_frag = len(AO_in_frag)
         self.AO_per_edge = AO_per_edge
@@ -105,9 +103,7 @@ class Frags:
         self.eri_file = eri_file
 
         self.ifrag = ifrag
-
-        self.unrestricted = unrestricted
-        if self.unrestricted:
+        if unrestricted:
             self.dname: str | list[str] = [
                 "f" + str(ifrag) + "/aa",
                 "f" + str(ifrag) + "/bb",
@@ -117,8 +113,6 @@ class Frags:
             self.dname = "f" + str(ifrag)
 
         self.TA: Matrix[float64]
-        self.TA_occ: Matrix[float64]
-        self.TA_virt: Matrix[float64]
         self.eigvecs: Matrix[float64]
         self.lao: Matrix[float64]
         self.frag_TA_offset: Vector[int64]
@@ -165,6 +159,7 @@ class Frags:
         nocc: int,
         gradient_orb_space: Literal["Unmodified", "ao-basis", "basis-change", "lo-basis", "mimic-existing-approach"],
         thr_bath: float = 1.0e-10,
+        norb: int | None = None,
     ) -> None:
         """
         Perform Schmidt decomposition for the fragment.
@@ -179,6 +174,10 @@ class Frags:
             Number of occupied orbitals.
         thr_bath : float,
             Threshold for bath orbitals in Schmidt decomposition
+        norb : int, optional
+            Specify number of bath orbitals.
+            Used for UBE, where different number of alpha and beta orbitals
+            Default is None, allowing orbitals to be chosen by threshold
         """
 
         print(f"gradient_orb_space: {gradient_orb_space}")
@@ -366,9 +365,8 @@ class Frags:
             Projected density matrix.
         """
         C_ = multi_dot((self.TA.T, S, C[:, ncore : ncore + nocc]))
-
         P_ = C_ @ C_.T
-        self.Demb = P_
+
 
         nsocc_ = trace(P_)
         nsocc = int(round(nsocc_))
@@ -382,7 +380,7 @@ class Frags:
         self.eigvecs = eigvecs
 
         try:
-            mo_coeffs = scipy.linalg.svd(C_, lapack_driver="gesvd")[0]
+            mo_coeffs = scipy.linalg.svd(C_)[0]
         except scipy.linalg.LinAlgError:
             mo_coeffs = scipy.linalg.eigh(C_)[1][:, -nsocc:]
 
@@ -391,14 +389,7 @@ class Frags:
         return P_
 
     def scf(
-        self,
-        #S=None,
-        heff=None,
-        fs=False,
-        eri=None,
-        dm0=None,
-        unrestricted=False,
-        spin_ind=None,
+        self, heff=None, fs=False, eri=None, dm0=None, unrestricted=False, spin_ind=None
     ):
         """
         Perform self-consistent field (SCF) calculation for the fragment.
@@ -419,21 +410,21 @@ class Frags:
             Alpha (0) or beta (1) spin for unrestricted calculation, by default None
         """
 
-        if self._mf is not None:  # does not execute
+        if self._mf is not None:
             self._mf = None
-        if self._mc is not None:  # does not execute
+        if self._mc is not None:
             self._mc = None
-        if heff is None:  # executes
+        if heff is None:
             heff = self.heff
 
-        if eri is None:  # executes
+        if eri is None:
             if unrestricted:
                 dname = self.dname[spin_ind]
             else:
                 dname = self.dname
             eri = get_eri(dname, self.nao, eri_file=self.eri_file)
 
-        if dm0 is None:  # executes
+        if dm0 is None:
             dm0 = 2.0 * (
                 self._mo_coeffs[:, : self.nsocc]
                 @ self._mo_coeffs[:, : self.nsocc].conj().T
@@ -622,7 +613,7 @@ class Ref_Frags(Frags):
             TA_lo_eo=fobj.TA_lo_eo,
             eigvecs=fobj.eigvecs,
             eri_file=fobj.eri_file,
-            unrestricted=fobj.unrestricted,
+            unrestricted=False,
             n_f=fobj.n_f,
             n_b=fobj.n_b,
             nsocc=fobj.nsocc,
@@ -640,7 +631,8 @@ def schmidt_decomposition(
     thr_bath: float = 1.0e-10,
     cinv: Matrix[float64] | None = None,
     rdm: Matrix[float64] | None = None,
-):
+    norb: int | None = None,
+) -> tuple[Matrix[float64], int, int]:
     """
     Perform Schmidt decomposition on the molecular orbital coefficients.
 
@@ -651,9 +643,9 @@ def schmidt_decomposition(
     Parameters
     ----------
     mo_coeff :
-        Local molecular orbital coefficients, lo by mo
+        Molecular orbital coefficients.
     nocc :
-        Number of occupied orbitals in the full system
+        Number of occupied orbitals.
     Frag_sites : list of int
         List of fragment sites (indices).
     thr_bath :
@@ -663,6 +655,9 @@ def schmidt_decomposition(
     rdm :
         Reduced density matrix. If not provided, it will be computed from the molecular
         orbitals. Defaults to None.
+    norb :
+        Specifies number of bath orbitals. Used for UBE to make alpha and beta
+        spaces the same size. Defaults to None
 
     Returns
     -------
@@ -672,12 +667,11 @@ def schmidt_decomposition(
         Transformation matrix (TA) including both fragment and entangled bath orbitals.
     """
 
+    # Compute the reduced density matrix (RDM) if not provided
     if mo_coeff is not None:
-        C = mo_coeff[
-            :, :nocc
-        ]  # happens, just take the occupied part (which are the first nocc columns)
+        C = mo_coeff[:, :nocc]
     if rdm is None:
-        Dhf = C @ C.T  # happens, lo by lo
+        Dhf = C @ C.T
         if cinv is not None:
             Dhf = multi_dot((cinv, Dhf, cinv.conj().T))
     else:
@@ -697,23 +691,28 @@ def schmidt_decomposition(
     # Perform eigenvalue decomposition on the environment density matrix
     Eval, Evec = eigh(Denv)
 
-    # Reverse order: largest → smallest
-    #    Eval = Eval[::-1]
-    #    Evec = Evec[:, ::-1]
-
     # Identify significant environment orbitals based on eigenvalue threshold
     Bidx = []
     Eidx = []
 
     # Set the number of orbitals to be taken from the environment orbitals
     # Based on an eigenvalue threshold ordering
-    for i in range(len(Eval)):
-        if thr_bath < np.abs(Eval[i]) < 1.0 - thr_bath:
-            Bidx.append(i)
-        else:
-            Eidx.append(i)
-
-    # Initialize the fragment + bath TA matrix
+    if norb is not None:
+        n_frag_ind = len(Frag_sites1)
+        n_bath_ind = norb - n_frag_ind
+        ind_sort = argsort(np.abs(Eval))
+        first_el = [x for x in ind_sort if x < 1.0 - thr_bath][-1 * n_bath_ind]
+        for i in range(len(Eval)):
+            if np.abs(Eval[i]) >= first_el:
+                Bidx.append(i)
+    else:
+        for i in range(len(Eval)):
+            if thr_bath < np.abs(Eval[i]) < 1.0 - thr_bath:
+                Bidx.append(i)
+            else:
+                Eidx.append(i)
+                
+    # Initialize the transformation matrix (TA)
     TA = zeros([Tot_sites, len(AO_in_frag) + len(Bidx)])
     TA[AO_in_frag, : len(AO_in_frag)] = eye(len(AO_in_frag))  # Fragment part
     TA[Env_sites1, len(AO_in_frag) :] = Evec[:, Bidx]  # Bath part
