@@ -554,7 +554,7 @@ def be_func(
     ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem)
 
     if eeval:
-        return (ernorm, ervec, [Ecorr, total_e], num_err)
+        return (ernorm, ervec, [Ecorr, total_e])
     else:
         if return_vec:
             return (ernorm, ervec, None)

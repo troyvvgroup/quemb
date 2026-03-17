@@ -285,7 +285,7 @@ def get_be_error_jacobian(n_frag, Fobjs, jac_solver="HF"):
     """
     N_ = sum(Ncout)
     J = zeros((N_ + 1, N_ + 1))
-    cout = 0 
+    cout = 0
 
     for findx, fobj in enumerate(Fobjs):
         J[cout : Ncout[findx] + cout, cout : Ncout[findx] + cout] = Jes[findx]
