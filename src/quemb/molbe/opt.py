@@ -141,7 +141,6 @@ class BEOPT:
         # Update error and BE energy
         self.err = err_
         self.Ebe = ebe_
-
         return errvec_
 
     def optimize(self, method, J0=None, trust_region=False):
