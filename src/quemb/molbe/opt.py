@@ -82,7 +82,6 @@ class BEOPT:
 
     iter: int = 0
     err: float = 0.0
-    num_err: float = 0.0
     Ebe: Matrix[float64] = Factory(lambda: array([[0.0]]))
 
     solver_args: UserSolverArgs | None = None
@@ -107,8 +106,7 @@ class BEOPT:
 
         # Choose the appropriate function based on the number of processors
         if self.nproc == 1:
-            self.pot = xk
-            err_, errvec_, ebe_, num_err = be_func(
+            err_, errvec_, ebe_ = be_func(
                 xk,
                 self.Fobjs,
                 self.Nocc,
@@ -143,8 +141,6 @@ class BEOPT:
         # Update error and BE energy
         self.err = err_
         self.Ebe = ebe_
-        # Update num_err
-        self.num_err = num_err
 
         return errvec_
 
