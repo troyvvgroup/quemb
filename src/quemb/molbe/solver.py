@@ -317,7 +317,7 @@ def be_func(
                 rdm2s = fobj._mc.make_rdm2()
         elif solver == "CCSD":
             if eeval:
-                fobj.mycc, fobj.t1, fobj.t2, rdm1_tmp, rdm2s = solve_ccsd(
+                fobj.t1, fobj.t2, rdm1_tmp, rdm2s = solve_ccsd(
                     fobj._mf,
                     mo_energy=fobj._mf.mo_energy,
                     relax=relax_density,
@@ -543,20 +543,15 @@ def be_func(
                 use_cumulant=use_cumulant,
                 eri_file=fobj.eri_file,
             )
-            #fobj.E1 = e_f[0]
-            #fobj.E2 = e_f[1]
-            #fobj.EC = e_f[2]
-            #fobj.fragment_correlation = e_f[0] + e_f[1] + e_f[2]
             total_e = [sum(x) for x in zip(total_e, e_f)]
             fobj.update_ebe_hf()
 
     Ecorr = sum(total_e)
 
     if eeval and not return_vec:
-        _, _, num_err = solve_error(Fobjs, Nocc, only_chem=True)
-        return (Ecorr, total_e, num_err)
+        return (Ecorr, total_e)
 
-    ernorm, ervec, num_err = solve_error(Fobjs, Nocc, only_chem=only_chem)
+    ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem)
 
     if eeval:
         return (ernorm, ervec, [Ecorr, total_e], num_err)
@@ -717,10 +712,9 @@ def solve_error(Fobjs, Nocc, only_chem=False):
             for i in fobj.weight_and_relAO_per_center[1]:
                 err_chempot += fobj._rdm1[i, i]
         err_chempot /= Fobjs[0].unitcell_nkpt
-        num_err = err_chempot - Nocc
-        print(f"num_err inside solve_error is {num_err}")
+        err = err_chempot - Nocc
 
-        return abs(num_err), asarray([num_err]), num_err
+        return abs(err), asarray([err])
 
     # Compute edge and chemical potential errors
     for fobj in Fobjs:
@@ -734,8 +728,6 @@ def solve_error(Fobjs, Nocc, only_chem=False):
         # chem potential
         for i in fobj.weight_and_relAO_per_center[1]:
             err_chempot += fobj._rdm1[i, i]
-        num_err = err_chempot - Nocc
-        print(f"num_err inside solve_error is {num_err}")
 
     err_chempot /= Fobjs[0].unitcell_nkpt
     err_edge.append(err_chempot)  # far-end edges are included as err_chempot
@@ -766,7 +758,7 @@ def solve_error(Fobjs, Nocc, only_chem=False):
     # Compute the norm of the error vector
     norm_ = mean(err_vec * err_vec) ** 0.5
 
-    return norm_, err_vec, num_err
+    return norm_, err_vec
 
 
 def solve_mp2(
@@ -930,11 +922,11 @@ def solve_ccsd(
                 )
             else:
                 rdm2s = make_rdm2_urlx(t1, t2, with_dm1=not use_cumulant)
-            return (mycc, t1, t2, rdm1a, rdm2s)
+            return (t1, t2, rdm1a, rdm2s)
 
         return (t1, t2, rdm1a, mycc)
 
-    return (mycc, t1, t2)
+    return (t1, t2)
 
 
 def solve_block2(
