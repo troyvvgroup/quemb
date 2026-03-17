@@ -299,24 +299,6 @@ class BE:
         self.lo_bath_post_schmidt: Literal["cholesky", "ER", "PM", "boys"] | None = (
             lo_bath_post_schmidt
         )
-        # Check validity of the initialize_fragment_idx input
-        if initialize_fragment_idx is not None and int_transform not in [
-            "in-core",
-            "out-core-DF",
-        ]:
-            raise NotImplementedError(
-                "Selective fragment initialization is only implemented for 'in-core' "
-                "and 'out-core-DF' integral transformations."
-            )
-
-        initialize_fragment_idx = (
-            list(range(fobj.n_frag))
-            if initialize_fragment_idx is None
-            else initialize_fragment_idx
-        )
-        assert all(idx in range(fobj.n_frag) for idx in initialize_fragment_idx), (
-            "All indices in initialize_fragment_idx must be valid fragment indices."
-        )
 
         # Check validity of the initialize_fragment_idx input
         if initialize_fragment_idx is not None and int_transform not in [
@@ -951,7 +933,6 @@ class BE:
                     self.ebe_hf,
                 )
                 self.rets0 = be_.Ebe[0]
-                self.num_err = be_.num_err
             else:
                 self.ebe_tot = be_.Ebe[0] + self.enuc
                 print_energy_noncumulant(
@@ -963,7 +944,6 @@ class BE:
                     self.enuc,
                 )
                 self.rets0 = be_.Ebe[0] + self.enuc - self.ebe_hf
-                self.num_err = be_.num_err
         else:
             raise ValueError("This optimization method for BE is not supported")
 
@@ -1326,7 +1306,6 @@ class BE:
                 use_cumulant=use_cumulant,
                 return_vec=False,
             )
-            self.num_err = rets[2]
         else:
             rets = be_func_parallel(
                 None,
