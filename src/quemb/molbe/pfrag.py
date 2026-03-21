@@ -160,6 +160,7 @@ class Frags:
         gradient_orb_space: Literal["Unmodified", "ao-basis", "basis-change", "lo-basis", "mimic-existing-approach"],
         thr_bath: float = 1.0e-10,
         norb: int | None = None,
+        eq_fobj = None,
     ) -> None:
         """
         Perform Schmidt decomposition for the fragment.
