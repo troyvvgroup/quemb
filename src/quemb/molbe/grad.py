@@ -185,38 +185,3 @@ class BEGrad:
             results["ccsd"] = rms_ccsd
 
         return results
-
-
-def read_xyz(fname):
-    atoms = []
-    labels = []
-
-    with open(fname) as f:
-        lines = f.readlines()[2:]
-
-    for line in lines:
-        parts = line.split()
-        if len(parts) >= 4:
-            label = parts[0]
-            coords = tuple(map(float, parts[1:4]))
-            atoms.append((label, coords))
-            labels.append(label)
-
-    return atoms, labels
-
-
-xyz_file = sys.argv[1]
-atoms, labels = read_xyz(xyz_file)
-mol_ref = gto.M(atom=atoms, basis="sto-3g", charge=0, unit="Angstrom")
-
-mf = scf.RHF(mol_ref)
-mf.kernel()
-
-fobj = fragmentate(mol=mol_ref, frag_type="chemgen", n_BE=2)
-mybe = BE(mf, fobj)
-
-be_grad = BEGrad(mybe, delta=1e-4)
-be_grad.set_reference(mf, solver="CCSD")
-
-gradient_ccsd, gradient_hf = be_grad.compute_grad(nproc=16)
-rmse = be_grad.compute_rmse(which="both")
