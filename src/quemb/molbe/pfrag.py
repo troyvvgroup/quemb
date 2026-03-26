@@ -207,6 +207,17 @@ class Frags:
             print("does TA need orthgonalization?")
             print(needs_orthogonalization)
 
+        elif gradient_orb_space == "beck-simple":
+            H = C.T @ S_cross @ self.eq_fobj.TA  # MO_pert x EO_ref
+            U, singular_values, Vt = np.linalg.svd( H, full_matrices=False )
+            self.TA = C @ U @ Vt
+
+            self.n_f = self.eq_fobj.n_f
+
+        elif gradient_orb_space == "beck-project":
+            self.TA = np.linalg.solve( S, S_cross @ self.eq_fobj.TA )
+            self.n_f = self.eq_fobj.n_f
+
         elif gradient_orb_space == "ao-basis":
             C_occ = C[:, :nocc]
             C_virt = C[:, nocc:]
