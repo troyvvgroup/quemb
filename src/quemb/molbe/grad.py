@@ -95,16 +95,17 @@ class BEGrad:
 
         rand = "".join(random.choices(string.ascii_lowercase, k=8))
         with WorkDir.from_environment(prefix=rand + "_") as workdir:
+            frag_idx = self.frag_per_atom[atom_idx]
             be = BE( # note to self: try to build displaced be obj in the same way minsik does
                 displaced_mf,
                 self.ref_be_obj.fobj,
-                eq_fobjs=self.ref_be_obj.Fobjs, 
+                eq_fobjs=self.ref_be_obj.Fobjs,
                 S_cross=S_cross,
                 gradient_orb_space=self.gradient_orb_space,
                 scratch_dir=workdir,
+                initialize_fragment_idx = [frag_idx]
             )
 
-            frag_idx = self.frag_per_atom[atom_idx]
             fobj = be.Fobjs[frag_idx]
 
             e_corr = self._compute_frag(fobj)
@@ -118,7 +119,7 @@ class BEGrad:
         displacements = self._generate_displacements()
 
         results = list(map(self._worker, displacements))
-        # with Pool(nproc) as p:
+        #with Pool(nproc) as p:
         #    results = p.map(self._worker, displacements)
 
         natm = self.mol.natm
