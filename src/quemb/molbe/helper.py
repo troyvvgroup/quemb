@@ -68,6 +68,17 @@ def get_veff(eri_, dm, S, TA, hf_veff):
 
     return Veff, Veff0
 
+class _SCFMethods:
+    """Helper class to replace lambda functions"""
+    def __init__(self, h1, S):
+        self.h1 = h1
+        self.S = S
+
+    def get_hcore(self, *args):
+        return self.h1
+
+    def get_ovlp(self, *args):
+        return self.S
 
 # create pyscf pbc scf object
 def get_scfObj(
@@ -111,8 +122,13 @@ def get_scfObj(
 
     # Initialize an RHF object
     mf_ = scf.RHF(mol)
-    mf_.get_hcore = lambda *args: h1  # noqa: ARG005
-    mf_.get_ovlp = lambda *args: S  # noqa: ARG005
+    # Replace lambdas with methods
+    methods = _SCFMethods(h1, S)
+    mf_.get_hcore = methods.get_hcore
+    mf_.get_ovlp = methods.get_ovlp
+
+    #mf_.get_hcore = lambda *args: h1  # noqa: ARG005
+    #mf_.get_ovlp = lambda *args: S  # noqa: ARG005
     mf_._eri = Eri
     mf_.incore_anyway = True
     mf_.max_cycle = 50
