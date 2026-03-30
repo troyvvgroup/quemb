@@ -96,7 +96,7 @@ class BEGrad:
         rand = "".join(random.choices(string.ascii_lowercase, k=8))
         with WorkDir.from_environment(prefix=rand + "_") as workdir:
             frag_idx = self.frag_per_atom[atom_idx]
-            be = BE( # note to self: try to build displaced be obj in the same way minsik does
+            be = BE( 
                 displaced_mf,
                 self.ref_be_obj.fobj,
                 eq_fobjs=self.ref_be_obj.Fobjs,
@@ -118,9 +118,9 @@ class BEGrad:
     def compute_grad(self, nproc=16):
         displacements = self._generate_displacements()
 
-        results = list(map(self._worker, displacements))
-        #with Pool(nproc) as p:
-        #    results = p.map(self._worker, displacements)
+        #results = list(map(self._worker, displacements))
+        with Pool(nproc) as p:
+            results = p.map(self._worker, displacements)
 
         natm = self.mol.natm
         grad_corr = np.zeros((natm, 3))
