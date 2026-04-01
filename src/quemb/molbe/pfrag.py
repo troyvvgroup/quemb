@@ -208,9 +208,12 @@ class Frags:
             print(needs_orthogonalization)
 
         elif gradient_orb_space == "beck-simple":
-            H = C.T @ S_cross @ self.eq_fobj.TA  # MO_pert x EO_ref
+            self.Dhf = lmo[:, :nocc] @ lmo[:,:nocc].T
+            lo_lo_overlap = lao.T @ S_cross @ self.eq_fobj.lao
+            H = lmo.T @ lo_lo_overlap @ self.eq_fobj.TA_lo_eo  # MO_pert x EO_ref
             U, singular_values, Vt = np.linalg.svd( H, full_matrices=False )
-            self.TA = C @ U @ Vt
+            self.TA_lo_eo = lmo @ U @ Vt
+            self.TA = lao @ lmo @ U @ Vt
 
             self.n_f = self.eq_fobj.n_f
 
@@ -272,6 +275,8 @@ class Frags:
             self.n_f = self.eq_fobj.n_f
 
         elif gradient_orb_space == "lo-basis":
+            self.Dhf = lmo[:, :nocc] @ lmo[:,:nocc].T
+
             lo_lo_overlap = lao.T @ S_cross @ self.eq_fobj.lao
 
             TA_ref = self.eq_fobj.TA_lo_eo @ self.eq_fobj.eigvecs
@@ -329,6 +334,22 @@ class Frags:
             assert_never(gradient_orb_space)
 
         self.nao = self.TA.shape[1]
+        
+        # diagnostics
+        # determine fragment occupation
+        TA_fragment = self.TA_lo_eo[:,:self.n_f]
+        D_fragment = TA_fragment.T @ self.Dhf @ TA_fragment
+        self.fragment_total_occ = np.trace(D_fragment)
+        self.fragment_orbital_occs = np.diag(D_fragment)
+        # determine bath occupation
+        TA_bath = self.TA_lo_eo[:, self.n_f:]
+        D_bath = TA_bath.T @ self.Dhf @ TA_bath
+        self.bath_total_occ = np.trace(D_bath)
+        self.bath_orbital_occs = np.diag(D_bath)
+        # determine schmidt occupation
+        TA_schmidt = self.TA_lo_eo
+        D_schmidt = TA_schmidt.T @ self.Dhf @ TA_schmidt
+        self.schmidt_total_occ = np.trace(D_schmidt)
 
     def cons_fock(self, hf_veff, S, dm, eri_=None):
         """

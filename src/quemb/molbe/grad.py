@@ -53,22 +53,22 @@ class BEGrad:
     @staticmethod
     def _compute_frag(fobj, solver="CCSD"):
         eri = get_eri(fobj.dname, fobj.nao, eri_file=fobj.eri_file)
-        mf = get_scfObj(fobj.fock, eri, fobj.nsocc, dm0=fobj.dm0.copy())
+        fobj._mf = get_scfObj(fobj.fock, eri, fobj.nsocc, dm0=fobj.dm0.copy())
 
         if solver == "CCSD":
-            mc = cc.CCSD(mf)
+            mc = cc.CCSD(fobj._mf)
             mc.verbose = 0
             mc.incore_complete = True
 
             eri_embmo = mc.ao2mo()
-            eri_embmo.mo_energy = mf.mo_energy
-            eri_embmo.fock = np.diag(mf.mo_energy)
+            eri_embmo.mo_energy = fobj._mf.mo_energy
+            eri_embmo.fock = np.diag(fobj._mf.mo_energy)
 
             mc.kernel(eris=eri_embmo)
-            return mc.e_tot - mf.e_tot  # same as mc.e_corr
+            return mc.e_tot - fobj._mf.e_tot  # same as mc.e_corr
 
         if solver == "FCI":
-            mc = fci.FCI(mf, mf.mo_coeff)
+            mc = fci.FCI(fobj._mf, fobj._mf.mo_coeff)
             mc.verbose = 0
             e_fci, _ = mc.kernel()
             return e_fci - mf.e_tot  # corr = fci - hf
@@ -106,10 +106,18 @@ class BEGrad:
                 initialize_fragment_idx = [frag_idx]
             )
 
+            # diagnostics
+            print(f"the difference in the fragment space total occupations is {np.sqrt(np.mean((be.Fobjs[frag_idx].fragment_total_occ-self.ref_be_obj.Fobjs[frag_idx].fragment_total_occ)**2)):.12e}")
+            print(f"the difference in the fragment orbital occs is {np.sqrt(np.mean((be.Fobjs[frag_idx].fragment_orbital_occs-self.ref_be_obj.Fobjs[frag_idx].fragment_orbital_occs)**2)):.12e}")
+            print(f"the difference in the bath space total occupations is {np.sqrt(np.mean((be.Fobjs[frag_idx].bath_total_occ-self.ref_be_obj.Fobjs[frag_idx].bath_total_occ)**2)):.12e}")
+            print(f"the difference in the bath orbital occs is {np.sqrt(np.mean((be.Fobjs[frag_idx].bath_orbital_occs-self.ref_be_obj.Fobjs[frag_idx].bath_orbital_occs)**2)):.12e}")
+            print(f"the difference in the schmidt space total occupations is {np.sqrt(np.mean((be.Fobjs[frag_idx].schmidt_total_occ-self.ref_be_obj.Fobjs[frag_idx].schmidt_total_occ)**2)):.12e}")
+            
             fobj = be.Fobjs[frag_idx]
-
             e_corr = self._compute_frag(fobj)
 
+            print(f"the difference in fragment Hamiltonian HF energy is {np.sqrt(np.mean((be.Fobjs[frag_idx]._mf.e_tot-self.ref_be_obj.Fobjs[frag_idx]._mf.e_tot)**2)):.12e}")
+            print(f"the difference in fragment Hamiltonian CCSD energy is {np.sqrt(np.mean((e_corr-self.ref_be_obj.Fobjs[frag_idx].mycc.e_corr)**2)):.12e}")
             return atom_idx, xyz, sign, displaced_e_hf, e_corr
 
     # =========================
