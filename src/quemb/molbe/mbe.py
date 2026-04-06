@@ -278,6 +278,7 @@ class BE:
         self.eq_fobjs = eq_fobjs
         self.S_cross = S_cross
         self.gradient_orb_space = gradient_orb_space
+        self.lo_method = lo_method
 
         # Fragment information from fobj
         self.fobj = fobj

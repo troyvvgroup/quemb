@@ -123,6 +123,7 @@ class BEGrad:
             be = BE( 
                 displaced_mf,
                 self.ref_be_obj.fobj,
+                lo_method=self.ref_be_obj.lo_method,
                 eq_fobjs=self.ref_be_obj.Fobjs,
                 S_cross=S_cross,
                 gradient_orb_space=self.gradient_orb_space,
