@@ -213,9 +213,11 @@ class Frags:
             H = lmo.T @ lo_lo_overlap @ self.eq_fobj.TA_lo_eo  # MO_pert x EO_ref
             U, singular_values, Vt = np.linalg.svd( H, full_matrices=False )
             self.TA_lo_eo = lmo @ U @ Vt
-            self.TA = lao @ lmo @ U @ Vt
+            self.TA = lao @ self.TA_lo_eo
 
             self.n_f = self.eq_fobj.n_f
+            P_fb = self.TA_lo_eo @ self.TA_lo_eo.T # lo eo x eo lo = lo lo
+            self.TAenv_lo_eo = lmo - P_fb @ lmo
 
         elif gradient_orb_space == "beck-project":
             self.TA = np.linalg.solve( S, S_cross @ self.eq_fobj.TA )
@@ -292,6 +294,10 @@ class Frags:
             
             self.TA_lo_eo = lmo @ R @ self.eq_fobj.eigvecs.T
             self.TA = lao @ lmo @ R @ self.eq_fobj.eigvecs.T
+            # environment stuff
+            P_fb = self.TA_lo_eo @ self.TA_lo_eo.T # lo eo x eo lo = lo lo 
+            self.TAenv_lo_eo = lmo - P_fb @ lmo
+
             self.n_f = self.eq_fobj.n_f
         elif gradient_orb_space == "mimic-existing-approach":
             # first, run a normal schmidt decomposition
@@ -346,6 +352,10 @@ class Frags:
         D_bath = TA_bath.T @ self.Dhf @ TA_bath
         self.bath_total_occ = np.trace(D_bath)
         self.bath_orbital_occs = np.diag(D_bath)
+        # determine env occupation
+        D_env = self.TAenv_lo_eo.T @ self.Dhf @ self.TAenv_lo_eo
+        self.env_total_occ = np.trace(D_env)
+        self.env_orbital_occs = np.diag(D_env)
         # determine schmidt occupation
         TA_schmidt = self.TA_lo_eo
         D_schmidt = TA_schmidt.T @ self.Dhf @ TA_schmidt

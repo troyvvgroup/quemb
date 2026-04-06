@@ -1,3 +1,6 @@
+import matplotlib.pyplot as plt
+from pyscf import mp
+import copy
 import numpy as np
 from pyscf import cc, grad, gto, scf, mcscf, fci, ao2mo
 from quemb.molbe.helper import get_eri, get_scfObj
@@ -51,7 +54,7 @@ class BEGrad:
     # Fragment solver
     # =========================
     @staticmethod
-    def _compute_frag(fobj, solver="CCSD"):
+    def _compute_frag(fobj, solver):
         eri = get_eri(fobj.dname, fobj.nao, eri_file=fobj.eri_file)
         fobj._mf = get_scfObj(fobj.fock, eri, fobj.nsocc, dm0=fobj.dm0.copy())
 
@@ -71,7 +74,28 @@ class BEGrad:
             mc = fci.FCI(fobj._mf, fobj._mf.mo_coeff)
             mc.verbose = 0
             e_fci, _ = mc.kernel()
-            return e_fci - mf.e_tot  # corr = fci - hf
+            return e_fci - fobj._mf.e_tot  # corr = fci - hf
+        
+        if solver == "MP2":
+            print(f"Computing MP2 fragment correlation energy")
+            mymp2 = mp.MP2(fobj._mf)
+            mymp2.verbose = 0
+            e_mp2, _ = mymp2.kernel()
+            return e_mp2
+
+        if solver == "CCSD(T)":
+            print(f"Computing CCSD(T) fragment correlation energy")
+            mc = cc.CCSD(fobj._mf)
+            mc.verbose = 0
+            mc.incore_complete = True
+
+            eri_embmo = mc.ao2mo()
+            eri_embmo.mo_energy = fobj._mf.mo_energy
+            eri_embmo.fock = np.diag(fobj._mf.mo_energy)
+
+            mc.kernel(eris=eri_embmo)
+            et = mc.ccsd_t(eris=eri_embmo)
+            return mc.e_tot - fobj._mf.e_tot + et
 
 
         raise NotImplementedError
@@ -106,19 +130,10 @@ class BEGrad:
                 initialize_fragment_idx = [frag_idx]
             )
 
-            # diagnostics
-            print(f"the difference in the fragment space total occupations is {np.sqrt(np.mean((be.Fobjs[frag_idx].fragment_total_occ-self.ref_be_obj.Fobjs[frag_idx].fragment_total_occ)**2)):.12e}")
-            print(f"the difference in the fragment orbital occs is {np.sqrt(np.mean((be.Fobjs[frag_idx].fragment_orbital_occs-self.ref_be_obj.Fobjs[frag_idx].fragment_orbital_occs)**2)):.12e}")
-            print(f"the difference in the bath space total occupations is {np.sqrt(np.mean((be.Fobjs[frag_idx].bath_total_occ-self.ref_be_obj.Fobjs[frag_idx].bath_total_occ)**2)):.12e}")
-            print(f"the difference in the bath orbital occs is {np.sqrt(np.mean((be.Fobjs[frag_idx].bath_orbital_occs-self.ref_be_obj.Fobjs[frag_idx].bath_orbital_occs)**2)):.12e}")
-            print(f"the difference in the schmidt space total occupations is {np.sqrt(np.mean((be.Fobjs[frag_idx].schmidt_total_occ-self.ref_be_obj.Fobjs[frag_idx].schmidt_total_occ)**2)):.12e}")
-            
             fobj = be.Fobjs[frag_idx]
-            e_corr = self._compute_frag(fobj)
+            e_corr = self._compute_frag(fobj, self.ref_be_obj.solver)
 
-            print(f"the difference in fragment Hamiltonian HF energy is {np.sqrt(np.mean((be.Fobjs[frag_idx]._mf.e_tot-self.ref_be_obj.Fobjs[frag_idx]._mf.e_tot)**2)):.12e}")
-            print(f"the difference in fragment Hamiltonian CCSD energy is {np.sqrt(np.mean((e_corr-self.ref_be_obj.Fobjs[frag_idx].mycc.e_corr)**2)):.12e}")
-            return atom_idx, xyz, sign, displaced_e_hf, e_corr
+            return atom_idx, xyz, sign, displaced_e_hf, e_corr, be.Fobjs[frag_idx]._mf.e_tot
 
     # =========================
     # Gradient computation
@@ -136,8 +151,10 @@ class BEGrad:
 
         # collect
         results_dict = {}
-        for atom_idx, xyz, sign, e_hf, e_corr in results:
+        fragment_Hamiltonian_HF_energies = []
+        for atom_idx, xyz, sign, e_hf, e_corr, fragment_Hamiltonian_HF_energy in results:
             results_dict.setdefault((atom_idx, xyz), {})[sign] = (e_hf, e_corr)
+            fragment_Hamiltonian_HF_energies.append(fragment_Hamiltonian_HF_energy)
 
         # finite difference
         for (atom_idx, xyz), vals in results_dict.items():
@@ -156,6 +173,7 @@ class BEGrad:
         self.grad_corr = grad_corr
         self.grad_hf = grad_hf
 
+        np.savetxt('fragment_Hamiltonian_HF_energies.txt', fragment_Hamiltonian_HF_energies, fmt='%.12e')
         return grad_corr, grad_hf
 
     def set_reference(self, mf, solver="CCSD"):
@@ -179,6 +197,55 @@ class BEGrad:
             grad_fci = mc.nuc_grad_method()
             self.grad_corr_ref = grad_fci.kernel()
 
+        if solver == "MP2":
+            print("Computing MP2 reference gradient")
+            mymp2 = mp.MP2(mf)
+            mymp2.kernel()
+            grad_mp2 = mymp2.nuc_grad_method()
+            self.grad_corr_ref = grad_mp2.kernel()
+
+        if solver == "CCSD(T)":
+            print("Computing CCSD(T) reference gradient by finite differences")
+
+            mol0 = mf.mol
+            coords0 = mol0.atom_coords()
+            natm = mol0.natm
+            delta = self.delta
+
+            grad_ccsdt = np.zeros((natm, 3))
+
+            for atom_idx in range(natm):
+                for xyz in range(3):
+                    e_plus = None
+                    e_minus = None
+
+                    for sign in (+1, -1):
+                        disp = np.zeros((natm, 3))
+                        disp[atom_idx, xyz] = sign * delta
+
+                        mol_disp = mol0.copy()
+                        mol_disp.set_geom_(coords0 + disp, unit="Bohr")
+                        mol_disp.build()
+
+                        mf_disp = scf.RHF(mol_disp)
+                        mf_disp.verbose = 0
+                        mf_disp.kernel()
+
+                        mycc = cc.CCSD(mf_disp)
+                        mycc.verbose = 0
+                        mycc.kernel()
+                        et = mycc.ccsd_t()
+
+                        e_tot = mycc.e_tot + et
+
+                        if sign == +1:
+                            e_plus = e_tot
+                        else:
+                            e_minus = e_tot
+                    grad_ccsdt[atom_idx, xyz] = (e_plus - e_minus) / (2 * delta)
+
+            self.grad_corr_ref = grad_ccsdt
+        
     def compute_rmse(self, which="both"):
         """
         Compute RMSE between computed and reference gradients.

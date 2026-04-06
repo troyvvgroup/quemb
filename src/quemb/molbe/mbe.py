@@ -1301,6 +1301,7 @@ class BE:
         ompnum :
             Number of OpenMP threads, by default 4.
         """
+        self.solver = solver
         if nproc == 1:
             rets = be_func(
                 None,
