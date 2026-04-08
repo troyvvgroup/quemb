@@ -536,9 +536,7 @@ def graphgen(
                                 adjacency_graph,
                                 source=adx,
                                 target=bdx,
-                                weight=lambda a, b, _: (
-                                    adjacency_graph[a][b]["weight"]
-                                ),
+                                weight=lambda a, b, _: adjacency_graph[a][b]["weight"],
                                 method="dijkstra",
                             )
                         }

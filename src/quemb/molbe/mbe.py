@@ -164,6 +164,7 @@ class BE:
         MO_coeff_epsilon: float = 1e-5,
         AO_coeff_epsilon: float = 1e-10,
         re_eval_HF: bool = False,
+        initialize_fragment_idx: list[int] | None = None,
     ) -> None:
         r"""
         Constructor for BE object.
@@ -242,6 +243,12 @@ class BE:
             one global Fock matrix in the traditional sense, such as ORCA's RIJCOSX,
             then the energy obtained by building the Fock matrix from the
             MO coefficients can actually differ from the reported HF energy.
+        initialize_fragment_idx:
+            Takes in a list of fragment indices to initialize.
+            If None (default), all fragments are initialized.
+            If a list of indices is provided, we perform ERI transformations
+            only for the specified fragments.
+            The selective initialization faciliates projects that extend quemb.
         """
         if restart:
             # Load previous calculation data from restart file
@@ -309,6 +316,25 @@ class BE:
 
         self.lo_bath_post_schmidt: Literal["cholesky", "ER", "PM", "boys"] | None = (
             lo_bath_post_schmidt
+        )
+
+        # Check validity of the initialize_fragment_idx input
+        if initialize_fragment_idx is not None and int_transform not in [
+            "in-core",
+            "out-core-DF",
+        ]:
+            raise NotImplementedError(
+                "Selective fragment initialization is only implemented for 'in-core' "
+                "and 'out-core-DF' integral transformations."
+            )
+
+        initialize_fragment_idx = (
+            list(range(fobj.n_frag))
+            if initialize_fragment_idx is None
+            else initialize_fragment_idx
+        )
+        assert all(idx in range(fobj.n_frag) for idx in initialize_fragment_idx), (
+            "All indices in initialize_fragment_idx must be valid fragment indices."
         )
 
         self.ebe_hf = 0.0
@@ -400,9 +426,19 @@ class BE:
 
         if not restart:
             # Initialize fragments and perform initial calculations
-            self.initialize(mf._eri, restart=False, int_transform=int_transform)
+            self.initialize(
+                mf._eri,
+                restart=False,
+                int_transform=int_transform,
+                initialize_fragment_idx=initialize_fragment_idx,
+            )
         else:
-            self.initialize(None, restart=True, int_transform=int_transform)
+            self.initialize(
+                None,
+                restart=True,
+                int_transform=int_transform,
+                initialize_fragment_idx=initialize_fragment_idx,
+            )
 
     def save(self, save_file: PathLike = "storebe.pk") -> None:
         """
@@ -1615,6 +1651,7 @@ class BE:
         int_transform: IntTransforms,
         eri_: Matrix[np.floating] | None,
         file_eri: h5py.File,
+        initialize_fragment_idx: list[int],
     ):
         """
         Transforms electron repulsion integrals (ERIs) for each fragment
@@ -1638,10 +1675,11 @@ class BE:
         int_transform : The transformation strategy.
         eri_ : The ERIs for the molecule.
         file_eri : The output file where transformed ERIs are stored.
+        initialize_fragment_idx : List of fragment indices to initialize.
         """
         if int_transform == "in-core":
             ensure(eri_ is not None, "ERIs have to be available in memory.")
-            for I in range(self.fobj.n_frag):
+            for I in initialize_fragment_idx:
                 eri = ao2mo.incore.full(eri_, self.Fobjs[I].TA, compact=True)
                 file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
         elif int_transform == "out-core-DF":
@@ -1649,7 +1687,7 @@ class BE:
                 hasattr(self.mf, "with_df") and self.mf.with_df is not None,
                 "Pyscf mean field object has to support `with_df`.",
             )
-            for I in range(self.fobj.n_frag):
+            for I in initialize_fragment_idx:
                 eri = self.mf.with_df.ao2mo(self.Fobjs[I].TA, compact=True)
                 file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
         elif int_transform == "int-direct-DF":
@@ -1715,7 +1753,9 @@ class BE:
             assert_never(int_transform)
 
     @timer.timeit
-    def _initialize_fragments(self, file_eri: h5py.File, restart: bool):
+    def _initialize_fragments(
+        self, file_eri: h5py.File, restart: bool, initialize_fragment_idx: list[int]
+    ):
         """
         Processes all molecular fragments by constructing their Fock matrices,
         performing SCF, and computing fragment Hartree–Fock (HF) energies.
@@ -1735,10 +1775,16 @@ class BE:
             HDF5 file containing fragment ERIs.
         restart : bool
             If True, skips ERI transformation and file closure.
+        initialize_fragment_idx: list[int]
+            List of fragment indices to initialize.
+            If this list is NOT the full list of fragments, HF-in-HF is skipped.
         """
+        # check if selective initialization of fragments is requested
+        all_frag_init = set(initialize_fragment_idx) == set(range(len(self.Fobjs)))
 
         E_hf = 0.0
-        for fobjs_ in self.Fobjs:
+        for fidx in initialize_fragment_idx:
+            fobjs_ = self.Fobjs[fidx]
             eri = array(file_eri.get(fobjs_.dname))
             _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
 
@@ -1764,7 +1810,7 @@ class BE:
         self.ebe_hf = E_hf + self.enuc + self.E_core
         hf_err = self.hf_etot - self.ebe_hf
         print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
-        if abs(hf_err) > 1.0e-5:
+        if all_frag_init and abs(hf_err) > 1.0e-5:
             warn("Large HF-in-HF energy error")
 
         if self.re_eval_HF:
@@ -1780,6 +1826,7 @@ class BE:
         *,
         restart: bool,
         int_transform: IntTransforms,
+        initialize_fragment_idx: list[int],
     ) -> None:
         """
         Initialize the Bootstrap Embedding calculation.
@@ -1792,6 +1839,8 @@ class BE:
             Whether to restart from a previous calculation, by default False.
         int_transfrom :
             Which integral transformation to perform.
+        initialize_fragment_idx :
+            Perform ERI transformations for the fragments with these indices.
         """
         for I in range(self.fobj.n_frag):
             fobjs_ = self.fobj.to_Frags(I, eri_file=self.eri_file)
@@ -1815,9 +1864,9 @@ class BE:
 
         if not restart:
             file_eri = h5py.File(self.eri_file, "w")
-            self._eri_transform(int_transform, eri_, file_eri)
+            self._eri_transform(int_transform, eri_, file_eri, initialize_fragment_idx)
 
-        self._initialize_fragments(file_eri, restart)
+        self._initialize_fragments(file_eri, restart, initialize_fragment_idx)
 
         if not restart:
             file_eri.close()
