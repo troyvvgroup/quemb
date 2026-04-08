@@ -11,8 +11,10 @@ import numpy as np
 from attrs import define
 from numpy import (
     allclose,
+    argmax,
     array,
     concatenate,
+    delete,
     diag,
     diag_indices,
     einsum,
@@ -30,7 +32,7 @@ from numpy import (
     zeros,
     zeros_like,
 )
-from numpy.linalg import eigh, multi_dot, svd
+from numpy.linalg import eigh, multi_dot, norm, svd
 from pyscf import ao2mo, scf
 from pyscf.gto import Mole
 from scipy.optimize import linear_sum_assignment
@@ -787,7 +789,7 @@ class BE:
     def compute_overlap_dyson(self, ref_dyson, frag_dyson, n_ex, extra=3):
         """
         Compute overlaps between two Dyson orbitals
-        (currently in the MO basis), used for state targetting.
+        (currently in the AO basis), used for state targetting.
 
         Parameters
         ----------
@@ -816,14 +818,14 @@ class BE:
                 # print(shape(self.S))
                 # print(shape(frag_dyson[:,j]))
                 ovlp[i, j] = (
-                    ref_dyson[i, :] @ frag_dyson[j, :]
+                    ref_dyson[i, :] @ self.S @ frag_dyson[j, :]
                 )  ###if change TO AOS - NEED self.S!!!
         return ovlp
 
-    def match_fragments(self, ref_dyson, frag_dyson, n_ex, extra=3, threshold=0.8):
+    def match_fragments(self, ref_dyson, frag_dyson, n_ex, extra=3, threshold=0.0):
         """
         Hungarian matching + phase alignment for
-        left Dyson orbitals (in MO basis)
+        left Dyson orbitals (in AO basis)
 
         Parameters
         ----------
@@ -879,9 +881,248 @@ class BE:
 
     def hij_full(self, n_ex):
         """Compute hij from Dyson orbitals - for averaged excited BE purposes.
-
-        ---Alexa: current strategy as of 10/30/2025
+        EOM-in-Fock approach
         - now with added environment contributions
+
+        Parameters
+        ----------
+        n_ex: int
+            Number of excited states.
+
+        Returns
+        -------
+        hijAO : numpy.ndarray
+            Effective Hamiltonian in AO basis, formed from Dyson orbitals.
+        delta_hijAO : numpy.ndarray
+            Environment correction term in AO basis.
+        ip_full : numpy.ndarray
+            Full-system IPs.
+        dyson_ip_full : numpy.ndarray
+            Full system Dyson orbitals corresponding to Koopman's-like excitations.
+        hijMO : numpy.ndarray
+            Effective Hamiltonian in MO basis, formed from Dyson orbitals.
+        delta_hijMO : numpy.ndarray
+            Environment correction term in MO basis.
+        dyson_ip_full_MO : numpy.ndarray
+            Full system Dyson orbitals corresponding to Koopman's-like excitations
+            (in MO basis).
+        M0_MO : numpy.ndarray
+            "0th order spectral moment", or c_L @ c_R.
+            Equal to identity matrix in the full system EOM-IP/EA case
+            (due to biorthonormality).
+        delta_M0_MO : numpy.ndarray
+            "0th order spectral moment" for the environment correction term.
+        """
+
+        ha_to_ev = 27.2114
+
+        # extra = compute additional excitations in case of intruder states
+        extra = 0
+        extra_koop = self.Nocc - n_ex
+
+        # Copy the full system MO coefficients
+        C_MO = self.C.copy()
+        nao = C_MO.shape[0]
+
+        # in AO basis
+        hijAO = zeros((nao, nao))
+        delta_hijAO = zeros((nao, nao))
+        M_0_AO = zeros((nao, nao))
+        delta_M_0_AO = zeros((nao, nao))
+
+        # full system environment correction
+        # simple Koopman's theorem IP reference
+        # dyson_ip_full: in AO basis
+        # dyson_ip_full_MO: in MO basis
+
+        dyson_ip_full = zeros((n_ex + extra_koop, nao))
+        dyson_ip_full_MO = zeros((n_ex + extra_koop, nao))
+        ip_full = zeros(n_ex + extra_koop)
+
+        for i in range(n_ex + extra_koop):
+            ip_full[i] = self.mo_energy[self.Nocc - 1 - i]
+            dyson_ip_full_MO[i, self.Nocc - 1 - i] = 1
+            dyson_ip_full[i, :] = C_MO[:, self.Nocc - 1 - i]
+
+        ip_full = (-ip_full) * ha_to_ev
+
+        # parse Dyson info from Q-Chem outputs
+
+        for frag_number, fobjs in enumerate(self.Fobjs):
+            output = "qchem_fragment_" + str(frag_number) + "/eom.out"
+            dyson_parser(fobjs, output, n_ex + extra)
+
+        # build fragment contributions
+
+        for frag_number, fobjs in enumerate(self.Fobjs):
+            n_mo_full = shape(fobjs.TA)[0]
+            occ_tot = self.Nocc  # full system
+            SO_tot = shape(fobjs.TA)[1]
+            SO_occ = fobjs.nsocc  # Schmidt space
+
+            # fragment environment correction - simple Koopman's theorem IP
+
+            dyson_ip_frag_left = zeros((n_ex + extra, nao))
+            dyson_ip_frag_right = zeros((n_ex + extra, nao))
+
+            ip_frag = zeros(n_ex + extra)
+            delta_ex = zeros(n_ex + extra)
+
+            excluded_koop = []
+
+            for i in range(n_ex + extra):
+                ### TO DO: sometimes dyson orbital doesn't correspond to
+                # an excitation from HOMO->infty!!
+                # what can we do about double excitations?
+
+                idx_guess = argmax(abs(fobjs.dyson_right[i, :]))
+
+                norm_left = norm(fobjs.dyson_left[i, :])
+                norm_right = norm(fobjs.dyson_right[i, :])
+
+                print(idx_guess, norm_left, norm_right)
+
+                if idx_guess - occ_tot + SO_occ <= 0:
+                    idx_guess = occ_tot - 1 - i
+
+                # Perform SCF calculation
+                # fobjs.scf()
+                # running in parallel doesn't work without this - test
+
+                ip_frag[i] = (
+                    -fobjs._mf.mo_energy[idx_guess - occ_tot + SO_occ] * ha_to_ev
+                )
+
+                dyson_ip_frag_left[i, idx_guess] = 1  # * norm_left
+                dyson_ip_frag_right[i, idx_guess] = 1  # * norm_right
+
+                if norm_left < 0.3:
+                    excluded_koop.append(i)
+
+                delta_ex[i] = ip_frag[i]
+
+                print("NEW FRAGMENT")
+                print(frag_number)
+                print(
+                    "Fragment number",
+                    frag_number,
+                    "excited state",
+                    i,
+                    "excitation energy",
+                    fobjs.ex_e[i],
+                    "eV, norm",
+                    norm(fobjs.dyson_right[i, :]),
+                    "from MO:",
+                    argmax(abs(fobjs.dyson_right[i, :])),
+                )
+
+            ###exclude - NEW
+            print("EXCLUDE: ")
+            print(frag_number)
+            print(excluded_koop)
+
+            dyson_ip_frag_left = delete(dyson_ip_frag_left, excluded_koop, axis=0)
+            dyson_ip_frag_right = delete(dyson_ip_frag_right, excluded_koop, axis=0)
+            delta_ex = delete(delta_ex, excluded_koop)
+            print(delta_ex)
+
+            exc = diag(fobjs.ex_e[: n_ex + extra])
+
+            delta_ex = diag(delta_ex)
+
+            env_occ = occ_tot - SO_occ
+            env_virt = n_mo_full - SO_tot - env_occ
+
+            hij_mo = (
+                fobjs.dyson_left[:, env_occ : n_mo_full - env_virt].T
+                @ exc
+                @ fobjs.dyson_right[:, env_occ : n_mo_full - env_virt]
+            )
+
+            m_0_mo = (
+                fobjs.dyson_left[:, env_occ : n_mo_full - env_virt].T
+                @ fobjs.dyson_right[:, env_occ : n_mo_full - env_virt]
+            )
+
+            # environment correction!
+            delta_hij_mo = (
+                dyson_ip_frag_left[:, env_occ : n_mo_full - env_virt].T
+                @ delta_ex
+                @ dyson_ip_frag_right[:, env_occ : n_mo_full - env_virt]
+            )
+
+            delta_m_0_mo = (
+                dyson_ip_frag_left[:, env_occ : n_mo_full - env_virt].T
+                @ dyson_ip_frag_right[:, env_occ : n_mo_full - env_virt]
+            )
+
+            # projection matrix
+            cind = [fobjs.AO_in_frag[i] for i in fobjs.weight_and_relAO_per_center[1]]
+            Pc_ = (
+                fobjs.TA.T
+                @ self.S
+                @ self.W[:, cind]
+                @ self.W[:, cind].T
+                @ self.S
+                @ fobjs.TA
+            )
+
+            # Compute hij in the SO basis
+            # and transform to AO basis
+
+            hij_so = fobjs.mo_coeffs @ hij_mo @ fobjs.mo_coeffs.T
+
+            hij_center = Pc_ @ hij_so
+            # do we apply projection correctly?
+            # hij_center = Pc_ @ hij_so @ Pc_
+
+            # print("ARE NON-CENTER CONTRIBUTIONS IMPORTANT?")
+            ###half of non-diag contributions important? - keep projection only on left?
+
+            hij_ao = fobjs.TA @ hij_center @ fobjs.TA.T  ###!!!just center!
+            hijAO += hij_ao
+            fobjs.hij_mo = hij_mo
+
+            delta_hij_so = fobjs.mo_coeffs @ delta_hij_mo @ fobjs.mo_coeffs.T
+            delta_hij_center = Pc_ @ delta_hij_so
+            delta_hij_ao = fobjs.TA @ delta_hij_center @ fobjs.TA.T
+
+            delta_hijAO += delta_hij_ao
+
+            m_0_so = fobjs.mo_coeffs @ m_0_mo @ fobjs.mo_coeffs.T
+            m_0_center = Pc_ @ m_0_so
+            m_0_ao = fobjs.TA @ m_0_center @ fobjs.TA.T
+            M_0_AO += m_0_ao
+
+            delta_m_0_so = fobjs.mo_coeffs @ delta_m_0_mo @ fobjs.mo_coeffs.T
+            delta_m_0_center = Pc_ @ delta_m_0_so
+            delta_m_0_ao = fobjs.TA @ delta_m_0_center @ fobjs.TA.T
+            delta_M_0_AO += delta_m_0_ao
+
+            # Transform to the MO basis if needed
+            hijMO = self.C.T @ self.S @ hijAO @ self.S @ self.C
+            delta_hijMO = self.C.T @ self.S @ delta_hijAO @ self.S @ self.C
+
+            M0_MO = self.C.T @ self.S @ M_0_AO @ self.S @ self.C
+            delta_M0_MO = self.C.T @ self.S @ delta_M_0_AO @ self.S @ self.C
+
+        return (
+            hijAO,
+            delta_hijAO,
+            ip_full,
+            dyson_ip_full,
+            hijMO,
+            delta_hijMO,
+            dyson_ip_full_MO,
+            M0_MO,
+            delta_M0_MO,
+        )
+
+    def hij_full_koop(self, n_ex):
+        """Compute hij from Dyson orbitals - for averaged excited BE purposes.
+
+        ---Alexa: this is the original strategy, where we match Koop-BE
+        with EOM-BE and full system IPs
 
         Parameters
         ----------
@@ -957,18 +1198,18 @@ class BE:
         print("EOM-IP FRAGMENT REORDERING")
         print("Compute overlaps between Dyson orbital fragments: ")
 
-        # Reference Dyson left orbitals - fragment 5:
+        # Reference Dyson left orbitals - fragment 0:
         ref = self.Fobjs[0]
-        ref_dyson = ref.dyson_left
-        # ref_dyson = ref.dyson_ao
+        # ref_dyson = ref.dyson_left
+        ref_dyson = ref.dyson_ao
         # ref_dyson = ref.dyson_right
 
         all_mappings: List[Dict[int, int]] = []
         all_overlaps: List[ndarray] = []
 
         for frag_idx, fobj in enumerate(self.Fobjs):
-            frag_dyson = fobj.dyson_left
-            # frag_dyson = fobj.dyson_ao
+            # frag_dyson = fobj.dyson_left
+            frag_dyson = fobj.dyson_ao
             # frag_dyson = fobj.dyson_right
 
             mapping, ovlp, excluded = self.match_fragments(
@@ -986,9 +1227,11 @@ class BE:
             print("EXCLUDE: ")
             print(excluded)
             print(new_order)
+            fobj.new_order = new_order
 
             # fobj.dyson_left: in fragment SO basis
             # does state tracking hurt more than help?
+            # March 17th: REINTRODUCE STATE TRACKING AND EXCLUDING!
             # fobj.dyson_left = fobj.dyson_left[new_order, :]
             # fobj.dyson_right = fobj.dyson_right[new_order, :]
             # fobj.ex_e = fobj.ex_e[new_order]
@@ -1004,16 +1247,18 @@ class BE:
             ###NEW!
             # extra_koop=SO_occ-n_ex
 
+            extra = SO_occ - n_ex
+
             # fragment environment correction - simple Koopman's theorem IP
 
-            dyson_ip_frag = zeros((n_ex, nao))
+            dyson_ip_frag = zeros((n_ex + extra, nao))
 
-            dyson_ip_frag_ao = zeros((n_ex, nao))
+            dyson_ip_frag_ao = zeros((n_ex + extra, nao))
 
-            ip_frag = zeros(n_ex)
-            delta_ex = zeros(n_ex)
+            ip_frag = zeros(n_ex + extra)
+            delta_ex = zeros(n_ex + extra)
 
-            for i in range(n_ex):
+            for i in range(n_ex + extra):
                 ### TO DO: sometimes dyson orbital doesn't correspond to
                 # an excitation from HOMO->infty!!
                 # what can we do about double excitations?
@@ -1026,6 +1271,44 @@ class BE:
                 orbs = fobjs.TA @ fobjs.mo_coeffs
 
                 dyson_ip_frag_ao[i, :] = orbs[:, SO_occ - 1 - i]
+
+            ################################################################
+            # compute overlaps and reorder excitations
+            """print("Koop-IP-BE FRAGMENT REORDERING")
+            print("Compute overlaps between Dyson orbital fragments: ")
+
+            all_mappings: List[Dict[int, int]] = []
+            all_overlaps: List[ndarray] = []
+
+            # Reference Dyson left orbitals - fragment 0:
+            print(frag_number)
+            if frag_number==0:
+                ref_dyson_koop = dyson_ip_frag_ao
+
+            frag_dyson_koop = dyson_ip_frag_ao
+
+            mapping, ovlp, excluded = self.match_fragments(
+                ref_dyson_koop, frag_dyson_koop, n_ex, extra
+            )
+
+            all_mappings.append(mapping)
+            all_overlaps.append(ovlp)
+            print(f"[hij_full] fragment {frag_number} mapping to reference:")
+            for ri, fj in mapping.items():
+                print(f"  ref {ri} -> frag {fj} |ov|={abs(ovlp[ri, fj]):.6f}")
+
+            # reorder excitations to match fragment 0 (reference)
+            new_order = [mapping[i] for i in range(n_ex) if mapping[i] not in excluded]
+            print("EXCLUDE: ")
+            print(excluded)
+            print(new_order)
+
+            # fobj.dyson_left: in fragment SO basis
+            # does state tracking hurt more than help?
+
+            dyson_ip_frag = dyson_ip_frag[fobjs.new_order, :]
+            delta_ex = delta_ex[fobjs.new_order]"""
+            #################################################################
 
             exc = diag(fobjs.ex_e[:n_ex])
 
@@ -1076,6 +1359,7 @@ class BE:
             delta_hij_center = Pc_ @ delta_hij_so
             # delta_hij_center = Pc_ @ delta_hij_so @ Pc_
             delta_hij_ao = fobjs.TA @ delta_hij_center @ fobjs.TA.T
+
             delta_hijAO += delta_hij_ao
 
             # Symmetrize hij??
@@ -1939,11 +2223,19 @@ class BE:
             if pot is not None:
                 fobj.update_heff(pot)
 
+            # print("Fragment:", frag_number)
+            # print("BEFORE")
+
+            # print(fobj._mf.mo_coeff)
+            # print(fobj.mo_coeffs)
+
             # Perform SCF calculation
-            fobj.scf()
+            # fobj.scf() #-destroys the mo coeffs from the optimization...
 
             # export necessary information to Q-Chem
             mf = fobj._mf
+            print(mf.mo_coeff)
+            print(fobj.mo_coeffs)
 
             print("Fragment number: ", frag_number)
             ###numbers of electrons in:
@@ -2031,6 +2323,9 @@ class BE:
             full_mo_array = concatenate(
                 (flat_mos, flat_mos, mo_energies, mo_energies), axis=None
             )
+
+            print("MOs: ")
+            print(flat_mos)
 
             if not os.path.exists("files_EOM/scratch_fragment_" + str(frag_number)):
                 os.makedirs("files_EOM/scratch_fragment_" + str(frag_number))

@@ -2,7 +2,7 @@
 
 import re
 
-from numpy import array, linalg
+from numpy import array, sqrt
 
 
 def dyson_parser(fobj, output="eom.out", n_ex=15):
@@ -31,6 +31,18 @@ def dyson_parser(fobj, output="eom.out", n_ex=15):
 
     excitation_energies = [float(match[1]) for match in energy_pattern.findall(content)]
     excitation_energies = array(excitation_energies)
+
+    # Dyson norms
+    left_norms = [
+        float(x)
+        for x in re.findall(r"Left Dyson orbital norm is\s+([0-9Ee\+\-\.]+)", content)
+    ]
+    right_norms = [
+        float(x)
+        for x in re.findall(r"Right Dyson orbital norm is\s+([0-9Ee\+\-\.]+)", content)
+    ]
+    left_norms = array(left_norms)
+    right_norms = array(right_norms)
 
     # fixes bug FOR MO BASIS DYSON ORBITALS (where NAO>100)
 
@@ -86,7 +98,7 @@ def dyson_parser(fobj, output="eom.out", n_ex=15):
 
     coeff_matrix_right = array(coeff_matrix_right)
 
-    # extract Dyson orbitals (AO basis)
+    # extract Dyson orbitals (AO basis) - right Dyson orbital only - used for matching!
 
     blocks = []
     lines = content.splitlines()
@@ -94,7 +106,7 @@ def dyson_parser(fobj, output="eom.out", n_ex=15):
     i = 0
     while i < len(lines):
         if lines[i].startswith(
-            "Decomposition over AOs for the left alpha Dyson orbital:"
+            "Decomposition over AOs for the right alpha Dyson orbital:"
         ):
             i += 1
             coeffs = []
@@ -109,19 +121,16 @@ def dyson_parser(fobj, output="eom.out", n_ex=15):
 
     coeff_matrix_ao = array(blocks[:n_ex])
 
-    ###NEW: normalize MO basis Dyson orbitals!
-    for i in range(n_ex):
-        coeff_matrix_left[i, :] = coeff_matrix_left[i, :] / linalg.norm(
-            coeff_matrix_left[i, :]
-        )
-        coeff_matrix_right[i, :] = coeff_matrix_right[i, :] / linalg.norm(
-            coeff_matrix_right[i, :]
-        )
-
     # save results to fobj
-    fobj.ex_e = excitation_energies
-    fobj.dyson_left = coeff_matrix_left
-    fobj.dyson_right = coeff_matrix_right
+    # scale dyson orbitals by their sqrt(norms)!
+    fobj.ex_e = excitation_energies[:n_ex]
+    fobj.dyson_left = sqrt(left_norms[:n_ex][:, None]) * coeff_matrix_left
+    fobj.dyson_right = sqrt(right_norms[:n_ex][:, None]) * coeff_matrix_right
+    # fobj.dyson_left = coeff_matrix_left
+    # fobj.dyson_right = coeff_matrix_right
     fobj.dyson_ao = coeff_matrix_ao
+
+    fobj.norm_left = left_norms[:n_ex]
+    fobj.norm_right = right_norms[:n_ex]
 
     return
