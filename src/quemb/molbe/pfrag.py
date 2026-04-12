@@ -292,6 +292,7 @@ class Frags:
             U, _, Vt = np.linalg.svd(H, full_matrices=False)
             R = U @ Vt
             
+            self.TA_ao_no = lao @ lmo @ R
             self.TA_lo_eo = lmo @ R @ self.eq_fobj.eigvecs.T
             self.TA = lao @ lmo @ R @ self.eq_fobj.eigvecs.T
             # environment stuff
@@ -421,6 +422,7 @@ class Frags:
         eigvecs = eigvecs[:, idx]
 
         self.eigvecs = eigvecs
+        self.TA_ao_no = self.TA @ eigvecs
 
         try:
             mo_coeffs = scipy.linalg.svd(C_)[0]

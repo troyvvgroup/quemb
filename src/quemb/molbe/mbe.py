@@ -274,6 +274,7 @@ class BE:
         self.ompnum = ompnum
         self.integral_transform = int_transform
         self.auxbasis = auxbasis
+        self.int_transform = int_transform
         self.thr_bath = thr_bath
         self.eq_fobjs = eq_fobjs
         self.S_cross = S_cross
@@ -542,6 +543,7 @@ class BE:
                 rdm1_eo = fobjs.mo_coeffs @ fobjs.rdm1__ @ fobjs.mo_coeffs.T
                 rdm1_center = Pc_ @ rdm1_eo
                 rdm1_ao = fobjs.TA @ rdm1_center @ fobjs.TA.T
+
                 rdm1AO += rdm1_ao
 
             if not only_rdm1:

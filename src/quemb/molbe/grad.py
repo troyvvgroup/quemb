@@ -1,4 +1,8 @@
+from pyscf.dft import numint
+from matplotlib.colors import LogNorm
+from matplotlib.ticker import MaxNLocator
 import matplotlib.pyplot as plt
+from pyscf.tools import cubegen
 from pyscf import mp
 import copy
 import numpy as np
@@ -123,15 +127,57 @@ class BEGrad:
             be = BE( 
                 displaced_mf,
                 self.ref_be_obj.fobj,
+                int_transform=self.ref_be_obj.int_transform,
+                auxbasis = self.ref_be_obj.auxbasis,
                 lo_method=self.ref_be_obj.lo_method,
                 eq_fobjs=self.ref_be_obj.Fobjs,
                 S_cross=S_cross,
                 gradient_orb_space=self.gradient_orb_space,
                 scratch_dir=workdir,
-                initialize_fragment_idx = [frag_idx]
+                #initialize_fragment_idx = [frag_idx]
             )
 
             fobj = be.Fobjs[frag_idx]
+            #if frag_idx == 1:
+            #    Pocc = self.ref_be_obj.Fobjs[frag_idx].eigvecs.T @ fobj.TA.T @ be.S @ be.C[:,:be.Nocc] @ be.C[:,:be.Nocc].T @ be.S @ fobj.TA @ self.ref_be_obj.Fobjs[frag_idx].eigvecs
+                #fragment_rdm1_ao = fobj.TA @ fobj._mf.make_rdm1() @ fobj.TA.T
+                #rdm1_difference = displaced_mf.make_rdm1() - fragment_rdm1_ao
+
+                #C_pert = fobj.TA_ao_no.copy()
+                #C_ref = self.ref_be_obj.Fobjs[frag_idx].TA_ao_no
+
+                #overlap = C_pert.T @ S_cross @ C_ref
+
+                ## Fix orbital signs so diagonal overlaps are positive
+                #for p in range(min(overlap.shape[0], overlap.shape[1])):
+                #    if overlap[p, p] < 0:
+                #        C_pert[:, p] *= -1
+
+                ## Recompute after sign fixing
+                #overlap = C_pert.T @ S_cross @ C_ref
+
+             #   plt.figure(figsize=(10, 8))
+
+             #   im = plt.imshow(
+             #       np.abs(Pocc),
+             #       origin="upper",
+             #       cmap="magma",
+             #       norm=LogNorm(vmin=1e-12, vmax=1e0)
+             #   )
+             #   plt.xticks([])
+             #   plt.yticks([])
+             #   cbar = plt.colorbar(im)
+             #   cbar.ax.tick_params(labelsize=25)
+
+             #   ax=plt.gca()
+             #   ax.axhline(self.ref_be_obj.Fobjs[frag_idx].nsocc-0.5, color="white", linewidth=2)
+             #   ax.axvline(self.ref_be_obj.Fobjs[frag_idx].nsocc-0.5, color="white", linewidth=2)
+
+             #   plt.tight_layout()
+             #   plt.savefig("overlap_deviation_heatmap.png", dpi=600)
+             #   plt.close()
+             #   sys.exit()
+
             e_corr = self._compute_frag(fobj, self.ref_be_obj.solver)
 
             return atom_idx, xyz, sign, displaced_e_hf, e_corr, be.Fobjs[frag_idx]._mf.e_tot
