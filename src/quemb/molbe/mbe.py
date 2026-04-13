@@ -900,9 +900,6 @@ class BE:
         if method == "QN":
             # Prepare the initial Jacobian matrix
             if jac_solver == "Numerical":
-                # J0 = self.get_be_error_jacobian_numerical(
-                #    only_chem, solver, relax_density, solver_args, use_cumulant
-                # ) # TODO: nproc logic
                 J0 = self.compute_numerical_jacobian(solver, only_chem, nproc)
             else:
                 if only_chem:
