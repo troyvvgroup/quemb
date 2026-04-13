@@ -33,12 +33,12 @@ class Test_Num_Jac(unittest.TestCase):
         beobj = self.build_BE_object(mol, n_BE=2)
 
         beobj.optimize(
-            solver="CCSD", only_chem=False, jac_solver="Numerical", nproc=48, ompnum=8
+            solver="MP2", only_chem=False, jac_solver="Numerical", nproc=48, ompnum=8
         )
         analytical_ebe = beobj.ebe_tot
 
         beobj.optimize(
-            solver="CCSD", only_chem=False, jac_solver="HF", nproc=48, ompnum=8
+            solver="MP2", only_chem=False, jac_solver="HF", nproc=48, ompnum=8
         )
         numerical_ebe = beobj.ebe_tot
 

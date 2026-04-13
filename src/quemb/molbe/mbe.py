@@ -43,6 +43,7 @@ from quemb.molbe.lo import (
     remove_core_mo,
 )
 from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
+from quemb.molbe.numerical_jac import compute_numerical_jacobian
 from quemb.molbe.opt import BEOPT
 from quemb.molbe.pfrag import Frags, union_of_frag_MOs_and_index
 from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
@@ -129,6 +130,8 @@ class BE:
     lo_method :
         Method for orbital localization, default is "lowdin".
     """
+
+    compute_numerical_jacobian = compute_numerical_jacobian
 
     @timer.timeit
     def __init__(
@@ -897,9 +900,10 @@ class BE:
         if method == "QN":
             # Prepare the initial Jacobian matrix
             if jac_solver == "Numerical":
-                J0 = self.get_be_error_jacobian_numerical(
-                    only_chem, solver, relax_density, solver_args, use_cumulant
-                )
+                # J0 = self.get_be_error_jacobian_numerical(
+                #    only_chem, solver, relax_density, solver_args, use_cumulant
+                # ) # TODO: nproc logic
+                J0 = self.compute_numerical_jacobian(solver, only_chem, nproc)
             else:
                 if only_chem:
                     J0 = array([[0.0]])
@@ -936,75 +940,6 @@ class BE:
     @copy_docstring(_ext_get_be_error_jacobian)
     def get_be_error_jacobian(self, jac_solver: str = "HF") -> Matrix[float64]:
         return _ext_get_be_error_jacobian(self.fobj.n_frag, self.Fobjs, jac_solver)
-
-    def get_be_error_jacobian_numerical(
-        self,
-        only_chem: bool,
-        solver: Solvers,
-        relax_density: bool,
-        solver_args: UserSolverArgs | None,
-        use_cumulant: bool,
-    ) -> Matrix[float64]:
-        """
-        Obtain the Jacobian matrix for BE Optimization using numerical differentiation.
-        (First-order Central Finite Differences)
-        """
-        step_size = 1e-6  # from frankenstein
-
-        def be_func_err(x: list[float] | None) -> float:
-            if self.nproc == 1:
-                return be_func(
-                    x,
-                    self.Fobjs,
-                    self.Nocc,
-                    solver,
-                    self.enuc,
-                    only_chem=only_chem,
-                    relax_density=relax_density,
-                    scratch_dir=self.scratch_dir,
-                    solver_args=solver_args,
-                    use_cumulant=use_cumulant,
-                    eeval=False,
-                    return_vec=True,
-                )[1]
-            else:  # parallel
-                return be_func_parallel(
-                    x,
-                    self.Fobjs,
-                    self.Nocc,
-                    solver,
-                    self.enuc,
-                    only_chem=only_chem,
-                    nproc=self.nproc,
-                    ompnum=self.ompnum,
-                    relax_density=relax_density,
-                    scratch_dir=self.scratch_dir,
-                    solver_args=solver_args,
-                    use_cumulant=use_cumulant,
-                    eeval=True,  # Fix after #264 resolves
-                    return_vec=True,
-                )[1]
-
-        if only_chem:
-            return array(
-                [
-                    (be_func_err([step_size]) - be_func_err([-step_size]))
-                    / (2 * step_size)
-                ]
-            )
-        else:
-            # TODO consider parallel dispatch
-            n_param = len(self.pot)
-            J = zeros((n_param, n_param))
-            for i in range(n_param):
-                x_plus = [0.0] * n_param
-                x_minus = [0.0] * n_param
-                x_plus[i] = step_size
-                x_minus[i] = -step_size
-                J[:, i] = (array(be_func_err(x_plus)) - array(be_func_err(x_minus))) / (
-                    2 * step_size
-                )
-            return J
 
     def print_ini(self):
         """
