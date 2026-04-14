@@ -546,7 +546,7 @@ def be_func(
             total_e = [sum(x) for x in zip(total_e, e_f)]
             fobj.update_ebe_hf()
 
-            Ecorr = sum(total_e)
+    Ecorr = sum(total_e)
 
     if eeval and not return_vec:
         return (Ecorr, total_e)
