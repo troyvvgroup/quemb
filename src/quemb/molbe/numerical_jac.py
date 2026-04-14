@@ -2,15 +2,16 @@
 # To save compute, we only compute the fragments that contain the edges
 # or edges connected to the perturbed fragment's origin.
 
-from numpy import ndarray, zeros, zeros_like
+from numpy import floating, zeros, zeros_like
 
 from quemb.molbe.be_parallel import be_func_parallel, run_solver
 from quemb.molbe.solver import Solvers, be_func, solve_error
+from quemb.shared.typing import Vector
 
 
 def compute_numerical_jacobian(
     beobj, solver: Solvers, only_chem: bool, nproc: int
-) -> ndarray:
+) -> Vector[floating]:
     """Compute the numerical Jacobian for the BE optimization.
 
     This function computes the numerical Jacobian by perturbing the potentials
@@ -19,13 +20,13 @@ def compute_numerical_jacobian(
 
     Parameters
     ----------
-    beobj : BE
+    beobj
         The BE object.
-    solver : Solvers
+    solver
         The solver to use for the computation.
-    only_chem : bool
+    only_chem
         Whether to compute only the chemical potential part of the Jacobian.
-    nproc : int
+    nproc
         Number of processors to use for parallel computation.
 
     Returns
