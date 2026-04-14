@@ -1,6 +1,5 @@
 # Numerical Jacobian Routine
 # To save compute, we only compute the fragments that contain the edges
-# or edges connected to the perturbed fragment's origin.
 
 from numpy import floating, zeros, zeros_like
 
