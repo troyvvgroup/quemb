@@ -6,12 +6,12 @@ from numpy import floating, zeros, zeros_like
 
 from quemb.molbe.be_parallel import be_func_parallel, run_solver
 from quemb.molbe.solver import Solvers, be_func, solve_error
-from quemb.shared.typing import Vector
+from quemb.shared.typing import Matrix
 
 
 def compute_numerical_jacobian(
     beobj, solver: Solvers, only_chem: bool, nproc: int
-) -> Vector[floating]:
+) -> Matrix[floating]:
     """Compute the numerical Jacobian for the BE optimization.
 
     This function computes the numerical Jacobian by perturbing the potentials
