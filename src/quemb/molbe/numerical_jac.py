@@ -31,7 +31,7 @@ def compute_numerical_jacobian(
 
     Returns
     -------
-    ndarray
+    numpy.ndarray
         The computed numerical Jacobian matrix.
     """
     step_size = 1e-6  # from frankenstein
