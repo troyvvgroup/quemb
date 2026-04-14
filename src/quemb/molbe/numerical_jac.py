@@ -81,8 +81,8 @@ def compute_numerical_jacobian(
             scratch_dir=beobj.scratch_dir,
             solver_args=None,
             use_cumulant=True,
-            eeval=False,
-            return_vec=False,
+            eeval=True,  # Fix after #264 resolves
+            return_vec=True,
         )
 
     # Save zero-potential 1-RDMs
