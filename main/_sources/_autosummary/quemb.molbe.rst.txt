@@ -40,6 +40,7 @@
    mbe
    mf_interfaces
    misc
+   numerical_jac
    opt
    pfrag
    solver

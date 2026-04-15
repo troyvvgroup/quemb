@@ -1,0 +1,32 @@
+quemb.molbe.numerical\_jac
+==========================
+
+.. automodule:: quemb.molbe.numerical_jac
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      calc_heff
+      chem_pot_dispatch
+      compute_numerical_jacobian
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

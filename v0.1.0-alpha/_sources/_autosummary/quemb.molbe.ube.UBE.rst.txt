@@ -19,8 +19,8 @@ quemb.molbe.ube.UBE
    
       ~UBE.__init__
       ~UBE.compute_energy_full
+      ~UBE.compute_numerical_jacobian
       ~UBE.get_be_error_jacobian
-      ~UBE.get_be_error_jacobian_numerical
       ~UBE.initialize
       ~UBE.localize
       ~UBE.oneshot

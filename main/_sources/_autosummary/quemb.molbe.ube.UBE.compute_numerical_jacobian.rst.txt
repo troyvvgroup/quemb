@@ -1,0 +1,6 @@
+quemb.molbe.ube.UBE.compute\_numerical\_jacobian
+================================================
+
+.. currentmodule:: quemb.molbe.ube
+
+.. automethod:: UBE.compute_numerical_jacobian

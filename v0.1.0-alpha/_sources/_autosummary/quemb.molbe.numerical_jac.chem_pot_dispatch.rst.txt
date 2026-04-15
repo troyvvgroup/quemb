@@ -1,0 +1,6 @@
+quemb.molbe.numerical\_jac.chem\_pot\_dispatch
+==============================================
+
+.. currentmodule:: quemb.molbe.numerical_jac
+
+.. autofunction:: chem_pot_dispatch
