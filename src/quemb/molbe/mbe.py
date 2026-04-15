@@ -1073,7 +1073,7 @@ class BE:
                 file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
         elif int_transform == "int-direct-DF":
             ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-            fobj_list = [self.Fobjs[i] for i in initialize_fragment_idx]
+            fobj_list = [self.Fobjs[I] for I in initialize_fragment_idx]
             integral_direct_DF(self.mf, fobj_list, file_eri, auxbasis=self.auxbasis)
         elif int_transform == "sparse-DF":
             ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")

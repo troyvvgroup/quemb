@@ -246,7 +246,7 @@ class BEGrad:
         be_obj.Fobjs[fidx].TA = TA
         be_obj.Fobjs[fidx].nao = TA.shape[1]
         # ERI Transform
-        with h5py.File(be_obj.eri_file, "w+") as file_eri:
+        with h5py.File(be_obj.eri_file, "r+") as file_eri:
             del file_eri[
                 be_obj.Fobjs[fidx].dname
             ]  # delete the existing ERI dataset for the fragment
@@ -256,7 +256,7 @@ class BEGrad:
                 file_eri,
                 initialize_fragment_idx=[fidx],
             )
-        eri = array(file_eri.get(be_obj.Fobjs[fidx].dname))
+            eri = array(file_eri.get(be_obj.Fobjs[fidx].dname))
         eri = restore(8, eri, be_obj.Fobjs[fidx].nao)
         be_obj.Fobjs[fidx].cons_fock(be_obj.hf_veff, be_obj.S, be_obj.hf_dm, eri_=eri)
         # this implicitly changes P_env
