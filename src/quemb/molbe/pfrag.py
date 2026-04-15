@@ -198,14 +198,6 @@ class Frags:
             )
             self.TA = lao @ self.TA_lo_eo
             self.lao = lao
-            print(f"assigning lmo")
-            self.lmo = lmo
-
-            TA = self.TA
-
-            needs_orthogonalization = not np.allclose(TA.T @ S @ TA, np.eye(TA.shape[1]), atol=1e-10)
-            print("does TA need orthgonalization?")
-            print(needs_orthogonalization)
 
         elif gradient_orb_space == "beck-simple":
             self.Dhf = lmo[:, :nocc] @ lmo[:,:nocc].T
@@ -227,31 +219,6 @@ class Frags:
             #self.TA = np.linalg.solve( S, S_cross @ self.eq_fobj.TA )
             self.n_f = self.eq_fobj.n_f
 
-        elif gradient_orb_space == "ao-basis":
-            C_occ = C[:, :nocc]
-            C_virt = C[:, nocc:]
-
-            nsocc = self.eq_fobj.nsocc
-            nvirt = self.eq_fobj.TA_lo_eo.shape[1] - self.eq_fobj.nsocc
-
-            H_occ = (
-                C_occ.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs[:, :nsocc]
-            )
-            H_virt = (
-                C_virt.T @ S_cross @ self.eq_fobj.TA @ self.eq_fobj.eigvecs[:, nsocc:]
-            )
-
-            zero_top_right = np.zeros((H_occ.shape[0], H_virt.shape[1]))
-            zero_bottom_left = np.zeros((H_virt.shape[0], H_occ.shape[1]))
-
-            H = np.block([[H_occ, zero_top_right], [zero_bottom_left, H_virt]])
-
-            U, singular_values, Vt = np.linalg.svd(H, full_matrices=False)
-
-            self.TA = C @ U @ Vt @ self.eq_fobj.eigvecs.T
-
-            self.n_f = self.eq_fobj.n_f
-            
         elif gradient_orb_space == "basis-set-projection":
             # project basis
             self.TA = np.linalg.inv(S) @ S_cross @ self.eq_fobj.TA
@@ -289,81 +256,33 @@ class Frags:
             nsocc = self.eq_fobj.nsocc
 
             H = lmo.T @ lo_lo_overlap @ TA_ref
-            self.H = H
             H[:nocc, nsocc:] = 0
             H[nocc:, :nsocc] = 0
 
             U, _, Vt = np.linalg.svd(H, full_matrices=False)
             R = U @ Vt
             
-            self.TA_ao_no = lao @ lmo @ R
-            self.TA_lo_eo = lmo @ R @ self.eq_fobj.eigvecs.T
             self.TA = lao @ lmo @ R @ self.eq_fobj.eigvecs.T
-            # environment stuff
-            P_fb = self.TA_lo_eo @ self.TA_lo_eo.T # lo eo x eo lo = lo lo 
-            self.TAenv_lo_eo = lmo - P_fb @ lmo
-
             self.n_f = self.eq_fobj.n_f
-        elif gradient_orb_space == "mimic-existing-approach":
-            # first, run a normal schmidt decomposition
-            (
-                self.Dhf,
-                self.TA_lo_eo,
-                self.TAenv_lo_eo,
-                self.TAfull_lo_eo,
-                self.n_f,
-                self.n_b,
-            ) = schmidt_decomposition(
-                lmo,
-                nocc,
-                self.AO_in_frag,
-                thr_bath=thr_bath,
-            )
-            # separate the perturbed TAfull into occupied and virtual
-            C_ = multi_dot((self.TAfull_lo_eo.T, S, C[:,:nocc]))
-            P_ = C_ @ C_.T
-            eigvals, eigvecs = np.linalg.eigh(P_)
-            idx = np.argsort(eigvals)[::-1]
-            eigvecs_pert = eigvecs[:, idx]
-
+        elif gradient_orb_space == "block-diagonal":
+            self.Dhf = C[:,:nocc] @ C[:,:nocc].T
+            TA_ref = self.eq_fobj.TA @ self.eq_fobj.eigvecs
             nsocc = self.eq_fobj.nsocc
-            lo_lo_overlap = lao.T @ S_cross @ self.eq_fobj.lao
-            TA_ref = self.eq_fobj.TA_lo_eo @ self.eq_fobj.eigvecs
-            TA_pert = self.TAfull_lo_eo @ eigvecs_pert
 
-            H = TA_pert.T @ lo_lo_overlap @ TA_ref
-            H[:nocc, nsocc:] = 0
+            H = C.T @ S_cross @ TA_ref
+            H[:nocc,nsocc:] = 0
             H[nocc:, :nsocc] = 0
 
             U, _, Vt = np.linalg.svd(H, full_matrices=False)
             R = U @ Vt
 
-            self.TA_lo_eo = TA_pert @ U @ Vt @ self.eq_fobj.eigvecs.T
-            self.TA = lao @ self.TA_lo_eo
+            self.TA = C @ R @ self.eq_fobj.eigvecs.T
+            self.n_f = self.eq_fobj.n_f
 
         else:
             assert_never(gradient_orb_space)
 
         self.nao = self.TA.shape[1]
-        
-        # determine fragment occupation
-        #TA_fragment = self.TA_lo_eo[:,:self.n_f]
-        #D_fragment = TA_fragment.T @ self.Dhf @ TA_fragment
-        #self.fragment_total_occ = np.trace(D_fragment)
-        #self.fragment_orbital_occs = np.diag(D_fragment)
-        # determine bath occupation
-        #TA_bath = self.TA_lo_eo[:, self.n_f:]
-        #D_bath = TA_bath.T @ self.Dhf @ TA_bath
-        #self.bath_total_occ = np.trace(D_bath)
-        #self.bath_orbital_occs = np.diag(D_bath)
-        # determine env occupation
-        #D_env = self.TAenv_lo_eo.T @ self.Dhf @ self.TAenv_lo_eo
-        #self.env_total_occ = np.trace(D_env)
-        #self.env_orbital_occs = np.diag(D_env)
-        # determine schmidt occupation
-        #TA_schmidt = self.TA_lo_eo
-        #D_schmidt = TA_schmidt.T @ self.Dhf @ TA_schmidt
-        #self.schmidt_total_occ = np.trace(D_schmidt)
 
     def cons_fock(self, hf_veff, S, dm, eri_=None):
         """

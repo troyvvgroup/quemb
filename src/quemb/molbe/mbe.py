@@ -242,7 +242,6 @@ class BE:
             only for the specified fragments.
             The selective initialization faciliates projects that extend quemb.
         """
-        print(f"mf._eri in BE object is {mf._eri}")
         if restart:
             # Load previous calculation data from restart file
             with open(restart_file, "rb") as rfile:

@@ -142,7 +142,6 @@ class BEGrad:
         coords = self.coords0 + disp
         displaced_mol = self.ref_be_obj.mf.mol.copy()
         displaced_mol.set_geom_(coords, unit="Bohr")
-        displaced_mol.build()
         displaced_mol.incore_anyway = True
 
         displaced_mf = scf.RHF(displaced_mol)
@@ -154,7 +153,6 @@ class BEGrad:
         rand = "".join(random.choices(string.ascii_lowercase, k=8))
         with WorkDir.from_environment(prefix=rand + "_") as workdir:
             frag_idx = self.frag_per_atom[atom_idx]
-            print(f"displaced_mf._eri is {displaced_mf._eri}")
             be = BE( # outcore df can be done here, would need to move out of the parallelization for other dfs initialize GDF object, look at periodic code  
                 displaced_mf,
                 self.ref_be_obj.fobj,
@@ -211,7 +209,6 @@ class BEGrad:
         self.grad_corr = grad_corr
         self.grad_hf = grad_hf
 
-        np.savetxt('fragment_Hamiltonian_HF_energies.txt', fragment_Hamiltonian_HF_energies, fmt='%.12e')
         return grad_corr, grad_hf
 
     def set_reference(self, grad_hf_ref, grad_corr_ref):
