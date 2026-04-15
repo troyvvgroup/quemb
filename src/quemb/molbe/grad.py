@@ -5,15 +5,15 @@ from re import findall
 from typing import Literal, TypeAlias
 
 import h5py
-from numpy import block, diag, float64, zeros, zeros_like
-from numpy.linalg import eigh, inv, multi_dot, svd
+from numpy import array, diag, float64, zeros, zeros_like
+from numpy.linalg import inv, multi_dot
 from pathos.pools import ProcessPool
 from pyscf import gto
-from pyscf.ao2mo import incore, restore
+from pyscf.ao2mo import restore
 from pyscf.cc import CCSD
 from pyscf.scf import RHF
 
-from quemb.molbe.helper import corr_orbital, corr_orbital_frag_idx, get_eri, get_scfObj
+from quemb.molbe.helper import get_eri, get_scfObj
 from quemb.molbe.mbe import BE
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import Solvers, UserSolverArgs
@@ -52,7 +52,6 @@ class BEGrad:
     def set_grad_method(
         self,
         grad_method: Grad_Method,
-        alignment: Literal["corr_full", "no_alignment"] | None = "corr_full",
     ):
         self._grad_method = grad_method
         self.displacement_vector_list = self._displacement_vector_list(
@@ -60,7 +59,7 @@ class BEGrad:
         )
         if "force" in grad_method:
             self.displaced_pfrags = self._force_displaced_pfrags(
-                self.displacement_vector_list, alignment=alignment
+                self.displacement_vector_list
             )
         elif "energy" in grad_method:
             pass  # energy embedding does not require preparation of displaced pfrags
@@ -203,7 +202,6 @@ class BEGrad:
     def _force_displaced_pfrags(
         self,
         displacement_vector_list: list[list[float]],
-        alignment: Literal["corr_full", "no_alignment"] = "corr_full",
     ) -> list[Frags]:
         """Prepare displaced BE objects"""
         displaced_pfrags = []
@@ -212,227 +210,65 @@ class BEGrad:
             fragidx = self.ref_be_obj.fobj.fragmented.get_frag_per_atom()[atomidx]
             for disp in displacement_vector_list:
                 displaced_be_obj = self._build_displaced_be_objs(
-                    atomidx, disp
-                )  # TODO: reinstate after upstream fix,
-                # initialize_fragment_idx = [fragidx])
+                    atomidx, disp, initialize_fragment_idx=[fragidx]
+                )
                 s2inv = inv(displaced_be_obj.S)
-                if alignment == "corr_full":
-                    # Corresponding Orbital Transformation to reference geometry
-                    cot = corr_orbital_frag_idx(
+                # Basis projection of reference TA to perturbed geometry
+                cross_ovlp = gto.intor_cross(
+                    "int1e_ovlp", displaced_be_obj.mf.mol, self.ref_be_obj.mf.mol
+                )
+                basis_proj_TA = multi_dot(
+                    (
+                        s2inv,
+                        cross_ovlp,
+                        self.ref_be_obj.Fobjs[fragidx].TA,
+                    )
+                )
+                # Orthonormalize
+                basis_proj_TA = symm_orth(basis_proj_TA, 1e-6, displaced_be_obj.S)
+                displaced_pfrags.append(
+                    self._update_pfrag_with_TA(
                         displaced_be_obj,
-                        self.ref_be_obj,
-                        idx_list=[fragidx],
-                    )[0]
-                    cot = cot[0] @ cot[2]  # Σ = U @ V^T
-                    aligned_TA = displaced_be_obj.Fobjs[fragidx].TA @ cot
-                    displaced_pfrags.append(
-                        self._update_pfrag_with_TA(
-                            displaced_be_obj.Fobjs[fragidx],
-                            aligned_TA,
-                            displaced_be_obj.eri_file,
-                            displaced_be_obj.hcore,
-                            displaced_be_obj.hf_veff,
-                            displaced_be_obj.S,
-                            displaced_be_obj.hf_dm,
-                            displaced_be_obj.mf._eri,
-                        )
+                        fragidx,
+                        basis_proj_TA,
                     )
-                elif alignment == "mop_noo":  # MO(perturbed) x NO(ref)
-                    # This version tracks Carina's original implementation.
-                    # It performs COT between the perturbed MOs and
-                    # reference embedding space NOs
-                    cross_ovlp = gto.intor_cross(
-                        "int1e_ovlp", displaced_be_obj.mf.mol, self.ref_be_obj.mf.mol
-                    )
-
-                    # Evaluate natural orbitals for the reference fragment
-                    emb_nocc = self.ref_be_obj.Fobjs[fragidx].nsocc
-                    no_occ, no_coeff_in_EObasis = eigh(
-                        self.ref_be_obj.Fobjs[fragidx].dm0
-                    )  # numpy eigh returns ascending order
-                    no_occ = no_occ[::-1]
-                    no_coeff_in_EObasis = no_coeff_in_EObasis[
-                        :, ::-1
-                    ]  # reverse to descending order
-                    no_occ = [
-                        2 * (x < emb_nocc) for x in range(len(no_occ))
-                    ]  # peg to exactly 2
-                    no_in_AObasis = (
-                        self.ref_be_obj.Fobjs[fragidx].TA @ no_coeff_in_EObasis
-                    )
-
-                    # Note that Carina's version enforces block diagonal form for
-                    # occ-virt separation unlike what is done here.
-                    cot = corr_orbital(displaced_be_obj.C, no_in_AObasis, cross_ovlp)
-                    cot = cot[0] @ cot[2]  # Σ = U @ V^T
-
-                    aligned_TA = displaced_be_obj.C @ cot @ no_coeff_in_EObasis.T
-                    displaced_pfrags.append(
-                        self._update_pfrag_with_TA(
-                            displaced_be_obj.Fobjs[fragidx],
-                            aligned_TA,
-                            displaced_be_obj.eri_file,
-                            displaced_be_obj.hcore,
-                            displaced_be_obj.hf_veff,
-                            displaced_be_obj.S,
-                            displaced_be_obj.hf_dm,
-                            displaced_be_obj.mf._eri,
-                        )
-                    )
-                elif alignment == "mop_noo_forceblk":  # MO(perturbed) x NO(ref)
-                    # This version tracks Carina's original implementation.
-                    # It performs COT between the perturbed MOs and
-                    # reference embedding space NOs
-                    cross_ovlp = gto.intor_cross(
-                        "int1e_ovlp", displaced_be_obj.mf.mol, self.ref_be_obj.mf.mol
-                    )
-
-                    # Evaluate natural orbitals for the reference fragment
-                    emb_nocc = self.ref_be_obj.Fobjs[fragidx].nsocc
-                    no_occ, no_coeff_in_EObasis = eigh(
-                        self.ref_be_obj.Fobjs[fragidx].dm0
-                    )  # numpy eigh returns ascending order
-                    no_occ = no_occ[::-1]
-                    no_coeff_in_EObasis = no_coeff_in_EObasis[
-                        :, ::-1
-                    ]  # reverse to descending order
-                    no_occ = [
-                        2 * (x < emb_nocc) for x in range(len(no_occ))
-                    ]  # peg to exactly 2
-                    no_in_AObasis = (
-                        self.ref_be_obj.Fobjs[fragidx].TA @ no_coeff_in_EObasis
-                    )
-
-                    # Force block diagonal form for cross overlap
-                    cross_ovlp = block(
-                        [
-                            [
-                                multi_dot(
-                                    (
-                                        displaced_be_obj.C[
-                                            :, : displaced_be_obj.Nocc
-                                        ].T,
-                                        cross_ovlp,
-                                        no_in_AObasis[:, :emb_nocc],
-                                    )
-                                ),
-                                zeros(
-                                    (
-                                        displaced_be_obj.Nocc,
-                                        no_in_AObasis.shape[1] - emb_nocc,
-                                    )
-                                ),
-                            ],
-                            [
-                                zeros(
-                                    (
-                                        displaced_be_obj.C.shape[1]
-                                        - displaced_be_obj.Nocc,
-                                        emb_nocc,
-                                    )
-                                ),
-                                multi_dot(
-                                    (
-                                        displaced_be_obj.C[
-                                            :, displaced_be_obj.Nocc :
-                                        ].T,
-                                        cross_ovlp,
-                                        no_in_AObasis[:, emb_nocc:],
-                                    )
-                                ),
-                            ],
-                        ]
-                    )
-                    cot = svd(cross_ovlp, full_matrices=False)
-                    cot = cot[0] @ cot[2]  # Σ = U @ V^T
-
-                    aligned_TA = displaced_be_obj.C @ cot @ no_coeff_in_EObasis.T
-                    displaced_pfrags.append(
-                        self._update_pfrag_with_TA(
-                            displaced_be_obj.Fobjs[fragidx],
-                            aligned_TA,
-                            displaced_be_obj.eri_file,
-                            displaced_be_obj.hcore,
-                            displaced_be_obj.hf_veff,
-                            displaced_be_obj.S,
-                            displaced_be_obj.hf_dm,
-                            displaced_be_obj.mf._eri,
-                        )
-                    )
-                elif alignment == "basis_proj":
-                    # Basis projection of reference TA to perturbed geometry
-                    cross_ovlp = gto.intor_cross(
-                        "int1e_ovlp", displaced_be_obj.mf.mol, self.ref_be_obj.mf.mol
-                    )
-                    basis_proj_TA = multi_dot(
-                        (
-                            s2inv,
-                            cross_ovlp,
-                            self.ref_be_obj.Fobjs[fragidx].TA,
-                        )
-                    )
-                    # Orthonormalize
-                    basis_proj_TA = symm_orth(basis_proj_TA, 1e-6, displaced_be_obj.S)
-                    displaced_pfrags.append(
-                        self._update_pfrag_with_TA(
-                            displaced_be_obj.Fobjs[fragidx],
-                            basis_proj_TA,
-                            displaced_be_obj.eri_file,
-                            displaced_be_obj.hcore,
-                            displaced_be_obj.hf_veff,
-                            displaced_be_obj.S,
-                            displaced_be_obj.hf_dm,
-                            displaced_be_obj.mf._eri,
-                        )
-                    )
-                elif alignment == "no_alignment":
-                    displaced_pfrags.append(displaced_be_obj.Fobjs[fragidx])
-                else:
-                    raise NotImplementedError(
-                        f"Unsupported alignment method: {alignment}"
-                    )
+                )
         return displaced_pfrags
 
     def _update_pfrag_with_TA(
         self,
-        frag_obj: Frags,
+        be_obj: Frags,
+        fidx: int,
         TA: Matrix[float64],
-        eri_file: PathLike,
-        h1: Matrix[float64],
-        hf_veff: Matrix[float64],  # noqa: ARG002
-        ao_ovlp: Matrix[float64],
-        hf_dm: Matrix[float64],
-        ao_eri: Matrix[float64] | None = None,
     ) -> Frags:
         """Update the pfrag object with the aligned TA"""
         # TODO: Parallelize after checking pickle-ability
-        frag_obj.TA = TA
-        frag_obj.nao = TA.shape[1]
+        be_obj.Fobjs[fidx].TA = TA
+        be_obj.Fobjs[fidx].nao = TA.shape[1]
         # ERI Transform
-        # TODO: Support other types of ERI transformation.
-        file_eri = h5py.File(eri_file, "r+")
-        del file_eri[frag_obj.dname]  # delete the existing ERI dataset for the fragment
-        eri_eo = incore.full(ao_eri, TA, compact=True)
-        file_eri.create_dataset(frag_obj.dname, data=eri_eo)
-        frag_obj.h1 = multi_dot((TA.T, h1, TA))
-        eri_eo = restore(8, eri_eo, frag_obj.nao)
-        # P_emb = TA.T @ ao_ovlp @ hf_dm @ ao_ovlp @ TA  # HF 1-RDM in embedding space
-        # P_env = hf_dm - TA @ P_emb @ TA.T  # Environment 1-RDM in AO basis
-        # vj, vk = dot_eri_dm(ao_eri, P_env, hermi=1)
-        # frag_obj.veff = TA.T @ (vj - vk * 0.5) @ TA
-        # frag_obj.fock = frag_obj.h1 + frag_obj.veff
-        frag_obj.cons_fock(hf_veff, ao_ovlp, hf_dm, eri_=eri_eo)
+        with h5py.File(be_obj.eri_file, "w+") as file_eri:
+            del file_eri[
+                be_obj.Fobjs[fidx].dname
+            ]  # delete the existing ERI dataset for the fragment
+            be_obj._eri_transform(
+                be_obj.integral_transform,
+                be_obj.mf._eri,
+                file_eri,
+                initialize_fragment_idx=[fidx],
+            )
+        eri = array(file_eri.get(be_obj.Fobjs[fidx].dname))
+        eri = restore(8, eri, be_obj.Fobjs[fidx].nao)
+        be_obj.Fobjs[fidx].cons_fock(be_obj.hf_veff, be_obj.S, be_obj.hf_dm, eri_=eri)
         # this implicitly changes P_env
-        frag_obj.heff = zeros_like(frag_obj.h1)
+        be_obj.Fobjs[fidx].heff = zeros_like(be_obj.Fobjs[fidx].h1)
         # TODO: Set _mo_coeffs appropriately (get_nsocc)
-        frag_obj.scf(fs=True, eri=eri_eo)
-        frag_obj.dm0 = 2.0 * (
-            frag_obj._mo_coeffs[:, : frag_obj.nsocc]
-            @ frag_obj._mo_coeffs[:, : frag_obj.nsocc].T
+        be_obj.Fobjs[fidx].scf(fs=True, eri=eri)
+        be_obj.Fobjs[fidx].dm0 = 2.0 * (
+            be_obj.Fobjs[fidx]._mo_coeffs[:, : be_obj.Fobjs[fidx].nsocc]
+            @ be_obj.Fobjs[fidx]._mo_coeffs[:, : be_obj.Fobjs[fidx].nsocc].T
         )
-        frag_obj.update_ebe_hf()
-        file_eri.close()
-        return frag_obj
+        be_obj.Fobjs[fidx].update_ebe_hf()
+        return be_obj.Fobjs[fidx]
 
     def _build_displaced_be_objs(
         self,
@@ -482,9 +318,7 @@ class BEGrad:
             MO_coeff_epsilon=self.ref_be_obj.MO_coeff_epsilon,
             AO_coeff_epsilon=self.ref_be_obj.AO_coeff_epsilon,
             initialize_fragment_idx=initialize_fragment_idx,
-        )  # TODO: avoid unnecessary integral transformation in the future.
-        #       This would require modification of the BE class to allow
-        #       lazy initialization.
+        )
 
         return displaced_be_obj
 
