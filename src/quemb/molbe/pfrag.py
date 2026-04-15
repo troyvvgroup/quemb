@@ -20,10 +20,10 @@ from numpy import (
     zeros,
     zeros_like,
 )
-from numpy.linalg import eigh, multi_dot
+from numpy.linalg import eigh, multi_dot, inv
 from scipy.linalg import svd
 from typing_extensions import Self, assert_never
-
+from quemb.shared.external.lo_helper import symm_orth
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
 from quemb.shared.helper import clean_overlap
 from quemb.shared.typing import (
@@ -220,7 +220,11 @@ class Frags:
             self.TAenv_lo_eo = lmo - P_fb @ lmo
 
         elif gradient_orb_space == "beck-project":
-            self.TA = np.linalg.solve( S, S_cross @ self.eq_fobj.TA )
+            basis_proj_TA = multi_dot((inv(S), S_cross,self.eq_fobj.TA))
+            self.TA = symm_orth(basis_proj_TA, 1e-6, S)
+
+
+            #self.TA = np.linalg.solve( S, S_cross @ self.eq_fobj.TA )
             self.n_f = self.eq_fobj.n_f
 
         elif gradient_orb_space == "ao-basis":
@@ -342,25 +346,24 @@ class Frags:
 
         self.nao = self.TA.shape[1]
         
-        # diagnostics
         # determine fragment occupation
-        TA_fragment = self.TA_lo_eo[:,:self.n_f]
-        D_fragment = TA_fragment.T @ self.Dhf @ TA_fragment
-        self.fragment_total_occ = np.trace(D_fragment)
-        self.fragment_orbital_occs = np.diag(D_fragment)
+        #TA_fragment = self.TA_lo_eo[:,:self.n_f]
+        #D_fragment = TA_fragment.T @ self.Dhf @ TA_fragment
+        #self.fragment_total_occ = np.trace(D_fragment)
+        #self.fragment_orbital_occs = np.diag(D_fragment)
         # determine bath occupation
-        TA_bath = self.TA_lo_eo[:, self.n_f:]
-        D_bath = TA_bath.T @ self.Dhf @ TA_bath
-        self.bath_total_occ = np.trace(D_bath)
-        self.bath_orbital_occs = np.diag(D_bath)
+        #TA_bath = self.TA_lo_eo[:, self.n_f:]
+        #D_bath = TA_bath.T @ self.Dhf @ TA_bath
+        #self.bath_total_occ = np.trace(D_bath)
+        #self.bath_orbital_occs = np.diag(D_bath)
         # determine env occupation
-        D_env = self.TAenv_lo_eo.T @ self.Dhf @ self.TAenv_lo_eo
-        self.env_total_occ = np.trace(D_env)
-        self.env_orbital_occs = np.diag(D_env)
+        #D_env = self.TAenv_lo_eo.T @ self.Dhf @ self.TAenv_lo_eo
+        #self.env_total_occ = np.trace(D_env)
+        #self.env_orbital_occs = np.diag(D_env)
         # determine schmidt occupation
-        TA_schmidt = self.TA_lo_eo
-        D_schmidt = TA_schmidt.T @ self.Dhf @ TA_schmidt
-        self.schmidt_total_occ = np.trace(D_schmidt)
+        #TA_schmidt = self.TA_lo_eo
+        #D_schmidt = TA_schmidt.T @ self.Dhf @ TA_schmidt
+        #self.schmidt_total_occ = np.trace(D_schmidt)
 
     def cons_fock(self, hf_veff, S, dm, eri_=None):
         """
@@ -474,6 +477,7 @@ class Frags:
                 self._mo_coeffs[:, : self.nsocc]
                 @ self._mo_coeffs[:, : self.nsocc].conj().T
             )
+            self.dm0 = dm0
 
         mf_ = get_scfObj(self.fock + heff, eri, self.nsocc, dm0=dm0)
         if not fs:

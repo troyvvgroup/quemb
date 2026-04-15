@@ -18,6 +18,35 @@ import sys
 import random
 import string
 
+def get_reference(mf, solver="CCSD"):
+    grad_hf = mf.Gradients()
+    grad_hf.verbose = 0
+    grad_hf.kernel()
+
+    grad_hf_ref = grad_hf.de
+
+    if solver == "CCSD":
+        print("Computing CCSD reference gradient")
+        mycc = cc.CCSD(mf)
+        mycc.kernel()
+        grad_ccsd = mycc.nuc_grad_method()
+        grad_corr_ref = grad_ccsd.kernel()
+
+    if solver == "FCI":
+        print("Computing FCI reference gradient")
+        mc = mcscf.CASCI(mf, ncas=mf.mo_coeff.shape[1], nelecas=sum(mf.mol.nelec))
+        mc.kernel()
+        grad_fci = mc.nuc_grad_method()
+        grad_corr_ref = grad_fci.kernel()
+
+    if solver == "MP2":
+        print("Computing MP2 reference gradient")
+        mymp2 = mp.MP2(mf)
+        mymp2.kernel()
+        grad_mp2 = mymp2.nuc_grad_method()
+        grad_corr_ref = grad_mp2.kernel()
+    return grad_hf_ref, grad_corr_ref
+
 
 class BEGrad:
     """
@@ -114,6 +143,7 @@ class BEGrad:
         displaced_mol = self.ref_be_obj.mf.mol.copy()
         displaced_mol.set_geom_(coords, unit="Bohr")
         displaced_mol.build()
+        displaced_mol.incore_anyway = True
 
         displaced_mf = scf.RHF(displaced_mol)
         displaced_mf.kernel() # using self.ref_be_obj.hf_dm as the initial guess changes the result
@@ -124,7 +154,8 @@ class BEGrad:
         rand = "".join(random.choices(string.ascii_lowercase, k=8))
         with WorkDir.from_environment(prefix=rand + "_") as workdir:
             frag_idx = self.frag_per_atom[atom_idx]
-            be = BE( 
+            print(f"displaced_mf._eri is {displaced_mf._eri}")
+            be = BE( # outcore df can be done here, would need to move out of the parallelization for other dfs initialize GDF object, look at periodic code  
                 displaced_mf,
                 self.ref_be_obj.fobj,
                 int_transform=self.ref_be_obj.int_transform,
@@ -134,50 +165,10 @@ class BEGrad:
                 S_cross=S_cross,
                 gradient_orb_space=self.gradient_orb_space,
                 scratch_dir=workdir,
-                #initialize_fragment_idx = [frag_idx]
+                initialize_fragment_idx = [frag_idx]
             )
 
             fobj = be.Fobjs[frag_idx]
-            #if frag_idx == 1:
-            #    Pocc = self.ref_be_obj.Fobjs[frag_idx].eigvecs.T @ fobj.TA.T @ be.S @ be.C[:,:be.Nocc] @ be.C[:,:be.Nocc].T @ be.S @ fobj.TA @ self.ref_be_obj.Fobjs[frag_idx].eigvecs
-                #fragment_rdm1_ao = fobj.TA @ fobj._mf.make_rdm1() @ fobj.TA.T
-                #rdm1_difference = displaced_mf.make_rdm1() - fragment_rdm1_ao
-
-                #C_pert = fobj.TA_ao_no.copy()
-                #C_ref = self.ref_be_obj.Fobjs[frag_idx].TA_ao_no
-
-                #overlap = C_pert.T @ S_cross @ C_ref
-
-                ## Fix orbital signs so diagonal overlaps are positive
-                #for p in range(min(overlap.shape[0], overlap.shape[1])):
-                #    if overlap[p, p] < 0:
-                #        C_pert[:, p] *= -1
-
-                ## Recompute after sign fixing
-                #overlap = C_pert.T @ S_cross @ C_ref
-
-             #   plt.figure(figsize=(10, 8))
-
-             #   im = plt.imshow(
-             #       np.abs(Pocc),
-             #       origin="upper",
-             #       cmap="magma",
-             #       norm=LogNorm(vmin=1e-12, vmax=1e0)
-             #   )
-             #   plt.xticks([])
-             #   plt.yticks([])
-             #   cbar = plt.colorbar(im)
-             #   cbar.ax.tick_params(labelsize=25)
-
-             #   ax=plt.gca()
-             #   ax.axhline(self.ref_be_obj.Fobjs[frag_idx].nsocc-0.5, color="white", linewidth=2)
-             #   ax.axvline(self.ref_be_obj.Fobjs[frag_idx].nsocc-0.5, color="white", linewidth=2)
-
-             #   plt.tight_layout()
-             #   plt.savefig("overlap_deviation_heatmap.png", dpi=600)
-             #   plt.close()
-             #   sys.exit()
-
             e_corr = self._compute_frag(fobj, self.ref_be_obj.solver)
 
             return atom_idx, xyz, sign, displaced_e_hf, e_corr, be.Fobjs[frag_idx]._mf.e_tot
@@ -223,76 +214,10 @@ class BEGrad:
         np.savetxt('fragment_Hamiltonian_HF_energies.txt', fragment_Hamiltonian_HF_energies, fmt='%.12e')
         return grad_corr, grad_hf
 
-    def set_reference(self, mf, solver="CCSD"):
-        grad_hf = mf.Gradients()
-        grad_hf.verbose = 0
-        grad_hf.kernel()
+    def set_reference(self, grad_hf_ref, grad_corr_ref):
+        self.grad_hf_ref = grad_hf_ref
+        self.grad_corr_ref = grad_corr_ref
 
-        self.grad_hf_ref = grad_hf.de
-
-        if solver == "CCSD":
-            print("Computing CCSD reference gradient")
-            mycc = cc.CCSD(mf)
-            mycc.kernel()
-            grad_ccsd = mycc.nuc_grad_method()
-            self.grad_corr_ref = grad_ccsd.kernel()
-
-        if solver == "FCI":
-            print("Computing FCI reference gradient")
-            mc = mcscf.CASCI(mf, ncas=mf.mo_coeff.shape[1], nelecas=sum(mf.mol.nelec))
-            mc.kernel()
-            grad_fci = mc.nuc_grad_method()
-            self.grad_corr_ref = grad_fci.kernel()
-
-        if solver == "MP2":
-            print("Computing MP2 reference gradient")
-            mymp2 = mp.MP2(mf)
-            mymp2.kernel()
-            grad_mp2 = mymp2.nuc_grad_method()
-            self.grad_corr_ref = grad_mp2.kernel()
-
-        if solver == "CCSD(T)":
-            print("Computing CCSD(T) reference gradient by finite differences")
-
-            mol0 = mf.mol
-            coords0 = mol0.atom_coords()
-            natm = mol0.natm
-            delta = self.delta
-
-            grad_ccsdt = np.zeros((natm, 3))
-
-            for atom_idx in range(natm):
-                for xyz in range(3):
-                    e_plus = None
-                    e_minus = None
-
-                    for sign in (+1, -1):
-                        disp = np.zeros((natm, 3))
-                        disp[atom_idx, xyz] = sign * delta
-
-                        mol_disp = mol0.copy()
-                        mol_disp.set_geom_(coords0 + disp, unit="Bohr")
-                        mol_disp.build()
-
-                        mf_disp = scf.RHF(mol_disp)
-                        mf_disp.verbose = 0
-                        mf_disp.kernel()
-
-                        mycc = cc.CCSD(mf_disp)
-                        mycc.verbose = 0
-                        mycc.kernel()
-                        et = mycc.ccsd_t()
-
-                        e_tot = mycc.e_tot + et
-
-                        if sign == +1:
-                            e_plus = e_tot
-                        else:
-                            e_minus = e_tot
-                    grad_ccsdt[atom_idx, xyz] = (e_plus - e_minus) / (2 * delta)
-
-            self.grad_corr_ref = grad_ccsdt
-        
     def compute_rmse(self, which="both"):
         """
         Compute RMSE between computed and reference gradients.
