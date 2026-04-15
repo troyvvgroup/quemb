@@ -9,7 +9,7 @@ from quemb.shared.typing import Matrix
 
 
 def compute_numerical_jacobian(
-    beobj, solver: Solvers, only_chem: bool, nproc: int
+    beobj, solver: Solvers, only_chem: bool, nproc: int, step_size: float = 1e-6
 ) -> Matrix[floating]:
     """Compute the numerical Jacobian for the BE optimization.
 
@@ -33,7 +33,6 @@ def compute_numerical_jacobian(
     numpy.ndarray
         The computed numerical Jacobian matrix.
     """
-    step_size = 1e-6  # from frankenstein
     # Prepare space to store the Jacobian
     J0 = zeros((len(beobj.pot), len(beobj.pot)))
 

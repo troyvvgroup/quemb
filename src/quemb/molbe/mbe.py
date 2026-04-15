@@ -814,6 +814,7 @@ class BE:
         ompnum: int = 4,
         max_iter: int = 500,
         trust_region: bool = False,
+        step_size: float = 1e-6,
         solver_args: UserSolverArgs | None = None,
     ) -> None:
         """BE optimization function
@@ -852,6 +853,8 @@ class BE:
             Options include HF, MP2, CCSD
         trust_region :
             Use trust-region based QN optimization, by default False
+        step_size :
+            Step size used in Numerical Jacobian routine, by default 1e-6
         """
         # Check if only chemical potential optimization is required
         if not only_chem:
@@ -900,7 +903,9 @@ class BE:
         if method == "QN":
             # Prepare the initial Jacobian matrix
             if jac_solver == "Numerical":
-                J0 = self.compute_numerical_jacobian(solver, only_chem, nproc)
+                J0 = self.compute_numerical_jacobian(
+                    solver, only_chem, nproc, step_size=step_size
+                )
             else:
                 if only_chem:
                     J0 = array([[0.0]])
