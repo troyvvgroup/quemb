@@ -1135,7 +1135,9 @@ class BE:
             assert_never(int_transform)
 
     @timer.timeit
-    def _initialize_fragments(self, file_eri: h5py.File, restart: bool):
+    def _initialize_fragments(
+        self, file_eri: h5py.File, restart: bool, initialize_fragment_idx: list[int]
+    ):
         """
         Processes all molecular fragments by constructing their Fock matrices,
         performing SCF, and computing fragment Hartree–Fock (HF) energies.
@@ -1155,10 +1157,16 @@ class BE:
             HDF5 file containing fragment ERIs.
         restart : bool
             If True, skips ERI transformation and file closure.
+        initialize_fragment_idx: list[int]
+            List of fragment indices to initialize.
+            If this list is NOT the full list of fragments, HF-in-HF is skipped.
         """
+        # check if selective initialization of fragments is requested
+        all_frag_init = set(initialize_fragment_idx) == set(range(len(self.Fobjs)))
 
         E_hf = 0.0
-        for fobjs_ in self.Fobjs:
+        for fidx in initialize_fragment_idx:
+            fobjs_ = self.Fobjs[fidx]
             eri = array(file_eri.get(fobjs_.dname))
             _ = fobjs_.get_nsocc(self.S, self.C, self.Nocc, ncore=self.ncore)
 
@@ -1184,7 +1192,7 @@ class BE:
         self.ebe_hf = E_hf + self.enuc + self.E_core
         hf_err = self.hf_etot - self.ebe_hf
         print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
-        if abs(hf_err) > 1.0e-5:
+        if all_frag_init and abs(hf_err) > 1.0e-5:
             warn("Large HF-in-HF energy error")
 
         if self.re_eval_HF:
@@ -1240,7 +1248,7 @@ class BE:
             file_eri = h5py.File(self.eri_file, "w")
             self._eri_transform(int_transform, eri_, file_eri, initialize_fragment_idx)
 
-        self._initialize_fragments(file_eri, restart)
+        self._initialize_fragments(file_eri, restart, initialize_fragment_idx)
 
         if not restart:
             file_eri.close()
