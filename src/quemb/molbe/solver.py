@@ -680,7 +680,7 @@ def be_func_u(
     return (E, total_e)
 
 
-def solve_error(Fobjs, Nocc, only_chem=False):
+def solve_error(Fobjs, Nocc, only_chem=False, rdm1_list=None):
     """
     Compute the error for self-consistent fragment density matrix matching.
 
@@ -702,51 +702,68 @@ def solve_error(Fobjs, Nocc, only_chem=False):
     numpy.ndarray
         Error vector.
     """
+    override_1rdm = rdm1_list is not None  # use provided 1-RDM instead
 
     err_edge = []
     err_chempot = 0.0
 
     if only_chem:
-        for fobj in Fobjs:
+        for fidx, fobj in enumerate(Fobjs):
             # Compute chemical potential error for each fragment
             for i in fobj.weight_and_relAO_per_center[1]:
-                err_chempot += fobj._rdm1[i, i]
+                if override_1rdm:
+                    err_chempot += rdm1_list[fidx][i, i]
+                else:
+                    err_chempot += fobj._rdm1[i, i]
         err_chempot /= Fobjs[0].unitcell_nkpt
         err = err_chempot - Nocc
 
         return abs(err), asarray([err])
 
     # Compute edge and chemical potential errors
-    for fobj in Fobjs:
+    for fidx, fobj in enumerate(Fobjs):
         # match rdm-edge
         for edge in fobj.relAO_per_edge:
             for j_ in range(len(edge)):
                 for k_ in range(len(edge)):
                     if j_ > k_:
                         continue
-                    err_edge.append(fobj._rdm1[edge[j_], edge[k_]])
+                    if override_1rdm:
+                        err_edge.append(rdm1_list[fidx][edge[j_], edge[k_]])
+                    else:
+                        err_edge.append(fobj._rdm1[edge[j_], edge[k_]])
         # chem potential
         for i in fobj.weight_and_relAO_per_center[1]:
-            err_chempot += fobj._rdm1[i, i]
+            if override_1rdm:
+                err_chempot += rdm1_list[fidx][i, i]
+            else:
+                err_chempot += fobj._rdm1[i, i]
 
     err_chempot /= Fobjs[0].unitcell_nkpt
     err_edge.append(err_chempot)  # far-end edges are included as err_chempot
 
     # Compute center errors
     err_cen = []
-    for findx, fobj in enumerate(Fobjs):
+    for fobj in Fobjs:
         # Match RDM for centers
-        for cindx, cens in enumerate(fobj.relAO_in_ref_per_edge):
+        for cidx, cens in enumerate(fobj.relAO_in_ref_per_edge):
             lenc = len(cens)
             for j_ in range(lenc):
                 for k_ in range(lenc):
                     if j_ > k_:
                         continue
-                    err_cen.append(
-                        Fobjs[fobj.ref_frag_idx_per_edge[cindx]]._rdm1[
-                            cens[j_], cens[k_]
-                        ]
-                    )
+                    if override_1rdm:
+                        err_cen.append(
+                            rdm1_list[fobj.ref_frag_idx_per_edge[cidx]][
+                                cens[j_], cens[k_]
+                            ]
+                        )
+                    else:
+                        err_cen.append(
+                            Fobjs[fobj.ref_frag_idx_per_edge[cidx]]._rdm1[
+                                cens[j_], cens[k_]
+                            ]
+                        )
 
     err_cen.append(Nocc)
     err_edge = array(err_edge)

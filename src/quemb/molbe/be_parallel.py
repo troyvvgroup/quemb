@@ -297,10 +297,14 @@ def run_solver(
             use_cumulant,
             eri_file,
         )
-    if eeval and not ret_vec:
-        return e_f
 
-    return (e_f, mf_.mo_coeff, rdm1, rdm2s, rdm1_tmp)
+    if eeval:
+        if ret_vec:
+            return (e_f, mf_.mo_coeff, rdm1, rdm2s, rdm1_tmp)
+        else:
+            return e_f
+    else:
+        return (None, mf_.mo_coeff, rdm1, None, rdm1_tmp)
 
 
 def run_solver_u(
