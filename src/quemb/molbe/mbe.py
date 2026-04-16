@@ -300,6 +300,7 @@ class BE:
         if initialize_fragment_idx is not None and int_transform not in [
             "in-core",
             "out-core-DF",
+            "int-direct-DF",
         ]:
             raise NotImplementedError(
                 "Selective fragment initialization is only implemented for 'in-core'"
