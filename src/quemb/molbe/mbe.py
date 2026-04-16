@@ -302,8 +302,8 @@ class BE:
             "out-core-DF",
         ]:
             raise NotImplementedError(
-                "Selective fragment initialization is only implemented for 'in-core' "
-                "and 'out-core-DF' integral transformations."
+                "Selective fragment initialization is only implemented for 'in-core'"
+                ", 'out-core-DF', and 'int-direct-DF' integral transformations."
             )
 
         initialize_fragment_idx = (
@@ -1010,7 +1010,12 @@ class BE:
                 file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
         elif int_transform == "int-direct-DF":
             ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-            integral_direct_DF(self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis)
+            integral_direct_DF(
+                self.mf,
+                [self.Fobjs[I] for I in initialize_fragment_idx],
+                file_eri,
+                auxbasis=self.auxbasis,
+            )
         elif int_transform == "sparse-DF":
             ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
             transform_sparse_DF_integral_cpu(
