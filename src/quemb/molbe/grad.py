@@ -1,3 +1,5 @@
+import os
+import time
 from pyscf.dft import numint
 from matplotlib.colors import LogNorm
 from matplotlib.ticker import MaxNLocator
@@ -72,16 +74,20 @@ class BEGrad:
     # =========================
     def _generate_displacements(self):
         natm = self.mol.natm
-        disps = []
+        return [(atom_idx, xyz) for atom_idx in range(natm) for xyz in range(3)]
 
-        for atom_idx in range(natm):
-            for xyz in range(3):
-                for sign in (+1, -1):
-                    vec = np.zeros((natm, 3))
-                    vec[atom_idx, xyz] = sign * self.delta
-                    disps.append((atom_idx, xyz, sign, vec))
+    #def _generate_displacements(self):
+    #    natm = self.mol.natm
+    #    disps = []
 
-        return disps
+    #    for atom_idx in range(natm):
+    #        for xyz in range(3):
+    #            for sign in (+1, -1):
+    #                vec = np.zeros((natm, 3))
+    #                vec[atom_idx, xyz] = sign * self.delta
+    #                disps.append((atom_idx, xyz, sign, vec))
+
+    #    return disps
 
     # =========================
     # Fragment solver
@@ -137,39 +143,95 @@ class BEGrad:
     # Worker
     # =========================
     def _worker(self, task):
-        atom_idx, xyz, sign, disp = task
+        atom_idx, xyz = task
+        out = {}
+    
+        for sign in (+1, -1):
+            disp = np.zeros((self.mol.natm, 3))
+            disp[atom_idx, xyz] = sign * self.delta
+    
+            coords = self.coords0 + disp
+            displaced_mol = self.ref_be_obj.mf.mol.copy()
+            displaced_mol.set_geom_(coords, unit="Bohr")
+            displaced_mol.incore_anyway = True
+    
+            start = time.time()
+            displaced_mf = scf.RHF(displaced_mol)
+            displaced_mf.kernel() # using self.ref_be_obj.hf_dm changes the result
+            print(f"time on displaced mf {sign:+d} {time.time()-start:.12e}")
+    
+            displaced_e_hf = displaced_mf.e_tot
+            S_cross = gto.intor_cross("int1e_ovlp", displaced_mol, self.mol)
+    
+            rand = "".join(random.choices(string.ascii_lowercase, k=8))
+            with WorkDir.from_environment(prefix=rand + "_") as workdir:
+                frag_idx = self.frag_per_atom[atom_idx]
+                start = time.time()
+                be = BE(
+                    displaced_mf,
+                    self.ref_be_obj.fobj,
+                    int_transform=self.ref_be_obj.int_transform,
+                    auxbasis=self.ref_be_obj.auxbasis,
+                    lo_method=self.ref_be_obj.lo_method,
+                    eq_fobjs=self.ref_be_obj.Fobjs,
+                    S_cross=S_cross,
+                    gradient_orb_space=self.gradient_orb_space,
+                    scratch_dir=workdir,
+                    initialize_fragment_idx=[frag_idx]
+                )
+                print(f"time on perturbed be {sign:+d} {time.time()-start:.12e}", flush=True)
+    
+                fobj = be.Fobjs[frag_idx]
+    
+                start = time.time()
+                e_corr = self._compute_frag(fobj, self.ref_be_obj.solver)
+                print(f"time on perturbed ecorr {sign:+d} {time.time()-start:.12e}", flush=True)
+    
+                out[sign] = (displaced_e_hf, e_corr, be.Fobjs[frag_idx]._mf.e_tot)
+    
+        return atom_idx, xyz, out
+    
+    #def _worker(self, task):
+    #    atom_idx, xyz, sign, disp = task
 
-        coords = self.coords0 + disp
-        displaced_mol = self.ref_be_obj.mf.mol.copy()
-        displaced_mol.set_geom_(coords, unit="Bohr")
-        displaced_mol.incore_anyway = True
+    #    coords = self.coords0 + disp
+    #    displaced_mol = self.ref_be_obj.mf.mol.copy()
+    #    displaced_mol.set_geom_(coords, unit="Bohr")
+    #    displaced_mol.incore_anyway = True
 
-        displaced_mf = scf.RHF(displaced_mol)
-        displaced_mf.kernel() # using self.ref_be_obj.hf_dm as the initial guess changes the result
-        displaced_e_hf = displaced_mf.e_tot
+    #    start = time.time()
+    #    displaced_mf = scf.RHF(displaced_mol)
+    #    displaced_mf.kernel(self.ref_be_obj.hf_dm) # using self.ref_be_obj.hf_dm as the initial guess changes the result
+    #    print(f"time on displaced mf {time.time()-start:.12e}")
+    #    displaced_e_hf = displaced_mf.e_tot
 
-        S_cross = gto.intor_cross("int1e_ovlp", displaced_mol, self.mol)
+    #    S_cross = gto.intor_cross("int1e_ovlp", displaced_mol, self.mol)
 
-        rand = "".join(random.choices(string.ascii_lowercase, k=8))
-        with WorkDir.from_environment(prefix=rand + "_") as workdir:
-            frag_idx = self.frag_per_atom[atom_idx]
-            be = BE( # outcore df can be done here, would need to move out of the parallelization for other dfs initialize GDF object, look at periodic code  
-                displaced_mf,
-                self.ref_be_obj.fobj,
-                int_transform=self.ref_be_obj.int_transform,
-                auxbasis = self.ref_be_obj.auxbasis,
-                lo_method=self.ref_be_obj.lo_method,
-                eq_fobjs=self.ref_be_obj.Fobjs,
-                S_cross=S_cross,
-                gradient_orb_space=self.gradient_orb_space,
-                scratch_dir=workdir,
-                initialize_fragment_idx = [frag_idx]
-            )
+    #    prefix = f"a{atom_idx}_x{xyz}_s{sign}_pid{os.getpid()}_"
+    #    with WorkDir.from_environment(prefix=prefix) as workdir:
+    #        frag_idx = self.frag_per_atom[atom_idx]
+    #        start = time.time()
+    #        be = BE(  
+    #            displaced_mf,
+    #            self.ref_be_obj.fobj,
+    #            int_transform=self.ref_be_obj.int_transform,
+    #            auxbasis = self.ref_be_obj.auxbasis,
+    #            lo_method=self.ref_be_obj.lo_method,
+    #            eq_fobjs=self.ref_be_obj.Fobjs,
+    #            S_cross=S_cross,
+    #            gradient_orb_space=self.gradient_orb_space,
+    #            scratch_dir=workdir,
+    #            initialize_fragment_idx = [frag_idx]
+    #        )
+    #        print(f"time on perturbed be {time.time()-start:.12e}", flush=True)
 
-            fobj = be.Fobjs[frag_idx]
-            e_corr = self._compute_frag(fobj, self.ref_be_obj.solver)
+    #        fobj = be.Fobjs[frag_idx]
 
-            return atom_idx, xyz, sign, displaced_e_hf, e_corr, be.Fobjs[frag_idx]._mf.e_tot
+    #        start = time.time()
+    #        e_corr = self._compute_frag(fobj, self.ref_be_obj.solver)
+    #        print(f"time on perturbed ecorr {time.time()-start:.12e}", flush=True)
+
+    #        return atom_idx, xyz, sign, displaced_e_hf, e_corr, be.Fobjs[frag_idx]._mf.e_tot
 
     # =========================
     # Gradient computation
@@ -177,34 +239,59 @@ class BEGrad:
     def compute_grad(self, nproc=16):
         displacements = self._generate_displacements()
 
-        #results = list(map(self._worker, displacements))
-        with Pool(nproc) as p:
-            results = p.map(self._worker, displacements)
+        results = list(map(self._worker, displacements))
+        # with Pool(nproc) as p:
+        #     results = p.map(self._worker, displacements)
 
         natm = self.mol.natm
         grad_corr = np.zeros((natm, 3))
         grad_hf = np.zeros((natm, 3))
 
-        # collect
-        results_dict = {}
         fragment_Hamiltonian_HF_energies = []
-        for atom_idx, xyz, sign, e_hf, e_corr, fragment_Hamiltonian_HF_energy in results:
-            results_dict.setdefault((atom_idx, xyz), {})[sign] = (e_hf, e_corr)
-            fragment_Hamiltonian_HF_energies.append(fragment_Hamiltonian_HF_energy)
 
-        # finite difference
-        for (atom_idx, xyz), vals in results_dict.items():
+        for atom_idx, xyz, vals in results:
             if +1 not in vals or -1 not in vals:
                 raise RuntimeError(f"Missing displacement for {atom_idx},{xyz}")
 
-            e_plus_hf, e_plus_corr = vals[+1]
-            e_minus_hf, e_minus_corr = vals[-1]
+            e_plus_hf, e_plus_corr, hf_frag_plus = vals[+1]
+            e_minus_hf, e_minus_corr, hf_frag_minus = vals[-1]
+
+            fragment_Hamiltonian_HF_energies.extend([hf_frag_plus, hf_frag_minus])
 
             grad_corr[atom_idx, xyz] = (
                 (e_plus_hf + e_plus_corr) - (e_minus_hf + e_minus_corr)
             ) / (2 * self.delta)
 
             grad_hf[atom_idx, xyz] = (e_plus_hf - e_minus_hf) / (2 * self.delta)
+    
+        #results = list(map(self._worker, displacements))
+        #with Pool(nproc) as p:
+        #    results = p.map(self._worker, displacements)
+
+        #natm = self.mol.natm
+        #grad_corr = np.zeros((natm, 3))
+        #grad_hf = np.zeros((natm, 3))
+
+        # collect
+        #results_dict = {}
+        #fragment_Hamiltonian_HF_energies = []
+        #for atom_idx, xyz, sign, e_hf, e_corr, fragment_Hamiltonian_HF_energy in results:
+        #    results_dict.setdefault((atom_idx, xyz), {})[sign] = (e_hf, e_corr)
+        #    fragment_Hamiltonian_HF_energies.append(fragment_Hamiltonian_HF_energy)
+
+        # finite difference
+        #for (atom_idx, xyz), vals in results_dict.items():
+        #    if +1 not in vals or -1 not in vals:
+        #        raise RuntimeError(f"Missing displacement for {atom_idx},{xyz}")
+
+        #    e_plus_hf, e_plus_corr = vals[+1]
+        #    e_minus_hf, e_minus_corr = vals[-1]
+
+        #    grad_corr[atom_idx, xyz] = (
+        #        (e_plus_hf + e_plus_corr) - (e_minus_hf + e_minus_corr)
+        #    ) / (2 * self.delta)
+
+        #    grad_hf[atom_idx, xyz] = (e_plus_hf - e_minus_hf) / (2 * self.delta)
 
         self.grad_corr = grad_corr
         self.grad_hf = grad_hf

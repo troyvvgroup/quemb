@@ -191,13 +191,12 @@ class Frags:
                 self.n_f,
                 self.n_b,
             ) = schmidt_decomposition(
-                lmo,
+                lmo, 
                 nocc,
                 self.AO_in_frag,
                 thr_bath=thr_bath,
             )
             self.TA = lao @ self.TA_lo_eo
-            self.lao = lao
 
         elif gradient_orb_space == "beck-simple":
             self.Dhf = lmo[:, :nocc] @ lmo[:,:nocc].T
@@ -396,7 +395,6 @@ class Frags:
                 self._mo_coeffs[:, : self.nsocc]
                 @ self._mo_coeffs[:, : self.nsocc].conj().T
             )
-            self.dm0 = dm0
 
         mf_ = get_scfObj(self.fock + heff, eri, self.nsocc, dm0=dm0)
         if not fs:
