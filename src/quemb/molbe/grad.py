@@ -19,35 +19,180 @@ from quemb.molbe.chemfrag import Fragmented
 import sys
 import random
 import string
+import pickle
+from quemb.molbe.mf_interfaces.main import load_scf, dump_scf
+from quemb.molbe.chemfrag import ChemGenArgs
 
-def get_reference(mf, solver="CCSD"):
-    grad_hf = mf.Gradients()
-    grad_hf.verbose = 0
-    grad_hf.kernel()
+def get_e_corr_displaced(ref_be_obj, displaced_coords, embedding_type, gradient_orb_space, atom_idx):
+    displaced_mol = ref_be_obj["mol_ref"].copy()
+    displaced_mol.set_geom_(displaced_coords, unit="Bohr")
+    displaced_mol.incore_anyway = True
+    
+    displaced_mf = get_mf(displaced_mol, auxbasis=ref_be_obj["auxbasis"])
+    displaced_e_hf = displaced_mf.e_tot
 
-    grad_hf_ref = grad_hf.de
+    if embedding_type=="force":
+        S_cross = gto.intor_cross("int1e_ovlp", displaced_mol, ref_be_obj["mol_ref"])
+        frag_idx = ref_be_obj["frag_per_atom"][atom_idx]
+        be = BE(
+            displaced_mf,
+            ref_be_obj["fobj"],
+            int_transform=ref_be_obj["int_transform"],
+            auxbasis=ref_be_obj["auxbasis"],
+            lo_method=ref_be_obj["lo_method"],
+            eq_fobjs=ref_be_obj["Fobjs"],
+            S_cross=S_cross,
+            gradient_orb_space=gradient_orb_space,
+            initialize_fragment_idx = [frag_idx], 
+        )
+        fobj = be.Fobjs[frag_idx]
+        eri = get_eri(fobj.dname, fobj.nao, eri_file=fobj.eri_file)
+        fobj._mf = get_scfObj(fobj.fock, eri, fobj.nsocc, dm0=fobj.dm0.copy())
+    
+        mc = cc.CCSD(fobj._mf)
+        mc.verbose = 0
+        mc.incore_complete = True
+    
+        eri_embmo = mc.ao2mo()
+        eri_embmo.mo_energy = fobj._mf.mo_energy
+        eri_embmo.fock = np.diag(fobj._mf.mo_energy)
+    
+        mc.kernel(eris=eri_embmo)
+        print(f"Did CCSD converge? {mc.converged}", flush=True)
+        e_corr = mc.e_tot - fobj._mf.e_tot
+    
+    elif embedding_type in ("energy_noncumulant", "energy_cumulant"):
+        be = BE(
+            displaced_mf,
+            ref_be_obj["fobj"],
+            int_transform=ref_be_obj["int_transform"],
+            auxbasis=ref_be_obj["auxbasis"],
+            lo_method=ref_be_obj["lo_method"],
+        )
+    
+        if embedding_type=="energy_noncumulant":
+            be.oneshot(solver="CCSD",use_cumulant=False)
+        elif embedding_type=="energy_cumulant":
+            be.oneshot(solver="CCSD", use_cumulant=True)
+        e_corr = be.rets0
 
-    if solver == "CCSD":
-        print("Computing CCSD reference gradient")
-        mycc = cc.CCSD(mf)
-        mycc.kernel()
-        grad_ccsd = mycc.nuc_grad_method()
-        grad_corr_ref = grad_ccsd.kernel()
+    return e_corr, displaced_e_hf
 
-    if solver == "FCI":
-        print("Computing FCI reference gradient")
-        mc = mcscf.CASCI(mf, ncas=mf.mo_coeff.shape[1], nelecas=sum(mf.mol.nelec))
-        mc.kernel()
-        grad_fci = mc.nuc_grad_method()
-        grad_corr_ref = grad_fci.kernel()
 
-    if solver == "MP2":
-        print("Computing MP2 reference gradient")
-        mymp2 = mp.MP2(mf)
-        mymp2.kernel()
-        grad_mp2 = mymp2.nuc_grad_method()
-        grad_corr_ref = grad_mp2.kernel()
-    return grad_hf_ref, grad_corr_ref
+def read_xyz(fname):
+    atoms = []
+    labels = []
+
+    with open(fname) as f:
+        lines = f.readlines()[2:]
+
+    for line in lines:
+        parts = line.split()
+        if len(parts) >= 4:
+            label = parts[0]
+            coords = tuple(map(float, parts[1:4]))
+            atoms.append((label, coords))
+            labels.append(label)
+
+    return atoms, labels
+
+def get_mf(mol, auxbasis=None):
+    if auxbasis:
+        mf = scf.RHF(mol).density_fit(auxbasis=auxbasis)
+    else:
+        mf = scf.RHF(mol)
+    mf.kernel()
+    return mf
+
+def get_ref_be_obj(mol_ref, mf_ref, filename, n_BE, auxbasis=None):
+    print("Getting ref BE obj now, note for future that frag_type and int_transform are hardcoded here.", flush=True)
+    fobj = fragmentate(mol=mol_ref, frag_type="chemgen", n_BE=n_BE)
+    if auxbasis:
+        ref_be_obj = BE(mf_ref, fobj, gradient_orb_space="Unmodified", int_transform="int-direct-DF", auxbasis=auxbasis)
+    else:
+        ref_be_obj = BE(mf_ref, fobj, gradient_orb_space="Unmodified")
+    
+    fragmented = Fragmented.from_mole(mol_ref, n_BE=n_BE)
+    frag_per_atom = fragmented.get_frag_per_atom()
+
+    state = {
+        "mol_ref": mol_ref,
+        "fobj": fobj,
+        "frag_per_atom": frag_per_atom,
+        "int_transform": ref_be_obj.int_transform,
+        "auxbasis": ref_be_obj.auxbasis,
+        "lo_method": ref_be_obj.lo_method,
+        "Fobjs": ref_be_obj.Fobjs,
+    }
+
+    with open(f"ref_be_obj_{filename}.pkl", "wb") as f:
+        pickle.dump(state, f)
+
+    return ref_be_obj
+
+
+
+def prep_displaced_mols(ref_be_obj, delta=1e-4):
+    print("Preparing displaced objects now, note for future that stepsize is hardcoded here.", flush=True)
+    natm = ref_be_obj.mf.mol.natm
+
+    displacements = [(atom_idx, xyz) for atom_idx in range(natm) for xyz in range(3)]
+
+    for disp in displacements:
+        atom_idx, xyz = disp
+        for sign in (+1, -1):
+            disp = np.zeros((ref_be_obj.mf.mol.natm, 3))
+            disp[atom_idx, xyz] = sign * delta
+
+            coords = ref_be_obj.mf.mol.atom_coords().copy() + disp
+
+            with open(f"coords_{atom_idx}_{xyz}_{sign}.pkl", "wb") as f:
+                pickle.dump(coords, f)
+                
+def get_reference(mf_ref, filename, auxbasis=None):
+    print("Getting reference gradients now, note for future that CCSD is hardcoded here.", flush=True)
+    grad_hf_ref = mf_ref.nuc_grad_method().kernel()
+    np.savetxt(f"grad_hf_ref_{filename}.txt", grad_hf_ref, fmt="%.12e")
+
+    if auxbasis:
+        mycc = cc.CCSD(mf_ref).density_fit(auxbasis=auxbasis)
+    else:
+        mycc = cc.CCSD(mf_ref)
+    
+    mycc.kernel()
+    grad_total_ref = mycc.nuc_grad_method().kernel()
+    np.savetxt(f"grad_total_ref_{filename}.txt", grad_total_ref, fmt="%.12e")
+
+
+
+#def get_reference(mf, solver="CCSD"):
+#    grad_hf = mf.Gradients()
+#    grad_hf.verbose = 0
+#    grad_hf.kernel()
+
+#    grad_hf_ref = grad_hf.de
+
+#    if solver == "CCSD":
+#        print("Computing CCSD reference gradient")
+#        mycc = cc.CCSD(mf)
+#        mycc.kernel()
+#        grad_ccsd = mycc.nuc_grad_method()
+#        grad_corr_ref = grad_ccsd.kernel()
+
+#    if solver == "FCI":
+#        print("Computing FCI reference gradient")
+#        mc = mcscf.CASCI(mf, ncas=mf.mo_coeff.shape[1], nelecas=sum(mf.mol.nelec))
+#        mc.kernel()
+#        grad_fci = mc.nuc_grad_method()
+#        grad_corr_ref = grad_fci.kernel()
+
+#    if solver == "MP2":
+#        print("Computing MP2 reference gradient")
+#        mymp2 = mp.MP2(mf)
+#        mymp2.kernel()
+#        grad_mp2 = mymp2.nuc_grad_method()
+#        grad_corr_ref = grad_mp2.kernel()
+#    return grad_hf_ref, grad_corr_ref
 
 
 class BEGrad:
@@ -55,7 +200,7 @@ class BEGrad:
     Gradient routine for Bootstrap Embedding (finite-difference force embedding)
     """
 
-    def __init__(self, ref_be_obj: BE, delta=1e-4, gradient_orb_space="lo-basis", h_treatment="treat_H_diff"):
+    def __init__(self, ref_be_obj: BE, delta=1e-4, gradient_orb_space="block-diagonal", h_treatment="treat_H_diff"):
         self.ref_be_obj = ref_be_obj
         self.delta = delta
         self.grad_hf_ref = None
