@@ -474,17 +474,26 @@ def schmidt_decomposition(
     # Set the number of orbitals to be taken from the environment orbitals
     # Based on an eigenvalue threshold ordering
     if norb is not None:
-        # add extra orbital from environment
-        # this will likely have Eval = 1
-        # note: there are normally very few orbitals with a Eval[i] <= thr_bath,
-        # so adding Bidx from the "front of the list" doesn't work. Instead, we add
-        # Bidx corresponding to a high eigenvalue from the environment
-        # (this is analagous to tightening up the threshold of the bath for the alpha
-        # or beta orbitals until they are the same size)
-        while len(Bidx) < norb:
-            # Bidx corresponds to sorted Eval and Evec, so this simply adds indices
-            # corresponding to larger eigenvectors until the bath size reaches norb
-            Bidx.append(Bidx[-1] + 1)
+        # add extra orbital(s) from the environment; these will likely have
+        # Eval close to 1. note: there are normally very few orbitals with a
+        # Eval[i] <= thr_bath, so adding Bidx from the "front of the list"
+        # doesn't work. Instead, we add the excluded orbitals closest to the
+        # thr_bath/1-thr_bath boundary (this is analagous to tightening up
+        # the bath threshold for the alpha or beta orbitals until they are
+        # the same size)
+        excluded = [i for i in range(len(Eval)) if i not in set(Bidx)]
+        excluded_sorted = sorted(
+            excluded,
+            key=lambda i: min(
+                abs(Eval[i] - (1.0 - thr_bath)), abs(Eval[i] - thr_bath)
+            ),
+        )
+        # Bidx corresponds to sorted Eval and Evec, so this adds indices
+        # closest to the bath threshold until the bath size reaches norb
+        for idx in excluded_sorted:
+            if len(Bidx) >= norb:
+                break
+            Bidx.append(idx)
 
     # Initialize the transformation matrix (TA)
     TA = zeros([Tot_sites, len(AO_in_frag) + len(Bidx)])
