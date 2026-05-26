@@ -481,10 +481,15 @@ def schmidt_decomposition(
         # Bidx corresponding to a high eigenvalue from the environment
         # (this is analagous to tightening up the threshold of the bath for the alpha
         # or beta orbitals until they are the same size)
+        
         while len(Bidx) < norb:
             # Bidx corresponds to sorted Eval and Evec, so this simply adds indices
             # corresponding to larger eigenvectors until the bath size reaches norb
-            Bidx.append(Bidx[-1] + 1)
+            # When bath size is reached, it will stop
+            next_idx = Bidx[-1] + 1
+            if next_idx >= len(Eval):
+                break
+            Bidx.append(next_idx)
 
     # Initialize the transformation matrix (TA)
     TA = zeros([Tot_sites, len(AO_in_frag) + len(Bidx)])
