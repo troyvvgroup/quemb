@@ -401,6 +401,46 @@ class UBE(BE):  # 🍠
             )
         )
 
+    def urdm1_fullbasis(self, return_ao=True):
+        """Assemble full-system alpha and beta 1-RDMs via democratic partitioning.
+    
+        Returns
+        -------
+        rdm1a_AO, rdm1b_AO : numpy.ndarray
+          Alpha and beta 1-RDMs in the AO basis.
+          Spin density = rdm1a_AO - rdm1b_AO.
+        """
+        from numpy import zeros
+    
+        nao = self.S.shape[0]
+        rdm1a_AO = zeros((nao, nao))
+        rdm1b_AO = zeros((nao, nao))
+
+        W = self.W  # localization matrix, unfrozen core
+       
+        for fobj_a, fobj_b in zip(self.Fobjs_a, self.Fobjs_b):
+            # Fragment AO centers - same for alpha and beta
+            cind = [fobj_a.AO_in_frag[i]
+                    for i in fobj_a.weight_and_relAO_per_center[1]]
+
+            # Democratic partitioning projection in full AO space
+            Proj = self.S @ self.W[:, cind] @ self.W[:, cind].T @ self.S
+
+            # Transform fragment RDM to full AO space first
+            rdm1a_full = fobj_a.TA @ fobj_a.mo_coeffs @ fobj_a.rdm1__ \
+                        @ fobj_a.mo_coeffs.T @ fobj_a.TA.T
+            rdm1b_full = fobj_b.TA @ fobj_b.mo_coeffs @ fobj_b.rdm1__ \
+                        @ fobj_b.mo_coeffs.T @ fobj_b.TA.T
+    
+            # Apply democratic weight in full AO space
+            rdm1a_AO += Proj @ rdm1a_full
+            rdm1b_AO += Proj @ rdm1b_full
+
+        # Symmetrize
+        rdm1a_AO = (rdm1a_AO + rdm1a_AO.T) / 2.0
+        rdm1b_AO = (rdm1b_AO + rdm1b_AO.T) / 2.0
+
+        return rdm1a_AO, rdm1b_AO
 
 def initialize_pot(n_frag, relAO_per_edge):
     pot_ = []
