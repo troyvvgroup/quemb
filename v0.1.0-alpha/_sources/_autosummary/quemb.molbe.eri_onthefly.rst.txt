@@ -14,6 +14,7 @@ quemb.molbe.eri\_onthefly
    .. autosummary::
       :toctree:
    
+      block_step_size
       integral_direct_DF
    
    

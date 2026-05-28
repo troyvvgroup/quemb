@@ -1,0 +1,6 @@
+quemb.molbe.eri\_onthefly.block\_step\_size
+===========================================
+
+.. currentmodule:: quemb.molbe.eri_onthefly
+
+.. autofunction:: block_step_size

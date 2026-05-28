@@ -29,6 +29,7 @@
    :recursive:
 
    autofrag
+   eri_onthefly
    fragment
    helper
    lo
