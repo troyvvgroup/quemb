@@ -1,8 +1,9 @@
 import inspect
 import os
+from dataclasses import dataclass, field
 
 import numpy as np
-from pyscf import lib, scf
+from pyscf import gto, lib, scf
 
 
 def energy_hf(mol, fd_info=None):
@@ -12,10 +13,9 @@ def energy_hf(mol, fd_info=None):
     ----------
     mol : object
         Molecule object defining the geometry, basis, charge, and spin.
-    fd_info:
-        Dictionary of information passed from the finite difference driver including
-        the atom index and xyz coordinate(s) displaced from the reference and the ref
-        mol object.
+    fd_info: FDinfo, optional
+        Finite difference metadata describing the displacement relative
+        to the current reference geometry.
 
     Returns
     ------
@@ -23,18 +23,26 @@ def energy_hf(mol, fd_info=None):
         Converged RHF total energy in Hartree
     """
     if fd_info is not None:
-        if not np.allclose(
-            fd_info["ref_coords"],
-            fd_info["ref_mol"].atom_coords(),
-            atol=1e-12,
-            rtol=1e-12,
-        ):
-            raise RuntimeError("finite difference reference coordinate mismatch.")
+        if fd_info.ref_mol is None:
+            raise RuntimeError("missing finite difference reference geometry.")
 
     mf = scf.RHF(mol)
     mf.verbose = 0
     mf.kernel()
     return mf.e_tot
+
+
+@dataclass
+class FDinfo:
+    """Container for finite difference metadata."""
+
+    kind: str = "reference"
+
+    atom_idx: list[int] = field(default_factory=list)
+    axis_idx: list[int] = field(default_factory=list)
+
+    delta_bohr: np.ndarray = field(default_factory=lambda: np.zeros(0))
+    ref_mol: gto.Mole = field(default=None)
 
 
 class Energy(lib.StreamObject):
@@ -79,10 +87,9 @@ class Energy(lib.StreamObject):
         ----------
         mol : object, optional
             Molecule at which to evaluate the energy.
-        fd_info:
-            Dictionary of information passed from the finite difference driver
-            including the atom index and xyz coordinate(s) displaced from the
-            reference and the ref mol object.
+        fd_info: FDinfo, optional
+            Finite difference metadata describing the displacement relative
+            to the current reference geometry.
 
         Returns
         ------
@@ -93,14 +100,13 @@ class Energy(lib.StreamObject):
             self.mol = mol
 
         if fd_info is None:
-            fd_info = {
-                "kind": "reference",
-                "atom_idx": [],
-                "axis_idx": [],
-                "delta_bohr": 0.0,
-                "ref_mol": self.mol.copy(),
-                "ref_coords": self.mol.atom_coords().copy(),
-            }
+            fd_info = FDinfo(
+                kind="reference",
+                atom_idx=[],
+                axis_idx=[],
+                delta_bohr=0.0,
+                ref_mol=self.mol.copy(),
+            )
 
         self.e_tot = self.energy_func(self.mol, fd_info=fd_info)
         return self.e_tot
@@ -158,14 +164,13 @@ class Energy(lib.StreamObject):
                     # scanner point: new ref geometry
                     self.ref_coords = coords.copy()
                     self.ref_mol = mol.copy()
-                    fd_info = {
-                        "kind": "scanner_point",
-                        "atom_idx": None,
-                        "axis_idx": None,
-                        "delta_bohr": 0.0,
-                        "ref_mol": self.ref_mol.copy(),
-                        "ref_coords": self.ref_coords.copy(),
-                    }
+                    fd_info = FDinfo(
+                        kind="scanner_point",
+                        atom_idx=None,
+                        axis_idx=None,
+                        delta_bohr=0.0,
+                        ref_mol=self.ref_mol.copy(),
+                    )
                 else:
                     diff = coords - self.ref_coords
 
@@ -179,18 +184,17 @@ class Energy(lib.StreamObject):
                     displaced = np.reshape(diff, -1)
                     displaced_idx = np.where(np.abs(displaced) > 1e-12)[0]
 
-                    fd_info = {
-                        "kind": "reference",
-                        "atom_idx": [idx // 3 for idx in displaced_idx],
-                        "axis_idx": [idx % 3 for idx in displaced_idx],
-                        "delta_bohr": [displaced[idx] for idx in displaced_idx],
-                        "ref_mol": self.ref_mol.copy(),
-                        "ref_coords": self.ref_coords,
-                    }
+                    fd_info = FDinfo(
+                        kind="reference",
+                        atom_idx=[idx // 3 for idx in displaced_idx],
+                        axis_idx=[idx % 3 for idx in displaced_idx],
+                        delta_bohr=[displaced[idx] for idx in displaced_idx],
+                        ref_mol=self.ref_mol.copy(),
+                    )
                     if len(displaced_idx) == 1:
-                        fd_info["kind"] = "single_displacement"
+                        fd_info.kind = "single_displacement"
                     elif len(displaced_idx) > 1:
-                        fd_info["kind"] = "multi_displacement"
+                        fd_info.kind = "multi_displacement"
 
                 parent.mol = mol
                 parent.e_tot = parent.energy_func(mol, fd_info=fd_info)
