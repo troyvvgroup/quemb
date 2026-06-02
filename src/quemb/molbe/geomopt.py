@@ -12,9 +12,10 @@ def energy_hf(mol, fd_info=None):
     ----------
     mol : object
         Molecule object defining the geometry, basis, charge, and spin.
-    fd_info: dictionary
-        Information passed from the finite difference driver including the atom index
-        and xyz coordinate(s) displaced from the reference and the ref mol object.
+    fd_info:
+        Dictionary of information passed from the finite difference driver including
+        the atom index and xyz coordinate(s) displaced from the reference and the ref
+        mol object.
 
     Returns
     ------
@@ -78,9 +79,10 @@ class Energy(lib.StreamObject):
         ----------
         mol : object, optional
             Molecule at which to evaluate the energy.
-        fd_info: dictionary, optional
-            Information passed from the finite difference driver including
-            the atom index and xyz coordinate(s) displaced from the reference.
+        fd_info:
+            Dictionary of information passed from the finite difference driver
+            including the atom index and xyz coordinate(s) displaced from the
+            reference and the ref mol object.
 
         Returns
         ------
@@ -113,7 +115,7 @@ class Energy(lib.StreamObject):
 
         Returns
         ------
-        scanner :
+        object
             Callable scanner object returning total energies in Hartree.
         """
         parent = self
