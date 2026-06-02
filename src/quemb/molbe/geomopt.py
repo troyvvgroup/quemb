@@ -38,11 +38,12 @@ class FDinfo:
 
     kind: str = "reference"
 
-    atom_idx: list[int] = field(default_factory=list)
-    axis_idx: list[int] = field(default_factory=list)
+    atom_idx: list[int] | None = field(default_factory=list)
+    axis_idx: list[int] | None = field(default_factory=list)
 
-    delta_bohr: np.ndarray = field(default_factory=lambda: np.zeros(0))
-    ref_mol: gto.Mole = field(default=None)
+    delta_bohr: list[float] | None = field(default_factory=list)
+
+    ref_mol: gto.Mole | None = None
 
 
 class Energy(lib.StreamObject):
@@ -104,7 +105,7 @@ class Energy(lib.StreamObject):
                 kind="reference",
                 atom_idx=[],
                 axis_idx=[],
-                delta_bohr=0.0,
+                delta_bohr=[0],
                 ref_mol=self.mol.copy(),
             )
 
@@ -166,9 +167,9 @@ class Energy(lib.StreamObject):
                     self.ref_mol = mol.copy()
                     fd_info = FDinfo(
                         kind="scanner_point",
-                        atom_idx=None,
-                        axis_idx=None,
-                        delta_bohr=0.0,
+                        atom_idx=[],
+                        axis_idx=[],
+                        delta_bohr=[0],
                         ref_mol=self.ref_mol.copy(),
                     )
                 else:
