@@ -1,6 +1,4 @@
-from pyscf import scf, lib
-from pyscf.tools import finite_diff
-import numpy as np
+from pyscf import lib, scf
 
 
 def energy_hf(mol):
@@ -25,12 +23,13 @@ def energy_hf(mol):
 class Energy(lib.StreamObject):
     r"""PySCF-style wrapper for a custom molecular energy function.
 
-    This class provides a minimal interface around an arbitrary energy function ``energy_func(mol)``.
-    It is intended to be compatible with PySCF utilities that expect an object with ``mol``,
-    ``kernel()``, and ``as_scanner()`` methods, such as ``pyscf.tools.finite_diff``.
+    This class provides a minimal interface around an arbitrary energy function
+    ``energy_func(mol)``. It is intended to be compatible with PySCF utilities that
+    expect an object with ``mol``, ``kernel()``, and ``as_scanner()`` methods, such as
+    ``pyscf.tools.finite_diff``.
 
-    This class supplies repeated single-point energies that can be used by finite difference gradient
-    or Hessian drivers.
+    This class supplies repeated single-point energies that can be used by finite
+    difference gradient or Hessian drivers.
     """
 
     def __init__(self, mol, energy_func, displacement=1e-4):
@@ -41,7 +40,8 @@ class Energy(lib.StreamObject):
         mol : pyscf.gto.Mole
             Reference molecule.
         energy_func : callable
-            Function with signature ``energy_func(mol) -> float`` returning the total energy in Hartree.
+            Function with signature ``energy_func(mol) -> float`` returning the total
+            energy in Hartree.
         displacement : float, optional
             Finite difference displacement in Bohr, default is 1e-4.
         """
@@ -77,9 +77,10 @@ class Energy(lib.StreamObject):
     def as_scanner(self):
         r"""Return a PySCF-compatible energy scanner.
 
-        The returned scanner is callable as ``scanner(mol)`` and evaluates ``energy_func`` for each
-        supplied geometry. This mirrors the behavor of PySCF scanner objects used in geometry
-        optimization and finite difference calculations.
+        The returned scanner is callable as ``scanner(mol)`` and evaluates
+        ``energy_func`` for each supplied geometry. This mirrors the behavor of
+        PySCF scanner objects used in geometry optimization and finite difference
+        calculations.
 
         Returns
         ------
