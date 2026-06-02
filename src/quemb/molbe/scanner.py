@@ -1,3 +1,5 @@
+# Author(s): Beck Hanscam
+
 import inspect
 import os
 from dataclasses import dataclass, field

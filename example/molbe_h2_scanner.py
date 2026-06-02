@@ -1,11 +1,12 @@
 # Illustrates nuclear gradient and hessian computations as well as geometry optimizaton
 # using a custom energy function fed through pyscf's finite difference driver
+# Author(s): Beck Hanscam
 
 import numpy as np
 from pyscf import grad, gto, scf
 from pyscf.tools import finite_diff
 
-from quemb.molbe.geomopt import Energy, energy_hf
+from quemb.molbe.scanner import Energy, energy_hf
 
 # =========================
 #  Gradients
