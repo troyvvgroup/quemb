@@ -1,0 +1,39 @@
+quemb.molbe.scanner.Energy
+==========================
+
+.. currentmodule:: quemb.molbe.scanner
+
+.. autoclass:: Energy
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: Energy.stdout
+   .. autoattribute:: Energy.verbose
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~Energy.__init__
+      ~Energy.apply
+      ~Energy.as_scanner
+      ~Energy.check_sanity
+      ~Energy.copy
+      ~Energy.kernel
+      ~Energy.post_kernel
+      ~Energy.pre_kernel
+      ~Energy.reset
+      ~Energy.run
+      ~Energy.set
+      ~Energy.view
+   
+   

@@ -1,0 +1,6 @@
+quemb.molbe.scanner.Energy.pre\_kernel
+======================================
+
+.. currentmodule:: quemb.molbe.scanner
+
+.. automethod:: Energy.pre_kernel

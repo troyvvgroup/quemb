@@ -1,0 +1,31 @@
+quemb.molbe.scanner.FDinfo
+==========================
+
+.. currentmodule:: quemb.molbe.scanner
+
+.. autoclass:: FDinfo
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: FDinfo.kind
+   .. autoattribute:: FDinfo.ref_mol
+   .. autoattribute:: FDinfo.atom_idx
+   .. autoattribute:: FDinfo.axis_idx
+   .. autoattribute:: FDinfo.delta_bohr
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~FDinfo.__init__
+   
+   

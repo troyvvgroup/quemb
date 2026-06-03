@@ -1,0 +1,6 @@
+quemb.molbe.scanner.Energy.as\_scanner
+======================================
+
+.. currentmodule:: quemb.molbe.scanner
+
+.. automethod:: Energy.as_scanner

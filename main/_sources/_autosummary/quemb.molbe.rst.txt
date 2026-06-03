@@ -43,6 +43,7 @@
    numerical_jac
    opt
    pfrag
+   scanner
    solver
    ube
 
