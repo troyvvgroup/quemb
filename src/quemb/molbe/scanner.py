@@ -7,6 +7,9 @@ from dataclasses import dataclass, field
 import numpy as np
 from pyscf import gto, lib, scf
 
+from quemb.molbe import BE, fragmentate
+from quemb.molbe.chemfrag import ChemGenArgs
+
 
 def energy_hf(mol, fd_info=None):
     r"""Compute the restricted Hartree-Fock total energy
@@ -32,6 +35,95 @@ def energy_hf(mol, fd_info=None):
     mf.verbose = 0
     mf.kernel()
     return mf.e_tot
+
+
+def energy_be(mol, fd_info=None, be_args=None):
+    r"""Compute the BEn total energy
+
+    Parameters
+    ----------
+    mol : object
+        Molecule object defining the geometry, basis, charge, and spin.
+    fd_info: FDinfo, optional
+        Finite difference metadata describing the displacement relative
+        to the current reference geometry.
+    be_args: BEArgs, optional
+        User defined arguments for BE calculation.
+
+    Returns
+    ------
+    float
+        Converged BE total energy in Hartree
+    """
+    if fd_info is not None:
+        if fd_info.ref_mol is None:
+            raise RuntimeError("missing finite difference reference geometry.")
+
+    if be_args is None:
+        be_args = BEArgs()
+
+    mf = scf.RHF(mol)
+    mf.verbose = 0
+    mf.kernel()
+    fobj = fragmentate(
+        mol=mol,
+        n_BE=be_args.n_BE,
+        frag_type=be_args.frag_type,
+        additional_args=be_args.additional_args,
+    )
+    mybe = BE(mf, fobj)
+
+    if be_args.optimize:
+        mybe.optimize(
+            solver=be_args.solver,
+            use_cumulant=be_args.use_cumulant,
+            nproc=be_args.nproc,
+            ompnum=be_args.ompnum,
+            only_chem=be_args.only_chem,
+            method=be_args.method,
+            conv_tol=be_args.conv_tol,
+            relax_density=be_args.relax_density,
+            jac_solver=be_args.jac_solver,
+            max_iter=be_args.max_iter,
+            trust_region=be_args.trust_region,
+            step_size=be_args.step_size,
+        )
+    else:
+        mybe.oneshot(
+            solver=be_args.solver,
+            use_cumulant=be_args.use_cumulant,
+            nproc=be_args.nproc,
+            ompnum=be_args.ompnum,
+        )
+
+    return mybe.ebe_tot
+
+
+@dataclass
+class BEArgs:
+    """Container for BE fragmentation, solver and optimization settings."""
+
+    # fragmentate keywords
+    n_BE: int = 2
+    frag_type: str = "chemgen"
+    additional_args: ChemGenArgs | None = None
+
+    # oneshot/optimize keywords
+    solver: str = "CCSD"
+    use_cumulant: bool = True
+    nproc: int = 1
+    ompnum: int = 4
+
+    # additional optimize keywords
+    optimize: bool = True
+    only_chem: bool = False
+    method: str = "QN"
+    conv_tol: float = 1.0e-6
+    relax_density: bool = False
+    jac_solver: str = "HF"
+    max_iter: int = 500
+    trust_region: bool = False
+    step_size: float = 1e-6
 
 
 @dataclass
@@ -60,7 +152,7 @@ class Energy(lib.StreamObject):
     difference gradient or Hessian drivers.
     """
 
-    def __init__(self, mol, energy_func, displacement=1e-4):
+    def __init__(self, mol, energy_func, displacement=1e-4, **energy_kwargs):
         r"""Initialize the custom energy wrapper.
 
         Parameters
@@ -69,12 +161,16 @@ class Energy(lib.StreamObject):
             Reference molecule.
         energy_func :
             Callable function with signature ``energy_func(mol) -> float`` returning
-            the total energy in Hartree.
+            the total energy in Hartree. Should optionally accept ``fd_info`` and
+            additional keyword arguments.
         displacement : float, optional
             Finite difference displacement in Bohr, default is 1e-4.
+        energy_kwargs :
+            Additional keyword arguments passed to ``energy_func``.
         """
         self.mol = mol
         self.energy_func = energy_func
+        self.energy_kwargs = energy_kwargs
         self.e_tot = None
         self.displacement = displacement
 
@@ -111,7 +207,7 @@ class Energy(lib.StreamObject):
                 ref_mol=self.mol.copy(),
             )
 
-        self.e_tot = self.energy_func(self.mol, fd_info=fd_info)
+        self.e_tot = self.energy_func(self.mol, fd_info=fd_info, **self.energy_kwargs)
         return self.e_tot
 
     def as_scanner(self):
@@ -200,7 +296,9 @@ class Energy(lib.StreamObject):
                         fd_info.kind = "multi_displacement"
 
                 parent.mol = mol
-                parent.e_tot = parent.energy_func(mol, fd_info=fd_info)
+                parent.e_tot = parent.energy_func(
+                    mol, fd_info=fd_info, **parent.energy_kwargs
+                )
 
                 self.mol = mol
                 self.e_tot = parent.e_tot
