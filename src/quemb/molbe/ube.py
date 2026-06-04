@@ -357,7 +357,7 @@ class UBE(BE):  # 🍠
             fobj.udim = couti
             couti = fobj.set_udim(couti)
 
-    def oneshot(self, solver="UCCSD", nproc=1, ompnum=4):
+    def oneshot(self, solver="UCCSD", nproc=1, ompnum=4, relax_density=False):
         if nproc == 1:
             E, E_comp = be_func_u(
                 None,
@@ -366,7 +366,7 @@ class UBE(BE):  # 🍠
                 self.enuc,
                 hf_veff=self.hf_veff,
                 eeval=True,
-                relax_density=False,
+                relax_density=relax_density,
                 frozen=self.frozen_core,
             )
         else:
@@ -378,7 +378,7 @@ class UBE(BE):  # 🍠
                 hf_veff=self.hf_veff,
                 nproc=nproc,
                 ompnum=ompnum,
-                relax_density=False,
+                relax_density=relax_density,
                 frozen=self.frozen_core,
             )
         unused(E_comp)
@@ -417,7 +417,14 @@ class UBE(BE):  # 🍠
         rdm1b_AO = zeros((nao, nao))
 
         W = self.W  # localization matrix, unfrozen core
-       
+        
+        def get_mo(fobj):
+            if hasattr(fobj, 'mo_coeff_uccsd'):
+                return fobj.mo_coeff_uccsd
+            if fobj._mf is not None:
+                return fobj._mf.mo_coeff
+            return fobj._mo_coeffs
+
         for fobj_a, fobj_b in zip(self.Fobjs_a, self.Fobjs_b):
             # Fragment AO centers - same for alpha and beta
             cind = [fobj_a.AO_in_frag[i]
@@ -425,12 +432,27 @@ class UBE(BE):  # 🍠
 
             # Democratic partitioning projection in full AO space
             Proj = self.S @ self.W[:, cind] @ self.W[:, cind].T @ self.S
+            
+            # Get MO coefficients — _mf.mo_coeff is most reliable when available
+            if fobj_a._mf is not None:
+                mca = fobj_a._mf.mo_coeff
+            elif fobj_a.mo_coeffs is not None:
+                mca = fobj_a.mo_coeffs
+            else:
+                mca = fobj_a._mo_coeffs
+
+            if fobj_b._mf is not None:
+                mcb = fobj_b._mf.mo_coeff
+            elif fobj_b.mo_coeffs is not None:
+                mcb = fobj_b.mo_coeffs
+            else:
+                mcb = fobj_b._mo_coeffs
 
             # Transform fragment RDM to full AO space first
-            rdm1a_full = fobj_a.TA @ fobj_a.mo_coeffs @ fobj_a.rdm1__ \
-                        @ fobj_a.mo_coeffs.T @ fobj_a.TA.T
-            rdm1b_full = fobj_b.TA @ fobj_b.mo_coeffs @ fobj_b.rdm1__ \
-                        @ fobj_b.mo_coeffs.T @ fobj_b.TA.T
+            rdm1a_full = fobj_a.TA @ fobj_a._mf.mo_coeff @ fobj_a.rdm1__ \
+                        @ fobj_a._mf.mo_coeff.T @ fobj_a.TA.T
+            rdm1b_full = fobj_b.TA @ fobj_b._mf.mo_coeff @ fobj_b.rdm1__ \
+                        @ fobj_b._mf.mo_coeff.T @ fobj_b.TA.T
     
             # Apply democratic weight in full AO space
             rdm1a_AO += Proj @ rdm1a_full
