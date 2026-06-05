@@ -54,7 +54,7 @@ ref_grad_corr = mc_grad.kernel()
 # numerical gradients of mol0
 # BEn-CCSD oneshot, n=1,2,3
 #
-print("\nnumerical CCSD gradient for mol0:")
+print("\nnumerical BE-CCSD gradient for mol0:")
 rms = []
 for n_BE in [1, 2, 3]:
     be_args = BEArgs(

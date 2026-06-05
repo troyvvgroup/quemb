@@ -88,5 +88,81 @@ def test_numerical_be_gradient():
     )
 
 
+def test_numerical_be_gradient_withmatching():
+    mol0 = gto.M(
+        atom="""
+            H  0.04 -0.02  0.
+            H  0.02  0.04  1.
+            H -0.01 -0.00  2.
+            H -0.03  0.01  3.
+            H -0.00  0.04  4.
+            H  0.04  0.02  5.
+            """,
+        basis="sto-3g",
+        charge=0,
+    )
+
+    mol1 = gto.M(
+        atom="""
+            H 0. 0. 0.
+            H 0. 0. 1.
+            H 0. 0. 2.
+            H 0. 0. 3.
+            H 0. 0. 4.
+            H 0. 0. 5.
+            """,
+        basis="sto-3g",
+        charge=0,
+    )
+
+    # CCSD analytic gradient of mol0
+    mf = scf.RHF(mol0)
+    mf.conv_tol = 1e-12
+    mf.kernel()
+    mc = cc.CCSD(mf)
+    mc.kernel()
+    mc_grad = mc.nuc_grad_method()
+    ref_grad_corr = mc_grad.kernel()
+
+    # CCSD analytic gradient of mol1
+    mf = scf.RHF(mol1)
+    mf.conv_tol = 1e-12
+    mf.kernel()
+    mc = cc.CCSD(mf)
+    mc.kernel()
+    mc_grad = mc.nuc_grad_method()
+    ref_grad_corr1 = mc_grad.kernel()
+
+    # build BE energy method
+    be_args = BEArgs(
+        n_BE=1,
+        solver="CCSD",
+        use_cumulant=True,
+        optimize=True,
+        only_chem=True,
+        additional_args=ChemGenArgs(h_treatment="treat_H_like_heavy_atom"),
+    )
+    energy_method = Energy(mol0, energy_be, be_args=be_args)
+
+    # BE1-CCSD with chemical potential matching
+    # numerical gradient using pyscf built-in Gradients object
+    grad_method = finite_diff.Gradients(energy_method)
+    grad_method.displacement = 1e-4
+    fd_grad_fromObj = grad_method.kernel()
+    assert np.isclose(
+        np.sqrt(np.mean((ref_grad_corr - fd_grad_fromObj) ** 2)), 0.01592042531497887
+    )
+
+    # BE1-CCSD with chemical potential matching
+    # numerical gradient from scanner
+    grad_scanner = grad_method.as_scanner()
+    E1, fd_grad1 = grad_scanner(mol1)
+    assert np.isclose(E1, -3.2152636577260725)
+    assert np.isclose(
+        np.sqrt(np.mean((ref_grad_corr1 - fd_grad1) ** 2)), 0.01592294368834432
+    )
+
+
 if __name__ == "__main__":
     test_numerical_be_gradient()
+    # test_numerical_be_gradient_withmatching()
