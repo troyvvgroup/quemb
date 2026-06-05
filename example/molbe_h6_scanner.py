@@ -7,7 +7,7 @@ from pyscf import cc, gto, scf
 from pyscf.tools import finite_diff
 
 from quemb.molbe.chemfrag import ChemGenArgs
-from quemb.molbe.scanner import BEArgs, Energy, energy_be
+from quemb.molbe.scanner import BEArgs, Energy, be_ref_data, energy_be
 
 # build several different geometries
 rng = np.random.default_rng()
@@ -64,7 +64,7 @@ for n_BE in [1, 2, 3]:
         optimize=False,
         additional_args=ChemGenArgs(h_treatment="treat_H_like_heavy_atom"),
     )
-    energy_method = Energy(mol0, energy_be, be_args=be_args)
+    energy_method = Energy(mol0, energy_be, be_args=be_args, ref_data_func=be_ref_data)
     grad_method = finite_diff.Gradients(energy_method)
     grad_method.displacement = 1e-4  # Gradients class default is 1e-2 Bohr
     fd_grad_fromObj = grad_method.kernel()
@@ -90,7 +90,7 @@ be_args = BEArgs(
     only_chem=True,
     additional_args=ChemGenArgs(h_treatment="treat_H_like_heavy_atom"),
 )
-energy_method = Energy(mol0, energy_be, be_args=be_args)
+energy_method = Energy(mol0, energy_be, be_args=be_args, ref_data_func=be_ref_data)
 energy_scanner = energy_method.as_scanner()
 es_E0 = energy_scanner(mol0)
 es_E1 = energy_scanner(mol1)
@@ -108,7 +108,7 @@ be_args = BEArgs(
     optimize=False,
     additional_args=ChemGenArgs(h_treatment="treat_H_like_heavy_atom"),
 )
-energy_method = Energy(mol0, energy_be, be_args=be_args)
+energy_method = Energy(mol0, energy_be, be_args=be_args, ref_data_func=be_ref_data)
 grad_method = finite_diff.Gradients(energy_method)
 grad_method.displacement = 1e-4  # Gradients class default is 1e-2 Bohr
 grad_scanner = grad_method.as_scanner()

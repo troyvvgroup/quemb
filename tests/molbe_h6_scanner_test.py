@@ -7,7 +7,7 @@ from pyscf import cc, gto, scf
 from pyscf.tools import finite_diff
 
 from quemb.molbe.chemfrag import ChemGenArgs
-from quemb.molbe.scanner import BEArgs, Energy, energy_be
+from quemb.molbe.scanner import BEArgs, Energy, be_ref_data, energy_be
 
 
 def test_numerical_be_gradient():
@@ -63,7 +63,7 @@ def test_numerical_be_gradient():
         optimize=False,
         additional_args=ChemGenArgs(h_treatment="treat_H_like_heavy_atom"),
     )
-    energy_method = Energy(mol0, energy_be, be_args=be_args)
+    energy_method = Energy(mol0, energy_be, be_args=be_args, ref_data_func=be_ref_data)
 
     # BE3-CCSD oneshot numerical gradient
     fd_grad = finite_diff.kernel(energy_method, displacement=1e-4)
@@ -142,7 +142,7 @@ def test_numerical_be_gradient_withmatching():
         only_chem=True,
         additional_args=ChemGenArgs(h_treatment="treat_H_like_heavy_atom"),
     )
-    energy_method = Energy(mol0, energy_be, be_args=be_args)
+    energy_method = Energy(mol0, energy_be, be_args=be_args, ref_data_func=be_ref_data)
 
     # BE1-CCSD with chemical potential matching
     # numerical gradient using pyscf built-in Gradients object
@@ -165,4 +165,4 @@ def test_numerical_be_gradient_withmatching():
 
 if __name__ == "__main__":
     test_numerical_be_gradient()
-    # test_numerical_be_gradient_withmatching()
+    test_numerical_be_gradient_withmatching()

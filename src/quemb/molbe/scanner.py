@@ -37,6 +37,36 @@ def energy_hf(mol, fd_info=None):
     return mf.e_tot
 
 
+def be_ref_data(mol, be_args=None):
+    r"""Build reference-geometry data needed by BE energy functions.
+
+    Parameters
+    ----------
+    mol : object
+        Molecule object defining the geometry, basis, charge, and spin.
+    be_args: BEArgs, optional
+        User defined arguments for BE calculation.
+
+    Returns
+    ------
+    dict
+        Dictionary containing reference-geometry data needed by ``energy_be``.
+        The ``"ref_fobj"`` entry stores the fragmentate object built from ``mol``.
+    """
+    if be_args is None:
+        be_args = BEArgs()
+
+    ref_fobj = fragmentate(
+        mol=mol,
+        n_BE=be_args.n_BE,
+        frag_type=be_args.frag_type,
+        frozen_core=be_args.frozen_core,
+        additional_args=be_args.additional_args,
+    )
+
+    return {"ref_fobj": ref_fobj}
+
+
 def energy_be(mol, fd_info=None, be_args=None):
     r"""Compute the BEn total energy
 
@@ -55,23 +85,30 @@ def energy_be(mol, fd_info=None, be_args=None):
     float
         Converged BE total energy in Hartree
     """
-    if fd_info is not None:
+    if be_args is None:
+        be_args = BEArgs()
+
+    if fd_info is None:
+        fobj = fragmentate(
+            mol=mol,
+            n_BE=be_args.n_BE,
+            frag_type=be_args.frag_type,
+            frozen_core=be_args.frozen_core,
+            additional_args=be_args.additional_args,
+        )
+    else:
         if fd_info.ref_mol is None:
             raise RuntimeError("missing finite difference reference geometry.")
 
-    if be_args is None:
-        be_args = BEArgs()
+        try:
+            fobj = fd_info.ref_data["ref_fobj"]
+        except KeyError as exc:
+            raise RuntimeError("missing reference BE fragmentate object.") from exc
 
     mf = scf.RHF(mol)
     mf.verbose = 0
     mf.kernel()
-    fobj = fragmentate(
-        mol=mol,
-        n_BE=be_args.n_BE,
-        frag_type=be_args.frag_type,
-        frozen_core=be_args.frozen_core,
-        additional_args=be_args.additional_args,
-    )
+
     mybe = BE(
         mf,
         fobj,
@@ -155,6 +192,7 @@ class FDinfo:
     delta_bohr: list[float] | None = field(default_factory=list)
 
     ref_mol: gto.Mole | None = None
+    ref_data: dict = field(default_factory=dict)
 
 
 class Energy(lib.StreamObject):
@@ -169,7 +207,9 @@ class Energy(lib.StreamObject):
     difference gradient or Hessian drivers.
     """
 
-    def __init__(self, mol, energy_func, displacement=1e-4, **energy_kwargs):
+    def __init__(
+        self, mol, energy_func, displacement=1e-4, ref_data_func=None, **energy_kwargs
+    ):
         r"""Initialize the custom energy wrapper.
 
         Parameters
@@ -182,6 +222,10 @@ class Energy(lib.StreamObject):
             additional keyword arguments.
         displacement : float, optional
             Finite difference displacement in Bohr, default is 1e-4.
+        ref_data_func: optional
+            Callable function with signature ``ref_data_func(mol) -> dict`` returning
+            a dictionary containing the necessary reference geometry info for
+            ``energy_func``. Should optionally accept additional keyword arguments.
         energy_kwargs :
             Additional keyword arguments passed to ``energy_func``.
         """
@@ -190,6 +234,7 @@ class Energy(lib.StreamObject):
         self.energy_kwargs = energy_kwargs
         self.e_tot = None
         self.displacement = displacement
+        self.ref_data_func = ref_data_func
 
         # Attributes expected by PySCF finite-difference assertions
         # These do not control convergence for the custom method
@@ -216,12 +261,18 @@ class Energy(lib.StreamObject):
             self.mol = mol
 
         if fd_info is None:
+            ref_data = (
+                self.ref_data_func(self.mol, **self.energy_kwargs)
+                if self.ref_data_func is not None
+                else {}
+            )
             fd_info = FDinfo(
                 kind="reference",
                 atom_idx=[],
                 axis_idx=[],
                 delta_bohr=[0],
                 ref_mol=self.mol.copy(),
+                ref_data=ref_data,
             )
 
         self.e_tot = self.energy_func(self.mol, fd_info=fd_info, **self.energy_kwargs)
@@ -253,6 +304,11 @@ class Energy(lib.StreamObject):
             def __init__(self):
                 self.ref_coords = parent.mol.atom_coords().copy()
                 self.ref_mol = parent.mol.copy()
+                self.ref_data = (
+                    parent.ref_data_func(self.ref_mol, **parent.energy_kwargs)
+                    if parent.ref_data_func is not None
+                    else {}
+                )
 
             def is_fd_probe(self, diff, tol=1e-8):
                 """
@@ -280,12 +336,18 @@ class Energy(lib.StreamObject):
                     # scanner point: new ref geometry
                     self.ref_coords = coords.copy()
                     self.ref_mol = mol.copy()
+                    self.ref_data = (
+                        parent.ref_data_func(self.ref_mol, **parent.energy_kwargs)
+                        if parent.ref_data_func is not None
+                        else {}
+                    )
                     fd_info = FDinfo(
                         kind="scanner_point",
                         atom_idx=[],
                         axis_idx=[],
                         delta_bohr=[0],
                         ref_mol=self.ref_mol.copy(),
+                        ref_data=self.ref_data,
                     )
                 else:
                     diff = coords - self.ref_coords
@@ -296,6 +358,11 @@ class Energy(lib.StreamObject):
                         self.ref_mol = mol.copy()
                         self.ref_coords = coords.copy()
                         diff = coords - self.ref_coords
+                        self.ref_data = (
+                            parent.ref_data_func(self.ref_mol, **parent.energy_kwargs)
+                            if parent.ref_data_func is not None
+                            else {}
+                        )
 
                     displaced = np.reshape(diff, -1)
                     displaced_idx = np.where(np.abs(displaced) > 1e-12)[0]
@@ -306,6 +373,7 @@ class Energy(lib.StreamObject):
                         axis_idx=[idx % 3 for idx in displaced_idx],
                         delta_bohr=[displaced[idx] for idx in displaced_idx],
                         ref_mol=self.ref_mol.copy(),
+                        ref_data=self.ref_data,
                     )
                     if len(displaced_idx) == 1:
                         fd_info.kind = "single_displacement"
