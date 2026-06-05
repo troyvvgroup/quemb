@@ -69,6 +69,7 @@ def energy_be(mol, fd_info=None, be_args=None):
         mol=mol,
         n_BE=be_args.n_BE,
         frag_type=be_args.frag_type,
+        frozen_core=be_args.frozen_core,
         additional_args=be_args.additional_args,
     )
     mybe = BE(mf, fobj)
@@ -106,6 +107,7 @@ class BEArgs:
     # fragmentate keywords
     n_BE: int = 2
     frag_type: str = "chemgen"
+    frozen_core: bool = False
     additional_args: ChemGenArgs | None = None
 
     # oneshot/optimize keywords
