@@ -72,7 +72,16 @@ def energy_be(mol, fd_info=None, be_args=None):
         frozen_core=be_args.frozen_core,
         additional_args=be_args.additional_args,
     )
-    mybe = BE(mf, fobj)
+    mybe = BE(
+        mf,
+        fobj,
+        lo_method=be_args.lo_method,
+        int_transform=be_args.int_transform,
+        auxbasis=be_args.auxbasis,
+        nproc=be_args.nproc,
+        ompnum=be_args.ompnum,
+        initialize_fragment_idx=be_args.initialize_fragment_idx,
+    )
 
     if be_args.optimize:
         mybe.optimize(
@@ -109,6 +118,12 @@ class BEArgs:
     frag_type: str = "chemgen"
     frozen_core: bool = False
     additional_args: ChemGenArgs | None = None
+
+    # BE initialization keywords
+    lo_method: str = "lowdin"
+    int_transform: str = "in-core"
+    auxbasis: str | None = None
+    initialize_fragment_idx: list[int] | None = None
 
     # oneshot/optimize keywords
     solver: str = "CCSD"
