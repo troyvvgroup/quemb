@@ -1,6 +1,7 @@
 # Author(s): Oinam Romesh Meitei, Oskar Weser
-
+from __future__ import annotations
 from collections.abc import Sequence
+from typing import Literal
 
 import h5py
 import numpy as np
@@ -19,8 +20,10 @@ from numpy import (
     zeros,
     zeros_like,
 )
-from numpy.linalg import eigh, multi_dot
-
+from numpy.linalg import eigh, multi_dot, inv
+from scipy.linalg import svd
+from typing_extensions import Self, assert_never
+from quemb.shared.external.lo_helper import symm_orth
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
 from quemb.shared.helper import clean_overlap
 from quemb.shared.typing import (
@@ -33,7 +36,6 @@ from quemb.shared.typing import (
     SeqOverEdge,
     Vector,
 )
-
 
 class Frags:
     """
@@ -111,8 +113,12 @@ class Frags:
             self.dname = "f" + str(ifrag)
 
         self.TA: Matrix[float64]
+        self.eigvecs: Matrix[float64]
+        self.lao: Matrix[float64]
         self.frag_TA_offset: Vector[int64]
         self.TA_lo_eo: Matrix[float64]
+
+        self.eq_fobj: Ref_Frags | None = None
 
         self.h1: Matrix[float64]
         self.nao: int
@@ -146,10 +152,15 @@ class Frags:
     def sd(
         self,
         lao: Matrix[float64],
+        S: Matrix[float64], 
+        S_cross: Matrix[float64],
+        C: Matrix[float64],
         lmo: Matrix[float64],
         nocc: int,
-        thr_bath: float,
+        gradient_orb_space: Literal["Unmodified", "ao-basis", "basis-change", "lo-basis", "mimic-existing-approach"],
+        thr_bath: float = 1.0e-10,
         norb: int | None = None,
+        eq_fobj = None,
     ) -> None:
         """
         Perform Schmidt decomposition for the fragment.
@@ -169,14 +180,107 @@ class Frags:
             Used for UBE, where different number of alpha and beta orbitals
             Default is None, allowing orbitals to be chosen by threshold
         """
-        self.TA_lo_eo, self.n_f, self.n_b = schmidt_decomposition(
-            lmo,
-            nocc,
-            self.AO_in_frag,
-            thr_bath=thr_bath,
-            norb=norb,
-        )
-        self.TA = lao @ self.TA_lo_eo
+
+        print(f"gradient_orb_space: {gradient_orb_space}")
+        if gradient_orb_space == "Unmodified":
+            (
+                self.Dhf,
+                self.TA_lo_eo,
+                self.TAenv_lo_eo,
+                self.TAfull_lo_eo,
+                self.n_f,
+                self.n_b,
+            ) = schmidt_decomposition(
+                lmo, 
+                nocc,
+                self.AO_in_frag,
+                thr_bath=thr_bath,
+            )
+            self.TA = lao @ self.TA_lo_eo
+
+        elif gradient_orb_space == "beck-simple":
+            self.Dhf = lmo[:, :nocc] @ lmo[:,:nocc].T
+            lo_lo_overlap = lao.T @ S_cross @ self.eq_fobj.lao
+            H = lmo.T @ lo_lo_overlap @ self.eq_fobj.TA_lo_eo  # MO_pert x EO_ref
+            U, singular_values, Vt = np.linalg.svd( H, full_matrices=False )
+            self.TA_lo_eo = lmo @ U @ Vt
+            self.TA = lao @ self.TA_lo_eo
+
+            self.n_f = self.eq_fobj.n_f
+            P_fb = self.TA_lo_eo @ self.TA_lo_eo.T # lo eo x eo lo = lo lo
+            self.TAenv_lo_eo = lmo - P_fb @ lmo
+
+        elif gradient_orb_space == "beck-project":
+            basis_proj_TA = multi_dot((inv(S), S_cross,self.eq_fobj.TA))
+            self.TA = symm_orth(basis_proj_TA, 1e-6, S)
+
+
+            #self.TA = np.linalg.solve( S, S_cross @ self.eq_fobj.TA )
+            self.n_f = self.eq_fobj.n_f
+
+        elif gradient_orb_space == "basis-set-projection":
+            # project basis
+            self.TA = np.linalg.inv(S) @ S_cross @ self.eq_fobj.TA
+            
+            # check orthogonality in S metric
+            needs_orthogonalization = not np.allclose(
+                self.TA.T @ S @ self.TA,
+                np.eye(self.TA.shape[1]),
+                atol=1e-10
+            )
+            
+            print("does TA need orthogonalization?")
+            print(needs_orthogonalization)
+            
+            if needs_orthogonalization:
+                # S_{T'T'} = T'^T S T'
+                S_TT = self.TA.T @ S @ self.TA
+
+                # inverse square root
+                eigvals, eigvecs = np.linalg.eigh(S_TT)
+                S_TT_inv_sqrt = eigvecs @ np.diag(eigvals**-0.5) @ eigvecs.T
+
+                # orthogonalize
+                self.TA = self.TA @ S_TT_inv_sqrt
+
+            # this is just because the schmidt decomposition usually returns this info
+            self.n_f = self.eq_fobj.n_f
+
+        elif gradient_orb_space == "lo-basis":
+            self.Dhf = lmo[:, :nocc] @ lmo[:,:nocc].T
+
+            lo_lo_overlap = lao.T @ S_cross @ self.eq_fobj.lao
+
+            TA_ref = self.eq_fobj.TA_lo_eo @ self.eq_fobj.eigvecs
+            nsocc = self.eq_fobj.nsocc
+
+            H = lmo.T @ lo_lo_overlap @ TA_ref
+            H[:nocc, nsocc:] = 0
+            H[nocc:, :nsocc] = 0
+
+            U, _, Vt = np.linalg.svd(H, full_matrices=False)
+            R = U @ Vt
+            
+            self.TA = lao @ lmo @ R @ self.eq_fobj.eigvecs.T
+            self.n_f = self.eq_fobj.n_f
+        elif gradient_orb_space == "block-diagonal":
+            self.Dhf = C[:,:nocc] @ C[:,:nocc].T
+            TA_ref = self.eq_fobj.TA @ self.eq_fobj.eigvecs
+            nsocc = self.eq_fobj.nsocc
+
+            H = C.T @ S_cross @ TA_ref
+            H[:nocc,nsocc:] = 0
+            H[nocc:, :nsocc] = 0
+
+            U, _, Vt = np.linalg.svd(H, full_matrices=False)
+            R = U @ Vt
+
+            self.TA = C @ R @ self.eq_fobj.eigvecs.T
+            self.n_f = self.eq_fobj.n_f
+
+        else:
+            assert_never(gradient_orb_space)
+
         self.nao = self.TA.shape[1]
 
     def cons_fock(self, hf_veff, S, dm, eri_=None):
@@ -227,8 +331,20 @@ class Frags:
         """
         C_ = multi_dot((self.TA.T, S, C[:, ncore : ncore + nocc]))
         P_ = C_ @ C_.T
+
+
         nsocc_ = trace(P_)
         nsocc = int(round(nsocc_))
+
+        eigvals, eigvecs = np.linalg.eigh(P_)
+        idx = np.argsort(eigvals)[::-1]
+
+        eigvals = eigvals[idx]
+        eigvecs = eigvecs[:, idx]
+
+        self.eigvecs = eigvecs
+        self.TA_ao_no = self.TA @ eigvecs
+
         try:
             mo_coeffs = scipy.linalg.svd(C_)[0]
         except scipy.linalg.LinAlgError:
@@ -399,7 +515,6 @@ class Frags:
         else:
             return None
 
-
 def schmidt_decomposition(
     mo_coeff: Matrix[float64],
     nocc: int,
@@ -459,6 +574,7 @@ def schmidt_decomposition(
     # Identify environment sites (indices not in Frag_sites)
     Env_sites1 = array([i for i in range(Tot_sites) if i not in AO_in_frag])
     Env_sites = array([[i] for i in range(Tot_sites) if i not in AO_in_frag])
+
     Frag_sites1 = array([[i] for i in AO_in_frag])
 
     # Compute the environment part of the density matrix
@@ -469,6 +585,7 @@ def schmidt_decomposition(
 
     # Identify significant environment orbitals based on eigenvalue threshold
     Bidx = []
+    Eidx = []
 
     # Set the number of orbitals to be taken from the environment orbitals
     # Based on an eigenvalue threshold ordering
@@ -484,14 +601,33 @@ def schmidt_decomposition(
         for i in range(len(Eval)):
             if thr_bath < np.abs(Eval[i]) < 1.0 - thr_bath:
                 Bidx.append(i)
-
+            else:
+                Eidx.append(i)
+                
     # Initialize the transformation matrix (TA)
     TA = zeros([Tot_sites, len(AO_in_frag) + len(Bidx)])
     TA[AO_in_frag, : len(AO_in_frag)] = eye(len(AO_in_frag))  # Fragment part
-    TA[Env_sites1, len(AO_in_frag) :] = Evec[:, Bidx]  # Environment part
+    TA[Env_sites1, len(AO_in_frag) :] = Evec[:, Bidx]  # Bath part
 
-    # return TA, norbs_frag, norbs_bath
-    return TA, Frag_sites1.shape[0], len(Bidx)
+    # Initialize the environment TA matrix
+    if len(Eidx) == 0:
+        print("no environment")
+    TAenv = zeros([Tot_sites, len(Eidx)])
+    TAenv[Env_sites1, :] = Evec[:, Eidx]
+
+    TAfull = np.zeros((Tot_sites, len(AO_in_frag) + len(Bidx) + len(Eidx)))
+    TAfull[AO_in_frag, : len(AO_in_frag)] = np.eye(len(AO_in_frag))
+    TAfull[Env_sites1, len(AO_in_frag) : len(AO_in_frag) + len(Bidx)] = Evec[:, Bidx]
+    TAfull[Env_sites1, len(AO_in_frag) + len(Bidx) :] = Evec[:, Eidx]
+
+    return (
+        Dhf,
+        TA,
+        TAenv,
+        TAfull,
+        Frag_sites1.shape[0],
+        len(Bidx),
+    )
 
 
 def _get_contained(

@@ -2,6 +2,7 @@
 
 import logging
 import pickle
+from collections.abc import Sequence
 from typing import Final, Literal, TypeAlias
 from warnings import warn
 
@@ -45,7 +46,7 @@ from quemb.molbe.lo import (
 from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
 from quemb.molbe.numerical_jac import compute_numerical_jacobian
 from quemb.molbe.opt import BEOPT
-from quemb.molbe.pfrag import Frags, union_of_frag_MOs_and_index
+from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.external.lo_helper import (
     get_aoind_by_atom,
@@ -156,6 +157,9 @@ class BE:
         AO_coeff_epsilon: float = 1e-10,
         re_eval_HF: bool = False,
         initialize_fragment_idx: list[int] | None = None,
+        eq_fobjs: Sequence[Frags] | None = None,
+        S_cross: Matrix[np.float64] | None = None,
+        gradient_orb_space: Literal["Unmodified", "ao-basis", "basis-change", "lo-basis", "mimic-existing-approach"] = "Unmodified",
     ) -> None:
         r"""
         Constructor for BE object.
@@ -273,7 +277,12 @@ class BE:
         self.ompnum = ompnum
         self.integral_transform = int_transform
         self.auxbasis = auxbasis
+        self.int_transform = int_transform
         self.thr_bath = thr_bath
+        self.eq_fobjs = eq_fobjs
+        self.S_cross = S_cross
+        self.gradient_orb_space = gradient_orb_space
+        self.lo_method = lo_method
 
         # Fragment information from fobj
         self.fobj = fobj
@@ -538,6 +547,7 @@ class BE:
                 rdm1_eo = fobjs.mo_coeffs @ fobjs.rdm1__ @ fobjs.mo_coeffs.T
                 rdm1_center = Pc_ @ rdm1_eo
                 rdm1_ao = fobjs.TA @ rdm1_center @ fobjs.TA.T
+
                 rdm1AO += rdm1_ao
 
             if not only_rdm1:
@@ -927,6 +937,7 @@ class BE:
                     be_.Ebe[1][0] + be_.Ebe[1][2],
                     self.ebe_hf,
                 )
+                self.rets0 = be_.Ebe[0]
             else:
                 self.ebe_tot = be_.Ebe[0] + self.enuc
                 print_energy_noncumulant(
@@ -937,6 +948,7 @@ class BE:
                     self.ebe_hf,
                     self.enuc,
                 )
+                self.rets0 = be_.Ebe[0] + self.enuc - self.ebe_hf
         else:
             raise ValueError("This optimization method for BE is not supported")
 
@@ -1121,7 +1133,7 @@ class BE:
             fobjs_.cons_fock(self.hf_veff, self.S, self.hf_dm, eri_=eri)
 
             fobjs_.heff = zeros_like(fobjs_.h1)
-            fobjs_.scf(fs=True, eri=eri)
+            fobjs_.scf(fs=False, eri=eri)
 
             assert fobjs_.h1 is not None and fobjs_.nsocc is not None
             fobjs_.dm0 = 2.0 * (
@@ -1168,15 +1180,27 @@ class BE:
         """
         for I in range(self.fobj.n_frag):
             fobjs_ = self.fobj.to_Frags(I, eri_file=self.eri_file)
-            fobjs_.sd(self.W, self.lmo_coeff, self.Nocc, thr_bath=self.thr_bath)
+            if self.eq_fobjs is not None:
+                fobjs_.eq_fobj = self.eq_fobjs[I]
+
+            fobjs_.sd(
+                self.W,
+                self.S,
+                self.S_cross,
+                self.C,
+                self.lmo_coeff,
+                self.Nocc,
+                self.gradient_orb_space,
+                thr_bath=self.thr_bath,
+            )
 
             self.Fobjs.append(fobjs_)
 
-        self.all_fragment_MO_TA, frag_TA_index_per_frag = union_of_frag_MOs_and_index(
-            self.Fobjs, self.mf.mol.intor("int1e_ovlp"), epsilon=1e-10
-        )
-        for fobj, frag_TA_offset in zip(self.Fobjs, frag_TA_index_per_frag):
-            fobj.frag_TA_offset = frag_TA_offset
+        # self.all_fragment_MO_TA, frag_TA_index_per_frag = union_of_frag_MOs_and_index(
+        #    self.Fobjs, self.mf.mol.intor("int1e_ovlp"), epsilon=1e-10
+        # )
+        # for fobj, frag_TA_offset in zip(self.Fobjs, frag_TA_index_per_frag):
+        #    fobj.frag_TA_offset = frag_TA_offset
 
         if self.lo_bath_post_schmidt is not None:
             for frag in self.Fobjs:
@@ -1225,6 +1249,7 @@ class BE:
         ompnum :
             Number of OpenMP threads, by default 4.
         """
+        self.solver = solver
         if nproc == 1:
             rets = be_func(
                 None,
@@ -1264,11 +1289,13 @@ class BE:
                 rets[0], rets[1][1], rets[1][0] + rets[1][2], self.ebe_hf
             )
             self.ebe_tot = rets[0] + self.ebe_hf
+            self.rets0 = rets[0]
         else:
             print_energy_noncumulant(
                 rets[0], rets[1][0], rets[1][2], rets[1][1], self.ebe_hf, self.enuc
             )
             self.ebe_tot = rets[0] + self.enuc + self.ebe_hf
+            self.rets0 = rets[0] + self.enuc - self.ebe_hf
 
     def update_fock(self, heff: list[Matrix[floating]] | None = None) -> None:
         """

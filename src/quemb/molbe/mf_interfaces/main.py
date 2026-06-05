@@ -120,7 +120,7 @@ def _force_eval_mol(mol: Mole) -> Mole:
         Copy of `mol` with `atom` set to an explicit coordinate string.
     """
 
-    if mol.unit != "angstrom":
+    if mol.unit != "Angstrom":
         raise ValueError("Has to be given in Angstrom.")
 
     new_mol = mol.copy()
