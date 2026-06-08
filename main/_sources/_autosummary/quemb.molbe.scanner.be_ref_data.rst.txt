@@ -1,0 +1,6 @@
+quemb.molbe.scanner.be\_ref\_data
+=================================
+
+.. currentmodule:: quemb.molbe.scanner
+
+.. autofunction:: be_ref_data

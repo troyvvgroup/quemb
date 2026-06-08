@@ -14,6 +14,8 @@ quemb.molbe.scanner
    .. autosummary::
       :toctree:
    
+      be_ref_data
+      energy_be
       energy_hf
    
    

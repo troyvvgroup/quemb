@@ -1,0 +1,47 @@
+quemb.molbe.mbe.BEArgs
+======================
+
+.. currentmodule:: quemb.molbe.mbe
+
+.. autoclass:: BEArgs
+
+
+   
+   
+   .. rubric:: Attributes
+
+   
+   .. autoattribute:: BEArgs.additional_args
+   .. autoattribute:: BEArgs.auxbasis
+   .. autoattribute:: BEArgs.conv_tol
+   .. autoattribute:: BEArgs.frag_type
+   .. autoattribute:: BEArgs.frozen_core
+   .. autoattribute:: BEArgs.initialize_fragment_idx
+   .. autoattribute:: BEArgs.int_transform
+   .. autoattribute:: BEArgs.jac_solver
+   .. autoattribute:: BEArgs.lo_method
+   .. autoattribute:: BEArgs.max_iter
+   .. autoattribute:: BEArgs.method
+   .. autoattribute:: BEArgs.n_BE
+   .. autoattribute:: BEArgs.nproc
+   .. autoattribute:: BEArgs.ompnum
+   .. autoattribute:: BEArgs.only_chem
+   .. autoattribute:: BEArgs.optimize
+   .. autoattribute:: BEArgs.relax_density
+   .. autoattribute:: BEArgs.solver
+   .. autoattribute:: BEArgs.step_size
+   .. autoattribute:: BEArgs.trust_region
+   .. autoattribute:: BEArgs.use_cumulant
+   
+   
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+      :toctree:
+   
+      ~BEArgs.__init__
+   
+   

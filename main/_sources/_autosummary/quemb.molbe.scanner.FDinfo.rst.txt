@@ -16,6 +16,7 @@ quemb.molbe.scanner.FDinfo
    .. autoattribute:: FDinfo.atom_idx
    .. autoattribute:: FDinfo.axis_idx
    .. autoattribute:: FDinfo.delta_bohr
+   .. autoattribute:: FDinfo.ref_data
    
    
 
