@@ -2,6 +2,7 @@
 # the custom energy function fed through pyscf's finite difference driver
 # Author(s): Beck Hanscam
 
+
 import numpy as np
 from pyscf import cc, gto, scf
 from pyscf.tools import finite_diff
@@ -63,7 +64,9 @@ def test_numerical_be_gradient():
         optimize=False,
         additional_args=ChemGenArgs(h_treatment="treat_H_like_heavy_atom"),
     )
-    energy_method = Energy(mol0, energy_be, be_args=be_args, ref_data_func=be_ref_data)
+    energy_method = Energy(
+        mol0, energy_be, energy_args=be_args, ref_data_func=be_ref_data
+    )
 
     # BE3-CCSD oneshot numerical gradient
     fd_grad = finite_diff.kernel(energy_method, displacement=1e-4)
@@ -142,7 +145,9 @@ def test_numerical_be_gradient_withmatching():
         only_chem=True,
         additional_args=ChemGenArgs(h_treatment="treat_H_like_heavy_atom"),
     )
-    energy_method = Energy(mol0, energy_be, be_args=be_args, ref_data_func=be_ref_data)
+    energy_method = Energy(
+        mol0, energy_be, energy_args=be_args, ref_data_func=be_ref_data
+    )
 
     # BE1-CCSD with chemical potential matching
     # numerical gradient using pyscf built-in Gradients object
