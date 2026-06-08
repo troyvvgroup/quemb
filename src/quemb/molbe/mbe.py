@@ -2,6 +2,7 @@
 
 import logging
 import pickle
+from dataclasses import dataclass
 from typing import Final, Literal, TypeAlias
 from warnings import warn
 
@@ -28,6 +29,7 @@ from pyscf.gto import Mole
 from typing_extensions import assert_never
 
 from quemb.molbe.be_parallel import be_func_parallel
+from quemb.molbe.chemfrag import ChemGenArgs
 from quemb.molbe.eri_onthefly import integral_direct_DF
 from quemb.molbe.eri_sparse_DF import (
     transform_sparse_DF_integral_cpu,
@@ -108,6 +110,40 @@ class storeBE:
     C_core: Matrix[floating]
     P_core: Matrix[floating]
     core_veff: Matrix[floating]
+
+
+@dataclass
+class BEArgs:
+    """Container for BE fragmentation, solver and optimization settings."""
+
+    # fragmentate keywords
+    n_BE: int = 2
+    frag_type: str = "chemgen"
+    frozen_core: bool = False
+    additional_args: ChemGenArgs | None = None
+
+    # BE initialization keywords
+    lo_method: str = "lowdin"
+    int_transform: str = "in-core"
+    auxbasis: str | None = None
+    initialize_fragment_idx: list[int] | None = None
+
+    # oneshot/optimize keywords
+    solver: str = "CCSD"
+    use_cumulant: bool = True
+    nproc: int = 1
+    ompnum: int = 4
+
+    # additional optimize keywords
+    optimize: bool = True
+    only_chem: bool = False
+    method: str = "QN"
+    conv_tol: float = 1.0e-6
+    relax_density: bool = False
+    jac_solver: str = "HF"
+    max_iter: int = 500
+    trust_region: bool = False
+    step_size: float = 1e-6
 
 
 class BE:
