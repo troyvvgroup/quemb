@@ -2,6 +2,8 @@
 # the custom energy function fed through pyscf's finite difference driver
 # Author(s): Beck Hanscam
 
+import os
+import unittest
 
 import numpy as np
 from pyscf import cc, gto, scf
@@ -91,6 +93,10 @@ def test_numerical_be_gradient():
     )
 
 
+@unittest.skipUnless(
+    os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true",
+    "Skipped expensive tests for QuEmb.",
+)
 def test_numerical_be_gradient_withmatching():
     mol0 = gto.M(
         atom="""
