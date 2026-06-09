@@ -4,10 +4,15 @@ import inspect
 import os
 from dataclasses import dataclass, field
 
+import h5py
 import numpy as np
-from pyscf import gto, lib, scf
+from numpy.linalg import multi_dot
+from pyscf import cc, gto, lib, scf
+from scipy.linalg import svd
 
 from quemb.molbe import BE, fragmentate
+from quemb.molbe.chemfrag import Fragmented
+from quemb.molbe.helper import get_eri, get_scfObj
 from quemb.molbe.mbe import BEArgs
 
 
@@ -69,6 +74,65 @@ def be_ref_data(mol, energy_args=None):
     )
 
     return {"ref_fobj": ref_fobj}
+
+
+def force_emb_ref_data(mol, energy_args=None):
+    r"""Build reference-geometry data needed by force embedding energy functions.
+
+    Parameters
+    ----------
+    mol : object
+        Molecule object defining the geometry, basis, charge, and spin.
+    energy_args: BEArgs, optional
+        User defined arguments for BE calculation.
+
+    Returns
+    ------
+    dict
+        Dictionary containing reference-geometry data needed by ``energy_force_emb``.
+        The ``"ref_fobj"`` entry stores the fragmentate object built from ``mol``.
+        The ``"ref_Fobjs"`` entry stores the Fobjs list built from the BE object.
+        The ``"frag_per_atom"`` entry stores the fragment index for each atom.
+    """
+    if energy_args is None:
+        energy_args = BEArgs()
+
+    mf = scf.RHF(mol)
+    mf.verbose = 0
+    mf.kernel()
+
+    ref_fobj = fragmentate(
+        mol=mol,
+        n_BE=energy_args.n_BE,
+        frag_type=energy_args.frag_type,
+        frozen_core=energy_args.frozen_core,
+        additional_args=energy_args.additional_args,
+    )
+
+    ref_mybe = BE(
+        mf,
+        ref_fobj,
+        lo_method=energy_args.lo_method,
+        int_transform=energy_args.int_transform,
+        auxbasis=energy_args.auxbasis,
+        nproc=energy_args.nproc,
+        ompnum=energy_args.ompnum,
+        initialize_fragment_idx=energy_args.initialize_fragment_idx,
+    )
+
+    fragmented = Fragmented.from_mole(
+        mol, n_BE=energy_args.n_BE, h_treatment=energy_args.additional_args.h_treatment
+    )
+    frag_per_atom = fragmented.get_frag_per_atom()
+
+    ref_dict = {
+        "ref_mol": mol,
+        "ref_fobj": ref_fobj,
+        "ref_mybe": ref_mybe,
+        "frag_per_atom": frag_per_atom,
+    }
+
+    return ref_dict
 
 
 def energy_be(mol, energy_args=None, fd_info=None):
@@ -148,6 +212,113 @@ def energy_be(mol, energy_args=None, fd_info=None):
         )
 
     return mybe.ebe_tot
+
+
+def energy_force_emb(mol, energy_args=None, fd_info=None):
+    r"""Compute the BEn fragment energy
+
+    Parameters
+    ----------
+    mol : object
+        Molecule object defining the geometry, basis, charge, and spin.
+    energy_args: BEArgs, optional
+        User defined arguments for BE calculation.
+    fd_info: FDinfo, optional
+        Finite difference metadata describing the displacement relative
+        to the current reference geometry.
+
+    Returns
+    ------
+    float
+        Converged BE fragment energy in Hartree
+    """
+    if energy_args is None:
+        energy_args = BEArgs()
+
+    if fd_info is None:
+        raise RuntimeError("missing finite difference displacement info.")
+    else:
+        if fd_info.ref_mol is None:
+            raise RuntimeError("missing finite difference reference geometry.")
+
+        try:
+            ref_fobj = fd_info.ref_data["ref_fobj"]
+            ref_mybe = fd_info.ref_data["ref_mybe"]
+            frag_per_atom = fd_info.ref_data["frag_per_atom"]
+        except KeyError as exc:
+            raise RuntimeError("missing reference BE info.") from exc
+
+    mf = scf.RHF(mol)
+    mf.verbose = 0
+    mf.kernel()
+
+    frag_idx = frag_per_atom[fd_info.atom_idx[0]]
+
+    mybe = BE(
+        mf,
+        ref_fobj,
+        lo_method=energy_args.lo_method,
+        int_transform=energy_args.int_transform,
+        auxbasis=energy_args.auxbasis,
+        nproc=energy_args.nproc,
+        ompnum=energy_args.ompnum,
+        # ref_Fobjs = ref_mybe.Fobjs,
+        # S_cross = S_cross,
+        # orbital_alignment=energy_args.orbital_alignment,
+        initialize_fragment_idx=[frag_idx],
+    )
+
+    # compute special quantity needed in block diagonal orbital alignment
+    C_ = multi_dot(
+        (ref_mybe.Fobjs[frag_idx].TA.T, ref_mybe.S, ref_mybe.C[:, : ref_mybe.Nocc])
+    )
+    P_ = C_ @ C_.T
+    eigvals, eigvecs = np.linalg.eigh(P_)
+    idx = np.argsort(eigvals)[::-1]
+    eigvecs = eigvecs[:, idx]
+
+    # do orbital alignment
+    # if orbital_alignment == "block-diagonal": # make orbital alignment an energy input
+    fobj = mybe.Fobjs[frag_idx]
+    # Dhf = mybe.C[:,:nocc] @ C[:,:nocc].T
+    TA_ref = ref_mybe.Fobjs[frag_idx].TA @ eigvecs  # need to compute eigvecs
+    nsocc = ref_mybe.Fobjs[frag_idx].nsocc
+    S_cross = gto.intor_cross("int1e_ovlp", mol, fd_info.ref_mol)
+
+    H = mybe.C.T @ S_cross @ TA_ref
+    H[: mybe.Nocc, nsocc:] = 0
+    H[mybe.Nocc :, :nsocc] = 0
+
+    U, _, Vt = svd(H, full_matrices=False)
+    R = U @ Vt
+
+    fobj.TA = mybe.C @ R @ eigvecs.T
+
+    # redo stuff that involves TA?
+    file_eri = h5py.File(mybe.eri_file, "w")
+    mybe._eri_transform(
+        energy_args.int_transform, mf._eri, file_eri, [frag_idx]
+    )  # not sure if need brackets on [frag_idx]
+
+    mybe._initialize_fragments(file_eri, False, [frag_idx])
+    file_eri.close()
+
+    # fobj = mybe.Fobjs[frag_idx]
+    eri = get_eri(fobj.dname, fobj.nao, eri_file=fobj.eri_file)
+    fobj._mf = get_scfObj(fobj.fock, eri, fobj.nsocc, dm0=fobj.dm0.copy())
+
+    mc = cc.CCSD(fobj._mf)
+    mc.verbose = 0
+    mc.incore_complete = True
+
+    eri_embmo = mc.ao2mo()
+    eri_embmo.mo_energy = fobj._mf.mo_energy
+    eri_embmo.fock = np.diag(fobj._mf.mo_energy)
+
+    mc.kernel(eris=eri_embmo)
+    e_corr = mc.e_tot - fobj._mf.e_tot
+
+    return mf.e_tot + e_corr
 
 
 @dataclass

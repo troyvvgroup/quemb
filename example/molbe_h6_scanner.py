@@ -7,7 +7,14 @@ from pyscf import cc, gto, scf
 from pyscf.tools import finite_diff
 
 from quemb.molbe.chemfrag import ChemGenArgs
-from quemb.molbe.scanner import BEArgs, Energy, be_ref_data, energy_be
+from quemb.molbe.scanner import (
+    BEArgs,
+    Energy,
+    be_ref_data,
+    energy_be,
+    energy_force_emb,
+    force_emb_ref_data,
+)
 
 # build several different geometries
 rng = np.random.default_rng()
@@ -55,7 +62,7 @@ ref_grad_corr = mc_grad.kernel()
 # BEn-CCSD oneshot, n=1,2,3
 #
 print("\nnumerical BE-CCSD gradient for mol0:")
-rms = []
+rms_be = []
 for n_BE in [1, 2, 3]:
     be_args = BEArgs(
         n_BE=n_BE,
@@ -70,7 +77,28 @@ for n_BE in [1, 2, 3]:
     grad_method = finite_diff.Gradients(energy_method)
     grad_method.displacement = 1e-4  # Gradients class default is 1e-2 Bohr
     fd_grad_fromObj = grad_method.kernel()
-    rms.append(np.sqrt(np.mean((ref_grad_corr - fd_grad_fromObj) ** 2)))
+    rms_be.append(np.sqrt(np.mean((ref_grad_corr - fd_grad_fromObj) ** 2)))
+
+# numerical gradients of mol0
+# BEn-CCSD force embedding, n=1,2,3
+#
+print("\nnumerical BE-CCSD force embedding gradient for mol0:")
+rms_fe = []
+for n_BE in [1, 2, 3]:
+    be_args = BEArgs(
+        n_BE=n_BE,
+        solver="CCSD",
+        use_cumulant=True,
+        optimize=False,
+        additional_args=ChemGenArgs(h_treatment="treat_H_like_heavy_atom"),
+    )
+    energy_method = Energy(
+        mol0, energy_force_emb, energy_args=be_args, ref_data_func=force_emb_ref_data
+    )
+    grad_method = finite_diff.Gradients(energy_method)
+    grad_method.displacement = 1e-4
+    fd_grad_fromObj = grad_method.kernel()
+    rms_fe.append(np.sqrt(np.mean((ref_grad_corr - fd_grad_fromObj) ** 2)))
 
 
 # =========================
@@ -124,7 +152,17 @@ gs_E2, gs_grad2 = grad_scanner(mol2)
 
 print("\n\n___NUMERICAL GRADIENTS___")
 for n_BE in [1, 2, 3]:
-    print(f"BE{n_BE}-CCSD RMSE from analytic benchmark for mol0: {rms[n_BE - 1]:.12e}")
+    print(
+        f"BE{n_BE}-CCSD RMSE from analytic benchmark for mol0: {rms_be[n_BE - 1]:.12e}"
+    )
+
+print()
+
+for n_BE in [1, 2, 3]:
+    print(
+        f"BE{n_BE}-CCSD force embedding RMSE"
+        f"\nfrom analytic benchmark for mol0: {rms_fe[n_BE - 1]:.12e}"
+    )
 
 print("\n___ENERGY SCANNER___")
 print(f"BE2-CCSD (with chempot matching) energy of mol0: {es_E0:.8f}")
