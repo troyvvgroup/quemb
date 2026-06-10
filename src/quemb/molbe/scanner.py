@@ -262,32 +262,34 @@ def energy_force_emb(mol, energy_args=None, fd_info=None):
         auxbasis=energy_args.auxbasis,
         nproc=energy_args.nproc,
         ompnum=energy_args.ompnum,
-        # ref_Fobjs = ref_mybe.Fobjs,
-        # S_cross = S_cross,
-        # orbital_alignment=energy_args.orbital_alignment,
         initialize_fragment_idx=[frag_idx],
     )
 
-    # compute special quantity needed in block diagonal orbital alignment
-    C_ = multi_dot(
-        (ref_mybe.Fobjs[frag_idx].TA.T, ref_mybe.S, ref_mybe.C[:, : ref_mybe.Nocc])
-    )
-    P_ = C_ @ C_.T
-    eigvals, eigvecs = np.linalg.eigh(P_)
-    idx = np.argsort(eigvals)[::-1]
-    eigvecs = eigvecs[:, idx]
-
-    # do orbital alignment
     fobj = mybe.Fobjs[frag_idx]
 
     if energy_args.orbital_alignment is None:
-        pass  # do not do orbital alignment
+        pass  # Do not do orbital alignment
 
     elif energy_args.orbital_alignment == "block-diagonal":
-        TA_ref = ref_mybe.Fobjs[frag_idx].TA @ eigvecs  # need to compute eigvecs
+        # Get the natural orbitals in terms of embedding orbitals
+        # for the reference geometry
+        C_ = multi_dot(
+            (ref_mybe.Fobjs[frag_idx].TA.T, ref_mybe.S, ref_mybe.C[:, : ref_mybe.Nocc])
+        )
+        P_ = C_ @ C_.T
+        eigvals, eigvecs = np.linalg.eigh(P_)
+        idx = np.argsort(eigvals)[::-1]
+        eigvecs = eigvecs[:, idx]
+
+        # Prepare reference natural orbitals,
+        # number of occupied orbitals in embedding space
+        # and the AO AO overlap matrix between the two geometries
+        TA_ref = ref_mybe.Fobjs[frag_idx].TA @ eigvecs
         nsocc = ref_mybe.Fobjs[frag_idx].nsocc
         S_cross = gto.intor_cross("int1e_ovlp", mol, fd_info.ref_mol)
 
+        # Solve the orthogonal procrustes problem
+        # for the occupied and virtual separately
         H = mybe.C.T @ S_cross @ TA_ref
         H[: mybe.Nocc, nsocc:] = 0
         H[mybe.Nocc :, :nsocc] = 0
@@ -307,16 +309,15 @@ def energy_force_emb(mol, energy_args=None, fd_info=None):
             f"got {energy_args.orbital_alignment!r}"
         )
 
-    # redo stuff that involves TA?
+    # Redo the integral transform and fragment initialization
+    # with the new TA
     file_eri = h5py.File(mybe.eri_file, "w")
-    mybe._eri_transform(
-        energy_args.int_transform, mf._eri, file_eri, [frag_idx]
-    )  # not sure if need brackets on [frag_idx]
+    mybe._eri_transform(energy_args.int_transform, mf._eri, file_eri, [frag_idx])
 
     mybe._initialize_fragments(file_eri, False, [frag_idx])
     file_eri.close()
 
-    # fobj = mybe.Fobjs[frag_idx]
+    # Get the correlation energy for the fragment
     eri = get_eri(fobj.dname, fobj.nao, eri_file=fobj.eri_file)
     fobj._mf = get_scfObj(fobj.fock, eri, fobj.nsocc, dm0=fobj.dm0.copy())
 
