@@ -130,6 +130,7 @@ def test_numerical_force_emb_gradient():
         use_cumulant=True,
         optimize=False,
         additional_args=ChemGenArgs(h_treatment="treat_H_like_heavy_atom"),
+        orbital_alignment="block-diagonal",
     )
     energy_method = Energy(
         mol0, energy_force_emb, energy_args=be_args, ref_data_func=force_emb_ref_data

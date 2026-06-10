@@ -278,21 +278,34 @@ def energy_force_emb(mol, energy_args=None, fd_info=None):
     eigvecs = eigvecs[:, idx]
 
     # do orbital alignment
-    # if orbital_alignment == "block-diagonal": # make orbital alignment an energy input
     fobj = mybe.Fobjs[frag_idx]
-    # Dhf = mybe.C[:,:nocc] @ C[:,:nocc].T
-    TA_ref = ref_mybe.Fobjs[frag_idx].TA @ eigvecs  # need to compute eigvecs
-    nsocc = ref_mybe.Fobjs[frag_idx].nsocc
-    S_cross = gto.intor_cross("int1e_ovlp", mol, fd_info.ref_mol)
 
-    H = mybe.C.T @ S_cross @ TA_ref
-    H[: mybe.Nocc, nsocc:] = 0
-    H[mybe.Nocc :, :nsocc] = 0
+    if energy_args.orbital_alignment is None:
+        pass  # do not do orbital alignment
 
-    U, _, Vt = svd(H, full_matrices=False)
-    R = U @ Vt
+    elif energy_args.orbital_alignment == "block-diagonal":
+        TA_ref = ref_mybe.Fobjs[frag_idx].TA @ eigvecs  # need to compute eigvecs
+        nsocc = ref_mybe.Fobjs[frag_idx].nsocc
+        S_cross = gto.intor_cross("int1e_ovlp", mol, fd_info.ref_mol)
 
-    fobj.TA = mybe.C @ R @ eigvecs.T
+        H = mybe.C.T @ S_cross @ TA_ref
+        H[: mybe.Nocc, nsocc:] = 0
+        H[mybe.Nocc :, :nsocc] = 0
+
+        U, _, Vt = svd(H, full_matrices=False)
+        R = U @ Vt
+
+        fobj.TA = mybe.C @ R @ eigvecs.T
+
+    elif energy_args.orbital_alignment == "basis-projection":
+        S_cross = gto.intor_cross("int1e_ovlp", mol, fd_info.ref_mol)
+        fobj.TA = np.linalg.inv(mybe.S) @ S_cross @ ref_mybe.Fobjs[frag_idx].TA
+
+    else:
+        raise ValueError(
+            "orbital_alignment must be None, 'block-diagonal', or 'basis-projection', "
+            f"got {energy_args.orbital_alignment!r}"
+        )
 
     # redo stuff that involves TA?
     file_eri = h5py.File(mybe.eri_file, "w")
