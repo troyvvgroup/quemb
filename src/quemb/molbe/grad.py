@@ -132,23 +132,20 @@ def get_ref_be_obj(mol_ref, mf_ref, filename, n_BE, auxbasis=None):
 
 
 
-def prep_displaced_mols(ref_be_obj, delta=1e-4):
-    print("Preparing displaced objects now, note for future that stepsize is hardcoded here.", flush=True)
-    natm = ref_be_obj.mf.mol.natm
 
-    displacements = [(atom_idx, xyz) for atom_idx in range(natm) for xyz in range(3)]
+def get_displaced_coords(ref_be_obj, delta=1e-4, natm=None, atom_idx=None, xyz=None, sign=None):
+    print("Preparing displaced objects now.", flush=True)
 
-    for disp in displacements:
-        atom_idx, xyz = disp
-        for sign in (+1, -1):
-            disp = np.zeros((ref_be_obj.mf.mol.natm, 3))
-            disp[atom_idx, xyz] = sign * delta
+    ref_coords = ref_be_obj["mol_ref"].atom_coords().copy()
 
-            coords = ref_be_obj.mf.mol.atom_coords().copy() + disp
+    def make_displaced_coords(atom_idx, xyz, sign):
+        disp = np.zeros((natm, 3))
+        disp[atom_idx, xyz] = sign * delta
+        return ref_coords + disp
 
-            with open(f"coords_{atom_idx}_{xyz}_{sign}.pkl", "wb") as f:
-                pickle.dump(coords, f)
-                
+    return make_displaced_coords(atom_idx, xyz, sign)
+
+                    
 def get_reference(mf_ref, filename, auxbasis=None):
     print("Getting reference gradients now, note for future that CCSD is hardcoded here.", flush=True)
     grad_hf_ref = mf_ref.nuc_grad_method().kernel()

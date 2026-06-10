@@ -181,7 +181,6 @@ class Frags:
             Default is None, allowing orbitals to be chosen by threshold
         """
 
-        print(f"gradient_orb_space: {gradient_orb_space}")
         if gradient_orb_space == "Unmodified":
             (
                 self.Dhf,
@@ -272,7 +271,7 @@ class Frags:
             H[:nocc,nsocc:] = 0
             H[nocc:, :nsocc] = 0
 
-            U, _, Vt = np.linalg.svd(H, full_matrices=False)
+            U, _, Vt = svd(H, full_matrices=False, lapack_driver="gesvd")
             R = U @ Vt
 
             self.TA = C @ R @ self.eq_fobj.eigvecs.T
