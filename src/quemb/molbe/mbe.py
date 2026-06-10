@@ -112,6 +112,9 @@ class storeBE:
     core_veff: Matrix[floating]
 
 
+OrbitalAlignment = Literal["block-diagonal", "basis-projection"]
+
+
 @dataclass
 class BEArgs:
     """Container for BE fragmentation, solver and optimization settings."""
@@ -144,6 +147,9 @@ class BEArgs:
     max_iter: int = 500
     trust_region: bool = False
     step_size: float = 1e-6
+
+    # force embedding keywords
+    orbital_alignment: OrbitalAlignment | None = None
 
 
 class BE:
