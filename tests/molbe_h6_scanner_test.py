@@ -142,7 +142,7 @@ def test_numerical_force_emb_gradient():
         np.sqrt(np.mean((ref_grad_corr - fd_grad) ** 2)), 5.904036799315e-08
     )
 
-    # BE3-CCSD oneshot numerical gradient using pyscf built-in Gradients object
+    # BE3-CCSD force embedding numerical gradient using pyscf built-in Gradients object
     grad_method = finite_diff.Gradients(energy_method)
     grad_method.displacement = 1e-4
     fd_grad_fromObj = grad_method.kernel()
