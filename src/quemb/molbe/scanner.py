@@ -325,7 +325,6 @@ def energy_force_emb(mol, energy_args=None, fd_info=None):
     eri_embmo.fock = np.diag(fobj._mf.mo_energy)
 
     mc.kernel(eris=eri_embmo)
-    # e_corr = mc.e_tot - fobj._mf.e_tot
 
     return mc.e_tot + mf.energy_nuc()
 
