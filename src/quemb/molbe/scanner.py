@@ -6,7 +6,6 @@ from dataclasses import dataclass, field
 
 import h5py
 import numpy as np
-from numpy.linalg import multi_dot
 from pyscf import cc, gto, lib, scf
 from scipy.linalg import svd
 
@@ -273,11 +272,7 @@ def energy_force_emb(mol, energy_args=None, fd_info=None):
     elif energy_args.orbital_alignment == "block-diagonal":
         # Get the natural orbitals in terms of embedding orbitals
         # for the reference geometry
-        C_ = multi_dot(
-            (ref_mybe.Fobjs[frag_idx].TA.T, ref_mybe.S, ref_mybe.C[:, : ref_mybe.Nocc])
-        )
-        P_ = C_ @ C_.T
-        eigvals, eigvecs = np.linalg.eigh(P_)
+        eigvals, eigvecs = np.linalg.eigh(ref_mybe.Fobjs[frag_idx].dm0)
         idx = np.argsort(eigvals)[::-1]
         eigvecs = eigvecs[:, idx]
 
