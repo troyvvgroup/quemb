@@ -8,7 +8,6 @@ from typing import Literal
 import h5py
 import numpy as np
 from pyscf import cc, gto, lib, scf
-from scipy.linalg import svd
 
 from quemb.molbe import BE, fragmentate
 from quemb.molbe.chemfrag import Fragmented
@@ -16,11 +15,6 @@ from quemb.molbe.helper import get_eri, get_scfObj
 from quemb.molbe.mbe import BEArgs
 
 OrbitalAlignment = Literal["block-diagonal", "basis-projection"]
-
-
-@dataclass
-class ForceEmbArgs(BEArgs):
-    orbital_alignment: OrbitalAlignment | None = None
 
 
 def energy_hf(mol, energy_args=None, fd_info=None):
@@ -70,7 +64,7 @@ def be_ref_data(mol, energy_args=None):
         The ``"ref_fobj"`` entry stores the fragmentate object built from ``mol``.
     """
     if energy_args is None:
-        energy_args = ForceEmbArgs()
+        energy_args = BEArgs()
 
     ref_fobj = fragmentate(
         mol=mol,
@@ -102,7 +96,7 @@ def force_emb_ref_data(mol, energy_args=None):
         The ``"frag_per_atom"`` entry stores the fragment index for each atom.
     """
     if energy_args is None:
-        energy_args = ForceEmbArgs()
+        energy_args = BEArgs()
 
     mf = scf.RHF(mol)
     mf.verbose = 0
@@ -274,43 +268,8 @@ def energy_force_emb(mol, energy_args=None, fd_info=None):
 
     fobj = mybe.Fobjs[frag_idx]
 
-    if energy_args.orbital_alignment is None:
-        pass  # Do not do orbital alignment
-
-    elif energy_args.orbital_alignment == "block-diagonal":
-        # Get the natural orbitals in terms of embedding orbitals
-        # for the reference geometry
-        eigvals, eigvecs = np.linalg.eigh(ref_mybe.Fobjs[frag_idx].dm0)
-        idx = np.argsort(eigvals)[::-1]
-        eigvecs = eigvecs[:, idx]
-
-        # Prepare reference natural orbitals,
-        # number of occupied orbitals in embedding space
-        # and the AO AO overlap matrix between the two geometries
-        TA_ref = ref_mybe.Fobjs[frag_idx].TA @ eigvecs
-        nsocc = ref_mybe.Fobjs[frag_idx].nsocc
-        S_cross = gto.intor_cross("int1e_ovlp", mol, fd_info.ref_mol)
-
-        # Solve the orthogonal procrustes problem
-        # for the occupied and virtual separately
-        H = mybe.C.T @ S_cross @ TA_ref
-        H[: mybe.Nocc, nsocc:] = 0
-        H[mybe.Nocc :, :nsocc] = 0
-
-        U, _, Vt = svd(H, full_matrices=False)
-        R = U @ Vt
-
-        fobj.TA = mybe.C @ R @ eigvecs.T
-
-    elif energy_args.orbital_alignment == "basis-projection":
-        S_cross = gto.intor_cross("int1e_ovlp", mol, fd_info.ref_mol)
-        fobj.TA = np.linalg.inv(mybe.S) @ S_cross @ ref_mybe.Fobjs[frag_idx].TA
-
-    else:
-        raise ValueError(
-            "orbital_alignment must be None, 'block-diagonal', or 'basis-projection', "
-            f"got {energy_args.orbital_alignment!r}"
-        )
+    S_cross = gto.intor_cross("int1e_ovlp", mol, fd_info.ref_mol)
+    fobj.TA = np.linalg.inv(mybe.S) @ S_cross @ ref_mybe.Fobjs[frag_idx].TA
 
     # Redo the integral transform and fragment initialization
     # with the new TA
@@ -371,7 +330,6 @@ class Energy(lib.StreamObject):
         displacement=1e-4,
         energy_args=None,
         ref_data_func=None,
-        orbital_alignment=None,
     ):
         r"""Initialize the custom energy wrapper.
 
@@ -398,7 +356,6 @@ class Energy(lib.StreamObject):
         self.e_tot = None
         self.displacement = displacement
         self.ref_data_func = ref_data_func
-        self.orbital_alignment = orbital_alignment
 
         # Attributes expected by PySCF finite-difference assertions
         # These do not control convergence for the custom method

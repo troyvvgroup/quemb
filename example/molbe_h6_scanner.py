@@ -10,7 +10,6 @@ from quemb.molbe.chemfrag import ChemGenArgs
 from quemb.molbe.mbe import BEArgs
 from quemb.molbe.scanner import (
     Energy,
-    ForceEmbArgs,
     be_ref_data,
     energy_be,
     energy_force_emb,
@@ -86,13 +85,12 @@ for n_BE in [1, 2, 3]:
 print("\nnumerical BE-CCSD force embedding gradient for mol0:")
 rms_fe = []
 for n_BE in [1, 2, 3]:
-    force_emb_args = ForceEmbArgs(
+    force_emb_args = BEArgs(
         n_BE=n_BE,
         solver="CCSD",
         use_cumulant=True,
         optimize=False,
         additional_args=ChemGenArgs(h_treatment="treat_H_like_heavy_atom"),
-        orbital_alignment="block-diagonal",
     )
     energy_method = Energy(
         mol0,
