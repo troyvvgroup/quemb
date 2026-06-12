@@ -127,7 +127,7 @@ def be_frag_ref_data(mol, energy_args=None):
     frag_per_atom = fragmented.get_frag_per_atom()
 
     ref_dict = {
-        "ref_mol": mol,
+        "ref_mol": mol.copy(),
         "ref_fobj": ref_fobj,
         "ref_mybe": ref_mybe,
         "frag_per_atom": frag_per_atom,
