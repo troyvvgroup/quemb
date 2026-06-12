@@ -20,6 +20,16 @@ from quemb.molbe.scanner import (
 )
 
 
+def ccsd_analytic_gradient(mol, conv_tol=1e-12):
+    mf = scf.RHF(mol)
+    mf.conv_tol = conv_tol
+    mf.kernel()
+    mc = cc.CCSD(mf)
+    mc.kernel()
+    mc_grad = mc.nuc_grad_method()
+    return mc_grad.kernel()
+
+
 def test_numerical_be_gradient():
     mol0 = gto.M(
         atom="""
@@ -48,22 +58,10 @@ def test_numerical_be_gradient():
     )
 
     # CCSD analytic gradient of mol0
-    mf = scf.RHF(mol0)
-    mf.conv_tol = 1e-12
-    mf.kernel()
-    mc = cc.CCSD(mf)
-    mc.kernel()
-    mc_grad = mc.nuc_grad_method()
-    ref_grad_corr = mc_grad.kernel()
+    ref_grad_corr = ccsd_analytic_gradient(mol0)
 
     # CCSD analytic gradient of mol1
-    mf = scf.RHF(mol1)
-    mf.conv_tol = 1e-12
-    mf.kernel()
-    mc = cc.CCSD(mf)
-    mc.kernel()
-    mc_grad = mc.nuc_grad_method()
-    ref_grad_corr1 = mc_grad.kernel()
+    ref_grad_corr1 = ccsd_analytic_gradient(mol1)
 
     # build BE energy method
     be_args = BEArgs(
@@ -115,13 +113,7 @@ def test_numerical_force_emb_gradient():
     )
 
     # CCSD analytic gradient of mol0
-    mf = scf.RHF(mol0)
-    mf.conv_tol = 1e-12
-    mf.kernel()
-    mc = cc.CCSD(mf)
-    mc.kernel()
-    mc_grad = mc.nuc_grad_method()
-    ref_grad_corr = mc_grad.kernel()
+    ref_grad_corr = ccsd_analytic_gradient(mol0)
 
     # build force embedding energy method
     force_emb_args = BEArgs(
@@ -185,22 +177,10 @@ def test_numerical_be_gradient_withmatching():
     )
 
     # CCSD analytic gradient of mol0
-    mf = scf.RHF(mol0)
-    mf.conv_tol = 1e-12
-    mf.kernel()
-    mc = cc.CCSD(mf)
-    mc.kernel()
-    mc_grad = mc.nuc_grad_method()
-    ref_grad_corr = mc_grad.kernel()
+    ref_grad_corr = ccsd_analytic_gradient(mol0)
 
     # CCSD analytic gradient of mol1
-    mf = scf.RHF(mol1)
-    mf.conv_tol = 1e-12
-    mf.kernel()
-    mc = cc.CCSD(mf)
-    mc.kernel()
-    mc_grad = mc.nuc_grad_method()
-    ref_grad_corr1 = mc_grad.kernel()
+    ref_grad_corr1 = ccsd_analytic_gradient(mol1)
 
     # build BE energy method
     be_args = BEArgs(
