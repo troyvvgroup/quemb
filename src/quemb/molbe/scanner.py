@@ -77,7 +77,7 @@ def be_ref_data(mol, energy_args=None):
     return {"ref_fobj": ref_fobj}
 
 
-def force_emb_ref_data(mol, energy_args=None):
+def be_frag_ref_data(mol, energy_args=None):
     r"""Build reference-geometry data needed by force embedding energy functions.
 
     Parameters
@@ -90,7 +90,7 @@ def force_emb_ref_data(mol, energy_args=None):
     Returns
     ------
     dict
-        Dictionary containing reference-geometry data needed by ``energy_force_emb``.
+        Dictionary containing reference-geometry data needed by ``energy_be_frag``.
         The ``"ref_fobj"`` entry stores the fragmentate object built from ``mol``.
         The ``"ref_Fobjs"`` entry stores the Fobjs list built from the BE object.
         The ``"frag_per_atom"`` entry stores the fragment index for each atom.
@@ -215,7 +215,7 @@ def energy_be(mol, energy_args=None, fd_info=None):
     return mybe.ebe_tot
 
 
-def energy_force_emb(mol, energy_args=None, fd_info=None):
+def energy_be_frag(mol, energy_args=None, fd_info=None):
     r"""Compute the BEn fragment energy
 
     Parameters
@@ -238,7 +238,7 @@ def energy_force_emb(mol, energy_args=None, fd_info=None):
 
     if fd_info.kind == "multi_displacement":
         raise RuntimeError(
-            "energy_force_emb currently supports only single finite-difference "
+            "energy_be_frag currently supports only single finite-difference "
             f"displacements; got {fd_info.kind!r}"
         )
     if fd_info is None:

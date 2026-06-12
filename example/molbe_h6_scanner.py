@@ -10,10 +10,10 @@ from quemb.molbe.chemfrag import ChemGenArgs
 from quemb.molbe.mbe import BEArgs
 from quemb.molbe.scanner import (
     Energy,
+    be_frag_ref_data,
     be_ref_data,
     energy_be,
-    energy_force_emb,
-    force_emb_ref_data,
+    energy_be_frag,
 )
 
 # build several different geometries
@@ -94,9 +94,9 @@ for n_BE in [1, 2, 3]:
     )
     energy_method = Energy(
         mol0,
-        energy_force_emb,
+        energy_be_frag,
         energy_args=force_emb_args,
-        ref_data_func=force_emb_ref_data,
+        ref_data_func=be_frag_ref_data,
     )
     grad_method = finite_diff.Gradients(energy_method)
     grad_method.displacement = 1e-4
