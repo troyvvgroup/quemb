@@ -92,7 +92,7 @@ def be_frag_ref_data(mol, energy_args=None):
     dict
         Dictionary containing reference-geometry data needed by ``energy_be_frag``.
         The ``"ref_fobj"`` entry stores the fragmentate object built from ``mol``.
-        The ``"ref_Fobjs"`` entry stores the Fobjs list built from the BE object.
+        The ``"ref_mybe"`` entry stores the BE object.
         The ``"frag_per_atom"`` entry stores the fragment index for each atom.
     """
     if energy_args is None:
