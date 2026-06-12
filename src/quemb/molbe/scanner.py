@@ -288,6 +288,7 @@ def energy_force_emb(mol, energy_args=None, fd_info=None):
     mybe._initialize_fragments(file_eri, False, [frag_idx])
     file_eri.close()
 
+    fobj = mybe.Fobjs[frag_idx]
     # Get the correlation energy for the fragment
     eri = get_eri(fobj.dname, fobj.nao, eri_file=fobj.eri_file)
     fobj._mf = get_scfObj(fobj.fock + fobj.heff, eri, fobj.nsocc, dm0=fobj.dm0.copy())
