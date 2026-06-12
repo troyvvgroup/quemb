@@ -236,6 +236,11 @@ def energy_force_emb(mol, energy_args=None, fd_info=None):
     if energy_args is None:
         energy_args = BEArgs()
 
+    if fd_info.kind == "multi_displacement":
+        raise RuntimeError(
+            "energy_force_emb currently supports only single finite-difference "
+            f"displacements; got {fd_info.kind!r}"
+        )
     if fd_info is None:
         raise RuntimeError("missing finite difference displacement info.")
     else:
@@ -253,6 +258,10 @@ def energy_force_emb(mol, energy_args=None, fd_info=None):
     mf.verbose = 0
     mf.kernel()
 
+    assert len(fd_info.atom_idx) == 1, (
+        "Expected fd_info.atom_idx to have length 1, "
+        f"but got {len(fd_info.atom_idx)}: {fd_info.atom_idx}"
+    )
     frag_idx = frag_per_atom[fd_info.atom_idx[0]]
 
     mybe = BE(
