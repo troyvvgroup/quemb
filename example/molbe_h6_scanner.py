@@ -7,9 +7,10 @@ from pyscf import cc, gto, scf
 from pyscf.tools import finite_diff
 
 from quemb.molbe.chemfrag import ChemGenArgs
+from quemb.molbe.mbe import BEArgs
 from quemb.molbe.scanner import (
-    BEArgs,
     Energy,
+    ForceEmbArgs,
     be_ref_data,
     energy_be,
     energy_force_emb,
@@ -85,7 +86,7 @@ for n_BE in [1, 2, 3]:
 print("\nnumerical BE-CCSD force embedding gradient for mol0:")
 rms_fe = []
 for n_BE in [1, 2, 3]:
-    be_args = BEArgs(
+    force_emb_args = ForceEmbArgs(
         n_BE=n_BE,
         solver="CCSD",
         use_cumulant=True,
@@ -94,7 +95,10 @@ for n_BE in [1, 2, 3]:
         orbital_alignment="block-diagonal",
     )
     energy_method = Energy(
-        mol0, energy_force_emb, energy_args=be_args, ref_data_func=force_emb_ref_data
+        mol0,
+        energy_force_emb,
+        energy_args=force_emb_args,
+        ref_data_func=force_emb_ref_data,
     )
     grad_method = finite_diff.Gradients(energy_method)
     grad_method.displacement = 1e-4

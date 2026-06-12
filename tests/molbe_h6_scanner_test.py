@@ -10,9 +10,10 @@ from pyscf import cc, gto, scf
 from pyscf.tools import finite_diff
 
 from quemb.molbe.chemfrag import ChemGenArgs
+from quemb.molbe.mbe import BEArgs
 from quemb.molbe.scanner import (
-    BEArgs,
     Energy,
+    ForceEmbArgs,
     be_ref_data,
     energy_be,
     energy_force_emb,
@@ -124,7 +125,7 @@ def test_numerical_force_emb_gradient():
     ref_grad_corr = mc_grad.kernel()
 
     # build force embedding energy method
-    be_args = BEArgs(
+    force_emb_args = ForceEmbArgs(
         n_BE=3,
         solver="CCSD",
         use_cumulant=True,
@@ -133,7 +134,10 @@ def test_numerical_force_emb_gradient():
         orbital_alignment="block-diagonal",
     )
     energy_method = Energy(
-        mol0, energy_force_emb, energy_args=be_args, ref_data_func=force_emb_ref_data
+        mol0,
+        energy_force_emb,
+        energy_args=force_emb_args,
+        ref_data_func=force_emb_ref_data,
     )
 
     # BE3-CCSD force embedding numerical gradient

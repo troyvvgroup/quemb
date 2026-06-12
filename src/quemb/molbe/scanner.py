@@ -3,6 +3,7 @@
 import inspect
 import os
 from dataclasses import dataclass, field
+from typing import Literal
 
 import h5py
 import numpy as np
@@ -13,6 +14,13 @@ from quemb.molbe import BE, fragmentate
 from quemb.molbe.chemfrag import Fragmented
 from quemb.molbe.helper import get_eri, get_scfObj
 from quemb.molbe.mbe import BEArgs
+
+OrbitalAlignment = Literal["block-diagonal", "basis-projection"]
+
+
+@dataclass
+class ForceEmbArgs(BEArgs):
+    orbital_alignment: OrbitalAlignment | None = None
 
 
 def energy_hf(mol, energy_args=None, fd_info=None):
@@ -62,7 +70,7 @@ def be_ref_data(mol, energy_args=None):
         The ``"ref_fobj"`` entry stores the fragmentate object built from ``mol``.
     """
     if energy_args is None:
-        energy_args = BEArgs()
+        energy_args = ForceEmbArgs()
 
     ref_fobj = fragmentate(
         mol=mol,
@@ -94,7 +102,7 @@ def force_emb_ref_data(mol, energy_args=None):
         The ``"frag_per_atom"`` entry stores the fragment index for each atom.
     """
     if energy_args is None:
-        energy_args = BEArgs()
+        energy_args = ForceEmbArgs()
 
     mf = scf.RHF(mol)
     mf.verbose = 0
@@ -357,7 +365,13 @@ class Energy(lib.StreamObject):
     """
 
     def __init__(
-        self, mol, energy_func, displacement=1e-4, energy_args=None, ref_data_func=None
+        self,
+        mol,
+        energy_func,
+        displacement=1e-4,
+        energy_args=None,
+        ref_data_func=None,
+        orbital_alignment=None,
     ):
         r"""Initialize the custom energy wrapper.
 
@@ -384,6 +398,7 @@ class Energy(lib.StreamObject):
         self.e_tot = None
         self.displacement = displacement
         self.ref_data_func = ref_data_func
+        self.orbital_alignment = orbital_alignment
 
         # Attributes expected by PySCF finite-difference assertions
         # These do not control convergence for the custom method
