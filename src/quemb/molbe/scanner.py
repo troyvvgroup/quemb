@@ -3,7 +3,6 @@
 import inspect
 import os
 from dataclasses import dataclass, field
-from typing import Literal
 
 import h5py
 import numpy as np
@@ -14,8 +13,6 @@ from quemb.molbe.chemfrag import Fragmented
 from quemb.molbe.helper import get_eri, get_scfObj
 from quemb.molbe.mbe import BEArgs
 from quemb.shared.manage_scratch import WorkDir
-
-OrbitalAlignment = Literal["block-diagonal", "basis-projection"]
 
 
 def energy_hf(mol, energy_args=None, fd_info=None):
