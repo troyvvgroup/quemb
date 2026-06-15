@@ -276,10 +276,7 @@ def energy_be_frag(mol, energy_args=None, fd_info=None):
         initialize_fragment_idx=[frag_idx],
     )
 
-    fobj = mybe.Fobjs[frag_idx]
-
     S_cross = gto.intor_cross("int1e_ovlp", mol, fd_info.ref_mol)
-    fobj.TA = np.linalg.inv(mybe.S) @ S_cross @ ref_mybe.Fobjs[frag_idx].TA
 
     # Save the fragment's original ERI bookkeeping
     fobj = mybe.Fobjs[frag_idx]
@@ -288,13 +285,17 @@ def energy_be_frag(mol, energy_args=None, fd_info=None):
 
     # Create a dedicated temporary scratch directory for the re-done ERIs
     redo_scratch = WorkDir(
-        mybe.scratch_dir / orig_dname / "redo_eri",
+        mybe.scratch_dir / "redo_eri",
         cleanup_at_end=True,
         ensure_empty=True,
     )
     tmp_eri_file = redo_scratch / "eri.h5"
 
     try:
+        fobj.TA = np.linalg.inv(mybe.S) @ S_cross @ ref_mybe.Fobjs[frag_idx].TA
+        fobj.dname = "redo" + str(frag_idx)
+        fobj.eri_file = tmp_eri_file
+
         with h5py.File(tmp_eri_file, "w") as file_eri:
             mybe._eri_transform(
                 energy_args.int_transform,
@@ -305,9 +306,8 @@ def energy_be_frag(mol, energy_args=None, fd_info=None):
             mybe._initialize_fragments(file_eri, False, [frag_idx])
 
         fobj = mybe.Fobjs[frag_idx]
-        tmp_dname = fobj.dname
 
-        eri = get_eri(tmp_dname, fobj.nao, eri_file=tmp_eri_file)
+        eri = get_eri(fobj.dname, fobj.nao, eri_file=tmp_eri_file)
         fobj._mf = get_scfObj(
             fobj.fock + fobj.heff,
             eri,
@@ -327,9 +327,11 @@ def energy_be_frag(mol, energy_args=None, fd_info=None):
         energy = mc.e_tot + mf.energy_nuc()
 
     finally:
+        # Restore the fragment's original ERI bookkeeping
         fobj = mybe.Fobjs[frag_idx]
         fobj.dname = orig_dname
         fobj.eri_file = orig_eri_file
+
         redo_scratch.cleanup(ignore_error=True)
 
     return energy
@@ -490,7 +492,6 @@ class Energy(lib.StreamObject):
                 return True
 
             def __call__(self, mol):
-
                 coords = mol.atom_coords()
                 in_fd = called_from_pyscf_finite_diff()
 
