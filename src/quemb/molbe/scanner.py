@@ -13,6 +13,7 @@ from quemb.molbe import BE, fragmentate
 from quemb.molbe.chemfrag import Fragmented
 from quemb.molbe.helper import get_eri, get_scfObj
 from quemb.molbe.mbe import BEArgs
+from quemb.shared.manage_scratch import WorkDir
 
 OrbitalAlignment = Literal["block-diagonal", "basis-projection"]
 
@@ -280,30 +281,58 @@ def energy_be_frag(mol, energy_args=None, fd_info=None):
     S_cross = gto.intor_cross("int1e_ovlp", mol, fd_info.ref_mol)
     fobj.TA = np.linalg.inv(mybe.S) @ S_cross @ ref_mybe.Fobjs[frag_idx].TA
 
-    # Redo the integral transform and fragment initialization
-    # with the new TA
-    file_eri = h5py.File(mybe.eri_file, "w")
-    mybe._eri_transform(energy_args.int_transform, mf._eri, file_eri, [frag_idx])
-
-    mybe._initialize_fragments(file_eri, False, [frag_idx])
-    file_eri.close()
-
+    # Save the fragment's original ERI bookkeeping
     fobj = mybe.Fobjs[frag_idx]
-    # Get the correlation energy for the fragment
-    eri = get_eri(fobj.dname, fobj.nao, eri_file=fobj.eri_file)
-    fobj._mf = get_scfObj(fobj.fock + fobj.heff, eri, fobj.nsocc, dm0=fobj.dm0.copy())
+    orig_dname = fobj.dname
+    orig_eri_file = fobj.eri_file
 
-    mc = cc.CCSD(fobj._mf)
-    mc.verbose = 0
-    mc.incore_complete = True
+    # Create a dedicated temporary scratch directory for the re-done ERIs
+    redo_scratch = WorkDir(
+        mybe.scratch_dir / orig_dname / "redo_eri",
+        cleanup_at_end=True,
+        ensure_empty=True,
+    )
+    tmp_eri_file = redo_scratch / "eri.h5"
 
-    eri_embmo = mc.ao2mo()
-    eri_embmo.mo_energy = fobj._mf.mo_energy
-    eri_embmo.fock = np.diag(fobj._mf.mo_energy)
+    try:
+        with h5py.File(tmp_eri_file, "w") as file_eri:
+            mybe._eri_transform(
+                energy_args.int_transform,
+                mf._eri,
+                file_eri,
+                [frag_idx],
+            )
+            mybe._initialize_fragments(file_eri, False, [frag_idx])
 
-    mc.kernel(eris=eri_embmo)
+        fobj = mybe.Fobjs[frag_idx]
+        tmp_dname = fobj.dname
 
-    return mc.e_tot + mf.energy_nuc()
+        eri = get_eri(tmp_dname, fobj.nao, eri_file=tmp_eri_file)
+        fobj._mf = get_scfObj(
+            fobj.fock + fobj.heff,
+            eri,
+            fobj.nsocc,
+            dm0=fobj.dm0.copy(),
+        )
+
+        mc = cc.CCSD(fobj._mf)
+        mc.verbose = 0
+        mc.incore_complete = True
+
+        eri_embmo = mc.ao2mo()
+        eri_embmo.mo_energy = fobj._mf.mo_energy
+        eri_embmo.fock = np.diag(fobj._mf.mo_energy)
+
+        mc.kernel(eris=eri_embmo)
+        energy = mc.e_tot + mf.energy_nuc()
+
+    finally:
+        fobj = mybe.Fobjs[frag_idx]
+        fobj.dname = orig_dname
+        fobj.eri_file = orig_eri_file
+        redo_scratch.cleanup(ignore_error=True)
+
+    return energy
 
 
 @dataclass
