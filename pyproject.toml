@@ -45,3 +45,6 @@ where = ["./src"]
 include = ["quemb*"]
 exclude = []
 namespaces = false
+
+[project.scripts]
+ube-hfcc = "quemb.scripts.ube_hfcc:main"
