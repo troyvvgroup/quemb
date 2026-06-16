@@ -43,6 +43,7 @@ class UBE(BE):  # 🍠
         compute_hf: bool = True,
         thr_bath: float = 1.0e-10,
         equal_bath: bool = True,
+        use_df: bool = False,
     ) -> None:
         """Initialize Unrestricted BE Object (ube🍠)
 
@@ -76,6 +77,11 @@ class UBE(BE):  # 🍠
         self.unrestricted = True
         self.thr_bath = thr_bath
         self.equal_bath = equal_bath
+        self.use_df = use_df
+        if use_df:
+            assert hasattr(mf, "with_df") and mf.with_df is not None, (
+                "use_df=True requires a density-fitted mf: construct as scf.UHF(mol).density_fit()"
+            )
 
         self.fobj = fobj
 
@@ -105,7 +111,9 @@ class UBE(BE):  # 🍠
         self.Fobjs_a: list[Frags] = []
         self.Fobjs_b: list[Frags] = []
 
-        self.pot = initialize_pot(self.fobj.n_frag, self.fobj.relAO_per_edge_per_frag)
+        self.pot = initialize_pot(
+            self.fobj.n_frag, self.fobj.relAO_per_edge_per_frag
+        )
 
         self.eri_file = Path(eri_file)
         self.frozen_core = fobj.frozen_core
@@ -117,7 +125,9 @@ class UBE(BE):  # 🍠
 
         if self.frozen_core:
             assert not (
-                fobj.ncore is None or fobj.no_core_idx is None or fobj.core_list is None
+                fobj.ncore is None
+                or fobj.no_core_idx is None
+                or fobj.core_list is None
             )
             self.ncore = fobj.ncore
             self.no_core_idx = fobj.no_core_idx
@@ -167,7 +177,7 @@ class UBE(BE):  # 🍠
             self.scratch_dir = scratch_dir
         self.eri_file = self.scratch_dir / eri_file
 
-        self.initialize(mf._eri, compute_hf)
+        self.initialize(None if self.use_df else mf._eri, compute_hf)
 
     def initialize(self, eri_, compute_hf):
         if compute_hf:
@@ -236,30 +246,40 @@ class UBE(BE):  # 🍠
                     )
 
             assert fobj_a.TA is not None and fobj_b.TA is not None
-            assert eri_ is not None, "eri_ is None: set incore_anyway for UHF"
-
-            eri_a = ao2mo.incore.full(eri_, fobj_a.TA, compact=True)
-            eri_b = ao2mo.incore.full(eri_, fobj_b.TA, compact=True)
-
-            Csd_A = fobj_a.TA  # may have to add in nibath here
-            Csd_B = fobj_b.TA
-
-            # cross-spin ERI term
-            eri_ab = ao2mo.incore.general(
-                eri_, (Csd_A, Csd_A, Csd_B, Csd_B), compact=True
-            )
+            if self.use_df:
+                eri_a = self.mf.with_df.ao2mo(fobj_a.TA, compact=True)
+                eri_b = self.mf.with_df.ao2mo(fobj_b.TA, compact=True)
+                eri_ab = self.mf.with_df.ao2mo(
+                    (fobj_a.TA, fobj_a.TA, fobj_b.TA, fobj_b.TA), compact=True
+                )
+            else:
+                assert eri_ is not None, (
+                    "eri_ is None: set incore_anyway for UHF"
+                )
+                eri_a = ao2mo.incore.full(eri_, fobj_a.TA, compact=True)
+                eri_b = ao2mo.incore.full(eri_, fobj_b.TA, compact=True)
+                # cross-spin ERI term
+                eri_ab = ao2mo.incore.general(
+                    eri_,
+                    (fobj_a.TA, fobj_a.TA, fobj_b.TA, fobj_b.TA),
+                    compact=True,
+                )
 
             file_eri.create_dataset(fobj_a.dname[0], data=eri_a)
             file_eri.create_dataset(fobj_a.dname[1], data=eri_b)
             file_eri.create_dataset(fobj_a.dname[2], data=eri_ab)
 
             # sab = self.C_a @ self.S @ self.C_b
-            _ = fobj_a.get_nsocc(self.S, self.C_a, self.Nocc[0], ncore=self.ncore)
+            _ = fobj_a.get_nsocc(
+                self.S, self.C_a, self.Nocc[0], ncore=self.ncore
+            )
 
             fobj_a.h1 = multi_dot((fobj_a.TA.T, self.hcore, fobj_a.TA))
 
             eri_a = ao2mo.restore(8, eri_a, fobj_a.nao)
-            fobj_a.cons_fock(self.hf_veff[0], self.S, self.hf_dm[0] * 2.0, eri_=eri_a)
+            fobj_a.cons_fock(
+                self.hf_veff[0], self.S, self.hf_dm[0] * 2.0, eri_=eri_a
+            )
 
             fobj_a.hf_veff = self.hf_veff[0]
             fobj_a.heff = zeros_like(fobj_a.h1)
@@ -278,11 +298,15 @@ class UBE(BE):  # 🍠
                 ECOUL += ecoul_a
                 E_hf += fobj_a.ebe_hf
 
-            _ = fobj_b.get_nsocc(self.S, self.C_b, self.Nocc[1], ncore=self.ncore)
+            _ = fobj_b.get_nsocc(
+                self.S, self.C_b, self.Nocc[1], ncore=self.ncore
+            )
 
             fobj_b.h1 = multi_dot((fobj_b.TA.T, self.hcore, fobj_b.TA))
             eri_b = ao2mo.restore(8, eri_b, fobj_b.nao)
-            fobj_b.cons_fock(self.hf_veff[1], self.S, self.hf_dm[1] * 2.0, eri_=eri_b)
+            fobj_b.cons_fock(
+                self.hf_veff[1], self.S, self.hf_dm[1] * 2.0, eri_=eri_b
+            )
             fobj_b.hf_veff = self.hf_veff[1]
             fobj_b.heff = zeros_like(fobj_b.h1)
             fobj_b.scf(fs=True, eri=eri_b)
@@ -383,10 +407,14 @@ class UBE(BE):  # 🍠
             )
         unused(E_comp)
 
-        print("-----------------------------------------------------", flush=True)
+        print(
+            "-----------------------------------------------------", flush=True
+        )
         print("             One Shot BE ", flush=True)
         print("             Solver : ", solver, flush=True)
-        print("-----------------------------------------------------", flush=True)
+        print(
+            "-----------------------------------------------------", flush=True
+        )
         print(flush=True)
 
         self.ebe_tot = E + self.hf_etot
@@ -403,7 +431,7 @@ class UBE(BE):  # 🍠
 
     def urdm1_fullbasis(self, return_ao=True):
         """Assemble full-system alpha and beta 1-RDMs via democratic partitioning.
-    
+
         Returns
         -------
         rdm1a_AO, rdm1b_AO : numpy.ndarray
@@ -411,15 +439,13 @@ class UBE(BE):  # 🍠
           Spin density = rdm1a_AO - rdm1b_AO.
         """
         from numpy import zeros
-    
+
         nao = self.S.shape[0]
         rdm1a_AO = zeros((nao, nao))
         rdm1b_AO = zeros((nao, nao))
 
-        W = self.W  # localization matrix, unfrozen core
-        
         def get_mo(fobj):
-            if hasattr(fobj, 'mo_coeff_uccsd'):
+            if hasattr(fobj, "mo_coeff_uccsd"):
                 return fobj.mo_coeff_uccsd
             if fobj._mf is not None:
                 return fobj._mf.mo_coeff
@@ -427,33 +453,21 @@ class UBE(BE):  # 🍠
 
         for fobj_a, fobj_b in zip(self.Fobjs_a, self.Fobjs_b):
             # Fragment AO centers - same for alpha and beta
-            cind = [fobj_a.AO_in_frag[i]
-                    for i in fobj_a.weight_and_relAO_per_center[1]]
+            cind = [
+                fobj_a.AO_in_frag[i]
+                for i in fobj_a.weight_and_relAO_per_center[1]
+            ]
 
             # Democratic partitioning projection in full AO space
             Proj = self.S @ self.W[:, cind] @ self.W[:, cind].T @ self.S
-            
-            # Get MO coefficients — _mf.mo_coeff is most reliable when available
-            if fobj_a._mf is not None:
-                mca = fobj_a._mf.mo_coeff
-            elif fobj_a.mo_coeffs is not None:
-                mca = fobj_a.mo_coeffs
-            else:
-                mca = fobj_a._mo_coeffs
 
-            if fobj_b._mf is not None:
-                mcb = fobj_b._mf.mo_coeff
-            elif fobj_b.mo_coeffs is not None:
-                mcb = fobj_b.mo_coeffs
-            else:
-                mcb = fobj_b._mo_coeffs
+            mca = get_mo(fobj_a)
+            mcb = get_mo(fobj_b)
 
             # Transform fragment RDM to full AO space first
-            rdm1a_full = fobj_a.TA @ fobj_a._mf.mo_coeff @ fobj_a.rdm1__ \
-                        @ fobj_a._mf.mo_coeff.T @ fobj_a.TA.T
-            rdm1b_full = fobj_b.TA @ fobj_b._mf.mo_coeff @ fobj_b.rdm1__ \
-                        @ fobj_b._mf.mo_coeff.T @ fobj_b.TA.T
-    
+            rdm1a_full = fobj_a.TA @ mca @ fobj_a.rdm1__ @ mca.T @ fobj_a.TA.T
+            rdm1b_full = fobj_b.TA @ mcb @ fobj_b.rdm1__ @ mcb.T @ fobj_b.TA.T
+
             # Apply democratic weight in full AO space
             rdm1a_AO += Proj @ rdm1a_full
             rdm1b_AO += Proj @ rdm1b_full
@@ -463,6 +477,7 @@ class UBE(BE):  # 🍠
         rdm1b_AO = (rdm1b_AO + rdm1b_AO.T) / 2.0
 
         return rdm1a_AO, rdm1b_AO
+
 
 def initialize_pot(n_frag, relAO_per_edge):
     pot_ = []
