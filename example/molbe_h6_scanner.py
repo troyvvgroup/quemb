@@ -57,6 +57,15 @@ mc.kernel()
 mc_grad = mc.nuc_grad_method()
 ref_grad_corr = mc_grad.kernel()
 
+mf = scf.RHF(mol1)
+mf.conv_tol = 1e-12
+mf.kernel()
+mc = cc.CCSD(mf)
+mc = cc.CCSD(mf)
+mc.kernel()
+mc_grad = mc.nuc_grad_method()
+ref_grad_corr1 = mc_grad.kernel()
+
 #
 # numerical gradients of mol0
 # BEn-CCSD oneshot, n=1,2,3
@@ -148,6 +157,27 @@ grad_scanner = grad_method.as_scanner()
 gs_E1, gs_grad1 = grad_scanner(mol1)
 gs_E2, gs_grad2 = grad_scanner(mol2)
 
+#
+# gradient point calculations using as_scanner()
+# BE3-CCSD force embedding
+#
+print("\nUsing grad_method.as_scanner():")
+be_args = BEArgs(
+    n_BE=3,
+    solver="CCSD",
+    use_cumulant=True,
+    optimize=False,
+    additional_args=ChemGenArgs(h_treatment="treat_H_like_heavy_atom"),
+)
+energy_method = Energy(
+    mol0, energy_be_frag, energy_args=be_args, ref_data_func=be_frag_ref_data
+)
+grad_method = finite_diff.Gradients(energy_method)
+grad_method.displacement = 1e-4  # Gradients class default is 1e-2 Bohr
+grad_scanner = grad_method.as_scanner()
+fe_gs_E1, fe_gs_grad1 = grad_scanner(mol1)
+fe_gs_E2, fe_gs_grad2 = grad_scanner(mol2)
+
 
 # =========================
 #  Print results
@@ -174,6 +204,13 @@ print(f"BE2-CCSD (with chempot matching) energy of mol2: {es_E2:.8f}")
 
 print("\n___GRADIENT SCANNER___")
 print(f"BE3-CCSD energy of mol1: {gs_E1:.8f}")
-print("BE3-CCSD numerical grad of mol1: \n", gs_grad1)
-print(f"\nBE3-CCSD energy of mol2: {gs_E2:.8f}")
+print(f"BE3-CCSD energy of mol2: {gs_E2:.8f}")
+
+print(f"\nBE3-CCSD force embedding energy of mol1: {fe_gs_E1:.8f}")
+print(f"BE3-CCSD force embedding energy of mol2: {fe_gs_E2:.8f}")
+
+print("\nBE3-CCSD numerical grad of mol1: \n", gs_grad1)
 print("BE3-CCSD numerical grad of mol2: \n", gs_grad2)
+
+print("\nBE3-CCSD force embedding numerical grad of mol1: \n", fe_gs_grad1)
+print("BE3-CCSD force embedding numerical grad of mol2: \n", fe_gs_grad2)

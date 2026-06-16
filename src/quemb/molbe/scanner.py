@@ -256,6 +256,11 @@ def energy_be_frag(mol, energy_args=None, fd_info=None):
     mf.verbose = 0
     mf.kernel()
 
+    if fd_info.kind in ("reference", "scanner_point"):
+        # placeholder energy to allow Gradients.as_scanner()
+        # to return (energy, gradient)
+        return mf.e_tot
+
     assert len(fd_info.atom_idx) == 1, (
         "Expected fd_info.atom_idx to have length 1, "
         f"but got {len(fd_info.atom_idx)}: {fd_info.atom_idx}"

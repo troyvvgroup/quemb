@@ -112,8 +112,24 @@ def test_numerical_force_emb_gradient():
         charge=0,
     )
 
+    mol1 = gto.M(
+        atom="""
+            H 0. 0. 0.
+            H 0. 0. 1.
+            H 0. 0. 2.
+            H 0. 0. 3.
+            H 0. 0. 4.
+            H 0. 0. 5.
+            """,
+        basis="sto-3g",
+        charge=0,
+    )
+
     # CCSD analytic gradient of mol0
     ref_grad_corr = ccsd_analytic_gradient(mol0)
+
+    # CCSD analytic gradient of mol1
+    ref_grad_corr1 = ccsd_analytic_gradient(mol1)
 
     # build force embedding energy method
     force_emb_args = BEArgs(
@@ -142,6 +158,14 @@ def test_numerical_force_emb_gradient():
     fd_grad_fromObj = grad_method.kernel()
     assert np.isclose(
         np.sqrt(np.mean((ref_grad_corr - fd_grad_fromObj) ** 2)), 5.904036799315e-08
+    )
+
+    # BE3-CCSD oneshot numerical gradient from scanner
+    grad_scanner = grad_method.as_scanner()
+    E1, fd_grad1 = grad_scanner(mol1)
+    assert np.isclose(E1, -3.13553221396632)
+    assert np.isclose(
+        np.sqrt(np.mean((ref_grad_corr1 - fd_grad1) ** 2)), 5.9500631823916951e-08
     )
 
 
