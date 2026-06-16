@@ -22,13 +22,20 @@ import numpy as np
 from chemcoord import Cartesian
 from numba import prange  # type: ignore[attr-defined]
 from numba.typed import List
+from packaging.version import parse as parse_version
+from pyscf import __version__ as pyscf_version
 from pyscf import dft, gto, scf
 from pyscf.ao2mo.addons import restore
 from pyscf.df.addons import make_auxmol
+from pyscf.df.incore import aux_e2
 from pyscf.gto import Mole
 from pyscf.gto.moleintor import getints
 from pyscf.pbc import dft as pbc_dft
+from pyscf.pbc.df.incore import aux_e2 as pbc_aux_e2
+from pyscf.pbc.df.incore import fill_2c2e, make_auxcell
 from pyscf.pbc.gto import Cell
+from pyscf.pbc.scf.khf import KRHF
+from pyscf.pbc.tools import super_cell
 from scipy.linalg import cholesky
 from scipy.special import roots_hermite
 from typing_extensions import assert_never
@@ -79,7 +86,7 @@ logger = logging.getLogger(__name__)
 
 def _aux_e2(  # type: ignore[no-untyped-def]
     mol: Mole,
-    auxmol_or_auxbasis: Mole | str,
+    auxmol_or_auxbasis: gto.MoleBase | str,
     intor: str = "int3c2e",
     aosym: str = "s1",
     comp: int | None = None,
@@ -91,8 +98,8 @@ def _aux_e2(  # type: ignore[no-untyped-def]
 
     Fixes a bug in the original implementation :func:`pyscf.df.incore.aux_e2`
     that does not accept all valid slices.
-    Replace with the original, as soon as https://github.com/pyscf/pyscf/pull/2734
-    is merged in the stable release.
+    This function has been fixed in pyscf >= 2.9.0 and is kept for backwards
+    compatibility with older pyscf versions.
     """
     if isinstance(auxmol_or_auxbasis, gto.MoleBase):
         auxmol = auxmol_or_auxbasis
@@ -118,6 +125,40 @@ def _aux_e2(  # type: ignore[no-untyped-def]
     return getints(
         intor, atm, bas, env, shls_slice, comp, hermi, aosym, ao_loc, cintopt, out
     )
+
+
+def aux_e2_wrapper(
+    mol: _T_chemsystem,
+    auxmol_or_auxbasis: _T_chemsystem | gto.MoleBase | str,
+    intor: str = "int3c2e",
+    shls_slice: tuple[int, int, int, int, int, int] | list[int] | None = None,
+) -> Tensor3D[np.float64]:
+    if isinstance(mol, Cell):
+        ijP = pbc_aux_e2(
+            mol,
+            auxmol_or_auxbasis,
+            intor=intor,
+            shls_slice=shls_slice,
+        )
+        ni = shls_slice[1] - shls_slice[0] if shls_slice is not None else mol.nbas
+        nj = shls_slice[3] - shls_slice[2] if shls_slice is not None else mol.nbas
+        return ijP.reshape(ni, nj, -1)  # match shape with molecular
+    elif parse_version(pyscf_version) < parse_version("2.9.0"):
+        # use fixed version of aux_e2 for older pyscf versions
+        return _aux_e2(
+            mol,
+            auxmol_or_auxbasis,
+            intor=intor,
+            shls_slice=shls_slice,
+        )
+    else:
+        # from pyscf.df.incore
+        return aux_e2(
+            mol,
+            auxmol_or_auxbasis,
+            intor=intor,
+            shls_slice=shls_slice,
+        )
 
 
 _T_old_key = TypeVar("_T_old_key", bound=Hashable)
@@ -241,7 +282,7 @@ def _get_AO_per_AO(
 
 
 def conversions_AO_shell(
-    mol: Mole,
+    mol: _T_chemsystem,
 ) -> tuple[dict[ShellIdx, list[AOIdx]], dict[AOIdx, ShellIdx]]:
     """Return dictionaries that for a shell index return the corresponding AO indices
     and for an AO index return the corresponding shell index.
@@ -408,8 +449,8 @@ def _traverse_reachable(
 
 
 def get_sparse_P_mu_nu(
-    mol: Mole,
-    auxmol: Mole,
+    mol: _T_chemsystem,
+    auxmol: _T_chemsystem,
     exch_reachable: Mapping[AOIdx, Sequence[AOIdx]],
 ) -> SemiSparseSym3DTensor:
     """Return the 3-center 2-electron integrals in a sparse format."""
@@ -459,7 +500,7 @@ def get_sparse_P_mu_nu(
     for i_shell, reachable in shell_reachable_by_shell.items():
         for start_block, stop_block in get_blocks(reachable):
             integrals = np.asarray(  # type: ignore[call-overload]
-                _aux_e2(
+                aux_e2_wrapper(
                     mol,
                     auxmol,
                     intor="int3c2e",
@@ -533,7 +574,7 @@ LPQ = TypeVar("LPQ", Matrix[np.float64], "cpp_transforms.GPU_MatrixHandle")
 
 
 def _run_sparse_df_driver(
-    mf: scf.hf.SCF,
+    mf: scf.hf.SCF | KRHF,
     Fobjs: Sequence[Frags],
     auxbasis: str | None,
     file_eri_handler: h5py.File,
@@ -604,12 +645,17 @@ def _run_sparse_df_driver(
     """
     set_log_level(logging.getLogger().getEffectiveLevel())
 
-    mol: Final[Mole] = mf.mol
-    auxmol: Final[Mole] = make_auxmol(mol, auxbasis=auxbasis)
+    is_periodic: Final[bool] = isinstance(mf, KRHF)
+    if is_periodic:
+        mol = mf.cell
+        auxmol = make_auxcell(mol, auxbasis=auxbasis)
+        PQ = fill_2c2e(mol, auxmol)  # (P|Q) for pbc
+    else:
+        mol = mf.mol
+        auxmol = make_auxmol(mol, auxbasis=auxbasis)
+        PQ = auxmol.intor("int2c2e")
 
     S_abs: Final[Matrix[np.floating]] = approx_S_abs(mol)
-
-    PQ: Final = auxmol.intor("int2c2e")
     lowtri: Final[LPQ] = build_lowtri_PQ(cholesky(PQ, lower=True))
 
     if precompute_P_mu_nu:
@@ -622,28 +668,32 @@ def _run_sparse_df_driver(
             "One computation of P_mu_nu for every fragment"
             transformed = transform_integral_impl(
                 P_mu_nu,
-                fragobj.TA,
+                fragobj.TA[0].real if is_periodic else fragobj.TA,
                 S_abs,
                 lowtri,
                 MO_coeff_epsilon,
             )
-            eri = restore("4", transformed, fragobj.TA.shape[1])
+            eri = restore("4", transformed, fragobj.TA.shape[-1])
             file_eri_handler.create_dataset(fragobj.dname, data=eri)
     else:
 
         def worker(fragobj: Frags) -> None:
             "On the fly computation of P_mu_nu for every fragment"
-            exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon, fragobj.TA)
+            exch_reachable = _get_AO_per_AO(
+                S_abs,
+                AO_coeff_epsilon,
+                fragobj.TA[0].real if is_periodic else fragobj.TA,
+            )
             P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
 
             transformed = transform_integral_impl(
                 P_mu_nu,
-                fragobj.TA,
+                fragobj.TA[0].real if is_periodic else fragobj.TA,
                 S_abs,
                 lowtri,
                 MO_coeff_epsilon,
             )
-            eri = restore("4", transformed, fragobj.TA.shape[1])
+            eri = restore("4", transformed, fragobj.TA.shape[-1])
             file_eri_handler.create_dataset(fragobj.dname, data=eri)
 
     if n_threads > 1:
@@ -657,7 +707,7 @@ def _run_sparse_df_driver(
 
 
 def transform_sparse_DF_integral_cpu(
-    mf: scf.hf.SCF,
+    mf: scf.hf.SCF | KRHF,
     Fobjs: Sequence[Frags],
     auxbasis: str | None,
     file_eri_handler: h5py.File,
@@ -681,7 +731,7 @@ def transform_sparse_DF_integral_cpu(
 
 
 def transform_sparse_DF_integral_gpu(
-    mf: scf.hf.SCF,
+    mf: scf.hf.SCF | KRHF,
     Fobjs: Sequence[Frags],
     auxbasis: str | None,
     file_eri_handler: h5py.File,
@@ -926,7 +976,7 @@ def _get_cart_mol(mol: Mole) -> Mole:
 
 
 @timer.timeit
-def approx_S_abs(mol: Mole, nroots: int = 500) -> Matrix[np.float64]:
+def approx_S_abs(mol: _T_chemsystem, nroots: int = 500) -> Matrix[np.float64]:
     r"""Compute the approximated absolute overlap matrix.
 
     The calculation is only exact for uncontracted, cartesian basis functions.
@@ -946,17 +996,24 @@ def approx_S_abs(mol: Mole, nroots: int = 500) -> Matrix[np.float64]:
     nroots :
         Number of roots for the Gauß-Hermite quadrature.
     """  # noqa: E501
-    if mol.cart:
-        s, ctr_mat = _cart_mol_abs_ovlp_matrix(mol, nroots)
-        return abs(ctr_mat.T) @ s @ abs(ctr_mat)
-    else:
-        cart_mol = _get_cart_mol(mol)
-        s, ctr_mat = _cart_mol_abs_ovlp_matrix(cart_mol, nroots)
-        # get the transformation matrix from cartesian basis functions to spherical.
-        cart2spher = cart_mol.cart2sph_coeff(normalized="sp")
-        return _ensure_normalization(
-            abs(cart2spher.T @ ctr_mat.T) @ s @ abs(ctr_mat @ cart2spher)
-        )
+    if isinstance(mol, Mole):
+        if mol.cart:
+            s, ctr_mat = _cart_mol_abs_ovlp_matrix(mol, nroots)
+            return abs(ctr_mat.T) @ s @ abs(ctr_mat)
+        else:
+            cart_mol = _get_cart_mol(mol)
+            s, ctr_mat = _cart_mol_abs_ovlp_matrix(cart_mol, nroots)
+            # get the transformation matrix from cartesian basis functions to spherical.
+            cart2spher = cart_mol.cart2sph_coeff(normalized="sp")
+            return _ensure_normalization(
+                abs(cart2spher.T @ ctr_mat.T) @ s @ abs(ctr_mat @ cart2spher)
+            )
+    elif isinstance(mol, Cell):
+        # Evaluate approximate S_abs from supercell slab
+        slab = super_cell(mol, [3, 3, 3]).to_mol()
+        s_slab = approx_S_abs(slab, nroots)
+        # Take maximum overlap over the images
+        return np.max(s_slab.reshape((27, mol.nao, 27, mol.nao)), axis=(0, 2))
 
 
 def _ensure_normalization(S_abs: Matrix[np.floating]) -> Matrix[np.float64]:
