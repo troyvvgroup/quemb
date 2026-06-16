@@ -630,13 +630,12 @@ def be_func_u(
             raise ValueError("Solver not implemented")
 
         assert fobj_a._mf is not None and fobj_b._mf is not None
-        fobj_a.mo_coeff_uccsd = fobj_a._mf.mo_coeff.copy()  # save before _mf can be cleared
+        fobj_a.mo_coeff_uccsd = fobj_a._mf.mo_coeff.copy()
         fobj_b.mo_coeff_uccsd = fobj_b._mf.mo_coeff.copy()
         fobj_a.rdm1__ = rdm1_tmp[0].copy()
-        fobj_b._rdm1 = (
+        fobj_a._rdm1 = (
             multi_dot((fobj_a._mf.mo_coeff, rdm1_tmp[0], fobj_a._mf.mo_coeff.T)) * 0.5
         )
-
         fobj_b.rdm1__ = rdm1_tmp[1].copy()
         fobj_b._rdm1 = (
             multi_dot((fobj_b._mf.mo_coeff, rdm1_tmp[1], fobj_b._mf.mo_coeff.T)) * 0.5
