@@ -326,7 +326,7 @@ def energy_be_frag(mol, energy_args=None, fd_info=None):
         eri_embmo.fock = np.diag(fobj._mf.mo_energy)
 
         mc.kernel(eris=eri_embmo)
-        energy = mc.e_tot + mf.energy_nuc()
+        energy = mf.e_tot + mc.e_tot - fobj._mf.e_tot
 
     finally:
         # Restore the fragment's original ERI bookkeeping
