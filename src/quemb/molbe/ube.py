@@ -386,7 +386,7 @@ class UBE(BE):  # 🍠
         else:
             E, E_comp = be_func_parallel_u(
                 pot=None,
-                Fobjs=zip(self.Fobjs_a, self.Fobjs_b),
+                Fobjs=list(zip(self.Fobjs_a, self.Fobjs_b)),
                 solver=solver,
                 enuc=self.enuc,
                 hf_veff=self.hf_veff,
