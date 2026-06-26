@@ -265,7 +265,26 @@ def energy_be_frag(mol, energy_args=None, fd_info=None):
         "Expected fd_info.atom_idx to have length 1, "
         f"but got {len(fd_info.atom_idx)}: {fd_info.atom_idx}"
     )
+
+    assert len(fd_info.axis_idx) == 1, (
+        "Expected fd_info.axis_idx to have length 1, "
+        f"but got {len(fd_info.axis_idx)}: {fd_info.axis_idx}"
+    )
+
+    assert len(fd_info.delta_bohr) == 1, (
+        "Expected fd_info.delta_bohr to have length 1, "
+        f"but got {len(fd_info.delta_bohr)}: {fd_info.delta_bohr}"
+    )
+
+    atom_idx = fd_info.atom_idx[0]
+    axis_idx = fd_info.axis_idx[0]
+    delta = fd_info.delta_bohr[0]
     frag_idx = frag_per_atom[fd_info.atom_idx[0]]
+
+    axis_label = ("x", "y", "z")[axis_idx]
+    sign_label = "p" if delta > 0 else "m"
+
+    redo_tag = f"redo_frag{frag_idx}_atom{atom_idx}_{sign_label}{axis_label}"
 
     mybe = BE(
         mf,
@@ -287,15 +306,16 @@ def energy_be_frag(mol, energy_args=None, fd_info=None):
 
     # Create a dedicated temporary scratch directory for the re-done ERIs
     redo_scratch = WorkDir(
-        mybe.scratch_dir / "redo_eri",
+        mybe.scratch_dir / redo_tag,
         cleanup_at_end=True,
         ensure_empty=True,
     )
-    tmp_eri_file = redo_scratch / "eri.h5"
+    tmp_eri_file = redo_scratch / f"{redo_tag}.h5"
 
     try:
         fobj.TA = np.linalg.inv(mybe.S) @ S_cross @ ref_mybe.Fobjs[frag_idx].TA
-        fobj.dname = "redo" + str(frag_idx)
+
+        fobj.dname = redo_tag
         fobj.eri_file = tmp_eri_file
 
         with h5py.File(tmp_eri_file, "w") as file_eri:
