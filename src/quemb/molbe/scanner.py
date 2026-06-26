@@ -1,5 +1,6 @@
 # Author(s): Beck Hanscam
 
+import copy
 import inspect
 import os
 from dataclasses import dataclass, field
@@ -299,10 +300,8 @@ def energy_be_frag(mol, energy_args=None, fd_info=None):
 
     S_cross = gto.intor_cross("int1e_ovlp", mol, fd_info.ref_mol)
 
-    # Save the fragment's original ERI bookkeeping
-    fobj = mybe.Fobjs[frag_idx]
-    orig_dname = fobj.dname
-    orig_eri_file = fobj.eri_file
+    # keep the original fragment object untouched
+    orig_fobj = mybe.Fobjs[frag_idx]
 
     # Create a dedicated temporary scratch directory for the re-done ERIs
     redo_scratch = WorkDir(
@@ -312,11 +311,18 @@ def energy_be_frag(mol, energy_args=None, fd_info=None):
     )
     tmp_eri_file = redo_scratch / f"{redo_tag}.h5"
 
+    # Work on an independent fragment object for this displaced geometry
+    # Use deepcopy since _initialize_fragments changes mybe.ebe_hf
+    fobj = copy.deepcopy(orig_fobj)
+
     try:
         fobj.TA = np.linalg.inv(mybe.S) @ S_cross @ ref_mybe.Fobjs[frag_idx].TA
-
         fobj.dname = redo_tag
         fobj.eri_file = tmp_eri_file
+
+        # _eri_transform() and _initialize_fragments() operate through mybe.Fobjs,
+        # so temporarily point this fragment index to the copied fragment
+        mybe.Fobjs[frag_idx] = fobj
 
         with h5py.File(tmp_eri_file, "w") as file_eri:
             mybe._eri_transform(
@@ -327,6 +333,7 @@ def energy_be_frag(mol, energy_args=None, fd_info=None):
             )
             mybe._initialize_fragments(file_eri, False, [frag_idx])
 
+        # Use the reinitialized copied fragment
         fobj = mybe.Fobjs[frag_idx]
 
         eri = get_eri(fobj.dname, fobj.nao, eri_file=tmp_eri_file)
@@ -349,10 +356,7 @@ def energy_be_frag(mol, energy_args=None, fd_info=None):
         energy = mf.e_tot + mc.e_tot - fobj._mf.e_tot
 
     finally:
-        # Restore the fragment's original ERI bookkeeping
-        fobj = mybe.Fobjs[frag_idx]
-        fobj.dname = orig_dname
-        fobj.eri_file = orig_eri_file
+        mybe.Fobjs[frag_idx] = orig_fobj
 
         redo_scratch.cleanup(ignore_error=True)
 
