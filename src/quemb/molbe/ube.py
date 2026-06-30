@@ -16,6 +16,7 @@ from pathlib import Path
 from warnings import warn
 
 import h5py
+import numpy as np
 from numpy import array, einsum, zeros_like
 from numpy.linalg import multi_dot
 from pyscf import ao2mo
@@ -24,7 +25,12 @@ from pyscf.scf.uhf import UHF
 from quemb.molbe.be_parallel import be_func_parallel_u
 from quemb.molbe.fragment import FragPart
 from quemb.molbe.mbe import BE
-from quemb.molbe.pfrag import Frags
+from quemb.molbe.pfrag import (
+    Frags,
+    schmidt_decomposition_common,
+    project_electrons_onto_embedding,
+    assign_integer_electrons,
+)
 from quemb.molbe.solver import be_func_u
 from quemb.shared.helper import unused
 from quemb.shared.manage_scratch import WorkDir
@@ -43,40 +49,54 @@ class UBE(BE):  # 🍠
         compute_hf: bool = True,
         thr_bath: float = 1.0e-10,
         equal_bath: bool = True,
+        common_bath: bool = False,
+        nelec_prescription_override: dict | None = None,
         use_df: bool = False,
     ) -> None:
         """Initialize Unrestricted BE Object (ube🍠)
 
-        .. note::
-            Currently only supports embedding Hamiltonian construction for molecular
-            systems In conjunction with molbe.misc.ube2fcidump,
-            embedding Hamiltonians can be written for external use.
-            See :python:`unrestricted` branch for a work-in-progress full implmentation
+                .. note::
+                    Currently only supports embedding Hamiltonian construction for molecular
+                    systems In conjunction with molbe.misc.ube2fcidump,
+                    embedding Hamiltonians can be written for external use.
+                    See :python:`unrestricted` branch for a work-in-progress full implmentation
 
-        Parameters
-        ----------
-        mf :
-            pyscf meanfield UHF object
-        fobj :
-            object that contains fragment information
-        eri_file :
-            h5py file with ERIs
-        lo_method :
-            Method for orbital localization, by default "lowdin"
-        pop_method :
-            Method for calculating orbital population, by default 'meta-lowdin'
-            See pyscf.lo for more details and options
-        thr_bath :
-            Threshold for bath orbitals in Schmidt decomposition
-        equal_bath :
-            Whether to use a bath with the same number of alpha and beta orbitals.
-            Using equal_bath = False will require custom compiled functions in
-            PySCF to perform integral transformations. Default is True
+                Parameters
+                ----------
+                mf :
+                    pyscf meanfield UHF object
+                fobj :
+                    object that contains fragment information
+                eri_file :
+                    h5py file with ERIs
+                lo_method :
+                    Method for orbital localization, by default "lowdin"
+                pop_method :
+                    Method for calculating orbital population, by default 'meta-lowdin'
+                    See pyscf.lo for more details and options
+                thr_bath :
+                    Threshold for bath orbitals in Schmidt decomposition
+                equal_bath :
+                    Whether to use a bath with the same number of alpha and beta orbitals.
+                    Using equal_bath = False will require custom compiled functions in
+                    PySCF to perform integral transformations. Default is True
+                common_bath :
+                    Use SVD-based common alpha/beta bath. Produces a single TA
+        #           shared by both spin channels — required for spin-summed 1RDM
+        #           matching in iterative UBE (Tran et al. 2020, Eq. 15).
+        #           Supersedes equal_bath when True. Default False.
+        #       nelec_prescription_override : dict, optional
+        #           Override automatic integer electron assignment for specific
+        #           fragments. Keys are fragment indices, values are (nalpha, nbeta)
+        #           tuples. E.g. {0: (21, 16)} fixes fragment 0 to 21alpha, 16beta.
+        #           Use when automatic assignment gives physically wrong spin.
         """
 
         self.unrestricted = True
         self.thr_bath = thr_bath
         self.equal_bath = equal_bath
+        self.common_bath = common_bath
+        self.nelec_prescription_override = nelec_prescription_override or {}
         self.use_df = use_df
         if use_df:
             assert hasattr(mf, "with_df") and mf.with_df is not None, (
@@ -210,40 +230,72 @@ class UBE(BE):  # 🍠
                 fobj_a.core_veff = None
                 fobj_b.core_veff = None
 
-            fobj_a.sd(
-                self.W[0] if self.frozen_core else self.W,
-                self.lmo_coeff_a,
-                self.Nocc[0],
-                thr_bath=self.thr_bath,
-            )
-            fobj_b.sd(
-                self.W[1] if self.frozen_core else self.W,
-                self.lmo_coeff_b,
-                self.Nocc[1],
-                thr_bath=self.thr_bath,
-            )
+            W = self.W[0] if self.frozen_core else self.W
+            W_b = self.W[1] if self.frozen_core else self.W
 
-            if self.equal_bath:
-                # Enforce the same number of alpha and beta orbitals
-                # by augmenting the bath
-                tot_alpha = fobj_a.n_f + fobj_a.n_b
-                tot_beta = fobj_b.n_f + fobj_b.n_b
-                if tot_alpha > tot_beta:
-                    fobj_b.sd(
-                        self.W[1] if self.frozen_core else self.W,
-                        self.lmo_coeff_b,
-                        self.Nocc[1],
-                        thr_bath=self.thr_bath,
-                        norb=fobj_a.n_b,
-                    )
-                elif tot_beta > tot_alpha:
-                    fobj_a.sd(
-                        self.W[0] if self.frozen_core else self.W,
-                        self.lmo_coeff_a,
-                        self.Nocc[0],
-                        thr_bath=self.thr_bath,
-                        norb=fobj_b.n_b,
-                    )
+            if self.common_bath:
+                # SVD-based common bath
+                # Single TA shared by alpha and beta: prerequisite for
+                # spin-summed 1RDM matching in iterative UBE.
+                TA_lo_eo, n_f, n_b = schmidt_decomposition_common(
+                    self.lmo_coeff_a,
+                    self.lmo_coeff_b,
+                    self.Nocc[0],
+                    self.Nocc[1],
+                    fobj_a.AO_in_frag,
+                    thr_bath=self.thr_bath,
+                )
+                TA = W @ TA_lo_eo
+
+                for fobj in [fobj_a, fobj_b]:
+                    fobj.TA_lo_eo = TA_lo_eo.copy()
+                    fobj.TA = TA.copy()
+                    fobj.n_f = n_f
+                    fobj.n_b = n_b
+                    fobj.nao = TA.shape[1]
+
+                # Project UHF density to get fractional electron counts.
+                # Store for global assignment after all fragments are done.
+                n_a_frac, n_b_frac = project_electrons_onto_embedding(
+                    TA, self.S, self.hf_dm[0], self.hf_dm[1]
+                )
+                # Store on fragment for collection after loop
+                fobj_a._n_elec_frac = (n_a_frac, n_b_frac)
+
+            else:
+                # Original separate alpha/beta Schmidt decompositions
+                fobj_a.sd(
+                    W,
+                    self.lmo_coeff_a,
+                    self.Nocc[0],
+                    thr_bath=self.thr_bath,
+                )
+                fobj_b.sd(
+                    W_b,
+                    self.lmo_coeff_b,
+                    self.Nocc[1],
+                    thr_bath=self.thr_bath,
+                )
+
+                if self.equal_bath:
+                    tot_alpha = fobj_a.n_f + fobj_a.n_b
+                    tot_beta = fobj_b.n_f + fobj_b.n_b
+                    if tot_alpha > tot_beta:
+                        fobj_b.sd(
+                            W_b,
+                            self.lmo_coeff_b,
+                            self.Nocc[1],
+                            thr_bath=self.thr_bath,
+                            norb=fobj_a.n_b,
+                        )
+                    elif tot_beta > tot_alpha:
+                        fobj_a.sd(
+                            W,
+                            self.lmo_coeff_a,
+                            self.Nocc[0],
+                            thr_bath=self.thr_bath,
+                            norb=fobj_b.n_b,
+                        )
 
             assert fobj_a.TA is not None and fobj_b.TA is not None
             if self.use_df:
@@ -324,6 +376,46 @@ class UBE(BE):  # 🍠
                 EH1 += eh1_b
                 ECOUL += ecoul_b
                 E_hf += fobj_b.ebe_hf
+
+        if self.common_bath:
+            n_a_frac_list = [
+                getattr(fobj, "_n_elec_frac", (self.Nocc[0], self.Nocc[1]))[0]
+                for fobj in self.Fobjs_a
+            ]
+            n_b_frac_list = [
+                getattr(fobj, "_n_elec_frac", (self.Nocc[0], self.Nocc[1]))[1]
+                for fobj in self.Fobjs_a
+            ]
+
+            n_a_int_list, n_b_int_list = assign_integer_electrons(
+                n_a_frac_list,
+                n_b_frac_list,
+                self.Nocc[0],
+                self.Nocc[1],
+                thr=0.1,
+                verbose=True,
+            )
+
+            # Apply manual overrides if provided
+            for frag_idx, (
+                na_ov,
+                nb_ov,
+            ) in self.nelec_prescription_override.items():
+                old = (n_a_int_list[frag_idx], n_b_int_list[frag_idx])
+                n_a_int_list[frag_idx] = na_ov
+                n_b_int_list[frag_idx] = nb_ov
+                print(
+                    f"  Fragment {frag_idx} nelec override: "
+                    f"{old} → ({na_ov}α, {nb_ov}β)",
+                    flush=True,
+                )
+
+            # Store on fragment objects for the UCCSD solver
+            for I, (fobj_a, fobj_b) in enumerate(
+                zip(self.Fobjs_a, self.Fobjs_b)
+            ):
+                fobj_a.nsocc = n_a_int_list[I]
+                fobj_b.nsocc = n_b_int_list[I]
 
         orb_count_a = [(frag.n_f, frag.n_b) for frag in self.Fobjs_a]
         orb_count_b = [(frag.n_f, frag.n_b) for frag in self.Fobjs_b]
@@ -452,13 +544,11 @@ class UBE(BE):  # 🍠
             return fobj._mo_coeffs
 
         for fobj_a, fobj_b in zip(self.Fobjs_a, self.Fobjs_b):
-            # Fragment AO centers - same for alpha and beta
             cind = [
                 fobj_a.AO_in_frag[i]
                 for i in fobj_a.weight_and_relAO_per_center[1]
             ]
 
-            # Democratic partitioning projection in full AO space
             Proj = self.S @ self.W[:, cind] @ self.W[:, cind].T @ self.S
 
             mca = get_mo(fobj_a)

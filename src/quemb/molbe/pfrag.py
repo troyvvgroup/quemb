@@ -149,6 +149,7 @@ class Frags:
         nocc: int,
         thr_bath: float,
         norb: int | None = None,
+        dm_override: Matrix[float64] | None = None,
     ) -> None:
         """
         Perform Schmidt decomposition for the fragment.
@@ -167,6 +168,12 @@ class Frags:
             Specify number of bath orbitals.
             Used for UBE, where different number of alpha and beta orbitals
             Default is None, allowing orbitals to be chosen by threshold
+        dm_override : numpy.ndarray, optional
+            If provided, use this density matrix for Schmidt decomposition
+            instead of computing it from lmo and nocc. Used for common bath
+            construction where the total (alpha+beta) density matrix is used
+            to produce a single set of bath orbitals shared by both spin
+            channels. Default is None.
         """
         self.TA_lo_eo, self.n_f, self.n_b = schmidt_decomposition(
             lmo,
@@ -174,6 +181,7 @@ class Frags:
             self.AO_in_frag,
             thr_bath=thr_bath,
             norb=norb,
+            rdm=dm_override,
         )
         self.TA = lao @ self.TA_lo_eo
         self.nao = self.TA.shape[1]
@@ -196,7 +204,10 @@ class Frags:
 
         if eri_ is None:
             eri_ = get_eri(
-                self.dname, self.TA.shape[1], ignore_symm=True, eri_file=self.eri_file
+                self.dname,
+                self.TA.shape[1],
+                ignore_symm=True,
+                eri_file=self.eri_file,
             )
 
         veff_, veff0 = get_veff(eri_, dm, S, self.TA, hf_veff)
@@ -238,7 +249,13 @@ class Frags:
         return P_
 
     def scf(
-        self, heff=None, fs=False, eri=None, dm0=None, unrestricted=False, spin_ind=None
+        self,
+        heff=None,
+        fs=False,
+        eri=None,
+        dm0=None,
+        unrestricted=False,
+        spin_ind=None,
     ):
         """
         Perform self-consistent field (SCF) calculation for the fragment.
@@ -336,7 +353,9 @@ class Frags:
             mo_coeffs = self._mo_coeffs
 
         if rdm_hf is None:
-            rdm_hf = mo_coeffs[:, : self.nsocc] @ mo_coeffs[:, : self.nsocc].conj().T
+            rdm_hf = (
+                mo_coeffs[:, : self.nsocc] @ mo_coeffs[:, : self.nsocc].conj().T
+            )
 
         unrestricted_fac = 1.0 if unrestricted else 2.0
 
@@ -347,7 +366,9 @@ class Frags:
         ec = (
             0.5
             * unrestricted_fac
-            * einsum("ij,ij->i", self.veff[: self.n_frag], rdm_hf[: self.n_frag])
+            * einsum(
+                "ij,ij->i", self.veff[: self.n_frag], rdm_hf[: self.n_frag]
+            )
         )
 
         if self.TA.ndim == 3:
@@ -365,9 +386,9 @@ class Frags:
         for i in range(self.n_frag):
             for j in range(jmax):
                 ij = i * (i + 1) // 2 + j if i > j else j * (j + 1) // 2 + i
-                Gij = (2.0 * rdm_hf[i, j] * rdm_hf - outer(rdm_hf[i], rdm_hf[j]))[
-                    :jmax, :jmax
-                ]
+                Gij = (
+                    2.0 * rdm_hf[i, j] * rdm_hf - outer(rdm_hf[i], rdm_hf[j])
+                )[:jmax, :jmax]
                 Gij[diag_indices(jmax)] *= 0.5
                 Gij += Gij.T
                 # unrestricted ERI file has 3 spin components: a, b, ab
@@ -379,7 +400,12 @@ class Frags:
                         @ eri[spin_ind][ij]
                     )
                 else:
-                    e2[i] += 0.5 * unrestricted_fac * Gij[tril_indices(jmax)] @ eri[ij]
+                    e2[i] += (
+                        0.5
+                        * unrestricted_fac
+                        * Gij[tril_indices(jmax)]
+                        @ eri[ij]
+                    )
 
         e_ = e1 + e2 + ec
         etmp = 0.0
@@ -481,17 +507,15 @@ def schmidt_decomposition(
         # Bidx corresponding to a high eigenvalue from the environment
         # (this is analagous to tightening up the threshold of the bath for the alpha
         # or beta orbitals until they are the same size)
-       
+
         # Get all excluded indices sorted by distance from threshold
         # Prefer orbitals just above 1-thr_bath (nearly occupied environment)
         excluded = [i for i in range(len(Eval)) if i not in set(Bidx)]
         # Sort by eigenvalue descending — closest to 1 first
-        excluded_sorted = sorted(excluded,
-                                key=lambda i: Eval[i],
-                                reverse=True)
-            # Bidx corresponds to sorted Eval and Evec, so this simply adds indices
-            # corresponding to larger eigenvectors until the bath size reaches norb
-            # When bath size is reached, it will stop
+        excluded_sorted = sorted(excluded, key=lambda i: Eval[i], reverse=True)
+        # Bidx corresponds to sorted Eval and Evec, so this simply adds indices
+        # corresponding to larger eigenvectors until the bath size reaches norb
+        # When bath size is reached, it will stop
         for idx in excluded_sorted:
             if len(Bidx) >= norb:
                 break
@@ -503,6 +527,255 @@ def schmidt_decomposition(
     TA[Env_sites1, len(AO_in_frag) :] = Evec[:, Bidx]  # Environment part
 
     return TA, Frag_sites1.shape[0], len(Bidx)
+
+
+def schmidt_decomposition_common(
+    mo_coeff_a,
+    mo_coeff_b,
+    nocc_a,
+    nocc_b,
+    AO_in_frag,
+    thr_bath=1.0e-10,
+):
+    """
+    Common bath Schmidt decomposition for unrestricted calculations.
+
+    Constructs a single set of bath orbitals spanning both alpha and beta
+    environment spaces via SVD of the stacked environment MO coefficient
+    blocks. This produces one TA shared by both spin channels, making
+    the alpha and beta embedding spaces identical.
+
+    This is a prerequisite for the spin-summed 1RDM matching condition
+    in iterative UBE (Tran, Ye, Van Voorhis, J. Chem. Phys. 153, 214101,
+    2020, Eq. 15), which matches (P^alpha + P^beta) rather than P^alpha
+    and P^beta separately. Consistent matching requires both spin channels
+    to be expressed in the same orbital basis.
+
+    The SVD approach directly generalizes the restricted Schmidt
+    decomposition to the unrestricted case: instead of SVD of a single
+    C_env block (which gives separate alpha and beta baths), we SVD
+    the horizontally stacked [C_env^alpha | C_env^beta], whose left singular
+    vectors span the union of both occupied environment spaces.
+
+    Parameters
+    ----------
+    mo_coeff_a : ndarray, shape (n_LO, n_MO_a)
+        Alpha occupied+virtual MO coefficients in LO basis (lmo_coeff_a).
+    mo_coeff_b : ndarray, shape (n_LO, n_MO_b)
+        Beta occupied+virtual MO coefficients in LO basis (lmo_coeff_b).
+    nocc_a : int
+        Number of occupied alpha orbitals.
+    nocc_b : int
+        Number of occupied beta orbitals.
+    AO_in_frag : sequence of int
+        LO indices belonging to this fragment.
+    thr_bath : float
+        Singular value threshold for bath orbital inclusion. Orbitals
+        with singular value below this are unentangled with the fragment
+        and excluded. Default 1e-10.
+
+    Returns
+    -------
+    TA_lo_eo : ndarray, shape (n_LO, n_frag + n_bath)
+        Transformation matrix in LO basis. First n_frag columns are the
+        fragment identity block; remaining n_bath columns are the common
+        bath orbitals.
+    n_frag : int
+        Number of fragment orbitals (= len(AO_in_frag)).
+    n_bath : int
+        Number of common bath orbitals.
+    """
+    import numpy as np
+
+    n_LO = mo_coeff_a.shape[0]
+
+    # Fragment and environment site indices in LO basis
+    frag_set = set(AO_in_frag)
+    frag_sites = list(AO_in_frag)
+    env_sites = [i for i in range(n_LO) if i not in frag_set]
+
+    # Occupied MO coefficient rows for environment sites only
+    # C_env_a: (n_env, nocc_a), C_env_b: (n_env, nocc_b)
+    C_env_a = mo_coeff_a[np.ix_(env_sites, list(range(nocc_a)))]
+    C_env_b = mo_coeff_b[np.ix_(env_sites, list(range(nocc_b)))]
+
+    # Stack horizontally: (n_env, nocc_a + nocc_b)
+    # Left singular vectors of this matrix span the union of alpha and
+    # beta occupied environment spaces — the common bath orbital space.
+    C_env_total = np.hstack([C_env_a, C_env_b])
+
+    U, S, _ = np.linalg.svd(C_env_total, full_matrices=False)
+
+    print(f"  SVD singular values: {S[:10]}...{S[-5:]}")
+    print(
+        f"  S > 0.5: {np.sum(S > 0.5)}, S > 0.1: {np.sum(S > 0.1)}, S > 1e-10: {np.sum(S > 1e-10)}"
+    )
+    # Temporarily add after SVD in schmidt_decomposition_common:
+    print(f"  n_env={len(env_sites)}, nocc_a={nocc_a}, nocc_b={nocc_b}")
+    print(f"  Singular values > 0.9: {np.sum(S > 0.9)}")
+    print(f"  Singular values 0.1-0.9: {np.sum((S > 0.1) & (S <= 0.9))}")
+    print(f"  Singular values 0.01-0.1: {np.sum((S > 0.01) & (S <= 0.1))}")
+    print(f"  Singular values < 0.01: {np.sum(S < 0.01)}")
+    print(f"  First 10 singular values: {S[:10]}")
+    print(f"  Last 10 singular values: {S[-10:]}")
+
+    # Keep bath orbitals whose singular value exceeds threshold.
+    # Singular values near zero correspond to environment orbitals
+    # with no entanglement with the fragment.
+    bath_mask = S > thr_bath
+    bath_orbs = U[:, bath_mask]  # (n_env, n_bath)
+
+    n_frag = len(frag_sites)
+    n_bath = int(bath_orbs.shape[1])
+
+    # Build transformation matrix in LO basis:
+    # [ I_frag |  0    ]   fragment block (identity)
+    # [   0    | U_bath]   environment block (common bath orbitals)
+    TA_lo_eo = np.zeros((n_LO, n_frag + n_bath))
+    TA_lo_eo[frag_sites, :n_frag] = np.eye(n_frag)
+    TA_lo_eo[env_sites, n_frag:] = bath_orbs
+
+    return TA_lo_eo, n_frag, n_bath
+
+
+def project_electrons_onto_embedding(TA, S, rdm1a, rdm1b):
+    """
+    Project UHF alpha/beta densities onto the common bath embedding space
+    to get fractional electron counts per fragment.
+
+    Parameters
+    ----------
+    TA : ndarray (nao, n_emb)
+        Common bath transformation matrix in AO basis.
+    S : ndarray (nao, nao)
+        AO overlap matrix.
+    rdm1a, rdm1b : ndarray (nao, nao)
+        UHF alpha/beta 1RDMs in AO basis.
+
+    Returns
+    -------
+    n_a, n_b : float
+        Fractional alpha and beta electron counts in embedding space.
+    """
+    import numpy as np
+
+    S_emb = TA.T @ S @ TA
+    S_emb_inv = np.linalg.inv(S_emb)
+
+    P_a = S_emb_inv @ TA.T @ S @ rdm1a @ S @ TA
+    P_b = S_emb_inv @ TA.T @ S @ rdm1b @ S @ TA
+
+    return float(np.trace(P_a)), float(np.trace(P_b))
+
+
+def assign_integer_electrons(
+    n_a_frac_list,
+    n_b_frac_list,
+    nocc_a_total,
+    nocc_b_total,
+    thr=0.1,
+    verbose=True,
+):
+    """
+    Assign integer alpha and beta electron counts to fragments using the
+    largest remainder method, ensuring global electron conservation:
+        sum(n_a_int) == nocc_a_total
+        sum(n_b_int) == nocc_b_total
+
+    The largest remainder method rounds all fragments down first, then
+    adds 1 electron to fragments with the largest fractional remainders
+    until the total is reached. This minimises the maximum deviation
+    from the projected fractional counts.
+
+    Parameters
+    ----------
+    n_a_frac_list, n_b_frac_list : list of float
+        Fractional electron counts per fragment from projection.
+    nocc_a_total, nocc_b_total : int
+        Total number of alpha/beta electrons in the full system.
+    thr : float
+        Threshold for warning about large deviations. Default 0.1.
+    verbose : bool
+        Whether to print the prescription table.
+
+    Returns
+    -------
+    n_a_int_list, n_b_int_list : list of int
+        Integer electron counts per fragment.
+    """
+    import numpy as np
+
+    def largest_remainder(frac_list, total):
+        floors = [int(x) for x in frac_list]
+        remainders = [x - f for x, f in zip(frac_list, floors)]
+        deficit = total - sum(floors)
+        # Add 1 to fragments with largest remainders until total is met
+        idx_sorted = sorted(
+            range(len(remainders)), key=lambda i: remainders[i], reverse=True
+        )
+        for i in range(int(deficit)):
+            floors[idx_sorted[i]] += 1
+        return floors
+
+    n_a_int = largest_remainder(n_a_frac_list, nocc_a_total)
+    n_b_int = largest_remainder(n_b_frac_list, nocc_b_total)
+
+    if verbose:
+        print(f"\n{'=' * 70}", flush=True)
+        print(f"Common bath electron prescription", flush=True)
+        print(
+            f"  Global: {nocc_a_total}α + {nocc_b_total}β = "
+            f"{nocc_a_total + nocc_b_total} total electrons",
+            flush=True,
+        )
+        print(f"{'=' * 70}", flush=True)
+        print(
+            f"  {'Frag':>5}  {'nα_proj':>9}  {'nα_int':>7}  "
+            f"{'nβ_proj':>9}  {'nβ_int':>7}  {'dev_α':>7}  "
+            f"{'dev_β':>7}  {'spin':>5}",
+            flush=True,
+        )
+        print(f"  {'-' * 65}", flush=True)
+        any_warn = False
+        for i, (na_f, nb_f, na_i, nb_i) in enumerate(
+            zip(n_a_frac_list, n_b_frac_list, n_a_int, n_b_int)
+        ):
+            dev_a = abs(na_f - na_i)
+            dev_b = abs(nb_f - nb_i)
+            warn = "⚠" if (dev_a > thr or dev_b > thr) else " "
+            if dev_a > thr or dev_b > thr:
+                any_warn = True
+            print(
+                f"  {warn}{i:>4}  {na_f:>9.4f}  {na_i:>7}  "
+                f"{nb_f:>9.4f}  {nb_i:>7}  {dev_a:>7.4f}  "
+                f"{dev_b:>7.4f}  {na_i - nb_i:>5}",
+                flush=True,
+            )
+        print(f"  {'-' * 65}", flush=True)
+        print(
+            f"  {'SUM':>5}  {sum(n_a_frac_list):>9.4f}  "
+            f"{sum(n_a_int):>7}  {sum(n_b_frac_list):>9.4f}  "
+            f"{sum(n_b_int):>7}",
+            flush=True,
+        )
+        if any_warn:
+            print(f"\n  ⚠ Some fragments have deviation > {thr}.", flush=True)
+            print(
+                f"    Inspect prescription above. If spin assignments look",
+                flush=True,
+            )
+            print(
+                f"    wrong, rerun with nelec_prescription_override.",
+                flush=True,
+            )
+        else:
+            print(
+                f"\n  ✓ All deviations < {thr} — prescription unambiguous.",
+                flush=True,
+            )
+        print(f"{'=' * 70}\n", flush=True)
+
+    return n_a_int, n_b_int
 
 
 def _get_contained(
@@ -527,13 +800,15 @@ def _get_contained(
     epsilon :
         Cutoff to consider overlap values to be zero or one.
     """
-    return (clean_overlap(all_fragment_MOs_TA.T @ S @ TA, epsilon=epsilon) == 1).any(
-        axis=0
-    )
+    return (
+        clean_overlap(all_fragment_MOs_TA.T @ S @ TA, epsilon=epsilon) == 1
+    ).any(axis=0)
 
 
 def _get_union_of_fragment_MOs(
-    schmidt_TAs: Sequence[Matrix[np.float64]], S: Matrix[np.float64], epsilon: float
+    schmidt_TAs: Sequence[Matrix[np.float64]],
+    S: Matrix[np.float64],
+    epsilon: float,
 ) -> Matrix[np.float64]:
     all_fragment_MOs_TA = schmidt_TAs[0]
     for schmidt_TA in schmidt_TAs[1:]:
@@ -541,7 +816,10 @@ def _get_union_of_fragment_MOs(
             (
                 all_fragment_MOs_TA,
                 schmidt_TA[
-                    :, ~_get_contained(all_fragment_MOs_TA, schmidt_TA, S, epsilon)
+                    :,
+                    ~_get_contained(
+                        all_fragment_MOs_TA, schmidt_TA, S, epsilon
+                    ),
                 ],
             )
         )
@@ -581,7 +859,9 @@ def union_of_frag_MOs_and_index(
         Cutoff to consider overlap values to be zero or one.
     """
     fragment_TAs = [fobj.TA[:, : fobj.n_f] for fobj in Fobjs]
-    all_fragment_MOs_TA = _get_union_of_fragment_MOs(fragment_TAs, S, epsilon=epsilon)
+    all_fragment_MOs_TA = _get_union_of_fragment_MOs(
+        fragment_TAs, S, epsilon=epsilon
+    )
     return all_fragment_MOs_TA, [
         _get_index_offset(all_fragment_MOs_TA, schmidt_TA, S, epsilon=epsilon)
         for schmidt_TA in fragment_TAs
