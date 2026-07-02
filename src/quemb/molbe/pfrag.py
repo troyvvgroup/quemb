@@ -486,6 +486,17 @@ def schmidt_decomposition(
     Env_sites = array([[i] for i in range(Tot_sites) if i not in AO_in_frag])
     Frag_sites1 = array([[i] for i in AO_in_frag])
 
+    if len(Env_sites1) == 0:
+        raise ValueError(
+            f"Fragment contains all {Tot_sites} sites in the system — "
+            "no environment remains, so the bath is undefined. This makes "
+            "the BE calculation equivalent to running the full system "
+            "without embedding. If this is intentional (e.g. testing "
+            "against exact UCCSD), consider restructuring the fragmentation "
+            "to avoid this edge case, or contact the dev if you believe "
+            "this should be supported as a degenerate single-fragment case."
+        )
+
     # Compute the environment part of the density matrix
     Denv = Dhf[Env_sites, Env_sites.T]
 
@@ -593,6 +604,15 @@ def schmidt_decomposition_common(
     frag_set = set(AO_in_frag)
     frag_sites = list(AO_in_frag)
     env_sites = [i for i in range(n_LO) if i not in frag_set]
+
+    if len(env_sites) == 0:
+        raise ValueError(
+            f"Fragment contains all {n_LO} sites in the system — "
+            "no environment remains for common bath construction. "
+            "This typically happens when chemgen's motif-merging collapses "
+            "a small/star-shaped molecule into a single fragment. "
+            "Consider using autogen fragmentation instead for this system."
+        )
 
     # Occupied MO coefficient rows for environment sites only
     # C_env_a: (n_env, nocc_a), C_env_b: (n_env, nocc_b)
