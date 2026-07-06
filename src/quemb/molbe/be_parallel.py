@@ -222,9 +222,9 @@ def run_solver(
         cas = mcscf.CASCI(mf_, nmo, nelec)
         h1, ecore = cas.get_h1eff(mo_coeff=mf_.mo_coeff)
         unused(ecore)
-        eri = ao2mo.kernel(mf_._eri, mf_.mo_coeff, aosym="s4", compact=False).reshape(
-            4 * ((nmo),)
-        )
+        eri = ao2mo.kernel(
+            mf_._eri, mf_.mo_coeff, aosym="s4", compact=False
+        ).reshape(4 * ((nmo),))
 
         if SHCI_args.return_frag_data:
             warn(
@@ -236,7 +236,9 @@ def run_solver(
             frag_name = Path(f"{scratch_dir}-frag_data") / f"{dname}_iter{iter}"
             while frag_name.exists():
                 iter += 1
-                frag_name = Path(f"{scratch_dir}-frag_data") / f"{dname}_iter{iter}"
+                frag_name = (
+                    Path(f"{scratch_dir}-frag_data") / f"{dname}_iter{iter}"
+                )
             frag_scratch = WorkDir(frag_name, cleanup_at_end=False)
             print("Fragment Scratch Directory:", frag_scratch)
         else:
@@ -364,12 +366,14 @@ def run_solver_u(
     fobj_a.rdm1__ = rdm1_tmp[0].copy()
     assert fobj_a._mf is not None and fobj_b._mf is not None
     fobj_a._rdm1 = (
-        multi_dot((fobj_a._mf.mo_coeff, rdm1_tmp[0], fobj_a._mf.mo_coeff.T)) * 0.5
+        multi_dot((fobj_a._mf.mo_coeff, rdm1_tmp[0], fobj_a._mf.mo_coeff.T))
+        * 0.5
     )
 
     fobj_b.rdm1__ = rdm1_tmp[1].copy()
     fobj_b._rdm1 = (
-        multi_dot((fobj_b._mf.mo_coeff, rdm1_tmp[1], fobj_b._mf.mo_coeff.T)) * 0.5
+        multi_dot((fobj_b._mf.mo_coeff, rdm1_tmp[1], fobj_b._mf.mo_coeff.T))
+        * 0.5
     )
 
     # Calculate Energies
@@ -469,7 +473,7 @@ def be_func_parallel(
         the error norm, error vector, and the computed energy.
     """
     # Set the number of OpenMP threads
-    os.system("export OMP_NUM_THREADS=" + str(ompnum))
+    os.environ["OMP_NUM_THREADS"] = str(ompnum)
     nprocs = nproc // ompnum
 
     # Update the effective Hamiltonian with potentials
@@ -482,7 +486,9 @@ def be_func_parallel(
         # Run solver in parallel for each fragment
         for fobj in Fobjs:
             assert (
-                fobj.fock is not None and fobj.heff is not None and fobj.dm0 is not None
+                fobj.fock is not None
+                and fobj.heff is not None
+                and fobj.dm0 is not None
             )
 
             result = pool_.apply_async(
@@ -601,7 +607,7 @@ def be_func_parallel_u(
         Returns the computed energy
     """
     # Set the number of OpenMP threads
-    os.system("export OMP_NUM_THREADS=" + str(ompnum))
+    os.environ["OMP_NUM_THREADS"] = str(ompnum)
     nprocs = nproc // ompnum
 
     with Pool(nprocs) as pool_:
