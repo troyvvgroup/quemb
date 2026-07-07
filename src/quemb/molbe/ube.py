@@ -549,20 +549,39 @@ class UBE(BE):  # 🍠
                 for i in fobj_a.weight_and_relAO_per_center[1]
             ]
 
-            Proj = self.S @ self.W[:, cind] @ self.W[:, cind].T @ self.S
+            # Build the projector in the LOCAL embedding-space basis (matching
+            # the restricted rdm1_fullbasis pattern), not in full AO space.
+            Pc_a = (
+                fobj_a.TA.T
+                @ self.S
+                @ self.W[:, cind]
+                @ self.W[:, cind].T
+                @ self.S
+                @ fobj_a.TA
+            )
+            Pc_b = (
+                fobj_b.TA.T
+                @ self.S
+                @ self.W[:, cind]
+                @ self.W[:, cind].T
+                @ self.S
+                @ fobj_b.TA
+            )
 
             mca = get_mo(fobj_a)
             mcb = get_mo(fobj_b)
 
-            # Transform fragment RDM to full AO space first
-            rdm1a_full = fobj_a.TA @ mca @ fobj_a.rdm1__ @ mca.T @ fobj_a.TA.T
-            rdm1b_full = fobj_b.TA @ mcb @ fobj_b.rdm1__ @ mcb.T @ fobj_b.TA.T
+            # Local density in the embedding-orbital AO-equivalent space
+            rdm1a_eo = mca @ fobj_a.rdm1__ @ mca.T
+            rdm1b_eo = mcb @ fobj_b.rdm1__ @ mcb.T
 
-            # Apply democratic weight in full AO space
-            rdm1a_AO += Proj @ rdm1a_full
-            rdm1b_AO += Proj @ rdm1b_full
+            # Project in the SMALL local space, THEN expand to full AO space
+            rdm1a_center = Pc_a @ rdm1a_eo
+            rdm1b_center = Pc_b @ rdm1b_eo
 
-        # Symmetrize
+            rdm1a_AO += fobj_a.TA @ rdm1a_center @ fobj_a.TA.T
+            rdm1b_AO += fobj_b.TA @ rdm1b_center @ fobj_b.TA.T
+
         rdm1a_AO = (rdm1a_AO + rdm1a_AO.T) / 2.0
         rdm1b_AO = (rdm1b_AO + rdm1b_AO.T) / 2.0
 
