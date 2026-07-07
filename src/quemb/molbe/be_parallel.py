@@ -473,7 +473,7 @@ def be_func_parallel(
         the error norm, error vector, and the computed energy.
     """
     # Set the number of OpenMP threads
-    os.system["OMP_NUM_THREADS"] = str(ompnum)
+    os.environ["OMP_NUM_THREADS"] = str(ompnum)
     nprocs = nproc // ompnum
 
     # Update the effective Hamiltonian with potentials
@@ -607,7 +607,7 @@ def be_func_parallel_u(
         Returns the computed energy
     """
     # Set the number of OpenMP threads
-    os.system["OMP_NUM_THREADS"] = str(ompnum)
+    os.environ["OMP_NUM_THREADS"] = str(ompnum)
     nprocs = nproc // ompnum
 
     with Pool(nprocs) as pool_:
