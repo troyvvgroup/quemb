@@ -335,7 +335,12 @@ class Frags:
         nsocc_ = trace(P_)
         nsocc = int(round(nsocc_))
 
-        eigvals, eigvecs = np.linalg.eigh(P_)
+        try:
+            eigvals, eigvecs = np.linalg.eigh(P_)
+        except np.linalg.LinAlgError:
+            print("NumPy eigh failed; trying SciPy...")
+            eigvals, eigvecs = scipy.linalg.eigh(P_)
+    
         idx = np.argsort(eigvals)[::-1]
 
         eigvals = eigvals[idx]
@@ -345,9 +350,9 @@ class Frags:
         self.TA_ao_no = self.TA @ eigvecs
 
         try:
-            mo_coeffs = scipy.linalg.svd(C_)[0]
-        except scipy.linalg.LinAlgError:
-            mo_coeffs = scipy.linalg.eigh(C_)[1][:, -nsocc:]
+            mo_coeffs = scipy.linalg.svd(C_, lapack_driver="gesdd")[0]
+        except np.linalg.LinAlgError:
+            mo_coeffs = scipy.linalg.svd(C_, lapack_driver="gesvd")[0]
 
         self._mo_coeffs = mo_coeffs
         self.nsocc = nsocc
