@@ -1,0 +1,6 @@
+quemb.molbe.scanner.energy\_be\_frag
+====================================
+
+.. currentmodule:: quemb.molbe.scanner
+
+.. autofunction:: energy_be_frag

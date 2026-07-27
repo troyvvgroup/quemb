@@ -1,0 +1,6 @@
+quemb.molbe.scanner.be\_frag\_ref\_data
+=======================================
+
+.. currentmodule:: quemb.molbe.scanner
+
+.. autofunction:: be_frag_ref_data
