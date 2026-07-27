@@ -1,14 +1,19 @@
 # Author(s): Beck Hanscam
 
+import copy
 import inspect
 import os
 from dataclasses import dataclass, field
 
+import h5py
 import numpy as np
-from pyscf import gto, lib, scf
+from pyscf import cc, gto, lib, scf
 
 from quemb.molbe import BE, fragmentate
+from quemb.molbe.chemfrag import Fragmented
+from quemb.molbe.helper import get_eri, get_scfObj
 from quemb.molbe.mbe import BEArgs
+from quemb.shared.manage_scratch import WorkDir
 
 
 def energy_hf(mol, energy_args=None, fd_info=None):
@@ -69,6 +74,65 @@ def be_ref_data(mol, energy_args=None):
     )
 
     return {"ref_fobj": ref_fobj}
+
+
+def be_frag_ref_data(mol, energy_args=None):
+    r"""Build reference-geometry data needed by force embedding energy functions.
+
+    Parameters
+    ----------
+    mol : object
+        Molecule object defining the geometry, basis, charge, and spin.
+    energy_args: BEArgs, optional
+        User defined arguments for BE calculation.
+
+    Returns
+    ------
+    dict
+        Dictionary containing reference-geometry data needed by ``energy_be_frag``.
+        The ``"ref_fobj"`` entry stores the fragmentate object built from ``mol``.
+        The ``"ref_mybe"`` entry stores the BE object.
+        The ``"frag_per_atom"`` entry stores the fragment index for each atom.
+    """
+    if energy_args is None:
+        energy_args = BEArgs()
+
+    mf = scf.RHF(mol)
+    mf.verbose = 0
+    mf.kernel()
+
+    ref_fobj = fragmentate(
+        mol=mol,
+        n_BE=energy_args.n_BE,
+        frag_type=energy_args.frag_type,
+        frozen_core=energy_args.frozen_core,
+        additional_args=energy_args.additional_args,
+    )
+
+    ref_mybe = BE(
+        mf,
+        ref_fobj,
+        lo_method=energy_args.lo_method,
+        int_transform=energy_args.int_transform,
+        auxbasis=energy_args.auxbasis,
+        nproc=energy_args.nproc,
+        ompnum=energy_args.ompnum,
+        initialize_fragment_idx=energy_args.initialize_fragment_idx,
+    )
+
+    fragmented = Fragmented.from_mole(
+        mol, n_BE=energy_args.n_BE, h_treatment=energy_args.additional_args.h_treatment
+    )
+    frag_per_atom = fragmented.get_frag_per_atom()
+
+    ref_dict = {
+        "ref_mol": mol.copy(),
+        "ref_fobj": ref_fobj,
+        "ref_mybe": ref_mybe,
+        "frag_per_atom": frag_per_atom,
+    }
+
+    return ref_dict
 
 
 def energy_be(mol, energy_args=None, fd_info=None):
@@ -150,6 +214,155 @@ def energy_be(mol, energy_args=None, fd_info=None):
     return mybe.ebe_tot
 
 
+def energy_be_frag(mol, energy_args=None, fd_info=None):
+    r"""Compute the BEn fragment energy
+
+    Parameters
+    ----------
+    mol : object
+        Molecule object defining the geometry, basis, charge, and spin.
+    energy_args: BEArgs, optional
+        User defined arguments for BE calculation.
+    fd_info: FDinfo, optional
+        Finite difference metadata describing the displacement relative
+        to the current reference geometry.
+
+    Returns
+    ------
+    float
+        Converged BE fragment energy in Hartree
+    """
+    if energy_args is None:
+        energy_args = BEArgs()
+
+    if fd_info.kind == "multi_displacement":
+        raise RuntimeError(
+            "energy_be_frag currently supports only single finite-difference "
+            f"displacements; got {fd_info.kind!r}"
+        )
+    if fd_info is None:
+        raise RuntimeError("missing finite difference displacement info.")
+    else:
+        if fd_info.ref_mol is None:
+            raise RuntimeError("missing finite difference reference geometry.")
+
+        try:
+            ref_fobj = fd_info.ref_data["ref_fobj"]
+            ref_mybe = fd_info.ref_data["ref_mybe"]
+            frag_per_atom = fd_info.ref_data["frag_per_atom"]
+        except KeyError as exc:
+            raise RuntimeError("missing reference BE info.") from exc
+
+    mf = scf.RHF(mol)
+    mf.verbose = 0
+    mf.kernel()
+
+    if fd_info.kind in ("reference", "scanner_point"):
+        # placeholder energy to allow Gradients.as_scanner()
+        # to return (energy, gradient)
+        return mf.e_tot
+
+    assert len(fd_info.atom_idx) == 1, (
+        "Expected fd_info.atom_idx to have length 1, "
+        f"but got {len(fd_info.atom_idx)}: {fd_info.atom_idx}"
+    )
+
+    assert len(fd_info.axis_idx) == 1, (
+        "Expected fd_info.axis_idx to have length 1, "
+        f"but got {len(fd_info.axis_idx)}: {fd_info.axis_idx}"
+    )
+
+    assert len(fd_info.delta_bohr) == 1, (
+        "Expected fd_info.delta_bohr to have length 1, "
+        f"but got {len(fd_info.delta_bohr)}: {fd_info.delta_bohr}"
+    )
+
+    atom_idx = fd_info.atom_idx[0]
+    axis_idx = fd_info.axis_idx[0]
+    delta = fd_info.delta_bohr[0]
+    frag_idx = frag_per_atom[fd_info.atom_idx[0]]
+
+    axis_label = ("x", "y", "z")[axis_idx]
+    sign_label = "p" if delta > 0 else "m"
+
+    redo_tag = f"redo_frag{frag_idx}_atom{atom_idx}_{sign_label}{axis_label}"
+
+    mybe = BE(
+        mf,
+        ref_fobj,
+        lo_method=energy_args.lo_method,
+        int_transform=energy_args.int_transform,
+        auxbasis=energy_args.auxbasis,
+        nproc=energy_args.nproc,
+        ompnum=energy_args.ompnum,
+        initialize_fragment_idx=[frag_idx],
+    )
+
+    S_cross = gto.intor_cross("int1e_ovlp", mol, fd_info.ref_mol)
+
+    # keep the original fragment object untouched
+    orig_fobj = mybe.Fobjs[frag_idx]
+
+    # Create a dedicated temporary scratch directory for the re-done ERIs
+    redo_scratch = WorkDir(
+        mybe.scratch_dir / redo_tag,
+        cleanup_at_end=True,
+        ensure_empty=True,
+    )
+    tmp_eri_file = redo_scratch / f"{redo_tag}.h5"
+
+    # Work on an independent fragment object for this displaced geometry
+    # Use deepcopy since _initialize_fragments changes mybe.ebe_hf
+    fobj = copy.deepcopy(orig_fobj)
+
+    try:
+        fobj.TA = np.linalg.inv(mybe.S) @ S_cross @ ref_mybe.Fobjs[frag_idx].TA
+        fobj.dname = redo_tag
+        fobj.eri_file = tmp_eri_file
+
+        # _eri_transform() and _initialize_fragments() operate through mybe.Fobjs,
+        # so temporarily point this fragment index to the copied fragment
+        mybe.Fobjs[frag_idx] = fobj
+
+        with h5py.File(tmp_eri_file, "w") as file_eri:
+            mybe._eri_transform(
+                energy_args.int_transform,
+                mf._eri,
+                file_eri,
+                [frag_idx],
+            )
+            mybe._initialize_fragments(file_eri, False, [frag_idx])
+
+        # Use the reinitialized copied fragment
+        fobj = mybe.Fobjs[frag_idx]
+
+        eri = get_eri(fobj.dname, fobj.nao, eri_file=tmp_eri_file)
+        fobj._mf = get_scfObj(
+            fobj.fock + fobj.heff,
+            eri,
+            fobj.nsocc,
+            dm0=fobj.dm0.copy(),
+        )
+
+        mc = cc.CCSD(fobj._mf)
+        mc.verbose = 0
+        mc.incore_complete = True
+
+        eri_embmo = mc.ao2mo()
+        eri_embmo.mo_energy = fobj._mf.mo_energy
+        eri_embmo.fock = np.diag(fobj._mf.mo_energy)
+
+        mc.kernel(eris=eri_embmo)
+        energy = mf.e_tot + mc.e_tot - fobj._mf.e_tot
+
+    finally:
+        mybe.Fobjs[frag_idx] = orig_fobj
+
+        redo_scratch.cleanup(ignore_error=True)
+
+    return energy
+
+
 @dataclass
 class FDinfo:
     """Container for finite difference metadata."""
@@ -178,7 +391,12 @@ class Energy(lib.StreamObject):
     """
 
     def __init__(
-        self, mol, energy_func, displacement=1e-4, energy_args=None, ref_data_func=None
+        self,
+        mol,
+        energy_func,
+        displacement=1e-4,
+        energy_args=None,
+        ref_data_func=None,
     ):
         r"""Initialize the custom energy wrapper.
 
@@ -300,7 +518,6 @@ class Energy(lib.StreamObject):
                 return True
 
             def __call__(self, mol):
-
                 coords = mol.atom_coords()
                 in_fd = called_from_pyscf_finite_diff()
 
