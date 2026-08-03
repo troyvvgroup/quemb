@@ -25,63 +25,88 @@ from quemb.shared.helper import ncore_
 from quemb.shared.typing import Matrix
 
 
-def get_veff(eri_, dm, S, TA, hf_veff):
+def get_veff(eri_, dm_same, S, TA, hf_veff, dm_other=None):
     """
     Calculate the effective HF potential (Veff) for a given density matrix and
     electron repulsion integrals.
 
-    This function computes the effective potential by transforming the density matrix,
-    computing the Coulomb (J) and exchange (K) integrals.
+    For a genuinely unrestricted/spin-polarized fragment, the same-spin
+    potential needs Coulomb from both spins but exchange from only the same
+    spin: J[dm_same] + J[dm_other] - K[dm_same]. This differs from the
+    restricted formula 2*J[dm_same] - K[dm_same], which is only correct
+    when dm_same is the doubled total density and the two spin densities
+    coincide locally.
+
+    dm_other=None preserves the restricted-compatible behavior (dm_same is
+    then the doubled total density, as before). When dm_other is provided,
+    dm_same and dm_other must both be the true (undoubled) single-spin
+    density matrices.
 
     Parameters
     ----------
     eri_ : numpy.ndarray
-        Electron repulsion integrals.
-    dm : numpy.ndarray
-        Density matrix. 2D array.
+        Electron repulsion integrals (fragment/embedding-basis).
+    dm_same : numpy.ndarray
+        Density matrix for THIS spin channel (or, for the restricted case,
+        the doubled total density -- see dm_other note above).
     S : numpy.ndarray
         Overlap matrix.
     TA : numpy.ndarray
         Transformation matrix.
     hf_veff : numpy.ndarray
-        Hartree-Fock effective potential for the full system.
+        Hartree-Fock effective potential for the full system (this spin's
+        channel).
+    dm_other : numpy.ndarray, optional
+        Density matrix for the OTHER spin channel (undoubled). If provided,
+        switches to the unrestricted formula. Default None (restricted-
+        compatible behavior).
 
     Returns
     -------
-    numpy.ndarray
-        Effective HF potential in the embedding basis.
+    numpy.ndarray, numpy.ndarray
+        Effective HF potential in the embedding basis, and Veff0.
     """
 
-    # Transform the density matrix
     ST = S @ TA
-    P_ = multi_dot((ST.T, dm, ST))
-
-    # Ensure the transformed density matrix and ERI are real and double-precision
-    P_ = asarray(P_.real, dtype=float64)
+    P_same = multi_dot((ST.T, dm_same, ST))
+    P_same = asarray(P_same.real, dtype=float64)
     eri_ = asarray(eri_, dtype=float64)
 
-    # Compute the Coulomb (J) and exchange (K) integrals
-    vj, vk = scf.hf.dot_eri_dm(eri_, P_, hermi=1, with_j=True, with_k=True)
-    Veff_ = vj - 0.5 * vk
+    if dm_other is None:
+        # Restricted-compatible path.
+        vj, vk = scf.hf.dot_eri_dm(
+            eri_, P_same, hermi=1, with_j=True, with_k=True
+        )
+        Veff_ = vj - 0.5 * vk
+    else:
+        # Unrestricted path: Coulomb from both spins, exchange same-spin only.
+        P_other = multi_dot((ST.T, dm_other, ST))
+        P_other = asarray(P_other.real, dtype=float64)
+
+        vj_same, vk_same = scf.hf.dot_eri_dm(
+            eri_, P_same, hermi=1, with_j=True, with_k=True
+        )
+        vj_other, _ = scf.hf.dot_eri_dm(
+            eri_, P_other, hermi=1, with_j=True, with_k=False
+        )
+        Veff_ = (vj_same + vj_other) - vk_same
+
     Veff0 = multi_dot((TA.T, hf_veff, TA))
     Veff = Veff0 - Veff_
 
     return Veff, Veff0
 
 
-# create pyscf pbc scf object
-def get_scfObj(
-    h1: Matrix[float64],
-    Eri,
-    nocc: int,
-    dm0=None,
-) -> scf.hf.RHF:
-    """Initialize and run a restricted Hartree-Fock (RHF) calculation.
+def get_scfObj(h1, Eri, nocc, dm0=None, dm_other=None):
+    """Initialize and run an SCF calculation for the embedded fragment.
 
-    This function sets up an SCF (Self-Consistent Field) object using the provided
-    one-electron Hamiltonian, electron repulsion integrals, and number
-    of occupied orbitals. It then runs the SCF procedure, optionally using an initial
-    density matrix.
+    When dm_other is provided, solves via genuine UHF with mol.spin=nocc
+    (fully spin-polarized: mol.nelec=(nocc, 0)) instead of RHF. Plain RHF
+    cannot represent an odd nocc -- PySCF silently rounds mol.nelectron=11
+    to mo_occ=[2,2,2,2,2,0,...] (10 electrons), discarding the odd electron
+    with no error or warning.
+
+    dm_other=None uses the original RHF/doubled-dm path.
 
     Parameters
     ----------
@@ -92,39 +117,103 @@ def get_scfObj(
     nocc : int
         Number of occupied orbitals.
     dm0 : numpy.ndarray, optional
-        Initial density matrix. If not provided, the SCF calculation will start
-        from scratch. Defaults to None.
+        Initial density matrix. Defaults to None.
+    dm_other : numpy.ndarray, optional
+        Density matrix for the OTHER spin channel (undoubled). If provided,
+        switches to the UHF path described above. Default None.
 
     Returns
     -------
-    mf_ : pyscf.scf.hf.RHF
-        The SCF object after running the Hartree-Fock calculation.
+    pyscf.scf.hf.RHF
+        The SCF object after running the Hartree-Fock calculation. When
+        dm_other is given, this is a plain 2D mo_coeff/mo_occ/mo_energy
+        view of the UHF solve's alpha channel, so existing callers see the
+        same interface either way.
     """
-    # from 40-customizing_hamiltonian.py in pyscf examples
     nao = h1.shape[0]
-
-    # Initialize a dummy molecule with the required number of electrons
     S = eye(nao)
+
+    if dm_other is None:
+        mol = gto.M()
+        mol.nelectron = nocc * 2
+        mol.incore_anyway = True
+        mf_ = scf.RHF(mol)
+        mf_.get_hcore = lambda *args: h1  # noqa: ARG005
+        mf_.get_ovlp = lambda *args: S  # noqa: ARG005
+        mf_._eri = Eri
+        mf_.incore_anyway = True
+        mf_.max_cycle = 50
+        mf_.verbose = 0
+        if dm0 is None:
+            mf_.kernel()
+        else:
+            mf_.kernel(dm0=dm0)
+        if not mf_.converged:
+            print(flush=True)
+            print(
+                "WARNING!!! SCF not convereged - applying level_shift=0.2, diis_space=25 ",
+                flush=True,
+            )
+            print(flush=True)
+            mf_.level_shift = 0.2
+            mf_.diis_space = 25
+            if dm0 is None:
+                mf_.kernel()
+            else:
+                mf_.kernel(dm0=dm0)
+            if not mf_.converged:
+                print("\nWARNING!!! SCF still not convereged!\n", flush=True)
+            else:
+                print("\nSCF Converged!\n", flush=True)
+        return mf_
+
+    # mol.spin = nocc makes this a fully spin-polarized problem
+    # (mol.nelec = (nocc, 0)); only the alpha channel is populated/used.
+    import numpy as np
+    from pyscf.scf import addons as _scf_addons
+
     mol = gto.M()
-    mol.nelectron = nocc * 2
+    mol.nelectron = nocc
+    mol.spin = nocc
     mol.incore_anyway = True
 
-    # Initialize an RHF object
-    mf_ = scf.RHF(mol)
+    mf_ = scf.UHF(mol)
     mf_.get_hcore = lambda *args: h1  # noqa: ARG005
     mf_.get_ovlp = lambda *args: S  # noqa: ARG005
     mf_._eri = Eri
-    mf_.incore_anyway = True
-    mf_.max_cycle = 50
+    mf_.max_cycle = 200
     mf_.verbose = 0
 
-    # Run the SCF calculation
-    if dm0 is None:
-        mf_.kernel()
-    else:
-        mf_.kernel(dm0=dm0)
+    def _unrestricted_get_veff(mol_arg=None, dm=None, *args, **kwargs):
+        # dm is (2, nao, nao) for a genuine UHF object; only dm[0]
+        # (the populated "alpha" channel) is physically meaningful here.
+        dm_same = dm[0]
+        vj_same, vk_same = scf.hf.dot_eri_dm(
+            Eri, dm_same, hermi=1, with_j=True, with_k=True
+        )
+        vj_other, _ = scf.hf.dot_eri_dm(
+            Eri, dm_other, hermi=1, with_j=True, with_k=False
+        )
+        v_same = (vj_same + vj_other) - vk_same
+        v_empty = zeros_like(v_same)
+        return np.array([v_same, v_empty])
 
-    # Check if the SCF calculation converged
+    mf_.get_veff = _unrestricted_get_veff
+
+    if dm0 is not None:
+        dm0_eigval, dm0_eigvec = np.linalg.eigh(dm0)
+        order = np.argsort(dm0_eigval)[::-1]
+        mo_coeff0 = (dm0_eigvec[:, order], dm0_eigvec[:, order])
+        mo_occ0 = (
+            np.array([1.0] * nocc + [0.0] * (nao - nocc)),
+            zeros(nao),
+        )
+        mf_ = _scf_addons.mom_occ(mf_, mo_coeff0, mo_occ0)
+        dm0_full = np.array([dm0, zeros_like(dm0)])
+        mf_.kernel(dm0=dm0_full)
+    else:
+        mf_.kernel()
+
     if not mf_.converged:
         print(flush=True)
         print(
@@ -132,23 +221,47 @@ def get_scfObj(
             flush=True,
         )
         print(flush=True)
-        mf_.verbose = 0
         mf_.level_shift = 0.2
         mf_.diis_space = 25
-        if dm0 is None:
+        if dm0 is not None:
+            mf_.kernel(dm0=np.array([dm0, zeros_like(dm0)]))
+        else:
             mf_.kernel()
-        else:
-            mf_.kernel(dm0=dm0)
         if not mf_.converged:
-            print(flush=True)
-            print("WARNING!!! SCF still not convereged!", flush=True)
-            print(flush=True)
+            print("\nWARNING!!! SCF still not convereged!\n", flush=True)
         else:
-            print(flush=True)
-            print("SCF Converged!", flush=True)
-            print(flush=True)
+            print("\nSCF Converged!\n", flush=True)
 
-    return mf_
+    # Package the solved alpha channel onto a plain RHF-shaped shell
+    # rather than returning the UHF object with shrunk attributes.
+    # Downstream, make_uhf_obj() calls scf.addons.convert_to_uhf(), which
+    # dispatches on mf.istype('UHF'): a UHF-typed object is assumed to
+    # already carry (2, nao)-shaped mo_coeff/mo_occ and is copied through
+    # as-is, whereas an RHF-typed shell is routed through the branch that
+    # builds mo_occ = (mo_occ > 0, mo_occ == 2) and duplicates
+    # mo_coeff/mo_energy into both spin slots. The mo_occ pattern below
+    # ([2]*nocc + [0]*rest) is what makes that branch report exactly nocc
+    # occupied orbitals in both slots; make_uhf_obj later selects only one
+    # slot per fragment, and both are identical here, so the choice of
+    # slot doesn't matter.
+    solved_mo_coeff = mf_.mo_coeff[0]
+    solved_mo_energy = mf_.mo_energy[0]
+    solved_e_tot = mf_.e_tot
+    solved_converged = mf_.converged
+
+    mol_shell = gto.M()
+    mol_shell.nelectron = nocc * 2
+    mol_shell.incore_anyway = True
+    mf_shell = scf.RHF(mol_shell)
+    mf_shell.get_hcore = lambda *args: h1  # noqa: ARG005
+    mf_shell.get_ovlp = lambda *args: S  # noqa: ARG005
+    mf_shell._eri = Eri
+    mf_shell.mo_coeff = solved_mo_coeff
+    mf_shell.mo_energy = solved_mo_energy
+    mf_shell.mo_occ = np.array([2.0] * nocc + [0.0] * (nao - nocc))
+    mf_shell.e_tot = solved_e_tot
+    mf_shell.converged = solved_converged
+    return mf_shell
 
 
 def get_eri(i_frag, Nao, symm=8, ignore_symm=False, eri_file="eri_file.h5"):

@@ -28,10 +28,9 @@ from quemb.molbe.mbe import BE
 from quemb.molbe.pfrag import (
     Frags,
     schmidt_decomposition_common,
-    project_electrons_onto_embedding,
-    assign_integer_electrons,
 )
 from quemb.molbe.solver import be_func_u
+from quemb.shared.external.optqn import FrankQN
 from quemb.shared.helper import unused
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import PathLike
@@ -234,9 +233,6 @@ class UBE(BE):  # 🍠
             W_b = self.W[1] if self.frozen_core else self.W
 
             if self.common_bath:
-                # SVD-based common bath
-                # Single TA shared by alpha and beta: prerequisite for
-                # spin-summed 1RDM matching in iterative UBE.
                 TA_lo_eo, n_f, n_b = schmidt_decomposition_common(
                     self.lmo_coeff_a,
                     self.lmo_coeff_b,
@@ -253,14 +249,6 @@ class UBE(BE):  # 🍠
                     fobj.n_f = n_f
                     fobj.n_b = n_b
                     fobj.nao = TA.shape[1]
-
-                # Project UHF density to get fractional electron counts.
-                # Store for global assignment after all fragments are done.
-                n_a_frac, n_b_frac = project_electrons_onto_embedding(
-                    TA, self.S, self.hf_dm[0], self.hf_dm[1]
-                )
-                # Store on fragment for collection after loop
-                fobj_a._n_elec_frac = (n_a_frac, n_b_frac)
 
             else:
                 # Original separate alpha/beta Schmidt decompositions
@@ -325,17 +313,47 @@ class UBE(BE):  # 🍠
             _ = fobj_a.get_nsocc(
                 self.S, self.C_a, self.Nocc[0], ncore=self.ncore
             )
+            if I in self.nelec_prescription_override:
+                na_ov, _nb_ov = self.nelec_prescription_override[I]
+                print(
+                    f"  Fragment {I} nsocc_a override: "
+                    f"{fobj_a.nsocc} -> {na_ov}",
+                    flush=True,
+                )
+                fobj_a.nsocc = na_ov
 
             fobj_a.h1 = multi_dot((fobj_a.TA.T, self.hcore, fobj_a.TA))
-
             eri_a = ao2mo.restore(8, eri_a, fobj_a.nao)
+            # Both spin densities are passed undoubled; the doubled-density
+            # restricted formula does not apply here (see cons_fock).
             fobj_a.cons_fock(
-                self.hf_veff[0], self.S, self.hf_dm[0] * 2.0, eri_=eri_a
+                self.hf_veff[0],
+                self.S,
+                self.hf_dm[0],
+                eri_=eri_a,
+                dm_other=self.hf_dm[1],
             )
 
             fobj_a.hf_veff = self.hf_veff[0]
             fobj_a.heff = zeros_like(fobj_a.h1)
-            fobj_a.scf(fs=True, eri=eri_a)
+            # Project the full-system OTHER spin density into fobj_a's
+            # embedding basis (same S@TA pattern get_veff uses internally)
+            # so the embedded SCF below uses the unrestricted get_scfObj path.
+            ST_a = self.S @ fobj_a.TA
+            dm_b_embedded = multi_dot((ST_a.T, self.hf_dm[1], ST_a))
+            # Stash this for reuse by be_func_u/run_solver_u later, instead
+            # of re-projecting fobj_b's own relaxed dm0 -- that lives in
+            # fobj_b's own basis, which only coincides with fobj_a's under
+            # common_bath and has no clean meaning once re-expressed in a
+            # different fragment's bath space otherwise.
+            fobj_a.dm_other_embedded = dm_b_embedded
+            fobj_a.scf(
+                fs=True,
+                eri=eri_a,
+                unrestricted=True,
+                spin_ind=0,
+                dm_other=dm_b_embedded,
+            )
             fobj_a.dm0 = (
                 fobj_a._mo_coeffs[:, : fobj_a.nsocc]
                 @ fobj_a._mo_coeffs[:, : fobj_a.nsocc].conj().T
@@ -343,7 +361,10 @@ class UBE(BE):  # 🍠
 
             if compute_hf:
                 eh1_a, ecoul_a, ef_a = fobj_a.update_ebe_hf(
-                    return_e=True, unrestricted=True, spin_ind=0
+                    return_e=True,
+                    unrestricted=True,
+                    spin_ind=0,
+                    dm_hf_other=dm_b_embedded,
                 )
                 unused(ef_a)
                 EH1 += eh1_a
@@ -353,15 +374,37 @@ class UBE(BE):  # 🍠
             _ = fobj_b.get_nsocc(
                 self.S, self.C_b, self.Nocc[1], ncore=self.ncore
             )
+            if I in self.nelec_prescription_override:
+                _na_ov, nb_ov = self.nelec_prescription_override[I]
+                print(
+                    f"  Fragment {I} nsocc_b override: "
+                    f"{fobj_b.nsocc} -> {nb_ov}",
+                    flush=True,
+                )
+                fobj_b.nsocc = nb_ov
 
             fobj_b.h1 = multi_dot((fobj_b.TA.T, self.hcore, fobj_b.TA))
             eri_b = ao2mo.restore(8, eri_b, fobj_b.nao)
             fobj_b.cons_fock(
-                self.hf_veff[1], self.S, self.hf_dm[1] * 2.0, eri_=eri_b
+                self.hf_veff[1],
+                self.S,
+                self.hf_dm[1],
+                eri_=eri_b,
+                dm_other=self.hf_dm[0],
             )
+
             fobj_b.hf_veff = self.hf_veff[1]
             fobj_b.heff = zeros_like(fobj_b.h1)
-            fobj_b.scf(fs=True, eri=eri_b)
+            ST_b = self.S @ fobj_b.TA
+            dm_a_embedded = multi_dot((ST_b.T, self.hf_dm[0], ST_b))
+            fobj_b.dm_other_embedded = dm_a_embedded
+            fobj_b.scf(
+                fs=True,
+                eri=eri_b,
+                unrestricted=True,
+                spin_ind=1,
+                dm_other=dm_a_embedded,
+            )
 
             fobj_b.dm0 = (
                 fobj_b._mo_coeffs[:, : fobj_b.nsocc]
@@ -370,53 +413,30 @@ class UBE(BE):  # 🍠
 
             if compute_hf:
                 eh1_b, ecoul_b, ef_b = fobj_b.update_ebe_hf(
-                    return_e=True, unrestricted=True, spin_ind=1
+                    return_e=True,
+                    unrestricted=True,
+                    spin_ind=1,
+                    dm_hf_other=dm_a_embedded,
                 )
                 unused(ef_b)
                 EH1 += eh1_b
                 ECOUL += ecoul_b
                 E_hf += fobj_b.ebe_hf
 
-        if self.common_bath:
-            n_a_frac_list = [
-                getattr(fobj, "_n_elec_frac", (self.Nocc[0], self.Nocc[1]))[0]
-                for fobj in self.Fobjs_a
-            ]
-            n_b_frac_list = [
-                getattr(fobj, "_n_elec_frac", (self.Nocc[0], self.Nocc[1]))[1]
-                for fobj in self.Fobjs_a
-            ]
-
-            n_a_int_list, n_b_int_list = assign_integer_electrons(
-                n_a_frac_list,
-                n_b_frac_list,
-                self.Nocc[0],
-                self.Nocc[1],
-                thr=0.1,
-                verbose=True,
-            )
-
-            # Apply manual overrides if provided
-            for frag_idx, (
-                na_ov,
-                nb_ov,
-            ) in self.nelec_prescription_override.items():
-                old = (n_a_int_list[frag_idx], n_b_int_list[frag_idx])
-                n_a_int_list[frag_idx] = na_ov
-                n_b_int_list[frag_idx] = nb_ov
-                print(
-                    f"  Fragment {frag_idx} nelec override: "
-                    f"{old} → ({na_ov}α, {nb_ov}β)",
-                    flush=True,
-                )
-
-            # Store on fragment objects for the UCCSD solver
-            for I, (fobj_a, fobj_b) in enumerate(
-                zip(self.Fobjs_a, self.Fobjs_b)
-            ):
-                fobj_a.nsocc = n_a_int_list[I]
-                fobj_b.nsocc = n_b_int_list[I]
-
+        # nsocc here comes from get_nsocc()'s native projection onto the
+        # shared common_bath TA (fragment+bath, overlapping across
+        # fragments) -- the same formula equal_bath already uses, and
+        # it's already close to integer per fragment without further
+        # correction.
+        #
+        # common_bath previously overwrote these with a fragment-only
+        # (non-overlapping) democratic-partitioning count, rounded by
+        # largest remainder so per-fragment counts summed exactly to the
+        # system total. That left the fragments with zero slack, forcing
+        # chemical-potential matching of the global electron-count
+        # constraint (Eq. 16, Tran/Ye/Van Voorhis 2020) into pushing all
+        # density onto center sites with none left for bath orbitals --
+        # an extreme solution rather than a gentle correction.
         orb_count_a = [(frag.n_f, frag.n_b) for frag in self.Fobjs_a]
         orb_count_b = [(frag.n_f, frag.n_b) for frag in self.Fobjs_b]
 
@@ -477,7 +497,7 @@ class UBE(BE):  # 🍠
         if nproc == 1:
             E, E_comp = be_func_u(
                 None,
-                zip(self.Fobjs_a, self.Fobjs_b),
+                list(zip(self.Fobjs_a, self.Fobjs_b)),
                 solver,
                 self.enuc,
                 hf_veff=self.hf_veff,
