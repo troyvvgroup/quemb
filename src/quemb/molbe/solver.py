@@ -821,6 +821,55 @@ def solve_error(Fobjs, Nocc, only_chem=False):
     return norm_, err_vec
 
 
+def solve_error_u(Fobjs, Nocc_a, Nocc_b):
+    """
+    Unrestricted, chemical-potential-only (BE0-level) analog of
+    solve_error(only_chem=True): computes the global electron-count error
+    separately for alpha and beta, per Tran, Ye, Van Voorhis
+    (J. Chem. Phys. 153, 214101 (2020)) Eq. 16 --
+        sum_A sum_{p in center(A)} <n_p^sigma>_A - N_e^sigma = 0
+    for sigma in {alpha, beta} independently (the paper keeps the
+    edge-matching condition, Eq. 15, spin-summed, but the global
+    electron-count constraint is explicitly spin-resolved).
+
+    Each fragment's contribution is its center-site-restricted,
+    embedding-basis 1RDM diagonal: mo_coeff_uccsd @ rdm1__ @
+    mo_coeff_uccsd.T, evaluated at weight_and_relAO_per_center indices.
+    (Full local+edge matching, i.e. iterative UBE, is not yet
+    implemented; this only enforces the global constraint.)
+
+    Parameters
+    ----------
+    Fobjs : list of (Frags, Frags)
+        alpha/beta fragment pairs, after be_func_u has been run (requires
+        mo_coeff_uccsd and rdm1__ to already be set on each fragment).
+    Nocc_a, Nocc_b : int
+        Total alpha/beta electron count for the full system.
+
+    Returns
+    -------
+    float, numpy.ndarray
+        RMS norm of the 2-component error vector, and the error vector
+        itself: [err_alpha, err_beta].
+    """
+    err_a = 0.0
+    err_b = 0.0
+    for fobj_a, fobj_b in Fobjs:
+        mca = fobj_a.mo_coeff_uccsd
+        mcb = fobj_b.mo_coeff_uccsd
+        rdm1a_eo = mca @ fobj_a.rdm1__ @ mca.T
+        rdm1b_eo = mcb @ fobj_b.rdm1__ @ mcb.T
+        for i in fobj_a.weight_and_relAO_per_center[1]:
+            err_a += rdm1a_eo[i, i].real
+        for i in fobj_b.weight_and_relAO_per_center[1]:
+            err_b += rdm1b_eo[i, i].real
+
+    err_vec = array([err_a - Nocc_a, err_b - Nocc_b])
+    norm_ = float(mean(err_vec * err_vec) ** 0.5)
+
+    return norm_, err_vec
+
+
 def solve_mp2(
     mf: RHF,
     frozen: int | list[int] | None = None,

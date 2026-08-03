@@ -541,6 +541,111 @@ class UBE(BE):  # 🍠
             )
         )
 
+    def optimize(
+        self,
+        solver="UCCSD",
+        only_chem=True,
+        conv_tol=1.0e-6,
+        max_iter=500,
+        relax_density=False,
+        use_cumulant=True,
+    ):
+        """BE0-level (chemical-potential-only) optimization for UBE.
+
+        Solves for the global alpha/beta chemical potentials (mu_alpha,
+        mu_beta) such that the fragment-summed, center-site-restricted
+        embedded 1RDM correctly reproduces the true system's alpha/beta
+        electron counts (Tran, Ye, Van Voorhis, J. Chem. Phys. 153, 214101
+        (2020), Eq. 16). This is the "UBE0" level of the paper's theory --
+        local/edge density matching (full iterative UBE, adding Eq. 15 on
+        top of this) is not yet implemented; see the module TODO.
+
+        In practice, get_nsocc()'s native fragment+bath electron counts
+        already satisfy Eq. 16 closely at mu=0 for both common_bath and
+        equal_bath, so this optimization mainly matters for systems where
+        that isn't the case.
+
+        Parameters
+        ----------
+        only_chem : bool
+            Must be True; local/edge matching is not yet supported.
+        """
+        if not only_chem:
+            raise NotImplementedError(
+                "Only chemical-potential-only (only_chem=True) optimization "
+                "is currently implemented for UBE; full local/edge matching "
+                "(iterative UBE) is future work -- see module TODO."
+            )
+
+        Fobjs_ab = list(zip(self.Fobjs_a, self.Fobjs_b))
+        Nocc_ab = (self.Nocc[0], self.Nocc[1])
+        state: dict = {"err": None, "E": None, "E_comp": None}
+
+        def objfunc(xk):
+            ernorm, ervec, (E, E_comp) = be_func_u(
+                list(xk),
+                Fobjs_ab,
+                solver,
+                self.enuc,
+                hf_veff=self.hf_veff,
+                eeval=True,
+                relax_density=relax_density,
+                use_cumulant=use_cumulant,
+                frozen=self.frozen_core,
+                only_chem=True,
+                return_vec=True,
+                Nocc_ab=Nocc_ab,
+            )
+            state["err"] = ernorm
+            state["E"] = E
+            state["E_comp"] = E_comp
+            return ervec
+
+        print(
+            "-----------------------------------------------------", flush=True
+        )
+        print(
+            "     Starting UBE chemical-potential optimization    ", flush=True
+        )
+        print(
+            "-----------------------------------------------------", flush=True
+        )
+
+        x0 = array(self.pot[-2:], dtype=float)
+        f0 = objfunc(x0)
+        print(f"Initial error (alpha, beta): {f0}", flush=True)
+        print(f"RMS error: {state['err']:.4e}", flush=True)
+
+        xfinal = x0
+        if state["err"] < conv_tol:
+            print("CONVERGED w/o optimization steps", flush=True)
+        else:
+            J0 = np.eye(2)
+            optQN = FrankQN(objfunc, x0, f0, J0, max_space=max_iter)
+            converged = False
+            for it in range(max_iter):
+                optQN.next_step(it)
+                print(f"-- iter {it}: RMS error = {state['err']:.4e}", flush=True)
+                if state["err"] < conv_tol:
+                    print("CONVERGED", flush=True)
+                    converged = True
+                    break
+            xfinal = optQN.xnew
+            if not converged:
+                warn(
+                    f"UBE chemical potential optimization did not converge "
+                    f"in {max_iter} steps"
+                )
+
+        self.pot[-2] = float(xfinal[0])
+        self.pot[-1] = float(xfinal[1])
+
+        E, E_comp = state["E"], state["E_comp"]
+        unused(E_comp)
+        self.ebe_tot = E + self.hf_etot
+        print(f"Total Energy : {self.ebe_tot:>12.8f} Ha", flush=True)
+        print(f"Corr  Energy : {E:>12.8f} Ha", flush=True)
+
     def urdm1_fullbasis(self, return_ao=True):
         """Assemble full-system alpha and beta 1-RDMs via democratic partitioning.
 
