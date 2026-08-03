@@ -116,7 +116,7 @@ def be2fcidump(be_obj, fcidump_prefix, basis):
         BE object
     fcidump_prefix : str or pathlib.Path
         Prefix for path & filename to the output fcidump files
-        Each file is named [fcidump_prefix]_f0, ...
+        Each file is named [fcidump_prefix]f0, [fcidump_prefix]f1, ...
     basis : str
         'embedding' to get the integrals in the embedding basis
         'fragment_mo' to get the integrals in the fragment MO basis
@@ -148,7 +148,7 @@ def be2fcidump(be_obj, fcidump_prefix, basis):
             raise Exception("Basis should be either embedding or fragment_mo")
 
         fcidump_prefix = Path(fcidump_prefix)
-        fcidump_path = f"{fcidump_prefix.name}_f{fidx}"
+        fcidump_path = fcidump_prefix.parent / f"{fcidump_prefix.name}f{fidx}"
 
         fcidump.from_integrals(
             str(fcidump_path),
