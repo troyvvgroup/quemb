@@ -77,6 +77,10 @@ def verify_fcidump_io(kind_of_MO: str) -> None:
             h2e = eri
         elif kind_of_MO == "fragment_mo":
             frag.scf()  # make sure that we have mo coefficients
+
+            assert frag.fock is not None
+            assert frag.mo_coeffs is not None
+
             h1e = einsum(
                 "ij,ia,jb->ab", frag.fock, frag.mo_coeffs, frag.mo_coeffs, optimize=True
             )
@@ -91,6 +95,9 @@ def verify_fcidump_io(kind_of_MO: str) -> None:
             )
         else:
             raise Exception("kind_of_MO should be either embedding or fragment_mo")
+
+        assert h1e is not None
+        assert h2e is not None
 
         new = fcidump.read(tmp_dir / kind_of_MO / f"octanef{fidx}")
         # Check that integrals survived I/O
