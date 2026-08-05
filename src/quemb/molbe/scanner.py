@@ -124,12 +124,14 @@ def be_frag_ref_data(mol, energy_args=None):
         mol, n_BE=energy_args.n_BE, h_treatment=energy_args.additional_args.h_treatment
     )
     frag_per_atom = fragmented.get_frag_per_atom()
+    atom_in_frag = fragmented.get_atom_in_frag()
 
     ref_dict = {
         "ref_mol": mol.copy(),
         "ref_fobj": ref_fobj,
         "ref_mybe": ref_mybe,
         "frag_per_atom": frag_per_atom,
+        "atom_in_frag": atom_in_frag,
     }
 
     return ref_dict
@@ -250,6 +252,7 @@ def energy_be_frag(mol, energy_args=None, fd_info=None):
             ref_fobj = fd_info.ref_data["ref_fobj"]
             ref_mybe = fd_info.ref_data["ref_mybe"]
             frag_per_atom = fd_info.ref_data["frag_per_atom"]
+            atom_in_frag = fd_info.ref_data["atom_in_frag"]
         except KeyError as exc:
             raise RuntimeError("missing reference BE info.") from exc
 
@@ -281,6 +284,24 @@ def energy_be_frag(mol, energy_args=None, fd_info=None):
     axis_idx = fd_info.axis_idx[0]
     delta = fd_info.delta_bohr[0]
     frag_idx = frag_per_atom[fd_info.atom_idx[0]]
+    frag_atoms = atom_in_frag[frag_idx]
+    non_frag_atoms = [i for i in range(mol.natm) if i not in frag_atoms]
+
+    print("The displaced geometry is")
+    coords = mol.atom_coords(unit="Angstrom")
+    symbols = [mol.atom_symbol(i) for i in range(mol.natm)]
+    for sym, (x, y, z) in zip(symbols, coords):
+        print(f"{sym:2s} {x:12.6f} {y:12.6f} {z:12.6f}")
+
+    print("Atoms in the fragment:")
+    for i in frag_atoms:
+        x, y, z = coords[i]
+        print(f"{i:3d} {symbols[i]:2s} {x:12.6f} {y:12.6f} {z:12.6f}")
+
+    print("Atoms not in the fragment:")
+    for i in non_frag_atoms:
+        x, y, z = coords[i]
+        print(f"{i:3d} {symbols[i]:2s} {x:12.6f} {y:12.6f} {z:12.6f}")
 
     axis_label = ("x", "y", "z")[axis_idx]
     sign_label = "p" if delta > 0 else "m"
