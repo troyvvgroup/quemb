@@ -302,7 +302,7 @@ def run_solver(
     if not eeval:
         return None, mf_.mo_coeff, rdm1, None, rdm1_tmp
 
-    # From this point onward, RDM2 is required
+    # From this point onward, rdm2s is required
     if rdm2s is None:
         raise RuntimeError(
             f"{solver} did not produce rdm2s, but eeval=True requires it."
