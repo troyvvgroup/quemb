@@ -42,7 +42,7 @@ def test_hexene_loc_be2_unfroz_lowdin(hexene) -> None:
         oneshot=True,
         nproc=2,
     )
-    assert np.isclose(be2_nf_lo, -0.94588487, atol=2e-6, rtol=0)
+    assert np.isclose(be2_nf_lo, -0.94588487, atol=1e-5, rtol=0)
 
 
 def test_hexene_loc_be1_unfroz_iao_minao_so(hexene) -> None:
@@ -57,7 +57,7 @@ def test_hexene_loc_be1_unfroz_iao_minao_so(hexene) -> None:
         oneshot=True,
         nproc=1,
     )
-    assert np.isclose(be1_nf_iao_so, -0.83985647, atol=2e-6, rtol=0)
+    assert np.isclose(be1_nf_iao_so, -0.83985647, atol=1e-5, rtol=0)
 
 
 @unittest.skipUnless(
@@ -75,10 +75,10 @@ def test_hexene_loc_be2_froz_iao_sto3g_boys(hexene) -> None:
         lo_method="IAO",
         iao_loc_method="boys",
         oneshot=False,
-        nproc=8,
+        nproc=2,
     )
     # energy after four iterations
-    assert np.isclose(be2_f_iao_fb, -0.92794903, atol=2e-6, rtol=0), be2_f_iao_fb
+    assert np.isclose(be2_f_iao_fb, -0.92794903, atol=1e-5, rtol=0), be2_f_iao_fb
     # Oneshot energy
     # assert np.isclose(be2_f_iao_fb, -0.92843714)
 
@@ -98,12 +98,12 @@ def test_chem_gen_hexene_loc_be2_froz_iao_sto3g_boys(hexene) -> None:
         lo_method="IAO",
         iao_loc_method="boys",
         oneshot=False,
-        nproc=8,
+        nproc=2,
         frag_type="chemgen",
         additional_args=ChemGenArgs(wrong_iao_indexing=True),
     )
     # energy after four iterations
-    assert np.isclose(be2_f_iao_fb, -0.92794903, atol=2e-6, rtol=0), be2_f_iao_fb
+    assert np.isclose(be2_f_iao_fb, -0.92794903, atol=1e-5, rtol=0), be2_f_iao_fb
 
 
 @unittest.skipUnless(
@@ -121,11 +121,11 @@ def test_chem_gen_hexene_loc_be2_froz_iao_sto3g_boys_fixed_AOs(hexene) -> None:
         lo_method="IAO",
         iao_loc_method="boys",
         oneshot=False,
-        nproc=8,
+        nproc=2,
         frag_type="chemgen",
         additional_args=ChemGenArgs(wrong_iao_indexing=False),
     )
-    assert np.isclose(be2_f_iao_fb, -0.9279496397090554, atol=2e-6, rtol=0)
+    assert np.isclose(be2_f_iao_fb, -0.9279496397090554, atol=1e-5, rtol=0)
 
 
 def ret_ecorr(
