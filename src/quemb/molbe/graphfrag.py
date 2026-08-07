@@ -198,7 +198,7 @@ class GraphGenUtility:
         - Arcs between nodes are radially offset to distinguish overlapping edges.
         """
         z_offset = 0.5
-        c_ = plt.cm.get_cmap(cmap)
+        c_ = plt.cm.get_cmap(cmap)  # type: ignore[attr-defined]
         c = [c_(fdx / len(edge_list))[0:3] for fdx in range(0, len(edge_list))]
         patches = [mpatches.Patch(color=color, alpha=0.9) for color in c]
         labels = {adx: (map["label"] + str(adx)) for adx, map in adx_map.items()}

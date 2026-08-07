@@ -2,6 +2,7 @@
 
 import os
 import time
+from pathlib import Path
 
 import h5py
 from numpy import einsum, ix_, loadtxt
@@ -113,13 +114,14 @@ def be2fcidump(be_obj, fcidump_prefix, basis):
     ----------
     be_obj : molbe.mbe.BE
         BE object
-    fcidump_prefix : str
+    fcidump_prefix : str or pathlib.Path
         Prefix for path & filename to the output fcidump files
-        Each file is named [fcidump_prefix]_f0, ...
+        Each file is named [fcidump_prefix]f0, [fcidump_prefix]f1, ...
     basis : str
         'embedding' to get the integrals in the embedding basis
         'fragment_mo' to get the integrals in the fragment MO basis
     """
+
     for fidx, frag in enumerate(be_obj.Fobjs):
         # Read in eri
         with h5py.File(frag.eri_file, "r") as read:
@@ -145,8 +147,11 @@ def be2fcidump(be_obj, fcidump_prefix, basis):
         else:
             raise Exception("Basis should be either embedding or fragment_mo")
 
+        fcidump_prefix = Path(fcidump_prefix)
+        fcidump_path = fcidump_prefix.parent / f"{fcidump_prefix.name}f{fidx}"
+
         fcidump.from_integrals(
-            fcidump_prefix + "f" + str(fidx),
+            str(fcidump_path),
             h1e,
             h2e,
             frag.TA.shape[1],
