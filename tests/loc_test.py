@@ -1,5 +1,6 @@
 # Tests the standard localization and IAO routines for hexene
 
+import os
 import unittest
 from typing import Literal
 
@@ -27,8 +28,7 @@ def test_hexene_loc_be1_froz_pm(hexene) -> None:
 
 
 @unittest.skipUnless(
-    True,
-    # os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true",
+    os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true",
     "Skipped expensive tests for QuEmb.",
 )
 def test_hexene_loc_be2_unfroz_lowdin(hexene) -> None:
@@ -61,8 +61,7 @@ def test_hexene_loc_be1_unfroz_iao_minao_so(hexene) -> None:
 
 
 @unittest.skipUnless(
-    True,
-    # os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true",
+    os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true",
     "Skipped expensive tests for QuEmb.",
 )
 def test_hexene_loc_be2_froz_iao_sto3g_boys(hexene) -> None:
@@ -84,8 +83,7 @@ def test_hexene_loc_be2_froz_iao_sto3g_boys(hexene) -> None:
 
 
 @unittest.skipUnless(
-    True,
-    # os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true",
+    os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true",
     "Skipped expensive tests for QuEmb.",
 )
 def test_chem_gen_hexene_loc_be2_froz_iao_sto3g_boys(hexene) -> None:
@@ -107,8 +105,7 @@ def test_chem_gen_hexene_loc_be2_froz_iao_sto3g_boys(hexene) -> None:
 
 
 @unittest.skipUnless(
-    True,
-    # os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true",
+    os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true",
     "Skipped expensive tests for QuEmb.",
 )
 def test_chem_gen_hexene_loc_be2_froz_iao_sto3g_boys_fixed_AOs(hexene) -> None:
