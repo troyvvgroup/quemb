@@ -120,7 +120,6 @@ def run_solver(
     mf_ = get_scfObj(h1, eri, nocc, dm0=dm0)
 
     # If evaluating the electronic energy, we need rdm2
-    need_rdm2 = eeval
     rdm2s = None  # must be initialized to ensure later check is safe
 
     # Select solver
@@ -129,7 +128,7 @@ def run_solver(
         mc_mp2 = solve_mp2(mf_, mo_energy=mf_.mo_energy)
         rdm1_tmp = mc_mp2.make_rdm1()
 
-        if need_rdm2:
+        if eeval:
             rdm2s = mc_mp2.make_rdm2()
 
     elif solver == "CCSD":
@@ -139,10 +138,10 @@ def run_solver(
             relax=relax_density,
             use_cumulant=use_cumulant,
             rdm_return=True,
-            rdm2_return=need_rdm2,
+            rdm2_return=eeval,
         )
 
-        if need_rdm2:
+        if eeval:
             rdm2s = rdm2s_maybe
 
     elif solver == "FCI":
@@ -152,7 +151,7 @@ def run_solver(
 
         rdm1_tmp = mc_fci.make_rdm1(civec, mc_fci.norb, mc_fci.nelec)
 
-        if need_rdm2:
+        if eeval:
             rdm2s = mc_fci.make_rdm2(civec, mc_fci.norb, mc_fci.nelec)
 
     elif solver == "HCI":  # TODO
@@ -262,7 +261,7 @@ def run_solver(
         # we follow the same format for returning rdm2s
         rdm1_tmp, rdm2s_maybe = ci.make_rdm12(0, nmo, nelec)
 
-        if need_rdm2:
+        if eeval:
             rdm2s = rdm2s_maybe
 
     else:
