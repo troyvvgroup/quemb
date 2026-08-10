@@ -568,10 +568,7 @@ def be_func_parallel(
     del rdms
     ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem)
 
-    if return_vec:
-        return (ernorm, ervec, [e_1 + e_2 + e_c, [e_1, e_2, e_c]])
-
-    return ernorm
+    return (ernorm, ervec, [e_1 + e_2 + e_c, [e_1, e_2, e_c]])
 
 
 def be_func_parallel_u(
