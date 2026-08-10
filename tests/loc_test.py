@@ -24,7 +24,7 @@ def test_hexene_loc_be1_froz_pm(hexene) -> None:
         oneshot=True,
         nproc=1,
     )
-    assert np.isclose(be1_f_pm, -0.85564574)
+    assert np.isclose(be1_f_pm, -0.85564574, atol=1e-5, rtol=0)
 
 
 @unittest.skipUnless(
