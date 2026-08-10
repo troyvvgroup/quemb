@@ -102,7 +102,7 @@ def run_solver(
     eeval :
         If True, evaluate the electronic energy. Default is True.
     return_vec :
-        If True, return vector with error and rdms. Default is True.
+        If True, return vector with error and rdms. Default is False.
     relax_density :
         If True, use CCSD relaxed density. Default is False
 
@@ -119,7 +119,6 @@ def run_solver(
     # Initialize SCF object
     mf_ = get_scfObj(h1, eri, nocc, dm0=dm0)
 
-    # If evaluating the electronic energy, we need rdm2
     rdm2s = None  # must be initialized to ensure later check is safe
 
     # Select solver
@@ -273,7 +272,7 @@ def run_solver(
     # If we are not evaluating the electronic energy,
     # return before e_f or rdm2s are needed
     if not eeval:
-        return None, mf_.mo_coeff, rdm1, None, rdm1_tmp
+        return (None, mf_.mo_coeff, rdm1, None, rdm1_tmp)
 
     # From this point onward, rdm2s is required
     if rdm2s is None:
@@ -326,6 +325,8 @@ def run_solver_u(
     solver,
     enuc,  # noqa: ARG001
     hf_veff,
+    eeval: bool = True,
+    return_vec: bool = False,
     relax_density=False,
     frozen=False,
     use_cumulant=True,
@@ -345,6 +346,10 @@ def run_solver_u(
         Nuclear component of the energy
     hf_veff : tuple of numpy.ndarray, optional
         Alpha and beta spin Hartree-Fock effective potentials.
+    eeval :
+        If True, evaluate the electronic energy. Default is True.
+    return_vec :
+        If True, return vector with error and rdms. Default is False.
     relax_density : bool, optional
         If True, uses  relaxed density matrix for UCCSD, defaults to False.
     frozen : bool, optional
@@ -365,15 +370,19 @@ def run_solver_u(
     full_uhf, eris = make_uhf_obj(fobj_a, fobj_b, frozen=frozen)
 
     if solver == "UCCSD":
-        ucc, rdm1_tmp, rdm2s = solve_uccsd(
+        ucc, rdm1_tmp, rdm2s_maybe = solve_uccsd(
             full_uhf,
             eris,
             relax=relax_density,
             use_cumulant=use_cumulant,
             rdm_return=True,
-            rdm2_return=True,
+            rdm2_return=eeval,
             frozen=frozen,
         )
+        if eeval:
+            rdm2s = rdm2s_maybe
+            fobj_a.rdm2__ = rdm2s[0].copy()
+            fobj_b.rdm2__ = rdm2s[1].copy()
     else:
         raise NotImplementedError("Only UCCSD Solver implemented")
 
@@ -389,38 +398,37 @@ def run_solver_u(
         multi_dot((fobj_b._mf.mo_coeff, rdm1_tmp[1], fobj_b._mf.mo_coeff.T)) * 0.5
     )
 
-    # Calculate Energies
-    fobj_a.rdm2__ = rdm2s[0].copy()
-    fobj_b.rdm2__ = rdm2s[1].copy()
-
     # Calculate energy on a per-fragment basis
-    if frozen:
-        h1_ab = [
-            full_uhf.h1[0] + full_uhf.full_gcore[0] + full_uhf.core_veffs[0],
-            full_uhf.h1[1] + full_uhf.full_gcore[1] + full_uhf.core_veffs[1],
-        ]
-    else:
-        h1_ab = [fobj_a.h1, fobj_b.h1]
+    if eeval:
+        if frozen:
+            h1_ab = [
+                full_uhf.h1[0] + full_uhf.full_gcore[0] + full_uhf.core_veffs[0],
+                full_uhf.h1[1] + full_uhf.full_gcore[1] + full_uhf.core_veffs[1],
+            ]
+        else:
+            h1_ab = [fobj_a.h1, fobj_b.h1]
 
-    e_f = get_frag_energy_u(
-        (fobj_a._mo_coeffs, fobj_b._mo_coeffs),
-        (fobj_a.nsocc, fobj_b.nsocc),
-        (fobj_a.n_frag, fobj_b.n_frag),
-        (
-            fobj_a.weight_and_relAO_per_center,
-            fobj_b.weight_and_relAO_per_center,
-        ),
-        (fobj_a.TA, fobj_b.TA),
-        h1_ab,
-        hf_veff,
-        rdm1_tmp,
-        rdm2s,
-        fobj_a.dname,
-        eri_file=fobj_a.eri_file,
-        gcores=full_uhf.full_gcore,
-        frozen=frozen,
-    )
-    return e_f
+        e_f = get_frag_energy_u(
+            (fobj_a._mo_coeffs, fobj_b._mo_coeffs),
+            (fobj_a.nsocc, fobj_b.nsocc),
+            (fobj_a.n_frag, fobj_b.n_frag),
+            (
+                fobj_a.weight_and_relAO_per_center,
+                fobj_b.weight_and_relAO_per_center,
+            ),
+            (fobj_a.TA, fobj_b.TA),
+            h1_ab,
+            hf_veff,
+            rdm1_tmp,
+            rdm2s,
+            fobj_a.dname,
+            eri_file=fobj_a.eri_file,
+            gcores=full_uhf.full_gcore,
+            frozen=frozen,
+        )
+
+    if not return_vec:
+        return e_f
 
 
 def be_func_parallel(
