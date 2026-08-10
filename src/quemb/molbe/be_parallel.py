@@ -537,38 +537,47 @@ def be_func_parallel(
 
         rdms = [result.get() for result in results]
 
-    if not return_vec:
-        # Compute and return fragment energy
-        # rdms are the returned energies, not density matrices!
+    if eeval:
+        if not return_vec:
+            # Compute and return fragment energy
+            # rdms are the returned energies, not density matrices!
+            e_1 = 0.0
+            e_2 = 0.0
+            e_c = 0.0
+            for i in range(len(rdms)):
+                e_1 += rdms[i][0]
+                e_2 += rdms[i][1]
+                e_c += rdms[i][2]
+            return (e_1 + e_2 + e_c, (e_1, e_2, e_c))
+
+        # Compute total energy
         e_1 = 0.0
         e_2 = 0.0
         e_c = 0.0
-        for i in range(len(rdms)):
-            e_1 += rdms[i][0]
-            e_2 += rdms[i][1]
-            e_c += rdms[i][2]
-        return (e_1 + e_2 + e_c, (e_1, e_2, e_c))
 
-    # Compute total energy
-    e_1 = 0.0
-    e_2 = 0.0
-    e_c = 0.0
+        # I have to type ignore here, because of stupid behaviour of
+        # :code:`zip` and :code:`enumerate`
+        # https://stackoverflow.com/questions/74374059/correctly-specify-the-types-of-unpacked-zip
+        for fobj, rdm in zip(Fobjs, rdms):  # type: ignore[assignment]
+            e_1 += rdm[0][0]
+            e_2 += rdm[0][1]
+            e_c += rdm[0][2]
+            fobj.mo_coeffs = rdm[1]
+            fobj._rdm1 = rdm[2]
+            fobj.rdm2__ = rdm[3]
 
-    # I have to type ignore here, because of stupid behaviour of
-    # :code:`zip` and :code:`enumerate`
-    # https://stackoverflow.com/questions/74374059/correctly-specify-the-types-of-unpacked-zip
+        del rdms
+        ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem)
+
+        return (ernorm, ervec, [e_1 + e_2 + e_c, [e_1, e_2, e_c]])
+
     for fobj, rdm in zip(Fobjs, rdms):  # type: ignore[assignment]
-        e_1 += rdm[0][0]
-        e_2 += rdm[0][1]
-        e_c += rdm[0][2]
-        fobj.mo_coeffs = rdm[1]
         fobj._rdm1 = rdm[2]
-        fobj.rdm2__ = rdm[3]
 
     del rdms
     ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem)
 
-    return (ernorm, ervec, [e_1 + e_2 + e_c, [e_1, e_2, e_c]])
+    return (ernorm, ervec)
 
 
 def be_func_parallel_u(
