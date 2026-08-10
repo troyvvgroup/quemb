@@ -53,7 +53,7 @@ def run_solver(
     veff: Matrix[float64] | None = None,
     veff0: Matrix[float64] | None = None,
     eeval: bool = True,
-    ret_vec: bool = False,
+    return_vec: bool = False,
     use_cumulant: bool = True,
     relax_density: bool = False,
     solver_args: UserSolverArgs | None = None,
@@ -101,7 +101,7 @@ def run_solver(
         If True, use the cumulant approximation for RDM2. Default is True.
     eeval :
         If True, evaluate the electronic energy. Default is True.
-    ret_vec :
+    return_vec :
         If True, return vector with error and rdms. Default is True.
     relax_density :
         If True, use CCSD relaxed density. Default is False
@@ -315,7 +315,7 @@ def run_solver(
         eri_file,
     )
 
-    if ret_vec:
+    if return_vec:
         return (e_f, mf_.mo_coeff, rdm1, rdm2s, rdm1_tmp)
 
     return e_f
