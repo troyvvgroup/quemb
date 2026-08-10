@@ -81,14 +81,13 @@ class UBE(BE):  # 🍠
                     PySCF to perform integral transformations. Default is True
                 common_bath :
                     Use SVD-based common alpha/beta bath. Produces a single TA
-        #           shared by both spin channels — required for spin-summed 1RDM
-        #           matching in iterative UBE (Tran et al. 2020, Eq. 15).
-        #           Supersedes equal_bath when True. Default False.
-        #       nelec_prescription_override : dict, optional
-        #           Override automatic integer electron assignment for specific
-        #           fragments. Keys are fragment indices, values are (nalpha, nbeta)
-        #           tuples. E.g. {0: (21, 16)} fixes fragment 0 to 21alpha, 16beta.
-        #           Use when automatic assignment gives physically wrong spin.
+                    shared by both spin channels. Supersedes equal_bath when
+                    True. Default False.
+                nelec_prescription_override : dict, optional
+                    Override automatic integer electron assignment for specific
+                    fragments. Keys are fragment indices, values are (nalpha, nbeta)
+                    tuples. E.g. {0: (21, 16)} fixes fragment 0 to 21alpha, 16beta.
+                    Use when automatic assignment gives physically wrong spin.
         """
 
         self.unrestricted = True
@@ -422,6 +421,42 @@ class UBE(BE):  # 🍠
                 EH1 += eh1_b
                 ECOUL += ecoul_b
                 E_hf += fobj_b.ebe_hf
+
+        # Fractional vs. rounded alpha/beta electron count per fragment,
+        # from get_nsocc()'s projection. Large deviations flag fragments
+        # where the integer assignment is ambiguous -- rerun with
+        # nelec_prescription_override={frag_idx: (na, nb)} to try a
+        # different combination for that fragment.
+        print(f"\n{'=' * 70}", flush=True)
+        print("Fragment electron-count diagnostic", flush=True)
+        print(f"{'=' * 70}", flush=True)
+        print(
+            f"  {'Frag':>4}  {'na_frac':>9}  {'na':>4}  {'dev_a':>7}  "
+            f"{'nb_frac':>9}  {'nb':>4}  {'dev_b':>7}",
+            flush=True,
+        )
+        print(f"  {'-' * 60}", flush=True)
+        thr = 0.1
+        any_flag = False
+        for I, (fobj_a, fobj_b) in enumerate(zip(self.Fobjs_a, self.Fobjs_b)):
+            dev_a = abs(fobj_a.nsocc_frac - fobj_a.nsocc)
+            dev_b = abs(fobj_b.nsocc_frac - fobj_b.nsocc)
+            flag = "*" if (dev_a > thr or dev_b > thr) else " "
+            any_flag = any_flag or flag == "*"
+            print(
+                f" {flag}{I:>4}  {fobj_a.nsocc_frac:>9.4f}  "
+                f"{fobj_a.nsocc:>4}  {dev_a:>7.4f}  "
+                f"{fobj_b.nsocc_frac:>9.4f}  {fobj_b.nsocc:>4}  {dev_b:>7.4f}",
+                flush=True,
+            )
+        print(f"  {'-' * 60}", flush=True)
+        if any_flag:
+            print(
+                f"  * deviation > {thr} -- consider "
+                "nelec_prescription_override for that fragment.",
+                flush=True,
+            )
+        print(f"{'=' * 70}\n", flush=True)
 
         # nsocc here comes from get_nsocc()'s native projection onto the
         # shared common_bath TA (fragment+bath, overlapping across

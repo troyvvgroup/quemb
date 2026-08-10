@@ -250,6 +250,9 @@ class Frags:
         -------
         numpy.ndarray
             Projected density matrix.
+
+        Also sets self.nsocc (rounded integer) and self.nsocc_frac (the
+        raw fractional projection before rounding, for diagnostics).
         """
         C_ = multi_dot((self.TA.T, S, C[:, ncore : ncore + nocc]))
         P_ = C_ @ C_.T
@@ -262,6 +265,7 @@ class Frags:
 
         self._mo_coeffs = mo_coeffs
         self.nsocc = nsocc
+        self.nsocc_frac = float(getattr(nsocc_, "real", nsocc_))
         return P_
 
     def scf(
