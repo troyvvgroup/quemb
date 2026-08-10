@@ -37,32 +37,6 @@ from quemb.shared.typing import (
 )
 
 
-def _subtract_hf_disconnected_part(
-    rdm2s,
-    rdm1_tmp,
-    nocc,
-):
-    """Convert RDM2 into cumulant-like contribution."""
-    hf_dm = zeros_like(rdm1_tmp)
-    hf_dm[diag_indices(nocc)] += 2.0
-
-    del_rdm1 = rdm1_tmp.copy()
-    del_rdm1[diag_indices(nocc)] -= 2.0
-
-    nc = (
-        einsum("ij,kl->ijkl", hf_dm, hf_dm)
-        + einsum("ij,kl->ijkl", hf_dm, del_rdm1)
-        + einsum("ij,kl->ijkl", del_rdm1, hf_dm)
-    )
-    nc -= 0.5 * (
-        einsum("ij,kl->iklj", hf_dm, hf_dm)
-        + einsum("ij,kl->iklj", hf_dm, del_rdm1)
-        + einsum("ij,kl->iklj", del_rdm1, hf_dm)
-    )
-
-    return rdm2s - nc
-
-
 def run_solver(
     h1: Matrix[float64],
     dm0: Matrix[float64],
@@ -309,11 +283,21 @@ def run_solver(
         )
 
     if solver in {"FCI", "SCI"} and use_cumulant:
-        rdm2s = _subtract_hf_disconnected_part(
-            rdm2s=rdm2s,
-            rdm1_tmp=rdm1_tmp,
-            nocc=nocc,
+        hf_dm = zeros_like(rdm1_tmp)
+        hf_dm[diag_indices(nocc)] += 2.0
+        del_rdm1 = rdm1_tmp.copy()
+        del_rdm1[diag_indices(nocc)] -= 2.0
+        nc = (
+            einsum("ij,kl->ijkl", hf_dm, hf_dm)
+            + einsum("ij,kl->ijkl", hf_dm, del_rdm1)
+            + einsum("ij,kl->ijkl", del_rdm1, hf_dm)
         )
+        nc -= (
+            einsum("ij,kl->iklj", hf_dm, hf_dm)
+            + einsum("ij,kl->iklj", hf_dm, del_rdm1)
+            + einsum("ij,kl->iklj", del_rdm1, hf_dm)
+        ) * 0.5
+        rdm2s -= nc
 
     e_f = get_frag_energy(
         mf_.mo_coeff,
