@@ -539,7 +539,8 @@ def be_func_parallel(
                 e_1 += rdms[i][0]
                 e_2 += rdms[i][1]
                 e_c += rdms[i][2]
-            return (e_1 + e_2 + e_c, (e_1, e_2, e_c))
+            # matches be_func(eeval=True, return_vec=False) return
+            return (e_1 + e_2 + e_c, [e_1, e_2, e_c])
 
         # Compute total energy
         e_1 = 0.0
@@ -568,7 +569,10 @@ def be_func_parallel(
     del rdms
     ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem)
 
-    return (ernorm, ervec)
+    if return_vec:
+        return (ernorm, ervec)
+
+    return ernorm
 
 
 def be_func_parallel_u(
