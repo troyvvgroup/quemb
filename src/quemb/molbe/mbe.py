@@ -39,6 +39,7 @@ from scipy.optimize import linear_sum_assignment
 from typing_extensions import assert_never
 
 from quemb.molbe.be_parallel import be_func_parallel
+from quemb.molbe.chemfrag import ChemGenArgs
 from quemb.molbe.eri_onthefly import integral_direct_DF
 from quemb.molbe.eri_sparse_DF import (
     transform_sparse_DF_integral_cpu,
@@ -55,6 +56,7 @@ from quemb.molbe.lo import (
     remove_core_mo,
 )
 from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
+from quemb.molbe.numerical_jac import compute_numerical_jacobian
 from quemb.molbe.opt import BEOPT
 from quemb.molbe.pfrag import Frags, union_of_frag_MOs_and_index
 from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
@@ -122,6 +124,40 @@ class storeBE:
     core_veff: Matrix[floating]
 
 
+@dataclass
+class BEArgs:
+    """Container for BE fragmentation, solver and optimization settings."""
+
+    # fragmentate keywords
+    n_BE: int = 2
+    frag_type: str = "chemgen"
+    frozen_core: bool = False
+    additional_args: ChemGenArgs | None = None
+
+    # BE initialization keywords
+    lo_method: str = "lowdin"
+    int_transform: str = "in-core"
+    auxbasis: str | None = None
+    initialize_fragment_idx: list[int] | None = None
+
+    # oneshot/optimize keywords
+    solver: str = "CCSD"
+    use_cumulant: bool = True
+    nproc: int = 1
+    ompnum: int = 4
+
+    # additional optimize keywords
+    optimize: bool = True
+    only_chem: bool = False
+    method: str = "QN"
+    conv_tol: float = 1.0e-6
+    relax_density: bool = False
+    jac_solver: str = "HF"
+    max_iter: int = 500
+    trust_region: bool = False
+    step_size: float = 1e-6
+
+
 class BE:
     """
     Class for handling bootstrap embedding (BE) calculations.
@@ -142,6 +178,8 @@ class BE:
     lo_method :
         Method for orbital localization, default is "lowdin".
     """
+
+    compute_numerical_jacobian = compute_numerical_jacobian
 
     @timer.timeit
     def __init__(
@@ -323,10 +361,11 @@ class BE:
         if initialize_fragment_idx is not None and int_transform not in [
             "in-core",
             "out-core-DF",
+            "int-direct-DF",
         ]:
             raise NotImplementedError(
-                "Selective fragment initialization is only implemented for 'in-core' "
-                "and 'out-core-DF' integral transformations."
+                "Selective fragment initialization is only implemented for 'in-core'"
+                ", 'out-core-DF', and 'int-direct-DF' integral transformations."
             )
 
         initialize_fragment_idx = (
@@ -1732,6 +1771,7 @@ class BE:
         ompnum: int = 4,
         max_iter: int = 500,
         trust_region: bool = False,
+        step_size: float = 1e-6,
         solver_args: UserSolverArgs | None = None,
     ) -> None:
         """BE optimization function
@@ -1770,6 +1810,8 @@ class BE:
             Options include HF, MP2, CCSD
         trust_region :
             Use trust-region based QN optimization, by default False
+        step_size :
+            Step size used in Numerical Jacobian routine, by default 1e-6
         """
         # Check if only chemical potential optimization is required
         if not only_chem:
@@ -1818,14 +1860,9 @@ class BE:
         if method == "QN":
             # Prepare the initial Jacobian matrix
             if jac_solver == "Numerical":
-                if only_chem:
-                    J0 = self.get_be_error_jacobian_numerical(
-                        only_chem, solver, relax_density, solver_args, use_cumulant
-                    )
-                else:
-                    raise NotImplementedError(
-                        "Numerical Jacobian is only implemented for only_chem=True"
-                    )
+                J0 = self.compute_numerical_jacobian(
+                    solver, only_chem, nproc, step_size=step_size
+                )
             else:
                 if only_chem:
                     J0 = array([[0.0]])
@@ -1862,68 +1899,6 @@ class BE:
     @copy_docstring(_ext_get_be_error_jacobian)
     def get_be_error_jacobian(self, jac_solver: str = "HF") -> Matrix[float64]:
         return _ext_get_be_error_jacobian(self.fobj.n_frag, self.Fobjs, jac_solver)
-
-    def get_be_error_jacobian_numerical(
-        self,
-        only_chem: bool,
-        solver: Solvers,
-        relax_density: bool,
-        solver_args: UserSolverArgs | None,
-        use_cumulant: bool,
-    ) -> Matrix[float64]:
-        """
-        Obtain the Jacobian matrix for BE Optimization using numerical differentiation.
-        (First-order Central Finite Differences)
-        Note that this function is only implemented for the case
-        where :python:`only_chem=True`.
-        """
-        step_size = 1e-6  # from frankenstein
-
-        def be_func_err(x: list[float] | None) -> float:
-            if self.nproc == 1:
-                return be_func(
-                    x,
-                    self.Fobjs,
-                    self.Nocc,
-                    solver,
-                    self.enuc,
-                    only_chem=only_chem,
-                    relax_density=relax_density,
-                    scratch_dir=self.scratch_dir,
-                    solver_args=solver_args,
-                    use_cumulant=use_cumulant,
-                    eeval=False,
-                    return_vec=True,
-                )[1]
-            else:  # parallel
-                return be_func_parallel(
-                    x,
-                    self.Fobjs,
-                    self.Nocc,
-                    solver,
-                    self.enuc,
-                    only_chem=only_chem,
-                    nproc=self.nproc,
-                    ompnum=self.ompnum,
-                    relax_density=relax_density,
-                    scratch_dir=self.scratch_dir,
-                    solver_args=solver_args,
-                    use_cumulant=use_cumulant,
-                    eeval=False,
-                    return_vec=True,
-                )[1]
-
-        if only_chem:
-            return array(
-                [
-                    (be_func_err([step_size]) - be_func_err([-step_size]))
-                    / (2 * step_size)
-                ]
-            )
-        else:
-            raise NotImplementedError(
-                "Numerical Jacobian is only implemented for only_chem=True"
-            )
 
     def print_ini(self):
         """
@@ -1992,7 +1967,12 @@ class BE:
                 file_eri.create_dataset(self.Fobjs[I].dname, data=eri)
         elif int_transform == "int-direct-DF":
             ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-            integral_direct_DF(self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis)
+            integral_direct_DF(
+                self.mf,
+                [self.Fobjs[I] for I in initialize_fragment_idx],
+                file_eri,
+                auxbasis=self.auxbasis,
+            )
         elif int_transform == "sparse-DF":
             ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
             transform_sparse_DF_integral_cpu(

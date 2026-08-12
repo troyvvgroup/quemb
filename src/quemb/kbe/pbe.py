@@ -4,7 +4,7 @@ import contextlib
 import io
 import os
 import pickle
-from typing import Literal
+from typing import Literal, TypeAlias
 from warnings import warn
 
 import h5py
@@ -13,8 +13,11 @@ from numpy import array, einsum, floating, result_type, zeros, zeros_like
 from pathos.pools import ProcessPool
 from pyscf import ao2mo
 from pyscf.pbc import df, gto, scf
+from pyscf.pbc.df.df import GDF
 from pyscf.pbc.df.df_jk import _ewald_exxdiv_for_G0
+from pyscf.pbc.lib.kpts_helper import is_zero
 
+from quemb.kbe.eri_onthefly import integral_direct_DF
 from quemb.kbe.fragment import FragPart
 from quemb.kbe.lo import Mixin_k_Localize
 from quemb.kbe.misc import print_energy, storePBE
@@ -26,7 +29,7 @@ from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
-from quemb.shared.helper import copy_docstring, timer
+from quemb.shared.helper import copy_docstring, ensure, timer
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix, PathLike
 
@@ -34,6 +37,22 @@ with contextlib.redirect_stdout(io.StringIO()):
     # Since they don't want to reduce the printing, let's temporarily disable STDOUT
     # https://github.com/gkclab/libdmet_preview/issues/22
     from libdmet.basis_transform.eri_transform import get_emb_eri_fast_gdf
+
+IntTransforms: TypeAlias = Literal[
+    "out-core-DF",
+    "int-direct-DF",
+]
+r"""Literal type describing allowed transformation strategies.
+
+- :python:`"out-core-DF"`: Use a dense, DF representation of integrals.
+  The DF integrals :math:`(\mu, \nu | P)` are stored on disc.
+  libdmet is used as the backend, which reads AO DF integrals from the
+  mean-field object (stored in disk) or cderi file (stored in disk).
+
+- :python:`"int-direct-DF"`: Use a dense, DF representation of integrals.
+  The required DF integrals :math:`(\mu, \nu | P)` are computed and fitted
+  on-demand for each fragment. Charge compensation is used for faster convergence.
+"""
 
 
 class BE(Mixin_k_Localize):
@@ -74,6 +93,8 @@ class BE(Mixin_k_Localize):
         iao_wannier: bool = False,
         thr_bath: float = 1.0e-10,
         scratch_dir: WorkDir | None = None,
+        int_transform: IntTransforms = "out-core-DF",
+        auxbasis: str | None = None,
     ) -> None:
         """
         Constructor for BE object.
@@ -130,6 +151,8 @@ class BE(Mixin_k_Localize):
 
         self.nproc = nproc
         self.ompnum = ompnum
+        self.integral_transform = int_transform
+        self.auxbasis = auxbasis
         self.thr_bath = thr_bath
 
         # Fragment information from fobj
@@ -201,6 +224,11 @@ class BE(Mixin_k_Localize):
             print("exxdiv = ", exxdiv, "not implemented!", flush=True)
             print("Energy may diverse.", flush=True)
             print(flush=True)
+
+        if int_transform == "int-direct-DF" and not is_zero(kpts):
+            raise NotImplementedError(
+                "k-point sampled ERI not implemented for int-direct-DF."
+            )
 
         self.frozen_core = fobj.frozen_core
         self.ncore = 0
@@ -470,6 +498,79 @@ class BE(Mixin_k_Localize):
 
         return e_.real
 
+    @timer.timeit
+    def _eri_transform(
+        self,
+        int_transform: IntTransforms,
+        df_source: PathLike | GDF | None,
+        file_eri: h5py.File,
+    ):
+        """
+        Transforms electron repulsion integrals (ERIs) for each fragment
+        and stores them in a file.
+
+        Transformation strategy follows a decision tree:
+
+        1. If cderi is passed:
+           - Use out-core transformation using libdmet.
+        2. Else, if with_df from mean-field calculation is available:
+           - Use out-core transformation using libdmet.
+        3. Else, if ``integral_direct_DF`` is requested:
+           - Use on-the-fly density-fitting integral evaluation.
+
+
+        Parameters
+        ----------
+        int_transform : The transformation strategy.
+        df_source : Source for the density-fitted integrals.
+        file_eri : The output file where transformed ERIs are stored.
+        """
+
+        if int_transform == "out-core-DF":
+            if isinstance(df_source, GDF):
+                for fobjs_ in self.Fobjs:
+                    eri = get_emb_eri_fast_gdf(
+                        self.mf.cell,
+                        self.mf.with_df,
+                        t_reversal_symm=True,
+                        symmetry=4,
+                        C_ao_eo=fobjs_.TA,
+                    )[0]
+
+                    file_eri.create_dataset(fobjs_.dname, data=eri)
+                    eri = ao2mo.restore(8, eri, fobjs_.nao)
+                    fobjs_.cons_fock(self.hf_veff, self.S, self.hf_dm, eri_=eri)
+            else:
+                # Use cderi (Path)
+                nprocs = max(1, self.nproc // self.ompnum)
+                os.system("export OMP_NUM_THREADS=" + str(self.ompnum))
+                with ProcessPool(nprocs) as pool_:
+                    results = []
+                    for frg in range(self.fobj.n_frag):
+                        result = pool_.apipe(
+                            eritransform_parallel,
+                            self.mf.cell.a,
+                            self.mf.cell.atom,
+                            self.mf.cell.basis,
+                            self.mf.cell.unit,
+                            self.kpts,
+                            self.Fobjs[frg].TA,
+                            self.cderi,
+                        )
+                        results.append(result)
+                    eris = [result.get() for result in results]
+
+                for frg in range(self.fobj.n_frag):
+                    file_eri.create_dataset(self.Fobjs[frg].dname, data=eris[frg])
+                del eris
+        elif int_transform == "int-direct-DF":
+            ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
+            integral_direct_DF(self.mf, self.Fobjs, file_eri, auxbasis=self.auxbasis)
+            for fobjs_ in self.Fobjs:
+                eri = array(file_eri.get(fobjs_.dname))
+                eri = ao2mo.restore(8, eri, fobjs_.nao)
+                fobjs_.cons_fock(self.hf_veff, self.S, self.hf_dm, eri_=eri)
+
     def initialize(self, compute_hf: bool, restart: bool = False) -> None:
         """
         Initialize the Bootstrap Embedding calculation.
@@ -484,9 +585,6 @@ class BE(Mixin_k_Localize):
         if compute_hf:
             E_hf = 0.0
 
-        # Create a file to store ERIs
-        if not restart:
-            file_eri = h5py.File(self.eri_file, "w")
         transform_parallel = False  # hard set for now
         for fidx in range(self.fobj.n_frag):
             fobjs_ = self.fobj.to_Frags(fidx, self.eri_file, self.unitcell_nkpt)
@@ -507,21 +605,6 @@ class BE(Mixin_k_Localize):
                 self.S, self.C, self.Nocc, ncore=self.ncore
             )
 
-            if self.cderi is None:
-                if not restart:
-                    eri = get_emb_eri_fast_gdf(
-                        self.mf.cell,
-                        self.mf.with_df,
-                        t_reversal_symm=True,
-                        symmetry=4,
-                        C_ao_eo=fobjs_.TA,
-                    )[0]
-
-                    file_eri.create_dataset(fobjs_.dname, data=eri)
-                    eri = ao2mo.restore(8, eri, fobjs_.nao)
-                    fobjs_.cons_fock(self.hf_veff, self.S, self.hf_dm, eri_=eri)
-                else:
-                    eri = None
             self.Fobjs.append(fobjs_)
 
         # ERI & Fock parallelization for periodic calculations
@@ -531,28 +614,7 @@ class BE(Mixin_k_Localize):
 
             nprocs = self.nproc // self.ompnum
             os.system("export OMP_NUM_THREADS=" + str(self.ompnum))
-            with ProcessPool(nprocs) as pool_:
-                results = []
-                for frg in range(self.fobj.n_frag):
-                    result = pool_.apipe(
-                        eritransform_parallel,
-                        self.mf.cell.a,
-                        self.mf.cell.atom,
-                        self.mf.cell.basis,
-                        self.mf.cell.unit,
-                        self.kpts,
-                        self.Fobjs[frg].TA,
-                        self.cderi,
-                    )
-                    results.append(result)
-                eris = [result.get() for result in results]
 
-            for frg in range(self.fobj.n_frag):
-                file_eri.create_dataset(self.Fobjs[frg].dname, data=eris[frg])
-            del eris
-            file_eri.close()
-
-            nprocs = self.nproc // self.ompnum
             with ProcessPool(nprocs) as pool_:
                 results = []
                 for frg in range(self.fobj.n_frag):
@@ -579,6 +641,20 @@ class BE(Mixin_k_Localize):
 
                 self.Fobjs[frg].fock = self.Fobjs[frg].h1 + veff_.real
             del veffs
+
+        # Create a file to store ERIs
+        if not restart:
+            file_eri = h5py.File(self.eri_file, "w")
+
+        # Call ERI transform
+        self._eri_transform(
+            int_transform=self.integral_transform,
+            df_source=self.cderi if self.cderi else self.mf.with_df,
+            file_eri=file_eri,
+        )
+
+        if not restart:
+            file_eri.close()
 
         # SCF parallelized
         if self.nproc == 1 and not transform_parallel:
