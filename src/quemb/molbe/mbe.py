@@ -44,6 +44,7 @@ from quemb.molbe.eri_sparse_DF import (
     transform_sparse_DF_integral_cpu,
 )
 from quemb.molbe.fragment import FragPart
+from quemb.molbe.helper import get_eri, get_scfObj
 from quemb.molbe.lo import (
     IAO_LocMethods,
     LocMethods,
@@ -57,7 +58,7 @@ from quemb.molbe.misc import print_energy_cumulant, print_energy_noncumulant
 from quemb.molbe.opt import BEOPT
 from quemb.molbe.pfrag import Frags, union_of_frag_MOs_and_index
 from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
-from quemb.shared.external.eom_qchem_parser import dyson_parser
+from quemb.shared.external.eom_qchem_parser import dyson_parser, dyson_parser_ea
 from quemb.shared.external.lo_helper import (
     get_aoind_by_atom,
     reorder_by_atom_,
@@ -954,7 +955,7 @@ class BE:
 
         # extra = compute additional excitations in case of intruder states
         extra = 0
-        extra_koop = self.Nocc - n_ex
+        extra_koop = self.Nocc - n_ex + self.ncore
 
         # Copy the full system MO coefficients
         C_MO = self.C.copy()
@@ -971,14 +972,21 @@ class BE:
         # dyson_ip_full: in AO basis
         # dyson_ip_full_MO: in MO basis
 
+        print("MO ENERGIES:")
+        print(self.mo_energy)
+        print(self.ncore)
+        print(self.Nocc)
+        print(nao)
+        ###ip_full wrong with frozen core
+
         dyson_ip_full = zeros((n_ex + extra_koop, nao))
         dyson_ip_full_MO = zeros((n_ex + extra_koop, nao))
         ip_full = zeros(n_ex + extra_koop)
 
         for i in range(n_ex + extra_koop):
-            ip_full[i] = self.mo_energy[self.Nocc - 1 - i]
-            dyson_ip_full_MO[i, self.Nocc - 1 - i] = 1
-            dyson_ip_full[i, :] = C_MO[:, self.Nocc - 1 - i]
+            ip_full[i] = self.mo_energy[self.Nocc + self.ncore - 1 - i]
+            dyson_ip_full_MO[i, self.Nocc + self.ncore - 1 - i] = 1
+            dyson_ip_full[i, :] = C_MO[:, self.Nocc + self.ncore - 1 - i]
 
         ip_full = (-ip_full) * ha_to_ev
 
@@ -1006,6 +1014,22 @@ class BE:
 
             excluded_koop = []
 
+            # replacement:
+            # Get electron repulsion integrals (ERI)
+            eri = get_eri(fobjs.dname, fobjs.nao, eri_file=fobjs.eri_file)
+            # Initialize SCF object
+            mf_ = get_scfObj(
+                h1=fobjs.fock + fobjs.heff, Eri=eri, nocc=fobjs.nsocc, dm0=fobjs.dm0
+            )
+
+            # print(fobjs._mo_coeffs)
+            # print(mf_.mo_coeff)
+
+            # Get electron repulsion integrals (ERI)
+            # eri = get_eri(fobjs.dname, fobjs.nao, fobjs.eri_file)
+            # Initialize SCF object
+            # mf_ = get_scfObj(fobjs.h1, fobjs.eri, fobjs.nocc, fobjs.dm0)
+
             for i in range(n_ex + extra):
                 ### TO DO: sometimes dyson orbital doesn't correspond to
                 # an excitation from HOMO->infty!!
@@ -1023,16 +1047,20 @@ class BE:
 
                 # Perform SCF calculation
                 # fobjs.scf()
-                # running in parallel doesn't work without this - test
+                # running in parallel doesn't work without this
+
+                """ip_frag[i] = (
+                    -fobjs._mf.mo_energy[idx_guess - occ_tot + SO_occ] * ha_to_ev
+                )"""
 
                 ip_frag[i] = (
-                    -fobjs._mf.mo_energy[idx_guess - occ_tot + SO_occ] * ha_to_ev
+                    -mf_.mo_energy[idx_guess - occ_tot + SO_occ - self.ncore] * ha_to_ev
                 )
 
                 dyson_ip_frag_left[i, idx_guess] = 1  # * norm_left
                 dyson_ip_frag_right[i, idx_guess] = 1  # * norm_right
 
-                if norm_left < 0.3:
+                if norm_left < 0.3 or norm_left > 2:
                     excluded_koop.append(i)
 
                 delta_ex[i] = ip_frag[i]
@@ -1066,7 +1094,7 @@ class BE:
 
             delta_ex = diag(delta_ex)
 
-            env_occ = occ_tot - SO_occ
+            env_occ = occ_tot - SO_occ + self.ncore
             env_virt = n_mo_full - SO_tot - env_occ
 
             hij_mo = (
@@ -1106,7 +1134,7 @@ class BE:
             # Compute hij in the SO basis
             # and transform to AO basis
 
-            hij_so = fobjs.mo_coeffs @ hij_mo @ fobjs.mo_coeffs.T
+            hij_so = mf_.mo_coeff @ hij_mo @ mf_.mo_coeff.T
 
             hij_center = Pc_ @ hij_so
             # do we apply projection correctly?
@@ -1119,18 +1147,18 @@ class BE:
             hijAO += hij_ao
             fobjs.hij_mo = hij_mo
 
-            delta_hij_so = fobjs.mo_coeffs @ delta_hij_mo @ fobjs.mo_coeffs.T
+            delta_hij_so = mf_.mo_coeff @ delta_hij_mo @ mf_.mo_coeff.T
             delta_hij_center = Pc_ @ delta_hij_so
             delta_hij_ao = fobjs.TA @ delta_hij_center @ fobjs.TA.T
 
             delta_hijAO += delta_hij_ao
 
-            m_0_so = fobjs.mo_coeffs @ m_0_mo @ fobjs.mo_coeffs.T
+            m_0_so = mf_.mo_coeff @ m_0_mo @ mf_.mo_coeff.T
             m_0_center = Pc_ @ m_0_so
             m_0_ao = fobjs.TA @ m_0_center @ fobjs.TA.T
             M_0_AO += m_0_ao
 
-            delta_m_0_so = fobjs.mo_coeffs @ delta_m_0_mo @ fobjs.mo_coeffs.T
+            delta_m_0_so = mf_.mo_coeff @ delta_m_0_mo @ mf_.mo_coeff.T
             delta_m_0_center = Pc_ @ delta_m_0_so
             delta_m_0_ao = fobjs.TA @ delta_m_0_center @ fobjs.TA.T
             delta_M_0_AO += delta_m_0_ao
@@ -1150,6 +1178,278 @@ class BE:
             hijMO,
             delta_hijMO,
             dyson_ip_full_MO,
+            M0_MO,
+            delta_M0_MO,
+        )
+
+    def hij_full_ea(self, n_ex):
+        """Compute hij from Dyson orbitals - for averaged excited BE purposes.
+        EOM-in-Fock approach with EOM-EA solver
+        - now with added environment contributions
+
+        Parameters
+        ----------
+        n_ex: int
+            Number of excited states.
+
+        Returns
+        -------
+        hijAO : numpy.ndarray
+            Effective Hamiltonian in AO basis, formed from Dyson orbitals.
+        delta_hijAO : numpy.ndarray
+            Environment correction term in AO basis.
+        ea_full : numpy.ndarray
+            Full-system EAs.
+        dyson_ea_full : numpy.ndarray
+            Full system Dyson orbitals corresponding to Koopman's-like excitations.
+        hijMO : numpy.ndarray
+            Effective Hamiltonian in MO basis, formed from Dyson orbitals.
+        delta_hijMO : numpy.ndarray
+            Environment correction term in MO basis.
+        dyson_ea_full_MO : numpy.ndarray
+            Full system Dyson orbitals corresponding to Koopman's-like excitations
+            (in MO basis).
+        M0_MO : numpy.ndarray
+            "0th order spectral moment", or c_L @ c_R.
+            Equal to identity matrix in the full system EOM-IP/EA case
+            (due to biorthonormality).
+        delta_M0_MO : numpy.ndarray
+            "0th order spectral moment" for the environment correction term.
+        """
+
+        ha_to_ev = 27.2114
+
+        # extra = compute additional excitations in case of intruder states
+        extra = 0
+
+        # Copy the full system MO coefficients
+        C_MO = self.C.copy()
+        nao = C_MO.shape[0]
+
+        n_virt = nao - self.Nocc - self.ncore
+
+        # in AO basis
+        hijAO = zeros((nao, nao))
+        delta_hijAO = zeros((nao, nao))
+        M_0_AO = zeros((nao, nao))
+        delta_M_0_AO = zeros((nao, nao))
+
+        # full system environment correction
+        # simple Koopman's theorem EA reference
+        # dyson_ea_full: in AO basis
+        # dyson_ea_full_MO: in MO basis
+
+        print("MO ENERGIES:")
+        print(self.mo_energy)
+        print(n_virt)
+        print(nao)
+
+        dyson_ea_full = zeros((n_virt, nao))
+        dyson_ea_full_MO = zeros((n_virt, nao))
+        ea_full = zeros(n_virt)
+
+        for i in range(n_virt):
+            ea_full[i] = self.mo_energy[
+                self.Nocc + self.ncore + i
+            ]  ###unsure about sign
+            dyson_ea_full_MO[i, self.Nocc + self.ncore + i] = 1
+            dyson_ea_full[i, :] = C_MO[:, self.Nocc + self.ncore + i]
+
+        ea_full = (ea_full) * ha_to_ev
+        print(ea_full)
+
+        # parse Dyson info from Q-Chem outputs
+
+        for frag_number, fobjs in enumerate(self.Fobjs):
+            output = "qchem_fragment_" + str(frag_number) + "/eom.out"
+            dyson_parser_ea(fobjs, output, n_ex + extra)
+
+        # build fragment contributions
+
+        for frag_number, fobjs in enumerate(self.Fobjs):
+            n_mo_full = shape(fobjs.TA)[0]
+            occ_tot = self.Nocc  # full system
+            SO_tot = shape(fobjs.TA)[1]
+            SO_occ = fobjs.nsocc  # Schmidt space
+            virt_tot = n_mo_full - occ_tot
+            SO_virt = SO_tot - SO_occ
+            env_virt = virt_tot - SO_virt
+
+            # fragment environment correction - simple Koopman's theorem IP
+
+            dyson_ea_frag_left = zeros((n_ex + extra, nao))
+            dyson_ea_frag_right = zeros((n_ex + extra, nao))
+
+            ea_frag = zeros(n_ex + extra)
+            delta_ex = zeros(n_ex + extra)
+
+            excluded_koop = []
+
+            # replacement:
+            # Get electron repulsion integrals (ERI)
+            eri = get_eri(fobjs.dname, fobjs.nao, eri_file=fobjs.eri_file)
+            # Initialize SCF object
+            mf_ = get_scfObj(
+                h1=fobjs.fock + fobjs.heff, Eri=eri, nocc=fobjs.nsocc, dm0=fobjs.dm0
+            )
+
+            # print(fobjs._mo_coeffs)
+            # print(mf_.mo_coeff)
+
+            # Get electron repulsion integrals (ERI)
+            # eri = get_eri(fobjs.dname, fobjs.nao, fobjs.eri_file)
+            # Initialize SCF object
+            # mf_ = get_scfObj(fobjs.h1, fobjs.eri, fobjs.nocc, fobjs.dm0)
+
+            for i in range(n_ex + extra):
+                ### TO DO: sometimes dyson orbital doesn't correspond to
+                # an excitation from HOMO->infty!!
+                # what can we do about double excitations?
+
+                idx_guess = argmax(abs(fobjs.dyson_right[i, :]))
+
+                norm_left = norm(fobjs.dyson_left[i, :])
+                norm_right = norm(fobjs.dyson_right[i, :])
+
+                print(idx_guess, norm_left, norm_right)
+
+                if idx_guess + env_virt >= n_mo_full:
+                    idx_guess = occ_tot + i + 1
+
+                # Perform SCF calculation
+                # fobjs.scf()
+                # running in parallel doesn't work without this
+
+                """ip_frag[i] = (
+                    -fobjs._mf.mo_energy[idx_guess - occ_tot + SO_occ] * ha_to_ev
+                )"""
+
+                ea_frag[i] = (
+                    mf_.mo_energy[idx_guess - occ_tot + SO_occ - self.ncore] * ha_to_ev
+                )
+
+                dyson_ea_frag_left[i, idx_guess] = 1  # * norm_left
+                dyson_ea_frag_right[i, idx_guess] = 1  # * norm_right
+
+                if norm_left < 0.3 or norm_left > 2:
+                    excluded_koop.append(i)
+
+                delta_ex[i] = ea_frag[i]
+
+                print("NEW FRAGMENT")
+                print(frag_number)
+                print(
+                    "Fragment number",
+                    frag_number,
+                    "excited state",
+                    i,
+                    "excitation energy",
+                    fobjs.ex_e[i],
+                    "eV, norm",
+                    norm(fobjs.dyson_right[i, :]),
+                    "from (virtual) MO:",
+                    argmax(abs(fobjs.dyson_right[i, :])),
+                    delta_ex[i],
+                )
+
+            ###exclude - NEW
+            print("EXCLUDE: ")
+            print(frag_number)
+            print(excluded_koop)
+
+            dyson_ea_frag_left = delete(dyson_ea_frag_left, excluded_koop, axis=0)
+            dyson_ea_frag_right = delete(dyson_ea_frag_right, excluded_koop, axis=0)
+            delta_ex = delete(delta_ex, excluded_koop)
+            print(delta_ex)
+
+            exc = diag(fobjs.ex_e[: n_ex + extra])
+
+            delta_ex = diag(delta_ex)
+
+            env_occ = occ_tot - SO_occ + self.ncore
+            env_virt = n_mo_full - SO_tot - env_occ
+
+            hij_mo = (
+                fobjs.dyson_left[:, env_occ : n_mo_full - env_virt].T
+                @ exc
+                @ fobjs.dyson_right[:, env_occ : n_mo_full - env_virt]
+            )
+
+            m_0_mo = (
+                fobjs.dyson_left[:, env_occ : n_mo_full - env_virt].T
+                @ fobjs.dyson_right[:, env_occ : n_mo_full - env_virt]
+            )
+
+            # environment correction!
+            delta_hij_mo = (
+                dyson_ea_frag_left[:, env_occ : n_mo_full - env_virt].T
+                @ delta_ex
+                @ dyson_ea_frag_right[:, env_occ : n_mo_full - env_virt]
+            )
+
+            delta_m_0_mo = (
+                dyson_ea_frag_left[:, env_occ : n_mo_full - env_virt].T
+                @ dyson_ea_frag_right[:, env_occ : n_mo_full - env_virt]
+            )
+
+            # projection matrix
+            cind = [fobjs.AO_in_frag[i] for i in fobjs.weight_and_relAO_per_center[1]]
+            Pc_ = (
+                fobjs.TA.T
+                @ self.S
+                @ self.W[:, cind]
+                @ self.W[:, cind].T
+                @ self.S
+                @ fobjs.TA
+            )
+
+            # Compute hij in the SO basis
+            # and transform to AO basis
+
+            hij_so = mf_.mo_coeff @ hij_mo @ mf_.mo_coeff.T
+
+            hij_center = Pc_ @ hij_so
+            # do we apply projection correctly?
+            # hij_center = Pc_ @ hij_so @ Pc_
+
+            # print("ARE NON-CENTER CONTRIBUTIONS IMPORTANT?")
+            ###half of non-diag contributions important? - keep projection only on left?
+
+            hij_ao = fobjs.TA @ hij_center @ fobjs.TA.T  ###!!!just center!
+            hijAO += hij_ao
+            fobjs.hij_mo = hij_mo
+
+            delta_hij_so = mf_.mo_coeff @ delta_hij_mo @ mf_.mo_coeff.T
+            delta_hij_center = Pc_ @ delta_hij_so
+            delta_hij_ao = fobjs.TA @ delta_hij_center @ fobjs.TA.T
+
+            delta_hijAO += delta_hij_ao
+
+            m_0_so = mf_.mo_coeff @ m_0_mo @ mf_.mo_coeff.T
+            m_0_center = Pc_ @ m_0_so
+            m_0_ao = fobjs.TA @ m_0_center @ fobjs.TA.T
+            M_0_AO += m_0_ao
+
+            delta_m_0_so = mf_.mo_coeff @ delta_m_0_mo @ mf_.mo_coeff.T
+            delta_m_0_center = Pc_ @ delta_m_0_so
+            delta_m_0_ao = fobjs.TA @ delta_m_0_center @ fobjs.TA.T
+            delta_M_0_AO += delta_m_0_ao
+
+            # Transform to the MO basis if needed
+            hijMO = self.C.T @ self.S @ hijAO @ self.S @ self.C
+            delta_hijMO = self.C.T @ self.S @ delta_hijAO @ self.S @ self.C
+
+            M0_MO = self.C.T @ self.S @ M_0_AO @ self.S @ self.C
+            delta_M0_MO = self.C.T @ self.S @ delta_M_0_AO @ self.S @ self.C
+
+        return (
+            hijAO,
+            delta_hijAO,
+            ea_full,
+            dyson_ea_full,
+            hijMO,
+            delta_hijMO,
+            dyson_ea_full_MO,
             M0_MO,
             delta_M0_MO,
         )
@@ -2263,14 +2563,29 @@ class BE:
         print("QChem:")
         print("Exporting files 99.0, 58.0, 53.0 to Q-Chem for EOM-CCSD calculation")
 
-        pot = self.pot
+        # pot = self.pot
         Fobjs = self.Fobjs
+
+        """print(self.nproc)
+        print(self.ompnum)
+
+        self.nproc=1
+        self.ompnum=1
+
+        os.system("export OMP_NUM_THREADS=" + str(self.ompnum))
+
+        print(self.nproc)
+        print(self.ompnum)"""
+
+        """from multiprocessing import Lock
+
+        lock=Lock()"""
 
         # Loop over each fragment and extract necessary information from Qchem
         for frag_number, fobj in enumerate(Fobjs):
             # Update the effective Hamiltonian
-            if pot is not None:
-                fobj.update_heff(pot)
+            """if pot is not None:
+                fobj.update_heff(pot,only_chem=True)"""
 
             # print("Fragment:", frag_number)
             # print("BEFORE")
@@ -2279,12 +2594,28 @@ class BE:
             # print(fobj.mo_coeffs)
 
             # Perform SCF calculation
-            # fobj.scf() #-destroys the mo coeffs from the optimization...
+            # fobj.scf()
 
             # export necessary information to Q-Chem
-            mf = fobj._mf
-            print(mf.mo_coeff)
-            print(fobj.mo_coeffs)
+            # mf = fobj._mf #only works serially
+
+            """print(fobj.dname)
+            print(fobj.nao)
+            print(fobj.eri_file)
+
+            print("PID:", os.getpid())
+            print("Path:", fobj.eri_file)
+            print("Exists:", os.path.exists(fobj.eri_file))"""
+
+            # Get electron repulsion integrals (ERI)
+            eri = get_eri(fobj.dname, fobj.nao, eri_file=fobj.eri_file)
+            # Initialize SCF object
+            mf = get_scfObj(
+                h1=fobj.fock + fobj.heff, Eri=eri, nocc=fobj.nsocc, dm0=fobj.dm0
+            )
+
+            # print(mf.mo_coeff)
+            # print(fobj._mo_coeffs)
 
             print("Fragment number: ", frag_number)
             ###numbers of electrons in:
@@ -2292,6 +2623,16 @@ class BE:
             occ_tot = self.Nocc  ###full system
             SO_tot = shape(fobj.TA)[1]
             SO_occ = fobj.nsocc  ###Schmidt space
+
+            print(n_mo_full_syst)
+            print(occ_tot)
+            print(SO_tot)
+
+            """print("Frozen core?")
+            print(self.frozen_core)
+            print(self.ncore)
+            print(self.no_core_idx)
+            print(self.core_list)"""
 
             """if fobj.nfsites <= SO_occ:  ###if fragment is fully occupied
                 frag_occ = fobj.nfsites
@@ -2302,7 +2643,7 @@ class BE:
 
             # bath_virt = SO_tot - frag_occ - bath_occ
             ###TO DO: automate generation of qchem input files
-            env_occ = occ_tot - SO_occ
+            env_occ = occ_tot - SO_occ + self.ncore
             print("Qchem: set n_frozen_core")
             print("Number occupied environment: ", env_occ)
 
@@ -2313,6 +2654,8 @@ class BE:
             ###File 99.0 - energy file in Qchem
 
             energy = mf.kernel()
+
+            print("SCF energy is: ", energy)
 
             energy_array = zeros(12)
             # placeholder value - exact value doesn't matter

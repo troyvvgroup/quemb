@@ -178,6 +178,9 @@ def get_eri(i_frag, Nao, symm=8, ignore_symm=False, eri_file="eri_file.h5"):
     numpy.ndarray
         Electron repulsion integrals, possibly restored with symmetry.
     """
+
+    # print("Opening file:", eri_file)
+
     # Open the HDF5 file and read the ERI for the specified fragment
     with h5py.File(eri_file, "r") as r:
         eri__ = array(r.get(i_frag))

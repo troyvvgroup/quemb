@@ -899,6 +899,8 @@ def solve_ccsd(
     t2 = mycc.t2
 
     print("CCSD fragment energy", mycc.e_tot)
+    """print(mo_energy)
+    print(mo_coeff)"""
     # print(mo_coeff)
 
     # Compute and return the density matrices if requested
