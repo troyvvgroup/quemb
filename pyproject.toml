@@ -28,7 +28,7 @@ dependencies = [
     "libdmet @ git+https://github.com/gkclab/libdmet_preview.git",
     "chemcoord>=2.2.0",
     "pathos",
-    "dftd3-python"
+    "dftd3"
 ]
 
 [project.license]
