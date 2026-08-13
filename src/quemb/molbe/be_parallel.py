@@ -314,6 +314,7 @@ def run_solver_u(
     relax_density=False,
     frozen=False,
     use_cumulant=True,
+    frag_idx=None,
 ):
     """
     Run a quantum chemistry solver to compute the reduced density matrices.
@@ -336,31 +337,42 @@ def run_solver_u(
         If True, uses frozen core, defaults to False
     use_cumulant : bool, optional
         If True, uses the cumulant approximation for RDM2. Default is True.
+    frag_idx : int, optional
+        Fragment index, used only for logging/error messages. Default None.
 
     Returns
     -------
     float
         As implemented, only returns the UCCSD fragment energy
     """
-    # Run SCF for alpha and beta spins
-    fobj_a.scf(unrestricted=True, spin_ind=0)
-    fobj_b.scf(unrestricted=True, spin_ind=1)
+    # Each fragment's local embedded SCF needs the other spin's frozen
+    # density to build the unrestricted potential. fobj_a.TA != fobj_b.TA
+    # in general (only coincide under common_bath), so fobj_b.dm0 (in
+    # fobj_b's own basis) isn't valid as-is in fobj_a's Fock construction.
+    # dm_other_embedded (set in UBE.initialize) is the other spin's
+    # density re-projected into this fragment's own basis -- a no-op
+    # under common_bath, correct for both common_bath and equal_bath.
+    fobj_a.scf(unrestricted=True, spin_ind=0, dm_other=fobj_a.dm_other_embedded)
+    fobj_b.scf(unrestricted=True, spin_ind=1, dm_other=fobj_b.dm_other_embedded)
 
     # Construct UHF object
     full_uhf, eris = make_uhf_obj(fobj_a, fobj_b, frozen=frozen)
 
     if solver == "UCCSD":
-        ucc, rdm1_tmp, rdm2s = solve_uccsd(
-            full_uhf,
-            eris,
-            relax=relax_density,
-            use_cumulant=use_cumulant,
-            rdm_return=True,
-            rdm2_return=True,
-            frozen=frozen,
-        )
+        try:
+            ucc, rdm1_tmp, rdm2s = solve_uccsd(
+                full_uhf,
+                eris,
+                relax=relax_density,
+                use_cumulant=use_cumulant,
+                rdm_return=True,
+                rdm2_return=True,
+                frozen=frozen,
+            )
+        except Exception as e:
+            raise RuntimeError(f"CCSD failed for fragment index {frag_idx}") from e
     else:
-        raise NotImplementedError("Only UCCSD Solver implemented")
+        raise NotImplementedError("Only UCCSD Solver Implemented")
 
     # Compute RDM1
     fobj_a.rdm1__ = rdm1_tmp[0].copy()
@@ -613,7 +625,12 @@ def be_func_parallel_u(
     with Pool(nprocs) as pool_:
         results = []
         # Run solver in parallel for each fragment
-        for fobj_a, fobj_b in Fobjs:
+        for idx, (fobj_a, fobj_b) in enumerate(Fobjs):
+            print(
+                f"[be_func_u] Starting fragment {idx + 1}/{len(Fobjs)} "
+                f"(Schmidt space: {fobj_a.TA.shape[1]})...",
+                flush=True,
+            )
             result = pool_.apply_async(
                 run_solver_u,
                 [
@@ -625,6 +642,7 @@ def be_func_parallel_u(
                     relax_density,
                     frozen,
                     use_cumulant,
+                    idx,
                 ],
             )
             results.append(result)

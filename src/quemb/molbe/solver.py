@@ -102,7 +102,9 @@ class DMRG_ArgsUser(UserSolverArgs):
     force_cleanup: Final[bool] = False
 
     @schedule_kwargs.default
-    def _get_schedule_kwargs_default(self) -> dict[str, list[int] | list[float]]:
+    def _get_schedule_kwargs_default(
+        self,
+    ) -> dict[str, list[int] | list[float]]:
         return {
             "scheduleSweeps": [(i * self.max_iter) // 6 for i in range(1, 7)],
             "scheduleMaxMs": [
@@ -231,7 +233,9 @@ class _SHCI_Args:
             )
         """
         if args.hci_pt:
-            warn("hci_pt is set True: note that the perturbed SCI solver is untested")
+            warn(
+                "hci_pt is set True: note that the perturbed SCI solver is untested"
+            )
         return cls(
             hci_pt=args.hci_pt,
             hci_cutoff=args.hci_cutoff,
@@ -435,12 +439,14 @@ def be_func(
                 )
                 iter = 0
                 frag_name = (
-                    Path(f"{scratch_dir}-frag_data") / f"{fobj.dname}_iter{iter}"
+                    Path(f"{scratch_dir}-frag_data")
+                    / f"{fobj.dname}_iter{iter}"
                 )
                 while frag_name.exists():
                     iter += 1
                     frag_name = (
-                        Path(f"{scratch_dir}-frag_data") / f"{fobj.dname}_iter{iter}"
+                        Path(f"{scratch_dir}-frag_data")
+                        / f"{fobj.dname}_iter{iter}"
                     )
                 frag_scratch = WorkDir(frag_name, cleanup_at_end=False)
                 print("Fragment Scratch Directory:", frag_scratch)
@@ -559,7 +565,7 @@ def be_func(
 
 
 def be_func_u(
-    pot,  # noqa: ARG001
+    pot,
     Fobjs: list[tuple[Frags, Frags]],
     solver: USolvers,
     enuc,  # noqa: ARG001
@@ -568,6 +574,9 @@ def be_func_u(
     relax_density=False,
     use_cumulant=True,
     frozen=False,
+    only_chem=False,
+    return_vec=False,
+    Nocc_ab=None,
 ):
     """Perform bootstrap embedding calculations for each fragment with UCCSD.
 
@@ -576,8 +585,15 @@ def be_func_u(
 
     Parameters
     ----------
-    pot : list
-        List of potentials.
+    pot : list or None
+        List of potentials. If not None, the last two entries are the
+        global alpha/beta chemical potentials (see UBE.optimize /
+        initialize_pot's trailing "# alpha"/"# beta" slots) and get
+        injected via Frags.update_heff(..., only_chem=True) before each
+        fragment's embedded SCF -- currently only this chemical-potential-only
+        (BE0-level, Eq. 16 of Tran/Ye/Van Voorhis 2020) correction is
+        supported; local/edge matching (full iterative UBE) is not yet
+        implemented.
     Fobjs : list
         zip list of :class:`quemb.molbe.autofrag.FragPart`, alpha and beta
         List of fragment objects. Each element is a tuple with the alpha and
@@ -596,6 +612,16 @@ def be_func_u(
         Whether to use the cumulant-based energy expression. Defaults to True.
     frozen : bool, optional
         Frozen core. Defaults to False
+    only_chem : bool, optional
+        Whether `pot` carries only the global chemical potentials (the only
+        mode currently supported). Defaults to False.
+    return_vec : bool, optional
+        Whether to also return the (norm, err_vec) from solve_error_u.
+        Requires Nocc_ab. Defaults to False.
+    Nocc_ab : tuple of int, optional
+        (Nocc_a, Nocc_b), the true full-system alpha/beta electron counts
+        (not any single fragment's own nsocc) -- required when
+        return_vec=True, passed through to solve_error_u.
     Returns
     -------
     float or tuple
@@ -607,9 +633,33 @@ def be_func_u(
         total_e = [0.0, 0.0, 0.0]
 
     # Loop over each fragment and solve using the specified solver
-    for fobj_a, fobj_b in Fobjs:
-        fobj_a.scf(unrestricted=True, spin_ind=0)
-        fobj_b.scf(unrestricted=True, spin_ind=1)
+    for idx, (fobj_a, fobj_b) in enumerate(Fobjs):
+        # Chemical-potential injection (BE0-level, Eq. 16) -- see UBE.optimize.
+        if pot is not None:
+            if not only_chem:
+                raise NotImplementedError(
+                    "be_func_u only supports chemical-potential-only "
+                    "(only_chem=True) correction; local/edge matching "
+                    "(full iterative UBE) is not yet implemented."
+                )
+            fobj_a.update_heff([pot[-2]], only_chem=True)
+            fobj_b.update_heff([pot[-1]], only_chem=True)
+        print(
+            f"[be_func_u] Starting fragment {idx + 1}/{len(Fobjs)} "
+            f"(Schmidt space: {fobj_a.TA.shape[1]})...",
+            flush=True,
+        )
+        # fobj_a.dm0/fobj_b.dm0 live in each fragment's own embedding
+        # basis, which only coincides across fragments under common_bath.
+        # dm_other_embedded (set in UBE.initialize) is the other spin's
+        # density re-projected into this fragment's own basis -- correct
+        # for both common_bath and equal_bath.
+        fobj_a.scf(
+            unrestricted=True, spin_ind=0, dm_other=fobj_a.dm_other_embedded
+        )
+        fobj_b.scf(
+            unrestricted=True, spin_ind=1, dm_other=fobj_b.dm_other_embedded
+        )
 
         full_uhf, eris = make_uhf_obj(fobj_a, fobj_b, frozen=frozen)
         if solver == "UCCSD":
@@ -630,11 +680,13 @@ def be_func_u(
         fobj_b.mo_coeff_uccsd = fobj_b._mf.mo_coeff.copy()
         fobj_a.rdm1__ = rdm1_tmp[0].copy()
         fobj_a._rdm1 = (
-            multi_dot((fobj_a._mf.mo_coeff, rdm1_tmp[0], fobj_a._mf.mo_coeff.T)) * 0.5
+            multi_dot((fobj_a._mf.mo_coeff, rdm1_tmp[0], fobj_a._mf.mo_coeff.T))
+            * 0.5
         )
         fobj_b.rdm1__ = rdm1_tmp[1].copy()
         fobj_b._rdm1 = (
-            multi_dot((fobj_b._mf.mo_coeff, rdm1_tmp[1], fobj_b._mf.mo_coeff.T)) * 0.5
+            multi_dot((fobj_b._mf.mo_coeff, rdm1_tmp[1], fobj_b._mf.mo_coeff.T))
+            * 0.5
         )
 
         if eeval:
@@ -643,8 +695,12 @@ def be_func_u(
 
             if frozen:
                 h1_ab = [
-                    full_uhf.h1[0] + full_uhf.full_gcore[0] + full_uhf.core_veffs[0],
-                    full_uhf.h1[1] + full_uhf.full_gcore[1] + full_uhf.core_veffs[1],
+                    full_uhf.h1[0]
+                    + full_uhf.full_gcore[0]
+                    + full_uhf.core_veffs[0],
+                    full_uhf.h1[1]
+                    + full_uhf.full_gcore[1]
+                    + full_uhf.core_veffs[1],
                 ]
             else:
                 h1_ab = [fobj_a.h1, fobj_b.h1]
@@ -669,8 +725,19 @@ def be_func_u(
             )
             total_e = [sum(x) for x in zip(total_e, e_f)]
 
-    E = sum(total_e)
-    return (E, total_e)
+    if eeval:
+        E = sum(total_e)
+        if not return_vec:
+            return (E, total_e)
+
+    if return_vec:
+        assert Nocc_ab is not None, "Nocc_ab is required when return_vec=True"
+        ernorm, ervec = solve_error_u(Fobjs, Nocc_ab[0], Nocc_ab[1])
+        if eeval:
+            return (ernorm, ervec, [E, total_e])
+        return (ernorm, ervec, None)
+
+    return None
 
 
 def solve_error(Fobjs, Nocc, only_chem=False):
@@ -750,6 +817,55 @@ def solve_error(Fobjs, Nocc, only_chem=False):
 
     # Compute the norm of the error vector
     norm_ = mean(err_vec * err_vec) ** 0.5
+
+    return norm_, err_vec
+
+
+def solve_error_u(Fobjs, Nocc_a, Nocc_b):
+    """
+    Unrestricted, chemical-potential-only (BE0-level) analog of
+    solve_error(only_chem=True): computes the global electron-count error
+    separately for alpha and beta, per Tran, Ye, Van Voorhis
+    (J. Chem. Phys. 153, 214101 (2020)) Eq. 16 --
+        sum_A sum_{p in center(A)} <n_p^sigma>_A - N_e^sigma = 0
+    for sigma in {alpha, beta} independently (the paper keeps the
+    edge-matching condition, Eq. 15, spin-summed, but the global
+    electron-count constraint is explicitly spin-resolved).
+
+    Each fragment's contribution is its center-site-restricted,
+    embedding-basis 1RDM diagonal: mo_coeff_uccsd @ rdm1__ @
+    mo_coeff_uccsd.T, evaluated at weight_and_relAO_per_center indices.
+    (Full local+edge matching, i.e. iterative UBE, is not yet
+    implemented; this only enforces the global constraint.)
+
+    Parameters
+    ----------
+    Fobjs : list of (Frags, Frags)
+        alpha/beta fragment pairs, after be_func_u has been run (requires
+        mo_coeff_uccsd and rdm1__ to already be set on each fragment).
+    Nocc_a, Nocc_b : int
+        Total alpha/beta electron count for the full system.
+
+    Returns
+    -------
+    float, numpy.ndarray
+        RMS norm of the 2-component error vector, and the error vector
+        itself: [err_alpha, err_beta].
+    """
+    err_a = 0.0
+    err_b = 0.0
+    for fobj_a, fobj_b in Fobjs:
+        mca = fobj_a.mo_coeff_uccsd
+        mcb = fobj_b.mo_coeff_uccsd
+        rdm1a_eo = mca @ fobj_a.rdm1__ @ mca.T
+        rdm1b_eo = mcb @ fobj_b.rdm1__ @ mcb.T
+        for i in fobj_a.weight_and_relAO_per_center[1]:
+            err_a += rdm1a_eo[i, i].real
+        for i in fobj_b.weight_and_relAO_per_center[1]:
+            err_b += rdm1b_eo[i, i].real
+
+    err_vec = array([err_a - Nocc_a, err_b - Nocc_b])
+    norm_ = float(mean(err_vec * err_vec) ** 0.5)
 
     return norm_, err_vec
 
@@ -1067,7 +1183,9 @@ def solve_uccsd(
                     s = ss
                     break
             if s < 0:
-                raise ValueError("Input mo coeff matrix matches neither moa nor mob.")
+                raise ValueError(
+                    "Input mo coeff matrix matches neither moa nor mob."
+                )
             return ao2mo.incore.full(Vss[s], moish, compact=False)
         elif isinstance(moish, list) or isinstance(moish, tuple):
             if len(moish) != 4:
@@ -1106,6 +1224,13 @@ def solve_uccsd(
 
     # Initialize the UCCSD object
     ucc = cc.uccsd.UCCSD(mf, mo_coeff=mf.mo_coeff, mo_occ=mf.mo_occ)
+    # Keep DIIS amplitude history in RAM rather than a lazily-created
+    # scratch HDF5 tempfile. Under multiprocessing.Pool, a DIIS object's
+    # tempfile handle can get duplicated across the pickling boundary,
+    # so both copies' finalizers race to clean up the same file (harmless,
+    # but noisy). Fragment-embedded CCSD problems are small enough that
+    # keeping DIIS vectors in RAM is cheap and sidesteps the issue.
+    ucc.incore_complete = True
 
     # Prepare the integrals
     eris = make_eris_incore(

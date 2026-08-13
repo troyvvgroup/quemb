@@ -140,6 +140,10 @@ class Frags:
         self.veff0 = None
         self.dm_init = None
         self.dm0: Matrix[float64]
+        # OTHER spin's dm0, re-projected into THIS fragment's own
+        # embedding basis (set in UBE.initialize; no-op under
+        # common_bath, required for correctness under equal_bath).
+        self.dm_other_embedded: Matrix[float64] | None = None
         self.unitcell_nkpt = 1.0
 
     def sd(
@@ -149,6 +153,7 @@ class Frags:
         nocc: int,
         thr_bath: float,
         norb: int | None = None,
+        dm_override: Matrix[float64] | None = None,
     ) -> None:
         """
         Perform Schmidt decomposition for the fragment.
@@ -167,6 +172,12 @@ class Frags:
             Specify number of bath orbitals.
             Used for UBE, where different number of alpha and beta orbitals
             Default is None, allowing orbitals to be chosen by threshold
+        dm_override : numpy.ndarray, optional
+            If provided, use this density matrix for Schmidt decomposition
+            instead of computing it from lmo and nocc. Used for common bath
+            construction where the total (alpha+beta) density matrix is used
+            to produce a single set of bath orbitals shared by both spin
+            channels. Default is None.
         """
         self.TA_lo_eo, self.n_f, self.n_b = schmidt_decomposition(
             lmo,
@@ -174,32 +185,48 @@ class Frags:
             self.AO_in_frag,
             thr_bath=thr_bath,
             norb=norb,
+            rdm=dm_override,
         )
         self.TA = lao @ self.TA_lo_eo
         self.nao = self.TA.shape[1]
 
-    def cons_fock(self, hf_veff, S, dm, eri_=None):
+    def cons_fock(self, hf_veff, S, dm, eri_=None, dm_other=None):
         """
         Construct the Fock matrix for the fragment.
+
+        When dm_other is provided, both dm and dm_other must be the true
+        (undoubled) single-spin density matrices -- see get_veff() for why
+        the doubled-density restricted formula doesn't apply here.
+        dm_other=None preserves the original restricted-compatible
+        behavior (dm is the doubled total density).
 
         Parameters
         ----------
         hf_veff : numpy.ndarray
-            Hartree-Fock effective potential.
+            Hartree-Fock effective potential (this spin's channel, for the
+            unrestricted case).
         S : numpy.ndarray
             Overlap matrix.
         dm : numpy.ndarray
-            Density matrix.
+            Density matrix for THIS spin channel. Undoubled if dm_other is
+            provided; doubled total density if dm_other is None.
         eri_ : numpy.ndarray, optional
             Electron repulsion integrals, by default None.
+        dm_other : numpy.ndarray, optional
+            Undoubled density matrix for the OTHER spin channel. Default None.
         """
 
         if eri_ is None:
             eri_ = get_eri(
-                self.dname, self.TA.shape[1], ignore_symm=True, eri_file=self.eri_file
+                self.dname,
+                self.TA.shape[1],
+                ignore_symm=True,
+                eri_file=self.eri_file,
             )
 
-        veff_, veff0 = get_veff(eri_, dm, S, self.TA, hf_veff)
+        veff_, veff0 = get_veff(
+            eri_, dm, S, self.TA, hf_veff, dm_other=dm_other
+        )
         self.veff = veff_.real
         self.veff0 = veff0
         self.fock = self.h1 + veff_.real
@@ -223,6 +250,9 @@ class Frags:
         -------
         numpy.ndarray
             Projected density matrix.
+
+        Also sets self.nsocc (rounded integer) and self.nsocc_frac (the
+        raw fractional projection before rounding, for diagnostics).
         """
         C_ = multi_dot((self.TA.T, S, C[:, ncore : ncore + nocc]))
         P_ = C_ @ C_.T
@@ -235,13 +265,27 @@ class Frags:
 
         self._mo_coeffs = mo_coeffs
         self.nsocc = nsocc
+        self.nsocc_frac = float(getattr(nsocc_, "real", nsocc_))
         return P_
 
     def scf(
-        self, heff=None, fs=False, eri=None, dm0=None, unrestricted=False, spin_ind=None
+        self,
+        heff=None,
+        fs=False,
+        eri=None,
+        dm0=None,
+        unrestricted=False,
+        spin_ind=None,
+        dm_other=None,
     ):
         """
         Perform self-consistent field (SCF) calculation for the fragment.
+
+        dm_other is threaded through to get_scfObj() so the embedded SCF
+        loop rebuilds the unrestricted potential at every iteration, rather
+        than relying only on cons_fock's one-time static correction to h1.
+        When dm_other is provided, dm0 defaults to the undoubled
+        occupied-orbital projector instead of the doubled restricted one.
 
         Parameters
         ----------
@@ -252,11 +296,17 @@ class Frags:
         eri : numpy.ndarray, optional
             Electron repulsion integrals, by default None.
         dm0 : numpy.ndarray, optional
-            Initial density matrix, by default None.
+            Initial density matrix, by default None. UNDOUBLED if dm_other is
+            provided (see fix note above).
         unrestricted : bool, optional
             Specify if unrestricted calculation, by default False
         spin_ind : int, optional
             Alpha (0) or beta (1) spin for unrestricted calculation, by default None
+        dm_other : numpy.ndarray, optional
+            Frozen density (undoubled) for the OTHER spin channel, in the same
+            embedding basis as this fragment's TA (true for common_bath, where
+            TA is shared between the alpha/beta Frags objects). Default None
+            (restricted-compatible behavior).
         """
 
         if self._mf is not None:
@@ -274,12 +324,22 @@ class Frags:
             eri = get_eri(dname, self.nao, eri_file=self.eri_file)
 
         if dm0 is None:
-            dm0 = 2.0 * (
-                self._mo_coeffs[:, : self.nsocc]
-                @ self._mo_coeffs[:, : self.nsocc].conj().T
-            )
+            if dm_other is not None:
+                # UNRESTRICTED FIX: undoubled default, matching the true
+                # single-spin-channel convention dm_other also requires.
+                dm0 = (
+                    self._mo_coeffs[:, : self.nsocc]
+                    @ self._mo_coeffs[:, : self.nsocc].conj().T
+                )
+            else:
+                dm0 = 2.0 * (
+                    self._mo_coeffs[:, : self.nsocc]
+                    @ self._mo_coeffs[:, : self.nsocc].conj().T
+                )
 
-        mf_ = get_scfObj(self.fock + heff, eri, self.nsocc, dm0=dm0)
+        mf_ = get_scfObj(
+            self.fock + heff, eri, self.nsocc, dm0=dm0, dm_other=dm_other
+        )
         if not fs:
             self._mf = mf_
             self.mo_coeffs = mf_.mo_coeff.copy()
@@ -331,12 +391,15 @@ class Frags:
         return_e=False,
         unrestricted=False,
         spin_ind=None,
+        dm_hf_other=None,
     ):
         if mo_coeffs is None:
             mo_coeffs = self._mo_coeffs
 
         if rdm_hf is None:
-            rdm_hf = mo_coeffs[:, : self.nsocc] @ mo_coeffs[:, : self.nsocc].conj().T
+            rdm_hf = (
+                mo_coeffs[:, : self.nsocc] @ mo_coeffs[:, : self.nsocc].conj().T
+            )
 
         unrestricted_fac = 1.0 if unrestricted else 2.0
 
@@ -347,7 +410,9 @@ class Frags:
         ec = (
             0.5
             * unrestricted_fac
-            * einsum("ij,ij->i", self.veff[: self.n_frag], rdm_hf[: self.n_frag])
+            * einsum(
+                "ij,ij->i", self.veff[: self.n_frag], rdm_hf[: self.n_frag]
+            )
         )
 
         if self.TA.ndim == 3:
@@ -361,13 +426,19 @@ class Frags:
                 else:
                     eri = f[self.dname][()]
 
+        # A single spin channel's HF cumulant uses coefficient 1 (each
+        # orbital holds one electron), not the doubled-occupancy
+        # restricted coefficient 2.
+        same_spin_coeff = 1.0 if unrestricted else 2.0
+
         e2 = zeros_like(e1)
         for i in range(self.n_frag):
             for j in range(jmax):
                 ij = i * (i + 1) // 2 + j if i > j else j * (j + 1) // 2 + i
-                Gij = (2.0 * rdm_hf[i, j] * rdm_hf - outer(rdm_hf[i], rdm_hf[j]))[
-                    :jmax, :jmax
-                ]
+                Gij = (
+                    same_spin_coeff * rdm_hf[i, j] * rdm_hf
+                    - outer(rdm_hf[i], rdm_hf[j])
+                )[:jmax, :jmax]
                 Gij[diag_indices(jmax)] *= 0.5
                 Gij += Gij.T
                 # unrestricted ERI file has 3 spin components: a, b, ab
@@ -379,7 +450,39 @@ class Frags:
                         @ eri[spin_ind][ij]
                     )
                 else:
-                    e2[i] += 0.5 * unrestricted_fac * Gij[tril_indices(jmax)] @ eri[ij]
+                    e2[i] += (
+                        0.5
+                        * unrestricted_fac
+                        * Gij[tril_indices(jmax)]
+                        @ eri[ij]
+                    )
+
+        # Cross-spin Coulomb correction. self.veff (used in ec above) is a
+        # static snapshot that includes -J[P_other_0] (P_other_0: the other
+        # spin's full-system density in this fragment's own TA basis), but
+        # the embedded SCF's converged Fock also contributes +J[P_other_0];
+        # these don't cancel in the cumulant energy expression, so the
+        # missing +0.5*Tr[J[P_other_0]*rdm_hf] term is added explicitly
+        # here. dm_hf_other must be P_other_0 (matching cons_fock's
+        # dm_other convention), contracted against the same-spin ERI block.
+        if unrestricted and dm_hf_other is not None:
+            G_other = dm_hf_other[:jmax, :jmax].copy()
+            G_other[diag_indices(jmax)] *= 0.5
+            G_other = G_other + G_other.T
+            G_other_packed = G_other[tril_indices(jmax)]
+            for i in range(self.n_frag):
+                for j in range(jmax):
+                    ij = (
+                        i * (i + 1) // 2 + j
+                        if i > j
+                        else j * (j + 1) // 2 + i
+                    )
+                    e2[i] += (
+                        0.5
+                        * unrestricted_fac
+                        * rdm_hf[i, j]
+                        * (G_other_packed @ eri[spin_ind][ij])
+                    )
 
         e_ = e1 + e2 + ec
         etmp = 0.0
@@ -460,6 +563,17 @@ def schmidt_decomposition(
     Env_sites = array([[i] for i in range(Tot_sites) if i not in AO_in_frag])
     Frag_sites1 = array([[i] for i in AO_in_frag])
 
+    if len(Env_sites1) == 0:
+        raise ValueError(
+            f"Fragment contains all {Tot_sites} sites in the system — "
+            "no environment remains, so the bath is undefined. This makes "
+            "the BE calculation equivalent to running the full system "
+            "without embedding. If this is intentional (e.g. testing "
+            "against exact UCCSD), consider restructuring the fragmentation "
+            "to avoid this edge case, or contact the dev if you believe "
+            "this should be supported as a degenerate single-fragment case."
+        )
+
     # Compute the environment part of the density matrix
     Denv = Dhf[Env_sites, Env_sites.T]
 
@@ -481,17 +595,15 @@ def schmidt_decomposition(
         # Bidx corresponding to a high eigenvalue from the environment
         # (this is analagous to tightening up the threshold of the bath for the alpha
         # or beta orbitals until they are the same size)
-       
+
         # Get all excluded indices sorted by distance from threshold
         # Prefer orbitals just above 1-thr_bath (nearly occupied environment)
         excluded = [i for i in range(len(Eval)) if i not in set(Bidx)]
         # Sort by eigenvalue descending — closest to 1 first
-        excluded_sorted = sorted(excluded,
-                                key=lambda i: Eval[i],
-                                reverse=True)
-            # Bidx corresponds to sorted Eval and Evec, so this simply adds indices
-            # corresponding to larger eigenvectors until the bath size reaches norb
-            # When bath size is reached, it will stop
+        excluded_sorted = sorted(excluded, key=lambda i: Eval[i], reverse=True)
+        # Bidx corresponds to sorted Eval and Evec, so this simply adds indices
+        # corresponding to larger eigenvectors until the bath size reaches norb
+        # When bath size is reached, it will stop
         for idx in excluded_sorted:
             if len(Bidx) >= norb:
                 break
@@ -503,6 +615,138 @@ def schmidt_decomposition(
     TA[Env_sites1, len(AO_in_frag) :] = Evec[:, Bidx]  # Environment part
 
     return TA, Frag_sites1.shape[0], len(Bidx)
+
+
+def schmidt_decomposition_common(
+    mo_coeff_a,
+    mo_coeff_b,
+    nocc_a,
+    nocc_b,
+    AO_in_frag,
+    thr_bath=1.0e-10,
+):
+    """
+    Common bath Schmidt decomposition for unrestricted calculations.
+
+    Constructs a single set of bath orbitals spanning both alpha and beta
+    environment spaces via SVD of the stacked environment MO coefficient
+    blocks. This produces one TA shared by both spin channels, making
+    the alpha and beta embedding spaces identical.
+
+    This is a prerequisite for the spin-summed 1RDM matching condition
+    in iterative UBE (Tran, Ye, Van Voorhis, J. Chem. Phys. 153, 214101,
+    2020, Eq. 15), which matches (P^alpha + P^beta) rather than P^alpha
+    and P^beta separately. Consistent matching requires both spin channels
+    to be expressed in the same orbital basis.
+
+    Bath selection uses a per-spin occupation check, not the combined SVD
+    value. The joint SVD's singular values reflect the SUM of the two
+    spins' environment occupations, which lands in [0, 2] and can equal 1
+    either for a genuinely entangled orbital (alpha=0.5, beta=0.5) or for
+    one that's fully occupied in one spin and empty in the other (an
+    unentangled feature of any spin-imbalanced system). To tell these
+    apart, each candidate direction's occupation is recovered per spin
+    (occ_a_k = ||C_env_a^T u_k||^2, occ_b_k likewise), and a direction is
+    kept as bath only if it is fractionally occupied
+    (thr_bath < occ < 1-thr_bath) in at least one spin channel.
+
+    Parameters
+    ----------
+    mo_coeff_a : ndarray, shape (n_LO, n_MO_a)
+        Alpha occupied+virtual MO coefficients in LO basis (lmo_coeff_a).
+    mo_coeff_b : ndarray, shape (n_LO, n_MO_b)
+        Beta occupied+virtual MO coefficients in LO basis (lmo_coeff_b).
+    nocc_a : int
+        Number of occupied alpha orbitals.
+    nocc_b : int
+        Number of occupied beta orbitals.
+    AO_in_frag : sequence of int
+        LO indices belonging to this fragment.
+    thr_bath : float
+        Per-spin occupation-number threshold for bath orbital inclusion.
+        A candidate direction is bath if thr_bath < occ_spin < 1-thr_bath
+        for at least one spin. Default 1e-10.
+
+    Returns
+    -------
+    TA_lo_eo : ndarray, shape (n_LO, n_frag + n_bath)
+        Transformation matrix in LO basis. First n_frag columns are the
+        fragment identity block; remaining n_bath columns are the common
+        bath orbitals.
+    n_frag : int
+        Number of fragment orbitals (= len(AO_in_frag)).
+    n_bath : int
+        Number of common bath orbitals.
+    """
+    import numpy as np
+
+    n_LO = mo_coeff_a.shape[0]
+
+    # Fragment and environment site indices in LO basis
+    frag_set = set(AO_in_frag)
+    frag_sites = list(AO_in_frag)
+    env_sites = [i for i in range(n_LO) if i not in frag_set]
+
+    if len(env_sites) == 0:
+        raise ValueError(
+            f"Fragment contains all {n_LO} sites in the system — "
+            "no environment remains for common bath construction. "
+            "This typically happens when chemgen's motif-merging collapses "
+            "a small/star-shaped molecule into a single fragment. "
+            "Consider using autogen fragmentation instead for this system."
+        )
+
+    # Occupied MO coefficient rows for environment sites only
+    # C_env_a: (n_env, nocc_a), C_env_b: (n_env, nocc_b)
+    C_env_a = mo_coeff_a[np.ix_(env_sites, list(range(nocc_a)))]
+    C_env_b = mo_coeff_b[np.ix_(env_sites, list(range(nocc_b)))]
+
+    # Left singular vectors of the stacked block span the union of alpha
+    # and beta occupied environment spaces -- candidate bath directions.
+    # Thresholding happens on per-spin occupation below, not on S itself.
+    C_env_total = np.hstack([C_env_a, C_env_b])
+    U, S, _ = np.linalg.svd(C_env_total, full_matrices=False)
+
+    # Per-spin occupation number for each candidate direction u_k:
+    # occ_spin_k = u_k^T D_ee_spin u_k = || C_env_spin^T u_k ||^2
+    occ_a = np.sum((C_env_a.T @ U) ** 2, axis=0)  # shape (n_candidates,)
+    occ_b = np.sum((C_env_b.T @ U) ** 2, axis=0)
+
+    def _fractional(occ, thr):
+        return (occ > thr) & (occ < 1.0 - thr)
+
+    frac_a = _fractional(occ_a, thr_bath)
+    frac_b = _fractional(occ_b, thr_bath)
+    bath_mask = frac_a | frac_b
+
+    print(
+        f"  [common bath] n_env={len(env_sites)}, nocc_a={nocc_a}, nocc_b={nocc_b}"
+    )
+    print(f"  [common bath] n_candidate_directions={U.shape[1]}")
+    print(
+        f"  [common bath] kept as bath: {int(np.sum(bath_mask))} "
+        f"(entangled in alpha only: {int(np.sum(frac_a & ~frac_b))}, "
+        f"beta only: {int(np.sum(frac_b & ~frac_a))}, "
+        f"both: {int(np.sum(frac_a & frac_b))})"
+    )
+    print(
+        f"  [common bath] excluded, unentangled in both spins: "
+        f"{int(np.sum(~bath_mask))}"
+    )
+
+    bath_orbs = U[:, bath_mask]  # (n_env, n_bath)
+
+    n_frag = len(frag_sites)
+    n_bath = int(bath_orbs.shape[1])
+
+    # Build transformation matrix in LO basis:
+    # [ I_frag |  0    ]   fragment block (identity)
+    # [   0    | U_bath]   environment block (common bath orbitals)
+    TA_lo_eo = np.zeros((n_LO, n_frag + n_bath))
+    TA_lo_eo[frag_sites, :n_frag] = np.eye(n_frag)
+    TA_lo_eo[env_sites, n_frag:] = bath_orbs
+
+    return TA_lo_eo, n_frag, n_bath
 
 
 def _get_contained(
@@ -527,13 +771,15 @@ def _get_contained(
     epsilon :
         Cutoff to consider overlap values to be zero or one.
     """
-    return (clean_overlap(all_fragment_MOs_TA.T @ S @ TA, epsilon=epsilon) == 1).any(
-        axis=0
-    )
+    return (
+        clean_overlap(all_fragment_MOs_TA.T @ S @ TA, epsilon=epsilon) == 1
+    ).any(axis=0)
 
 
 def _get_union_of_fragment_MOs(
-    schmidt_TAs: Sequence[Matrix[np.float64]], S: Matrix[np.float64], epsilon: float
+    schmidt_TAs: Sequence[Matrix[np.float64]],
+    S: Matrix[np.float64],
+    epsilon: float,
 ) -> Matrix[np.float64]:
     all_fragment_MOs_TA = schmidt_TAs[0]
     for schmidt_TA in schmidt_TAs[1:]:
@@ -541,7 +787,10 @@ def _get_union_of_fragment_MOs(
             (
                 all_fragment_MOs_TA,
                 schmidt_TA[
-                    :, ~_get_contained(all_fragment_MOs_TA, schmidt_TA, S, epsilon)
+                    :,
+                    ~_get_contained(
+                        all_fragment_MOs_TA, schmidt_TA, S, epsilon
+                    ),
                 ],
             )
         )
@@ -581,7 +830,9 @@ def union_of_frag_MOs_and_index(
         Cutoff to consider overlap values to be zero or one.
     """
     fragment_TAs = [fobj.TA[:, : fobj.n_f] for fobj in Fobjs]
-    all_fragment_MOs_TA = _get_union_of_fragment_MOs(fragment_TAs, S, epsilon=epsilon)
+    all_fragment_MOs_TA = _get_union_of_fragment_MOs(
+        fragment_TAs, S, epsilon=epsilon
+    )
     return all_fragment_MOs_TA, [
         _get_index_offset(all_fragment_MOs_TA, schmidt_TA, S, epsilon=epsilon)
         for schmidt_TA in fragment_TAs
