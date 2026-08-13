@@ -232,7 +232,7 @@ def finite_difference_fragment_gradients(
 
     Returns
     -------
-    list[np.ndarray]
+    list[numpy.ndarray]
         One gradient array of shape (n_fragment_atoms, 3) per fragment.
     """
     fd_gradients: list[np.ndarray] = []
