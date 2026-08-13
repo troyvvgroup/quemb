@@ -52,6 +52,7 @@ def test_numerical_hessian():
     hess_method = finite_diff.Hessian(grad_method)
     hess_method.displacement = 1e-4
     fd_hess = hess_method.kernel()
+    print("To illustrate the failure")
     assert np.isclose(
         np.sqrt(np.mean((ref_hess_hf - fd_hess) ** 2)), 2.596596383663e-08
     )
