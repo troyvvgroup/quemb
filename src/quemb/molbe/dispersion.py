@@ -1,5 +1,4 @@
-import pdb
-
+# import pdb
 import numpy as np
 from dftd3.interface import DispersionModel, RationalDampingParam
 
@@ -76,7 +75,7 @@ class D3:
         """
         model = DispersionModel(atomic_numbers, coordinates)
 
-        pdb.set_trace()
+        # pdb.set_trace()
         res = model.get_dispersion(self.damping, grad=grad)
         energy = res["energy"]
         if grad:
@@ -214,14 +213,48 @@ class D3:
         return energy, gradient
 
 
-# Example of how to use this
-# if __name__ == "__main__":
-#    atomic_numbers = [6, 1, 1, 6, 1, 6, 1, 1, 1, 6, 1, 6, 1,
-#                      1, 1, 6, 1, 6, 1, 1, 1, 6, 1, 1, 1, 1]
-#    coordinates = np.loadtxt("geom.xyz", skiprows=2, usecols=(1, 2, 3))
-#    fragments = [[0, 1, 2, 3, 4, 5, 6, 7, 8, 25],
-#                 [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]]
-#    d3 = D3(atomic_numbers, fragments, method="hf")
-#    energies, gradients = d3.energy_and_gradient(coordinates)
-#    print("Fragment Energies:", energies)
-#    print("Fragment Gradients:", gradients)
+def finite_difference_fragment_gradients(
+    d3: D3,
+    coordinates: np.ndarray,
+    step: float = 1.0e-4,
+) -> list[np.ndarray]:
+    """
+    Compute fragment gradients by central finite differences.
+
+    Parameters
+    ----------
+    d3
+        Initialized D3 object.
+    coordinates
+        Coordinates in the same units expected by D3.
+    step
+        Finite-difference displacement in the same units as coordinates.
+
+    Returns
+    -------
+    list[np.ndarray]
+        One gradient array of shape (n_fragment_atoms, 3) per fragment.
+    """
+    fd_gradients: list[np.ndarray] = []
+
+    for fragment_index, atom_indices in enumerate(d3.fragments):
+        gradient = np.zeros((len(atom_indices), 3), dtype=float)
+
+        for local_atom_index, global_atom_index in enumerate(atom_indices):
+            for xyz in range(3):
+                coordinates_plus = coordinates.copy()
+                coordinates_minus = coordinates.copy()
+
+                coordinates_plus[global_atom_index, xyz] += step
+                coordinates_minus[global_atom_index, xyz] -= step
+
+                energies_plus = d3.energy(coordinates_plus)
+                energies_minus = d3.energy(coordinates_minus)
+
+                gradient[local_atom_index, xyz] = (
+                    energies_plus[fragment_index] - energies_minus[fragment_index]
+                ) / (2.0 * step)
+
+        fd_gradients.append(gradient)
+
+    return fd_gradients
