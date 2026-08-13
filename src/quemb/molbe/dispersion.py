@@ -60,9 +60,9 @@ class D3:
 
         Parameters
         ----------
-        atomic_numbers : np.ndarray
+        atomic_numbers : numpy.ndarray
             A list of atomic numbers for the system.
-        coordinates : np.ndarray
+        coordinates : numpy.ndarray
             A 2D array of shape (N, 3) where N is the number of atoms
             and each row contains the x, y, z coordinates of an atom.
 
@@ -70,7 +70,7 @@ class D3:
         -------
         energy : float
             The D3 dispersion energy.
-        gradient : np.ndarray, optional
+        gradient : numpy.ndarray, optional
             The gradient of the D3 dispersion energy with respect to atomic coordinates,
             returned if grad=True
         """
@@ -94,7 +94,7 @@ class D3:
         ----------
         fragment : list[int]
             A list of zero-indexed atom indices defining the fragment.
-        coordinates : np.ndarray
+        coordinates : numpy.ndarray
             A 2D array of shape (N, 3) where N is the number of atoms
             and each row contains the x, y, z coordinates of an atom.
         grad : bool
@@ -105,7 +105,7 @@ class D3:
         -------
         energy : float
             The D3 dispersion energy for the specified fragment.
-        gradient : np.ndarray, optional
+        gradient : numpy.ndarray, optional
             The gradient of the D3 dispersion energy with respect to atomic coordinates,
             returned if grad=True
         """
@@ -119,13 +119,13 @@ class D3:
 
         Parameters
         ----------
-        coordinates : np.ndarray
+        coordinates : numpy.ndarray
             A 2D array of shape (N, 3) where N is the number of atoms
             and each row contains the x, y, z coordinates of an atom.
 
         Returns
         -------
-        np.ndarray[float]
+        fragment_energies : numpy.ndarray[float]
             The external D3 dispersion energy for each fragment.
         """
         total_energy = self._call_d3(self.atomic_numbers, coordinates)
@@ -147,15 +147,15 @@ class D3:
 
         Parameters
         ----------
-        coordinates : np.ndarray
+        coordinates : numpy.ndarray
             A 2D array of shape (N, 3) where N is the number of atoms
             and each row contains the x, y, z coordinates of an atom.
 
         Returns
         -------
-        fragment_energies : np.ndarray[float]
+        fragment_energies : numpy.ndarray[float]
             The external D3 dispersion energy for each fragment.
-        fragment_gradients : list[np.ndarray[float]]
+        fragment_gradients : list[numpy.ndarray[float]]
             The gradient of the external D3 dispersion energy
             with respect to atomic coordinates for each fragment.
         """
@@ -187,7 +187,7 @@ class D3:
         ----------
         fragment : list[int]
             A list of zero-indexed atom indices defining the fragment.
-        coordinates : np.ndarray
+        coordinates : numpy.ndarray
             A 2D array of shape (N, 3) where N is the number of atoms
             and each row contains the x, y, z coordinates of an atom.
 
@@ -195,7 +195,7 @@ class D3:
         -------
         energy : float
             The D3 dispersion energy for the specified fragment.
-        gradient : np.ndarray
+        gradient : numpy.ndarray
             The gradient of the D3 dispersion energy with respect to atomic coordinates
             for the specified fragment.
         """
