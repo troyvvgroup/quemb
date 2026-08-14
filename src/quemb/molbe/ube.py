@@ -18,7 +18,7 @@ from pathlib import Path
 from warnings import warn
 
 import h5py
-from numpy import array, einsum, zeros_like
+from numpy import array, einsum, zeros, zeros_like
 from numpy.linalg import multi_dot
 from pyscf import ao2mo
 from pyscf.scf.uhf import UHF
@@ -88,7 +88,8 @@ class UBE(BE):  # 🍠
         self.use_df = use_df
         if use_df:
             assert hasattr(mf, "with_df") and mf.with_df is not None, (
-                "use_df=True requires a density-fitted mf: construct as scf.UHF(mol).density_fit()"
+                "use_df=True requires a density-fitted mf: "
+                "construct as scf.UHF(mol).density_fit()"
             )
 
         self.fobj = fobj
@@ -426,8 +427,6 @@ class UBE(BE):  # 🍠
           Alpha and beta 1-RDMs in the AO basis.
           Spin density = rdm1a_AO - rdm1b_AO.
         """
-        from numpy import zeros
-
         nao = self.S.shape[0]
         rdm1a_AO = zeros((nao, nao))
         rdm1b_AO = zeros((nao, nao))

@@ -22,6 +22,7 @@ Example:
 """
 
 import argparse
+
 import numpy as np
 from pyscf import gto
 from pyscf.data import nist
@@ -196,7 +197,7 @@ def main():
     rdm1b = np.load(args.rdm1b)
     spin_density = rdm1a - rdm1b
 
-    print(f"\nRDM validation:", flush=True)
+    print("\nRDM validation:", flush=True)
     S = mol.intor("int1e_ovlp")
     print(
         f"  Trace rdm1a: {np.trace(rdm1a @ S):.4f} (expected {mol.nelec[0]})",
@@ -217,7 +218,7 @@ def main():
         print(f"\nComputing HFCCs for atoms: {args.atoms}", flush=True)
     else:
         atom_indices = None
-        print(f"\nComputing HFCCs for all atoms", flush=True)
+        print("\nComputing HFCCs for all atoms", flush=True)
 
     results = compute_hfcc(mol, rdm1a, rdm1b, atoms=atom_indices)
     print_hfcc_table(results, title=f"BE-UCCSD Hyperfine Coupling ({args.basis})")
