@@ -40,6 +40,7 @@ def _fcdip_integral(mol, atom_id):
         h1ao[idx, idx] -= trace
     return h1ao
 
+
 def hfc_tensor(mol, atom_id, dma, dmb):
     """Full (Fermi-contact + spin-dipolar) hyperfine coupling tensor for
     one nucleus, in MHz.
@@ -71,12 +72,14 @@ def hfc_tensor(mol, atom_id, dma, dmb):
 
     return fac * nuc_gyro * fcsd
 
+
 def hfc_principal_values(tensor):
     """Diagonalize a (3,3) HFC tensor. Returns (A_principal sorted
     ascending, A_iso = trace/3)."""
     evals = np.linalg.eigvalsh(0.5 * (tensor + tensor.T))
     a_iso = float(np.trace(tensor)) / 3.0
     return evals, a_iso
+
 
 def compute_hfcc(mol, dma, dmb, atoms=None):
     """Compute the full (isotropic + anisotropic) HFC tensor for a set of
@@ -115,12 +118,12 @@ def compute_hfcc(mol, dma, dmb, atoms=None):
 
     return results
 
+
 def print_hfcc_table(results, title="Hyperfine Coupling Constants"):
     print(f"\n{title}")
     print("=" * 56)
     print(
-        f"{'Atom':>4} {'Symbol':>6} {'A_1':>10} {'A_2':>10} "
-        f"{'A_3':>10} {'A_iso':>10}"
+        f"{'Atom':>4} {'Symbol':>6} {'A_1':>10} {'A_2':>10} {'A_3':>10} {'A_iso':>10}"
     )
     print("-" * 56)
     for r in results:
@@ -131,19 +134,36 @@ def print_hfcc_table(results, title="Hyperfine Coupling Constants"):
         )
     print("=" * 56)
 
+
 def main():
     parser = argparse.ArgumentParser(
         description="Compute the full HFC tensor from a BE-UCCSD spin density"
     )
-    parser.add_argument("--xyz",     required=True,  help="XYZ geometry file")
-    parser.add_argument("--name",    default=None,   help="Shortcut: sets --rdm1a to NAME_rdm1a.npy and --rdm1b to NAME_rdm1b.npy")
-    parser.add_argument("--rdm1a",   required=False, default=None, help="Alpha 1-RDM .npy file")
-    parser.add_argument("--rdm1b",   required=False, default=None, help="Beta 1-RDM .npy file")
-    parser.add_argument("--charge",  required=True,  type=int, help="Molecular charge")
-    parser.add_argument("--spin",    required=True,  type=int, help="2S (number of unpaired electrons)")
-    parser.add_argument("--basis",   default="def2-svp", help="Basis set (default: def2-svp)")
-    parser.add_argument("--atoms",   nargs="+",      help="Atom symbols to print e.g. Fe C H (default: all)")
-    parser.add_argument("--unit",    default="angstrom", help="Coordinate unit (default: angstrom)")
+    parser.add_argument("--xyz", required=True, help="XYZ geometry file")
+    parser.add_argument(
+        "--name",
+        default=None,
+        help="Shortcut: sets --rdm1a to NAME_rdm1a.npy and --rdm1b to NAME_rdm1b.npy",
+    )
+    parser.add_argument(
+        "--rdm1a", required=False, default=None, help="Alpha 1-RDM .npy file"
+    )
+    parser.add_argument(
+        "--rdm1b", required=False, default=None, help="Beta 1-RDM .npy file"
+    )
+    parser.add_argument("--charge", required=True, type=int, help="Molecular charge")
+    parser.add_argument(
+        "--spin", required=True, type=int, help="2S (number of unpaired electrons)"
+    )
+    parser.add_argument(
+        "--basis", default="def2-svp", help="Basis set (default: def2-svp)"
+    )
+    parser.add_argument(
+        "--atoms", nargs="+", help="Atom symbols to print e.g. Fe C H (default: all)"
+    )
+    parser.add_argument(
+        "--unit", default="angstrom", help="Coordinate unit (default: angstrom)"
+    )
     args = parser.parse_args()
     if args.name is not None:
         if args.rdm1a is None:
@@ -158,9 +178,9 @@ def main():
     # Handle both raw xyz (no header) and standard xyz (2-line header)
     try:
         int(lines[0].strip())
-        mol.atom = ''.join(lines[2:])  # standard xyz with natom + comment lines
+        mol.atom = "".join(lines[2:])  # standard xyz with natom + comment lines
     except ValueError:
-        mol.atom = ''.join(lines)      # raw xyz with no header
+        mol.atom = "".join(lines)  # raw xyz with no header
     mol.basis = args.basis
     mol.charge = args.charge
     mol.spin = args.spin
@@ -177,15 +197,23 @@ def main():
     spin_density = rdm1a - rdm1b
 
     print(f"\nRDM validation:", flush=True)
-    S = mol.intor('int1e_ovlp')
-    print(f"  Trace rdm1a: {np.trace(rdm1a @ S):.4f} (expected {mol.nelec[0]})", flush=True)
-    print(f"  Trace rdm1b: {np.trace(rdm1b @ S):.4f} (expected {mol.nelec[1]})", flush=True)
-    print(f"  Net spin:    {np.trace(spin_density @ S):.4f} (expected {mol.spin})", flush=True)
+    S = mol.intor("int1e_ovlp")
+    print(
+        f"  Trace rdm1a: {np.trace(rdm1a @ S):.4f} (expected {mol.nelec[0]})",
+        flush=True,
+    )
+    print(
+        f"  Trace rdm1b: {np.trace(rdm1b @ S):.4f} (expected {mol.nelec[1]})",
+        flush=True,
+    )
+    print(
+        f"  Net spin:    {np.trace(spin_density @ S):.4f} (expected {mol.spin})",
+        flush=True,
+    )
 
     # Filter atoms by symbol if requested
     if args.atoms:
-        atom_indices = [i for i in range(mol.natm)
-                       if mol.atom_symbol(i) in args.atoms]
+        atom_indices = [i for i in range(mol.natm) if mol.atom_symbol(i) in args.atoms]
         print(f"\nComputing HFCCs for atoms: {args.atoms}", flush=True)
     else:
         atom_indices = None
@@ -193,6 +221,7 @@ def main():
 
     results = compute_hfcc(mol, rdm1a, rdm1b, atoms=atom_indices)
     print_hfcc_table(results, title=f"BE-UCCSD Hyperfine Coupling ({args.basis})")
+
 
 if __name__ == "__main__":
     main()

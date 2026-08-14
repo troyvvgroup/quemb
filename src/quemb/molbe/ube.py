@@ -87,7 +87,9 @@ class UBE(BE):  # 🍠
         self.equal_bath = equal_bath
         self.use_df = use_df
         if use_df:
-            assert hasattr(mf, "with_df") and mf.with_df is not None, "use_df=True requires a density-fitted mf: construct as scf.UHF(mol).density_fit()"
+            assert hasattr(mf, "with_df") and mf.with_df is not None, (
+                "use_df=True requires a density-fitted mf: construct as scf.UHF(mol).density_fit()"
+            )
 
         self.fobj = fobj
 
@@ -439,8 +441,7 @@ class UBE(BE):  # 🍠
 
         for fobj_a, fobj_b in zip(self.Fobjs_a, self.Fobjs_b):
             # Fragment AO centers - same for alpha and beta
-            cind = [fobj_a.AO_in_frag[i]
-                    for i in fobj_a.weight_and_relAO_per_center[1]]
+            cind = [fobj_a.AO_in_frag[i] for i in fobj_a.weight_and_relAO_per_center[1]]
 
             # Democratic partitioning projection in full AO space, built
             # per-spin since self.W is split into [Wa, Wb] under frozen_core

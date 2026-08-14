@@ -484,9 +484,7 @@ def schmidt_decomposition(
         excluded = [i for i in range(len(Eval)) if i not in set(Bidx)]
         excluded_sorted = sorted(
             excluded,
-            key=lambda i: min(
-                abs(Eval[i] - (1.0 - thr_bath)), abs(Eval[i] - thr_bath)
-            ),
+            key=lambda i: min(abs(Eval[i] - (1.0 - thr_bath)), abs(Eval[i] - thr_bath)),
         )
         # Bidx corresponds to sorted Eval and Evec, so this adds indices
         # closest to the bath threshold until the bath size reaches norb
