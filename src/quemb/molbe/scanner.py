@@ -287,21 +287,21 @@ def energy_be_frag(mol, energy_args=None, fd_info=None):
     frag_atoms = atom_in_frag[frag_idx]
     non_frag_atoms = [i for i in range(mol.natm) if i not in frag_atoms]
 
-    print("The displaced geometry is")
-    coords = mol.atom_coords(unit="Angstrom")
-    symbols = [mol.atom_symbol(i) for i in range(mol.natm)]
-    for sym, (x, y, z) in zip(symbols, coords):
-        print(f"{sym:2s} {x:12.6f} {y:12.6f} {z:12.6f}")
+    #print("The displaced geometry is")
+    #coords = mol.atom_coords(unit="Angstrom")
+    #symbols = [mol.atom_symbol(i) for i in range(mol.natm)]
+    #for sym, (x, y, z) in zip(symbols, coords):
+    #    print(f"{sym:2s} {x:12.6f} {y:12.6f} {z:12.6f}")
 
-    print("Atoms in the fragment:")
-    for i in frag_atoms:
-        x, y, z = coords[i]
-        print(f"{i:3d} {symbols[i]:2s} {x:12.6f} {y:12.6f} {z:12.6f}")
+    #print("Atoms in the fragment:")
+    #for i in frag_atoms:
+    #    x, y, z = coords[i]
+    #    print(f"{i:3d} {symbols[i]:2s} {x:12.6f} {y:12.6f} {z:12.6f}")
 
-    print("Atoms not in the fragment:")
-    for i in non_frag_atoms:
-        x, y, z = coords[i]
-        print(f"{i:3d} {symbols[i]:2s} {x:12.6f} {y:12.6f} {z:12.6f}")
+    #print("Atoms not in the fragment:")
+    #for i in non_frag_atoms:
+    #    x, y, z = coords[i]
+    #    print(f"{i:3d} {symbols[i]:2s} {x:12.6f} {y:12.6f} {z:12.6f}")
 
     axis_label = ("x", "y", "z")[axis_idx]
     sign_label = "p" if delta > 0 else "m"
