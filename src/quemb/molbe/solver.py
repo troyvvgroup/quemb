@@ -233,9 +233,7 @@ class _SHCI_Args:
             )
         """
         if args.hci_pt:
-            warn(
-                "hci_pt is set True: note that the perturbed SCI solver is untested"
-            )
+            warn("hci_pt is set True: note that the perturbed SCI solver is untested")
         return cls(
             hci_pt=args.hci_pt,
             hci_cutoff=args.hci_cutoff,
@@ -439,14 +437,12 @@ def be_func(
                 )
                 iter = 0
                 frag_name = (
-                    Path(f"{scratch_dir}-frag_data")
-                    / f"{fobj.dname}_iter{iter}"
+                    Path(f"{scratch_dir}-frag_data") / f"{fobj.dname}_iter{iter}"
                 )
                 while frag_name.exists():
                     iter += 1
                     frag_name = (
-                        Path(f"{scratch_dir}-frag_data")
-                        / f"{fobj.dname}_iter{iter}"
+                        Path(f"{scratch_dir}-frag_data") / f"{fobj.dname}_iter{iter}"
                     )
                 frag_scratch = WorkDir(frag_name, cleanup_at_end=False)
                 print("Fragment Scratch Directory:", frag_scratch)
@@ -586,14 +582,14 @@ def be_func_u(
     Parameters
     ----------
     pot : list or None
-        List of potentials. If not None, the last two entries are the
-        global alpha/beta chemical potentials (see UBE.optimize /
-        initialize_pot's trailing "# alpha"/"# beta" slots) and get
-        injected via Frags.update_heff(..., only_chem=True) before each
-        fragment's embedded SCF -- currently only this chemical-potential-only
-        (BE0-level, Eq. 16 of Tran/Ye/Van Voorhis 2020) correction is
-        supported; local/edge matching (full iterative UBE) is not yet
-        implemented.
+        List of potentials. The last two entries are always the global
+        alpha/beta chemical potentials (BE0-level). If only_chem=True,
+        only those two entries are used (injected via Frags.update_heff(...,
+        only_chem=True)). If only_chem=False, the entries before that are
+        a shared set of edge potentials (spin-summed matching, requires
+        common_bath), injected identically into both fobj_a and fobj_b via
+        Frags.update_heff(..., only_chem=False). Each spin still gets its
+        own trailing chemical potential.
     Fobjs : list
         zip list of :class:`quemb.molbe.autofrag.FragPart`, alpha and beta
         List of fragment objects. Each element is a tuple with the alpha and
@@ -613,8 +609,9 @@ def be_func_u(
     frozen : bool, optional
         Frozen core. Defaults to False
     only_chem : bool, optional
-        Whether `pot` carries only the global chemical potentials (the only
-        mode currently supported). Defaults to False.
+        Whether `pot` carries only the global chemical potentials
+        (BE0-level) or also a shared set of edge potentials
+        (full iterative UBE). Defaults to False.
     return_vec : bool, optional
         Whether to also return the (norm, err_vec) from solve_error_u.
         Requires Nocc_ab. Defaults to False.
@@ -634,16 +631,17 @@ def be_func_u(
 
     # Loop over each fragment and solve using the specified solver
     for idx, (fobj_a, fobj_b) in enumerate(Fobjs):
-        # Chemical-potential injection (BE0-level, Eq. 16) -- see UBE.optimize.
+        # Chemical-potential injection (BE0-level).
+        # only_chem=False additionally injects a shared edge-potential block
+        # (spin-summed matching); the same edge block goes to both spins, only
+        # the trailing chemical potential differs.
         if pot is not None:
-            if not only_chem:
-                raise NotImplementedError(
-                    "be_func_u only supports chemical-potential-only "
-                    "(only_chem=True) correction; local/edge matching "
-                    "(full iterative UBE) is not yet implemented."
-                )
-            fobj_a.update_heff([pot[-2]], only_chem=True)
-            fobj_b.update_heff([pot[-1]], only_chem=True)
+            if only_chem:
+                fobj_a.update_heff([pot[-2]], only_chem=True)
+                fobj_b.update_heff([pot[-1]], only_chem=True)
+            else:
+                fobj_a.update_heff(pot[:-2] + [pot[-2]], only_chem=False)
+                fobj_b.update_heff(pot[:-2] + [pot[-1]], only_chem=False)
         print(
             f"[be_func_u] Starting fragment {idx + 1}/{len(Fobjs)} "
             f"(Schmidt space: {fobj_a.TA.shape[1]})...",
@@ -654,12 +652,8 @@ def be_func_u(
         # dm_other_embedded (set in UBE.initialize) is the other spin's
         # density re-projected into this fragment's own basis -- correct
         # for both common_bath and equal_bath.
-        fobj_a.scf(
-            unrestricted=True, spin_ind=0, dm_other=fobj_a.dm_other_embedded
-        )
-        fobj_b.scf(
-            unrestricted=True, spin_ind=1, dm_other=fobj_b.dm_other_embedded
-        )
+        fobj_a.scf(unrestricted=True, spin_ind=0, dm_other=fobj_a.dm_other_embedded)
+        fobj_b.scf(unrestricted=True, spin_ind=1, dm_other=fobj_b.dm_other_embedded)
 
         full_uhf, eris = make_uhf_obj(fobj_a, fobj_b, frozen=frozen)
         if solver == "UCCSD":
@@ -680,13 +674,11 @@ def be_func_u(
         fobj_b.mo_coeff_uccsd = fobj_b._mf.mo_coeff.copy()
         fobj_a.rdm1__ = rdm1_tmp[0].copy()
         fobj_a._rdm1 = (
-            multi_dot((fobj_a._mf.mo_coeff, rdm1_tmp[0], fobj_a._mf.mo_coeff.T))
-            * 0.5
+            multi_dot((fobj_a._mf.mo_coeff, rdm1_tmp[0], fobj_a._mf.mo_coeff.T)) * 0.5
         )
         fobj_b.rdm1__ = rdm1_tmp[1].copy()
         fobj_b._rdm1 = (
-            multi_dot((fobj_b._mf.mo_coeff, rdm1_tmp[1], fobj_b._mf.mo_coeff.T))
-            * 0.5
+            multi_dot((fobj_b._mf.mo_coeff, rdm1_tmp[1], fobj_b._mf.mo_coeff.T)) * 0.5
         )
 
         if eeval:
@@ -695,12 +687,8 @@ def be_func_u(
 
             if frozen:
                 h1_ab = [
-                    full_uhf.h1[0]
-                    + full_uhf.full_gcore[0]
-                    + full_uhf.core_veffs[0],
-                    full_uhf.h1[1]
-                    + full_uhf.full_gcore[1]
-                    + full_uhf.core_veffs[1],
+                    full_uhf.h1[0] + full_uhf.full_gcore[0] + full_uhf.core_veffs[0],
+                    full_uhf.h1[1] + full_uhf.full_gcore[1] + full_uhf.core_veffs[1],
                 ]
             else:
                 h1_ab = [fobj_a.h1, fobj_b.h1]
@@ -732,7 +720,9 @@ def be_func_u(
 
     if return_vec:
         assert Nocc_ab is not None, "Nocc_ab is required when return_vec=True"
-        ernorm, ervec = solve_error_u(Fobjs, Nocc_ab[0], Nocc_ab[1])
+        ernorm, ervec = solve_error_u(
+            Fobjs, Nocc_ab[0], Nocc_ab[1], only_chem=only_chem
+        )
         if eeval:
             return (ernorm, ervec, [E, total_e])
         return (ernorm, ervec, None)
@@ -821,22 +811,29 @@ def solve_error(Fobjs, Nocc, only_chem=False):
     return norm_, err_vec
 
 
-def solve_error_u(Fobjs, Nocc_a, Nocc_b):
+def solve_error_u(Fobjs, Nocc_a, Nocc_b, only_chem=False):
     """
-    Unrestricted, chemical-potential-only (BE0-level) analog of
-    solve_error(only_chem=True): computes the global electron-count error
-    separately for alpha and beta, per Tran, Ye, Van Voorhis
-    (J. Chem. Phys. 153, 214101 (2020)) Eq. 16 --
-        sum_A sum_{p in center(A)} <n_p^sigma>_A - N_e^sigma = 0
-    for sigma in {alpha, beta} independently (the paper keeps the
-    edge-matching condition, Eq. 15, spin-summed, but the global
-    electron-count constraint is explicitly spin-resolved).
+    Unrestricted analog of solve_error.
 
-    Each fragment's contribution is its center-site-restricted,
-    embedding-basis 1RDM diagonal: mo_coeff_uccsd @ rdm1__ @
-    mo_coeff_uccsd.T, evaluated at weight_and_relAO_per_center indices.
-    (Full local+edge matching, i.e. iterative UBE, is not yet
-    implemented; this only enforces the global constraint.)
+    Always computes the spin-resolved global electron-count error, per
+        sum_A sum_{p in center(A)} <n_p^sigma>_A - N_e^sigma = 0
+    for sigma in {alpha, beta} independently.
+
+    If only_chem=False, additionally computes the full local+edge
+    density-matching error, spin-summed: fragments must reproduce
+    P^alpha + P^beta -- not P^alpha and P^beta separately at edges
+    shared with a neighboring fragment's center. This requires
+    a common embedding basis across spins (common_bath=True), so
+    relAO_per_edge / relAO_in_ref_per_edge / ref_frag_idx_per_edge,
+    identical between fobj_a and fobj_b under common_bath, are read
+    from the alpha member of each pair.
+
+    Each fragment's contribution is its embedding-basis 1RDM,
+    mo_coeff_uccsd @ rdm1__ @ mo_coeff_uccsd.T, evaluated at the relevant
+    indices. No additional occupancy scaling is applied: each UHF spin
+    channel's UCCSD dm1 already has trace equal to that spin's own
+    occupation number (unlike the restricted case, whose CCSD dm1 needs
+    the 0.5 factor applied to `_rdm1` elsewhere in this module).
 
     Parameters
     ----------
@@ -845,26 +842,79 @@ def solve_error_u(Fobjs, Nocc_a, Nocc_b):
         mo_coeff_uccsd and rdm1__ to already be set on each fragment).
     Nocc_a, Nocc_b : int
         Total alpha/beta electron count for the full system.
+    only_chem : bool
+        If True, return only the 2-component [err_alpha, err_beta]
+        global electron-count error (BE0-level). If False, additionally
+        include the spin-summed local+edge matching error, with
+        [err_alpha, err_beta] as the trailing components.
 
     Returns
     -------
     float, numpy.ndarray
-        RMS norm of the 2-component error vector, and the error vector
-        itself: [err_alpha, err_beta].
+        RMS norm of the error vector, and the error vector itself.
     """
-    err_a = 0.0
-    err_b = 0.0
+    rdm1a_eo_list = []
+    rdm1b_eo_list = []
     for fobj_a, fobj_b in Fobjs:
         mca = fobj_a.mo_coeff_uccsd
         mcb = fobj_b.mo_coeff_uccsd
-        rdm1a_eo = mca @ fobj_a.rdm1__ @ mca.T
-        rdm1b_eo = mcb @ fobj_b.rdm1__ @ mcb.T
+        rdm1a_eo_list.append(mca @ fobj_a.rdm1__ @ mca.T)
+        rdm1b_eo_list.append(mcb @ fobj_b.rdm1__ @ mcb.T)
+
+    err_a = 0.0
+    err_b = 0.0
+    for (fobj_a, fobj_b), rdm1a_eo, rdm1b_eo in zip(
+        Fobjs, rdm1a_eo_list, rdm1b_eo_list
+    ):
         for i in fobj_a.weight_and_relAO_per_center[1]:
             err_a += rdm1a_eo[i, i].real
         for i in fobj_b.weight_and_relAO_per_center[1]:
             err_b += rdm1b_eo[i, i].real
 
-    err_vec = array([err_a - Nocc_a, err_b - Nocc_b])
+    if only_chem:
+        err_vec = array([err_a - Nocc_a, err_b - Nocc_b])
+        norm_ = float(mean(err_vec * err_vec) ** 0.5)
+        return norm_, err_vec
+
+    # Full local+edge matching (spin-summed), plus the
+    # spin-resolved global electron-count constraint as the
+    # trailing two components, matching self.pot's
+    # [..edge params.., mu_alpha, mu_beta] layout.
+    err_edge = []
+    for (fobj_a, _fobj_b), rdm1a_eo, rdm1b_eo in zip(
+        Fobjs, rdm1a_eo_list, rdm1b_eo_list
+    ):
+        for edge in fobj_a.relAO_per_edge:
+            for j_ in range(len(edge)):
+                for k_ in range(len(edge)):
+                    if j_ > k_:
+                        continue
+                    err_edge.append(
+                        rdm1a_eo[edge[j_], edge[k_]].real
+                        + rdm1b_eo[edge[j_], edge[k_]].real
+                    )
+    err_edge.append(err_a)
+    err_edge.append(err_b)
+
+    err_cen = []
+    for fobj_a, _fobj_b in Fobjs:
+        for cindx, cens in enumerate(fobj_a.relAO_in_ref_per_edge):
+            ref_idx = fobj_a.ref_frag_idx_per_edge[cindx]
+            rdm1a_ref = rdm1a_eo_list[ref_idx]
+            rdm1b_ref = rdm1b_eo_list[ref_idx]
+            lenc = len(cens)
+            for j_ in range(lenc):
+                for k_ in range(lenc):
+                    if j_ > k_:
+                        continue
+                    err_cen.append(
+                        rdm1a_ref[cens[j_], cens[k_]].real
+                        + rdm1b_ref[cens[j_], cens[k_]].real
+                    )
+    err_cen.append(Nocc_a)
+    err_cen.append(Nocc_b)
+
+    err_vec = array(err_edge) - array(err_cen)
     norm_ = float(mean(err_vec * err_vec) ** 0.5)
 
     return norm_, err_vec
@@ -1183,9 +1233,7 @@ def solve_uccsd(
                     s = ss
                     break
             if s < 0:
-                raise ValueError(
-                    "Input mo coeff matrix matches neither moa nor mob."
-                )
+                raise ValueError("Input mo coeff matrix matches neither moa nor mob.")
             return ao2mo.incore.full(Vss[s], moish, compact=False)
         elif isinstance(moish, list) or isinstance(moish, tuple):
             if len(moish) != 4:
