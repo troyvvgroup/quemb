@@ -18,9 +18,10 @@ from numpy import (
     zeros,
     zeros_like,
 )
-from numpy.linalg import eigh, multi_dot
+from numpy.linalg import eigh, multi_dot, svd
 
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
+from quemb.shared.external.lo_helper import cano_orth
 from quemb.shared.helper import clean_overlap
 from quemb.shared.typing import (
     FragmentIdx,
@@ -623,15 +624,16 @@ def schmidt_decomposition_common(
     nocc_a,
     nocc_b,
     AO_in_frag,
-    thr_bath=1.0e-10,
+    thr_bath=1.0e-3,
 ):
     """
     Common bath Schmidt decomposition for unrestricted calculations.
 
     Constructs a single set of bath orbitals spanning both alpha and beta
-    environment spaces via SVD of the stacked environment MO coefficient
-    blocks. This produces one TA shared by both spin channels, making
-    the alpha and beta embedding spaces identical.
+    environment spaces via a multi-power SVD of P = P^alpha + P^beta,
+    adapted from finite-temperature DMET. This produces one TA shared by
+    both spin channels, making the alpha and beta embedding spaces
+    identical.
 
     This is a prerequisite for the spin-summed 1RDM matching condition
     in iterative UBE (Tran, Ye, Van Voorhis, J. Chem. Phys. 153, 214101,
@@ -639,16 +641,18 @@ def schmidt_decomposition_common(
     and P^beta separately. Consistent matching requires both spin channels
     to be expressed in the same orbital basis.
 
-    Bath selection uses a per-spin occupation check, not the combined SVD
-    value. The joint SVD's singular values reflect the SUM of the two
-    spins' environment occupations, which lands in [0, 2] and can equal 1
-    either for a genuinely entangled orbital (alpha=0.5, beta=0.5) or for
-    one that's fully occupied in one spin and empty in the other (an
-    unentangled feature of any spin-imbalanced system). To tell these
-    apart, each candidate direction's occupation is recovered per spin
-    (occ_a_k = ||C_env_a^T u_k||^2, occ_b_k likewise), and a direction is
-    kept as bath only if it is fractionally occupied
-    (thr_bath < occ < 1-thr_bath) in at least one spin channel.
+    Standard Schmidt decomposition (a single eigh/SVD) is only rigorous
+    for an idempotent density matrix: once P.rho is in the Schmidt space,
+    so is P^2.rho, P^3.rho, ... automatically, because they're all equal.
+    P^alpha and P^beta are each individually idempotent but generally
+    *different* wherever the system is spin-polarized, so their sum is
+    NOT idempotent -- it has a small number of fractionally-occupied
+    natural orbitals, and P.rho, P^2.rho, P^3.rho, ... are all distinct
+    and all need to be in the Schmidt space for integer per-fragment
+    electron counts to come out right. This function pools singular
+    vectors from the fragment x environment block of P^n across powers
+    n = 1, 2, 3, ... (not just n=1) and canonically orthogonalizes the
+    pooled set, rather than thresholding a single SVD.
 
     Parameters
     ----------
@@ -663,9 +667,22 @@ def schmidt_decomposition_common(
     AO_in_frag : sequence of int
         LO indices belonging to this fragment.
     thr_bath : float
-        Per-spin occupation-number threshold for bath orbital inclusion.
-        A candidate direction is bath if thr_bath < occ_spin < 1-thr_bath
-        for at least one spin. Default 1e-10.
+        Relative eigenvalue-ratio threshold used by the final canonical
+        orthogonalization (cano_orth) to discard near-linearly-dependent
+        pooled candidate directions -- this is the real threshold
+        controlling bath size. Note this is a different quantity than
+        the old single-SVD implementation's absolute per-spin occupation
+        threshold of the same name; a given numeric value does not mean
+        the same thing under both implementations, and the safe-default
+        *direction* flips: for the old algorithm, a tiny/permissive
+        value was safe (a single SVD has no pooled redundancy to filter).
+        Here, pooling candidates across powers means a too-permissive
+        threshold (e.g. 1e-10) lets near-duplicate directions from later
+        powers through as if they were independent, inflating the bath
+        and degrading both HF-in-HF consistency and per-fragment electron
+        counts -- confirmed empirically on the hexene test (HF-in-HF
+        error and bath size both worsen outside roughly [1e-4, 5e-3];
+        1e-3 was the best value found and is the default here).
 
     Returns
     -------
@@ -678,8 +695,6 @@ def schmidt_decomposition_common(
     n_bath : int
         Number of common bath orbitals.
     """
-    import numpy as np
-
     n_LO = mo_coeff_a.shape[0]
 
     # Fragment and environment site indices in LO basis
@@ -695,55 +710,90 @@ def schmidt_decomposition_common(
             "a small/star-shaped molecule into a single fragment. "
             "Consider using autogen fragmentation instead for this system."
         )
-
-    # Occupied MO coefficient rows for environment sites only
-    # C_env_a: (n_env, nocc_a), C_env_b: (n_env, nocc_b)
-    C_env_a = mo_coeff_a[np.ix_(env_sites, list(range(nocc_a)))]
-    C_env_b = mo_coeff_b[np.ix_(env_sites, list(range(nocc_b)))]
-
-    # Left singular vectors of the stacked block span the union of alpha
-    # and beta occupied environment spaces -- candidate bath directions.
-    # Thresholding happens on per-spin occupation below, not on S itself.
-    C_env_total = np.hstack([C_env_a, C_env_b])
-    U, S, _ = np.linalg.svd(C_env_total, full_matrices=False)
-
-    # Per-spin occupation number for each candidate direction u_k:
-    # occ_spin_k = u_k^T D_ee_spin u_k = || C_env_spin^T u_k ||^2
-    occ_a = np.sum((C_env_a.T @ U) ** 2, axis=0)  # shape (n_candidates,)
-    occ_b = np.sum((C_env_b.T @ U) ** 2, axis=0)
-
-    def _fractional(occ, thr):
-        return (occ > thr) & (occ < 1.0 - thr)
-
-    frac_a = _fractional(occ_a, thr_bath)
-    frac_b = _fractional(occ_b, thr_bath)
-    bath_mask = frac_a | frac_b
-
-    print(
-        f"  [common bath] n_env={len(env_sites)}, nocc_a={nocc_a}, nocc_b={nocc_b}"
-    )
-    print(f"  [common bath] n_candidate_directions={U.shape[1]}")
-    print(
-        f"  [common bath] kept as bath: {int(np.sum(bath_mask))} "
-        f"(entangled in alpha only: {int(np.sum(frac_a & ~frac_b))}, "
-        f"beta only: {int(np.sum(frac_b & ~frac_a))}, "
-        f"both: {int(np.sum(frac_a & frac_b))})"
-    )
-    print(
-        f"  [common bath] excluded, unentangled in both spins: "
-        f"{int(np.sum(~bath_mask))}"
+    assert len(frag_sites) > 0, (
+        "AO_in_frag is empty; this should never happen -- upstream "
+        "fragmentation always assigns at least one AO per fragment."
     )
 
-    bath_orbs = U[:, bath_mask]  # (n_env, n_bath)
-
+    frag_idx = np.array(frag_sites)
+    env_idx = np.array(env_sites)
     n_frag = len(frag_sites)
+    n_env = len(env_sites)
+
+    # P = D_alpha + D_beta, explicit N_LO x N_LO site-basis density.
+    C_occ_a = mo_coeff_a[:, :nocc_a]
+    C_occ_b = mo_coeff_b[:, :nocc_b]
+    D_a = C_occ_a @ C_occ_a.T
+    D_b = C_occ_b @ C_occ_b.T
+
+    # D_a, D_b are each idempotent (eigenvalues in {0,1} in this
+    # orthonormal LO basis), so P = D_a + D_b has eigenvalues in [0,2].
+    # Normalizing by the exact Loewner bound 2.0 (cheap, exact -- no
+    # extra eigh needed to estimate a spectral radius) keeps every
+    # power's frag-env block O(1)-scaled, so a single fixed noise floor
+    # is meaningful at every n. Without this, ordinary doubly-occupied-
+    # in-both-spins directions (eigenvalue near 2, common, not rare)
+    # would grow as 2^n under repeated powering while the genuinely
+    # fractional directions we want shrink, and the "no new information"
+    # stopping criterion below would never be well-posed. SVD singular
+    # *vectors* are unit-norm regardless of a uniform input scaling, so
+    # this rescaling has zero effect on which directions get selected.
+    P_hat = (D_a + D_b) / 2.0
+
+    SV_FLOOR = 1.0e-10  # pure noise floor on raw per-power singular
+    # values, to keep roundoff-zero columns out of the candidate pool.
+    # NOT the physical threshold -- that's thr_bath, applied below via
+    # cano_orth.
+    HARD_CAP = 8  # safety net; the rank-stall criterion below should
+    # trigger well before this for physically reasonable systems.
+
+    pooled_vecs = []
+    bath_orbs = zeros((n_env, 0))
+    P_power = P_hat.copy()  # P_hat ** 1
+    prev_n_bath = -1
+    n_powers_used = 0
+
+    for n in range(1, HARD_CAP + 1):
+        n_powers_used = n
+        M_n = P_power[np.ix_(frag_idx, env_idx)]  # (n_frag, n_env) block
+        _, S_n, Vt_n = svd(M_n, full_matrices=False)
+        keep = S_n > SV_FLOOR
+        if np.any(keep):
+            pooled_vecs.append(Vt_n[keep, :].T)  # env-side right sing vecs
+
+        if pooled_vecs:
+            candidate_pool = np.hstack(pooled_vecs)
+            bath_orbs = cano_orth(candidate_pool, thr=thr_bath, ovlp=None)
+
+        cur_n_bath = bath_orbs.shape[1]
+        if n > 1 and cur_n_bath == prev_n_bath:
+            break  # no new independent bath direction from this power
+        prev_n_bath = cur_n_bath
+        # NOTE: deliberately no "cur_n_bath >= min(n_frag, n_env)" early
+        # stop here. A single power's frag-env block generically already
+        # has rank n_frag (env is essentially always bigger than frag),
+        # so that check would fire after n=1 almost every time -- which
+        # would silently collapse this back to the single-power behavior
+        # this function is replacing. Pooling across multiple powers is
+        # expected to span MORE than one power's rank alone (bath size
+        # bound is ~2*n_frag + M, not n_frag -- see docstring/task spec).
+
+        P_power = P_power @ P_hat  # advance to P_hat ** (n + 1)
+
     n_bath = int(bath_orbs.shape[1])
+
+    print(
+        f"  [common bath] n_env={n_env}, nocc_a={nocc_a}, nocc_b={nocc_b}, "
+        f"powers_used={n_powers_used}"
+    )
+    print(f"  [common bath] pooled candidates={sum(v.shape[1] for v in pooled_vecs)}")
+    print(f"  [common bath] kept as bath after canonical orthogonalization: {n_bath}")
 
     # Build transformation matrix in LO basis:
     # [ I_frag |  0    ]   fragment block (identity)
     # [   0    | U_bath]   environment block (common bath orbitals)
-    TA_lo_eo = np.zeros((n_LO, n_frag + n_bath))
-    TA_lo_eo[frag_sites, :n_frag] = np.eye(n_frag)
+    TA_lo_eo = zeros((n_LO, n_frag + n_bath))
+    TA_lo_eo[frag_sites, :n_frag] = eye(n_frag)
     TA_lo_eo[env_sites, n_frag:] = bath_orbs
 
     return TA_lo_eo, n_frag, n_bath

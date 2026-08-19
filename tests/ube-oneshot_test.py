@@ -102,12 +102,18 @@ class TestOneShot_Unrestricted(unittest.TestCase):
         """
 
     def test_hexene_anion_sto3g_common_bath_unfrz_ben(self):
-        # Hexene anion, common bath (shared alpha/beta SVD bath), STO-3G,
-        # no frozen core (not yet supported for UBE). thr_bath=1.0e-2
-        # instead of the tight default: at the default threshold,
-        # borderline SVD bath directions can flip in/out under
-        # multi-threaded BLAS/LAPACK noise; 1.0e-2 clears that margin,
-        # matching the production Model II Fe-cluster convention.
+        # Hexene anion, common bath (multi-power SVD + canonical
+        # orthogonalization), STO-3G, no frozen core (not yet supported
+        # for UBE). thr_bath here is cano_orth's relative eigenvalue-
+        # ratio cutoff, a different quantity than the old single-SVD
+        # implementation's absolute occupation threshold of the same
+        # name -- swept empirically on this system: HF-in-HF error and
+        # per-fragment electron counts are both excellent in roughly
+        # [1e-4, 5e-3] and degrade outside it in *either* direction (too
+        # loose lets redundant directions from later powers through;
+        # too tight, e.g. the pre-multipower default of 1e-10, admits
+        # almost everything and the bath bloats). 1.0e-3 matches the
+        # function's own new default.
         mol = gto.M()
         mol.atom = os.path.join(os.path.dirname(__file__), "xyz/hexene.xyz")
         mol.basis = "sto-3g"
@@ -115,7 +121,7 @@ class TestOneShot_Unrestricted(unittest.TestCase):
         mol.spin = 1
         mol.build()
         self.molecular_common_bath_oneshot_test(
-            mol, 1, "Hexene Anion Common Bath Unfrz (BE1)", -0.38735728
+            mol, 1, "Hexene Anion Common Bath Unfrz (BE1)", -0.38721571
         )
 
     def molecular_unrestricted_oneshot_test(
@@ -144,7 +150,7 @@ class TestOneShot_Unrestricted(unittest.TestCase):
         fobj = fragmentate(
             frag_type="chemgen", n_BE=n_BE, mol=mol, frozen_core=False
         )
-        mybe = UBE(mf, fobj, common_bath=True, thr_bath=1.0e-2)
+        mybe = UBE(mf, fobj, common_bath=True, thr_bath=1.0e-3)
         mybe.oneshot(solver="UCCSD", nproc=1)
         self.assertAlmostEqual(
             mybe.ebe_tot - mybe.hf_etot,
