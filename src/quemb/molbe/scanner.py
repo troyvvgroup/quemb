@@ -238,23 +238,24 @@ def energy_be_frag(mol, energy_args=None, fd_info=None):
     if energy_args is None:
         energy_args = BEArgs()
 
+    if fd_info is None:
+        raise RuntimeError("missing finite difference displacement info.")
+    
     if fd_info.kind == "multi_displacement":
         raise RuntimeError(
             "energy_be_frag currently supports only single finite-difference "
             f"displacements; got {fd_info.kind!r}"
         )
-    if fd_info is None:
-        raise RuntimeError("missing finite difference displacement info.")
-    else:
-        if fd_info.ref_mol is None:
-            raise RuntimeError("missing finite difference reference geometry.")
+    
+    if fd_info.ref_mol is None:
+        raise RuntimeError("missing finite difference reference geometry.")
 
-        try:
-            ref_fobj = fd_info.ref_data["ref_fobj"]
-            ref_mybe = fd_info.ref_data["ref_mybe"]
-            frag_per_atom = fd_info.ref_data["frag_per_atom"]
-        except KeyError as exc:
-            raise RuntimeError("missing reference BE info.") from exc
+    try:
+        ref_fobj = fd_info.ref_data["ref_fobj"]
+        ref_mybe = fd_info.ref_data["ref_mybe"]
+        frag_per_atom = fd_info.ref_data["frag_per_atom"]
+    except KeyError as exc:
+        raise RuntimeError("missing reference BE info.") from exc
 
     mf = scf.RHF(mol)
     mf.verbose = 0
@@ -283,8 +284,14 @@ def energy_be_frag(mol, energy_args=None, fd_info=None):
     atom_idx = fd_info.atom_idx[0]
     axis_idx = fd_info.axis_idx[0]
     delta = fd_info.delta_bohr[0]
-    frag_idx = frag_per_atom[fd_info.atom_idx[0]]
+    atom_idx = fd_info.atom_idx[0]
 
+    if fd_info.target_frag_idx is None:
+        frag_idx = frag_per_atom[atom_idx]
+    else:
+        frag_idx = fd_info.target_frag_idx
+    
+    
     axis_label = ("x", "y", "z")[axis_idx]
     sign_label = "p" if delta > 0 else "m"
 
@@ -357,13 +364,14 @@ def energy_be_frag(mol, energy_args=None, fd_info=None):
 
         mc.kernel(eris=eri_embmo)
         energy = mf.e_tot + mc.e_tot - fobj._mf.e_tot
+        correlation_energy = mc.e_tot - fobj._mf.e_tot
 
     finally:
         mybe.Fobjs[frag_idx] = orig_fobj
 
         redo_scratch.cleanup(ignore_error=True)
 
-    return energy
+    return correlation_energy
 
 
 @dataclass
@@ -379,6 +387,8 @@ class FDinfo:
 
     ref_mol: gto.Mole | None = None
     ref_data: dict = field(default_factory=dict)
+
+    target_frag_idx: int | None = None
 
 
 class Energy(lib.StreamObject):
