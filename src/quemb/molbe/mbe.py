@@ -1422,7 +1422,7 @@ class BE:
                     Cpop = multi_dot((C_.T, self.S, C_))
                     no_core_idx = where(diag(Cpop) > 0.7)[0]
                     C_ = C_[:, no_core_idx]
-                    S_ = multi_dot((C_.T, self.S, C_))
+                    S_ = multi_dot((C_.T, self.S, C_))  # type: ignore[assignment]
                     es_, vs_ = eigh(S_)
                     s_ = sqrt(es_)
                     s_ = diag(1.0 / s_)
@@ -1459,7 +1459,7 @@ class BE:
                 Cpop = diag(Cpop)
                 no_core_idx = where(Cpop > 0.55)[0]
                 C_ = C_[:, no_core_idx]
-                S_ = multi_dot((C_.T, self.S, C_))
+                S_ = multi_dot((C_.T, self.S, C_))  # type: ignore[assignment]
                 es_, vs_ = eigh(S_)
                 s_ = sqrt(es_)
                 s_ = diag(1.0 / s_)
