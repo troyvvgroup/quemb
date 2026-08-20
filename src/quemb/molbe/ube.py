@@ -27,7 +27,7 @@ from pyscf.scf.uhf import UHF
 from quemb.molbe.be_parallel import be_func_parallel_u
 from quemb.molbe.fragment import FragPart
 from quemb.molbe.lo import LocMethods
-from quemb.molbe.mbe import BE
+from quemb.molbe.mbe import BE, IntTransforms
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import be_func_u
 from quemb.shared.helper import unused
@@ -47,7 +47,7 @@ class UBE(BE):  # 🍠
         compute_hf: bool = True,
         thr_bath: float = 1.0e-10,
         equal_bath: bool = True,
-        use_df: bool = False,
+        int_transform: IntTransforms = "in-core",
     ) -> None:
         """Initialize Unrestricted BE Object (ube🍠)
 
@@ -81,15 +81,24 @@ class UBE(BE):  # 🍠
             Whether to use a bath with the same number of alpha and beta orbitals.
             Using equal_bath = False will require custom compiled functions in
             PySCF to perform integral transformations. Default is True
+        int_transform :
+            The integral transformation strategy. UBE currently supports
+            "in-core" and "out-core-DF" (see :class:`quemb.molbe.mbe.IntTransforms`
+            for the full set of options restricted BE supports).
         """
 
         self.unrestricted = True
         self.thr_bath = thr_bath
         self.equal_bath = equal_bath
-        self.use_df = use_df
-        if use_df:
+        if int_transform not in ("in-core", "out-core-DF"):
+            raise NotImplementedError(
+                f"UBE currently only supports int_transform in "
+                f"('in-core', 'out-core-DF'), got {int_transform!r}"
+            )
+        self.int_transform = int_transform
+        if int_transform == "out-core-DF":
             assert hasattr(mf, "with_df") and mf.with_df is not None, (
-                "use_df=True requires a density-fitted mf: "
+                "int_transform='out-core-DF' requires a density-fitted mf: "
                 "construct as scf.UHF(mol).density_fit()"
             )
         if not equal_bath:
@@ -188,7 +197,9 @@ class UBE(BE):  # 🍠
             self.scratch_dir = scratch_dir
         self.eri_file = self.scratch_dir / eri_file
 
-        self.initialize(None if self.use_df else mf._eri, compute_hf)
+        self.initialize(
+            None if self.int_transform == "out-core-DF" else mf._eri, compute_hf
+        )
 
     def initialize(self, eri_, compute_hf):
         if compute_hf:
@@ -257,13 +268,7 @@ class UBE(BE):  # 🍠
                     )
 
             assert fobj_a.TA is not None and fobj_b.TA is not None
-            if fobj_a.TA.shape[1] != fobj_b.TA.shape[1]:
-                assert _opposite_spin_eri_supported(), (
-                    "alpha/beta bath sizes differ despite equal_bath="
-                    f"{self.equal_bath} "
-                    "(see unrestricted_utils._convert_eri_gen for the patch)."
-                )
-            if self.use_df:
+            if self.int_transform == "out-core-DF":
                 eri_a = self.mf.with_df.ao2mo(fobj_a.TA, compact=True)
                 eri_b = self.mf.with_df.ao2mo(fobj_b.TA, compact=True)
                 eri_ab = self.mf.with_df.ao2mo(
