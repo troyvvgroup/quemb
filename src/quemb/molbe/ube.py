@@ -432,11 +432,7 @@ class UBE(BE):  # 🍠
         rdm1b_AO = zeros((nao, nao))
 
         def get_mo(fobj):
-            if hasattr(fobj, "mo_coeff_uccsd"):
-                return fobj.mo_coeff_uccsd
-            if fobj._mf is not None:
-                return fobj._mf.mo_coeff
-            return fobj._mo_coeffs
+            return fobj.mo_coeffs
 
         for fobj_a, fobj_b in zip(self.Fobjs_a, self.Fobjs_b):
             # Fragment AO centers - same for alpha and beta

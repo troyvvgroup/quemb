@@ -629,8 +629,8 @@ def be_func_parallel_u(
         e_f, rdm1_tmp, mo_a, mo_b = results_list[i]
         fobj_a.rdm1__ = rdm1_tmp[0].copy()
         fobj_b.rdm1__ = rdm1_tmp[1].copy()
-        fobj_a.mo_coeff_uccsd = mo_a
-        fobj_b.mo_coeff_uccsd = mo_b
+        fobj_a.mo_coeffs = mo_a
+        fobj_b.mo_coeffs = mo_b
     # Compute and return fragment energy
     e_1 = 0.0
     e_2 = 0.0
