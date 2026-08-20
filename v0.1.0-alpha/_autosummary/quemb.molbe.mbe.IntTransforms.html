@@ -881,18 +881,18 @@
 <span class="sig-prename descclassname"><span class="pre">quemb.molbe.mbe.</span></span><span class="sig-name descname"><span class="pre">IntTransforms</span></span><a class="headerlink" href="#quemb.molbe.mbe.IntTransforms" title="Link to this definition">¶</a></dt>
 <dd><p>Literal type describing allowed transformation strategies.</p>
 <ul class="simple">
-<li><p><code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;in-core&quot;</span></code>: Use a dense representation of integrals
+<li><p><code class="code highlight python docutils literal highlight-python"><span class="s2">"in-core"</span></code>: Use a dense representation of integrals
 in memory without density fitting (DF) and transform in-memory.</p></li>
-<li><p><code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;out-core-DF&quot;</span></code>: Use a dense, DF representation of integrals.
+<li><p><code class="code highlight python docutils literal highlight-python"><span class="s2">"out-core-DF"</span></code>: Use a dense, DF representation of integrals.
 The DF integrals <span class="math notranslate nohighlight">\((\mu, \nu | P)\)</span> are stored on disc.</p></li>
-<li><p><code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;int-direct-DF&quot;</span></code>: Use a dense, DF representation of integrals.
+<li><p><code class="code highlight python docutils literal highlight-python"><span class="s2">"int-direct-DF"</span></code>: Use a dense, DF representation of integrals.
 The required DF integrals <span class="math notranslate nohighlight">\((\mu, \nu | P)\)</span> are computed and fitted
 on-demand for each fragment.</p></li>
-<li><p><code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;sparse-DF&quot;</span></code>, <code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;sparse-DF-gpu&quot;</span></code>,
-<code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;on-fly-sparse-DF&quot;</span></code>, and <code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;on-fly-sparse-DF-gpu&quot;</span></code>:
+<li><p><code class="code highlight python docutils literal highlight-python"><span class="s2">"sparse-DF"</span></code>, <code class="code highlight python docutils literal highlight-python"><span class="s2">"sparse-DF-gpu"</span></code>,
+<code class="code highlight python docutils literal highlight-python"><span class="s2">"on-fly-sparse-DF"</span></code>, and <code class="code highlight python docutils literal highlight-python"><span class="s2">"on-fly-sparse-DF-gpu"</span></code>:
 Use a sparse, DF representation of integrals.
-The <code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;-gpu&quot;</span></code> versions use GPU and require CUDABlas.
-The <code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;on-fly-&quot;</span></code> versions use less memory but perform more
+The <code class="code highlight python docutils literal highlight-python"><span class="s2">"-gpu"</span></code> versions use GPU and require CUDABlas.
+The <code class="code highlight python docutils literal highlight-python"><span class="s2">"on-fly-"</span></code> versions use less memory but perform more
 on-the-fly computations.</p></li>
 </ul>
 <p>alias of <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Literal</span></code></a>[‘in-core’, ‘out-core-DF’, ‘int-direct-DF’, ‘sparse-DF’, ‘sparse-DF-gpu’, ‘on-fly-sparse-DF’, ‘on-fly-sparse-DF-gpu’]</p>

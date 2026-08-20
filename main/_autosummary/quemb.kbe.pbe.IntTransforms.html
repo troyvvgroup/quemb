@@ -881,11 +881,11 @@
 <span class="sig-prename descclassname"><span class="pre">quemb.kbe.pbe.</span></span><span class="sig-name descname"><span class="pre">IntTransforms</span></span><a class="headerlink" href="#quemb.kbe.pbe.IntTransforms" title="Link to this definition">¶</a></dt>
 <dd><p>Literal type describing allowed transformation strategies.</p>
 <ul class="simple">
-<li><p><code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;out-core-DF&quot;</span></code>: Use a dense, DF representation of integrals.
+<li><p><code class="code highlight python docutils literal highlight-python"><span class="s2">"out-core-DF"</span></code>: Use a dense, DF representation of integrals.
 The DF integrals <span class="math notranslate nohighlight">\((\mu, \nu | P)\)</span> are stored on disc.
 libdmet is used as the backend, which reads AO DF integrals from the
 mean-field object (stored in disk) or cderi file (stored in disk).</p></li>
-<li><p><code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;int-direct-DF&quot;</span></code>: Use a dense, DF representation of integrals.
+<li><p><code class="code highlight python docutils literal highlight-python"><span class="s2">"int-direct-DF"</span></code>: Use a dense, DF representation of integrals.
 The required DF integrals <span class="math notranslate nohighlight">\((\mu, \nu | P)\)</span> are computed and fitted
 on-demand for each fragment. Charge compensation is used for faster convergence.</p></li>
 </ul>

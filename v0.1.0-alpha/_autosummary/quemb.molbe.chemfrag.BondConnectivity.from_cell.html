@@ -903,18 +903,18 @@ It is possible to pass:</p>
 <li><p>a callable which is applied to all radii
 and can be used to e.g. scale via <code class="code highlight python docutils literal highlight-python"><span class="k">lambda</span> <span class="n">r</span><span class="p">:</span> <span class="n">r</span> <span class="o">*</span> <span class="mf">1.1</span></code>,</p></li>
 <li><p>a dictionary which maps the element symbol to the van der Waals radius,
-to change the radius of individual elements, e.g. <code class="code highlight python docutils literal highlight-python"><span class="p">{</span><span class="s2">&quot;C&quot;</span><span class="p">:</span> <span class="mf">1.5</span><span class="p">}</span></code>.</p></li>
+to change the radius of individual elements, e.g. <code class="code highlight python docutils literal highlight-python"><span class="p">{</span><span class="s2">"C"</span><span class="p">:</span> <span class="mf">1.5</span><span class="p">}</span></code>.</p></li>
 </ul>
 <p>The keyword is mutually exclusive with <code class="code highlight python docutils literal highlight-python"><span class="n">bonds_atoms</span></code>.</p>
 </p></li>
 <li><p><strong>h_treatment</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Literal</span></code></a>[<code class="docutils literal notranslate"><span class="pre">'treat_H_diff'</span></code>, <code class="docutils literal notranslate"><span class="pre">'treat_H_like_heavy_atom'</span></code>, <code class="docutils literal notranslate"><span class="pre">'at_most_one_H'</span></code>]</span>) – <p>How do we treat the hydrogen atoms? Options include:</p>
 <ul>
-<li><p><code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;treat_H_diff&quot;</span></code>: Default, treating each H different from heavy
+<li><p><code class="code highlight python docutils literal highlight-python"><span class="s2">"treat_H_diff"</span></code>: Default, treating each H different from heavy
 atoms. Using the given vdW_radius to determine which H belong to which
 motif</p></li>
-<li><p><code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;treat_H_like_heavy_atom&quot;</span></code>: Treating each H the same as the heavy
+<li><p><code class="code highlight python docutils literal highlight-python"><span class="s2">"treat_H_like_heavy_atom"</span></code>: Treating each H the same as the heavy
 atoms when determining fragments</p></li>
-<li><p><code class="code highlight python docutils literal highlight-python"><span class="s2">&quot;at_most_one_H&quot;</span></code>: Enforcing that each H can belong to at most one
+<li><p><code class="code highlight python docutils literal highlight-python"><span class="s2">"at_most_one_H"</span></code>: Enforcing that each H can belong to at most one
 H, if a H is assigned to multiple motifs</p></li>
 </ul>
 </p></li>

@@ -895,10 +895,10 @@ The <code class="code highlight python docutils literal highlight-python"><span 
 then the cleanup is performed when leaving the ContextManager.
 Again, assuming that <code class="code highlight python docutils literal highlight-python"><span class="n">cleanup_at_end</span></code> is true.</p>
 <p class="rubric">Examples</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">WorkDir</span><span class="p">(</span><span class="s1">&#39;./test_dir&#39;</span><span class="p">,</span> <span class="n">cleanup_at_end</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">as</span> <span class="n">scratch</span><span class="p">:</span>
-<span class="gp">&gt;&gt;&gt; </span>    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">scratch</span> <span class="o">/</span> <span class="s1">&#39;test.txt&#39;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-<span class="gp">&gt;&gt;&gt; </span>        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;hello world&#39;</span><span class="p">)</span>
-<span class="go">&#39;./test_dir&#39; does not exist anymore, if the outer contextmanager is left</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">WorkDir</span><span class="p">(</span><span class="s1">'./test_dir'</span><span class="p">,</span> <span class="n">cleanup_at_end</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">as</span> <span class="n">scratch</span><span class="p">:</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">scratch</span> <span class="o">/</span> <span class="s1">'test.txt'</span><span class="p">,</span> <span class="s1">'w'</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+<span class="gp">&gt;&gt;&gt; </span>        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">'hello world'</span><span class="p">)</span>
+<span class="go">'./test_dir' does not exist anymore, if the outer contextmanager is left</span>
 <span class="go">without errors.</span>
 </pre></div>
 </div>
