@@ -543,6 +543,7 @@ def be_func(
                 use_cumulant=use_cumulant,
                 eri_file=fobj.eri_file,
             )
+            fobj.fragment_corr = sum(e_f)
             total_e = [sum(x) for x in zip(total_e, e_f)]
             fobj.update_ebe_hf()
 
