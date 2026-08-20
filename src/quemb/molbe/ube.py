@@ -21,6 +21,7 @@ import h5py
 from numpy import array, einsum, zeros, zeros_like
 from numpy.linalg import multi_dot
 from pyscf import ao2mo
+from pyscf import lib as pyscf_lib
 from pyscf.scf.uhf import UHF
 
 from quemb.molbe.be_parallel import be_func_parallel_u
@@ -90,6 +91,11 @@ class UBE(BE):  # 🍠
             assert hasattr(mf, "with_df") and mf.with_df is not None, (
                 "use_df=True requires a density-fitted mf: "
                 "construct as scf.UHF(mol).density_fit()"
+            )
+        if not equal_bath:
+            assert _opposite_spin_eri_supported(), (
+                "equal_bath=False requires a custom-compiled PySCF "
+                "(see unrestricted_utils._convert_eri_gen for the patch)."
             )
 
         self.fobj = fobj
@@ -251,6 +257,12 @@ class UBE(BE):  # 🍠
                     )
 
             assert fobj_a.TA is not None and fobj_b.TA is not None
+            if fobj_a.TA.shape[1] != fobj_b.TA.shape[1]:
+                assert _opposite_spin_eri_supported(), (
+                    "alpha/beta bath sizes differ despite equal_bath="
+                    f"{self.equal_bath} "
+                    "(see unrestricted_utils._convert_eri_gen for the patch)."
+                )
             if self.use_df:
                 eri_a = self.mf.with_df.ao2mo(fobj_a.TA, compact=True)
                 eri_b = self.mf.with_df.ao2mo(fobj_b.TA, compact=True)
@@ -461,6 +473,11 @@ class UBE(BE):  # 🍠
         rdm1b_AO = (rdm1b_AO + rdm1b_AO.T) / 2.0
 
         return rdm1a_AO, rdm1b_AO
+
+
+def _opposite_spin_eri_supported() -> bool:
+    libao2mo = pyscf_lib.load_library("libao2mo")
+    return hasattr(libao2mo, "AO2MOrestore_nr4to1_gen")
 
 
 def initialize_pot(n_frag, relAO_per_edge):
