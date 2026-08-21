@@ -81,7 +81,7 @@ class UBE(BE):  # 🍠
             Whether to use a bath with the same number of alpha and beta orbitals.
             With equal_bath = False, alpha and beta bath sizes are only forced
             to match by a custom-compiled PySCF (see
-            :func:`quemb.shared.external.unrestricted_utils._convert_eri_gen`)
+            :python:`quemb.shared.external.unrestricted_utils._convert_eri_gen`)
             if they naturally come out unequal; this is checked in
             :meth:`initialize` once the real sizes are known, not here.
             Default is True
