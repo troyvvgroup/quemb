@@ -1307,6 +1307,8 @@ class BE:
             )
             self.ebe_tot = rets[0] + self.enuc + self.ebe_hf
 
+            self.rets0 = rets[0]
+
     def update_fock(self, heff: list[Matrix[floating]] | None = None) -> None:
         """
         Update the Fock matrix for each fragment with the effective Hamiltonian.

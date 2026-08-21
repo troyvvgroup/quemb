@@ -216,6 +216,88 @@ def energy_be(mol, energy_args=None, fd_info=None):
 
     return mybe.ebe_tot
 
+def energy_E_tot_BE(mol, energy_args=None, fd_info=None):
+
+    if energy_args is None:
+        energy_args = BEArgs()
+
+    if fd_info is None:
+        raise RuntimeError("missing finite difference displacement info.")
+
+    if fd_info.kind == "multi_displacement":
+        raise RuntimeError(
+            "energy_be_frag currently supports only single finite-difference "
+            f"displacements; got {fd_info.kind!r}"
+        )
+
+    if fd_info.ref_mol is None:
+        raise RuntimeError("missing finite difference reference geometry.")
+
+    try:
+        ref_fobj = fd_info.ref_data["ref_fobj"]
+        ref_mybe = fd_info.ref_data["ref_mybe"]
+        frag_per_atom = fd_info.ref_data["frag_per_atom"]
+    except KeyError as exc:
+        raise RuntimeError("missing reference BE info.") from exc
+
+    mf = scf.RHF(mol)
+    mf.verbose = 0
+    mf._eri = mol.intor("int2e", aosym="s8")
+    mf.kernel()
+
+    if fd_info.kind in ("reference", "scanner_point"):
+        # placeholder energy to allow Gradients.as_scanner()
+        # to return (energy, gradient)
+        return mf.e_tot
+
+    assert len(fd_info.atom_idx) == 1, (
+        "Expected fd_info.atom_idx to have length 1, "
+        f"but got {len(fd_info.atom_idx)}: {fd_info.atom_idx}"
+    )
+
+    assert len(fd_info.axis_idx) == 1, (
+        "Expected fd_info.axis_idx to have length 1, "
+        f"but got {len(fd_info.axis_idx)}: {fd_info.axis_idx}"
+    )
+
+    assert len(fd_info.delta_bohr) == 1, (
+        "Expected fd_info.delta_bohr to have length 1, "
+        f"but got {len(fd_info.delta_bohr)}: {fd_info.delta_bohr}"
+    )
+
+    atom_idx = fd_info.atom_idx[0]
+    axis_idx = fd_info.axis_idx[0]
+    delta = fd_info.delta_bohr[0]
+    atom_idx = fd_info.atom_idx[0]
+
+    if fd_info.target_frag_idx is None:
+        frag_idx = frag_per_atom[atom_idx]
+    else:
+        frag_idx = fd_info.target_frag_idx
+
+
+    axis_label = ("x", "y", "z")[axis_idx]
+    sign_label = "p" if delta > 0 else "m"
+
+    redo_tag = f"redo_frag{frag_idx}_atom{atom_idx}_{sign_label}{axis_label}"
+
+    mybe = BE(
+        mf,
+        ref_fobj,
+        lo_method=energy_args.lo_method,
+        int_transform=energy_args.int_transform,
+        auxbasis=energy_args.auxbasis,
+        nproc=energy_args.nproc,
+        ompnum=energy_args.ompnum,
+    )
+
+    mybe.oneshot(solver="CCSD", use_cumulant=False)
+
+    correlation_energy = mybe.rets0
+
+    return correlation_energy
+
+
 def energy_E_A_BE(mol, energy_args=None, fd_info=None):
     if energy_args is None:
         energy_args = BEArgs()
