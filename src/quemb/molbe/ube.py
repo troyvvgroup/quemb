@@ -79,8 +79,12 @@ class UBE(BE):  # 🍠
             Threshold for bath orbitals in Schmidt decomposition
         equal_bath :
             Whether to use a bath with the same number of alpha and beta orbitals.
-            Using equal_bath = False will require custom compiled functions in
-            PySCF to perform integral transformations. Default is True
+            With equal_bath = False, alpha and beta bath sizes are only forced
+            to match by a custom-compiled PySCF (see
+            :func:`quemb.shared.external.unrestricted_utils._convert_eri_gen`)
+            if they naturally come out unequal; this is checked in
+            :meth:`initialize` once the real sizes are known, not here.
+            Default is True
         int_transform :
             The integral transformation strategy. UBE currently supports
             "in-core" and "out-core-DF" (see :class:`quemb.molbe.mbe.IntTransforms`
@@ -100,11 +104,6 @@ class UBE(BE):  # 🍠
             assert hasattr(mf, "with_df") and mf.with_df is not None, (
                 "int_transform='out-core-DF' requires a density-fitted mf: "
                 "construct as scf.UHF(mol).density_fit()"
-            )
-        if not equal_bath:
-            assert _opposite_spin_eri_supported(), (
-                "equal_bath=False requires a custom-compiled PySCF "
-                "(see unrestricted_utils._convert_eri_gen for the patch)."
             )
 
         self.fobj = fobj
@@ -268,6 +267,12 @@ class UBE(BE):  # 🍠
                     )
 
             assert fobj_a.TA is not None and fobj_b.TA is not None
+            if fobj_a.TA.shape[1] != fobj_b.TA.shape[1]:
+                assert _opposite_spin_eri_supported(), (
+                    "alpha/beta bath sizes differ despite equal_bath="
+                    f"{self.equal_bath} "
+                    "(see unrestricted_utils._convert_eri_gen for the patch)."
+                )
             if self.int_transform == "out-core-DF":
                 eri_a = self.mf.with_df.ao2mo(fobj_a.TA, compact=True)
                 eri_b = self.mf.with_df.ao2mo(fobj_b.TA, compact=True)
