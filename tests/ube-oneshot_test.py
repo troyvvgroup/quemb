@@ -305,10 +305,6 @@ class TestOneShot_Unrestricted(unittest.TestCase):
 
     # Test B
 
-    @unittest.skipUnless(
-        os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
-        "This test is known to fail.",
-    )
     def test_hexene_anion_sto3g_frz_ben(self):
         # Hexene anion with frozen core, STO-3G
         mol = gto.M()
@@ -377,10 +373,6 @@ class TestOneShot_Unrestricted(unittest.TestCase):
             mol, 3, "Hexene Cation Frz (BE3)", True, -0.36996482
         )
 
-    @unittest.skipUnless(
-        os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
-        "This test is known to fail.",
-    )
     def test_hexene_anion_sto3g_unfrz_ben(self):
         # Hexene anion without frozen core, STO-3G
         mol = gto.M()
@@ -413,10 +405,6 @@ class TestOneShot_Unrestricted(unittest.TestCase):
             mol, 3, "Hexene Anion Unfrz (BE3)", False, -0.3895924
         )
 
-    @unittest.skipUnless(
-        os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
-        "This test is known to fail.",
-    )
     def test_hexene_cation_sto3g_unfrz_ben(self):
         # Hexene cation without frozen core, STO-3G
         mol = gto.M()
@@ -448,10 +436,6 @@ class TestOneShot_Unrestricted(unittest.TestCase):
         self.molecular_unrestricted_oneshot_test(
             mol, 3, "Hexene Cation Frz (BE3)", False, -0.39729215
         )
-
-    # --- Test A: pre-#166 baseline (autogen fragmentation, equal_bath=False) ---
-    # Kept alongside Test B (chemgen, equal_bath=True) above so both code paths
-    # retain coverage. Values are the pre-existing ones from `main`, unchanged.
 
     def molecular_unrestricted_oneshot_test(
         self,
