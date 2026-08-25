@@ -178,7 +178,6 @@ def energy_be(mol, energy_args=None, fd_info=None):
 
     mf = scf.RHF(mol)
     mf.verbose = 0
-    mf._eri = mol.intor("int2e", aosym="s8")
     mf.kernel()
 
     mybe = BE(
@@ -291,7 +290,6 @@ def energy_E_A_BE(mol, energy_args=None, fd_info=None):
         auxbasis=energy_args.auxbasis,
         nproc=energy_args.nproc,
         ompnum=energy_args.ompnum,
-        #initialize_fragment_idx=[frag_idx],
     )
 
     mybe.oneshot(solver="CCSD", use_cumulant=False)
