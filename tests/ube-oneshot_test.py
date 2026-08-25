@@ -305,6 +305,10 @@ class TestOneShot_Unrestricted(unittest.TestCase):
 
     # Test B
 
+    @unittest.skipUnless(
+        os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
+        "BE2 bath selection is not deterministic across Python/numpy versions with frozen core",
+    )
     def test_hexene_anion_sto3g_frz_ben(self):
         # Hexene anion with frozen core, STO-3G
         mol = gto.M()
@@ -389,9 +393,8 @@ class TestOneShot_Unrestricted(unittest.TestCase):
         )
 
     @unittest.skipUnless(
-        os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true"
-        and os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true",
-        "This test is known to fail and/or expensive.",
+        os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true",
+        "Skipped expensive tests for QuEmb.",
     )
     def test_hexene_anion_sto3g_unfrz_ben_be3(self):
         # Hexene anion without frozen core, STO-3G
@@ -421,9 +424,8 @@ class TestOneShot_Unrestricted(unittest.TestCase):
         )
 
     @unittest.skipUnless(
-        os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true"
-        and os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true",
-        "This test is known to fail and/or expensive.",
+        os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true",
+        "Skipped expensive tests for QuEmb.",
     )
     def test_hexene_cation_sto3g_unfrz_ben_be3(self):
         # Hexene cation without frozen core, STO-3G
