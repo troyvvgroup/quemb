@@ -215,7 +215,7 @@ def energy_be(mol, energy_args=None, fd_info=None):
             ompnum=energy_args.ompnum,
         )
 
-        return mybe.rets0
+        return mf.e_tot + mybe.rets0 # parallels form of energy_be_frag() return
 
 
 def energy_E_A_BE(mol, energy_args=None, fd_info=None):
