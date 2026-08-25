@@ -146,6 +146,8 @@ class BEArgs:
     trust_region: bool = False
     step_size: float = 1e-6
 
+    reconstruct_frag_energy: bool = False
+
 
 class BE:
     """

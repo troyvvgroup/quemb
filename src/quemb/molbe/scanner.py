@@ -259,6 +259,7 @@ def energy_be_frag(mol, energy_args=None, fd_info=None):
 
     mf = scf.RHF(mol)
     mf.verbose = 0
+    mf._eri = mol.intor("int2e", aosym="s8")
     mf.kernel()
 
     if fd_info.kind in ("reference", "scanner_point"):
@@ -291,78 +292,93 @@ def energy_be_frag(mol, energy_args=None, fd_info=None):
 
     redo_tag = f"redo_frag{frag_idx}_atom{atom_idx}_{sign_label}{axis_label}"
 
-    mybe = BE(
-        mf,
-        ref_fobj,
-        lo_method=energy_args.lo_method,
-        int_transform=energy_args.int_transform,
-        auxbasis=energy_args.auxbasis,
-        nproc=energy_args.nproc,
-        ompnum=energy_args.ompnum,
-        initialize_fragment_idx=[frag_idx],
-    )
-
-    S_cross = gto.intor_cross("int1e_ovlp", mol, fd_info.ref_mol)
-
-    # keep the original fragment object untouched
-    orig_fobj = mybe.Fobjs[frag_idx]
-
-    # Create a dedicated temporary scratch directory for the re-done ERIs
-    redo_scratch = WorkDir(
-        mybe.scratch_dir / redo_tag,
-        cleanup_at_end=True,
-        ensure_empty=True,
-    )
-    tmp_eri_file = redo_scratch / f"{redo_tag}.h5"
-
-    # Work on an independent fragment object for this displaced geometry
-    # Use deepcopy since _initialize_fragments changes mybe.ebe_hf
-    fobj = copy.deepcopy(orig_fobj)
-
-    try:
-        fobj.TA = np.linalg.inv(mybe.S) @ S_cross @ ref_mybe.Fobjs[frag_idx].TA
-        fobj.dname = redo_tag
-        fobj.eri_file = tmp_eri_file
-
-        # _eri_transform() and _initialize_fragments() operate through mybe.Fobjs,
-        # so temporarily point this fragment index to the copied fragment
-        mybe.Fobjs[frag_idx] = fobj
-
-        with h5py.File(tmp_eri_file, "w") as file_eri:
-            mybe._eri_transform(
-                energy_args.int_transform,
-                mf._eri,
-                file_eri,
-                [frag_idx],
-            )
-            mybe._initialize_fragments(file_eri, False, [frag_idx])
-
-        # Use the reinitialized copied fragment
-        fobj = mybe.Fobjs[frag_idx]
-
-        eri = get_eri(fobj.dname, fobj.nao, eri_file=tmp_eri_file)
-        fobj._mf = get_scfObj(
-            fobj.fock + fobj.heff,
-            eri,
-            fobj.nsocc,
-            dm0=fobj.dm0.copy(),
+    if energy_args.reconstruct_frag_energy:
+        mybe = BE(
+            mf,
+            ref_fobj,
+            lo_method=energy_args.lo_method,
+            int_transform=energy_args.int_transform,
+            auxbasis=energy_args.auxbasis,
+            nproc=energy_args.nproc,
+            ompnum=energy_args.ompnum,
         )
 
-        mc = cc.CCSD(fobj._mf)
-        mc.verbose = 0
-        mc.incore_complete = True
+        mybe.oneshot(solver="CCSD", use_cumulant=False)
 
-        eri_embmo = mc.ao2mo()
-        eri_embmo.mo_energy = fobj._mf.mo_energy
-        eri_embmo.fock = np.diag(fobj._mf.mo_energy)
+        energy = mf.e_tot + mybe.Fobjs[frag_idx].fragment_corr
+    else:
+        mybe = BE(
+            mf,
+            ref_fobj,
+            lo_method=energy_args.lo_method,
+            int_transform=energy_args.int_transform,
+            auxbasis=energy_args.auxbasis,
+            nproc=energy_args.nproc,
+            ompnum=energy_args.ompnum,
+            initialize_fragment_idx=[frag_idx],
+        )
 
-        mc.kernel(eris=eri_embmo)
-        energy = mf.e_tot + mc.e_tot - fobj._mf.e_tot
+        S_cross = gto.intor_cross("int1e_ovlp", mol, fd_info.ref_mol)
 
-    finally:
-        mybe.Fobjs[frag_idx] = orig_fobj
+        # keep the original fragment object untouched
+        orig_fobj = mybe.Fobjs[frag_idx]
 
-        redo_scratch.cleanup(ignore_error=True)
+        # Create a dedicated temporary scratch directory for the re-done ERIs
+        redo_scratch = WorkDir(
+            mybe.scratch_dir / redo_tag,
+            cleanup_at_end=True,
+            ensure_empty=True,
+        )
+        tmp_eri_file = redo_scratch / f"{redo_tag}.h5"
+
+        # Work on an independent fragment object for this displaced geometry
+        # Use deepcopy since _initialize_fragments changes mybe.ebe_hf
+        fobj = copy.deepcopy(orig_fobj)
+
+        try:
+            fobj.TA = np.linalg.inv(mybe.S) @ S_cross @ ref_mybe.Fobjs[frag_idx].TA
+            fobj.dname = redo_tag
+            fobj.eri_file = tmp_eri_file
+
+            # _eri_transform() and _initialize_fragments() operate through mybe.Fobjs,
+            # so temporarily point this fragment index to the copied fragment
+            mybe.Fobjs[frag_idx] = fobj
+
+            with h5py.File(tmp_eri_file, "w") as file_eri:
+                mybe._eri_transform(
+                    energy_args.int_transform,
+                    mf._eri,
+                    file_eri,
+                    [frag_idx],
+                )
+                mybe._initialize_fragments(file_eri, False, [frag_idx])
+
+            # Use the reinitialized copied fragment
+            fobj = mybe.Fobjs[frag_idx]
+
+            eri = get_eri(fobj.dname, fobj.nao, eri_file=tmp_eri_file)
+            fobj._mf = get_scfObj(
+                fobj.fock + fobj.heff,
+                eri,
+                fobj.nsocc,
+                dm0=fobj.dm0.copy(),
+            )
+
+            mc = cc.CCSD(fobj._mf)
+            mc.verbose = 0
+            mc.incore_complete = True
+
+            eri_embmo = mc.ao2mo()
+            eri_embmo.mo_energy = fobj._mf.mo_energy
+            eri_embmo.fock = np.diag(fobj._mf.mo_energy)
+
+            mc.kernel(eris=eri_embmo)
+            energy = mf.e_tot + mc.e_tot - fobj._mf.e_tot
+
+        finally:
+            mybe.Fobjs[frag_idx] = orig_fobj
+
+            redo_scratch.cleanup(ignore_error=True)
 
     return energy
 
