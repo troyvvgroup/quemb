@@ -5,7 +5,7 @@ import re
 from collections.abc import Sequence
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Final, Generator, Literal
+from typing import Final, Generator, Literal
 
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
@@ -205,18 +205,21 @@ class GraphGenUtility:
 
         G = adjacency_graph
 
-        pos: dict[Any, tuple[Any, Any] | np.ndarray]
-
         if node_position in ["coordinates"]:
-            pos = {
-                adx: (
-                    map["coord"][0] + (map["coord"][2] * z_offset),
-                    map["coord"][1] + (map["coord"][2] * z_offset),
-                )
-                for adx, map in adx_map.items()
-            }
+            if node_position == "coordinates":
+                pos = {
+                    adx: (
+                        data["coord"][0] + (data["coord"][2] * z_offset),
+                        data["coord"][1] + (data["coord"][2] * z_offset),
+                    )
+                    for adx, data in adx_map.items()
+                }
+
         elif node_position in ["spring"]:
-            pos = nx.spring_layout(G, seed=3068)
+            pos = {
+                adx: (float(coord[0]), float(coord[1]))
+                for adx, coord in nx.spring_layout(G, seed=3068).items()
+            }
 
         fig, ax = plt.subplots()
         arc_rads = np.arange(-0.3, 0.3, 0.6 / len(c), dtype=float)
