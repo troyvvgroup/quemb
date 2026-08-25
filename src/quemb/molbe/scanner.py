@@ -218,6 +218,154 @@ def energy_be(mol, energy_args=None, fd_info=None):
         return mf.e_tot + mybe.rets0 # parallels form of energy_be_frag() return
 
 
+def energy_be_frag(mol, energy_args=None, fd_info=None):
+    r"""Compute the BEn fragment energy
+
+    Parameters
+    ----------
+    mol : object
+        Molecule object defining the geometry, basis, charge, and spin.
+    energy_args: BEArgs, optional
+        User defined arguments for BE calculation.
+    fd_info: FDinfo, optional
+        Finite difference metadata describing the displacement relative
+        to the current reference geometry.
+
+    Returns
+    ------
+    float
+        Converged BE fragment energy in Hartree
+    """
+    if energy_args is None:
+        energy_args = BEArgs()
+
+    if fd_info.kind == "multi_displacement":
+        raise RuntimeError(
+            "energy_be_frag currently supports only single finite-difference "
+            f"displacements; got {fd_info.kind!r}"
+        )
+    if fd_info is None:
+        raise RuntimeError("missing finite difference displacement info.")
+    else:
+        if fd_info.ref_mol is None:
+            raise RuntimeError("missing finite difference reference geometry.")
+
+        try:
+            ref_fobj = fd_info.ref_data["ref_fobj"]
+            ref_mybe = fd_info.ref_data["ref_mybe"]
+            frag_per_atom = fd_info.ref_data["frag_per_atom"]
+        except KeyError as exc:
+            raise RuntimeError("missing reference BE info.") from exc
+
+    mf = scf.RHF(mol)
+    mf.verbose = 0
+    mf.kernel()
+
+    if fd_info.kind in ("reference", "scanner_point"):
+        # placeholder energy to allow Gradients.as_scanner()
+        # to return (energy, gradient)
+        return mf.e_tot
+
+    assert len(fd_info.atom_idx) == 1, (
+        "Expected fd_info.atom_idx to have length 1, "
+        f"but got {len(fd_info.atom_idx)}: {fd_info.atom_idx}"
+    )
+
+    assert len(fd_info.axis_idx) == 1, (
+        "Expected fd_info.axis_idx to have length 1, "
+        f"but got {len(fd_info.axis_idx)}: {fd_info.axis_idx}"
+    )
+
+    assert len(fd_info.delta_bohr) == 1, (
+        "Expected fd_info.delta_bohr to have length 1, "
+        f"but got {len(fd_info.delta_bohr)}: {fd_info.delta_bohr}"
+    )
+
+    atom_idx = fd_info.atom_idx[0]
+    axis_idx = fd_info.axis_idx[0]
+    delta = fd_info.delta_bohr[0]
+    frag_idx = frag_per_atom[fd_info.atom_idx[0]]
+
+    axis_label = ("x", "y", "z")[axis_idx]
+    sign_label = "p" if delta > 0 else "m"
+
+    redo_tag = f"redo_frag{frag_idx}_atom{atom_idx}_{sign_label}{axis_label}"
+
+    mybe = BE(
+        mf,
+        ref_fobj,
+        lo_method=energy_args.lo_method,
+        int_transform=energy_args.int_transform,
+        auxbasis=energy_args.auxbasis,
+        nproc=energy_args.nproc,
+        ompnum=energy_args.ompnum,
+        initialize_fragment_idx=[frag_idx],
+    )
+
+    S_cross = gto.intor_cross("int1e_ovlp", mol, fd_info.ref_mol)
+
+    # keep the original fragment object untouched
+    orig_fobj = mybe.Fobjs[frag_idx]
+
+    # Create a dedicated temporary scratch directory for the re-done ERIs
+    redo_scratch = WorkDir(
+        mybe.scratch_dir / redo_tag,
+        cleanup_at_end=True,
+        ensure_empty=True,
+    )
+    tmp_eri_file = redo_scratch / f"{redo_tag}.h5"
+
+    # Work on an independent fragment object for this displaced geometry
+    # Use deepcopy since _initialize_fragments changes mybe.ebe_hf
+    fobj = copy.deepcopy(orig_fobj)
+
+    try:
+        fobj.TA = np.linalg.inv(mybe.S) @ S_cross @ ref_mybe.Fobjs[frag_idx].TA
+        fobj.dname = redo_tag
+        fobj.eri_file = tmp_eri_file
+
+        # _eri_transform() and _initialize_fragments() operate through mybe.Fobjs,
+        # so temporarily point this fragment index to the copied fragment
+        mybe.Fobjs[frag_idx] = fobj
+
+        with h5py.File(tmp_eri_file, "w") as file_eri:
+            mybe._eri_transform(
+                energy_args.int_transform,
+                mf._eri,
+                file_eri,
+                [frag_idx],
+            )
+            mybe._initialize_fragments(file_eri, False, [frag_idx])
+
+        # Use the reinitialized copied fragment
+        fobj = mybe.Fobjs[frag_idx]
+
+        eri = get_eri(fobj.dname, fobj.nao, eri_file=tmp_eri_file)
+        fobj._mf = get_scfObj(
+            fobj.fock + fobj.heff,
+            eri,
+            fobj.nsocc,
+            dm0=fobj.dm0.copy(),
+        )
+
+        mc = cc.CCSD(fobj._mf)
+        mc.verbose = 0
+        mc.incore_complete = True
+
+        eri_embmo = mc.ao2mo()
+        eri_embmo.mo_energy = fobj._mf.mo_energy
+        eri_embmo.fock = np.diag(fobj._mf.mo_energy)
+
+        mc.kernel(eris=eri_embmo)
+        energy = mf.e_tot + mc.e_tot - fobj._mf.e_tot
+
+    finally:
+        mybe.Fobjs[frag_idx] = orig_fobj
+
+        redo_scratch.cleanup(ignore_error=True)
+
+    return energy
+
 def energy_E_A_BE(mol, energy_args=None, fd_info=None):
     if energy_args is None:
         energy_args = BEArgs()
