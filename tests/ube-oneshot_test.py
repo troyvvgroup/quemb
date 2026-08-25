@@ -307,7 +307,8 @@ class TestOneShot_Unrestricted(unittest.TestCase):
 
     @unittest.skipUnless(
         os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
-        "BE2 bath selection is not deterministic across Python/numpy versions with frozen core",
+        "BE2 bath selection is not deterministic across Python/numpy versions "
+        "with frozen core",
     )
     def test_hexene_anion_sto3g_frz_ben(self):
         # Hexene anion with frozen core, STO-3G
