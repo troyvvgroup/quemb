@@ -5,7 +5,7 @@ import re
 from collections.abc import Sequence
 from copy import deepcopy
 from pathlib import Path
-from typing import Final, Generator, Literal
+from typing import Any, Final, Generator, Literal
 
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
@@ -204,6 +204,8 @@ class GraphGenUtility:
         labels = {adx: (map["label"] + str(adx)) for adx, map in adx_map.items()}
 
         G = adjacency_graph
+
+        pos: dict[Any, tuple[Any, Any] | np.ndarray]
 
         if node_position in ["coordinates"]:
             pos = {
