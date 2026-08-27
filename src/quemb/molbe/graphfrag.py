@@ -206,14 +206,13 @@ class GraphGenUtility:
         G = adjacency_graph
 
         if node_position in ["coordinates"]:
-            if node_position == "coordinates":
-                pos = {
-                    adx: (
-                        data["coord"][0] + (data["coord"][2] * z_offset),
-                        data["coord"][1] + (data["coord"][2] * z_offset),
-                    )
-                    for adx, data in adx_map.items()
-                }
+            pos = {
+                adx: (
+                    data["coord"][0] + (data["coord"][2] * z_offset),
+                    data["coord"][1] + (data["coord"][2] * z_offset),
+                )
+                for adx, data in adx_map.items()
+            }
 
         elif node_position in ["spring"]:
             pos = {
