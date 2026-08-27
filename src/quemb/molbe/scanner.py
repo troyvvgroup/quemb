@@ -214,7 +214,7 @@ def energy_be(mol, energy_args=None, fd_info=None):
             ompnum=energy_args.ompnum,
         )
 
-    return mf.e_tot + mybe.rets0  # parallels form of energy_be_frag() return
+    return mf.e_tot + mybe.rets0
 
 
 def energy_be_frag(mol, energy_args=None, fd_info=None):
@@ -302,8 +302,7 @@ def energy_be_frag(mol, energy_args=None, fd_info=None):
         )
 
         mybe.oneshot(solver="CCSD", use_cumulant=False)
-
-        energy = mf.e_tot + mybe.Fobjs[frag_idx].fragment_corr
+        fragment_correlation_energy = mybe.Fobjs[frag_idx].fragment_corr 
     else:
         mybe = BE(
             mf,
@@ -371,14 +370,14 @@ def energy_be_frag(mol, energy_args=None, fd_info=None):
             eri_embmo.fock = np.diag(fobj._mf.mo_energy)
 
             mc.kernel(eris=eri_embmo)
-            energy = mf.e_tot + mc.e_tot - fobj._mf.e_tot
+            fragment_correlation_energy = mc.e_tot - fobj._mf.e_tot
 
         finally:
             mybe.Fobjs[frag_idx] = orig_fobj
 
             redo_scratch.cleanup(ignore_error=True)
 
-    return energy
+    return mf.e_tot + fragment_correlation_energy
 
 
 @dataclass
