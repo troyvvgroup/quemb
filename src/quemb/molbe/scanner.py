@@ -399,8 +399,6 @@ class FDinfo:
     ref_mol: gto.Mole | None = None
     ref_data: dict = field(default_factory=dict)
 
-    target_frag_idx: int | None = None
-
 
 class Energy(lib.StreamObject):
     r"""PySCF-style wrapper for a custom molecular energy function.
