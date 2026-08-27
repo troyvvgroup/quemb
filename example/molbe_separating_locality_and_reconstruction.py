@@ -99,7 +99,7 @@ be_args = BEArgs(
     solver="CCSD",
     optimize=False,
     use_cumulant=False,
-    additional_args=ChemGenArgs(H_treatment="treat_H_diff"),
+    additional_args=ChemGenArgs(h_treatment="treat_H_diff"),
     reconstruct_frag_energy=True,
 )
 
