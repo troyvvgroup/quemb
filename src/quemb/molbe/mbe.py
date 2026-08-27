@@ -1309,7 +1309,7 @@ class BE:
             )
             self.ebe_tot = rets[0] + self.enuc + self.ebe_hf
 
-            self.rets0 = rets[0]
+            self.rets0 = rets[0] + self.enuc - self.ebe_hf
 
     def update_fock(self, heff: list[Matrix[floating]] | None = None) -> None:
         """
