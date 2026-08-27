@@ -1352,12 +1352,12 @@ class BE:
             for fobj in self.Fobjs:
                 fobj.heff = filepot.get(fobj.dname)
 
-    def _get_noncore_W(self, P_core, pop_thr=0.7):
+    def _get_noncore_W(self, W, P_core, pop_thr=0.7):
         """Construct an orthonormal working basis with core orbitals removed."""
 
         # Project out columns of W with core character
-        P_noncore = eye(self.W.shape[0]) - P_core @ self.S
-        C = P_noncore @ self.W
+        P_noncore = eye(W.shape[0]) - P_core @ self.S
+        C = P_noncore @ W
 
         # Decide which columns of W to retain
         # NOTE: PYSCF has basis in 1s2s3s2p2p2p3p3p3p format
@@ -1420,10 +1420,10 @@ class BE:
             self.W = vs_[:, edx] / sqrt(es_[edx]) @ vs_[:, edx].T
             if self.frozen_core:
                 if self.unrestricted:
-                    self.W_a = self._get_noncore_W(self.P_core[0], pop_thr=0.7)
-                    self.W_b = self._get_noncore_W(self.P_core[1], pop_thr=0.7)
+                    self.W_a = self._get_noncore_W(self.W, self.P_core[0], pop_thr=0.7)
+                    self.W_b = self._get_noncore_W(self.W, self.P_core[1], pop_thr=0.7)
                 else:
-                    self.W = self._get_noncore_W(self.P_core)
+                    self.W = self._get_noncore_W(self.W, self.P_core, pop_thr=0.7)
 
             if self.unrestricted:
                 if self.frozen_core:
@@ -1449,18 +1449,7 @@ class BE:
             edx = es_ > 1.0e-15
             W_ = vs_[:, edx] / sqrt(es_[edx]) @ vs_[:, edx].T
             if self.frozen_core:
-                P_core = eye(W_.shape[0]) - self.P_core @ self.S
-                C_ = P_core @ W_
-                Cpop = multi_dot((C_.T, self.S, C_))
-                Cpop = diag(Cpop)
-                no_core_idx = where(Cpop > 0.55)[0]
-                C_ = C_[:, no_core_idx]
-                S_ = multi_dot((C_.T, self.S, C_))  # type: ignore[assignment]
-                es_, vs_ = eigh(S_)
-                s_ = sqrt(es_)
-                s_ = diag(1.0 / s_)
-                W_ = multi_dot((vs_, s_, vs_.T))
-                W_ = C_ @ W_
+                W_ = self._get_noncore_W(W_, self.P_core, pop_thr=0.55)
 
             self.W = get_loc(
                 self.mf.mol,
