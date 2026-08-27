@@ -1303,13 +1303,17 @@ class BE:
                 rets[0], rets[1][1], rets[1][0] + rets[1][2], self.ebe_hf
             )
             self.ebe_tot = rets[0] + self.ebe_hf
+            
+            # This is how Ecorr BE is defined in print_energy_cumulant
+            self.rets0 = rets[0]
         else:
             print_energy_noncumulant(
                 rets[0], rets[1][0], rets[1][2], rets[1][1], self.ebe_hf, self.enuc
             )
             self.ebe_tot = rets[0] + self.enuc + self.ebe_hf
 
-            self.rets0 = rets[0] + self.enuc - self.ebe_hf
+            # This is how Ecorr BE is defined in print_energy_noncumulant() 
+            self.rets0 = rets[0] + self.enuc - self.ebe_hf  
 
     def update_fock(self, heff: list[Matrix[floating]] | None = None) -> None:
         """

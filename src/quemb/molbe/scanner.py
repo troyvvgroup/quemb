@@ -206,7 +206,6 @@ def energy_be(mol, energy_args=None, fd_info=None):
             trust_region=energy_args.trust_region,
             step_size=energy_args.step_size,
         )
-        return mybe.ebe_tot
     else:
         mybe.oneshot(
             solver=energy_args.solver,
@@ -215,7 +214,7 @@ def energy_be(mol, energy_args=None, fd_info=None):
             ompnum=energy_args.ompnum,
         )
 
-        return mf.e_tot + mybe.rets0  # parallels form of energy_be_frag() return
+    return mf.e_tot + mybe.rets0  # parallels form of energy_be_frag() return
 
 
 def energy_be_frag(mol, energy_args=None, fd_info=None):
