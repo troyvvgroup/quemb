@@ -1406,14 +1406,14 @@ class BE:
                     unr_Cpop = [diag(unr_Cpop[s]) for s in [0, 1]]
                     unr_no_core_idx = [where(unr_Cpop[s] > 0.7)[0] for s in [0, 1]]
                     C_ = [C_[s][:, unr_no_core_idx[s]] for s in [0, 1]]
-                    S_ = [multi_dot((C_[s].T, self.S, C_[s])) for s in [0, 1]]
+                    unr_S_ = [multi_dot((C_[s].T, self.S, C_[s])) for s in [0, 1]]
                     unr_W_ = []
                     for s in [0, 1]:
-                        es_, vs_ = eigh(S_[s])
+                        es_, vs_ = eigh(unr_S_[s])
                         s_ = sqrt(es_)
                         s_ = diag(1.0 / s_)
                         unr_W_.append(multi_dot((vs_, s_, vs_.T)))
-                    self.W = [C_[s] @ unr_W_[s] for s in [0, 1]]
+                    self.W_unr = [C_[s] @ unr_W_[s] for s in [0, 1]]
                 else:
                     P_core = eye(self.W.shape[0]) - self.P_core @ self.S
                     C_ = P_core @ self.W
@@ -1432,14 +1432,14 @@ class BE:
             if self.unrestricted:
                 if self.frozen_core:
                     self.lmo_coeff_a = multi_dot(
-                        (self.W[0].T, self.S, self.C_a[:, self.ncore :])  # type: ignore[attr-defined]
+                        (self.W_unr[0].T, self.S, self.C_a[:, self.ncore :])  # type: ignore[attr-defined]
                     )
                     self.lmo_coeff_b = multi_dot(
-                        (self.W[1].T, self.S, self.C_b[:, self.ncore :])  # type: ignore[attr-defined]
+                        (self.W_unr[1].T, self.S, self.C_b[:, self.ncore :])  # type: ignore[attr-defined]
                     )
                 else:
-                    self.lmo_coeff_a = multi_dot((self.W.T, self.S, self.C_a))  # type: ignore[attr-defined]
-                    self.lmo_coeff_b = multi_dot((self.W.T, self.S, self.C_b))  # type: ignore[attr-defined]
+                    self.lmo_coeff_a = multi_dot((self.W_unr.T, self.S, self.C_a))  # type: ignore[attr-defined]
+                    self.lmo_coeff_b = multi_dot((self.W_unr.T, self.S, self.C_b))  # type: ignore[attr-defined]
             else:
                 if self.frozen_core:
                     self.lmo_coeff = multi_dot(
