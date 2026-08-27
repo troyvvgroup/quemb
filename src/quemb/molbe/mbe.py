@@ -1304,7 +1304,7 @@ class BE:
             )
             self.ebe_tot = rets[0] + self.ebe_hf
             
-            # This is how Ecorr BE is defined in print_energy_cumulant
+            # This is how Ecorr BE is defined in print_energy_cumulant()
             self.rets0 = rets[0]
         else:
             print_energy_noncumulant(
