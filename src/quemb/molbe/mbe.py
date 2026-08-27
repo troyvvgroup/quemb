@@ -1352,6 +1352,28 @@ class BE:
             for fobj in self.Fobjs:
                 fobj.heff = filepot.get(fobj.dname)
 
+    def _get_noncore_W(self, P_core, pop_thr=0.7):
+        """Construct an orthonormal working basis with core orbitals removed."""
+
+        # Project out columns of W with core character
+        P_noncore = eye(self.W.shape[0]) - P_core @ self.S
+        C = P_noncore @ self.W
+
+        # Decide which columns of W to retain
+        # NOTE: PYSCF has basis in 1s2s3s2p2p2p3p3p3p format
+        # fix no_core_idx - use population for now
+        Cpop = multi_dot((C.T, self.S, C))
+        no_core_idx = where(diag(Cpop) > pop_thr)[0]
+        C = C[:, no_core_idx]
+
+        # Perform symmetric (Lowdin) othogonalization
+        S_ = multi_dot((C.T, self.S, C))
+        es_, vs_ = eigh(S_)
+        s_ = diag(1.0 / sqrt(es_))
+        W_ = multi_dot((vs_, s_, vs_.T))
+
+        return C @ W_
+
     def localize(
         self,
         lo_method: LocMethods,
@@ -1398,44 +1420,18 @@ class BE:
             self.W = vs_[:, edx] / sqrt(es_[edx]) @ vs_[:, edx].T
             if self.frozen_core:
                 if self.unrestricted:
-                    P_core = [
-                        eye(self.W.shape[0]) - (self.P_core[s] @ self.S) for s in [0, 1]
-                    ]
-                    C_ = P_core @ self.W
-                    unr_Cpop = [multi_dot((C_[s].T, self.S, C_[s])) for s in [0, 1]]
-                    unr_Cpop = [diag(unr_Cpop[s]) for s in [0, 1]]
-                    unr_no_core_idx = [where(unr_Cpop[s] > 0.7)[0] for s in [0, 1]]
-                    C_ = [C_[s][:, unr_no_core_idx[s]] for s in [0, 1]]
-                    unr_S_ = [multi_dot((C_[s].T, self.S, C_[s])) for s in [0, 1]]
-                    unr_W_ = []
-                    for s in [0, 1]:
-                        es_, vs_ = eigh(unr_S_[s])
-                        s_ = sqrt(es_)
-                        s_ = diag(1.0 / s_)
-                        unr_W_.append(multi_dot((vs_, s_, vs_.T)))
-                    self.W_unr = [C_[s] @ unr_W_[s] for s in [0, 1]]
+                    self.W_a = self._get_noncore_W(self.P_core[0], pop_thr=0.7)
+                    self.W_b = self._get_noncore_W(self.P_core[1], pop_thr=0.7)
                 else:
-                    P_core = eye(self.W.shape[0]) - self.P_core @ self.S
-                    C_ = P_core @ self.W
-                    # NOTE: PYSCF has basis in 1s2s3s2p2p2p3p3p3p format
-                    # fix no_core_idx - use population for now
-                    Cpop = multi_dot((C_.T, self.S, C_))
-                    no_core_idx = where(diag(Cpop) > 0.7)[0]
-                    C_ = C_[:, no_core_idx]
-                    S_ = multi_dot((C_.T, self.S, C_))
-                    es_, vs_ = eigh(S_)
-                    s_ = sqrt(es_)
-                    s_ = diag(1.0 / s_)
-                    W_ = multi_dot((vs_, s_, vs_.T))
-                    self.W = C_ @ W_
+                    self.W = self._get_noncore_W(self.P_core)
 
             if self.unrestricted:
                 if self.frozen_core:
                     self.lmo_coeff_a = multi_dot(
-                        (self.W_unr[0].T, self.S, self.C_a[:, self.ncore :])  # type: ignore[attr-defined]
+                        (self.W_a.T, self.S, self.C_a[:, self.ncore :])  # type: ignore[attr-defined]
                     )
                     self.lmo_coeff_b = multi_dot(
-                        (self.W_unr[1].T, self.S, self.C_b[:, self.ncore :])  # type: ignore[attr-defined]
+                        (self.W_b.T, self.S, self.C_b[:, self.ncore :])  # type: ignore[attr-defined]
                     )
                 else:
                     self.lmo_coeff_a = multi_dot((self.W_unr.T, self.S, self.C_a))  # type: ignore[attr-defined]
@@ -1459,7 +1455,7 @@ class BE:
                 Cpop = diag(Cpop)
                 no_core_idx = where(Cpop > 0.55)[0]
                 C_ = C_[:, no_core_idx]
-                S_ = multi_dot((C_.T, self.S, C_))
+                S_ = multi_dot((C_.T, self.S, C_))  # type: ignore[assignment]
                 es_, vs_ = eigh(S_)
                 s_ = sqrt(es_)
                 s_ = diag(1.0 / s_)
