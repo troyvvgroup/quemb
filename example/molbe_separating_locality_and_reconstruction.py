@@ -11,6 +11,7 @@ from quemb.molbe.scanner import (
     energy_be_frag,
 )
 
+##### Input #####
 mol = gto.M(
     atom="""
 C         -9.34365       -1.15645       -0.59044 
@@ -44,6 +45,7 @@ H         -8.24922       -1.14526       -0.59360
     charge=0,
 )
 print(f"the number of basis functions is {mol.nao}", flush=True)
+BEn=2
 
 ##### Compute the Reference Gradient #####
 mf = scf.RHF(mol)
@@ -58,7 +60,7 @@ np.savetxt("ref.txt", ref_grad_corr, fmt="%.12e")
 
 ##### Energy Embedding Gradient #####
 be_args = BEArgs(
-    n_BE=2,
+    n_BE=BEn,
     solver="CCSD",
     optimize=False,
     use_cumulant=False,
@@ -70,12 +72,13 @@ grad_method = finite_diff.Gradients(energy_method)
 grad_method.displacement = 1e-4
 fd_grad_fromObj = grad_method.kernel()
 
+np.savetxt("energy_embedding.txt", fd_grad_fromObj, fmt="%.12e")
 rmse = np.sqrt(np.mean((fd_grad_fromObj - ref_grad_corr) ** 2))
 print(f"The RMSE for energy embedding is {rmse:.12e}")
 
 ##### Force Embedding #####
 be_args = BEArgs(
-    n_BE=2,
+    n_BE=BEn,
     solver="CCSD",
     optimize=False,
     use_cumulant=False,
@@ -90,12 +93,13 @@ grad_method = finite_diff.Gradients(energy_method)
 grad_method.displacement = 1e-4
 fd_grad_fromObj = grad_method.kernel()
 
+np.savetxt("force_embedding.txt", fd_grad_fromObj, fmt="%.12e")
 rmse = np.sqrt(np.mean((fd_grad_fromObj - ref_grad_corr) ** 2))
 print(f"The RMSE for force embedding is {rmse:.12e}")
 
 ##### Force Embedding With Democratically Partitioned Fragment Energies #####
 be_args = BEArgs(
-    n_BE=2,
+    n_BE=BEn,
     solver="CCSD",
     optimize=False,
     use_cumulant=False,
@@ -110,6 +114,7 @@ grad_method = finite_diff.Gradients(energy_method)
 grad_method.displacement = 1e-4
 fd_grad_fromObj = grad_method.kernel()
 
+np.savetxt("force_embedding_partitioned.txt", fd_grad_fromObj, fmt="%.12e")
 rmse = np.sqrt(np.mean((fd_grad_fromObj - ref_grad_corr) ** 2))
 print(
     f"The RMSE for force embedding with democratically partitioned fragment energies is {rmse:.12e}"
