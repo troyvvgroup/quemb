@@ -460,25 +460,31 @@ class UBE(BE):  # 🍠
             # Fragment AO centers - same for alpha and beta
             cind = [fobj_a.AO_in_frag[i] for i in fobj_a.weight_and_relAO_per_center[1]]
 
-            # Democratic partitioning projection in full AO space, built
-            # per-spin since self.W is split into [Wa, Wb] under frozen_core
+            # Democratic partitioning projector, built per-spin since self.W
+            # is split into [Wa, Wb] under frozen_core. Built in the LOCAL
+            # embedding-space basis (matching the restricted rdm1_fullbasis
+            # pattern) rather than full AO space -- Proj is not a proper
+            # idempotent projector once conjugated the other way across the
+            # non-orthogonal TA embedding transformation.
             Wa = self.W[0] if self.frozen_core else self.W
             Wb = self.W[1] if self.frozen_core else self.W
-            Proj_a = self.S @ Wa[:, cind] @ Wa[:, cind].T @ self.S
-            Proj_b = self.S @ Wb[:, cind] @ Wb[:, cind].T @ self.S
+            Pc_a = fobj_a.TA.T @ self.S @ Wa[:, cind] @ Wa[:, cind].T @ self.S @ fobj_a.TA
+            Pc_b = fobj_b.TA.T @ self.S @ Wb[:, cind] @ Wb[:, cind].T @ self.S @ fobj_b.TA
 
             mca = get_mo(fobj_a)
             mcb = get_mo(fobj_b)
 
-            # Transform fragment RDM to full AO space first
-            rdm1a_full = fobj_a.TA @ mca @ fobj_a.rdm1__ @ mca.T @ fobj_a.TA.T
-            rdm1b_full = fobj_b.TA @ mcb @ fobj_b.rdm1__ @ mcb.T @ fobj_b.TA.T
+            # Local density in the embedding-orbital AO-equivalent space
+            rdm1a_eo = mca @ fobj_a.rdm1__ @ mca.T
+            rdm1b_eo = mcb @ fobj_b.rdm1__ @ mcb.T
 
-            # Apply democratic weight in full AO space
-            rdm1a_AO += Proj_a @ rdm1a_full
-            rdm1b_AO += Proj_b @ rdm1b_full
+            # Project in the SMALL local space, THEN expand to full AO space
+            rdm1a_center = Pc_a @ rdm1a_eo
+            rdm1b_center = Pc_b @ rdm1b_eo
 
-        # Symmetrize
+            rdm1a_AO += fobj_a.TA @ rdm1a_center @ fobj_a.TA.T
+            rdm1b_AO += fobj_b.TA @ rdm1b_center @ fobj_b.TA.T
+
         rdm1a_AO = (rdm1a_AO + rdm1a_AO.T) / 2.0
         rdm1b_AO = (rdm1b_AO + rdm1b_AO.T) / 2.0
 
