@@ -468,8 +468,12 @@ class UBE(BE):  # 🍠
             # non-orthogonal TA embedding transformation.
             Wa = self.W[0] if self.frozen_core else self.W
             Wb = self.W[1] if self.frozen_core else self.W
-            Pc_a = fobj_a.TA.T @ self.S @ Wa[:, cind] @ Wa[:, cind].T @ self.S @ fobj_a.TA
-            Pc_b = fobj_b.TA.T @ self.S @ Wb[:, cind] @ Wb[:, cind].T @ self.S @ fobj_b.TA
+            Pc_a = (
+                fobj_a.TA.T @ self.S @ Wa[:, cind] @ Wa[:, cind].T @ self.S @ fobj_a.TA
+            )
+            Pc_b = (
+                fobj_b.TA.T @ self.S @ Wb[:, cind] @ Wb[:, cind].T @ self.S @ fobj_b.TA
+            )
 
             mca = get_mo(fobj_a)
             mcb = get_mo(fobj_b)
