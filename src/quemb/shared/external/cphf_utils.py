@@ -414,6 +414,65 @@ def get_cpuhf_u_batch(C, moe, eri, no, vpots):
     return us.T
 
 
+def get_cpuhf_ss_A(C, moe, eri, no):
+    """CPHF A-matrix for a single, DECOUPLED UHF spin channel: Fock = h +
+    J[D_same] + J[D_other] - K[D_same], where D_other is a FROZEN external
+    density that does not respond to the perturbation -- this is exactly the
+    physical model QuEmb's per-fragment embedded SCF solves
+    (quemb.molbe.pfrag.Frags.scf(..., dm_other=...), and the
+    dm_other-provided branch of quemb.molbe.helper.get_scfObj), not a
+    genuinely self-consistently-coupled two-spin UHF.
+
+    Differs from get_cpuhf_A (built for a genuinely coupled two-spin UHF,
+    e.g. the unrestricted MP2 response in cpmp2_utils.py): there is no
+    opposite-spin block here (a frozen density has zero response by
+    construction), and the same-spin Coulomb coefficient is 2, not 4 as in
+    the doubly-occupied restricted get_cphf_A: D_same is singly-occupied
+    (no doubling), but its perturbation dD = Co u Cv^T + h.c. still
+    contributes twice to the linear Coulomb response. Verified against a
+    from-scratch finite-difference SCF -- see
+    tests/ube-iterative-jacobian_test.py.
+    """
+    nao = C.shape[0]
+    nv = nao - no
+    Co = C[:, :no]
+    Cv = C[:, no:]
+    nov = no * nv
+    Vovov = ao2mo.incore.general(eri, (Co, Cv, Co, Cv), compact=False).reshape(
+        no, nv, no, nv
+    )
+    Voovv = ao2mo.incore.general(eri, (Co, Co, Cv, Cv), compact=False).reshape(
+        no, no, nv, nv
+    )
+    A = (
+        2.0 * Vovov - Vovov.transpose(0, 3, 2, 1) - Voovv.transpose(0, 2, 1, 3)
+    ).reshape(nov, nov)
+    denom = (moe[:no].reshape(-1, 1) - moe[no:]).ravel()
+    A -= np.diag(denom)
+
+    return A
+
+
+def cpuhf_ss_kernel_batch(C, moe, eri, no, vs):
+    """Batch-solve the decoupled single-spin-channel CPHF of get_cpuhf_ss_A
+    for multiple perturbations `vs`. Use get_rhf_dP_from_u (spin-agnostic
+    despite the name -- its formula makes no doubling assumption) to convert
+    each returned u back to a density response."""
+    nao = C.shape[0]
+    nv = nao - no
+    nov = no * nv
+    npot = len(vs)
+
+    B0s = np.zeros([nov, npot])
+    for i, v in enumerate(vs):
+        B0s[:, i] = get_cphf_rhs(C, no, v)
+
+    A = get_cpuhf_ss_A(C, moe, eri, no)
+    us = np.linalg.solve(A, B0s).T
+
+    return us
+
+
 def get_uhf_dP_from_u(C, no, u):
     n = C[0].shape[0]
     nv = [n - no[s] for s in [0, 1]]

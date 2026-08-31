@@ -14,7 +14,11 @@ from numpy.linalg import inv, norm, pinv
 from quemb.kbe.pfrag import Frags as pFrags
 from quemb.molbe.helper import get_eri, get_scfObj
 from quemb.molbe.pfrag import Frags
-from quemb.shared.external.cphf_utils import cphf_kernel_batch, get_rhf_dP_from_u
+from quemb.shared.external.cphf_utils import (
+    cphf_kernel_batch,
+    cpuhf_ss_kernel_batch,
+    get_rhf_dP_from_u,
+)
 from quemb.shared.external.cpmp2_utils import get_dPmp2_batch_r
 from quemb.shared.external.jac_utils import get_dPccsdurlx_batch_u
 from quemb.shared.typing import GlobalAOIdx, Matrix, RelAOIdx, SeqOverEdge
@@ -392,6 +396,231 @@ def get_atbe_Jblock_frag(
             xc.append(-dP_mu[j_relAO, k_relAO])
 
     return array(Je).T, array(Jc).T, xe, xc, y, alpha, cout
+
+
+def get_be_error_jacobian_u(Fobjs_ab):
+    """Unrestricted analog of :func:`get_be_error_jacobian`, HF-level only.
+
+    Assembles the analytic Jacobian of :func:`quemb.molbe.solver.solve_error_u`'s
+    error vector (only_chem=False) with respect to `self.pot`'s
+    `[edge params.., mu_alpha, mu_beta]` layout, using the embedded-UHF-level
+    orbitals/energies already set on each fragment's `._mf` by the preceding
+    `objfunc(x0)` call (no extra SCF). Edge-matching rows/columns are
+    spin-summed (matching `solve_error_u`'s spin-summed edge residual);
+    the trailing two chemical-potential rows/columns are spin-resolved into a
+    2x2 block (matching `solve_error_u`'s spin-resolved global electron-count
+    residual).
+    """
+    n_frag = len(Fobjs_ab)
+    Jes = [None] * n_frag
+    Jcs = [None] * n_frag
+    xe_as = [None] * n_frag
+    xe_bs = [None] * n_frag
+    xc_as = [None] * n_frag
+    xc_bs = [None] * n_frag
+    y_as = [None] * n_frag
+    y_bs = [None] * n_frag
+    alpha_aa = 0.0
+    alpha_ab = 0.0
+    alpha_ba = 0.0
+    alpha_bb = 0.0
+
+    Ncout = [None] * n_frag
+    for A, (fobj_a, fobj_b) in enumerate(Fobjs_ab):
+        (
+            Jes[A],
+            Jcs[A],
+            xe_as[A],
+            xe_bs[A],
+            xc_as[A],
+            xc_bs[A],
+            y_as[A],
+            y_bs[A],
+            aaa,
+            aab,
+            aba,
+            abb,
+            Ncout[A],
+        ) = get_atbe_Jblock_frag_u(fobj_a, fobj_b)
+        alpha_aa += aaa
+        alpha_ab += aab
+        alpha_ba += aba
+        alpha_bb += abb
+
+    N_ = sum(Ncout)
+    J = zeros((N_ + 2, N_ + 2))
+    cout = 0
+
+    for findx, (fobj_a, _fobj_b) in enumerate(Fobjs_ab):
+        J[cout : Ncout[findx] + cout, cout : Ncout[findx] + cout] = Jes[findx]
+        J[cout : Ncout[findx] + cout, N_] = array(xe_as[findx])
+        J[cout : Ncout[findx] + cout, N_ + 1] = array(xe_bs[findx])
+        J[N_, cout : Ncout[findx] + cout] = y_as[findx]
+        J[N_ + 1, cout : Ncout[findx] + cout] = y_bs[findx]
+
+        coutc = 0
+        coutc_ = 0
+        for cindx, cens in enumerate(fobj_a.relAO_in_ref_per_edge):
+            ref_idx = fobj_a.ref_frag_idx_per_edge[cindx]
+            coutc += Jcs[ref_idx].shape[0]
+            start_ = sum(Ncout[:ref_idx])
+            end_ = start_ + Ncout[ref_idx]
+            J[cout + coutc_ : cout + coutc, start_:end_] += Jcs[ref_idx]
+            J[cout + coutc_ : cout + coutc, N_] += array(xc_as[ref_idx])
+            J[cout + coutc_ : cout + coutc, N_ + 1] += array(xc_bs[ref_idx])
+            coutc_ = coutc
+        cout += Ncout[findx]
+
+    J[N_, N_] = alpha_aa
+    J[N_, N_ + 1] = alpha_ab
+    J[N_ + 1, N_] = alpha_ba
+    J[N_ + 1, N_ + 1] = alpha_bb
+
+    return J
+
+
+def get_atbe_Jblock_frag_u(fobj_a: Frags, fobj_b: Frags):
+    """Per-fragment-pair block of :func:`get_be_error_jacobian_u`.
+
+    Unrestricted analog of :func:`get_atbe_Jblock_frag`, HF-level only
+    (`jac_solver="HF"` is not configurable here -- see module docstring
+    of the calling site). Topology (`relAO_per_edge`, `relAO_per_origin`,
+    `relAO_in_ref_per_edge`, `ref_frag_idx_per_edge`, `AO_in_frag`) is read
+    from `fobj_a` only: identical between fobj_a/fobj_b under common_bath,
+    which only_chem=False requires.
+
+    Uses two independent, DECOUPLED single-spin CPHF solves
+    (get_cpuhf_ss_A/cpuhf_ss_kernel_batch in cphf_utils.py), not the
+    coupled-two-spin get_cpuhf_A. fobj_a.scf()/fobj_b.scf() (called inside
+    be_func_u, which sets the ._mf this reuses) each solve a single spin
+    channel against a FROZEN external density for the other spin
+    (dm_other in Frags.scf() / get_scfObj) -- there is no self-consistent
+    alpha-beta coupling to respond to, so alpha's density has strictly zero
+    linear response to a beta-only perturbation (mu_beta) and vice versa.
+    A first version of this function used the coupled get_cpuhf_A and
+    failed a from-scratch finite-difference check by a large, non-shrinking
+    margin (confirming it wasn't truncation error) specifically on the
+    mu_alpha/mu_beta cross terms; this decoupled version passes that check.
+    """
+    assert fobj_a._mf is not None and fobj_b._mf is not None
+    assert fobj_a.nsocc is not None and fobj_b.nsocc is not None
+    assert fobj_a.nao is not None and fobj_a.nao == fobj_b.nao
+
+    C_a, C_b = fobj_a._mf.mo_coeff, fobj_b._mf.mo_coeff
+    moe_a, moe_b = fobj_a._mf.mo_energy, fobj_b._mf.mo_energy
+    no_a, no_b = fobj_a.nsocc, fobj_b.nsocc
+
+    eri_a = get_eri(fobj_a.dname[0], fobj_a.nao, eri_file=fobj_a.eri_file)
+    eri_b = get_eri(fobj_b.dname[1], fobj_b.nao, eri_file=fobj_b.eri_file)
+
+    vpots_local = get_vpots_frag(fobj_a.nao, fobj_a.relAO_per_edge, fobj_a.AO_in_frag)
+    n_edge_local = len(vpots_local) - 1
+
+    us_a = cpuhf_ss_kernel_batch(C_a, moe_a, eri_a, no_a, vpots_local)
+    us_b = cpuhf_ss_kernel_batch(C_b, moe_b, eri_b, no_b, vpots_local)
+    dPs_a = [get_rhf_dP_from_u(C_a, no_a, us_a[i]) for i in range(len(vpots_local))]
+    dPs_b = [get_rhf_dP_from_u(C_b, no_b, us_b[i]) for i in range(len(vpots_local))]
+
+    # mu_alpha only ever enters fobj_a's own heff (be_func_u injects it via
+    # fobj_a.update_heff(..., pot[-2]) only), and dm_other being frozen means
+    # fobj_b's density has zero response to it; symmetrically for mu_beta.
+    dPa_mu_a = dPs_a[n_edge_local]
+    dPb_mu_b = dPs_b[n_edge_local]
+    zeros_local = zeros(vpots_local[-1].shape)
+    dPb_mu_a = zeros_local
+    dPa_mu_b = zeros_local
+
+    Je = []
+    Jc = []
+    y_a = []
+    y_b = []
+    xe_a = []
+    xe_b = []
+    cout = 0
+
+    for edge in fobj_a.relAO_per_edge:
+        for j_ in range(len(edge)):
+            for k_ in range(len(edge)):
+                if j_ > k_:
+                    continue
+                # response w.r.t matching pot, spin-summed
+                tmpje_ = []
+                for edge_ in fobj_a.relAO_per_edge:
+                    lene = len(edge_)
+                    for j__ in range(lene):
+                        for k__ in range(lene):
+                            if j__ > k__:
+                                continue
+                            tmpje_.append(
+                                dPs_a[cout][edge_[j__], edge_[k__]]
+                                + dPs_b[cout][edge_[j__], edge_[k__]]
+                            )
+                Je.append(tmpje_)
+
+                # spin-resolved local (non-edge) charge response
+                y_a_ = 0.0
+                y_b_ = 0.0
+                for fidx, fval in enumerate(fobj_a.AO_in_frag):
+                    if not any(fidx in sublist for sublist in fobj_a.relAO_per_edge):
+                        y_a_ += dPs_a[cout][fidx, fidx]
+                        y_b_ += dPs_b[cout][fidx, fidx]
+                y_a.append(y_a_)
+                y_b.append(y_b_)
+
+                # center on the same fragment, spin-summed
+                tmpjc_ = []
+                for j_relAO in fobj_a.relAO_per_origin:
+                    for k_relAO in fobj_a.relAO_per_origin:
+                        if j_relAO > k_relAO:
+                            continue
+                        tmpjc_.append(
+                            -(
+                                dPs_a[cout][j_relAO, k_relAO]
+                                + dPs_b[cout][j_relAO, k_relAO]
+                            )
+                        )
+                Jc.append(tmpjc_)
+
+                # response w.r.t. chem pot, spin-summed
+                xe_a.append(dPa_mu_a[edge[j_], edge[k_]] + dPb_mu_a[edge[j_], edge[k_]])
+                xe_b.append(dPa_mu_b[edge[j_], edge[k_]] + dPb_mu_b[edge[j_], edge[k_]])
+                cout += 1
+
+    alpha_aa = 0.0
+    alpha_ab = 0.0
+    alpha_ba = 0.0
+    alpha_bb = 0.0
+    for fidx, fval in enumerate(fobj_a.AO_in_frag):
+        if not any(fidx in sublist for sublist in fobj_a.relAO_per_edge):
+            alpha_aa += dPa_mu_a[fidx, fidx]
+            alpha_ab += dPa_mu_b[fidx, fidx]
+            alpha_ba += dPb_mu_a[fidx, fidx]
+            alpha_bb += dPb_mu_b[fidx, fidx]
+
+    xc_a = []
+    xc_b = []
+    for j_relAO in fobj_a.relAO_per_origin:
+        for k_relAO in fobj_a.relAO_per_origin:
+            if j_relAO > k_relAO:
+                continue
+            xc_a.append(-(dPa_mu_a[j_relAO, k_relAO] + dPb_mu_a[j_relAO, k_relAO]))
+            xc_b.append(-(dPa_mu_b[j_relAO, k_relAO] + dPb_mu_b[j_relAO, k_relAO]))
+
+    return (
+        array(Je).T,
+        array(Jc).T,
+        xe_a,
+        xe_b,
+        xc_a,
+        xc_b,
+        y_a,
+        y_b,
+        alpha_aa,
+        alpha_ab,
+        alpha_ba,
+        alpha_bb,
+        cout,
+    )
 
 
 def get_be_error_jacobian_selffrag(self, jac_solver="HF"):

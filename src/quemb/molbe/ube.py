@@ -31,7 +31,7 @@ from quemb.molbe.pfrag import (
     schmidt_decomposition_common,
 )
 from quemb.molbe.solver import be_func_u
-from quemb.shared.external.optqn import FrankQN
+from quemb.shared.external.optqn import FrankQN, get_be_error_jacobian_u
 from quemb.shared.helper import unused
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import PathLike
@@ -651,7 +651,14 @@ class UBE(BE):  # 🍠
         if state["err"] < conv_tol:
             print("CONVERGED w/o optimization steps", flush=True)
         else:
-            J0 = np.eye(len(x0))
+            if only_chem:
+                J0 = np.eye(len(x0))
+            else:
+                # HF-level analytic Jacobian seed (Fobjs_ab's fragments already
+                # carry the embedded-UHF-level ._mf orbitals set by the
+                # f0 = objfunc(x0) call above). Identity seeding does not
+                # converge well for this branch; see JACOBIAN_SEED_HANDOFF.md.
+                J0 = get_be_error_jacobian_u(Fobjs_ab)
             optQN = FrankQN(objfunc, x0, f0, J0, max_space=max_iter)
             converged = False
             for it in range(max_iter):
