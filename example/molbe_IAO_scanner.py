@@ -1,6 +1,6 @@
 # Illustrates numerical nuclear gradient calculations using
 # force embedding with IAOs through PySCF's finite difference driver
-
+# Author(s): Carina Luo
 
 import numpy as np
 from pyscf import gto
@@ -47,8 +47,6 @@ mol = gto.M(
     charge=0,
 )
 
-print(f"\nthe number of basis functions is {mol.nao}")
-
 be_args = BEArgs(
     n_BE=1,
     solver="CCSD",
@@ -75,5 +73,3 @@ np.savetxt(
     fd_grad_fromObj,
     fmt="%.12e",
 )
-
-print("\ndone with mol", flush=True)
