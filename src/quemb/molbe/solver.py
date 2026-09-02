@@ -39,7 +39,7 @@ from quemb.shared.helper import delete_multiple_files, unused
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix, Vector
 
-Solvers: TypeAlias = Literal["MP2", "CCSD", "FCI", "HCI", "SHCI", "SCI", "DMRG"]
+Solvers: TypeAlias = Literal["MP2", "CCSD", "CCSDT", "CCSDTQ", "FCI", "HCI", "SHCI", "SCI", "DMRG"]
 USolvers: TypeAlias = Literal["UCCSD"]
 
 
