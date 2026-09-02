@@ -16,6 +16,7 @@ quemb.molbe.mbe.BEArgs
    .. autoattribute:: BEArgs.conv_tol
    .. autoattribute:: BEArgs.frag_type
    .. autoattribute:: BEArgs.frozen_core
+   .. autoattribute:: BEArgs.iao_valence_basis
    .. autoattribute:: BEArgs.initialize_fragment_idx
    .. autoattribute:: BEArgs.int_transform
    .. autoattribute:: BEArgs.jac_solver
