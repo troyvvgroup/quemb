@@ -10,7 +10,6 @@ from quemb.molbe.scanner import (
     energy_be_frag,
 )
 
-# build the desired geometry
 mol = gto.M(
     atom="""
 C 2.561733 -0.241464 1.108816
