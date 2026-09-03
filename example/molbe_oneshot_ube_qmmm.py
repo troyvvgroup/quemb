@@ -33,7 +33,8 @@ be_energy = be2puffin(
     unrestricted=True,  # specify unrestricted calculation
     from_chk=False,  # can save the UHF as PySCF checkpoint.
     # Set to true if running from converged UHF chk
-    checkfile=None,
-)  # if not None, will save UHF calculation to a checkfile.
+    checkfile=None,  # if not None, will save UHF calculation to checkfile
+    opt="SOSCF",  # SOSCF and DAMP options: note that damping settings hard-coded
+)
 # if rerunning from chk (from_chk=True), name the checkfile here
-#            ecp = ecp) # can add ECP for heavy atoms as: {'Ru': 'def2-SVP'}
+#  ecp = ecp) # can add ECP for heavy atoms as: {'Ru': 'def2-SVP'}

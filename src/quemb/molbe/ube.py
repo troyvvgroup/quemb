@@ -18,15 +18,16 @@ from pathlib import Path
 from warnings import warn
 
 import h5py
-from numpy import array, einsum, zeros_like
+from numpy import array, einsum, zeros, zeros_like
 from numpy.linalg import multi_dot
 from pyscf import ao2mo
+from pyscf import lib as pyscf_lib
 from pyscf.scf.uhf import UHF
 
 from quemb.molbe.be_parallel import be_func_parallel_u
 from quemb.molbe.fragment import FragPart
 from quemb.molbe.lo import LocMethods
-from quemb.molbe.mbe import BE
+from quemb.molbe.mbe import BE, IntTransforms
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import be_func_u
 from quemb.shared.helper import unused
@@ -45,6 +46,8 @@ class UBE(BE):  # 🍠
         pop_method: str | None = None,
         compute_hf: bool = True,
         thr_bath: float = 1.0e-10,
+        equal_bath: bool = True,
+        int_transform: IntTransforms = "in-core",
     ) -> None:
         """Initialize Unrestricted BE Object (ube🍠)
 
@@ -72,11 +75,36 @@ class UBE(BE):  # 🍠
         pop_method :
             Method for calculating orbital population, by default 'meta-lowdin'
             See pyscf.lo for more details and options
-        thr_bath : float,
+        thr_bath :
             Threshold for bath orbitals in Schmidt decomposition
+        equal_bath :
+            Whether to use a bath with the same number of alpha and beta orbitals.
+            With equal_bath = False, alpha and beta bath sizes are only forced
+            to match by a custom-compiled PySCF (see
+            :python:`quemb.shared.external.unrestricted_utils._convert_eri_gen`)
+            if they naturally come out unequal; this is checked in
+            :meth:`initialize` once the real sizes are known, not here.
+            Default is True
+        int_transform :
+            The integral transformation strategy. UBE currently supports
+            "in-core" and "out-core-DF" (see :class:`quemb.molbe.mbe.IntTransforms`
+            for the full set of options restricted BE supports).
         """
+
         self.unrestricted = True
         self.thr_bath = thr_bath
+        self.equal_bath = equal_bath
+        if int_transform not in ("in-core", "out-core-DF"):
+            raise NotImplementedError(
+                f"UBE currently only supports int_transform in "
+                f"('in-core', 'out-core-DF'), got {int_transform!r}"
+            )
+        self.int_transform = int_transform
+        if int_transform == "out-core-DF":
+            assert hasattr(mf, "with_df") and mf.with_df is not None, (
+                "int_transform='out-core-DF' requires a density-fitted mf: "
+                "construct as scf.UHF(mol).density_fit()"
+            )
 
         self.fobj = fobj
 
@@ -109,15 +137,12 @@ class UBE(BE):  # 🍠
         self.pot = initialize_pot(self.fobj.n_frag, self.fobj.relAO_per_edge_per_frag)
 
         self.eri_file = Path(eri_file)
-        self.ek = 0.0
         self.frozen_core = fobj.frozen_core
         self.ncore = 0
         self.E_core = 0
         self.C_core = None
         self.P_core = None
         self.core_veff = None
-
-        self.uhf_full_e = mf.e_tot
 
         if self.frozen_core:
             assert not (
@@ -171,7 +196,9 @@ class UBE(BE):  # 🍠
             self.scratch_dir = scratch_dir
         self.eri_file = self.scratch_dir / eri_file
 
-        self.initialize(mf._eri, compute_hf)
+        self.initialize(
+            None if self.int_transform == "out-core-DF" else mf._eri, compute_hf
+        )
 
     def initialize(self, eri_, compute_hf):
         if compute_hf:
@@ -200,52 +227,65 @@ class UBE(BE):  # 🍠
             if self.frozen_core:
                 fobj_a.core_veff = self.core_veff[0]
                 fobj_b.core_veff = self.core_veff[1]
-                fobj_a.sd(
-                    self.W[0],
-                    self.lmo_coeff_a,
-                    self.Nocc[0],
-                    thr_bath=self.thr_bath,
-                )
-                fobj_b.sd(
-                    self.W[1],
-                    self.lmo_coeff_b,
-                    self.Nocc[1],
-                    thr_bath=self.thr_bath,
-                )
             else:
                 fobj_a.core_veff = None
                 fobj_b.core_veff = None
-                fobj_a.sd(
-                    self.W,
-                    self.lmo_coeff_a,
-                    self.Nocc[0],
-                    thr_bath=self.thr_bath,
-                )
-                fobj_b.sd(
-                    self.W,
-                    self.lmo_coeff_b,
-                    self.Nocc[1],
-                    thr_bath=self.thr_bath,
-                )
 
-            if eri_ is None and self.mf.with_df is not None:
-                # NOT IMPLEMENTED: should not be called, as no unrestricted DF tested
-                # for density-fitted integrals; if mf is provided, pyscf.ao2mo uses DF
-                # object in an outcore fashion
-                eri_a = ao2mo.kernel(self.mf.mol, fobj_a.TA, compact=True)
-                eri_b = ao2mo.kernel(self.mf.mol, fobj_b.TA, compact=True)
+            fobj_a.sd(
+                self.W[0] if self.frozen_core else self.W,
+                self.lmo_coeff_a,
+                self.Nocc[0],
+                thr_bath=self.thr_bath,
+            )
+            fobj_b.sd(
+                self.W[1] if self.frozen_core else self.W,
+                self.lmo_coeff_b,
+                self.Nocc[1],
+                thr_bath=self.thr_bath,
+            )
+
+            if self.equal_bath:
+                # Enforce the same number of alpha and beta orbitals
+                # by augmenting the bath
+                tot_alpha = fobj_a.n_f + fobj_a.n_b
+                tot_beta = fobj_b.n_f + fobj_b.n_b
+                if tot_alpha > tot_beta:
+                    fobj_b.sd(
+                        self.W[1] if self.frozen_core else self.W,
+                        self.lmo_coeff_b,
+                        self.Nocc[1],
+                        thr_bath=self.thr_bath,
+                        norb=fobj_a.n_b,
+                    )
+                elif tot_beta > tot_alpha:
+                    fobj_a.sd(
+                        self.W[0] if self.frozen_core else self.W,
+                        self.lmo_coeff_a,
+                        self.Nocc[0],
+                        thr_bath=self.thr_bath,
+                        norb=fobj_b.n_b,
+                    )
+
+            assert fobj_a.TA is not None and fobj_b.TA is not None
+            if fobj_a.TA.shape[1] != fobj_b.TA.shape[1]:
+                assert _opposite_spin_eri_supported(), (
+                    "alpha/beta bath sizes differ despite equal_bath="
+                    f"{self.equal_bath} "
+                    "(see unrestricted_utils._convert_eri_gen for the patch)."
+                )
+            if self.int_transform == "out-core-DF":
+                eri_a = self.mf.with_df.ao2mo(fobj_a.TA, compact=True)
+                eri_b = self.mf.with_df.ao2mo(fobj_b.TA, compact=True)
+                eri_ab = self.mf.with_df.ao2mo(
+                    (fobj_a.TA, fobj_a.TA, fobj_b.TA, fobj_b.TA), compact=True
+                )
             else:
-                eri_a = ao2mo.incore.full(
-                    eri_, fobj_a.TA, compact=True
-                )  # otherwise, do an incore ao2mo
+                assert eri_ is not None, "eri_ is None: set incore_anyway for UHF"
+                eri_a = ao2mo.incore.full(eri_, fobj_a.TA, compact=True)
                 eri_b = ao2mo.incore.full(eri_, fobj_b.TA, compact=True)
-
-                Csd_A = fobj_a.TA  # may have to add in nibath here
-                Csd_B = fobj_b.TA
-
                 # cross-spin ERI term
                 eri_ab = ao2mo.incore.general(
-                    eri_, (Csd_A, Csd_A, Csd_B, Csd_B), compact=True
+                    eri_, (fobj_a.TA, fobj_a.TA, fobj_b.TA, fobj_b.TA), compact=True
                 )
 
             file_eri.create_dataset(fobj_a.dname[0], data=eri_a)
@@ -255,7 +295,6 @@ class UBE(BE):  # 🍠
             # sab = self.C_a @ self.S @ self.C_b
             _ = fobj_a.get_nsocc(self.S, self.C_a, self.Nocc[0], ncore=self.ncore)
 
-            assert fobj_a.TA is not None
             fobj_a.h1 = multi_dot((fobj_a.TA.T, self.hcore, fobj_a.TA))
 
             eri_a = ao2mo.restore(8, eri_a, fobj_a.nao)
@@ -280,7 +319,6 @@ class UBE(BE):  # 🍠
 
             _ = fobj_b.get_nsocc(self.S, self.C_b, self.Nocc[1], ncore=self.ncore)
 
-            assert fobj_b.TA is not None
             fobj_b.h1 = multi_dot((fobj_b.TA.T, self.hcore, fobj_b.TA))
             eri_b = ao2mo.restore(8, eri_b, fobj_b.nao)
             fobj_b.cons_fock(self.hf_veff[1], self.S, self.hf_dm[1] * 2.0, eri_=eri_b)
@@ -341,8 +379,7 @@ class UBE(BE):  # 🍠
         )
         if compute_hf:
             hf_err = self.hf_etot - (E_hf + self.enuc + self.E_core)
-
-            self.ebe_hf = E_hf + self.enuc + self.E_core - self.ek
+            self.ebe_hf = E_hf + self.enuc + self.E_core
             print(f"HF-in-HF error                 :  {hf_err:>.4e} Ha")
             if abs(hf_err) > 1.0e-5:
                 warn("Large HF-in-HF energy error")
@@ -359,7 +396,7 @@ class UBE(BE):  # 🍠
             fobj.udim = couti
             couti = fobj.set_udim(couti)
 
-    def oneshot(self, solver="UCCSD", nproc=1, ompnum=4):
+    def oneshot(self, solver="UCCSD", nproc=1, ompnum=4, relax_density=False):
         if nproc == 1:
             E, E_comp = be_func_u(
                 None,
@@ -368,19 +405,19 @@ class UBE(BE):  # 🍠
                 self.enuc,
                 hf_veff=self.hf_veff,
                 eeval=True,
-                relax_density=False,
+                relax_density=relax_density,
                 frozen=self.frozen_core,
             )
         else:
             E, E_comp = be_func_parallel_u(
                 pot=None,
-                Fobjs=zip(self.Fobjs_a, self.Fobjs_b),
+                Fobjs=list(zip(self.Fobjs_a, self.Fobjs_b)),
                 solver=solver,
                 enuc=self.enuc,
                 hf_veff=self.hf_veff,
                 nproc=nproc,
                 ompnum=ompnum,
-                relax_density=False,
+                relax_density=relax_density,
                 frozen=self.frozen_core,
             )
         unused(E_comp)
@@ -391,7 +428,7 @@ class UBE(BE):  # 🍠
         print("-----------------------------------------------------", flush=True)
         print(flush=True)
 
-        self.ebe_tot = E + self.uhf_full_e
+        self.ebe_tot = E + self.hf_etot
         print(
             "Total Energy : {:>12.8f} Ha".format(
                 (self.ebe_tot),
@@ -402,6 +439,65 @@ class UBE(BE):  # 🍠
                 (E),
             )
         )
+
+    def urdm1_fullbasis(self):
+        """Assemble full-system alpha and beta 1-RDMs via democratic partitioning.
+
+        Returns
+        -------
+        rdm1a_AO, rdm1b_AO : numpy.ndarray
+          Alpha and beta 1-RDMs in the AO basis.
+          Spin density = rdm1a_AO - rdm1b_AO.
+        """
+        nao = self.S.shape[0]
+        rdm1a_AO = zeros((nao, nao))
+        rdm1b_AO = zeros((nao, nao))
+
+        def get_mo(fobj):
+            return fobj.mo_coeffs
+
+        for fobj_a, fobj_b in zip(self.Fobjs_a, self.Fobjs_b):
+            # Fragment AO centers - same for alpha and beta
+            cind = [fobj_a.AO_in_frag[i] for i in fobj_a.weight_and_relAO_per_center[1]]
+
+            # Democratic partitioning projector, built per-spin since self.W
+            # is split into [Wa, Wb] under frozen_core. Built in the LOCAL
+            # embedding-space basis (matching the restricted rdm1_fullbasis
+            # pattern) rather than full AO space -- Proj is not a proper
+            # idempotent projector once conjugated the other way across the
+            # non-orthogonal TA embedding transformation.
+            Wa = self.W[0] if self.frozen_core else self.W
+            Wb = self.W[1] if self.frozen_core else self.W
+            Pc_a = (
+                fobj_a.TA.T @ self.S @ Wa[:, cind] @ Wa[:, cind].T @ self.S @ fobj_a.TA
+            )
+            Pc_b = (
+                fobj_b.TA.T @ self.S @ Wb[:, cind] @ Wb[:, cind].T @ self.S @ fobj_b.TA
+            )
+
+            mca = get_mo(fobj_a)
+            mcb = get_mo(fobj_b)
+
+            # Local density in the embedding-orbital AO-equivalent space
+            rdm1a_eo = mca @ fobj_a.rdm1__ @ mca.T
+            rdm1b_eo = mcb @ fobj_b.rdm1__ @ mcb.T
+
+            # Project in the SMALL local space, THEN expand to full AO space
+            rdm1a_center = Pc_a @ rdm1a_eo
+            rdm1b_center = Pc_b @ rdm1b_eo
+
+            rdm1a_AO += fobj_a.TA @ rdm1a_center @ fobj_a.TA.T
+            rdm1b_AO += fobj_b.TA @ rdm1b_center @ fobj_b.TA.T
+
+        rdm1a_AO = (rdm1a_AO + rdm1a_AO.T) / 2.0
+        rdm1b_AO = (rdm1b_AO + rdm1b_AO.T) / 2.0
+
+        return rdm1a_AO, rdm1b_AO
+
+
+def _opposite_spin_eri_supported() -> bool:
+    libao2mo = pyscf_lib.load_library("libao2mo")
+    return hasattr(libao2mo, "AO2MOrestore_nr4to1_gen")
 
 
 def initialize_pot(n_frag, relAO_per_edge):

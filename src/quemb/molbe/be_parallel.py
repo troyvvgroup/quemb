@@ -407,7 +407,7 @@ def run_solver_u(
         gcores=full_uhf.full_gcore,
         frozen=frozen,
     )
-    return e_f
+    return e_f, rdm1_tmp, fobj_a._mf.mo_coeff.copy(), fobj_b._mf.mo_coeff.copy()
 
 
 def be_func_parallel(
@@ -473,7 +473,7 @@ def be_func_parallel(
         the error norm, error vector, and the computed energy.
     """
     # Set the number of OpenMP threads
-    os.system("export OMP_NUM_THREADS=" + str(ompnum))
+    os.environ["OMP_NUM_THREADS"] = str(ompnum)
     nprocs = nproc // ompnum
 
     # Update the effective Hamiltonian with potentials
@@ -603,7 +603,7 @@ def be_func_parallel_u(
         Returns the computed energy
     """
     # Set the number of OpenMP threads
-    os.system("export OMP_NUM_THREADS=" + str(ompnum))
+    os.environ["OMP_NUM_THREADS"] = str(ompnum)
     nprocs = nproc // ompnum
 
     with ProcessPool(nprocs) as pool_:
@@ -623,14 +623,21 @@ def be_func_parallel_u(
             )
             results.append(result)
 
-        energy_list = [result.get() for result in results]
-
+        results_list = [result.get() for result in results]
+    # Store RDMs back into fragment objects
+    for i, (fobj_a, fobj_b) in enumerate(Fobjs):
+        e_f, rdm1_tmp, mo_a, mo_b = results_list[i]
+        fobj_a.rdm1__ = rdm1_tmp[0].copy()
+        fobj_b.rdm1__ = rdm1_tmp[1].copy()
+        fobj_a.mo_coeffs = mo_a
+        fobj_b.mo_coeffs = mo_b
     # Compute and return fragment energy
     e_1 = 0.0
     e_2 = 0.0
     e_c = 0.0
-    for i in range(len(energy_list)):
-        e_1 += energy_list[i][0]
-        e_2 += energy_list[i][1]
-        e_c += energy_list[i][2]
+    for i in range(len(results_list)):
+        e_f = results_list[i][0]
+        e_1 += e_f[0]
+        e_2 += e_f[1]
+        e_c += e_f[2]
     return (e_1 + e_2 + e_c, (e_1, e_2, e_c))

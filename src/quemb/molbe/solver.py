@@ -596,10 +596,6 @@ def be_func_u(
         Whether to evaluate the energy. Defaults to False.
     relax_density : bool, optional
         Whether to relax the density. Defaults to False.
-    return_vec : bool, optional
-        Whether to return the error vector. Defaults to False.
-    ebe_hf : float, optional
-        Hartree-Fock energy. Defaults to 0.
     use_cumulant : bool, optional
         Whether to use the cumulant-based energy expression. Defaults to True.
     frozen : bool, optional
@@ -635,10 +631,9 @@ def be_func_u(
 
         assert fobj_a._mf is not None and fobj_b._mf is not None
         fobj_a.rdm1__ = rdm1_tmp[0].copy()
-        fobj_b._rdm1 = (
+        fobj_a._rdm1 = (
             multi_dot((fobj_a._mf.mo_coeff, rdm1_tmp[0], fobj_a._mf.mo_coeff.T)) * 0.5
         )
-
         fobj_b.rdm1__ = rdm1_tmp[1].copy()
         fobj_b._rdm1 = (
             multi_dot((fobj_b._mf.mo_coeff, rdm1_tmp[1], fobj_b._mf.mo_coeff.T)) * 0.5
