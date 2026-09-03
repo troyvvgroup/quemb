@@ -571,6 +571,7 @@ class UBE(BE):  # 🍠
         max_iter=500,
         relax_density=False,
         use_cumulant=True,
+        trust_region=False,
     ):
         """BE0-level or fully iterative optimization for UBE.
 
@@ -596,6 +597,10 @@ class UBE(BE):  # 🍠
             If True (default), fit only the chemical potentials. If False,
             also fit shared edge potentials; requires common_bath=True and
             n_BE >= 2.
+        trust_region : bool
+            Use trust-region based QN optimization instead of the default
+            line-search step, by default False. Matches restricted BE's
+            optimize() option of the same name.
         """
         if not only_chem:
             if not self.common_bath:
@@ -662,7 +667,7 @@ class UBE(BE):  # 🍠
             optQN = FrankQN(objfunc, x0, f0, J0, max_space=max_iter)
             converged = False
             for it in range(max_iter):
-                optQN.next_step(it)
+                optQN.next_step(it, trust_region=trust_region)
                 print(f"-- iter {it}: RMS error = {state['err']:.4e}", flush=True)
                 if state["err"] < conv_tol:
                     print("CONVERGED", flush=True)
