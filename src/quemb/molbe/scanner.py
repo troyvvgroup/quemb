@@ -304,12 +304,7 @@ def energy_be_frag(mol, energy_args=None, fd_info=None):
         )
 
         mybe.oneshot(solver="CCSD", use_cumulant=False)
-
-        # This fragment correlation energy is analogous to 
-        # how Ecorr BE is defined in print_energy_noncumulant(),
-        # except that instead of using rets[0] = sum(total_e) 
-        # we use fobj.fragment_corr = sum(e_f) 
-        fragment_correlation_energy = mybe.Fobjs[frag_idx].fragment_corr + mybe.enuc - mybe.ebe_hf
+        fragment_correlation_energy = mybe.Fobjs[frag_idx].fragment_corr - mybe.Fobjs[frag_idx].ebe_hf
     else:
         mybe = BE(
             mf,
