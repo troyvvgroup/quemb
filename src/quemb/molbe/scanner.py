@@ -7,12 +7,17 @@ from dataclasses import dataclass, field
 
 import h5py
 import numpy as np
+from numpy import zeros_like
+from numpy.linalg import multi_dot
 from pyscf import cc, gto, lib, scf
 
 from quemb.molbe import BE, fragmentate
 from quemb.molbe.chemfrag import Fragmented
-from quemb.molbe.helper import get_eri, get_scfObj
+from quemb.molbe.helper import get_eri, get_frag_energy, get_scfObj
 from quemb.molbe.mbe import BEArgs
+from quemb.shared.external.ccsd_rdm import (
+    make_rdm2_urlx,
+)
 from quemb.shared.manage_scratch import WorkDir
 
 
@@ -292,92 +297,135 @@ def energy_be_frag(mol, energy_args=None, fd_info=None):
 
     redo_tag = f"redo_frag{frag_idx}_atom{atom_idx}_{sign_label}{axis_label}"
 
-    if energy_args.reconstruct_frag_energy:
-        mybe = BE(
-            mf,
-            ref_fobj,
-            lo_method=energy_args.lo_method,
-            int_transform=energy_args.int_transform,
-            auxbasis=energy_args.auxbasis,
-            nproc=energy_args.nproc,
-            ompnum=energy_args.ompnum,
-        )
+    # if energy_args.reconstruct_frag_energy:
+    #    mybe = BE(
+    #        mf,
+    #        ref_fobj,
+    #        lo_method=energy_args.lo_method,
+    #        int_transform=energy_args.int_transform,
+    #        auxbasis=energy_args.auxbasis,
+    #        nproc=energy_args.nproc,
+    #        ompnum=energy_args.ompnum,
+    #    )
 
-        mybe.oneshot(solver="CCSD", use_cumulant=False)
-        fragment_correlation_energy = mybe.Fobjs[frag_idx].fragment_corr - mybe.Fobjs[frag_idx].ebe_hf
-    else:
-        mybe = BE(
-            mf,
-            ref_fobj,
-            lo_method=energy_args.lo_method,
-            int_transform=energy_args.int_transform,
-            auxbasis=energy_args.auxbasis,
-            nproc=energy_args.nproc,
-            ompnum=energy_args.ompnum,
-            initialize_fragment_idx=[frag_idx],
-        )
+    #    mybe.oneshot(solver="CCSD", use_cumulant=False)
+    #    fragment_correlation_energy =
+    #             mybe.Fobjs[frag_idx].fragment_corr - mybe.Fobjs[frag_idx].ebe_hf
+    # else:
+    mybe = BE(
+        mf,
+        ref_fobj,
+        lo_method=energy_args.lo_method,
+        int_transform=energy_args.int_transform,
+        auxbasis=energy_args.auxbasis,
+        nproc=energy_args.nproc,
+        ompnum=energy_args.ompnum,
+        initialize_fragment_idx=[frag_idx],
+    )
 
-        S_cross = gto.intor_cross("int1e_ovlp", mol, fd_info.ref_mol)
+    S_cross = gto.intor_cross("int1e_ovlp", mol, fd_info.ref_mol)
 
-        # keep the original fragment object untouched
-        orig_fobj = mybe.Fobjs[frag_idx]
+    # keep the original fragment object untouched
+    orig_fobj = mybe.Fobjs[frag_idx]
 
-        # Create a dedicated temporary scratch directory for the re-done ERIs
-        redo_scratch = WorkDir(
-            mybe.scratch_dir / redo_tag,
-            cleanup_at_end=True,
-            ensure_empty=True,
-        )
-        tmp_eri_file = redo_scratch / f"{redo_tag}.h5"
+    # Create a dedicated temporary scratch directory for the re-done ERIs
+    redo_scratch = WorkDir(
+        mybe.scratch_dir / redo_tag,
+        cleanup_at_end=True,
+        ensure_empty=True,
+    )
+    tmp_eri_file = redo_scratch / f"{redo_tag}.h5"
 
-        # Work on an independent fragment object for this displaced geometry
-        # Use deepcopy since _initialize_fragments changes mybe.ebe_hf
-        fobj = copy.deepcopy(orig_fobj)
+    # Work on an independent fragment object for this displaced geometry
+    # Use deepcopy since _initialize_fragments changes mybe.ebe_hf
+    fobj = copy.deepcopy(orig_fobj)
 
-        try:
-            fobj.TA = np.linalg.inv(mybe.S) @ S_cross @ ref_mybe.Fobjs[frag_idx].TA
-            fobj.dname = redo_tag
-            fobj.eri_file = tmp_eri_file
+    try:
+        fobj.TA = np.linalg.inv(mybe.S) @ S_cross @ ref_mybe.Fobjs[frag_idx].TA
+        fobj.dname = redo_tag
+        fobj.eri_file = tmp_eri_file
 
-            # _eri_transform() and _initialize_fragments() operate through mybe.Fobjs,
-            # so temporarily point this fragment index to the copied fragment
-            mybe.Fobjs[frag_idx] = fobj
+        # _eri_transform() and _initialize_fragments() operate through mybe.Fobjs,
+        # so temporarily point this fragment index to the copied fragment
+        mybe.Fobjs[frag_idx] = fobj
 
-            with h5py.File(tmp_eri_file, "w") as file_eri:
-                mybe._eri_transform(
-                    energy_args.int_transform,
-                    mf._eri,
-                    file_eri,
-                    [frag_idx],
-                )
-                mybe._initialize_fragments(file_eri, False, [frag_idx])
-
-            # Use the reinitialized copied fragment
-            fobj = mybe.Fobjs[frag_idx]
-
-            eri = get_eri(fobj.dname, fobj.nao, eri_file=tmp_eri_file)
-            fobj._mf = get_scfObj(
-                fobj.fock + fobj.heff,
-                eri,
-                fobj.nsocc,
-                dm0=fobj.dm0.copy(),
+        with h5py.File(tmp_eri_file, "w") as file_eri:
+            mybe._eri_transform(
+                energy_args.int_transform,
+                mf._eri,
+                file_eri,
+                [frag_idx],
             )
+            mybe._initialize_fragments(file_eri, False, [frag_idx])
 
-            mc = cc.CCSD(fobj._mf)
-            mc.verbose = 0
-            mc.incore_complete = True
+        # Use the reinitialized copied fragment
+        fobj = mybe.Fobjs[frag_idx]
 
-            eri_embmo = mc.ao2mo()
-            eri_embmo.mo_energy = fobj._mf.mo_energy
-            eri_embmo.fock = np.diag(fobj._mf.mo_energy)
+        eri = get_eri(fobj.dname, fobj.nao, eri_file=tmp_eri_file)
+        fobj._mf = get_scfObj(
+            fobj.fock + fobj.heff,
+            eri,
+            fobj.nsocc,
+            dm0=fobj.dm0.copy(),
+        )
 
-            mc.kernel(eris=eri_embmo)
+        mc = cc.CCSD(fobj._mf)
+        mc.verbose = 0
+        mc.incore_complete = True
+
+        eri_embmo = mc.ao2mo()
+        eri_embmo.mo_energy = fobj._mf.mo_energy
+        eri_embmo.fock = np.diag(fobj._mf.mo_energy)
+
+        mc.kernel(eris=eri_embmo)  # up to here is what is done in solve_ccsd()
+
+        if energy_args.reconstruct_frag_energy:
+            t1 = mc.t1
+            t2 = mc.t2
+            l1 = zeros_like(t1)
+            l2 = zeros_like(t2)
+            rdm1a = cc.ccsd_rdm.make_rdm1(mc, t1, t2, l1, l2)
+            rdm2s = make_rdm2_urlx(t1, t2, with_dm1=True)
+            fobj.rdm1__ = rdm1a.copy()
+            assert fobj.mo_coeffs is not None
+            fobj._rdm1 = (
+                multi_dot(
+                    (
+                        fobj.mo_coeffs,
+                        rdm1a,
+                        fobj.mo_coeffs.T,
+                    ),
+                )
+                * 0.5
+            )
+            fobj.rdm2__ = rdm2s.copy()
+            e_f = get_frag_energy(
+                mo_coeffs=fobj.mo_coeffs,
+                nsocc=fobj.nsocc,
+                n_frag=fobj.n_frag,
+                weight_and_relAO_per_center=fobj.weight_and_relAO_per_center,
+                TA=fobj.TA,
+                h1=fobj.h1,
+                rdm1=rdm1a,
+                rdm2s=rdm2s,
+                dname=fobj.dname,
+                veff0=fobj.veff0,
+                veff=fobj.veff,
+                use_cumulant=False,
+                eri_file=fobj.eri_file,
+            )
+            fobj.fragment_corr = sum(e_f)
+            fobj.update_ebe_hf()
+
+            fragment_correlation_energy = fobj.fragment_corr - fobj.ebe_hf
+
+        else:
             fragment_correlation_energy = mc.e_tot - fobj._mf.e_tot
 
-        finally:
-            mybe.Fobjs[frag_idx] = orig_fobj
+    finally:
+        mybe.Fobjs[frag_idx] = orig_fobj
 
-            redo_scratch.cleanup(ignore_error=True)
+        redo_scratch.cleanup(ignore_error=True)
 
     return mf.e_tot + fragment_correlation_energy
 
