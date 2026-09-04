@@ -297,21 +297,6 @@ def energy_be_frag(mol, energy_args=None, fd_info=None):
 
     redo_tag = f"redo_frag{frag_idx}_atom{atom_idx}_{sign_label}{axis_label}"
 
-    # if energy_args.reconstruct_frag_energy:
-    #    mybe = BE(
-    #        mf,
-    #        ref_fobj,
-    #        lo_method=energy_args.lo_method,
-    #        int_transform=energy_args.int_transform,
-    #        auxbasis=energy_args.auxbasis,
-    #        nproc=energy_args.nproc,
-    #        ompnum=energy_args.ompnum,
-    #    )
-
-    #    mybe.oneshot(solver="CCSD", use_cumulant=False)
-    #    fragment_correlation_energy =
-    #             mybe.Fobjs[frag_idx].fragment_corr - mybe.Fobjs[frag_idx].ebe_hf
-    # else:
     mybe = BE(
         mf,
         ref_fobj,
@@ -379,6 +364,7 @@ def energy_be_frag(mol, energy_args=None, fd_info=None):
 
         mc.kernel(eris=eri_embmo)  # up to here is what is done in solve_ccsd()
 
+        # this is the branching point between reconstructing the fragment energy or not
         if energy_args.reconstruct_frag_energy:
             t1 = mc.t1
             t2 = mc.t2
