@@ -127,6 +127,11 @@ def run_solver(
             rdm2s = mc_mp2.make_rdm2()
 
     elif solver == "CCSD":
+        # HYL added to enforce default if not specified
+        c_tol = getattr(solver_args, 'conv_tol', 1e-7)
+        c_normt = getattr(solver_args, 'conv_tol_normt', 1e-5)
+        m_cycle = getattr(solver_args, 'max_cycle', 50)
+        # HYL added ends
         if eeval:
             t1, t2, rdm1_tmp, rdm2s = solve_ccsd(
                 mf_,
@@ -135,6 +140,9 @@ def run_solver(
                 use_cumulant=use_cumulant,
                 rdm_return=True,
                 rdm2_return=True,
+                conv_tol=c_tol, # HYL added
+                conv_tol_normt=c_normt, # HYL added
+                max_cycle=m_cycle # HYL added
             )
         else:
             t1, t2, rdm1_tmp, _ = solve_ccsd(
@@ -144,6 +152,9 @@ def run_solver(
                 use_cumulant=use_cumulant,
                 rdm_return=True,
                 rdm2_return=False,
+                conv_tol=c_tol, # HYL added
+                conv_tol_normt=c_normt, # HYL added
+                max_cycle=m_cycle # HYL added
             )
 
     elif solver == "FCI":

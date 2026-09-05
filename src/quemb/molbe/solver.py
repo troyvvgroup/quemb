@@ -316,6 +316,11 @@ def be_func(
             if eeval:
                 rdm2s = fobj._mc.make_rdm2()
         elif solver == "CCSD":
+            # HYL added to enforce default if not specified
+            c_tol = getattr(solver_args, 'conv_tol', 1e-7)
+            c_normt = getattr(solver_args, 'conv_tol_normt', 1e-5)
+            m_cycle = getattr(solver_args, 'max_cycle', 50)
+            # HYL added ends
             if eeval:
                 fobj.t1, fobj.t2, rdm1_tmp, rdm2s = solve_ccsd(
                     fobj._mf,
@@ -324,6 +329,9 @@ def be_func(
                     use_cumulant=use_cumulant,
                     rdm_return=True,
                     rdm2_return=True,
+                    conv_tol=c_tol, # HYL added
+                    conv_tol_normt=c_normt, # HYL added
+                    max_cycle=m_cycle # HYL added
                 )
             else:
                 # currently passing mycc: likely unnecessary
@@ -334,6 +342,9 @@ def be_func(
                     use_cumulant=use_cumulant,
                     rdm_return=True,
                     rdm2_return=False,
+                    conv_tol=c_tol, # HYL added
+                    conv_tol_normt=c_normt, # HYL added
+                    max_cycle=m_cycle # HYL added
                 )
 
         elif solver == "FCI":
@@ -837,6 +848,9 @@ def solve_ccsd(
     mo_occ=None,
     mo_energy=None,
     verbose=0,
+    conv_tol=1e-7, # HYL added: this is default to not affect others' code; I'll tighten when calling
+    conv_tol_normt=1e-5, # HYL added: this is default to not affect others' code; I'll tighten when calling
+    max_cycle=50, # HYL added: this is default to not affect others' code; I'll tighten when calling
 ):
     """
     Solve the CCSD (Coupled Cluster with Single and Double excitations) equations.
@@ -900,6 +914,12 @@ def solve_ccsd(
     eris = mycc.ao2mo()
     eris.mo_energy = mo_energy
     eris.fock = diag(mo_energy)
+
+    # HYL added begins -- will use tighter threshold
+    mycc.conv_tol = conv_tol
+    mycc.conv_tol_normt = conv_tol_normt
+    mycc.max_cycle = max_cycle
+    # HYL added ends
 
     # Solve the CCSD equations
     try:
