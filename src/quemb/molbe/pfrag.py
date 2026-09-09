@@ -230,9 +230,10 @@ class Frags:
         nsocc_ = trace(P_)
         nsocc = int(round(nsocc_))
         try:
-            mo_coeffs = scipy.linalg.svd(C_)[0]
+            mo_coeffs = scipy.linalg.svd(C_, lapack_driver="gesdd")[0]
         except scipy.linalg.LinAlgError:
-            mo_coeffs = scipy.linalg.eigh(C_)[1][:, -nsocc:]
+            mo_coeffs = scipy.linalg.svd(C_, lapack_driver="gesvd")[0]
+            #mo_coeffs = scipy.linalg.eigh(C_)[1][:, -nsocc:]
 
         self._mo_coeffs = mo_coeffs
         self.nsocc = nsocc

@@ -47,6 +47,7 @@ def energy_hf(mol, energy_args=None, fd_info=None):
 
     mf = scf.RHF(mol)
     mf.verbose = 0
+    mf._eri = mol.intor("int2e", aosym="s8")
     mf.kernel()
     return mf.e_tot
 
@@ -105,6 +106,7 @@ def be_frag_ref_data(mol, energy_args=None):
 
     mf = scf.RHF(mol)
     mf.verbose = 0
+    mf._eri = mol.intor("int2e", aosym="s8")
     mf.kernel()
 
     ref_fobj = fragmentate(
@@ -347,12 +349,15 @@ def energy_be_frag(mol, energy_args=None, fd_info=None):
         fobj = mybe.Fobjs[frag_idx]
 
         eri = get_eri(fobj.dname, fobj.nao, eri_file=tmp_eri_file)
-        fobj._mf = get_scfObj(
+        mf_ = get_scfObj(
             fobj.fock + fobj.heff,
             eri,
             fobj.nsocc,
             dm0=fobj.dm0.copy(),
         )
+
+        fobj._mf = mf_
+        fobj.mo_coeffs = mf_.mo_coeff.copy() # this is what is done in scf()
 
         mc = cc.CCSD(fobj._mf)
         mc.verbose = 0
