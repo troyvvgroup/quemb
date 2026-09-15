@@ -4,7 +4,7 @@
 
 from typing import Literal, TypeAlias
 
-from numpy import zeros, zeros_like
+from numpy import ndarray, zeros, zeros_like
 
 from pyscf.ao2mo import restore
 from pyscf.cc import RCCSDT, RCCSDTQ, UCCSDT
@@ -12,6 +12,7 @@ from pyscf.cc import RCCSDT, RCCSDTQ, UCCSDT
 from quemb.kbe.pfrag import Frags as pFrags
 from quemb.molbe.helper import get_scfObj
 from quemb.molbe.pfrag import Frags
+from quemb.shared.typing import Matrix
 
 hcSolvers: TypeAlias = Literal["CCSDT", "CCSDTQ"]
 uhcSolvers: TypeAlias = Literal["UCCSDT"]
@@ -57,3 +58,36 @@ def build_hc(fobj: Frags | pFrags):
     h2[:] = eri * h2_weight
 
     return h1, h2
+
+
+def calc_energy(
+    fobj: Frags | pFrags,
+    dl: float,
+    center_hamil: tuple[Matrix, Matrix],
+    solver: hcSolvers,
+):
+    """Evaluates the energy of the center-site Hamiltonian displaced by a given delta."""
+    # Mean-field object
+    n_emb_orb = fobj.TA.shape[1] if isinstance(fobj, Frags) else fobj.TA.shape[2]
+    eri = restore(1, fobj._mf._eri, n_emb_orb)
+    mf = get_scfObj(
+        fobj.fock + fobj.heff + dl * center_hamil[0],
+        eri + dl * center_hamil[1],
+        fobj.nsocc,
+    )
+    # Correlated solvers
+    if solver == "CCSDT":
+        mc = RCCSDT(mf)
+    elif solver == "CCSDTQ":
+        mc = RCCSDTQ(mf)
+    else:
+        raise ValueError(
+            f"Solver not supported by center-site Hamiltonian scheme: {solver}"
+        )
+    mc.verbose = 0
+    # TODO: re-eval these params (or expose)
+    mc.conv_tol = 1e-8
+    mc.max_cycle = 500
+    mc.kernel()
+
+    return mc.e_tot
