@@ -307,9 +307,7 @@ class UBE(BE):  # 🍠
             # sab = self.C_a @ self.S @ self.C_b
             _ = fobj_a.get_nsocc(self.S, self.C_a, self.Nocc[0], ncore=self.ncore)
 
-            h1_ao_a = (
-                self.hcore + self.core_veff[0] if self.frozen_core else self.hcore
-            )
+            h1_ao_a = self.hcore + self.core_veff[0] if self.frozen_core else self.hcore
             fobj_a.h1 = multi_dot((fobj_a.TA.T, h1_ao_a, fobj_a.TA))
 
             eri_a = ao2mo.restore(8, eri_a, fobj_a.nao)
@@ -334,9 +332,7 @@ class UBE(BE):  # 🍠
 
             _ = fobj_b.get_nsocc(self.S, self.C_b, self.Nocc[1], ncore=self.ncore)
 
-            h1_ao_b = (
-                self.hcore + self.core_veff[1] if self.frozen_core else self.hcore
-            )
+            h1_ao_b = self.hcore + self.core_veff[1] if self.frozen_core else self.hcore
             fobj_b.h1 = multi_dot((fobj_b.TA.T, h1_ao_b, fobj_b.TA))
             eri_b = ao2mo.restore(8, eri_b, fobj_b.nao)
             fobj_b.cons_fock(self.hf_veff[1], self.S, self.hf_dm[1] * 2.0, eri_=eri_b)
