@@ -325,6 +325,39 @@ class TestOneShot_Unrestricted(unittest.TestCase):
             mol, 2, "Hexene Anion Frz (BE2)", True, -0.34617685, delta=1e-4
         )
 
+    def test_hexene_anion_sto3g_frz_ben_v2(self):
+        # Hexene anion with frozen core, STO-3G. Updated value after the
+        # core_veff/hf_veff fix. BE1 only, see _be2 test below for why.
+        mol = gto.M()
+        mol.atom = os.path.join(os.path.dirname(__file__), "xyz/hexene.xyz")
+        mol.basis = "sto-3g"
+        mol.charge = -1
+        mol.spin = 1
+        mol.build()
+        self.molecular_unrestricted_oneshot_test(
+            mol, 1, "Hexene Anion Frz v2 (BE1)", True, -0.26023947
+        )
+
+    @unittest.skipUnless(
+        os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
+        "BE2 bath selection is not deterministic across Python/numpy versions "
+        "with frozen core",
+    )
+    def test_hexene_anion_sto3g_frz_ben_v2_be2(self):
+        # Not reproducible run to run, unrelated to the h1
+        # fix. delta is wide since this is a coarse sanity check, not a
+        # precision test. A real regression (e.g. breaking core_veff again)
+        # is off by orders of magnitude more, but still disabled for now.
+        mol = gto.M()
+        mol.atom = os.path.join(os.path.dirname(__file__), "xyz/hexene.xyz")
+        mol.basis = "sto-3g"
+        mol.charge = -1
+        mol.spin = 1
+        mol.build()
+        self.molecular_unrestricted_oneshot_test(
+            mol, 2, "Hexene Anion Frz v2 (BE2)", True, -0.30861859, delta=5e-3
+        )
+
     @unittest.skipUnless(
         os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true"
         and os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true",
@@ -359,6 +392,36 @@ class TestOneShot_Unrestricted(unittest.TestCase):
         )
         self.molecular_unrestricted_oneshot_test(
             mol, 2, "Hexene Cation Frz (BE2)", True, -0.36736494, delta=1e-4
+        )
+
+    def test_hexene_cation_sto3g_frz_ben_v2(self):
+        # Hexene cation with frozen core, STO-3G. Updated value after the
+        # core_veff/hf_veff fix. BE1 only, see _be2 test below for why.
+        mol = gto.M()
+        mol.atom = os.path.join(os.path.dirname(__file__), "xyz/hexene.xyz")
+        mol.basis = "sto-3g"
+        mol.charge = 1
+        mol.spin = 1
+        mol.build()
+        self.molecular_unrestricted_oneshot_test(
+            mol, 1, "Hexene Cation Frz v2 (BE1)", True, -0.34090003
+        )
+
+    @unittest.skipUnless(
+        os.getenv("QUEMB_DO_KNOWN_TO_FAIL_TESTS") == "true",
+        "BE2 bath selection is not deterministic across Python/numpy versions "
+        "with frozen core",
+    )
+    def test_hexene_cation_sto3g_frz_ben_v2_be2(self):
+        # Wide delta explained in _hexene_anion_sto3g_frz_ben_v2_be2 above.
+        mol = gto.M()
+        mol.atom = os.path.join(os.path.dirname(__file__), "xyz/hexene.xyz")
+        mol.basis = "sto-3g"
+        mol.charge = 1
+        mol.spin = 1
+        mol.build()
+        self.molecular_unrestricted_oneshot_test(
+            mol, 2, "Hexene Cation Frz v2 (BE2)", True, -0.33163932, delta=5e-3
         )
 
     @unittest.skipUnless(

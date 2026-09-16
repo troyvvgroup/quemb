@@ -19,6 +19,7 @@ from numpy import (
     zeros_like,
 )
 from numpy.linalg import eigh, multi_dot
+from threadpoolctl import threadpool_limits
 
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
 from quemb.shared.helper import clean_overlap
@@ -228,10 +229,15 @@ class Frags:
         P_ = C_ @ C_.T
         nsocc_ = trace(P_)
         nsocc = int(round(nsocc_))
-        try:
-            mo_coeffs = scipy.linalg.svd(C_)[0]
-        except scipy.linalg.LinAlgError:
-            mo_coeffs = scipy.linalg.eigh(C_)[1][:, -nsocc:]
+        # Force single-threaded BLAS: Multithreaded eigh() isn't
+        # bit-reproducible run to run, which flips bath-orbital inclusion
+        # near the thr_bath cutoff. C_ is small, so I removed the
+        # multithreading here.
+        with threadpool_limits(limits=1):
+            try:
+                mo_coeffs = scipy.linalg.svd(C_)[0]
+            except scipy.linalg.LinAlgError:
+                mo_coeffs = scipy.linalg.eigh(C_)[1][:, -nsocc:]
 
         self._mo_coeffs = mo_coeffs
         self.nsocc = nsocc
@@ -463,8 +469,10 @@ def schmidt_decomposition(
     # Compute the environment part of the density matrix
     Denv = Dhf[Env_sites, Env_sites.T]
 
-    # Perform eigenvalue decomposition on the environment density matrix
-    Eval, Evec = eigh(Denv)
+    # Perform eigenvalue decomposition on the environment density matrix.
+    # Removed multithreading here for reproducibility (Denv is small).
+    with threadpool_limits(limits=1):
+        Eval, Evec = eigh(Denv)
 
     # Identify significant environment orbitals based on eigenvalue threshold
     Bidx = []

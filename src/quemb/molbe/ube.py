@@ -23,6 +23,7 @@ from numpy.linalg import multi_dot
 from pyscf import ao2mo
 from pyscf import lib as pyscf_lib
 from pyscf.scf.uhf import UHF
+from threadpoolctl import threadpool_limits
 
 from quemb.molbe.be_parallel import be_func_parallel_u
 from quemb.molbe.fragment import FragPart
@@ -164,6 +165,10 @@ class UBE(BE):  # 🍠
             self.P_core = [self.C_core[s] @ self.C_core[s].T for s in [0, 1]]
             self.core_veff = 1.0 * mf.get_veff(dm=self.P_core)
 
+            # rebuild from valence-only hf_dm, or core_veff (added to
+            # h1 below) gets double counted through this too
+            self.hf_veff = list(mf.get_veff(dm=self.hf_dm))
+
             self.E_core = (
                 sum(
                     [
@@ -183,12 +188,19 @@ class UBE(BE):  # 🍠
         self.C_b = array(mf.mo_coeff[1])
         del self.C
 
-        self.localize(
-            lo_method,
-            fobj=fobj,
-            iao_valence_only=fobj.iao_valence_only,
-            pop_method=pop_method,
-        )
+        # Multi-threaded BLAS eigh() is not bit-reproducible run to run,
+        # which flips bath-orbital inclusion near the thr_bath cutoff for
+        # larger fragments. Force single-threaded BLAS just for
+        # localization; the Schmidt decomposition eigh() is separately
+        # protected in schmidt_decomposition(). Doesn't cover the (more
+        # expensive) ERI/SCF work below, which benefits from threading.
+        with threadpool_limits(limits=1):
+            self.localize(
+                lo_method,
+                fobj=fobj,
+                iao_valence_only=fobj.iao_valence_only,
+                pop_method=pop_method,
+            )
 
         if scratch_dir is None:
             self.scratch_dir = WorkDir.from_environment()
@@ -295,7 +307,10 @@ class UBE(BE):  # 🍠
             # sab = self.C_a @ self.S @ self.C_b
             _ = fobj_a.get_nsocc(self.S, self.C_a, self.Nocc[0], ncore=self.ncore)
 
-            fobj_a.h1 = multi_dot((fobj_a.TA.T, self.hcore, fobj_a.TA))
+            h1_ao_a = (
+                self.hcore + self.core_veff[0] if self.frozen_core else self.hcore
+            )
+            fobj_a.h1 = multi_dot((fobj_a.TA.T, h1_ao_a, fobj_a.TA))
 
             eri_a = ao2mo.restore(8, eri_a, fobj_a.nao)
             fobj_a.cons_fock(self.hf_veff[0], self.S, self.hf_dm[0] * 2.0, eri_=eri_a)
@@ -319,7 +334,10 @@ class UBE(BE):  # 🍠
 
             _ = fobj_b.get_nsocc(self.S, self.C_b, self.Nocc[1], ncore=self.ncore)
 
-            fobj_b.h1 = multi_dot((fobj_b.TA.T, self.hcore, fobj_b.TA))
+            h1_ao_b = (
+                self.hcore + self.core_veff[1] if self.frozen_core else self.hcore
+            )
+            fobj_b.h1 = multi_dot((fobj_b.TA.T, h1_ao_b, fobj_b.TA))
             eri_b = ao2mo.restore(8, eri_b, fobj_b.nao)
             fobj_b.cons_fock(self.hf_veff[1], self.S, self.hf_dm[1] * 2.0, eri_=eri_b)
             fobj_b.hf_veff = self.hf_veff[1]
