@@ -28,6 +28,7 @@ dependencies = [
     "libdmet @ git+https://github.com/gkclab/libdmet_preview.git",
     "chemcoord>=2.2.0",
     "pathos",
+    "threadpoolctl",
 ]
 
 [project.license]
@@ -46,3 +47,6 @@ where = ["./src"]
 include = ["quemb*"]
 exclude = []
 namespaces = false
+
+[project.scripts]
+ube-hfcc = "quemb.scripts.ube_hfcc:main"

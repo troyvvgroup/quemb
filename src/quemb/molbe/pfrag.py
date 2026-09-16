@@ -6,7 +6,6 @@ import h5py
 import numpy as np
 import scipy.linalg
 from numpy import (
-    argsort,
     array,
     diag_indices,
     einsum,
@@ -20,6 +19,7 @@ from numpy import (
     zeros_like,
 )
 from numpy.linalg import eigh, multi_dot
+from threadpoolctl import threadpool_limits
 
 from quemb.molbe.helper import get_eri, get_scfObj, get_veff
 from quemb.shared.helper import clean_overlap
@@ -229,10 +229,15 @@ class Frags:
         P_ = C_ @ C_.T
         nsocc_ = trace(P_)
         nsocc = int(round(nsocc_))
-        try:
-            mo_coeffs = scipy.linalg.svd(C_)[0]
-        except scipy.linalg.LinAlgError:
-            mo_coeffs = scipy.linalg.eigh(C_)[1][:, -nsocc:]
+        # Force single-threaded BLAS: Multithreaded eigh() isn't
+        # bit-reproducible run to run, which flips bath-orbital inclusion
+        # near the thr_bath cutoff. C_ is small, so I removed the
+        # multithreading here.
+        with threadpool_limits(limits=1):
+            try:
+                mo_coeffs = scipy.linalg.svd(C_)[0]
+            except scipy.linalg.LinAlgError:
+                mo_coeffs = scipy.linalg.eigh(C_)[1][:, -nsocc:]
 
         self._mo_coeffs = mo_coeffs
         self.nsocc = nsocc
@@ -464,33 +469,43 @@ def schmidt_decomposition(
     # Compute the environment part of the density matrix
     Denv = Dhf[Env_sites, Env_sites.T]
 
-    # Perform eigenvalue decomposition on the environment density matrix
-    Eval, Evec = eigh(Denv)
+    # Perform eigenvalue decomposition on the environment density matrix.
+    # Removed multithreading here for reproducibility (Denv is small).
+    with threadpool_limits(limits=1):
+        Eval, Evec = eigh(Denv)
 
     # Identify significant environment orbitals based on eigenvalue threshold
     Bidx = []
-
+    for i in range(len(Eval)):
+        if thr_bath < np.abs(Eval[i]) < 1.0 - thr_bath:
+            Bidx.append(i)
     # Set the number of orbitals to be taken from the environment orbitals
     # Based on an eigenvalue threshold ordering
     if norb is not None:
-        n_frag_ind = len(Frag_sites1)
-        n_bath_ind = norb - n_frag_ind
-        ind_sort = argsort(np.abs(Eval))
-        first_el = [x for x in ind_sort if x < 1.0 - thr_bath][-1 * n_bath_ind]
-        for i in range(len(Eval)):
-            if np.abs(Eval[i]) >= first_el:
-                Bidx.append(i)
-    else:
-        for i in range(len(Eval)):
-            if thr_bath < np.abs(Eval[i]) < 1.0 - thr_bath:
-                Bidx.append(i)
+        # add extra orbital(s) from the environment; these will likely have
+        # Eval close to 1. note: there are normally very few orbitals with a
+        # Eval[i] <= thr_bath, so adding Bidx from the "front of the list"
+        # doesn't work. Instead, we add the excluded orbitals closest to the
+        # thr_bath/1-thr_bath boundary (this is analagous to tightening up
+        # the bath threshold for the alpha or beta orbitals until they are
+        # the same size)
+        excluded = [i for i in range(len(Eval)) if i not in set(Bidx)]
+        excluded_sorted = sorted(
+            excluded,
+            key=lambda i: min(abs(Eval[i] - (1.0 - thr_bath)), abs(Eval[i] - thr_bath)),
+        )
+        # Bidx corresponds to sorted Eval and Evec, so this adds indices
+        # closest to the bath threshold until the bath size reaches norb
+        for idx in excluded_sorted:
+            if len(Bidx) >= norb:
+                break
+            Bidx.append(idx)
 
     # Initialize the transformation matrix (TA)
     TA = zeros([Tot_sites, len(AO_in_frag) + len(Bidx)])
     TA[AO_in_frag, : len(AO_in_frag)] = eye(len(AO_in_frag))  # Fragment part
     TA[Env_sites1, len(AO_in_frag) :] = Evec[:, Bidx]  # Environment part
 
-    # return TA, norbs_frag, norbs_bath
     return TA, Frag_sites1.shape[0], len(Bidx)
 
 
