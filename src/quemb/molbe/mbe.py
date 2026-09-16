@@ -119,6 +119,7 @@ class BEArgs:
     # fragmentate keywords
     n_BE: int = 2
     frag_type: str = "chemgen"
+    iao_valence_basis: str | None = None
     frozen_core: bool = False
     additional_args: ChemGenArgs | None = None
 
