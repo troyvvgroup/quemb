@@ -2,6 +2,61 @@
 import numpy as np
 from dftd3.interface import DispersionModel, RationalDampingParam
 
+def get_atoms_in_embedding_space(mybe, mol, tol=1.0e-1):
+    """
+    Return the atoms having nonzero density in each fragment's embedding space.
+
+    Parameters
+    ----------
+    mybe
+        Bootstrap-embedding object containing ``mybe.Fobjs``. Each fragment
+        object must have a transformation matrix ``TA`` with shape
+        ``(n_AO, n_embedding_orbitals)``.
+    mol
+        PySCF Mole object.
+    tol : float, optional
+        An atom is included when its total embedding-space density is greater
+        than this threshold.
+
+    Returns
+    -------
+    atoms_in_embedding_space : list[list[int]]
+        ``atoms_in_embedding_space[frag_idx]`` contains the zero-based atom
+        indices with nonzero density in fragment ``frag_idx``.
+    """
+    ao_slices = mol.aoslice_by_atom()
+    atoms_in_embedding_space = []
+
+    for fobj in mybe.Fobjs:
+        TA = np.asarray(fobj.TA)
+
+        if TA.ndim != 2:
+            raise ValueError(
+                f"Expected TA to be two-dimensional, but obtained shape "
+                f"{TA.shape}."
+            )
+
+        if TA.shape[0] != mol.nao_nr():
+            raise ValueError(
+                f"TA contains {TA.shape[0]} AO rows, but mol has "
+                f"{mol.nao_nr()} AOs."
+            )
+
+        fragment_atoms = []
+
+        for atom_idx, (_, _, ao0, ao1) in enumerate(ao_slices):
+            # Sum the squared AO coefficients over all AOs on this atom and
+            # all embedding orbitals belonging to this fragment.
+            atom_density = np.sum(np.abs(TA[ao0:ao1, :]) ** 2)
+
+            print(f"atom_density is {atom_density:.12e}")
+            if atom_density > tol:
+                fragment_atoms.append(atom_idx)
+
+        atoms_in_embedding_space.append(fragment_atoms)
+
+    return atoms_in_embedding_space
+
 
 class D3:
     def __init__(
