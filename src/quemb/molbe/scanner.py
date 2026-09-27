@@ -100,6 +100,7 @@ def be_frag_ref_data(mol, energy_args=None):
 
     mf = scf.RHF(mol)
     mf.verbose = 0
+    mf._eri = mol.intor("int2e", aosym="s8")
     mf.kernel()
 
     ref_fobj = fragmentate(
@@ -261,6 +262,7 @@ def energy_be_frag(mol, energy_args=None, fd_info=None):
 
     mf = scf.RHF(mol)
     mf.verbose = 0
+    mf._eri = mol.intor("int2e", aosym="s8")
     mf.kernel()
 
     if fd_info.kind in ("reference", "scanner_point"):
