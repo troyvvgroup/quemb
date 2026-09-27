@@ -1658,6 +1658,21 @@ class Fragmented(Generic[_T_chemsystem]):
             for i_atom in cast(Sequence[AtomIdx], range(self.mol.natm))
         ]
 
+    def get_atom_in_frag(self) -> list[list[AtomIdx]]:
+        """Return the global atom indices contained in each fragment.
+
+        The atom indices correspond to the atom indexing in ``self.mol``.
+        The outer list is indexed by fragment index, and each inner list contains
+        the 0-indexed atom indices of ``mol`` present in that fragment.
+
+        Returns
+        -------
+        list[list[AtomIdx]]
+            ``atom_in_frag[i_frag]`` gives the atom indices in ``mol`` that belong
+            to fragment ``i_frag``.
+        """
+        return [list(atoms) for atoms in self.frag_structure.atoms_per_frag]
+
 
 @define(kw_only=True, hash=False)
 class ChemFragPart(FragPart):
