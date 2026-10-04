@@ -490,10 +490,14 @@ SemiSparse3DTensor contract_with_TA_1st(const Matrix &TA,
     const OrbitalIdx nmo = TA.cols();
     const OrbitalIdx naux = std::get<0>(int_P_mu_nu.get_shape());
 
-    const auto AO_by_MO_with_offsets = get_AO_reachable_by_MO_with_offset(AO_by_MO);
+    // Not const, because it is moved into the returned tensor at the end;
+    // std::move on a const object silently copies.
+    // Read it only via the const view in between.
+    auto AO_by_MO_with_offsets = get_AO_reachable_by_MO_with_offset(AO_by_MO);
+    const auto &AO_by_MO_with_offsets_view = AO_by_MO_with_offsets;
 
     std::size_t n_unique = 0;
-    for (const auto &offsets : AO_by_MO_with_offsets) {
+    for (const auto &offsets : AO_by_MO_with_offsets_view) {
         n_unique += offsets.size();
     }
 
@@ -511,14 +515,14 @@ SemiSparse3DTensor contract_with_TA_1st(const Matrix &TA,
     // Modifying the offsets map to store the offsets for
     // each (mu, i) pair cannot be parallelized.
     for (OrbitalIdx i = 0; i < nmo; ++i) {
-        for (const auto &[offset, mu] : AO_by_MO_with_offsets[i]) {
+        for (const auto &[offset, mu] : AO_by_MO_with_offsets_view[i]) {
             offsets[ravel_Fortran(mu, i, nao)] = offset;
         }
     }
     offsets = rebuild_unordered_map(offsets);
 #pragma omp parallel for
     for (OrbitalIdx i = 0; i < nmo; ++i) {
-        for (const auto &[offset, mu] : AO_by_MO_with_offsets[i]) {
+        for (const auto &[offset, mu] : AO_by_MO_with_offsets_view[i]) {
             for (const auto &[inner_offset, nu] : int_P_mu_nu.exch_reachable_with_offsets()[mu]) {
                 g_unique.col(offset) += TA(nu, i) * int_P_mu_nu.dense_data().col(inner_offset);
             }
