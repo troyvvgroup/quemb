@@ -213,7 +213,7 @@ def njit(
         f(2.0)   # No type error for numba < 0.68
 
     While the same example, using this custom :func:`njit` would raise a type error.
-    Since numba 0.68, :func:`numba.njit` is typed itself and also raises the type error,
+    Since numba 0.68, :code:`numba.njit` is typed itself and also raises the type error,
     but this wrapper is kept because it also sets :code:`cache=True` by default.
     """
     if f is None:
