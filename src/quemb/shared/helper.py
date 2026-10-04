@@ -210,40 +210,16 @@ def njit(
         def f(x: int) -> int:
             return x
 
-        f(2.0)   # No type error
+        f(2.0)   # No type error for numba < 0.68
 
     While the same example, using this custom :func:`njit` would raise a type error.
-
-    In addition to type safety, this wrapper also sets :code:`cache=True` by default.
+    Since numba 0.68, :func:`numba.njit` is typed itself and also raises the type error,
+    but this wrapper is kept because it also sets :code:`cache=True` by default.
     """
     if f is None:
         return nb.njit(cache=True, nogil=nogil, **kwargs)
     else:
         return nb.njit(f, cache=True, nogil=nogil, **kwargs)
-
-
-@overload
-def jitclass(cls_or_spec: T, spec: list[tuple[str, Any]] | None = ...) -> T: ...
-
-
-@overload
-def jitclass(
-    cls_or_spec: list[tuple[str, Any]] | None = None, spec: None = None
-) -> Callable[[T], T]: ...
-
-
-def jitclass(
-    cls_or_spec: T | list[tuple[str, Any]] | None = None,
-    spec: list[tuple[str, Any]] | None = None,
-) -> T | Callable[[T], T]:
-    """Decorator to make a class jit-able.
-
-    The rationale is the same as for :func:`njit`, and described there.
-
-    For a more detailed explanation of numba jitclasses,
-    see https://numba.readthedocs.io/en/stable/user/jitclass.html
-    """
-    return nb.experimental.jitclass(cls_or_spec, spec)
 
 
 @njit(nogil=True)
