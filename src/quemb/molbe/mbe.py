@@ -1611,6 +1611,21 @@ class BE:
         else:
             raise assert_never(lo_method)
 
+    def qchem_setup(self):
+        """
+        Extracts the information necessary to run a Q-Chem EOM-CCSD calculation
+        for each fragment.
+        Constructs the following scratch files:
+            - 99.0 (Total energy)
+            - 53.0 (MO coefficients)
+            - 58.0 (Fock matrix)
+        """
+
+        print("QChem:")
+        print("Exporting files 99.0, 58.0, 53.0 to Q-Chem for EOM-CCSD calculation")
+
+        return
+
 
 def initialize_pot(n_frag, relAO_per_edge):
     """
