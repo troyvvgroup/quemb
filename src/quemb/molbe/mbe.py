@@ -1042,8 +1042,11 @@ class BE:
 
                 print(idx_guess, norm_left, norm_right)
 
-                if idx_guess - occ_tot + SO_occ <= 0:
-                    idx_guess = occ_tot - 1 - i
+                if norm_left > 1.2 and norm_right <= 1.2:
+                    fobjs.dyson_left[i, :] = fobjs.dyson_right[i, :]
+
+                if idx_guess - occ_tot + SO_occ - self.ncore <= 0:
+                    idx_guess = self.ncore + occ_tot - 1 - i
 
                 # Perform SCF calculation
                 # fobjs.scf()
@@ -1053,15 +1056,16 @@ class BE:
                     -fobjs._mf.mo_energy[idx_guess - occ_tot + SO_occ] * ha_to_ev
                 )"""
 
-                ip_frag[i] = (
-                    -mf_.mo_energy[idx_guess - occ_tot + SO_occ - self.ncore] * ha_to_ev
-                )
-
-                dyson_ip_frag_left[i, idx_guess] = 1  # * norm_left
-                dyson_ip_frag_right[i, idx_guess] = 1  # * norm_right
-
-                if norm_left < 0.3 or norm_left > 2:
+                if norm_right < 0.3 or norm_right > 1.2:
                     excluded_koop.append(i)
+                else:
+                    ip_frag[i] = (
+                        -mf_.mo_energy[idx_guess - occ_tot + SO_occ - self.ncore]
+                        * ha_to_ev
+                    )
+
+                    dyson_ip_frag_left[i, idx_guess] = 1  # * norm_left
+                    dyson_ip_frag_right[i, idx_guess] = 1  # * norm_right
 
                 delta_ex[i] = ip_frag[i]
 
@@ -1312,28 +1316,42 @@ class BE:
                 norm_right = norm(fobjs.dyson_right[i, :])
 
                 print(idx_guess, norm_left, norm_right)
+                """print(env_virt)
+                print(self.ncore)
+                print(n_mo_full)
+                print(occ_tot)
+                print(SO_tot)
+                print(SO_occ)
+                print(virt_tot)
+                print(SO_virt)
+                print(i)
+                print(max(abs(fobjs.dyson_right[i, :])))"""
+                # print(abs(fobjs.dyson_right[i, :]))
 
-                if idx_guess + env_virt >= n_mo_full:
-                    idx_guess = occ_tot + i + 1
+                if norm_left < 0.3 or norm_left > 1.2:
+                    excluded_koop.append(i)
+                else:
+                    ea_frag[i] = (
+                        mf_.mo_energy[idx_guess - occ_tot + SO_occ - self.ncore]
+                        * ha_to_ev
+                    )
+
+                    dyson_ea_frag_left[i, idx_guess] = 1  # * norm_left
+                    dyson_ea_frag_right[i, idx_guess] = 1  # * norm_right
+
+                ###not correct - errors given by mo_energy assignment
+
+                """if idx_guess + env_virt >= n_mo_full:
+                    idx_guess = occ_tot + i + 1"""
 
                 # Perform SCF calculation
                 # fobjs.scf()
                 # running in parallel doesn't work without this
-
+                """if idx_guess - occ_tot + SO_occ - self.ncore <= 0:
+                    idx_guess = self.ncore + occ_tot - 1 - i"""
                 """ip_frag[i] = (
                     -fobjs._mf.mo_energy[idx_guess - occ_tot + SO_occ] * ha_to_ev
                 )"""
-
-                ea_frag[i] = (
-                    mf_.mo_energy[idx_guess - occ_tot + SO_occ - self.ncore] * ha_to_ev
-                )
-
-                dyson_ea_frag_left[i, idx_guess] = 1  # * norm_left
-                dyson_ea_frag_right[i, idx_guess] = 1  # * norm_right
-
-                if norm_left < 0.3 or norm_left > 2:
-                    excluded_koop.append(i)
-
                 delta_ex[i] = ea_frag[i]
 
                 print("NEW FRAGMENT")
@@ -2149,7 +2167,7 @@ class BE:
             self.Fobjs.append(fobjs_)
 
         self.all_fragment_MO_TA, frag_TA_index_per_frag = union_of_frag_MOs_and_index(
-            self.Fobjs, self.mf.mol.intor("int1e_ovlp"), epsilon=1e-10
+            self.Fobjs, self.mf.mol.intor("int1e_ovlp"), epsilon=1e-12
         )
         for fobj, frag_TA_offset in zip(self.Fobjs, frag_TA_index_per_frag):
             fobj.frag_TA_offset = frag_TA_offset

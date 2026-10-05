@@ -35,11 +35,19 @@ def dyson_parser(fobj, output="eom.out", n_ex=15):
     # Dyson norms
     left_norms = [
         float(x)
-        for x in re.findall(r"Left Dyson orbital norm is\s+([0-9Ee\+\-\.]+)", content)
+        for x in re.findall(
+            r"Left Dyson orbital norm is\s+([0-9Ee\+\-\.]+)"
+            r"\s*\n\s*Left alpha Dyson orbital",
+            content,
+        )
     ]
     right_norms = [
         float(x)
-        for x in re.findall(r"Right Dyson orbital norm is\s+([0-9Ee\+\-\.]+)", content)
+        for x in re.findall(
+            r"Right Dyson orbital norm is\s+([0-9Ee\+\-\.]+)"
+            r"\s*\n\s*Right alpha Dyson orbital",
+            content,
+        )
     ]
     left_norms = array(left_norms)
     right_norms = array(right_norms)
@@ -156,7 +164,7 @@ def dyson_parser_ea(fobj, output="eom.out", n_ex=15):
     energy_pattern = re.compile(
         r"EOMEA transition\s+\d+/\w+\s+"
         r"Total energy = ([\-\d\.]+) a\.u\.\s+"
-        r"Excitation energy = ([\d\.]+) eV\.",
+        r"Excitation energy = (-?[\d\.]+) eV\.",
         re.MULTILINE,
     )
 
@@ -166,11 +174,19 @@ def dyson_parser_ea(fobj, output="eom.out", n_ex=15):
     # Dyson norms
     left_norms = [
         float(x)
-        for x in re.findall(r"Left Dyson orbital norm is\s+([0-9Ee\+\-\.]+)", content)
+        for x in re.findall(
+            r"Left Dyson orbital norm is\s+([0-9Ee\+\-\.]+)"
+            r"\s*\n\s*Left beta Dyson orbital",
+            content,
+        )
     ]
     right_norms = [
         float(x)
-        for x in re.findall(r"Right Dyson orbital norm is\s+([0-9Ee\+\-\.]+)", content)
+        for x in re.findall(
+            r"Right Dyson orbital norm is\s+([0-9Ee\+\-\.]+)"
+            r"\s*\n\s*Right beta Dyson orbital",
+            content,
+        )
     ]
     left_norms = array(left_norms)
     right_norms = array(right_norms)
@@ -255,6 +271,10 @@ def dyson_parser_ea(fobj, output="eom.out", n_ex=15):
     # save results to fobj
     # scale dyson orbitals by their sqrt(norms)!
     fobj.ex_e = excitation_energies[:n_ex]
+    """print("EA EXC ENERGIES")
+    print(fobj.ex_e)
+    print(right_norms[:n_ex][:, None])
+    print(coeff_matrix_right)"""
     fobj.dyson_left = sqrt(left_norms[:n_ex][:, None]) * coeff_matrix_left
     fobj.dyson_right = sqrt(right_norms[:n_ex][:, None]) * coeff_matrix_right
     # fobj.dyson_left = coeff_matrix_left

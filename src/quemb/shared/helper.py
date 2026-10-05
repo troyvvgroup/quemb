@@ -428,13 +428,35 @@ def get_calling_function_name() -> str:
     return inspect.stack()[1][3]
 
 
-def clean_overlap(M: Matrix[np.float64], epsilon: float = 1e-12) -> Matrix[np.int64]:
+def clean_overlap(M: Matrix[np.float64], epsilon: float = 1e-9) -> Matrix[np.int64]:
     """We assume that M is a (not necessarily square) overlap matrix
     between ortho-normal vectors. We clean for floating point noise and return
     an integer matrix with only 0s and 1s."""
+    # changed to 1e-10 from 1e-12
     M = M.copy()
     very_small = np.abs(M) < epsilon
     M[very_small] = 0
+    ###NEW
+    """bad = (~very_small) & (np.abs(1 - M) >= epsilon)
+
+    print("epsilon =", epsilon)
+    print("M shape =", M.shape)
+    print("Number of non-small elements =", np.sum(~very_small))
+    print("Number of bad elements =", np.sum(bad))
+
+    if np.any(bad):
+        print("BAD VALUES:")
+        print(M[bad])
+
+        print("\nABS ERROR:")
+        print(np.abs(1 - M[bad]))
+
+        print("\nMAXIMUM ERROR:")
+        print(np.max(np.abs(1 - M[~very_small])))
+
+    print((np.abs(1 - M[~very_small]) < epsilon).all())
+    print(np.abs(1 - M[~very_small]))"""
+    ###END NEW
     assert (np.abs(1 - M[~very_small]) < epsilon).all()
     M[~very_small] = 1
     return M.astype(np.int64)

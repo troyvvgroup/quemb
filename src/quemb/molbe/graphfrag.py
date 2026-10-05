@@ -422,6 +422,8 @@ def graphgen(
     elif cutoff == 0.0:
         cutoff = 4.5 * fragment_type_order
 
+    # cutoff=7.0
+    # cutoff=6.0 #-- for Cd6Se6 - BE2
     natm: int = mol.natm
 
     # Used to be `fsites`
