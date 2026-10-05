@@ -553,7 +553,7 @@ def _get_index_offset(
 
 
 def union_of_frag_MOs_and_index(
-    Fobjs: Sequence[Frags], S: Matrix[np.float64], epsilon: float = 1e-10
+    Fobjs: Sequence[Frags], S: Matrix[np.float64], epsilon: float = 1e-9
 ) -> tuple[Matrix[np.float64], list[Vector[np.int64]]]:
     r"""Get the union of all fragment MOs as one Matrix and the respective
     indices for each fragment to refer to the global fragment MO matrix.
