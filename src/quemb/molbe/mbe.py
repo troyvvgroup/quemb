@@ -1,6 +1,7 @@
 # Author(s): Oinam Romesh Meitei
 
 import logging
+import os
 import pickle
 from dataclasses import dataclass
 from typing import Final, Literal, TypeAlias
@@ -12,12 +13,16 @@ from attrs import define
 from numpy import (
     allclose,
     array,
+    concatenate,
     diag,
     diag_indices,
     einsum,
     eye,
     float64,
     floating,
+    hstack,
+    savez_compressed,
+    shape,
     sqrt,
     where,
     zeros,
@@ -35,6 +40,7 @@ from quemb.molbe.eri_sparse_DF import (
     transform_sparse_DF_integral_cpu,
 )
 from quemb.molbe.fragment import FragPart
+from quemb.molbe.helper import get_eri, get_scfObj
 from quemb.molbe.lo import (
     IAO_LocMethods,
     LocMethods,
@@ -1610,6 +1616,158 @@ class BE:
             return None
         else:
             raise assert_never(lo_method)
+
+    def qchem_setup(self):
+        """
+        Extracts the information necessary to run a Q-Chem EOM-CCSD calculation
+        for each fragment.
+        Constructs the following scratch files:
+            - 99.0 (Total energy)
+            - 53.0 (MO coefficients)
+            - 58.0 (Fock matrix)
+
+        Additionally saves the BE-specific information necessary for reconstructing the
+        DREAM-IP/EA state to files_EOM/BE-restart.
+        The full system information is saved in full-system.npz
+        The fragment information is saved in fragment_***.npz
+        """
+
+        print("QChem:")
+        print("Exporting files 99.0, 58.0, 53.0 to Q-Chem for EOM-CCSD calculation")
+
+        Fobjs = self.Fobjs
+        pot = self.pot
+
+        # Save relevant full system information
+
+        fock_full_syst = self.mf.get_fock()
+
+        restart_dir = os.path.join("files_EOM", "BE-restart")
+        os.makedirs(restart_dir, exist_ok=True)
+
+        savez_compressed(
+            os.path.join(restart_dir, "full-system.npz"),
+            mo_energy=self.mo_energy,
+            Nocc=self.Nocc,
+            ncore=self.ncore,
+            C=self.C,
+            S=self.S,
+            W=self.W,
+        )
+
+        # Loop over each fragment and extract necessary information for Qchem
+
+        for frag_number, fobj in enumerate(Fobjs):
+            if pot is not None:
+                fobj.update_heff(pot, only_chem=True)
+            # Get electron repulsion integrals
+            eri = get_eri(fobj.dname, fobj.nao, eri_file=fobj.eri_file)
+            # Initialize SCF object
+            mf = get_scfObj(
+                h1=fobj.fock + fobj.heff, Eri=eri, nocc=fobj.nsocc, dm0=fobj.dm0
+            )
+
+            print("Fragment number: ", frag_number)
+            # extract numbers of electrons in:
+            n_mo_full_syst = shape(fobj.TA)[0]
+            occ_tot = self.Nocc  ###full system
+            SO_tot = shape(fobj.TA)[1]
+            SO_occ = fobj.nsocc  ###Schmidt space
+
+            env_occ = occ_tot - SO_occ + self.ncore
+            print("Qchem: set n_frozen_core")
+            print("Number occupied environment: ", env_occ)
+
+            env_virt = n_mo_full_syst - SO_tot - env_occ
+            print("Qchem: set n_frozen_virtual")
+            print("Number virtual environment: ", env_virt)
+
+            ###File 99.0 - energy file in Qchem
+
+            energy = mf.kernel()
+
+            print("SCF energy is: ", energy)
+
+            energy_array = zeros(12)
+            # placeholder value - exact value doesn't matter
+            energy_array[0] = 3.7617453591977221e02
+            energy_array[1] = energy
+            energy_array[11] = energy
+
+            ###File 58.0 - Fock matrix file in Qchem
+            ###Full system Fock matrix (AO basis)
+
+            flat_fock = array(fock_full_syst.flatten(), dtype=float64)
+            full_fock = concatenate((flat_fock, flat_fock), axis=None)
+
+            ###File 53.0 - MO coefficient matrix
+            ###TA: AOxSO; mf.mo_coeff: SOxMO
+            TA_after_HF = fobj.TA @ mf.mo_coeff
+
+            ###Pad TA matrix with orthogonal vectors
+            ###use it as MO coefficient matrix for Qchem
+
+            # m=n_orb_total (frag+bath+env)
+            # n=n_frag+n_bath
+            m, n = TA_after_HF.shape
+
+            # compute the orthonormal basis for the null space of TA.T
+            # do SVD
+            _, _, vh = svd(TA_after_HF.T, full_matrices=True)
+
+            # take the (m-n) right singular vectors orthogonal to TA.T
+            orthogonal_vectors = vh[n:m].T
+
+            # pad the original matrix with the orthogonal vectors
+            TA_full_pyscf = hstack(
+                (
+                    orthogonal_vectors[:, :env_occ],
+                    TA_after_HF,
+                    orthogonal_vectors[:, env_occ:],
+                )
+            )
+
+            TA_full_qchem = TA_full_pyscf.T
+
+            flat_mos = array(TA_full_qchem.flatten(), dtype=float64)
+
+            ###MO energies needed at the end of file 53.0
+            mo_energies = zeros(n_mo_full_syst)
+            # set to arbitrary low number to avoid recanonicalization in Qchem
+            mo_energies[:env_occ] = -1000
+            mo_energies[env_occ : env_occ + SO_tot] = mf.mo_energy
+            mo_energies[env_occ + SO_tot :] = 1000
+
+            full_mo_array = concatenate(
+                (flat_mos, flat_mos, mo_energies, mo_energies), axis=None
+            )
+
+            if not os.path.exists("files_EOM/scratch_fragment_" + str(frag_number)):
+                os.makedirs("files_EOM/scratch_fragment_" + str(frag_number))
+
+            energy_array.tofile(
+                "files_EOM/scratch_fragment_" + str(frag_number) + "/99.0"
+            )
+            full_fock.tofile("files_EOM/scratch_fragment_" + str(frag_number) + "/58.0")
+            full_mo_array.tofile(
+                "files_EOM/scratch_fragment_" + str(frag_number) + "/53.0"
+            )
+
+            # AO center indices saved for later use
+
+            cind = [fobj.AO_in_frag[i] for i in fobj.weight_and_relAO_per_center[1]]
+            print(cind)
+
+            # save BE-specific restart information for each fragment
+            savez_compressed(
+                os.path.join(restart_dir, f"fragment_{frag_number:03d}.npz"),
+                nsocc=fobj.nsocc,
+                mo_energy=mf.mo_energy,
+                mo_coeff=mf.mo_coeff,
+                TA=fobj.TA,
+                center_ao_indices=cind,
+            )
+        return
 
 
 def initialize_pot(n_frag, relAO_per_edge):
