@@ -444,8 +444,10 @@ std::vector<std::vector<OrbitalIdx>> get_AO_per_MO(const Matrix &TA, const Matri
 {
     const std::size_t n_MO = TA.cols();
 
-    // Compute X = |S_abs * TA|
-    const Matrix X = (S_abs * TA).cwiseAbs();
+    // Compute X = S_abs * |TA|, an upper bound for the contribution of AO mu to MO i.
+    // Note: |S_abs * TA| would allow cancellation of TA coefficients with opposite sign
+    // and could screen out AOs with large coefficients.
+    const Matrix X = S_abs * TA.cwiseAbs();
 
     std::vector<std::vector<OrbitalIdx>> result(n_MO);
 
@@ -525,6 +527,88 @@ SemiSparse3DTensor contract_with_TA_1st(const Matrix &TA,
         for (const auto &[offset, mu] : AO_by_MO_with_offsets_view[i]) {
             for (const auto &[inner_offset, nu] : int_P_mu_nu.exch_reachable_with_offsets()[mu]) {
                 g_unique.col(offset) += TA(nu, i) * int_P_mu_nu.dense_data().col(inner_offset);
+            }
+        }
+    }
+    return SemiSparse3DTensor(std::move(g_unique),
+                              std::make_tuple(naux, nao, nmo),
+                              AO_by_MO,
+                              std::move(AO_by_MO_with_offsets),
+                              std::move(offsets));
+}
+
+// Same result as contract_with_TA_1st, but organised per AO mu:
+//     (P | mu i) = sum_nu (P | mu nu) TA(nu, i)   for all i with mu in AO_by_MO[i]
+// is one dense GEMM  B_mu (naux x n_nu) * TA_mu (n_nu x n_i)  per mu,
+// instead of one vector update per (i, mu, nu) triple.
+// This reads every column (P | mu nu) once per mu instead of once per (i, mu).
+// The columns are gathered first, since only the nu <= mu part is stored contiguously.
+SemiSparse3DTensor contract_with_TA_1st_gemm(const Matrix &TA,
+                                             const SemiSparseSym3DTensor &int_P_mu_nu,
+                                             const std::vector<std::vector<OrbitalIdx>> &AO_by_MO) noexcept
+{
+    PROFILE_FUNCTION();
+    const OrbitalIdx nao = TA.rows();
+    const OrbitalIdx nmo = TA.cols();
+    const OrbitalIdx naux = std::get<0>(int_P_mu_nu.get_shape());
+
+    // Not const, because it is moved into the returned tensor at the end;
+    // read it only via the const view in between.
+    auto AO_by_MO_with_offsets = get_AO_reachable_by_MO_with_offset(AO_by_MO);
+    const auto &AO_by_MO_with_offsets_view = AO_by_MO_with_offsets;
+
+    // Inverse of AO_by_MO: for every mu the (output offset, i) pairs that reach it.
+    std::vector<std::vector<std::pair<std::size_t, OrbitalIdx>>> MO_by_AO_with_offsets(to_index(nao));
+    std::unordered_map<std::size_t, std::size_t> offsets;
+    std::size_t n_unique = 0;
+    for (OrbitalIdx i = 0; i < nmo; ++i) {
+        for (const auto &[offset, mu] : AO_by_MO_with_offsets_view[i]) {
+            MO_by_AO_with_offsets[mu].emplace_back(offset, i);
+            offsets[ravel_Fortran(mu, i, nao)] = offset;
+            ++n_unique;
+        }
+    }
+    offsets = rebuild_unordered_map(offsets);
+
+    if (LOG_LEVEL <= LogLevel::Info) {
+        std::cout << "(P | mu i) [MEMORY] sparse " << bytes_to_gib(naux * n_unique * sizeof(Real)) << " GiB" << "\n";
+    };
+
+    // Every column is written exactly once below.
+    Matrix g_unique(naux, to_eigen(n_unique));
+    const Matrix &B = int_P_mu_nu.dense_data();
+
+#pragma omp parallel
+    {
+        // Per-thread buffers, reused across mu.
+        Matrix B_mu, TA_mu, result;
+#pragma omp for schedule(dynamic)
+        for (OrbitalIdx mu = 0; mu < nao; ++mu) {
+            const auto &MOs = MO_by_AO_with_offsets[mu];
+            if (MOs.empty()) {
+                continue;
+            }
+            const auto &reachable = int_P_mu_nu.exch_reachable_with_offsets()[mu];
+            const auto n_nu = to_eigen(reachable.size());
+            const auto n_i = to_eigen(MOs.size());
+            if (n_nu == 0) {
+                for (const auto &MO : MOs) {
+                    g_unique.col(to_eigen(MO.first)).setZero();
+                }
+                continue;
+            }
+            B_mu.resize(naux, n_nu);
+            TA_mu.resize(n_nu, n_i);
+            for (Eigen::Index k = 0; k < n_nu; ++k) {
+                const auto &[inner_offset, nu] = reachable[to_index(k)];
+                B_mu.col(k) = B.col(to_eigen(inner_offset));
+                for (Eigen::Index l = 0; l < n_i; ++l) {
+                    TA_mu(k, l) = TA(nu, MOs[to_index(l)].second);
+                }
+            }
+            result.noalias() = B_mu * TA_mu;
+            for (Eigen::Index l = 0; l < n_i; ++l) {
+                g_unique.col(to_eigen(MOs[to_index(l)].first)) = result.col(l);
             }
         }
     }
@@ -797,7 +881,7 @@ Matrix transform_integral_precontracted_cuda(const SemiSparseSym3DTensor &int_P_
 
 {
     const auto AO_by_MO = get_AO_per_MO(TA, S_abs, MO_coeff_epsilon);
-    const SemiSparse3DTensor int_P_mu_i = contract_with_TA_1st(TA, int_P_mu_nu, AO_by_MO);
+    const SemiSparse3DTensor int_P_mu_i = contract_with_TA_1st_gemm(TA, int_P_mu_nu, AO_by_MO);
     return eval_precontracted_cuda(contract_with_TA_2nd_to_sym_dense(int_P_mu_i, TA));
 }
 #endif
@@ -825,7 +909,7 @@ Matrix transform_integral_precontracted(const SemiSparseSym3DTensor &int_P_mu_nu
 
 {
     const auto AO_by_MO = get_AO_per_MO(TA, S_abs, MO_coeff_epsilon);
-    const SemiSparse3DTensor int_P_mu_i = contract_with_TA_1st(TA, int_P_mu_nu, AO_by_MO);
+    const SemiSparse3DTensor int_P_mu_i = contract_with_TA_1st_gemm(TA, int_P_mu_nu, AO_by_MO);
     return eval_precontracted(contract_with_TA_2nd_to_sym_dense(int_P_mu_i, TA));
 }
 
@@ -966,6 +1050,14 @@ PYBIND11_MODULE(eri_sparse_DF, m)
           py::arg("int_P_mu_nu"),
           py::arg("AO_by_MO"),
           py::call_guard<py::gil_scoped_release>());
+
+    m.def("contract_with_TA_1st_gemm",
+          &contract_with_TA_1st_gemm,
+          py::arg("TA"),
+          py::arg("int_P_mu_nu"),
+          py::arg("AO_by_MO"),
+          py::call_guard<py::gil_scoped_release>(),
+          "Same as contract_with_TA_1st, but with one dense GEMM per AO mu.");
 
     m.def("contract_with_TA_2nd_to_sym_dense",
           &contract_with_TA_2nd_to_sym_dense,
