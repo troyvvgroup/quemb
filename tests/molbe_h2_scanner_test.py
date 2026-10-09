@@ -58,7 +58,6 @@ def test_numerical_hessian():
 
 
 def test_scanners():
-
     mol0 = gto.M(atom="H 0.01  0.02 -0.03; H  -0.02  0.01 1.00", basis="6-31g")
     mol1 = gto.M(atom="H 0.02 -0.01  0.00; H  -0.02 -0.03 0.80", basis="6-31g")
     mol2 = gto.M(atom="H 0.00  0.03  0.01; H   0.02 -0.01 0.70", basis="6-31g")

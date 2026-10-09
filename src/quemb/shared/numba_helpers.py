@@ -2,13 +2,14 @@ from collections.abc import Hashable, Mapping, Sequence
 from typing import TypeVar
 
 from numba import boolean, int64, typeof
+from numba.experimental import jitclass
 from numba.typed import Dict, List
 from numba.types import (  # type: ignore[attr-defined]
     DictType,
     ListType,
 )
 
-from quemb.shared.helper import jitclass, njit
+from quemb.shared.helper import njit
 from quemb.shared.typing import Integral
 
 Key = TypeVar("Key", bound=Hashable)
