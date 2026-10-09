@@ -216,7 +216,9 @@ def _get_AO_per_MO(
     epsilon: float,
 ) -> dict[MOIdx, Sequence[AOIdx]]:
     n_MO = TA.shape[-1]
-    X = np.abs(S_abs @ TA)
+    # Upper bound S_abs @ |TA|; |S_abs @ TA| would allow cancellation of
+    # coefficients with opposite sign.
+    X = S_abs @ np.abs(TA)
     return {
         i_MO: cast(Sequence[AOIdx], (X[:, i_MO] >= epsilon).nonzero()[0])
         for i_MO in cast(Sequence[MOIdx], range(n_MO))

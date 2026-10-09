@@ -11,6 +11,7 @@ from quemb.molbe.eri_sparse_DF import (
     approx_S_abs,
     get_sparse_P_mu_nu,
 )
+from quemb.molbe.mbe import IntTransforms
 from quemb.shared.helper import clean_overlap
 
 from ._expected_data_for_eri_sparse_DF import get_expected
@@ -18,72 +19,67 @@ from ._expected_data_for_eri_sparse_DF import get_expected
 expected = get_expected()
 
 
-def test_sparse_DF_BE() -> None:
-    mol = M("xyz/octane.xyz", basis="sto-3g", cart=True)
+@pytest.fixture(scope="module", params=[True, False], ids=["cart", "sph"])
+def octane(request):
+    """Octane mean field and fragments, in cartesian and spherical AOs."""
+    mol = M("xyz/octane.xyz", basis="sto-3g", cart=request.param)
 
     mf = scf.RHF(mol)
     mf.kernel()
 
     fobj = fragmentate(frag_type="chemgen", n_BE=2, mol=mol, print_frags=False)
-    sparse_DF_BE = BE(mf, fobj, auxbasis="weigend", int_transform="sparse-DF")
+    return mf, fobj
+
+
+@pytest.fixture(scope="module")
+def octane_int_direct_DF(octane):
+    """Octane mean field, fragments, and the int-direct-DF correlation energy.
+
+    int-direct-DF uses the same auxiliary basis without any screening,
+    hence it is the exact reference for the sparse DF transformations.
+    """
+    mf, fobj = octane
+    ref_BE = BE(mf, fobj, auxbasis="weigend", int_transform="int-direct-DF")
+    ref_BE.oneshot(solver="CCSD")
+    return mf, fobj, ref_BE.ebe_tot - ref_BE.ebe_hf
+
+
+@pytest.mark.parametrize("int_transform", ["sparse-DF", "on-fly-sparse-DF"])
+def test_sparse_DF_BE(octane_int_direct_DF, int_transform: IntTransforms) -> None:
+    mf, fobj, e_corr_ref = octane_int_direct_DF
+
+    sparse_DF_BE = BE(mf, fobj, auxbasis="weigend", int_transform=int_transform)
     sparse_DF_BE.oneshot(solver="CCSD")
+    e_corr = sparse_DF_BE.ebe_tot - sparse_DF_BE.ebe_hf
 
-    assert np.isclose(
-        sparse_DF_BE.ebe_tot - sparse_DF_BE.ebe_hf,
-        -0.5499707624383632,
-        atol=1e-10,
-        rtol=0,
-    ), sparse_DF_BE.ebe_tot - sparse_DF_BE.ebe_hf
+    assert np.isclose(e_corr, e_corr_ref, atol=1e-10, rtol=0), e_corr - e_corr_ref
 
-    mol = M("xyz/octane.xyz", basis="sto-3g", cart=False)
 
-    mf = scf.RHF(mol)
-    mf.kernel()
+@pytest.mark.parametrize("int_transform", ["sparse-DF", "on-fly-sparse-DF"])
+def test_screened_sparse_DF_BE(octane, int_transform: IntTransforms) -> None:
+    """Sparse DF with thresholds that truncate (P | mu nu) and the AOs per MO.
 
-    fobj = fragmentate(frag_type="chemgen", n_BE=2, mol=mol, print_frags=False)
-    sparse_DF_BE = BE(mf, fobj, auxbasis="weigend", int_transform="sparse-DF")
+    The deviation from int-direct-DF is about 1e-6 Hartree, so a change of the
+    screening is detected.
+    Precomputed and on-the-fly (P | mu nu) have to agree, because for
+    MO_coeff_epsilon >= AO_coeff_epsilon both keep the same AO pairs and AOs per MO.
+    """
+    mf, fobj = octane
+    e_expected_by_cart = {True: -0.5499700118942314, False: -0.549884101392422}
+
+    sparse_DF_BE = BE(
+        mf,
+        fobj,
+        auxbasis="weigend",
+        int_transform=int_transform,
+        AO_coeff_epsilon=1e-4,
+        MO_coeff_epsilon=1e-3,
+    )
     sparse_DF_BE.oneshot(solver="CCSD")
+    e_corr = sparse_DF_BE.ebe_tot - sparse_DF_BE.ebe_hf
 
-    assert np.isclose(
-        sparse_DF_BE.ebe_tot - sparse_DF_BE.ebe_hf,
-        -0.5498858656383732,
-        atol=1e-10,
-        rtol=0,
-    ), sparse_DF_BE.ebe_tot - sparse_DF_BE.ebe_hf
-
-
-def test_on_the_fly_sparse_DF_BE() -> None:
-    mol = M("xyz/octane.xyz", basis="sto-3g", cart=True)
-
-    mf = scf.RHF(mol)
-    mf.kernel()
-
-    fobj = fragmentate(frag_type="chemgen", n_BE=2, mol=mol, print_frags=False)
-    sparse_DF_BE = BE(mf, fobj, auxbasis="weigend", int_transform="on-fly-sparse-DF")
-    sparse_DF_BE.oneshot(solver="CCSD")
-
-    assert np.isclose(
-        sparse_DF_BE.ebe_tot - sparse_DF_BE.ebe_hf,
-        -0.5499707624383632,
-        atol=1e-10,
-        rtol=0,
-    ), sparse_DF_BE.ebe_tot - sparse_DF_BE.ebe_hf
-
-    mol = M("xyz/octane.xyz", basis="sto-3g", cart=False)
-
-    mf = scf.RHF(mol)
-    mf.kernel()
-
-    fobj = fragmentate(frag_type="chemgen", n_BE=2, mol=mol, print_frags=False)
-    sparse_DF_BE = BE(mf, fobj, auxbasis="weigend", int_transform="on-fly-sparse-DF")
-    sparse_DF_BE.oneshot(solver="CCSD")
-
-    assert np.isclose(
-        sparse_DF_BE.ebe_tot - sparse_DF_BE.ebe_hf,
-        -0.5498858656383732,
-        atol=1e-10,
-        rtol=0,
-    ), sparse_DF_BE.ebe_tot - sparse_DF_BE.ebe_hf
+    e_expected = e_expected_by_cart[mf.mol.cart]
+    assert np.isclose(e_corr, e_expected, atol=1e-10, rtol=0), e_corr - e_expected
 
 
 def test_invert_dict() -> None:
