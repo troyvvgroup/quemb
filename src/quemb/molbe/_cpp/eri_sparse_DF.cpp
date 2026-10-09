@@ -444,8 +444,10 @@ std::vector<std::vector<OrbitalIdx>> get_AO_per_MO(const Matrix &TA, const Matri
 {
     const std::size_t n_MO = TA.cols();
 
-    // Compute X = |S_abs * TA|
-    const Matrix X = (S_abs * TA).cwiseAbs();
+    // Compute X = S_abs * |TA|, an upper bound for the contribution of AO mu to MO i.
+    // Note: |S_abs * TA| would allow cancellation of TA coefficients with opposite sign
+    // and could screen out AOs with large coefficients.
+    const Matrix X = S_abs * TA.cwiseAbs();
 
     std::vector<std::vector<OrbitalIdx>> result(n_MO);
 
