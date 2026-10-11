@@ -752,6 +752,36 @@ Matrix contract_with_TA_2nd_gemm(const SemiSparse3DTensor &int_mu_i_P, const Mat
     return sym_P_pq;
 }
 
+#ifdef QUEMB_USE_BLAS
+// Explicit BLAS calls (enabled with -DBLAS=AUTO|ON in CMake).
+// They must not be called inside an OpenMP parallel region,
+// since a multithreaded BLAS would start its own threads in every OpenMP thread.
+// Fortran BLAS symbol, as in Eigen's own BLAS bindings (Eigen/src/misc/blas.h).
+extern "C" void dsyrk_(const char *uplo,
+                       const char *trans,
+                       const int *n,
+                       const int *k,
+                       const double *alpha,
+                       const double *a,
+                       const int *lda,
+                       const double *beta,
+                       double *c,
+                       const int *ldc);
+
+// X^T X via BLAS dsyrk: computes only the lower triangle (half the flops of a GEMM),
+// then mirrors it.
+Matrix XtX_syrk(const Matrix &X) noexcept
+{
+    const int n = static_cast<int>(X.cols());
+    const int k = static_cast<int>(X.rows());
+    const double alpha = 1.0, beta = 0.0;
+    Matrix result(n, n);
+    dsyrk_("L", "T", &n, &k, &alpha, X.data(), &k, &beta, result.data(), &n);
+    result.triangularView<Eigen::StrictlyUpper>() = result.transpose();
+    return result;
+}
+#endif
+
 // Computes the integral (p q | r s) from (P | pq) using the Cholesky
 // factorization of (P | Q). sym_P_pq is the (P | pq) matrix and uses a fused
 // indexing scheme for pq, accounting for symmetry of p and q. L_PQ is the
@@ -759,6 +789,8 @@ Matrix contract_with_TA_2nd_gemm(const SemiSparse3DTensor &int_mu_i_P, const Mat
 Matrix eval_via_cholesky(const Matrix &sym_P_pq, const Matrix &L_PQ) noexcept
 {
     Timer timer{__func__};
+    // TODO: with QUEMB_USE_BLAS, step 2 could use XtX_syrk, as eval_precontracted
+    // does. Only the on-the-fly sparse DF uses this function.
     // Step 1: Solve L * X = sym_P_pq  →  X = L⁻¹ sym_P_pq
     const Matrix X = L_PQ.triangularView<Eigen::Lower>().solve(sym_P_pq);
     if (LOG_LEVEL <= LogLevel::Info) {
@@ -791,38 +823,6 @@ void apply_inv_cholesky_inplace(SemiSparseSym3DTensor &int_P_mu_nu, const Matrix
         L.solveInPlace(block);
     }
 }
-
-#ifdef QUEMB_USE_BLAS
-// Fortran BLAS symbol, as in Eigen's own BLAS bindings (Eigen/src/misc/blas.h).
-extern "C" void dsyrk_(const char *uplo,
-                       const char *trans,
-                       const int *n,
-                       const int *k,
-                       const double *alpha,
-                       const double *a,
-                       const int *lda,
-                       const double *beta,
-                       double *c,
-                       const int *ldc);
-
-// X^T X via BLAS dsyrk: computes only the lower triangle (half the flops of a GEMM),
-// then mirrors it. Must not be called inside an OpenMP parallel region,
-// since a multithreaded BLAS would start its own threads in every OpenMP thread.
-Matrix XtX_syrk(const Matrix &X) noexcept
-{
-    const int n = static_cast<int>(X.cols());
-    const int k = static_cast<int>(X.rows());
-    const double alpha = 1.0, beta = 0.0;
-    Matrix result(n, n);
-    dsyrk_("L", "T", &n, &k, &alpha, X.data(), &k, &beta, result.data(), &n);
-    for (Eigen::Index j = 1; j < n; ++j) {
-        for (Eigen::Index i = 0; i < j; ++i) {
-            result(i, j) = result(j, i);
-        }
-    }
-    return result;
-}
-#endif
 
 // Computes the integral (p q | r s) from X = L⁻¹ (P | pq),
 // i.e. if apply_inv_cholesky_inplace was already applied to (P | mu nu).
@@ -898,13 +898,14 @@ Matrix eval_XtX_cuda(const Matrix &sym_P_pq, const Real *d_L)
                                        d_X,
                                        n_aux));
         if (LOG_LEVEL <= LogLevel::Info) {
+            CUDA_CHECK_THROW(cudaDeviceSynchronize());
             timer.print("Triangular solve on GPU completed");
         };
     }
 
-    // Compute: result = Xᵀ * X
+    // Compute: result = Xᵀ * X, only the lower triangle (as XtX_syrk on the CPU)
     CUBLAS_CHECK_THROW(cublasDsyrk(handle,
-                                   CUBLAS_FILL_MODE_UPPER,
+                                   CUBLAS_FILL_MODE_LOWER,
                                    CUBLAS_OP_T,
                                    n_sym_pairs,
                                    n_aux,
@@ -915,6 +916,7 @@ Matrix eval_XtX_cuda(const Matrix &sym_P_pq, const Real *d_L)
                                    d_result,
                                    n_sym_pairs));
     if (LOG_LEVEL <= LogLevel::Info) {
+        CUDA_CHECK_THROW(cudaDeviceSynchronize());
         timer.print("Matrix multiplication on GPU completed");
     };
 
@@ -926,8 +928,7 @@ Matrix eval_XtX_cuda(const Matrix &sym_P_pq, const Real *d_L)
         timer.print("Copy from GPU completed");
     };
 
-    // Fill lower triangle
-    result.template triangularView<Eigen::Lower>() = result.transpose().template triangularView<Eigen::Lower>();
+    result.triangularView<Eigen::StrictlyUpper>() = result.transpose();
 
     if (LOG_LEVEL <= LogLevel::Info) {
         timer.print("Filling symmetries completed.");
