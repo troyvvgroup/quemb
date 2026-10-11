@@ -26,7 +26,7 @@ from pyscf import dft, gto, scf
 from pyscf.ao2mo.addons import restore
 from pyscf.df.addons import make_auxmol
 from pyscf.gto import Mole
-from pyscf.gto.moleintor import getints
+from pyscf.gto.moleintor import getints, make_cintopt, make_loc
 from pyscf.pbc import dft as pbc_dft
 from pyscf.pbc.gto import Cell
 from scipy.linalg import cholesky
@@ -229,18 +229,38 @@ def _get_AO_per_MO(
 def _get_AO_per_AO(
     S_abs: Matrix[np.floating],
     epsilon: float,
-    TA: Matrix[np.floating] | None = None,
 ) -> dict[AOIdx, Sequence[AOIdx]]:
-    if TA is None:
-        n_AO = len(S_abs)
-        sources = cast(Sequence[AOIdx], range(n_AO))
-    else:
-        sources = cast(
-            Sequence[AOIdx], ((S_abs @ abs(TA)).max(axis=1) > epsilon).nonzero()[0]
-        )
+    n_AO = len(S_abs)
     return {
         i_AO: cast(Sequence[AOIdx], (S_abs[:, i_AO] >= epsilon).nonzero()[0])
-        for i_AO in sources
+        for i_AO in cast(Sequence[AOIdx], range(n_AO))
+    }
+
+
+def _get_AO_per_AO_for_MOs(
+    S_abs: Matrix[np.floating],
+    AO_coeff_epsilon: float,
+    TA: Matrix[np.floating],
+    MO_coeff_epsilon: float,
+) -> dict[AOIdx, Sequence[AOIdx]]:
+    """AO pairs that are needed to transform :math:`(P | \\mu \\nu)` with :python:`TA`.
+
+    The first contraction :math:`(P | \\mu i) = \\sum_\\nu (P | \\mu \\nu) T_{\\nu i}`
+    is evaluated for the AOs :math:`\\mu` that the MO screening keeps for at least one
+    MO :math:`i` (cf. :func:`_get_AO_per_MO`) and all :math:`\\nu`
+    with :math:`S^{\\text{abs}}_{\\mu \\nu} \\geq \\epsilon^{\\text{AO}}`.
+    Hence the result agrees with the screening of the precomputed
+    :math:`(P | \\mu \\nu)` from :func:`_get_AO_per_AO`.
+
+    The returned mapping is symmetric, i.e. it also contains :math:`\\nu \\to \\mu`,
+    because the semi-sparse tensor stores only the pairs :math:`\\nu \\leq \\mu`
+    of every :math:`\\mu`.
+    """
+    used = (S_abs @ np.abs(TA) >= MO_coeff_epsilon).any(axis=1)
+    pairs = (S_abs >= AO_coeff_epsilon) & (used[:, None] | used[None, :])
+    return {
+        i_AO: cast(Sequence[AOIdx], pairs[i_AO].nonzero()[0])
+        for i_AO in cast(Sequence[AOIdx], pairs.any(axis=1).nonzero()[0])
     }
 
 
@@ -460,21 +480,36 @@ def get_sparse_P_mu_nu(
 
     assert len(keys) == n_unique
 
+    # Same as _aux_e2, but the concatenated environment, AO offsets, and the libcint
+    # optimizer are created once here instead of for every shell block.
+    intor = mol._add_suffix("int3c2e")
+    atm, bas, env = gto.mole.conc_env(
+        mol._atm, mol._bas, mol._env, auxmol._atm, auxmol._bas, auxmol._env
+    )
+    ao_loc = make_loc(bas, intor)
+    cintopt = make_cintopt(atm, bas, env, intor)
+
     for i_shell, reachable in shell_reachable_by_shell.items():
         for start_block, stop_block in get_blocks(reachable):
             integrals = np.asarray(  # type: ignore[call-overload]
-                _aux_e2(
-                    mol,
-                    auxmol,
-                    intor="int3c2e",
-                    shls_slice=(  # type: ignore[arg-type]
+                getints(
+                    intor,
+                    atm,
+                    bas,
+                    env,
+                    (
                         i_shell,
                         i_shell + 1,
                         start_block,
                         stop_block + 1,
-                        0,
-                        auxmol.nbas,
+                        mol.nbas,
+                        mol.nbas + auxmol.nbas,
                     ),
+                    None,
+                    0,
+                    "s1",
+                    ao_loc,
+                    cintopt,
                 ),
                 order="C",
             )
@@ -632,7 +667,7 @@ def _run_sparse_df_driver(
     PQ: Final = auxmol.intor("int2c2e")
 
     if precompute_P_mu_nu:
-        exch_reachable: Final = _get_AO_per_AO(S_abs, AO_coeff_epsilon, None)
+        exch_reachable: Final = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
         P_mu_nu: Final[SemiSparseSym3DTensor] = get_sparse_P_mu_nu(
             mol, auxmol, exch_reachable
         )
@@ -657,7 +692,9 @@ def _run_sparse_df_driver(
 
         def worker(fragobj: Frags) -> None:
             "On the fly computation of P_mu_nu for every fragment"
-            exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon, fragobj.TA)
+            exch_reachable = _get_AO_per_AO_for_MOs(
+                S_abs, AO_coeff_epsilon, fragobj.TA, MO_coeff_epsilon
+            )
             P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
 
             transformed = transform_integral_impl(

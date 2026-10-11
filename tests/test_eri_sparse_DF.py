@@ -8,6 +8,7 @@ import quemb.molbe._cpp.eri_sparse_DF as cpp
 from quemb.molbe import BE, fragmentate
 from quemb.molbe.eri_sparse_DF import (
     _get_AO_per_AO,
+    _get_AO_per_AO_for_MOs,
     _invert_dict,
     approx_S_abs,
     get_sparse_P_mu_nu,
@@ -112,6 +113,31 @@ def test_contract_with_TA_gemm(octane, MO_coeff_epsilon: float) -> None:
         P_ij_gemm = cpp.contract_with_TA_2nd_gemm(P_mu_i_gemm, TA)
         assert P_ij_gemm.shape == P_ij.shape
         assert np.allclose(P_ij_gemm, P_ij, atol=1e-12, rtol=0)
+
+
+def test_AO_per_AO_for_MOs() -> None:
+    """Pairs needed for TA: symmetric, and every pair of an AO used by an MO."""
+    mol = M("xyz/E-polyacetylene/20.xyz", basis="sto-3g")
+    S_abs = approx_S_abs(mol)
+    # an MO on the first two AOs only
+    TA = np.zeros((mol.nao, 1))
+    TA[:2, 0] = 1.0
+    AO_eps, MO_eps = 1e-6, 1e-2
+
+    reachable = _get_AO_per_AO_for_MOs(S_abs, AO_eps, TA, MO_eps)
+    full = _get_AO_per_AO(S_abs, AO_eps)
+
+    assert len(reachable) < mol.nao
+    for mu, nus in reachable.items():
+        for nu in nus:
+            assert mu in reachable[nu]
+    for mu in (S_abs @ np.abs(TA) >= MO_eps).any(axis=1).nonzero()[0]:
+        assert list(reachable[mu]) == list(full[mu])
+
+    # A non-symmetric selection must not be accepted silently.
+    one_sided = {mu: list(full[mu]) for mu in reachable if mu in (0, 1)}
+    with pytest.raises(IndexError, match="unordered_map"):
+        get_sparse_P_mu_nu(mol, make_auxmol(mol, auxbasis="weigend"), one_sided)
 
 
 def test_invert_dict() -> None:

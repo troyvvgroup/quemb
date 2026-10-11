@@ -268,7 +268,9 @@ class SemiSparseSym3DTensor
 
             for (auto nu : _exch_reachable[mu]) {
                 const auto key = ravel_symmetric(mu, nu);
-                pairs.emplace_back(_offsets[key], nu);
+                // at() instead of [], which would silently map a pair that is missing from
+                // exch_reachable[max(mu, nu)] (i.e. a non-symmetric exch_reachable) to offset 0.
+                pairs.emplace_back(_offsets.at(key), nu);
                 if (mu <= nu)
                     pairs_unique.emplace_back(_offsets[key], nu);
             }
@@ -782,46 +784,33 @@ Matrix XtX_syrk(const Matrix &X) noexcept
 }
 #endif
 
-// Computes the integral (p q | r s) from (P | pq) using the Cholesky
-// factorization of (P | Q). sym_P_pq is the (P | pq) matrix and uses a fused
-// indexing scheme for pq, accounting for symmetry of p and q. L_PQ is the
-// Cholesky factor of the (P | Q) matrix, which is lower triangular.
-Matrix eval_via_cholesky(const Matrix &sym_P_pq, const Matrix &L_PQ) noexcept
+// Overwrites B in place with L⁻¹ B, where L_PQ is a lower triangular Cholesky factor.
+// Eigen does not parallelize triangular solves, so we split the right-hand
+// sides into column blocks.
+void solve_lower_inplace(const Matrix &L_PQ, Matrix &B)
 {
-    Timer timer{__func__};
-    // TODO: with QUEMB_USE_BLAS, step 2 could use XtX_syrk, as eval_precontracted
-    // does. Only the on-the-fly sparse DF uses this function.
-    // Step 1: Solve L * X = sym_P_pq  →  X = L⁻¹ sym_P_pq
-    const Matrix X = L_PQ.triangularView<Eigen::Lower>().solve(sym_P_pq);
-    if (LOG_LEVEL <= LogLevel::Info) {
-        timer.print("triangular solve completed");
-    };
-    // Step 2: Return Xᵀ X
-    return X.transpose() * X;
+    if (L_PQ.rows() != B.rows() || L_PQ.cols() != B.rows()) {
+        throw std::runtime_error("L_PQ must be a square matrix of size naux.");
+    }
+    const Eigen::Index n_cols = B.cols();
+    constexpr Eigen::Index block_size = 256;
+    const auto L = L_PQ.triangularView<Eigen::Lower>();
+
+#pragma omp parallel for schedule(dynamic)
+    for (Eigen::Index start = 0; start < n_cols; start += block_size) {
+        auto block = B.middleCols(start, std::min(block_size, n_cols - start));
+        L.solveInPlace(block);
+    }
 }
 
 // Overwrites (P | mu nu) in place with L⁻¹ (P | mu nu), where L_PQ is the
 // Cholesky factor of (P | Q). The solve is linear in mu nu, hence it commutes
 // with the contractions with TA. Doing it once for all mu nu pairs replaces
 // the triangular solve for every fragment in eval_via_cholesky.
-// Eigen does not parallelize triangular solves, so we split the right-hand
-// sides into column blocks.
 void apply_inv_cholesky_inplace(SemiSparseSym3DTensor &int_P_mu_nu, const Matrix &L_PQ)
 {
     PROFILE_FUNCTION();
-    Matrix &data = int_P_mu_nu.mut_dense_data();
-    if (L_PQ.rows() != data.rows() || L_PQ.cols() != data.rows()) {
-        throw std::runtime_error("L_PQ must be a square matrix of size naux.");
-    }
-    const Eigen::Index n_cols = data.cols();
-    constexpr Eigen::Index block_size = 256;
-    const auto L = L_PQ.triangularView<Eigen::Lower>();
-
-#pragma omp parallel for schedule(dynamic)
-    for (Eigen::Index start = 0; start < n_cols; start += block_size) {
-        auto block = data.middleCols(start, std::min(block_size, n_cols - start));
-        L.solveInPlace(block);
-    }
+    solve_lower_inplace(L_PQ, int_P_mu_nu.mut_dense_data());
 }
 
 // Computes the integral (p q | r s) from X = L⁻¹ (P | pq),
@@ -834,6 +823,18 @@ Matrix eval_precontracted(const Matrix &X) noexcept
 #else
     return X.transpose() * X;
 #endif
+}
+
+// Computes the integral (p q | r s) from (P | pq) using the Cholesky
+// factorization of (P | Q). sym_P_pq is the (P | pq) matrix and uses a fused
+// indexing scheme for pq, accounting for symmetry of p and q. L_PQ is the
+// Cholesky factor of the (P | Q) matrix, which is lower triangular.
+Matrix eval_via_cholesky(Matrix sym_P_pq, const Matrix &L_PQ)
+{
+    PROFILE_FUNCTION();
+    // X = L⁻¹ sym_P_pq, in place
+    solve_lower_inplace(L_PQ, sym_P_pq);
+    return eval_precontracted(sym_P_pq);
 }
 
 #ifdef USE_CUDA
@@ -961,14 +962,12 @@ Matrix transform_integral_cuda(const SemiSparseSym3DTensor &int_P_mu_nu,
                                const Matrix &TA,
                                const Matrix &S_abs,
                                const GPU_MatrixHandle &L_PQ,
-                               const double MO_coeff_epsilon) noexcept
+                               const double MO_coeff_epsilon)
 
 {
     const auto AO_by_MO = get_AO_per_MO(TA, S_abs, MO_coeff_epsilon);
-    const SemiSparse3DTensor int_P_mu_i = contract_with_TA_1st(TA, int_P_mu_nu, AO_by_MO);
-    const Matrix P_pq = contract_with_TA_2nd_to_sym_dense(int_P_mu_i, TA);
-
-    return eval_via_cholesky_cuda(P_pq, L_PQ);
+    const SemiSparse3DTensor int_P_mu_i = contract_with_TA_1st_gemm(TA, int_P_mu_nu, AO_by_MO);
+    return eval_via_cholesky_cuda(contract_with_TA_2nd_gemm(int_P_mu_i, TA), L_PQ);
 }
 
 Matrix transform_integral_precontracted_cuda(const SemiSparseSym3DTensor &int_P_mu_nu,
@@ -987,14 +986,12 @@ Matrix transform_integral(const SemiSparseSym3DTensor &int_P_mu_nu,
                           const Matrix &TA,
                           const Matrix &S_abs,
                           const Matrix &L_PQ,
-                          const double MO_coeff_epsilon) noexcept
+                          const double MO_coeff_epsilon)
 
 {
     const auto AO_by_MO = get_AO_per_MO(TA, S_abs, MO_coeff_epsilon);
-    const SemiSparse3DTensor int_P_mu_i = contract_with_TA_1st(TA, int_P_mu_nu, AO_by_MO);
-    const Matrix P_pq = contract_with_TA_2nd_to_sym_dense(int_P_mu_i, TA);
-
-    return eval_via_cholesky(P_pq, L_PQ);
+    const SemiSparse3DTensor int_P_mu_i = contract_with_TA_1st_gemm(TA, int_P_mu_nu, AO_by_MO);
+    return eval_via_cholesky(contract_with_TA_2nd_gemm(int_P_mu_i, TA), L_PQ);
 }
 
 // Same as transform_integral, but assumes that apply_inv_cholesky_inplace
