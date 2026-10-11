@@ -139,11 +139,25 @@ def apply_inv_cholesky_inplace(
 def contract_with_TA_1st(
     TA: numpy.ndarray, int_P_mu_nu: SemiSparseSym3DTensor, AO_by_MO: list[list[int]]
 ) -> SemiSparse3DTensor: ...
+def contract_with_TA_1st_gemm(
+    TA: numpy.ndarray, int_P_mu_nu: SemiSparseSym3DTensor, AO_by_MO: list[list[int]]
+) -> SemiSparse3DTensor:
+    """
+    Same as contract_with_TA_1st, but with one dense GEMM per AO mu.
+    """
+
 def contract_with_TA_2nd_to_sym_dense(
     int_mu_i_P: SemiSparse3DTensor, TA: numpy.ndarray
 ) -> numpy.ndarray:
     """
     Contract with TA to get a symmetric dense tensor (P | i, j)
+    """
+
+def contract_with_TA_2nd_gemm(
+    int_mu_i_P: SemiSparse3DTensor, TA: numpy.ndarray
+) -> numpy.ndarray:
+    """
+    Same as contract_with_TA_2nd_to_sym_dense, but with one dense GEMM per MO i.
     """
 
 def extract_unique(exch_reachable: list[list[int]]) -> list[list[int]]:
