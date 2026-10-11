@@ -692,6 +692,66 @@ Matrix contract_with_TA_2nd_to_sym_dense(const SemiSparse3DTensor &int_mu_i_P, c
     return sym_P_pq;
 }
 
+// Same result as contract_with_TA_2nd_to_sym_dense, but organised per MO i:
+//     (P | i j) = sum_mu (P | mu i) TA(mu, j)   for all j >= i, mu in AO_by_MO[i]
+// is one dense GEMM  C_i (naux x n_mu) * TA_i (n_mu x n_j)  per i,
+// instead of one vector update per (i, j, mu) triple.
+// This reads every column (P | mu i) once per i instead of once per (i, j).
+// The columns of C_i are contiguous in int_mu_i_P, because every constructor of
+// SemiSparse3DTensor numbers the (mu, i) offsets of one i consecutively; no gather is needed.
+// As in contract_with_TA_2nd_to_sym_dense, the sum runs over the AOs of the smaller index i,
+// hence the result is the same up to rounding.
+Matrix contract_with_TA_2nd_gemm(const SemiSparse3DTensor &int_mu_i_P, const Matrix &TA) noexcept
+{
+    PROFILE_FUNCTION();
+    const auto shape = int_mu_i_P.get_shape();
+    const auto naux = std::get<0>(shape);
+    const auto nmo = std::get<2>(shape);
+    assert(TA.rows() == std::get<1>(shape) && "TA.shape[0] must match int_mu_i_P.shape[1]");
+    assert(TA.cols() == nmo && "TA.shape[1] must match int_mu_i_P.shape[2]");
+
+    const auto n_sym_pairs = to_eigen(ravel_symmetric(nmo - 1, nmo - 1) + 1);
+
+    if (LOG_LEVEL <= LogLevel::Info) {
+        std::cout << "[MEMORY] about to allocate (ij | P) as sym_P_pq(naux, n_sym_pairs) with "
+                  << bytes_to_gib(naux * n_sym_pairs * sizeof(Real)) << " GiB" << std::endl;
+    }
+    // Every column is written exactly once below.
+    Matrix sym_P_pq(naux, n_sym_pairs);
+    const Matrix &data = int_mu_i_P.dense_data();
+
+#pragma omp parallel
+    {
+        // Per-thread buffers, reused across i.
+        Matrix TA_i, result;
+#pragma omp for schedule(dynamic)
+        for (OrbitalIdx i = 0; i < nmo; ++i) {
+            const auto &reachable = int_mu_i_P.exch_reachable_with_offsets()[i];
+            const auto n_mu = to_eigen(reachable.size());
+            const auto n_j = to_eigen(nmo - i);
+            if (n_mu == 0) {
+                for (OrbitalIdx j = i; j < nmo; ++j) {
+                    sym_P_pq.col(to_eigen(ravel_symmetric(i, j))).setZero();
+                }
+                continue;
+            }
+            const auto first = reachable.front().first;
+            assert(reachable.back().first == first + to_index(n_mu) - 1 && "offsets of one MO must be consecutive");
+            const auto C_i = data.middleCols(to_eigen(first), n_mu);
+
+            TA_i.resize(n_mu, n_j);
+            for (Eigen::Index k = 0; k < n_mu; ++k) {
+                TA_i.row(k) = TA.row(to_eigen(reachable[to_index(k)].second)).tail(n_j);
+            }
+            result.noalias() = C_i * TA_i;
+            for (Eigen::Index l = 0; l < n_j; ++l) {
+                sym_P_pq.col(to_eigen(ravel_symmetric(i, i + l))) = result.col(l);
+            }
+        }
+    }
+    return sym_P_pq;
+}
+
 // Computes the integral (p q | r s) from (P | pq) using the Cholesky
 // factorization of (P | Q). sym_P_pq is the (P | pq) matrix and uses a fused
 // indexing scheme for pq, accounting for symmetry of p and q. L_PQ is the
@@ -732,12 +792,48 @@ void apply_inv_cholesky_inplace(SemiSparseSym3DTensor &int_P_mu_nu, const Matrix
     }
 }
 
+#ifdef QUEMB_USE_BLAS
+// Fortran BLAS symbol, as in Eigen's own BLAS bindings (Eigen/src/misc/blas.h).
+extern "C" void dsyrk_(const char *uplo,
+                       const char *trans,
+                       const int *n,
+                       const int *k,
+                       const double *alpha,
+                       const double *a,
+                       const int *lda,
+                       const double *beta,
+                       double *c,
+                       const int *ldc);
+
+// X^T X via BLAS dsyrk: computes only the lower triangle (half the flops of a GEMM),
+// then mirrors it. Must not be called inside an OpenMP parallel region,
+// since a multithreaded BLAS would start its own threads in every OpenMP thread.
+Matrix XtX_syrk(const Matrix &X) noexcept
+{
+    const int n = static_cast<int>(X.cols());
+    const int k = static_cast<int>(X.rows());
+    const double alpha = 1.0, beta = 0.0;
+    Matrix result(n, n);
+    dsyrk_("L", "T", &n, &k, &alpha, X.data(), &k, &beta, result.data(), &n);
+    for (Eigen::Index j = 1; j < n; ++j) {
+        for (Eigen::Index i = 0; i < j; ++i) {
+            result(i, j) = result(j, i);
+        }
+    }
+    return result;
+}
+#endif
+
 // Computes the integral (p q | r s) from X = L⁻¹ (P | pq),
 // i.e. if apply_inv_cholesky_inplace was already applied to (P | mu nu).
 Matrix eval_precontracted(const Matrix &X) noexcept
 {
     PROFILE_FUNCTION();
+#ifdef QUEMB_USE_BLAS
+    return XtX_syrk(X);
+#else
     return X.transpose() * X;
+#endif
 }
 
 #ifdef USE_CUDA
@@ -882,7 +978,7 @@ Matrix transform_integral_precontracted_cuda(const SemiSparseSym3DTensor &int_P_
 {
     const auto AO_by_MO = get_AO_per_MO(TA, S_abs, MO_coeff_epsilon);
     const SemiSparse3DTensor int_P_mu_i = contract_with_TA_1st_gemm(TA, int_P_mu_nu, AO_by_MO);
-    return eval_precontracted_cuda(contract_with_TA_2nd_to_sym_dense(int_P_mu_i, TA));
+    return eval_precontracted_cuda(contract_with_TA_2nd_gemm(int_P_mu_i, TA));
 }
 #endif
 
@@ -910,7 +1006,7 @@ Matrix transform_integral_precontracted(const SemiSparseSym3DTensor &int_P_mu_nu
 {
     const auto AO_by_MO = get_AO_per_MO(TA, S_abs, MO_coeff_epsilon);
     const SemiSparse3DTensor int_P_mu_i = contract_with_TA_1st_gemm(TA, int_P_mu_nu, AO_by_MO);
-    return eval_precontracted(contract_with_TA_2nd_to_sym_dense(int_P_mu_i, TA));
+    return eval_precontracted(contract_with_TA_2nd_gemm(int_P_mu_i, TA));
 }
 
 // Automatically generate python type stub pages via the following bash command
@@ -1065,6 +1161,13 @@ PYBIND11_MODULE(eri_sparse_DF, m)
           py::arg("TA"),
           py::call_guard<py::gil_scoped_release>(),
           "Contract with TA to get a symmetric dense tensor (P | i, j)");
+
+    m.def("contract_with_TA_2nd_gemm",
+          &contract_with_TA_2nd_gemm,
+          py::arg("int_mu_i_P"),
+          py::arg("TA"),
+          py::call_guard<py::gil_scoped_release>(),
+          "Same as contract_with_TA_2nd_to_sym_dense, but with one dense GEMM per MO i.");
 
     m.def("get_AO_per_MO",
           &get_AO_per_MO,
