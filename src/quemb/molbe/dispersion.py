@@ -1,7 +1,7 @@
 import numpy as np
 from dftd3.interface import DispersionModel, RationalDampingParam
-from scipy.linalg import eigh
 from pyscf.scf import hf
+from scipy.linalg import eigh
 
 
 def embedding_density_matrix(TA):
