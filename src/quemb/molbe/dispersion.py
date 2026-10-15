@@ -3,6 +3,7 @@ from dftd3.interface import DispersionModel, RationalDampingParam
 from scipy.linalg import eigh
 from pyscf.scf import hf
 
+
 def embedding_density_matrix(TA):
     """Build a density-like matrix for the embedding orbital subspace."""
     return TA @ TA.conj().T
@@ -35,9 +36,7 @@ def lowdin_embedding_populations(mol, density_matrix, overlap):
     if np.any(eigenvalues < 1.0e-12):
         raise ValueError("AO overlap matrix is numerically linearly dependent.")
 
-    overlap_sqrt = (
-        eigenvectors * np.sqrt(eigenvalues)
-    ) @ eigenvectors.conj().T
+    overlap_sqrt = (eigenvectors * np.sqrt(eigenvalues)) @ eigenvectors.conj().T
 
     lowdin_density = overlap_sqrt @ density_matrix @ overlap_sqrt
     ao_populations = np.diag(lowdin_density).real
@@ -54,6 +53,7 @@ def meta_lowdin_embedding_populations(mol, density_matrix, overlap):
         verbose=0,
     )
     return atomic_populations_from_ao_values(mol, ao_populations)
+
 
 def get_atoms_in_embedding_space(
     mybe,
@@ -101,10 +101,7 @@ def get_atoms_in_embedding_space(
 
         if scheme == "ao_density":
             atom_scores = np.array(
-                [
-                    np.sum(np.abs(TA[ao0:ao1, :]) ** 2)
-                    for _, _, ao0, ao1 in ao_slices
-                ]
+                [np.sum(np.abs(TA[ao0:ao1, :]) ** 2) for _, _, ao0, ao1 in ao_slices]
             )
         else:
             if overlap is None:
@@ -117,9 +114,7 @@ def get_atoms_in_embedding_space(
                     mol, density_matrix, overlap
                 )
             elif scheme == "lowdin":
-                atom_scores = lowdin_embedding_populations(
-                    mol, density_matrix, overlap
-                )
+                atom_scores = lowdin_embedding_populations(mol, density_matrix, overlap)
             elif scheme == "meta_lowdin":
                 atom_scores = meta_lowdin_embedding_populations(
                     mol, density_matrix, overlap
@@ -130,6 +125,9 @@ def get_atoms_in_embedding_space(
                     "'ao_density', 'mulliken', 'lowdin', or 'meta_lowdin'."
                 )
 
+        for atom_index, score in enumerate(atom_scores):
+            print(f"Atom {atom_index}: {score:.8f}")
+    
         fragment_atoms = np.flatnonzero(atom_scores > tol).tolist()
         atoms_in_embedding_space.append(fragment_atoms)
 
