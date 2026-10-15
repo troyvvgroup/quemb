@@ -117,9 +117,7 @@ def get_atoms_in_embedding_space(
                     mol, density_matrix, overlap
                 )
             elif scheme == "lowdin":
-                atom_scores = lowdin_embedding_populations(
-                    mol, density_matrix, overlap
-                )
+                atom_scores = lowdin_embedding_populations(mol, density_matrix, overlap)
             elif scheme == "meta_lowdin":
                 atom_scores = meta_lowdin_embedding_populations(
                     mol, density_matrix, overlap
