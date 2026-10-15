@@ -1,31 +1,89 @@
-# import pdb
 import numpy as np
 from dftd3.interface import DispersionModel, RationalDampingParam
+from scipy.linalg import eigh
+from pyscf.scf import hf
+
+def embedding_density_matrix(TA):
+    """Build a density-like matrix for the embedding orbital subspace."""
+    return TA @ TA.conj().T
 
 
-def get_atoms_in_embedding_space(mybe, mol, tol=1.0e-1):
+def atomic_populations_from_ao_values(mol, ao_values):
+    """Sum one AO-resolved population value over the AOs on each atom."""
+    populations = np.zeros(mol.natm)
+
+    for atom_idx, (_, _, ao0, ao1) in enumerate(mol.aoslice_by_atom()):
+        populations[atom_idx] = ao_values[ao0:ao1].sum()
+
+    return populations
+
+
+def mulliken_embedding_populations(mol, density_matrix, overlap):
+    """Atomic Mulliken populations of the embedding-space density matrix."""
+    ao_populations = np.einsum(
+        "ij,ji->i",
+        density_matrix,
+        overlap,
+    ).real
+    return atomic_populations_from_ao_values(mol, ao_populations)
+
+
+def lowdin_embedding_populations(mol, density_matrix, overlap):
+    """Atomic symmetric-Löwdin populations of the embedding-space density."""
+    eigenvalues, eigenvectors = eigh(overlap)
+
+    if np.any(eigenvalues < 1.0e-12):
+        raise ValueError("AO overlap matrix is numerically linearly dependent.")
+
+    overlap_sqrt = (
+        eigenvectors * np.sqrt(eigenvalues)
+    ) @ eigenvectors.conj().T
+
+    lowdin_density = overlap_sqrt @ density_matrix @ overlap_sqrt
+    ao_populations = np.diag(lowdin_density).real
+
+    return atomic_populations_from_ao_values(mol, ao_populations)
+
+
+def meta_lowdin_embedding_populations(mol, density_matrix, overlap):
+    """Atomic meta-Löwdin populations using PySCF's implementation."""
+    ao_populations, _ = hf.mulliken_meta(
+        mol,
+        density_matrix,
+        s=overlap,
+        verbose=0,
+    )
+    return atomic_populations_from_ao_values(mol, ao_populations)
+
+def get_atoms_in_embedding_space(
+    mybe,
+    mol,
+    tol=1.0e-1,
+    scheme="ao_density",
+):
     """
-    Return the atoms having nonzero density in each fragment's embedding space.
+    Return atoms with embedding-space population greater than ``tol``.
 
     Parameters
     ----------
     mybe
-        Bootstrap-embedding object containing ``mybe.Fobjs``. Each fragment
-        object must have a transformation matrix ``TA`` with shape
-        ``(n_AO, n_embedding_orbitals)``.
+        Bootstrap-embedding object containing fragment objects in ``Fobjs``.
     mol
         PySCF Mole object.
     tol : float, optional
-        An atom is included when its total embedding-space density is greater
-        than this threshold.
+        Inclusion threshold. Its units depend on ``scheme``: squared
+        coefficient norm for ``"ao_density"`` and embedding-subspace
+        population (electrons) for population-based schemes.
+    scheme : {"ao_density", "mulliken", "lowdin", "meta_lowdin"}, optional
+        Method used to assign the embedding space to atoms.
 
     Returns
     -------
-    atoms_in_embedding_space : list[list[int]]
-        ``atoms_in_embedding_space[frag_idx]`` contains the zero-based atom
-        indices with nonzero density in fragment ``frag_idx``.
+    list[list[int]]
+        Zero-based atom indices included in each fragment's embedding space.
     """
     ao_slices = mol.aoslice_by_atom()
+    overlap = None
     atoms_in_embedding_space = []
 
     for fobj in mybe.Fobjs:
@@ -41,17 +99,38 @@ def get_atoms_in_embedding_space(mybe, mol, tol=1.0e-1):
                 f"TA contains {TA.shape[0]} AO rows, but mol has {mol.nao_nr()} AOs."
             )
 
-        fragment_atoms = []
+        if scheme == "ao_density":
+            atom_scores = np.array(
+                [
+                    np.sum(np.abs(TA[ao0:ao1, :]) ** 2)
+                    for _, _, ao0, ao1 in ao_slices
+                ]
+            )
+        else:
+            if overlap is None:
+                overlap = mol.intor_symmetric("int1e_ovlp")
 
-        for atom_idx, (_, _, ao0, ao1) in enumerate(ao_slices):
-            # Sum the squared AO coefficients over all AOs on this atom and
-            # all embedding orbitals belonging to this fragment.
-            atom_density = np.sum(np.abs(TA[ao0:ao1, :]) ** 2)
+            density_matrix = embedding_density_matrix(TA)
 
-            print(f"atom_density is {atom_density:.12e}")
-            if atom_density > tol:
-                fragment_atoms.append(atom_idx)
+            if scheme == "mulliken":
+                atom_scores = mulliken_embedding_populations(
+                    mol, density_matrix, overlap
+                )
+            elif scheme == "lowdin":
+                atom_scores = lowdin_embedding_populations(
+                    mol, density_matrix, overlap
+                )
+            elif scheme == "meta_lowdin":
+                atom_scores = meta_lowdin_embedding_populations(
+                    mol, density_matrix, overlap
+                )
+            else:
+                raise ValueError(
+                    "scheme must be one of "
+                    "'ao_density', 'mulliken', 'lowdin', or 'meta_lowdin'."
+                )
 
+        fragment_atoms = np.flatnonzero(atom_scores > tol).tolist()
         atoms_in_embedding_space.append(fragment_atoms)
 
     return atoms_in_embedding_space
