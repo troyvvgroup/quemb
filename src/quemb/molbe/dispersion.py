@@ -58,12 +58,12 @@ def meta_lowdin_embedding_populations(mol, density_matrix, overlap):
 def get_atoms_in_embedding_space(
     mybe,
     mol,
-    tol=None,
     scheme="ao_density",
     coverage=0.99,
 ):
     """
-    Return atoms with embedding-space population greater than ``tol``.
+    Return the smallest set of atoms that captures a chosen fraction of each
+    fragment's embedding-space population.
 
     Parameters
     ----------
@@ -71,18 +71,20 @@ def get_atoms_in_embedding_space(
         Bootstrap-embedding object containing fragment objects in ``Fobjs``.
     mol
         PySCF Mole object.
-    tol : float, optional
-        Inclusion threshold. Its units depend on ``scheme``: squared
-        coefficient norm for ``"ao_density"`` and embedding-subspace
-        population (electrons) for population-based schemes.
     scheme : {"ao_density", "mulliken", "lowdin", "meta_lowdin"}, optional
         Method used to assign the embedding space to atoms.
+    coverage : float, optional
+        Fraction of the total nonnegative atom score to capture. Must lie in
+        the interval ``(0, 1]``.
 
     Returns
     -------
     list[list[int]]
         Zero-based atom indices included in each fragment's embedding space.
     """
+    if not 0.0 < coverage <= 1.0:
+        raise ValueError("coverage must be in the interval (0, 1].")
+
     ao_slices = mol.aoslice_by_atom()
     overlap = None
     atoms_in_embedding_space = []
@@ -115,7 +117,9 @@ def get_atoms_in_embedding_space(
                     mol, density_matrix, overlap
                 )
             elif scheme == "lowdin":
-                atom_scores = lowdin_embedding_populations(mol, density_matrix, overlap)
+                atom_scores = lowdin_embedding_populations(
+                    mol, density_matrix, overlap
+                )
             elif scheme == "meta_lowdin":
                 atom_scores = meta_lowdin_embedding_populations(
                     mol, density_matrix, overlap
@@ -129,31 +133,28 @@ def get_atoms_in_embedding_space(
         for atom_index, score in enumerate(atom_scores):
             print(f"Atom {atom_index}: {score:.8f}")
 
-        if tol is not None:
-            fragment_atoms = np.flatnonzero(atom_scores > tol).tolist()
-        else:
-            if not 0.0 < coverage <= 1.0:
-                raise ValueError("coverage must be in the interval (0, 1].")
+        # Clip tiny negative numerical artifacts from population analyses.
+        positive_scores = np.clip(atom_scores, 0.0, None)
+        total_score = positive_scores.sum()
 
-            # Work with nonnegative scores; this is especially useful if a
-            # population scheme produces tiny negative numerical artifacts.
-            positive_scores = np.clip(atom_scores, 0.0, None)
+        if total_score == 0.0:
+            fragment_atoms = []
+            print("No positive embedding-space population found.")
+        else:
             order = np.argsort(positive_scores)[::-1]
             cumulative_scores = np.cumsum(positive_scores[order])
-
-            target = coverage * cumulative_scores[-1]
+            target = coverage * total_score
             n_atoms = np.searchsorted(cumulative_scores, target, side="left") + 1
 
             fragment_atoms = np.sort(order[:n_atoms]).tolist()
 
-            dynamic_tol = positive_scores[order[n_atoms - 1]]
+            captured_coverage = cumulative_scores[n_atoms - 1] / total_score
             print(
-                f"Selected {n_atoms} atoms to capture {coverage:.1%} "
+                f"Selected {n_atoms} atoms to capture {captured_coverage:.1%} "
                 f"of the embedding-space population "
-                f"(effective threshold: {dynamic_tol:.8f})."
+                f"(requested coverage: {coverage:.1%})."
             )
 
-    
         atoms_in_embedding_space.append(fragment_atoms)
 
     return atoms_in_embedding_space
