@@ -2,6 +2,7 @@
 import numpy as np
 from dftd3.interface import DispersionModel, RationalDampingParam
 
+
 def get_atoms_in_embedding_space(mybe, mol, tol=1.0e-1):
     """
     Return the atoms having nonzero density in each fragment's embedding space.
@@ -32,14 +33,12 @@ def get_atoms_in_embedding_space(mybe, mol, tol=1.0e-1):
 
         if TA.ndim != 2:
             raise ValueError(
-                f"Expected TA to be two-dimensional, but obtained shape "
-                f"{TA.shape}."
+                f"Expected TA to be two-dimensional, but obtained shape {TA.shape}."
             )
 
         if TA.shape[0] != mol.nao_nr():
             raise ValueError(
-                f"TA contains {TA.shape[0]} AO rows, but mol has "
-                f"{mol.nao_nr()} AOs."
+                f"TA contains {TA.shape[0]} AO rows, but mol has {mol.nao_nr()} AOs."
             )
 
         fragment_atoms = []
