@@ -1,6 +1,7 @@
 import re
 from functools import cache
 from importlib.resources import files
+from typing import Literal
 
 import numpy as np
 import tomllib
@@ -682,7 +683,9 @@ def meta_lowdin_embedding_populations(mol, density_matrix, overlap):
 def get_atoms_in_embedding_space(
     mybe,
     mol,
-    scheme="ao_density",
+    scheme: Literal[
+        "ao_density", "mulliken", "lowdin", "meta_lowdin"
+    ] = "ao_density",  # later consider renaming to population_method
     coverage=0.99,
     verbose=False,
 ):
