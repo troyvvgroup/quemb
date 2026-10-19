@@ -10,8 +10,8 @@ from quemb.molbe.dispersion import (
 def simple_d3_hf_bj_two_body_energy(
     atomic_numbers: torch.Tensor,
     coordinates: torch.Tensor,
-) -> torch.Tensor:
-    """Return a detached simple-dftd3 HF-D3(BJ) two-body reference energy."""
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Return detached simple-dftd3 HF-D3(BJ) energy and gradient references."""
     # simple-dftd3 is used only as an independent numerical reference here;
     # detaching keeps this helper outside the PyTorch autograd graph.
     model = DispersionModel(
@@ -20,7 +20,7 @@ def simple_d3_hf_bj_two_body_energy(
     )
     parameter = RationalDampingParam(method="hf", atm=False)
 
-    result = model.get_dispersion(parameter, grad=False)
+    result = model.get_dispersion(parameter, grad=True)
 
     # Confirm that the reference contains no three-body Axilrod--Teller--Muto
     # contribution, so it is comparable to the two-body implementation under test.
@@ -31,10 +31,17 @@ def simple_d3_hf_bj_two_body_energy(
         atol=1.0e-14,
     )
 
-    return torch.tensor(
-        result["energy"],
-        dtype=coordinates.dtype,
-        device=coordinates.device,
+    return (
+        torch.tensor(
+            result["energy"],
+            dtype=coordinates.dtype,
+            device=coordinates.device,
+        ),
+        torch.tensor(
+            result["gradient"],
+            dtype=coordinates.dtype,
+            device=coordinates.device,
+        ),
     )
 
 
@@ -58,7 +65,7 @@ def test_torch_hf_d3bj_two_body_energy_and_gradient_match_expectations():
         atomic_numbers,
         method="hf",
     )
-    reference_energy = simple_d3_hf_bj_two_body_energy(
+    reference_energy, reference_gradient = simple_d3_hf_bj_two_body_energy(
         atomic_numbers,
         coordinates,
     )
@@ -72,7 +79,9 @@ def test_torch_hf_d3bj_two_body_energy_and_gradient_match_expectations():
 
     torch_energy.backward()
     assert coordinates.grad is not None
-    # A finite gradient is a basic autograd regression check.  A value-by-value
-    # force comparison can be added later if an independent gradient reference
-    # is introduced.
-    assert torch.isfinite(coordinates.grad).all()
+    torch.testing.assert_close(
+        coordinates.grad,
+        reference_gradient,
+        rtol=1.0e-9,
+        atol=1.0e-11,
+    )
