@@ -2,6 +2,7 @@ import torch
 
 from quemb.molbe.dispersion import (
     d3_coordination_numbers,
+    d3_pairwise_c6,
     d3_reference_weights,
     pairwise_distances,
 )
@@ -159,6 +160,80 @@ def test_d3_reference_weights_pass_gradcheck():
     assert torch.autograd.gradcheck(
         weights_from_coordination_numbers,
         (coordination_numbers,),
+        eps=1.0e-6,
+        atol=1.0e-5,
+        rtol=1.0e-3,
+    )
+
+
+def test_d3_pairwise_c6_interpolates_reference_values():
+    reference_weights = torch.tensor(
+        [
+            [0.25, 0.75],
+            [0.60, 0.40],
+        ],
+        dtype=torch.float64,
+    )
+    c6_reference = torch.tensor(
+        [
+            [10.0, 20.0],
+            [20.0, 40.0],
+        ],
+        dtype=torch.float64,
+    )
+
+    c6 = d3_pairwise_c6(reference_weights, c6_reference)
+
+    # [0.25, 0.75] @ C6_reference @ [0.60, 0.40]^T
+    assert c6[0, 1].item() == 24.5
+    assert c6[1, 0].item() == 24.5
+
+
+def test_d3_pairwise_c6_is_symmetric_for_symmetric_reference_table():
+    reference_weights = torch.tensor(
+        [
+            [0.20, 0.80],
+            [0.50, 0.50],
+            [0.90, 0.10],
+        ],
+        dtype=torch.float64,
+    )
+    c6_reference = torch.tensor(
+        [
+            [10.0, 20.0],
+            [20.0, 40.0],
+        ],
+        dtype=torch.float64,
+    )
+
+    c6 = d3_pairwise_c6(reference_weights, c6_reference)
+
+    torch.testing.assert_close(c6, c6.T)
+
+
+def test_d3_pairwise_c6_passes_gradcheck():
+    reference_weights = torch.tensor(
+        [
+            [0.25, 0.75],
+            [0.60, 0.40],
+        ],
+        dtype=torch.float64,
+        requires_grad=True,
+    )
+    c6_reference = torch.tensor(
+        [
+            [10.0, 20.0],
+            [20.0, 40.0],
+        ],
+        dtype=torch.float64,
+    )
+
+    def c6_from_weights(weights):
+        return d3_pairwise_c6(weights, c6_reference)
+
+    assert torch.autograd.gradcheck(
+        c6_from_weights,
+        (reference_weights,),
         eps=1.0e-6,
         atol=1.0e-5,
         rtol=1.0e-3,
