@@ -3,12 +3,31 @@ from functools import cache
 from importlib.resources import files
 
 import numpy as np
+import tomllib
 import torch
 from dftd3.interface import DispersionModel, RationalDampingParam
 from pyscf.scf import hf
 from scipy.linalg import eigh
 
 ANGSTROM_TO_BOHR = 1.8897261254578281
+
+
+@cache
+def d3_bj_parameters(method: str) -> dict[str, float]:
+    """Return D3(BJ) parameters for a named electronic-structure method."""
+    source = files("quemb.molbe").joinpath("data", "parameters.toml").read_text()
+    data = tomllib.loads(source)
+
+    try:
+        defaults = data["default"]["parameter"]["d3"]["bj"]
+        method_parameters = data["parameter"][method.lower()]["d3"]["bj"]
+    except KeyError as exc:
+        raise ValueError(
+            f"No D3(BJ) parameters are available for method {method!r}."
+        ) from exc
+
+    parameters = {**defaults, **method_parameters}
+    return {name: float(parameters[name]) for name in ("s6", "s8", "a1", "a2")}
 
 
 @cache
@@ -76,15 +95,12 @@ def d3_bj_energy(
     coordinates: torch.Tensor,
     atomic_numbers: torch.Tensor,
     *,
-    s6: float,
-    s8: float,
-    a1: float,
-    a2: float,
+    method: str = "hf",
 ) -> torch.Tensor:
-    """Compute the two-body D3(BJ) dispersion energy.
+    """Compute the two-body D3(BJ) dispersion energy for ``method``.
 
-    Coordinates must be expressed in bohr.  The supported elements are those
-    for which the bundled D3 reference-CN and C6 data are available.
+    Coordinates must be expressed in bohr. The D3(BJ) damping parameters are
+    loaded from the bundled simple-dftd3-compatible ``parameters.toml`` file.
     """
     if coordinates.ndim != 2 or coordinates.shape[1] != 3:
         raise ValueError(
@@ -96,6 +112,8 @@ def d3_bj_energy(
             "atomic_numbers must have shape (n_atoms,), with n_atoms equal "
             "to coordinates.shape[0]."
         )
+
+    parameters = d3_bj_parameters(method)
 
     coordination_numbers = d3_coordination_numbers(
         coordinates,
@@ -110,18 +128,13 @@ def d3_bj_energy(
         dtype=coordinates.dtype,
         device=coordinates.device,
     )
-    c8 = d3_pairwise_c8(
-        c6,
-        r4r2,
-    )
+    c8 = d3_pairwise_c8(c6, r4r2)
+
     return d3_bj_two_body_energy(
         coordinates,
         c6,
         c8,
-        s6=s6,
-        s8=s8,
-        a1=a1,
-        a2=a2,
+        **parameters,
     )
 
 

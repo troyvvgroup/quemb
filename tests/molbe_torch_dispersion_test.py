@@ -64,7 +64,7 @@ def test_torch_hf_d3bj_two_body_energy_and_gradient_match_expectations():
     torch_energy = d3_bj_energy(
         coordinates,
         atomic_numbers,
-        **HF_D3BJ,
+        method="hf",
     )
     reference_energy = simple_d3_hf_bj_two_body_energy(
         atomic_numbers,
