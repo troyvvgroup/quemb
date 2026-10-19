@@ -17,6 +17,41 @@ def d3_reference_weights(
     return unnormalized_weights / unnormalized_weights.sum(dim=1, keepdim=True)
 
 
+def d3_pairwise_c6(
+    reference_weights: torch.Tensor,
+    c6_reference: torch.Tensor,
+) -> torch.Tensor:
+    """Interpolate pairwise C6 coefficients from D3 reference values.
+
+    Parameters
+    ----------
+    reference_weights
+        Normalized reference-state weights with shape
+        ``(n_atoms, n_reference_states)``.
+    c6_reference
+        Reference C6 coefficients with shape
+        ``(n_reference_states, n_reference_states)``.
+
+    Returns
+    -------
+    torch.Tensor
+        Interpolated pairwise C6 coefficients with shape
+        ``(n_atoms, n_atoms)``.
+    """
+    if reference_weights.ndim != 2:
+        raise ValueError(
+            "reference_weights must have shape (n_atoms, n_reference_states)."
+        )
+
+    n_reference_states = reference_weights.shape[1]
+    if c6_reference.shape != (n_reference_states, n_reference_states):
+        raise ValueError(
+            "c6_reference must have shape (n_reference_states, n_reference_states)."
+        )
+
+    return reference_weights @ c6_reference @ reference_weights.T
+
+
 def d3_coordination_numbers(
     coordinates: torch.Tensor,
     covalent_radii: torch.Tensor,
