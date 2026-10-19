@@ -7,13 +7,12 @@ from quemb.molbe.dispersion import (
 )
 
 
-def simple_d3_hf_bj_two_body_energy(
+def reference_energy_and_gradient(
     atomic_numbers: torch.Tensor,
     coordinates: torch.Tensor,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Return detached simple-dftd3 HF-D3(BJ) energy and gradient references."""
-    # simple-dftd3 is used only as an independent numerical reference here;
-    # detaching keeps this helper outside the PyTorch autograd graph.
+
     model = DispersionModel(
         atomic_numbers.detach().cpu().numpy(),
         coordinates.detach().cpu().numpy(),
@@ -65,7 +64,7 @@ def test_torch_hf_d3bj_two_body_energy_and_gradient_match_expectations():
         atomic_numbers,
         method="hf",
     )
-    reference_energy, reference_gradient = simple_d3_hf_bj_two_body_energy(
+    reference_energy, reference_gradient = reference_energy_and_gradient(
         atomic_numbers,
         coordinates,
     )
