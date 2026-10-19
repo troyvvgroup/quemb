@@ -1,8 +1,8 @@
 import numpy as np
+import torch
 from dftd3.interface import DispersionModel, RationalDampingParam
 from pyscf.scf import hf
 from scipy.linalg import eigh
-import torch
 
 
 def pairwise_distances(coordinates: torch.Tensor) -> torch.Tensor:
