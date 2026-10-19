@@ -19,7 +19,7 @@ def test_pairwise_distances_preserve_autograd():
     torch.testing.assert_close(distances, expected_distances)
 
     # A temporary toy dispersion-like energy.
-    energy = -distances[0, 1] ** -6
+    energy = -(distances[0, 1] ** -6)
     energy.backward()
 
     expected_gradient = torch.tensor(
