@@ -1,6 +1,7 @@
 import torch
 
 from quemb.molbe.dispersion import (
+    d3_bj_two_body_energy,
     d3_coordination_numbers,
     d3_pairwise_c6,
     d3_reference_weights,
@@ -234,6 +235,117 @@ def test_d3_pairwise_c6_passes_gradcheck():
     assert torch.autograd.gradcheck(
         c6_from_weights,
         (reference_weights,),
+        eps=1.0e-6,
+        atol=1.0e-5,
+        rtol=1.0e-3,
+    )
+
+
+def test_d3_bj_two_body_energy_matches_two_atom_expression():
+    coordinates = torch.tensor(
+        [[0.0, 0.0, 0.0], [0.0, 0.0, 3.0]],
+        dtype=torch.float64,
+    )
+    c6 = torch.tensor([[0.0, 12.0], [12.0, 0.0]], dtype=torch.float64)
+    c8 = torch.tensor([[0.0, 48.0], [48.0, 0.0]], dtype=torch.float64)
+
+    energy = d3_bj_two_body_energy(
+        coordinates,
+        c6,
+        c8,
+        s6=1.0,
+        s8=0.5,
+        a1=0.4,
+        a2=1.0,
+    )
+
+    distance = 3.0
+    r0 = (48.0 / 12.0) ** 0.5
+    damping_radius = 0.4 * r0 + 1.0
+    expected_energy = -(
+        12.0 / (distance**6 + damping_radius**6)
+        + 0.5 * 48.0 / (distance**8 + damping_radius**8)
+    )
+
+    torch.testing.assert_close(
+        energy,
+        torch.tensor(expected_energy, dtype=torch.float64),
+    )
+
+
+def test_d3_bj_two_body_energy_becomes_less_negative_with_distance():
+    c6 = torch.tensor([[0.0, 12.0], [12.0, 0.0]], dtype=torch.float64)
+    c8 = torch.tensor([[0.0, 48.0], [48.0, 0.0]], dtype=torch.float64)
+
+    close_coordinates = torch.tensor(
+        [[0.0, 0.0, 0.0], [0.0, 0.0, 3.0]],
+        dtype=torch.float64,
+    )
+    far_coordinates = torch.tensor(
+        [[0.0, 0.0, 0.0], [0.0, 0.0, 6.0]],
+        dtype=torch.float64,
+    )
+
+    close_energy = d3_bj_two_body_energy(
+        close_coordinates, c6, c8, s6=1.0, s8=0.5, a1=0.4, a2=1.0
+    )
+    far_energy = d3_bj_two_body_energy(
+        far_coordinates, c6, c8, s6=1.0, s8=0.5, a1=0.4, a2=1.0
+    )
+
+    assert close_energy < far_energy < 0.0
+
+
+def test_d3_bj_two_body_energy_is_invariant_to_atom_order():
+    coordinates = torch.tensor(
+        [[0.0, 0.0, 0.0], [0.0, 0.0, 3.0], [0.0, 4.0, 0.0]],
+        dtype=torch.float64,
+    )
+    c6 = torch.tensor(
+        [[0.0, 12.0, 15.0], [12.0, 0.0, 18.0], [15.0, 18.0, 0.0]],
+        dtype=torch.float64,
+    )
+    c8 = 4.0 * c6
+
+    energy = d3_bj_two_body_energy(coordinates, c6, c8, s6=1.0, s8=0.5, a1=0.4, a2=1.0)
+
+    permutation = torch.tensor([2, 0, 1])
+    permuted_energy = d3_bj_two_body_energy(
+        coordinates[permutation],
+        c6[permutation][:, permutation],
+        c8[permutation][:, permutation],
+        s6=1.0,
+        s8=0.5,
+        a1=0.4,
+        a2=1.0,
+    )
+
+    torch.testing.assert_close(energy, permuted_energy)
+
+
+def test_d3_bj_two_body_energy_passes_gradcheck():
+    coordinates = torch.tensor(
+        [[0.0, 0.0, 0.0], [0.2, -0.1, 3.0]],
+        dtype=torch.float64,
+        requires_grad=True,
+    )
+    c6 = torch.tensor([[0.0, 12.0], [12.0, 0.0]], dtype=torch.float64)
+    c8 = torch.tensor([[0.0, 48.0], [48.0, 0.0]], dtype=torch.float64)
+
+    def energy_from_coordinates(coordinates):
+        return d3_bj_two_body_energy(
+            coordinates,
+            c6,
+            c8,
+            s6=1.0,
+            s8=0.5,
+            a1=0.4,
+            a2=1.0,
+        )
+
+    assert torch.autograd.gradcheck(
+        energy_from_coordinates,
+        (coordinates,),
         eps=1.0e-6,
         atol=1.0e-5,
         rtol=1.0e-3,

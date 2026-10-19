@@ -5,6 +5,70 @@ from pyscf.scf import hf
 from scipy.linalg import eigh
 
 
+def d3_bj_two_body_energy(
+    coordinates: torch.Tensor,
+    c6: torch.Tensor,
+    c8: torch.Tensor,
+    *,
+    s6: float,
+    s8: float,
+    a1: float,
+    a2: float,
+) -> torch.Tensor:
+    """Compute the pairwise D3(BJ) dispersion energy.
+
+    Parameters
+    ----------
+    coordinates
+        Cartesian coordinates with shape ``(n_atoms, 3)``.
+    c6, c8
+        Pairwise coefficient matrices, each with shape
+        ``(n_atoms, n_atoms)``.
+    s6, s8, a1, a2
+        D3(BJ) damping parameters.
+
+    Returns
+    -------
+    torch.Tensor
+        Scalar D3(BJ) two-body dispersion energy.
+    """
+    if coordinates.ndim != 2 or coordinates.shape[1] != 3:
+        raise ValueError(
+            "coordinates must have shape (n_atoms, 3), "
+            f"but has shape {tuple(coordinates.shape)}."
+        )
+
+    n_atoms = coordinates.shape[0]
+    expected_shape = (n_atoms, n_atoms)
+    if c6.shape != expected_shape or c8.shape != expected_shape:
+        raise ValueError(
+            "c6 and c8 must both have shape "
+            f"{expected_shape}, but have shapes {tuple(c6.shape)} "
+            f"and {tuple(c8.shape)}."
+        )
+
+    distances = pairwise_distances(coordinates)
+    pair_indices = torch.triu_indices(
+        n_atoms,
+        n_atoms,
+        offset=1,
+        device=coordinates.device,
+    )
+    atom_i, atom_j = pair_indices
+
+    pair_distances = distances[atom_i, atom_j]
+    pair_c6 = c6[atom_i, atom_j]
+    pair_c8 = c8[atom_i, atom_j]
+
+    r0 = torch.sqrt(pair_c8 / pair_c6)
+    damping_radius = a1 * r0 + a2
+
+    c6_term = s6 * pair_c6 / (pair_distances**6 + damping_radius**6)
+    c8_term = s8 * pair_c8 / (pair_distances**8 + damping_radius**8)
+
+    return -(c6_term + c8_term).sum()
+
+
 def d3_reference_weights(
     coordination_numbers: torch.Tensor,
     reference_coordination_numbers: torch.Tensor,
