@@ -5,6 +5,18 @@ from pyscf.scf import hf
 from scipy.linalg import eigh
 
 
+def d3_reference_weights(
+    coordination_numbers: torch.Tensor,
+    reference_coordination_numbers: torch.Tensor,
+) -> torch.Tensor:
+    """Return normalized D3 reference-state weights for each atom."""
+    differences = (
+        coordination_numbers[:, None] - reference_coordination_numbers[None, :]
+    )
+    unnormalized_weights = torch.exp(-4.0 * differences**2)
+    return unnormalized_weights / unnormalized_weights.sum(dim=1, keepdim=True)
+
+
 def d3_coordination_numbers(
     coordinates: torch.Tensor,
     covalent_radii: torch.Tensor,
