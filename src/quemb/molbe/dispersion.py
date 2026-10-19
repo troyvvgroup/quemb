@@ -2,7 +2,12 @@ import numpy as np
 from dftd3.interface import DispersionModel, RationalDampingParam
 from pyscf.scf import hf
 from scipy.linalg import eigh
+import torch 
 
+def pairwise_distances(coordinates: torch.Tensor) -> torch.Tensor:
+    """Return the matrix R_ij of interatomic distances."""
+    displacements = coordinates[:, None, :] - coordinates[None, :, :]
+    return torch.linalg.vector_norm(displacements, dim=-1)
 
 def embedding_density_matrix(TA):
     """Build a density-like matrix for the embedding orbital subspace."""
