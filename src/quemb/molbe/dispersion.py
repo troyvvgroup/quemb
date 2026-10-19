@@ -5,6 +5,67 @@ from pyscf.scf import hf
 from scipy.linalg import eigh
 
 
+def d3_coordination_numbers(
+    coordinates: torch.Tensor,
+    covalent_radii: torch.Tensor,
+) -> torch.Tensor:
+    """Compute D3 coordination numbers from nuclear coordinates.
+
+    Parameters
+    ----------
+    coordinates
+        Cartesian coordinates with shape ``(n_atoms, 3)``.
+    covalent_radii
+        D3 covalent radii with shape ``(n_atoms,)``, in the same length
+        unit as ``coordinates``.
+
+    Returns
+    -------
+    torch.Tensor
+        Coordination numbers with shape ``(n_atoms,)``.
+
+    Notes
+    -----
+    Uses the D3 coordination-number switching function
+
+    ``CN_i = sum_{j != i} sigmoid[16 * ((4 / 3)
+    * (R_cov,i + R_cov,j) / R_ij - 1)]``.
+    """
+    if coordinates.ndim != 2 or coordinates.shape[1] != 3:
+        raise ValueError(
+            "coordinates must have shape (n_atoms, 3), "
+            f"but has shape {tuple(coordinates.shape)}."
+        )
+
+    n_atoms = coordinates.shape[0]
+    if covalent_radii.shape != (n_atoms,):
+        raise ValueError(
+            "covalent_radii must have shape (n_atoms,), "
+            f"but has shape {tuple(covalent_radii.shape)}."
+        )
+
+    if torch.any(covalent_radii <= 0):
+        raise ValueError("All covalent radii must be positive.")
+
+    distances = pairwise_distances(coordinates)
+    pair_mask = ~torch.eye(
+        n_atoms,
+        dtype=torch.bool,
+        device=coordinates.device,
+    )
+
+    # Replace the diagonal only before division; self-pairs are excluded below.
+    safe_distances = torch.where(pair_mask, distances, torch.ones_like(distances))
+    radii_sums = covalent_radii[:, None] + covalent_radii[None, :]
+
+    switching_argument = 16.0 * ((4.0 / 3.0) * radii_sums / safe_distances - 1.0)
+    pair_contributions = torch.sigmoid(switching_argument)
+
+    return torch.where(pair_mask, pair_contributions, torch.zeros_like(distances)).sum(
+        dim=1
+    )
+
+
 def pairwise_distances(coordinates: torch.Tensor) -> torch.Tensor:
     """Return the matrix R_ij of interatomic distances."""
     displacements = coordinates[:, None, :] - coordinates[None, :, :]
