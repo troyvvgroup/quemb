@@ -6,14 +6,6 @@ from quemb.molbe.dispersion import (
     d3_bj_energy,
 )
 
-# HF-D3(BJ) damping parameters used by the simple-dftd3 ``hf`` method.
-HF_D3BJ = {
-    "s6": 1.0,
-    "s8": 0.9171,
-    "a1": 0.3385,
-    "a2": 2.8830,
-}
-
 
 def simple_d3_hf_bj_two_body_energy(
     atomic_numbers: torch.Tensor,
