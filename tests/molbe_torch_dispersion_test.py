@@ -2,6 +2,7 @@ import torch
 
 from quemb.molbe.dispersion import (
     d3_coordination_numbers,
+    d3_reference_weights,
     pairwise_distances,
 )
 
@@ -90,6 +91,74 @@ def test_d3_coordination_numbers_pass_gradcheck():
     assert torch.autograd.gradcheck(
         coordination_from_coordinates,
         (coordinates,),
+        eps=1.0e-6,
+        atol=1.0e-5,
+        rtol=1.0e-3,
+    )
+
+
+def test_d3_reference_weights_are_normalized():
+    coordination_numbers = torch.tensor(
+        [0.5, 2.0, 3.5],
+        dtype=torch.float64,
+    )
+    reference_coordination_numbers = torch.tensor(
+        [0.0, 2.0, 4.0],
+        dtype=torch.float64,
+    )
+
+    weights = d3_reference_weights(
+        coordination_numbers,
+        reference_coordination_numbers,
+    )
+
+    expected_sums = torch.ones(3, dtype=torch.float64)
+    torch.testing.assert_close(weights.sum(dim=1), expected_sums)
+    assert torch.all(weights > 0)
+
+
+def test_d3_reference_weights_prefer_nearest_reference_state():
+    coordination_numbers = torch.tensor(
+        [0.0, 2.0, 4.0],
+        dtype=torch.float64,
+    )
+    reference_coordination_numbers = torch.tensor(
+        [0.0, 2.0, 4.0],
+        dtype=torch.float64,
+    )
+
+    weights = d3_reference_weights(
+        coordination_numbers,
+        reference_coordination_numbers,
+    )
+
+    expected_preferred_states = torch.tensor([0, 1, 2])
+    torch.testing.assert_close(
+        torch.argmax(weights, dim=1),
+        expected_preferred_states,
+    )
+
+
+def test_d3_reference_weights_pass_gradcheck():
+    coordination_numbers = torch.tensor(
+        [0.4, 1.7, 3.3],
+        dtype=torch.float64,
+        requires_grad=True,
+    )
+    reference_coordination_numbers = torch.tensor(
+        [0.0, 2.0, 4.0],
+        dtype=torch.float64,
+    )
+
+    def weights_from_coordination_numbers(coordination_numbers):
+        return d3_reference_weights(
+            coordination_numbers,
+            reference_coordination_numbers,
+        )
+
+    assert torch.autograd.gradcheck(
+        weights_from_coordination_numbers,
+        (coordination_numbers,),
         eps=1.0e-6,
         atol=1.0e-5,
         rtol=1.0e-3,
