@@ -1,8 +1,8 @@
 import re
+from dataclasses import dataclass
 from functools import cache
 from importlib.resources import files
 from typing import Literal
-from dataclasses import dataclass
 
 import numpy as np
 import tomli
@@ -13,13 +13,44 @@ from scipy.linalg import eigh
 
 ANGSTROM_TO_BOHR = 1.8897261254578281
 
+
+@dataclass(frozen=True)
+class D3BJParameters:
+    s6: float
+    s8: float
+    a1: float
+    a2: float
+
+    @classmethod
+    @cache
+    def from_method(cls, method: str) -> "D3BJParameters":
+        source = files("quemb.molbe").joinpath("data", "parameters.toml").read_text()
+        data = tomli.loads(source)
+
+        try:
+            defaults = data["default"]["parameter"]["d3"]["bj"]
+            method_parameters = data["parameter"][method.lower()]["d3"]["bj"]
+        except KeyError as exc:
+            raise ValueError(
+                f"No D3(BJ) parameters are available for method {method!r}."
+            ) from exc
+
+        values = {**defaults, **method_parameters}
+        return cls(
+            s6=float(values["s6"]),
+            s8=float(values["s8"]),
+            a1=float(values["a1"]),
+            a2=float(values["a2"]),
+        )
+
+
 class TorchD3BJ:
     """Differentiable two-body D3(BJ) correction."""
 
     def __init__(self, atomic_numbers: list[int], method: str = "hf"):
         self.atomic_numbers = torch.tensor(atomic_numbers, dtype=torch.int64)
         self.method = method
-        self.parameters = d3_bj_parameters(method)
+        self.parameters = D3BJParameters.from_method(method)
 
     def energy(self, coordinates: torch.Tensor) -> torch.Tensor:
         """Compute the two-body D3(BJ) dispersion energy for ``method``.
@@ -35,7 +66,10 @@ class TorchD3BJ:
             coordinates,
             c6,
             c8,
-            **self.parameters,
+            s6=self.parameters.s6,
+            s8=self.parameters.s8,
+            a1=self.parameters.a1,
+            a2=self.parameters.a2,
         )
 
     def energy_and_gradient(
@@ -78,24 +112,6 @@ class TorchD3BJ:
         )
         c8 = d3_pairwise_c8(c6, r4r2)
         return c6, c8
-
-
-@cache
-def d3_bj_parameters(method: str) -> dict[str, float]:
-    """Return D3(BJ) parameters for a named electronic-structure method."""
-    source = files("quemb.molbe").joinpath("data", "parameters.toml").read_text()
-    data = tomli.loads(source)
-
-    try:
-        defaults = data["default"]["parameter"]["d3"]["bj"]
-        method_parameters = data["parameter"][method.lower()]["d3"]["bj"]
-    except KeyError as exc:
-        raise ValueError(
-            f"No D3(BJ) parameters are available for method {method!r}."
-        ) from exc
-
-    parameters = {**defaults, **method_parameters}
-    return {name: float(parameters[name]) for name in ("s6", "s8", "a1", "a2")}
 
 
 @cache
