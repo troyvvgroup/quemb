@@ -270,11 +270,26 @@ class TorchD3BJ:
         Coordinates must be expressed in bohr. The D3(BJ) damping parameters are
         loaded from the bundled simple-dftd3-compatible ``parameters.toml`` file.
         """
-
         self._validate_coordinates(coordinates)
         c6, c8 = self._pairwise_coefficients(coordinates)
 
-        return d3_bj_two_body_energy(
+        n_atoms = coordinates.shape[0]
+        expected_shape = (n_atoms, n_atoms)
+
+        if c6.shape != expected_shape or c8.shape != expected_shape:
+            raise ValueError(
+                "c6 and c8 must both have shape "
+                f"{expected_shape}, but have shapes {tuple(c6.shape)} "
+                f"and {tuple(c8.shape)}."
+            )
+
+        if c6.dtype != coordinates.dtype or c8.dtype != coordinates.dtype:
+            raise TypeError("c6 and c8 must have the same dtype as coordinates.")
+
+        if c6.device != coordinates.device or c8.device != coordinates.device:
+            raise ValueError("c6 and c8 must be on the same device as coordinates.")
+
+        pair_energies, _ = d3_bj_two_body_pair_energies(
             coordinates,
             c6,
             c8,
@@ -283,6 +298,7 @@ class TorchD3BJ:
             a1=self.parameters.a1,
             a2=self.parameters.a2,
         )
+        return pair_energies.sum()
 
     def energy_and_gradient(
         self,
