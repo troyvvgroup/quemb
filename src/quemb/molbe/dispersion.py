@@ -21,6 +21,32 @@ class D3ReferenceData:
     covalent_radii: torch.Tensor
     r4r2_factors: torch.Tensor
 
+    def r4r2_for(
+        self,
+        atomic_numbers: torch.Tensor,
+        *,
+        dtype: torch.dtype,
+        device: torch.device,
+    ) -> torch.Tensor:
+        """Return D3 C8 factors for ``atomic_numbers``."""
+        if atomic_numbers.ndim != 1:
+            raise ValueError("atomic_numbers must have shape (n_atoms,).")
+
+        if atomic_numbers.dtype not in {
+            torch.int8,
+            torch.int16,
+            torch.int32,
+            torch.int64,
+            torch.uint8,
+        }:
+            raise TypeError("atomic_numbers must have an integer dtype.")
+
+        if torch.any(atomic_numbers < 1) or torch.any(atomic_numbers > 118):
+            raise ValueError("atomic_numbers must lie between 1 and 118.")
+
+        table = self.r4r2_factors.to(dtype=dtype, device=device)
+        return table[atomic_numbers.to(device=device)]
+
     @classmethod
     @cache
     def from_files(cls) -> "D3ReferenceData":
@@ -263,6 +289,7 @@ class TorchD3BJ:
         self.atomic_numbers = torch.tensor(atomic_numbers, dtype=torch.int64)
         self.method = method
         self.parameters = D3BJParameters.from_method(method)
+        self.reference_data = D3ReferenceData.from_files()
 
     def energy(self, coordinates: torch.Tensor) -> torch.Tensor:
         """Compute the two-body D3(BJ) dispersion energy for ``method``.
@@ -333,7 +360,7 @@ class TorchD3BJ:
             atomic_numbers,
             coordination_numbers,
         )
-        r4r2 = d3_r4r2(
+        r4r2 = self.reference_data.r4r2_for(
             atomic_numbers,
             dtype=coordinates.dtype,
             device=coordinates.device,
@@ -434,58 +461,6 @@ def d3_bj_two_body_pair_energies(
 
     pair_energies = -(c6_term + c8_term)
     return pair_energies, pair_indices
-
-
-def d3_bj_two_body_energy(
-    coordinates: torch.Tensor,
-    c6: torch.Tensor,
-    c8: torch.Tensor,
-    *,
-    s6: float,
-    s8: float,
-    a1: float,
-    a2: float,
-) -> torch.Tensor:
-    """Compute the pairwise D3(BJ) dispersion energy.
-
-    Parameters
-    ----------
-    coordinates
-        Cartesian coordinates with shape ``(n_atoms, 3)``.
-    c6, c8
-        Pairwise coefficient matrices, each with shape
-        ``(n_atoms, n_atoms)``.
-    s6, s8, a1, a2
-        D3(BJ) damping parameters.
-
-    Returns
-    -------
-    torch.Tensor
-        Scalar D3(BJ) two-body dispersion energy.
-    """
-    if coordinates.ndim != 2 or coordinates.shape[1] != 3:
-        raise ValueError(
-            "coordinates must have shape (n_atoms, 3), "
-            f"but has shape {tuple(coordinates.shape)}."
-        )
-
-    n_atoms = coordinates.shape[0]
-    expected_shape = (n_atoms, n_atoms)
-    if c6.shape != expected_shape or c8.shape != expected_shape:
-        raise ValueError(
-            "c6 and c8 must both have shape "
-            f"{expected_shape}, but have shapes {tuple(c6.shape)} "
-            f"and {tuple(c8.shape)}."
-        )
-    if c6.dtype != coordinates.dtype or c8.dtype != coordinates.dtype:
-        raise TypeError("c6 and c8 must have the same dtype as coordinates.")
-    if c6.device != coordinates.device or c8.device != coordinates.device:
-        raise ValueError("c6 and c8 must be on the same device as coordinates.")
-
-    pair_energies, _ = d3_bj_two_body_pair_energies(
-        coordinates, c6, c8, s6=s6, s8=s8, a1=a1, a2=a2
-    )
-    return pair_energies.sum()
 
 
 def d3_reference_weights(
