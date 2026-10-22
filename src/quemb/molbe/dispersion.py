@@ -369,35 +369,6 @@ class TorchD3BJ:
         return c6, c8
 
 
-def d3_r4r2(
-    atomic_numbers: torch.Tensor,
-    *,
-    dtype: torch.dtype,
-    device: torch.device,
-) -> torch.Tensor:
-    """Return simple-dftd3 C8 factors for each atomic number."""
-    if atomic_numbers.ndim != 1:
-        raise ValueError("atomic_numbers must have shape (n_atoms,).")
-
-    if atomic_numbers.dtype not in {
-        torch.int8,
-        torch.int16,
-        torch.int32,
-        torch.int64,
-        torch.uint8,
-    }:
-        raise TypeError("atomic_numbers must have an integer dtype.")
-
-    if torch.any(atomic_numbers < 1) or torch.any(atomic_numbers > 118):
-        raise ValueError("atomic_numbers must lie between 1 and 118.")
-
-    table = D3ReferenceData.from_files().r4r2_factors.to(
-        dtype=dtype,
-        device=device,
-    )
-    return table[atomic_numbers.to(device=device)]
-
-
 def d3_covalent_radii(
     atomic_numbers: torch.Tensor,
     *,
