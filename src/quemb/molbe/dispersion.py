@@ -725,7 +725,7 @@ def get_atoms_in_embedding_space(
         Bootstrap-embedding object containing fragment objects in ``Fobjs``.
     mol
         PySCF Mole object.
-    scheme : {"ao_density", "mulliken", "lowdin", "meta_lowdin"}, optional
+    scheme : Literal["ao_density", "mulliken", "lowdin", "meta_lowdin"], optional
         Method used to assign the embedding space to atoms.
     coverage : float, optional
         Fraction of the total nonnegative atom score to capture. Must lie in
