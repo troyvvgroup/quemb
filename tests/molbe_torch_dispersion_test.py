@@ -45,13 +45,27 @@ def reference_energy_and_gradient(
 
 
 def test_torch_hf_d3bj_two_body_energy_and_gradient_match_expectations():
-    atomic_numbers = torch.tensor([8, 1, 1], dtype=torch.int64)
-    # Water geometry in bohr, the coordinate unit expected by both implementations.
+    atomic_numbers = torch.tensor(
+        [6, 1, 1, 1, 1, 6, 1, 1, 1, 1],
+        dtype=torch.int64,
+    )
+
+    # Two methane molecules, C--C separation = 7 bohr (~3.7 Å).
+    # C--H distance is ~2.05 bohr.
     coordinates = torch.tensor(
         [
-            [0.0000000000, 0.0000000000, 0.0000000000],
-            [0.0000000000, 1.4323367300, 1.1071526600],
-            [0.0000000000, -1.4323367300, 1.1071526600],
+            # CH4 molecule 1
+            [0.000000, 0.000000, 0.000000],
+            [1.186000, 1.186000, 1.186000],
+            [1.186000, -1.186000, -1.186000],
+            [-1.186000, 1.186000, -1.186000],
+            [-1.186000, -1.186000, 1.186000],
+            # CH4 molecule 2, translated by 7 bohr along z
+            [0.000000, 0.000000, 7.000000],
+            [1.186000, 1.186000, 8.186000],
+            [1.186000, -1.186000, 5.814000],
+            [-1.186000, 1.186000, 5.814000],
+            [-1.186000, -1.186000, 8.186000],
         ],
         dtype=torch.float64,
         requires_grad=True,
@@ -78,6 +92,7 @@ def test_torch_hf_d3bj_two_body_energy_and_gradient_match_expectations():
 
     torch_energy.backward()
     assert coordinates.grad is not None
+    assert torch.count_nonzero(coordinates.grad).item() > 0
     torch.testing.assert_close(
         coordinates.grad,
         reference_gradient,
