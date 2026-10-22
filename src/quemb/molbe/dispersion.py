@@ -18,6 +18,8 @@ ANGSTROM_TO_BOHR = 1.8897261254578281
 class D3ReferenceData:
     coordination_numbers: dict[int, torch.Tensor]
     c6_coefficients: dict[tuple[int, int], torch.Tensor]
+    covalent_radii: torch.Tensor
+    r4r2_factors: torch.Tensor
 
     @classmethod
     @cache
@@ -146,10 +148,82 @@ class D3ReferenceData:
                 )
                 pair_index += 1
 
+        covalent_radii = cls._read_covalent_radii()
+        r4r2_factors = cls._read_r4r2_factors()
+
         return cls(
             coordination_numbers=reference_coordination_numbers,
             c6_coefficients=c6_reference,
+            covalent_radii=covalent_radii,
+            r4r2_factors=r4r2_factors,
         )
+
+    @staticmethod
+    def _read_covalent_radii() -> torch.Tensor:
+        """Read D3 covalent radii from covrad.f90, in bohr."""
+        source = files("quemb.molbe").joinpath("data", "covrad.f90").read_text()
+
+        match = re.search(
+            r"covalent_rad_2009\(max_elem\)\s*=\s*aatoau\s*\*\s*\[(.*?)\]",
+            source,
+            flags=re.DOTALL,
+        )
+        if match is None:
+            raise RuntimeError("Could not find covalent_rad_2009 in covrad.f90.")
+
+        radii_block = re.sub(r"!.*", "", match.group(1))
+        radii_angstrom = [
+            float(value) for value in re.findall(r"(\d+\.\d+)_wp", radii_block)
+        ]
+
+        if len(radii_angstrom) != 118:
+            raise RuntimeError(
+                "Expected 118 covalent radii in covrad.f90, "
+                f"but found {len(radii_angstrom)}."
+            )
+
+        return (
+            torch.tensor([0.0, *radii_angstrom], dtype=torch.float64)
+            * (4.0 / 3.0)
+            * ANGSTROM_TO_BOHR
+        )
+
+    @staticmethod
+    def _read_r4r2_factors() -> torch.Tensor:
+        """Read simple-dftd3 C8 factors from r4r2.f90."""
+        source = files("quemb.molbe").joinpath("data", "r4r2.f90").read_text()
+
+        match = re.search(
+            r"r4_over_r2\(max_elem\)\s*=\s*\[\s*&(?P<data>.*?)\]",
+            source,
+            flags=re.DOTALL,
+        )
+        if match is None:
+            raise RuntimeError("Could not find r4_over_r2 in r4r2.f90.")
+
+        data_block = re.sub(r"!.*", "", match.group("data"))
+        raw_r4r2 = [
+            float(value)
+            for value in re.findall(
+                r"([+-]?(?:\d+\.\d*|\.\d+)(?:[Ee][+-]?\d+)?)_wp",
+                data_block,
+            )
+        ]
+
+        if len(raw_r4r2) != 118:
+            raise RuntimeError(
+                "Expected 118 r4_over_r2 values in r4r2.f90, "
+                f"but found {len(raw_r4r2)}."
+            )
+
+        atomic_numbers = torch.arange(1, 119, dtype=torch.float64)
+        factors = torch.sqrt(
+            0.5
+            * torch.tensor(raw_r4r2, dtype=torch.float64)
+            * torch.sqrt(atomic_numbers)
+        )
+
+        return torch.cat((torch.zeros(1, dtype=torch.float64), factors))
 
 
 @dataclass(frozen=True)
@@ -252,41 +326,6 @@ class TorchD3BJ:
         return c6, c8
 
 
-@cache
-def _d3_r4r2_table() -> torch.Tensor:
-    """Return simple-dftd3 C8 factors, indexed by atomic number."""
-    source = files("quemb.molbe").joinpath("data", "r4r2.f90").read_text()
-
-    match = re.search(
-        r"r4_over_r2\(max_elem\)\s*=\s*\[\s*&(?P<data>.*?)\]",
-        source,
-        flags=re.DOTALL,
-    )
-    if match is None:
-        raise RuntimeError("Could not find r4_over_r2 in r4r2.f90.")
-
-    data_block = re.sub(r"!.*", "", match.group("data"))
-    raw_r4r2 = [
-        float(value)
-        for value in re.findall(
-            r"([+-]?(?:\d+\.\d*|\.\d+)(?:[Ee][+-]?\d+)?)_wp",
-            data_block,
-        )
-    ]
-
-    if len(raw_r4r2) != 118:
-        raise RuntimeError(
-            f"Expected 118 r4_over_r2 values in r4r2.f90, but found {len(raw_r4r2)}."
-        )
-
-    atomic_numbers = torch.arange(1, 119, dtype=torch.float64)
-    r4r2_factors = torch.sqrt(
-        0.5 * torch.tensor(raw_r4r2, dtype=torch.float64) * torch.sqrt(atomic_numbers)
-    )
-
-    return torch.cat((torch.zeros(1, dtype=torch.float64), r4r2_factors))
-
-
 def d3_r4r2(
     atomic_numbers: torch.Tensor,
     *,
@@ -309,7 +348,10 @@ def d3_r4r2(
     if torch.any(atomic_numbers < 1) or torch.any(atomic_numbers > 118):
         raise ValueError("atomic_numbers must lie between 1 and 118.")
 
-    table = _d3_r4r2_table().to(dtype=dtype, device=device)
+    table = D3ReferenceData.from_files().r4r2_factors.to(
+        dtype=dtype,
+        device=device,
+    )
     return table[atomic_numbers.to(device=device)]
 
 
@@ -445,41 +487,6 @@ def d3_reference_data() -> tuple[
     return reference_coordination_numbers, c6_reference
 
 
-@cache
-def _d3_covalent_radius_table() -> torch.Tensor:
-    """Return mctc-data D3 covalent radii indexed by atomic number."""
-    source = files("quemb.molbe").joinpath("data", "covrad.f90").read_text()
-
-    match = re.search(
-        r"covalent_rad_2009\(max_elem\)\s*=\s*aatoau\s*\*\s*\[(.*?)\]",
-        source,
-        flags=re.DOTALL,
-    )
-    if match is None:
-        raise RuntimeError("Could not find covalent_rad_2009 in covrad.f90.")
-
-    radii_block = re.sub(r"!.*", "", match.group(1))
-    radii_angstrom = [
-        float(value) for value in re.findall(r"(\d+\.\d+)_wp", radii_block)
-    ]
-
-    if len(radii_angstrom) != 118:
-        raise RuntimeError(
-            "Expected 118 covalent radii in covrad.f90, "
-            f"but found {len(radii_angstrom)}."
-        )
-
-    # Prepend a dummy entry: mctc-data uses one-based atomic numbers.
-    return (
-        torch.tensor(
-            [0.0, *radii_angstrom],
-            dtype=torch.float64,
-        )
-        * (4.0 / 3.0)
-        * ANGSTROM_TO_BOHR
-    )
-
-
 def d3_covalent_radii(
     atomic_numbers: torch.Tensor,
     *,
@@ -502,10 +509,11 @@ def d3_covalent_radii(
     if torch.any(atomic_numbers < 1) or torch.any(atomic_numbers > 118):
         raise ValueError("atomic_numbers must lie between 1 and 118.")
 
-    radius_table = _d3_covalent_radius_table().to(
+    radius_table = D3ReferenceData.from_files().covalent_radii.to(
         dtype=dtype,
         device=device,
     )
+
     return radius_table[atomic_numbers.to(device=device)]
 
 
