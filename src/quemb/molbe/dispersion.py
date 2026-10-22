@@ -4,7 +4,7 @@ from importlib.resources import files
 from typing import Literal
 
 import numpy as np
-import tomllib
+import tomli
 import torch
 from dftd3.interface import DispersionModel, RationalDampingParam
 from pyscf.scf import hf
@@ -17,7 +17,7 @@ ANGSTROM_TO_BOHR = 1.8897261254578281
 def d3_bj_parameters(method: str) -> dict[str, float]:
     """Return D3(BJ) parameters for a named electronic-structure method."""
     source = files("quemb.molbe").joinpath("data", "parameters.toml").read_text()
-    data = tomllib.loads(source)
+    data = tomli.loads(source)
 
     try:
         defaults = data["default"]["parameter"]["d3"]["bj"]
