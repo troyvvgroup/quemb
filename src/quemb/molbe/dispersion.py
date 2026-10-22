@@ -15,6 +15,144 @@ ANGSTROM_TO_BOHR = 1.8897261254578281
 
 
 @dataclass(frozen=True)
+class D3ReferenceData:
+    coordination_numbers: dict[int, torch.Tensor]
+    c6_coefficients: dict[tuple[int, int], torch.Tensor]
+
+    @classmethod
+    @cache
+    def from_files(cls) -> "D3ReferenceData":
+        """Read reference coordination numbers and C6 data from reference.f90."""
+        source = files("quemb.molbe").joinpath("data", "reference.f90").read_text()
+
+        def without_comments(text: str) -> str:
+            return re.sub(r"!.*", "", text)
+
+        def fortran_float_values(text: str) -> list[float]:
+            return [
+                float(value)
+                for value in re.findall(
+                    r"([+-]?(?:\d+\.\d*|\.\d+)(?:[Ee][+-]?\d+)?)_wp",
+                    text,
+                )
+            ]
+
+        reference_count_match = re.search(
+            r"number_of_references\(max_elem\)\s*=\s*\[\s*&(?P<data>.*?)\]",
+            source,
+            flags=re.DOTALL,
+        )
+        if reference_count_match is None:
+            raise RuntimeError("Could not find number_of_references in reference.f90.")
+
+        number_of_references = [
+            int(value)
+            for value in re.findall(
+                r"\d+",
+                without_comments(reference_count_match.group("data")),
+            )
+        ]
+
+        max_elem = len(number_of_references)
+        max_ref = 7
+
+        reference_cn_match = re.search(
+            r"reference_cn\(max_ref,\s*max_elem\)\s*=\s*reshape\(\[\s*&"
+            r"(?P<data>.*?)\[\s*max_ref,\s*max_elem\s*\]\s*\)",
+            source,
+            flags=re.DOTALL,
+        )
+        if reference_cn_match is None:
+            raise RuntimeError("Could not find reference_cn in reference.f90.")
+
+        reference_cn_values = fortran_float_values(
+            without_comments(reference_cn_match.group("data"))
+        )
+        if len(reference_cn_values) != max_ref * max_elem:
+            raise RuntimeError(
+                "reference_cn has an unexpected number of entries: "
+                f"{len(reference_cn_values)}."
+            )
+
+        # reference_cn is reshaped in Fortran column-major order.
+        reference_cn_table = np.asarray(reference_cn_values).reshape(
+            (max_ref, max_elem),
+            order="F",
+        )
+
+        c6_chunks = re.finditer(
+            r"c6ab_view\((?P<start>\d+):(?P<stop>\d+)\)\s*=\s*\[\s*&"
+            r"(?P<data>.*?)\]",
+            source,
+            flags=re.DOTALL,
+        )
+
+        c6_values: list[float] = []
+        expected_start = 1
+
+        for chunk in c6_chunks:
+            start = int(chunk.group("start"))
+            stop = int(chunk.group("stop"))
+
+            if start != expected_start:
+                raise RuntimeError(
+                    f"Expected C6 data to start at {expected_start}, but found {start}."
+                )
+
+            values = fortran_float_values(without_comments(chunk.group("data")))
+            if len(values) != stop - start + 1:
+                raise RuntimeError(
+                    f"C6 block {start}:{stop} contains {len(values)} values."
+                )
+
+            c6_values.extend(values)
+            expected_start = stop + 1
+
+        n_pairs = max_elem * (max_elem + 1) // 2
+        expected_c6_count = max_ref * max_ref * n_pairs
+
+        if len(c6_values) != expected_c6_count:
+            raise RuntimeError(
+                f"Expected {expected_c6_count} C6 values, but found {len(c6_values)}."
+            )
+
+        # This reproduces the Fortran c6ab(max_ref, max_ref, n_pairs) layout.
+        c6_table = np.asarray(c6_values).reshape(
+            (max_ref, max_ref, n_pairs),
+            order="F",
+        )
+
+        reference_coordination_numbers: dict[int, torch.Tensor] = {}
+        c6_reference: dict[tuple[int, int], torch.Tensor] = {}
+
+        for atomic_number, n_ref in enumerate(number_of_references, start=1):
+            reference_coordination_numbers[atomic_number] = torch.tensor(
+                reference_cn_table[:n_ref, atomic_number - 1],
+                dtype=torch.float64,
+            )
+
+        pair_index = 0
+        for atomic_number_j in range(1, max_elem + 1):
+            n_ref_j = number_of_references[atomic_number_j - 1]
+
+            for atomic_number_i in range(1, atomic_number_j + 1):
+                n_ref_i = number_of_references[atomic_number_i - 1]
+
+                # simple-dftd3 stores the upper-triangular pair block with its
+                # reference-state axes reversed; transpose it into (i, j) order.
+                c6_reference[(atomic_number_i, atomic_number_j)] = torch.tensor(
+                    c6_table[:n_ref_j, :n_ref_i, pair_index].T,
+                    dtype=torch.float64,
+                )
+                pair_index += 1
+
+        return cls(
+            coordination_numbers=reference_coordination_numbers,
+            c6_coefficients=c6_reference,
+        )
+
+
+@dataclass(frozen=True)
 class D3BJParameters:
     s6: float
     s8: float
@@ -509,7 +647,9 @@ def d3_pairwise_c6(
             f"but has shape {tuple(coordination_numbers.shape)}."
         )
 
-    reference_coordination_numbers, c6_reference = d3_reference_data()
+    reference_data = D3ReferenceData.from_files()
+    reference_coordination_numbers = reference_data.coordination_numbers
+    c6_reference = reference_data.c6_coefficients
 
     max_atomic_number = max(reference_coordination_numbers)
     if torch.any(atomic_numbers < 1) or torch.any(atomic_numbers > max_atomic_number):
