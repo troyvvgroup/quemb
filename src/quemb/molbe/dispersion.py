@@ -13,6 +13,63 @@ from scipy.linalg import eigh
 ANGSTROM_TO_BOHR = 1.8897261254578281
 
 
+class TorchD3BJ:
+    """Differentiable two-body D3(BJ) correction."""
+
+    def __init__(self, atomic_numbers: list[int], method: str = "hf"):
+        self.atomic_numbers = torch.tensor(atomic_numbers, dtype=torch.int64)
+        self.method = method
+        self.parameters = d3_bj_parameters(method)
+
+    def energy(self, coordinates: torch.Tensor) -> torch.Tensor:
+        """Compute the two-body D3(BJ) dispersion energy for ``method``.
+
+        Coordinates must be expressed in bohr. The D3(BJ) damping parameters are
+        loaded from the bundled simple-dftd3-compatible ``parameters.toml`` file.
+        """
+
+        if coordinates.ndim != 2 or coordinates.shape[1] != 3:
+            raise ValueError(
+                "coordinates must have shape (n_atoms, 3), "
+                f"but has shape {tuple(coordinates.shape)}."
+            )
+
+        atomic_numbers = self.atomic_numbers.to(coordinates.device)
+        parameters = d3_bj_parameters(self.method)
+        coordination_numbers = d3_coordination_numbers(
+            coordinates,
+            atomic_numbers,
+        )
+        c6 = d3_pairwise_c6(
+            atomic_numbers,
+            coordination_numbers,
+        )
+        r4r2 = d3_r4r2(
+            atomic_numbers,
+            dtype=coordinates.dtype,
+            device=coordinates.device,
+        )
+        c8 = d3_pairwise_c8(c6, r4r2)
+
+        return d3_bj_two_body_energy(
+            coordinates,
+            c6,
+            c8,
+            **parameters,
+        )
+
+    def energy_and_gradient(
+        self,
+        coordinates: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        if not coordinates.requires_grad:
+            coordinates = coordinates.detach().clone().requires_grad_(True)
+
+        energy = self.energy(coordinates)
+        gradient = torch.autograd.grad(energy, coordinates)[0]
+        return energy, gradient
+
+
 @cache
 def d3_bj_parameters(method: str) -> dict[str, float]:
     """Return D3(BJ) parameters for a named electronic-structure method."""
@@ -90,53 +147,6 @@ def d3_r4r2(
 
     table = _d3_r4r2_table().to(dtype=dtype, device=device)
     return table[atomic_numbers.to(device=device)]
-
-
-def d3_bj_energy(
-    coordinates: torch.Tensor,
-    atomic_numbers: torch.Tensor,
-    *,
-    method: str = "hf",
-) -> torch.Tensor:
-    """Compute the two-body D3(BJ) dispersion energy for ``method``.
-
-    Coordinates must be expressed in bohr. The D3(BJ) damping parameters are
-    loaded from the bundled simple-dftd3-compatible ``parameters.toml`` file.
-    """
-    if coordinates.ndim != 2 or coordinates.shape[1] != 3:
-        raise ValueError(
-            "coordinates must have shape (n_atoms, 3), "
-            f"but has shape {tuple(coordinates.shape)}."
-        )
-    if atomic_numbers.ndim != 1 or atomic_numbers.shape[0] != coordinates.shape[0]:
-        raise ValueError(
-            "atomic_numbers must have shape (n_atoms,), with n_atoms equal "
-            "to coordinates.shape[0]."
-        )
-
-    parameters = d3_bj_parameters(method)
-
-    coordination_numbers = d3_coordination_numbers(
-        coordinates,
-        atomic_numbers,
-    )
-    c6 = d3_pairwise_c6(
-        atomic_numbers,
-        coordination_numbers,
-    )
-    r4r2 = d3_r4r2(
-        atomic_numbers,
-        dtype=coordinates.dtype,
-        device=coordinates.device,
-    )
-    c8 = d3_pairwise_c8(c6, r4r2)
-
-    return d3_bj_two_body_energy(
-        coordinates,
-        c6,
-        c8,
-        **parameters,
-    )
 
 
 @cache

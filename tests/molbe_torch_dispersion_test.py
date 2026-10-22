@@ -3,7 +3,7 @@ import torch
 from dftd3.interface import DispersionModel, RationalDampingParam
 
 from quemb.molbe.dispersion import (
-    d3_bj_energy,
+    TorchD3BJ,
 )
 
 
@@ -50,6 +50,11 @@ def test_torch_hf_d3bj_two_body_energy_and_gradient_match_expectations():
         dtype=torch.int64,
     )
 
+    d3 = TorchD3BJ(
+        atomic_numbers=atomic_numbers.tolist(),
+        method="hf",
+    )
+
     # Two methane molecules, C--C separation = 7 bohr (~3.7 Å).
     # C--H distance is ~2.05 bohr.
     coordinates = torch.tensor(
@@ -71,13 +76,8 @@ def test_torch_hf_d3bj_two_body_energy_and_gradient_match_expectations():
         requires_grad=True,
     )
 
-    # The production result remains connected to ``coordinates`` so that this
-    # test exercises both the energy expression and its analytic gradient.
-    torch_energy = d3_bj_energy(
-        coordinates,
-        atomic_numbers,
-        method="hf",
-    )
+    torch_energy = d3.energy(coordinates)
+
     reference_energy, reference_gradient = reference_energy_and_gradient(
         atomic_numbers,
         coordinates,
@@ -91,8 +91,10 @@ def test_torch_hf_d3bj_two_body_energy_and_gradient_match_expectations():
     )
 
     torch_energy.backward()
+
     assert coordinates.grad is not None
     assert torch.count_nonzero(coordinates.grad).item() > 0
+
     torch.testing.assert_close(
         coordinates.grad,
         reference_gradient,
