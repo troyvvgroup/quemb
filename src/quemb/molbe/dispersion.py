@@ -379,6 +379,74 @@ class TorchD3BJ:
         gradient = torch.autograd.grad(energy, coordinates)[0]
         return energy, gradient
 
+    def _coordination_numbers(
+        self,
+        coordinates: torch.Tensor,
+    ) -> torch.Tensor:
+        """Compute D3 coordination numbers from nuclear coordinates.
+
+        Parameters
+        ----------
+        coordinates
+            Cartesian coordinates with shape ``(n_atoms, 3)``, in bohr.
+        atomic_numbers
+            Atomic numbers with shape ``(n_atoms,)``.
+
+        Returns
+        -------
+        torch.Tensor
+            Coordination numbers with shape ``(n_atoms,)``.
+
+        Notes
+        -----
+        Uses the simple-dftd3 coordination-number switching function:
+
+        ``CN_i = sum_{j != i} sigmoid[16 * ((R_cov,i + R_cov,j) / R_ij - 1)]``.
+        """
+        if coordinates.ndim != 2 or coordinates.shape[1] != 3:
+            raise ValueError(
+                "coordinates must have shape (n_atoms, 3), "
+                f"but has shape {tuple(coordinates.shape)}."
+            )
+
+        atomic_numbers = self.atomic_numbers.to(coordinates.device)
+        covalent_radii = self.reference_data.covalent_radii_for(
+            atomic_numbers,
+            dtype=coordinates.dtype,
+            device=coordinates.device,
+        )
+
+        n_atoms = coordinates.shape[0]
+        if covalent_radii.shape != (n_atoms,):
+            raise ValueError(
+                "atomic_numbers must have shape (n_atoms,), "
+                f"but has shape {tuple(atomic_numbers.shape)}."
+            )
+
+        if torch.any(covalent_radii <= 0):
+            raise ValueError("All covalent radii must be positive.")
+
+        distances = self._pairwise_distances(coordinates)
+
+        pair_mask = ~torch.eye(
+            n_atoms,
+            dtype=torch.bool,
+            device=coordinates.device,
+        )
+
+        # Replace the diagonal only before division; self-pairs are excluded below.
+        safe_distances = torch.where(pair_mask, distances, torch.ones_like(distances))
+        if torch.any(safe_distances[pair_mask] <= 0.0):
+            raise ValueError("coordinates must not contain coincident atoms.")
+        radii_sums = covalent_radii[:, None] + covalent_radii[None, :]
+
+        switching_argument = 16.0 * (radii_sums / safe_distances - 1.0)
+        pair_contributions = torch.sigmoid(switching_argument)
+
+        return torch.where(
+            pair_mask, pair_contributions, torch.zeros_like(distances)
+        ).sum(dim=1)
+
     def _pairwise_c6(
         self,
         coordination_numbers: torch.Tensor,
@@ -527,10 +595,7 @@ class TorchD3BJ:
     ) -> tuple[torch.Tensor, torch.Tensor]:
         atomic_numbers = self.atomic_numbers.to(coordinates.device)
 
-        coordination_numbers = d3_coordination_numbers(
-            coordinates,
-            atomic_numbers,
-        )
+        coordination_numbers = self._coordination_numbers(coordinates)
         c6 = self._pairwise_c6(coordination_numbers)
         r4r2 = self.reference_data.r4r2_for(
             atomic_numbers,
@@ -590,74 +655,6 @@ def d3_pairwise_c8(
         raise ValueError("r4r2 must have shape (n_atoms,).")
 
     return 3.0 * c6 * r4r2[:, None] * r4r2[None, :]
-
-
-def d3_coordination_numbers(
-    coordinates: torch.Tensor,
-    atomic_numbers: torch.Tensor,
-) -> torch.Tensor:
-    """Compute D3 coordination numbers from nuclear coordinates.
-
-    Parameters
-    ----------
-    coordinates
-        Cartesian coordinates with shape ``(n_atoms, 3)``, in bohr.
-    atomic_numbers
-        Atomic numbers with shape ``(n_atoms,)``.
-
-    Returns
-    -------
-    torch.Tensor
-        Coordination numbers with shape ``(n_atoms,)``.
-
-    Notes
-    -----
-    Uses the simple-dftd3 coordination-number switching function:
-
-    ``CN_i = sum_{j != i} sigmoid[16 * ((R_cov,i + R_cov,j) / R_ij - 1)]``.
-    """
-    if coordinates.ndim != 2 or coordinates.shape[1] != 3:
-        raise ValueError(
-            "coordinates must have shape (n_atoms, 3), "
-            f"but has shape {tuple(coordinates.shape)}."
-        )
-
-    reference_data = D3ReferenceData.from_files()
-    covalent_radii = reference_data.covalent_radii_for(
-        atomic_numbers,
-        dtype=coordinates.dtype,
-        device=coordinates.device,
-    )
-
-    n_atoms = coordinates.shape[0]
-    if covalent_radii.shape != (n_atoms,):
-        raise ValueError(
-            "atomic_numbers must have shape (n_atoms,), "
-            f"but has shape {tuple(atomic_numbers.shape)}."
-        )
-
-    if torch.any(covalent_radii <= 0):
-        raise ValueError("All covalent radii must be positive.")
-
-    distances = TorchD3BJ._pairwise_distances(coordinates)
-    pair_mask = ~torch.eye(
-        n_atoms,
-        dtype=torch.bool,
-        device=coordinates.device,
-    )
-
-    # Replace the diagonal only before division; self-pairs are excluded below.
-    safe_distances = torch.where(pair_mask, distances, torch.ones_like(distances))
-    if torch.any(safe_distances[pair_mask] <= 0.0):
-        raise ValueError("coordinates must not contain coincident atoms.")
-    radii_sums = covalent_radii[:, None] + covalent_radii[None, :]
-
-    switching_argument = 16.0 * (radii_sums / safe_distances - 1.0)
-    pair_contributions = torch.sigmoid(switching_argument)
-
-    return torch.where(pair_mask, pair_contributions, torch.zeros_like(distances)).sum(
-        dim=1
-    )
 
 
 def embedding_density_matrix(TA):
