@@ -6,6 +6,7 @@ from importlib.resources import files
 import numpy as np
 import tomli
 import torch
+import torch.nn.functional as F
 
 ANGSTROM_TO_BOHR = 1.8897261254578281
 
@@ -303,6 +304,48 @@ class D3BJParameters:
             s8=float(values["s8"]),
             a1=float(values["a1"]),
             a2=float(values["a2"]),
+        )
+
+
+class TrainableD3BJParameters(torch.nn.Module):
+    """Positive, trainable D3(BJ) damping parameters."""
+
+    def __init__(self, initial: D3BJParameters) -> None:
+        super().__init__()
+
+        self.raw_s6 = torch.nn.Parameter(self._inverse_softplus(initial.s6))
+        self.raw_s8 = torch.nn.Parameter(self._inverse_softplus(initial.s8))
+        self.raw_a1 = torch.nn.Parameter(self._inverse_softplus(initial.a1))
+        self.raw_a2 = torch.nn.Parameter(self._inverse_softplus(initial.a2))
+
+    @staticmethod
+    def _inverse_softplus(value: float) -> torch.Tensor:
+        value_tensor = torch.tensor(value, dtype=torch.float64)
+        return torch.log(torch.expm1(value_tensor))
+
+    @property
+    def s6(self) -> torch.Tensor:
+        return F.softplus(self.raw_s6)
+
+    @property
+    def s8(self) -> torch.Tensor:
+        return F.softplus(self.raw_s8)
+
+    @property
+    def a1(self) -> torch.Tensor:
+        return F.softplus(self.raw_a1)
+
+    @property
+    def a2(self) -> torch.Tensor:
+        return F.softplus(self.raw_a2)
+
+    def as_fixed_parameters(self) -> D3BJParameters:
+        """Convert optimized tensors into ordinary stored parameter values."""
+        return D3BJParameters(
+            s6=self.s6.detach().item(),
+            s8=self.s8.detach().item(),
+            a1=self.a1.detach().item(),
+            a2=self.a2.detach().item(),
         )
 
 
