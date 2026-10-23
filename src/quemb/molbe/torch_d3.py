@@ -661,3 +661,140 @@ class TorchD3BJ:
         )
         c8 = self._pairwise_c8(c6, r4r2)
         return c6, c8
+
+
+class TorchExternalD3BJ:
+    """Differentiable external D3(BJ) corrections for a set of fragments.
+
+    For fragment ``i``, the correction is
+
+    ``E_i = E_total - E_fragment,i - E_inverted_fragment,i``.
+    """
+
+    def __init__(
+        self,
+        atomic_numbers: list[int],
+        fragments: list[list[int]],
+        inverted_fragments: list[list[int]],
+        method: str = "hf",
+    ) -> None:
+        if len(fragments) != len(inverted_fragments):
+            raise ValueError(
+                "fragments and inverted_fragments must have the same length."
+            )
+
+        self.total_d3 = TorchD3BJ(atomic_numbers, method=method)
+        self.n_atoms = len(atomic_numbers)
+
+        self.fragment_indices = [
+            self._validate_atom_indices(indices, "fragment") for indices in fragments
+        ]
+        self.inverted_fragment_indices = [
+            self._validate_atom_indices(indices, "inverted fragment")
+            for indices in inverted_fragments
+        ]
+
+        self.fragment_d3 = [
+            TorchD3BJ(
+                self.total_d3.atomic_numbers[indices].tolist(),
+                method=method,
+            )
+            for indices in self.fragment_indices
+        ]
+        self.inverted_fragment_d3 = [
+            TorchD3BJ(
+                self.total_d3.atomic_numbers[indices].tolist(),
+                method=method,
+            )
+            for indices in self.inverted_fragment_indices
+        ]
+
+    def _validate_atom_indices(
+        self,
+        atom_indices: list[int],
+        label: str,
+    ) -> torch.Tensor:
+        indices = torch.as_tensor(atom_indices, dtype=torch.int64)
+
+        if indices.ndim != 1 or indices.numel() == 0:
+            raise ValueError(
+                f"{label} atom indices must be a nonempty one-dimensional sequence."
+            )
+
+        if torch.any(indices < 0) or torch.any(indices >= self.n_atoms):
+            raise ValueError(
+                f"{label} atom indices must lie between 0 and {self.n_atoms - 1}."
+            )
+
+        if torch.unique(indices).numel() != indices.numel():
+            raise ValueError(f"{label} atom indices must not contain duplicates.")
+
+        return indices
+
+    def energies(
+        self,
+        coordinates: torch.Tensor,
+        parameters: D3BJParameters | None = None,
+    ) -> torch.Tensor:
+        """Return one external D3 energy per fragment."""
+        total_energy = self.total_d3.energy(coordinates, parameters=parameters)
+
+        fragment_energies = []
+
+        for fragment_indices, inverted_indices, fragment_d3, inverted_d3 in zip(
+            self.fragment_indices,
+            self.inverted_fragment_indices,
+            self.fragment_d3,
+            self.inverted_fragment_d3,
+        ):
+            fragment_indices = fragment_indices.to(coordinates.device)
+            inverted_indices = inverted_indices.to(coordinates.device)
+
+            fragment_energy = fragment_d3.energy(
+                coordinates[fragment_indices],
+                parameters=parameters,
+            )
+            inverted_energy = inverted_d3.energy(
+                coordinates[inverted_indices],
+                parameters=parameters,
+            )
+
+            fragment_energies.append(total_energy - fragment_energy - inverted_energy)
+
+        return torch.stack(fragment_energies)
+
+    def energies_and_gradients(
+        self,
+        coordinates: torch.Tensor,
+        parameters: D3BJParameters | None = None,
+        *,
+        create_graph: bool = False,
+    ) -> tuple[torch.Tensor, list[torch.Tensor]]:
+        """Return external D3 energies and gradients for each fragment.
+
+        Each returned gradient has shape ``(n_fragment_atoms, 3)``.
+        """
+        if not coordinates.requires_grad:
+            coordinates = coordinates.detach().clone().requires_grad_(True)
+
+        external_energies = self.energies(
+            coordinates,
+            parameters=parameters,
+        )
+
+        fragment_gradients = []
+
+        for index, (energy, fragment_indices) in enumerate(
+            zip(external_energies, self.fragment_indices)
+        ):
+            full_gradient = torch.autograd.grad(
+                energy,
+                coordinates,
+                create_graph=create_graph,
+                retain_graph=create_graph or index < len(self.fragment_indices) - 1,
+            )[0]
+
+            fragment_indices = fragment_indices.to(coordinates.device)
+            fragment_gradients.append(full_gradient[fragment_indices])
+
+        return external_energies, fragment_gradients
