@@ -357,14 +357,10 @@ class TorchD3BJ:
         if c6.device != coordinates.device or c8.device != coordinates.device:
             raise ValueError("c6 and c8 must be on the same device as coordinates.")
 
-        pair_energies, _ = d3_bj_two_body_pair_energies(
+        pair_energies, _ = self._two_body_pair_energies(
             coordinates,
             c6,
             c8,
-            s6=self.parameters.s6,
-            s8=self.parameters.s8,
-            a1=self.parameters.a1,
-            a2=self.parameters.a2,
         )
         return pair_energies.sum()
 
@@ -378,6 +374,36 @@ class TorchD3BJ:
         energy = self.energy(coordinates)
         gradient = torch.autograd.grad(energy, coordinates)[0]
         return energy, gradient
+
+    def _two_body_pair_energies(
+        self,
+        coordinates: torch.Tensor,
+        c6: torch.Tensor,
+        c8: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Return D3(BJ) pair-energy contributions and atom-pair indices."""
+        distances = self._pairwise_distances(coordinates)
+
+        pair_indices = torch.triu_indices(
+            coordinates.shape[0],
+            coordinates.shape[0],
+            offset=1,
+            device=coordinates.device,
+        )
+        atom_i, atom_j = pair_indices
+
+        pair_distances = distances[atom_i, atom_j]
+        pair_c6 = c6[atom_i, atom_j]
+        pair_c8 = c8[atom_i, atom_j]
+
+        r0 = torch.sqrt(pair_c8 / pair_c6)
+        damping_radius = self.parameters.a1 * r0 + self.parameters.a2
+
+        c6_term = self.parameters.s6 * pair_c6 / (pair_distances**6 + damping_radius**6)
+        c8_term = self.parameters.s8 * pair_c8 / (pair_distances**8 + damping_radius**8)
+
+        pair_energies = -(c6_term + c8_term)
+        return pair_energies, pair_indices
 
     def _coordination_numbers(
         self,
@@ -620,41 +646,6 @@ class TorchD3BJ:
         )
         c8 = self._pairwise_c8(c6, r4r2)
         return c6, c8
-
-
-def d3_bj_two_body_pair_energies(
-    coordinates: torch.Tensor,
-    c6: torch.Tensor,
-    c8: torch.Tensor,
-    *,
-    s6: float,
-    s8: float,
-    a1: float,
-    a2: float,
-) -> tuple[torch.Tensor, torch.Tensor]:
-    """Return D3(BJ) energy contributions and their atom-pair indices."""
-    distances = TorchD3BJ._pairwise_distances(coordinates)
-
-    pair_indices = torch.triu_indices(
-        coordinates.shape[0],
-        coordinates.shape[0],
-        offset=1,
-        device=coordinates.device,
-    )
-    atom_i, atom_j = pair_indices
-
-    pair_distances = distances[atom_i, atom_j]
-    pair_c6 = c6[atom_i, atom_j]
-    pair_c8 = c8[atom_i, atom_j]
-
-    r0 = torch.sqrt(pair_c8 / pair_c6)
-    damping_radius = a1 * r0 + a2
-
-    c6_term = s6 * pair_c6 / (pair_distances**6 + damping_radius**6)
-    c8_term = s8 * pair_c8 / (pair_distances**8 + damping_radius**8)
-
-    pair_energies = -(c6_term + c8_term)
-    return pair_energies, pair_indices
 
 
 def embedding_density_matrix(TA):
