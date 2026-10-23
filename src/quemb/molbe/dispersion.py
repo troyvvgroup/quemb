@@ -339,6 +339,12 @@ class TorchD3BJ:
         return energy, gradient
 
     @staticmethod
+    def _pairwise_distances(coordinates: torch.Tensor) -> torch.Tensor:
+        """Return the matrix R_ij of interatomic distances."""
+        displacements = coordinates[:, None, :] - coordinates[None, :, :]
+        return torch.linalg.vector_norm(displacements, dim=-1)
+
+    @staticmethod
     def _validate_coordinates(coordinates: torch.Tensor) -> None:
         if coordinates.ndim != 2 or coordinates.shape[1] != 3:
             raise ValueError(
@@ -410,7 +416,7 @@ def d3_bj_two_body_pair_energies(
     a2: float,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Return D3(BJ) energy contributions and their atom-pair indices."""
-    distances = pairwise_distances(coordinates)
+    distances = TorchD3BJ._pairwise_distances(coordinates)
 
     pair_indices = torch.triu_indices(
         coordinates.shape[0],
@@ -632,7 +638,7 @@ def d3_coordination_numbers(
     if torch.any(covalent_radii <= 0):
         raise ValueError("All covalent radii must be positive.")
 
-    distances = pairwise_distances(coordinates)
+    distances = TorchD3BJ._pairwise_distances(coordinates)
     pair_mask = ~torch.eye(
         n_atoms,
         dtype=torch.bool,
@@ -651,12 +657,6 @@ def d3_coordination_numbers(
     return torch.where(pair_mask, pair_contributions, torch.zeros_like(distances)).sum(
         dim=1
     )
-
-
-def pairwise_distances(coordinates: torch.Tensor) -> torch.Tensor:
-    """Return the matrix R_ij of interatomic distances."""
-    displacements = coordinates[:, None, :] - coordinates[None, :, :]
-    return torch.linalg.vector_norm(displacements, dim=-1)
 
 
 def embedding_density_matrix(TA):
