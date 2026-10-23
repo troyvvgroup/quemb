@@ -4,6 +4,7 @@ from dftd3.interface import DispersionModel, RationalDampingParam
 
 from quemb.molbe.torch_d3 import (
     TorchD3BJ,
+    TorchExternalD3BJ,
 )
 
 
@@ -101,3 +102,89 @@ def test_torch_hf_d3bj_two_body_energy_and_gradient_match_expectations():
         rtol=1.0e-9,
         atol=1.0e-11,
     )
+
+
+def test_torch_external_d3bj_energies_and_gradients_match_dftd3():
+    atomic_numbers = torch.tensor(
+        [6, 1, 1, 1, 1, 6, 1, 1, 1, 1],
+        dtype=torch.int64,
+    )
+
+    coordinates = torch.tensor(
+        [
+            # Methane 1
+            [0.000000, 0.000000, 0.000000],
+            [1.186000, 1.186000, 1.186000],
+            [1.186000, -1.186000, -1.186000],
+            [-1.186000, 1.186000, -1.186000],
+            [-1.186000, -1.186000, 1.186000],
+            # Methane 2
+            [0.000000, 0.000000, 7.000000],
+            [1.186000, 1.186000, 8.186000],
+            [1.186000, -1.186000, 5.814000],
+            [-1.186000, 1.186000, 5.814000],
+            [-1.186000, -1.186000, 8.186000],
+        ],
+        dtype=torch.float64,
+        requires_grad=True,
+    )
+
+    fragments = [
+        [0, 1, 2, 3, 4],
+        [5, 6, 7, 8, 9],
+    ]
+    inverted_fragments = [
+        [5, 6, 7, 8, 9],
+        [0, 1, 2, 3, 4],
+    ]
+
+    external_d3 = TorchExternalD3BJ(
+        atomic_numbers=atomic_numbers.tolist(),
+        fragments=fragments,
+        inverted_fragments=inverted_fragments,
+        method="hf",
+    )
+
+    torch_energies, torch_gradients = external_d3.energies_and_gradients(coordinates)
+
+    total_energy, total_gradient = reference_energy_and_gradient(
+        atomic_numbers,
+        coordinates,
+    )
+
+    for index, (fragment, inverted_fragment) in enumerate(
+        zip(fragments, inverted_fragments)
+    ):
+        fragment_indices = torch.tensor(fragment, dtype=torch.int64)
+        inverted_indices = torch.tensor(inverted_fragment, dtype=torch.int64)
+
+        fragment_energy, fragment_gradient = reference_energy_and_gradient(
+            atomic_numbers[fragment_indices],
+            coordinates[fragment_indices],
+        )
+        inverted_energy, inverted_gradient = reference_energy_and_gradient(
+            atomic_numbers[inverted_indices],
+            coordinates[inverted_indices],
+        )
+
+        reference_external_energy = total_energy - fragment_energy - inverted_energy
+
+        # The full expression is used so this remains correct if fragments
+        # ever overlap in a future embedding construction.
+        reference_full_gradient = total_gradient.clone()
+        reference_full_gradient[fragment_indices] -= fragment_gradient
+        reference_full_gradient[inverted_indices] -= inverted_gradient
+        reference_fragment_gradient = reference_full_gradient[fragment_indices]
+
+        torch.testing.assert_close(
+            torch_energies[index],
+            reference_external_energy,
+            rtol=1.0e-10,
+            atol=1.0e-12,
+        )
+        torch.testing.assert_close(
+            torch_gradients[index],
+            reference_fragment_gradient,
+            rtol=1.0e-9,
+            atol=1.0e-11,
+        )
