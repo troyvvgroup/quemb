@@ -147,6 +147,11 @@ def test_torch_external_d3bj_energies_and_gradients_match_dftd3():
 
     torch_energies, torch_gradients = external_d3.energies_and_gradients(coordinates)
 
+    for index, gradient in enumerate(torch_gradients):
+        assert torch.count_nonzero(gradient).item() > 0, (
+            f"External D3 gradient for fragment {index} is identically zero."
+        )
+
     total_energy, total_gradient = reference_energy_and_gradient(
         atomic_numbers,
         coordinates,
