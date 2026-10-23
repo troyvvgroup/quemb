@@ -324,6 +324,12 @@ class TorchD3BJ:
 
     def __init__(self, atomic_numbers: list[int], method: str = "hf"):
         self.atomic_numbers = torch.tensor(atomic_numbers, dtype=torch.int64)
+
+        if self.atomic_numbers.ndim != 1 or self.atomic_numbers.numel() == 0:
+            raise ValueError("atomic_numbers must be a nonempty one-dimensional list.")
+        if torch.any(self.atomic_numbers < 1) or torch.any(self.atomic_numbers > 118):
+            raise ValueError("atomic_numbers must lie between 1 and 118.")
+
         self.method = method
         self.parameters = D3BJParameters.from_method(method)
         self.reference_data = D3ReferenceData.from_files()
