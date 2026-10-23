@@ -379,6 +379,134 @@ class TorchD3BJ:
         gradient = torch.autograd.grad(energy, coordinates)[0]
         return energy, gradient
 
+    def _pairwise_c6(
+        self,
+        coordination_numbers: torch.Tensor,
+    ) -> torch.Tensor:
+        """Interpolate element-specific pairwise D3 C6 coefficients.
+
+        Parameters
+        ----------
+        atomic_numbers
+            Atomic numbers with shape ``(n_atoms,)``.
+        coordination_numbers
+            D3 coordination numbers with shape ``(n_atoms,)``.
+        Returns
+        -------
+        torch.Tensor
+            Interpolated C6 matrix with shape ``(n_atoms, n_atoms)``. Its
+            diagonal is zero because self-interactions are not used in D3.
+        """
+        atomic_numbers = self.atomic_numbers.to(coordination_numbers.device)
+
+        if atomic_numbers.ndim != 1:
+            raise ValueError("atomic_numbers must have shape (n_atoms,).")
+        if atomic_numbers.dtype not in {
+            torch.int8,
+            torch.int16,
+            torch.int32,
+            torch.int64,
+            torch.uint8,
+        }:
+            raise TypeError("atomic_numbers must have an integer dtype.")
+
+        n_atoms = atomic_numbers.shape[0]
+        if coordination_numbers.shape != (n_atoms,):
+            raise ValueError(
+                "coordination_numbers must have shape (n_atoms,), "
+                f"but has shape {tuple(coordination_numbers.shape)}."
+            )
+
+        reference_data = self.reference_data
+        reference_coordination_numbers = self.reference_data.coordination_numbers
+        c6_reference = reference_data.c6_coefficients
+
+        max_atomic_number = max(reference_coordination_numbers)
+        if torch.any(atomic_numbers < 1) or torch.any(
+            atomic_numbers > max_atomic_number
+        ):
+            raise ValueError(
+                "atomic_numbers must lie between 1 and "
+                f"{max_atomic_number}, the range covered by reference.f90."
+            )
+
+        elements = [int(atomic_number) for atomic_number in atomic_numbers.tolist()]
+        reference_weights: list[torch.Tensor] = []
+
+        for atom_index, element in enumerate(elements):
+            if element not in reference_coordination_numbers:
+                raise ValueError(f"No reference coordination data for Z={element}.")
+
+            reference_cn = reference_coordination_numbers[element].to(
+                device=coordination_numbers.device,
+                dtype=coordination_numbers.dtype,
+            )
+
+            if reference_cn.ndim != 1 or reference_cn.numel() == 0:
+                raise ValueError(
+                    f"Reference coordination data for Z={element} must be nonempty "
+                    "and one-dimensional."
+                )
+
+            weights = D3ReferenceData.reference_weights(
+                coordination_numbers[atom_index : atom_index + 1],
+                reference_cn,
+            )
+
+            reference_weights.append(weights[0])
+
+        rows: list[torch.Tensor] = []
+        zero = torch.zeros(
+            (), dtype=coordination_numbers.dtype, device=coordination_numbers.device
+        )
+
+        for atom_i, element_i in enumerate(elements):
+            row: list[torch.Tensor] = []
+
+            for atom_j, element_j in enumerate(elements):
+                if atom_i == atom_j:
+                    row.append(zero)
+                    continue
+
+                pair_key = tuple(sorted((element_i, element_j)))
+                if pair_key not in c6_reference:
+                    raise ValueError(
+                        f"No C6 reference data for element pair {pair_key}."
+                    )
+
+                c6_block = c6_reference[pair_key].to(
+                    device=coordination_numbers.device,
+                    dtype=coordination_numbers.dtype,
+                )
+                weights_i = reference_weights[atom_i]
+                weights_j = reference_weights[atom_j]
+
+                # Stored blocks use the sorted element order.
+                if element_i > element_j:
+                    c6_block = c6_block.T
+
+                expected_shape = (weights_i.numel(), weights_j.numel())
+                if c6_block.shape != expected_shape:
+                    raise ValueError(
+                        f"C6 block for {pair_key} has shape {tuple(c6_block.shape)}, "
+                        f"but expected {expected_shape}."
+                    )
+
+                pair_weights = weights_i[:, None] * weights_j[None, :]
+                valid_reference_pairs = c6_block > 0.0
+
+                if not bool(torch.any(valid_reference_pairs)):
+                    raise ValueError(f"C6 block for {pair_key} has no valid entries.")
+
+                # Real D3 normalizes over valid reference-state combinations only.
+                numerator = (c6_block * pair_weights).sum()
+                denominator = pair_weights[valid_reference_pairs].sum()
+                row.append(numerator / denominator)
+
+            rows.append(torch.stack(row))
+
+        return torch.stack(rows)
+
     @staticmethod
     def _pairwise_distances(coordinates: torch.Tensor) -> torch.Tensor:
         """Return the matrix R_ij of interatomic distances."""
@@ -403,10 +531,7 @@ class TorchD3BJ:
             coordinates,
             atomic_numbers,
         )
-        c6 = d3_pairwise_c6(
-            atomic_numbers,
-            coordination_numbers,
-        )
+        c6 = self._pairwise_c6(coordination_numbers)
         r4r2 = self.reference_data.r4r2_for(
             atomic_numbers,
             dtype=coordinates.dtype,
@@ -449,128 +574,6 @@ def d3_bj_two_body_pair_energies(
 
     pair_energies = -(c6_term + c8_term)
     return pair_energies, pair_indices
-
-
-def d3_pairwise_c6(
-    atomic_numbers: torch.Tensor,
-    coordination_numbers: torch.Tensor,
-) -> torch.Tensor:
-    """Interpolate element-specific pairwise D3 C6 coefficients.
-
-    Parameters
-    ----------
-    atomic_numbers
-        Atomic numbers with shape ``(n_atoms,)``.
-    coordination_numbers
-        D3 coordination numbers with shape ``(n_atoms,)``.
-    Returns
-    -------
-    torch.Tensor
-        Interpolated C6 matrix with shape ``(n_atoms, n_atoms)``. Its
-        diagonal is zero because self-interactions are not used in D3.
-    """
-    if atomic_numbers.ndim != 1:
-        raise ValueError("atomic_numbers must have shape (n_atoms,).")
-    if atomic_numbers.dtype not in {
-        torch.int8,
-        torch.int16,
-        torch.int32,
-        torch.int64,
-        torch.uint8,
-    }:
-        raise TypeError("atomic_numbers must have an integer dtype.")
-
-    n_atoms = atomic_numbers.shape[0]
-    if coordination_numbers.shape != (n_atoms,):
-        raise ValueError(
-            "coordination_numbers must have shape (n_atoms,), "
-            f"but has shape {tuple(coordination_numbers.shape)}."
-        )
-
-    reference_data = D3ReferenceData.from_files()
-    reference_coordination_numbers = reference_data.coordination_numbers
-    c6_reference = reference_data.c6_coefficients
-
-    max_atomic_number = max(reference_coordination_numbers)
-    if torch.any(atomic_numbers < 1) or torch.any(atomic_numbers > max_atomic_number):
-        raise ValueError(
-            "atomic_numbers must lie between 1 and "
-            f"{max_atomic_number}, the range covered by reference.f90."
-        )
-
-    elements = [int(atomic_number) for atomic_number in atomic_numbers.tolist()]
-    reference_weights: list[torch.Tensor] = []
-
-    for atom_index, element in enumerate(elements):
-        if element not in reference_coordination_numbers:
-            raise ValueError(f"No reference coordination data for Z={element}.")
-
-        reference_cn = reference_coordination_numbers[element].to(
-            device=coordination_numbers.device,
-            dtype=coordination_numbers.dtype,
-        )
-        if reference_cn.ndim != 1 or reference_cn.numel() == 0:
-            raise ValueError(
-                f"Reference coordination data for Z={element} must be nonempty "
-                "and one-dimensional."
-            )
-
-        weights = D3ReferenceData.reference_weights(
-            coordination_numbers,
-            reference_coordination_numbers,
-        )
-
-        reference_weights.append(weights[0])
-
-    rows: list[torch.Tensor] = []
-    zero = torch.zeros(
-        (), dtype=coordination_numbers.dtype, device=coordination_numbers.device
-    )
-
-    for atom_i, element_i in enumerate(elements):
-        row: list[torch.Tensor] = []
-
-        for atom_j, element_j in enumerate(elements):
-            if atom_i == atom_j:
-                row.append(zero)
-                continue
-
-            pair_key = tuple(sorted((element_i, element_j)))
-            if pair_key not in c6_reference:
-                raise ValueError(f"No C6 reference data for element pair {pair_key}.")
-
-            c6_block = c6_reference[pair_key].to(
-                device=coordination_numbers.device,
-                dtype=coordination_numbers.dtype,
-            )
-            weights_i = reference_weights[atom_i]
-            weights_j = reference_weights[atom_j]
-
-            # Stored blocks use the sorted element order.
-            if element_i > element_j:
-                c6_block = c6_block.T
-
-            expected_shape = (weights_i.numel(), weights_j.numel())
-            if c6_block.shape != expected_shape:
-                raise ValueError(
-                    f"C6 block for {pair_key} has shape {tuple(c6_block.shape)}, "
-                    f"but expected {expected_shape}."
-                )
-
-            pair_weights = weights_i[:, None] * weights_j[None, :]
-            valid_reference_pairs = c6_block > 0.0
-
-            if not bool(torch.any(valid_reference_pairs)):
-                raise ValueError(f"C6 block for {pair_key} has no valid entries.")
-
-            # Real D3 normalizes over valid reference-state combinations only.
-            numerator = (c6_block * pair_weights).sum()
-            denominator = pair_weights[valid_reference_pairs].sum()
-            row.append(numerator / denominator)
-
-        rows.append(torch.stack(row))
-
-    return torch.stack(rows)
 
 
 def d3_pairwise_c8(
