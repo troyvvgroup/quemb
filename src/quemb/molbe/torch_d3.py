@@ -17,18 +17,16 @@ _INTEGER_DTYPES = {
     torch.uint8,
 }
 
+max_atomic_number = int(118)
+
 
 def _validate_atomic_numbers(
     atomic_numbers: torch.Tensor,
-    *,
-    max_atomic_number: int = 118,
-    require_nonempty: bool = False,
 ) -> None:
-    """Validate a one-dimensional tensor of atomic numbers."""
     if atomic_numbers.ndim != 1:
         raise ValueError("atomic_numbers must have shape (n_atoms,).")
 
-    if require_nonempty and atomic_numbers.numel() == 0:
+    if atomic_numbers.numel() == 0:
         raise ValueError("atomic_numbers must not be empty.")
 
     if atomic_numbers.dtype not in _INTEGER_DTYPES:
@@ -70,7 +68,6 @@ class D3ReferenceData:
     ) -> torch.Tensor:
         _validate_atomic_numbers(
             atomic_numbers,
-            max_atomic_number=table.numel() - 1,
         )
         return table.to(dtype=dtype, device=device)[atomic_numbers.to(device=device)]
 
@@ -314,7 +311,7 @@ class TorchD3BJ:
 
     def __init__(self, atomic_numbers: list[int], method: str = "hf"):
         self.atomic_numbers = torch.tensor(atomic_numbers, dtype=torch.int64)
-        _validate_atomic_numbers(self.atomic_numbers, require_nonempty=True)
+        _validate_atomic_numbers(self.atomic_numbers)
 
         self.method = method
         self.parameters = D3BJParameters.from_method(method)
@@ -468,10 +465,8 @@ class TorchD3BJ:
 
         reference_data = self.reference_data
         reference_coordination_numbers = self.reference_data.coordination_numbers
-        max_atomic_number = max(reference_coordination_numbers)
         _validate_atomic_numbers(
             atomic_numbers,
-            max_atomic_number=max_atomic_number,
         )
         c6_reference = reference_data.c6_coefficients
 
