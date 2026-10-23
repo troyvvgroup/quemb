@@ -21,6 +21,21 @@ class D3ReferenceData:
     covalent_radii: torch.Tensor
     r4r2_factors: torch.Tensor
 
+    @staticmethod
+    def reference_weights(
+        coordination_numbers: torch.Tensor,
+        reference_coordination_numbers: torch.Tensor,
+    ) -> torch.Tensor:
+        """Return normalized weights for D3 reference coordination states."""
+        differences = (
+            coordination_numbers[:, None] - reference_coordination_numbers[None, :]
+        )
+        unnormalized_weights = torch.exp(-4.0 * differences**2)
+        return unnormalized_weights / unnormalized_weights.sum(
+            dim=1,
+            keepdim=True,
+        )
+
     def covalent_radii_for(
         self,
         atomic_numbers: torch.Tensor,
@@ -401,36 +416,6 @@ class TorchD3BJ:
         return c6, c8
 
 
-def d3_covalent_radii(
-    atomic_numbers: torch.Tensor,
-    *,
-    dtype: torch.dtype,
-    device: torch.device,
-) -> torch.Tensor:
-    """Return mctc-data D3 covalent radii for atomic_numbers, in bohr."""
-    if atomic_numbers.ndim != 1:
-        raise ValueError("atomic_numbers must have shape (n_atoms,).")
-
-    if atomic_numbers.dtype not in {
-        torch.int8,
-        torch.int16,
-        torch.int32,
-        torch.int64,
-        torch.uint8,
-    }:
-        raise TypeError("atomic_numbers must have an integer dtype.")
-
-    if torch.any(atomic_numbers < 1) or torch.any(atomic_numbers > 118):
-        raise ValueError("atomic_numbers must lie between 1 and 118.")
-
-    radius_table = D3ReferenceData.from_files().covalent_radii.to(
-        dtype=dtype,
-        device=device,
-    )
-
-    return radius_table[atomic_numbers.to(device=device)]
-
-
 def d3_bj_two_body_pair_energies(
     coordinates: torch.Tensor,
     c6: torch.Tensor,
@@ -464,21 +449,6 @@ def d3_bj_two_body_pair_energies(
 
     pair_energies = -(c6_term + c8_term)
     return pair_energies, pair_indices
-
-
-def d3_reference_weights(
-    coordination_numbers: torch.Tensor,
-    reference_coordination_numbers: torch.Tensor,
-) -> torch.Tensor:
-    """Return normalized D3 reference-state weights for each atom."""
-    differences = (
-        coordination_numbers[:, None] - reference_coordination_numbers[None, :]
-    )
-    unnormalized_weights = torch.exp(-4.0 * differences**2)
-    return unnormalized_weights / unnormalized_weights.sum(
-        dim=1,
-        keepdim=True,
-    )
 
 
 def d3_pairwise_c6(
@@ -545,10 +515,11 @@ def d3_pairwise_c6(
                 "and one-dimensional."
             )
 
-        weights = d3_reference_weights(
-            coordination_numbers[atom_index : atom_index + 1],
-            reference_cn,
+        weights = D3ReferenceData.reference_weights(
+            coordination_numbers,
+            reference_coordination_numbers,
         )
+
         reference_weights.append(weights[0])
 
     rows: list[torch.Tensor] = []
