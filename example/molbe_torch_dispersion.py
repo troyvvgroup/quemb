@@ -2,6 +2,10 @@ import numpy as np
 import torch
 
 
+# Todo
+# extend to multiple geometries??
+# correction should only be for the atoms outside the fragment
+# ensure units are compatible
 def load_gradient(path: str, n_atoms: int) -> torch.Tensor:
     gradient = torch.as_tensor(
         np.loadtxt(path),
@@ -47,7 +51,7 @@ def closure() -> torch.Tensor:
         create_graph=True,
     )
 
-    gradient_residual = embedding_gradient + d3_gradient - reference_gradient
+    gradient_residual = force_embedding_gradient + d3_gradient - reference_gradient
 
     loss = torch.mean(gradient_residual**2)
     loss.backward()
@@ -58,51 +62,8 @@ def closure() -> torch.Tensor:
 optimizer.step(closure)
 optimized_parameters = fit_parameters.as_fixed_parameters()
 
-# Supposing that you have a fitting set of geometries and target D3 energies,
-# here is how you would obtain fitted damping parameters:
-
-# d3 = TorchD3BJ(atomic_numbers, method="hf")
-#
-# coordinates_set = [
-#    coordinates_1,
-#    coordinates_2,
-#    coordinates_3,
-# ]
-# target_energies = torch.tensor(
-#    [target_1, target_2, target_3],
-#    dtype=torch.float64,
-# )
-#
-# fit_parameters = TrainableD3BJParameters(d3.parameters)
-#
-# optimizer = torch.optim.LBFGS(
-#    fit_parameters.parameters(),
-#    lr=1.0,
-#    max_iter=100,
-#    tolerance_grad=1.0e-10,
-#    tolerance_change=1.0e-12,
-#    line_search_fn="strong_wolfe",
-# )
-#
-#
-# def closure() -> torch.Tensor:
-#    optimizer.zero_grad()
-#
-#    predicted_energies = torch.stack(
-#        [
-#            d3.energy(coordinates, parameters=fit_parameters)
-#            for coordinates in coordinates_set
-#        ]
-#    )
-#
-#    loss = torch.mean((predicted_energies - target_energies) ** 2)
-#    loss.backward()
-#    return loss
-#
-#
-# loss = optimizer.step(closure)
-#
-# optimized_parameters = fit_parameters.as_fixed_parameters()
-#
-# print("final loss:", closure().item())
-# print(optimized_parameters)
+print(f"Final loss: {closure().item():.12e}")
+print(f"s6 = {optimized_parameters.s6:.10f}")
+print(f"s8 = {optimized_parameters.s8:.10f}")
+print(f"a1 = {optimized_parameters.a1:.10f}")
+print(f"a2 = {optimized_parameters.a2:.10f}")
