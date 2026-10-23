@@ -435,12 +435,17 @@ class TorchD3BJ:
     def energy_and_gradient(
         self,
         coordinates: torch.Tensor,
+        parameters: D3BJParameters | None = None,
+        *,
+        create_graph: bool = False,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         if not coordinates.requires_grad:
             coordinates = coordinates.detach().clone().requires_grad_(True)
 
-        energy = self.energy(coordinates)
-        gradient = torch.autograd.grad(energy, coordinates)[0]
+        energy = self.energy(coordinates, parameters=parameters)
+        gradient = torch.autograd.grad(energy, coordinates, create_graph=create_graph)[
+            0
+        ]
         return energy, gradient
 
     def _two_body_pair_energies(
