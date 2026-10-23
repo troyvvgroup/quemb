@@ -576,6 +576,22 @@ class TorchD3BJ:
         return torch.stack(rows)
 
     @staticmethod
+    def _pairwise_c8(
+        c6: torch.Tensor,
+        r4r2: torch.Tensor,
+    ) -> torch.Tensor:
+        """Construct pairwise D3 C8 coefficients from C6 and atomic factors."""
+        n_atoms = c6.shape[0]
+
+        if c6.shape != (n_atoms, n_atoms):
+            raise ValueError("c6 must have shape (n_atoms, n_atoms).")
+
+        if r4r2.shape != (n_atoms,):
+            raise ValueError("r4r2 must have shape (n_atoms,).")
+
+        return 3.0 * c6 * r4r2[:, None] * r4r2[None, :]
+
+    @staticmethod
     def _pairwise_distances(coordinates: torch.Tensor) -> torch.Tensor:
         """Return the matrix R_ij of interatomic distances."""
         displacements = coordinates[:, None, :] - coordinates[None, :, :]
@@ -602,7 +618,7 @@ class TorchD3BJ:
             dtype=coordinates.dtype,
             device=coordinates.device,
         )
-        c8 = d3_pairwise_c8(c6, r4r2)
+        c8 = self._pairwise_c8(c6, r4r2)
         return c6, c8
 
 
@@ -639,22 +655,6 @@ def d3_bj_two_body_pair_energies(
 
     pair_energies = -(c6_term + c8_term)
     return pair_energies, pair_indices
-
-
-def d3_pairwise_c8(
-    c6: torch.Tensor,
-    r4r2: torch.Tensor,
-) -> torch.Tensor:
-    """Construct pairwise D3 C8 coefficients from C6 and atomic factors."""
-    n_atoms = c6.shape[0]
-
-    if c6.shape != (n_atoms, n_atoms):
-        raise ValueError("c6 must have shape (n_atoms, n_atoms).")
-
-    if r4r2.shape != (n_atoms,):
-        raise ValueError("r4r2 must have shape (n_atoms,).")
-
-    return 3.0 * c6 * r4r2[:, None] * r4r2[None, :]
 
 
 def embedding_density_matrix(TA):
