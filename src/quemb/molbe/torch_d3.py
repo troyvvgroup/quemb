@@ -353,6 +353,7 @@ class TorchD3BJ:
         coordinates: torch.Tensor,
         c6: torch.Tensor,
         c8: torch.Tensor,
+        parameters: D3BJParameters,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Return D3(BJ) pair-energy contributions and atom-pair indices."""
         distances = self._pairwise_distances(coordinates)
@@ -370,10 +371,10 @@ class TorchD3BJ:
         pair_c8 = c8[atom_i, atom_j]
 
         r0 = torch.sqrt(pair_c8 / pair_c6)
-        damping_radius = self.parameters.a1 * r0 + self.parameters.a2
+        damping_radius = parameters.a1 * r0 + parameters.a2
 
-        c6_term = self.parameters.s6 * pair_c6 / (pair_distances**6 + damping_radius**6)
-        c8_term = self.parameters.s8 * pair_c8 / (pair_distances**8 + damping_radius**8)
+        c6_term = parameters.s6 * pair_c6 / (pair_distances**6 + damping_radius**6)
+        c8_term = parameters.s8 * pair_c8 / (pair_distances**8 + damping_radius**8)
 
         pair_energies = -(c6_term + c8_term)
         return pair_energies, pair_indices
