@@ -624,15 +624,23 @@ class TorchD3BJ:
         displacements = coordinates[:, None, :] - coordinates[None, :, :]
         return torch.linalg.vector_norm(displacements, dim=-1)
 
-    @staticmethod
-    def _validate_coordinates(coordinates: torch.Tensor) -> None:
+    def _validate_coordinates(self, coordinates: torch.Tensor) -> None:
         if coordinates.ndim != 2 or coordinates.shape[1] != 3:
             raise ValueError(
                 "coordinates must have shape (n_atoms, 3), "
                 f"but has shape {tuple(coordinates.shape)}."
             )
+
+        if coordinates.shape[0] != self.atomic_numbers.numel():
+            raise ValueError(
+                "coordinates has the wrong number of atoms: "
+                f"expected {self.atomic_numbers.numel()}, "
+                f"got {coordinates.shape[0]}."
+            )
+
         if not coordinates.is_floating_point():
             raise TypeError("coordinates must have a floating-point dtype.")
+
         if not torch.isfinite(coordinates).all():
             raise ValueError("coordinates must contain only finite values.")
 
