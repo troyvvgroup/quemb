@@ -307,6 +307,8 @@ class D3BJParameters:
         )
 
 
+# You may want to initially hold s6=1.0 fixed and fit only s8, a1, and a2.
+# This matches the usual HF-D3(BJ) convention.
 class TrainableD3BJParameters(torch.nn.Module):
     """Positive, trainable D3(BJ) damping parameters."""
 
@@ -347,6 +349,56 @@ class TrainableD3BJParameters(torch.nn.Module):
             a1=self.a1.detach().item(),
             a2=self.a2.detach().item(),
         )
+
+
+# Supposing that you have a fitting set of geometries and target D3 energies,
+# here is how you would obtain fitted damping parameters:
+
+# d3 = TorchD3BJ(atomic_numbers, method="hf")
+#
+# coordinates_set = [
+#    coordinates_1,
+#    coordinates_2,
+#    coordinates_3,
+# ]
+# target_energies = torch.tensor(
+#    [target_1, target_2, target_3],
+#    dtype=torch.float64,
+# )
+#
+# fit_parameters = TrainableD3BJParameters(d3.parameters)
+#
+# optimizer = torch.optim.LBFGS(
+#    fit_parameters.parameters(),
+#    lr=1.0,
+#    max_iter=100,
+#    tolerance_grad=1.0e-10,
+#    tolerance_change=1.0e-12,
+#    line_search_fn="strong_wolfe",
+# )
+#
+#
+# def closure() -> torch.Tensor:
+#    optimizer.zero_grad()
+#
+#    predicted_energies = torch.stack(
+#        [
+#            d3.energy(coordinates, parameters=fit_parameters)
+#            for coordinates in coordinates_set
+#        ]
+#    )
+#
+#    loss = torch.mean((predicted_energies - target_energies) ** 2)
+#    loss.backward()
+#    return loss
+#
+#
+# loss = optimizer.step(closure)
+#
+# optimized_parameters = fit_parameters.as_fixed_parameters()
+#
+# print("final loss:", closure().item())
+# print(optimized_parameters)
 
 
 class TorchD3BJ:
