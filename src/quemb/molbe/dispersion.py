@@ -21,6 +21,32 @@ class D3ReferenceData:
     covalent_radii: torch.Tensor
     r4r2_factors: torch.Tensor
 
+    def covalent_radii_for(
+        self,
+        atomic_numbers: torch.Tensor,
+        *,
+        dtype: torch.dtype,
+        device: torch.device,
+    ) -> torch.Tensor:
+        """Return D3 covalent radii for ``atomic_numbers``, in bohr."""
+        if atomic_numbers.ndim != 1:
+            raise ValueError("atomic_numbers must have shape (n_atoms,).")
+
+        if atomic_numbers.dtype not in {
+            torch.int8,
+            torch.int16,
+            torch.int32,
+            torch.int64,
+            torch.uint8,
+        }:
+            raise TypeError("atomic_numbers must have an integer dtype.")
+
+        if torch.any(atomic_numbers < 1) or torch.any(atomic_numbers > 118):
+            raise ValueError("atomic_numbers must lie between 1 and 118.")
+
+        radius_table = self.covalent_radii.to(dtype=dtype, device=device)
+        return radius_table[atomic_numbers.to(device=device)]
+
     def r4r2_for(
         self,
         atomic_numbers: torch.Tensor,
@@ -622,7 +648,8 @@ def d3_coordination_numbers(
             f"but has shape {tuple(coordinates.shape)}."
         )
 
-    covalent_radii = d3_covalent_radii(
+    reference_data = D3ReferenceData.from_files()
+    covalent_radii = reference_data.covalent_radii_for(
         atomic_numbers,
         dtype=coordinates.dtype,
         device=coordinates.device,
