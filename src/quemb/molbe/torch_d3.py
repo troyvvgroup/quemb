@@ -32,14 +32,14 @@ class D3ReferenceData:
             keepdim=True,
         )
 
-    def covalent_radii_for(
+    def _lookup(
         self,
+        table: torch.Tensor,
         atomic_numbers: torch.Tensor,
         *,
         dtype: torch.dtype,
         device: torch.device,
     ) -> torch.Tensor:
-        """Return D3 covalent radii for ``atomic_numbers``, in bohr."""
         if atomic_numbers.ndim != 1:
             raise ValueError("atomic_numbers must have shape (n_atoms,).")
 
@@ -55,34 +55,7 @@ class D3ReferenceData:
         if torch.any(atomic_numbers < 1) or torch.any(atomic_numbers > 118):
             raise ValueError("atomic_numbers must lie between 1 and 118.")
 
-        radius_table = self.covalent_radii.to(dtype=dtype, device=device)
-        return radius_table[atomic_numbers.to(device=device)]
-
-    def r4r2_for(
-        self,
-        atomic_numbers: torch.Tensor,
-        *,
-        dtype: torch.dtype,
-        device: torch.device,
-    ) -> torch.Tensor:
-        """Return D3 C8 factors for ``atomic_numbers``."""
-        if atomic_numbers.ndim != 1:
-            raise ValueError("atomic_numbers must have shape (n_atoms,).")
-
-        if atomic_numbers.dtype not in {
-            torch.int8,
-            torch.int16,
-            torch.int32,
-            torch.int64,
-            torch.uint8,
-        }:
-            raise TypeError("atomic_numbers must have an integer dtype.")
-
-        if torch.any(atomic_numbers < 1) or torch.any(atomic_numbers > 118):
-            raise ValueError("atomic_numbers must lie between 1 and 118.")
-
-        table = self.r4r2_factors.to(dtype=dtype, device=device)
-        return table[atomic_numbers.to(device=device)]
+        return table.to(dtype=dtype, device=device)[atomic_numbers.to(device=device)]
 
     @classmethod
     @cache
@@ -343,22 +316,6 @@ class TorchD3BJ:
         self._validate_coordinates(coordinates)
         c6, c8 = self._pairwise_coefficients(coordinates)
 
-        n_atoms = coordinates.shape[0]
-        expected_shape = (n_atoms, n_atoms)
-
-        if c6.shape != expected_shape or c8.shape != expected_shape:
-            raise ValueError(
-                "c6 and c8 must both have shape "
-                f"{expected_shape}, but have shapes {tuple(c6.shape)} "
-                f"and {tuple(c8.shape)}."
-            )
-
-        if c6.dtype != coordinates.dtype or c8.dtype != coordinates.dtype:
-            raise TypeError("c6 and c8 must have the same dtype as coordinates.")
-
-        if c6.device != coordinates.device or c8.device != coordinates.device:
-            raise ValueError("c6 and c8 must be on the same device as coordinates.")
-
         pair_energies, _ = self._two_body_pair_energies(
             coordinates,
             c6,
@@ -438,7 +395,8 @@ class TorchD3BJ:
             )
 
         atomic_numbers = self.atomic_numbers.to(coordinates.device)
-        covalent_radii = self.reference_data.covalent_radii_for(
+        covalent_radii = self.reference_data._lookup(
+            self.reference_data.covalent_radii,
             atomic_numbers,
             dtype=coordinates.dtype,
             device=coordinates.device,
@@ -645,7 +603,9 @@ class TorchD3BJ:
 
         coordination_numbers = self._coordination_numbers(coordinates)
         c6 = self._pairwise_c6(coordination_numbers)
-        r4r2 = self.reference_data.r4r2_for(
+
+        r4r2 = self.reference_data._lookup(
+            self.reference_data.r4r2_factors,
             atomic_numbers,
             dtype=coordinates.dtype,
             device=coordinates.device,
