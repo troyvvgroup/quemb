@@ -4,7 +4,6 @@ import torch
 
 # Todo
 # extend to multiple geometries??
-# correction should only be for the atoms outside the fragment
 # ensure units are compatible
 def load_gradient(path: str, n_atoms: int) -> torch.Tensor:
     gradient = torch.as_tensor(
@@ -30,7 +29,86 @@ reference_gradient = load_gradient(
     n_atoms=len(atomic_numbers),
 )
 
-fit_parameters = TrainableD3BJParameters(d3.parameters)
+external_d3 = TorchExternalD3BJ(
+    atomic_numbers=atomic_numbers.tolist(),
+    fragments=fragments,
+    inverted_fragments=inverted_fragments,
+    method="hf",
+)
+
+fit_parameters = TrainableD3BJParameters(external_d3.parameters)
+
+
+def external_d3_gradient(
+    coordinates: torch.Tensor,
+    *,
+    parameters: TrainableD3BJParameters,
+    create_graph: bool,
+) -> torch.Tensor:
+    """Return the external D3 gradient for every atom in the full system."""
+    _, fragment_gradients = external_d3.energies_and_gradients(
+        coordinates,
+        parameters=parameters,
+        create_graph=create_graph,
+    )
+
+    correction_gradient = torch.zeros_like(coordinates)
+    atom_assignment_count = torch.zeros(
+        coordinates.shape[0],
+        dtype=torch.int64,
+        device=coordinates.device,
+    )
+
+    for fragment_index, (fragment, fragment_gradient) in enumerate(
+        zip(fragments, fragment_gradients)
+    ):
+        if torch.count_nonzero(fragment_gradient).item() == 0:
+            raise RuntimeError(
+                f"External D3 gradient for fragment {fragment_index} "
+                "is identically zero."
+            )
+
+        atom_indices = torch.tensor(
+            fragment,
+            dtype=torch.int64,
+            device=coordinates.device,
+        )
+
+        # Each atom should receive the correction associated with its
+        # unique owning fragment.
+        correction_gradient = correction_gradient.index_copy(
+            dim=0,
+            index=atom_indices,
+            source=fragment_gradient,
+        )
+        atom_assignment_count[atom_indices] += 1
+
+    if not torch.all(atom_assignment_count == 1):
+        raise ValueError(
+            "fragments must assign every system atom to exactly one fragment."
+        )
+
+    return correction_gradient
+
+
+def closure() -> torch.Tensor:
+    optimizer.zero_grad()
+
+    d3_correction_gradient = external_d3_gradient(
+        coordinates,
+        parameters=fit_parameters,
+        create_graph=True,
+    )
+
+    gradient_residual = (
+        force_embedding_gradient + d3_correction_gradient - reference_gradient
+    )
+
+    loss = torch.mean(gradient_residual**2)
+    loss.backward()
+
+    return loss
+
 
 optimizer = torch.optim.LBFGS(
     fit_parameters.parameters(),
@@ -40,24 +118,6 @@ optimizer = torch.optim.LBFGS(
     tolerance_change=1.0e-12,
     line_search_fn="strong_wolfe",
 )
-
-
-def closure() -> torch.Tensor:
-    optimizer.zero_grad()
-
-    _, d3_gradient = d3.energy_and_gradient(
-        coordinates,
-        parameters=fit_parameters,
-        create_graph=True,
-    )
-
-    gradient_residual = force_embedding_gradient + d3_gradient - reference_gradient
-
-    loss = torch.mean(gradient_residual**2)
-    loss.backward()
-
-    return loss
-
 
 optimizer.step(closure)
 optimized_parameters = fit_parameters.as_fixed_parameters()
