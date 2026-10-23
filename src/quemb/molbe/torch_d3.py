@@ -9,6 +9,34 @@ import torch
 
 ANGSTROM_TO_BOHR = 1.8897261254578281
 
+_INTEGER_DTYPES = {
+    torch.int8,
+    torch.int16,
+    torch.int32,
+    torch.int64,
+    torch.uint8,
+}
+
+
+def _validate_atomic_numbers(
+    atomic_numbers: torch.Tensor,
+    *,
+    max_atomic_number: int = 118,
+    require_nonempty: bool = False,
+) -> None:
+    """Validate a one-dimensional tensor of atomic numbers."""
+    if atomic_numbers.ndim != 1:
+        raise ValueError("atomic_numbers must have shape (n_atoms,).")
+
+    if require_nonempty and atomic_numbers.numel() == 0:
+        raise ValueError("atomic_numbers must not be empty.")
+
+    if atomic_numbers.dtype not in _INTEGER_DTYPES:
+        raise TypeError("atomic_numbers must have an integer dtype.")
+
+    if torch.any(atomic_numbers < 1) or torch.any(atomic_numbers > max_atomic_number):
+        raise ValueError(f"atomic_numbers must lie between 1 and {max_atomic_number}.")
+
 
 @dataclass(frozen=True)
 class D3ReferenceData:
@@ -40,21 +68,10 @@ class D3ReferenceData:
         dtype: torch.dtype,
         device: torch.device,
     ) -> torch.Tensor:
-        if atomic_numbers.ndim != 1:
-            raise ValueError("atomic_numbers must have shape (n_atoms,).")
-
-        if atomic_numbers.dtype not in {
-            torch.int8,
-            torch.int16,
-            torch.int32,
-            torch.int64,
-            torch.uint8,
-        }:
-            raise TypeError("atomic_numbers must have an integer dtype.")
-
-        if torch.any(atomic_numbers < 1) or torch.any(atomic_numbers > 118):
-            raise ValueError("atomic_numbers must lie between 1 and 118.")
-
+        _validate_atomic_numbers(
+            atomic_numbers,
+            max_atomic_number=table.numel() - 1,
+        )
         return table.to(dtype=dtype, device=device)[atomic_numbers.to(device=device)]
 
     @classmethod
@@ -297,11 +314,7 @@ class TorchD3BJ:
 
     def __init__(self, atomic_numbers: list[int], method: str = "hf"):
         self.atomic_numbers = torch.tensor(atomic_numbers, dtype=torch.int64)
-
-        if self.atomic_numbers.ndim != 1 or self.atomic_numbers.numel() == 0:
-            raise ValueError("atomic_numbers must be a nonempty one-dimensional list.")
-        if torch.any(self.atomic_numbers < 1) or torch.any(self.atomic_numbers > 118):
-            raise ValueError("atomic_numbers must lie between 1 and 118.")
+        _validate_atomic_numbers(self.atomic_numbers, require_nonempty=True)
 
         self.method = method
         self.parameters = D3BJParameters.from_method(method)
@@ -453,36 +466,14 @@ class TorchD3BJ:
         """
         atomic_numbers = self.atomic_numbers.to(coordination_numbers.device)
 
-        if atomic_numbers.ndim != 1:
-            raise ValueError("atomic_numbers must have shape (n_atoms,).")
-        if atomic_numbers.dtype not in {
-            torch.int8,
-            torch.int16,
-            torch.int32,
-            torch.int64,
-            torch.uint8,
-        }:
-            raise TypeError("atomic_numbers must have an integer dtype.")
-
-        n_atoms = atomic_numbers.shape[0]
-        if coordination_numbers.shape != (n_atoms,):
-            raise ValueError(
-                "coordination_numbers must have shape (n_atoms,), "
-                f"but has shape {tuple(coordination_numbers.shape)}."
-            )
-
         reference_data = self.reference_data
         reference_coordination_numbers = self.reference_data.coordination_numbers
-        c6_reference = reference_data.c6_coefficients
-
         max_atomic_number = max(reference_coordination_numbers)
-        if torch.any(atomic_numbers < 1) or torch.any(
-            atomic_numbers > max_atomic_number
-        ):
-            raise ValueError(
-                "atomic_numbers must lie between 1 and "
-                f"{max_atomic_number}, the range covered by reference.f90."
-            )
+        _validate_atomic_numbers(
+            atomic_numbers,
+            max_atomic_number=max_atomic_number,
+        )
+        c6_reference = reference_data.c6_coefficients
 
         elements = [int(atomic_number) for atomic_number in atomic_numbers.tolist()]
         reference_weights: list[torch.Tensor] = []
