@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from dftd3.interface import DispersionModel, RationalDampingParam
 
-from quemb.molbe.dispersion import (
+from quemb.molbe.torch_d3 import (
     TorchD3BJ,
 )
 
