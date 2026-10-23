@@ -626,6 +626,10 @@ class TorchD3BJ:
                 "coordinates must have shape (n_atoms, 3), "
                 f"but has shape {tuple(coordinates.shape)}."
             )
+        if not coordinates.is_floating_point():
+            raise TypeError("coordinates must have a floating-point dtype.")
+        if not torch.isfinite(coordinates).all():
+            raise ValueError("coordinates must contain only finite values.")
 
     def _pairwise_coefficients(
         self,
