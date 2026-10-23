@@ -15,7 +15,9 @@ readme = "README.md"
 requires-python = ">=3.10,<3.13"
 authors = [{ name = "Your Name", email = "your@email.com" }]
 dependencies = [
+    "tomli>=2.0.1",
     "numpy>=1.22.0",
+    "torch",
     "scipy>=1.7.0",
     "pyscf>=2.0.0",
     "networkx",
@@ -28,6 +30,7 @@ dependencies = [
     "libdmet @ git+https://github.com/gkclab/libdmet_preview.git",
     "chemcoord>=2.2.0",
     "pathos",
+    "dftd3"
 ]
 
 [project.license]

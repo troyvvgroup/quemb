@@ -1,0 +1,800 @@
+import re
+from dataclasses import dataclass
+from functools import cache
+from importlib.resources import files
+
+import numpy as np
+import tomli
+import torch
+import torch.nn.functional as F
+
+ANGSTROM_TO_BOHR = 1.8897261254578281
+
+_INTEGER_DTYPES = {
+    torch.int8,
+    torch.int16,
+    torch.int32,
+    torch.int64,
+    torch.uint8,
+}
+
+max_atomic_number = int(118)
+
+
+def _validate_atomic_numbers(
+    atomic_numbers: torch.Tensor,
+) -> None:
+    if atomic_numbers.ndim != 1:
+        raise ValueError("atomic_numbers must have shape (n_atoms,).")
+
+    if atomic_numbers.numel() == 0:
+        raise ValueError("atomic_numbers must not be empty.")
+
+    if atomic_numbers.dtype not in _INTEGER_DTYPES:
+        raise TypeError("atomic_numbers must have an integer dtype.")
+
+    if torch.any(atomic_numbers < 1) or torch.any(atomic_numbers > max_atomic_number):
+        raise ValueError(f"atomic_numbers must lie between 1 and {max_atomic_number}.")
+
+
+@dataclass(frozen=True)
+class D3ReferenceData:
+    coordination_numbers: dict[int, torch.Tensor]
+    c6_coefficients: dict[tuple[int, int], torch.Tensor]
+    covalent_radii: torch.Tensor
+    r4r2_factors: torch.Tensor
+
+    @staticmethod
+    def reference_weights(
+        coordination_numbers: torch.Tensor,
+        reference_coordination_numbers: torch.Tensor,
+    ) -> torch.Tensor:
+        """Return normalized weights for D3 reference coordination states."""
+        differences = (
+            coordination_numbers[:, None] - reference_coordination_numbers[None, :]
+        )
+        unnormalized_weights = torch.exp(-4.0 * differences**2)
+        return unnormalized_weights / unnormalized_weights.sum(
+            dim=1,
+            keepdim=True,
+        )
+
+    def _lookup(
+        self,
+        table: torch.Tensor,
+        atomic_numbers: torch.Tensor,
+        *,
+        dtype: torch.dtype,
+        device: torch.device,
+    ) -> torch.Tensor:
+        _validate_atomic_numbers(
+            atomic_numbers,
+        )
+        return table.to(dtype=dtype, device=device)[atomic_numbers.to(device=device)]
+
+    @classmethod
+    @cache
+    def from_files(cls) -> "D3ReferenceData":
+        """Read reference coordination numbers and C6 data from reference.f90."""
+        source = files("quemb.molbe").joinpath("data", "reference.f90").read_text()
+
+        def without_comments(text: str) -> str:
+            return re.sub(r"!.*", "", text)
+
+        def fortran_float_values(text: str) -> list[float]:
+            return [
+                float(value)
+                for value in re.findall(
+                    r"([+-]?(?:\d+\.\d*|\.\d+)(?:[Ee][+-]?\d+)?)_wp",
+                    text,
+                )
+            ]
+
+        reference_count_match = re.search(
+            r"number_of_references\(max_elem\)\s*=\s*\[\s*&(?P<data>.*?)\]",
+            source,
+            flags=re.DOTALL,
+        )
+        if reference_count_match is None:
+            raise RuntimeError("Could not find number_of_references in reference.f90.")
+
+        number_of_references = [
+            int(value)
+            for value in re.findall(
+                r"\d+",
+                without_comments(reference_count_match.group("data")),
+            )
+        ]
+
+        max_elem = len(number_of_references)
+        max_ref = 7
+
+        reference_cn_match = re.search(
+            r"reference_cn\(max_ref,\s*max_elem\)\s*=\s*reshape\(\[\s*&"
+            r"(?P<data>.*?)\[\s*max_ref,\s*max_elem\s*\]\s*\)",
+            source,
+            flags=re.DOTALL,
+        )
+        if reference_cn_match is None:
+            raise RuntimeError("Could not find reference_cn in reference.f90.")
+
+        reference_cn_values = fortran_float_values(
+            without_comments(reference_cn_match.group("data"))
+        )
+        if len(reference_cn_values) != max_ref * max_elem:
+            raise RuntimeError(
+                "reference_cn has an unexpected number of entries: "
+                f"{len(reference_cn_values)}."
+            )
+
+        # reference_cn is reshaped in Fortran column-major order.
+        reference_cn_table = np.asarray(reference_cn_values).reshape(
+            (max_ref, max_elem),
+            order="F",
+        )
+
+        c6_chunks = re.finditer(
+            r"c6ab_view\((?P<start>\d+):(?P<stop>\d+)\)\s*=\s*\[\s*&"
+            r"(?P<data>.*?)\]",
+            source,
+            flags=re.DOTALL,
+        )
+
+        c6_values: list[float] = []
+        expected_start = 1
+
+        for chunk in c6_chunks:
+            start = int(chunk.group("start"))
+            stop = int(chunk.group("stop"))
+
+            if start != expected_start:
+                raise RuntimeError(
+                    f"Expected C6 data to start at {expected_start}, but found {start}."
+                )
+
+            values = fortran_float_values(without_comments(chunk.group("data")))
+            if len(values) != stop - start + 1:
+                raise RuntimeError(
+                    f"C6 block {start}:{stop} contains {len(values)} values."
+                )
+
+            c6_values.extend(values)
+            expected_start = stop + 1
+
+        n_pairs = max_elem * (max_elem + 1) // 2
+        expected_c6_count = max_ref * max_ref * n_pairs
+
+        if len(c6_values) != expected_c6_count:
+            raise RuntimeError(
+                f"Expected {expected_c6_count} C6 values, but found {len(c6_values)}."
+            )
+
+        # This reproduces the Fortran c6ab(max_ref, max_ref, n_pairs) layout.
+        c6_table = np.asarray(c6_values).reshape(
+            (max_ref, max_ref, n_pairs),
+            order="F",
+        )
+
+        reference_coordination_numbers: dict[int, torch.Tensor] = {}
+        c6_reference: dict[tuple[int, int], torch.Tensor] = {}
+
+        for atomic_number, n_ref in enumerate(number_of_references, start=1):
+            reference_coordination_numbers[atomic_number] = torch.tensor(
+                reference_cn_table[:n_ref, atomic_number - 1],
+                dtype=torch.float64,
+            )
+
+        pair_index = 0
+        for atomic_number_j in range(1, max_elem + 1):
+            n_ref_j = number_of_references[atomic_number_j - 1]
+
+            for atomic_number_i in range(1, atomic_number_j + 1):
+                n_ref_i = number_of_references[atomic_number_i - 1]
+
+                # simple-dftd3 stores the upper-triangular pair block with its
+                # reference-state axes reversed; transpose it into (i, j) order.
+                c6_reference[(atomic_number_i, atomic_number_j)] = torch.tensor(
+                    c6_table[:n_ref_j, :n_ref_i, pair_index].T,
+                    dtype=torch.float64,
+                )
+                pair_index += 1
+
+        covalent_radii = cls._read_covalent_radii()
+        r4r2_factors = cls._read_r4r2_factors()
+
+        return cls(
+            coordination_numbers=reference_coordination_numbers,
+            c6_coefficients=c6_reference,
+            covalent_radii=covalent_radii,
+            r4r2_factors=r4r2_factors,
+        )
+
+    @staticmethod
+    def _read_covalent_radii() -> torch.Tensor:
+        """Read D3 covalent radii from covrad.f90, in bohr."""
+        source = files("quemb.molbe").joinpath("data", "covrad.f90").read_text()
+
+        match = re.search(
+            r"covalent_rad_2009\(max_elem\)\s*=\s*aatoau\s*\*\s*\[(.*?)\]",
+            source,
+            flags=re.DOTALL,
+        )
+        if match is None:
+            raise RuntimeError("Could not find covalent_rad_2009 in covrad.f90.")
+
+        radii_block = re.sub(r"!.*", "", match.group(1))
+        radii_angstrom = [
+            float(value) for value in re.findall(r"(\d+\.\d+)_wp", radii_block)
+        ]
+
+        if len(radii_angstrom) != 118:
+            raise RuntimeError(
+                "Expected 118 covalent radii in covrad.f90, "
+                f"but found {len(radii_angstrom)}."
+            )
+
+        return (
+            torch.tensor([0.0, *radii_angstrom], dtype=torch.float64)
+            * (4.0 / 3.0)
+            * ANGSTROM_TO_BOHR
+        )
+
+    @staticmethod
+    def _read_r4r2_factors() -> torch.Tensor:
+        """Read simple-dftd3 C8 factors from r4r2.f90."""
+        source = files("quemb.molbe").joinpath("data", "r4r2.f90").read_text()
+
+        match = re.search(
+            r"r4_over_r2\(max_elem\)\s*=\s*\[\s*&(?P<data>.*?)\]",
+            source,
+            flags=re.DOTALL,
+        )
+        if match is None:
+            raise RuntimeError("Could not find r4_over_r2 in r4r2.f90.")
+
+        data_block = re.sub(r"!.*", "", match.group("data"))
+        raw_r4r2 = [
+            float(value)
+            for value in re.findall(
+                r"([+-]?(?:\d+\.\d*|\.\d+)(?:[Ee][+-]?\d+)?)_wp",
+                data_block,
+            )
+        ]
+
+        if len(raw_r4r2) != 118:
+            raise RuntimeError(
+                "Expected 118 r4_over_r2 values in r4r2.f90, "
+                f"but found {len(raw_r4r2)}."
+            )
+
+        atomic_numbers = torch.arange(1, 119, dtype=torch.float64)
+        factors = torch.sqrt(
+            0.5
+            * torch.tensor(raw_r4r2, dtype=torch.float64)
+            * torch.sqrt(atomic_numbers)
+        )
+
+        return torch.cat((torch.zeros(1, dtype=torch.float64), factors))
+
+
+@dataclass(frozen=True)
+class D3BJParameters:
+    s6: float
+    s8: float
+    a1: float
+    a2: float
+
+    @classmethod
+    @cache
+    def from_method(cls, method: str) -> "D3BJParameters":
+        source = files("quemb.molbe").joinpath("data", "parameters.toml").read_text()
+        data = tomli.loads(source)
+
+        try:
+            defaults = data["default"]["parameter"]["d3"]["bj"]
+            method_parameters = data["parameter"][method.lower()]["d3"]["bj"]
+        except KeyError as exc:
+            raise ValueError(
+                f"No D3(BJ) parameters are available for method {method!r}."
+            ) from exc
+
+        values = {**defaults, **method_parameters}
+        return cls(
+            s6=float(values["s6"]),
+            s8=float(values["s8"]),
+            a1=float(values["a1"]),
+            a2=float(values["a2"]),
+        )
+
+
+# You may want to initially hold s6=1.0 fixed and fit only s8, a1, and a2.
+# This matches the usual HF-D3(BJ) convention.
+class TrainableD3BJParameters(torch.nn.Module):
+    """Positive, trainable D3(BJ) damping parameters."""
+
+    def __init__(self, initial: D3BJParameters) -> None:
+        super().__init__()
+
+        self.raw_s6 = torch.nn.Parameter(self._inverse_softplus(initial.s6))
+        self.raw_s8 = torch.nn.Parameter(self._inverse_softplus(initial.s8))
+        self.raw_a1 = torch.nn.Parameter(self._inverse_softplus(initial.a1))
+        self.raw_a2 = torch.nn.Parameter(self._inverse_softplus(initial.a2))
+
+    @staticmethod
+    def _inverse_softplus(value: float) -> torch.Tensor:
+        value_tensor = torch.tensor(value, dtype=torch.float64)
+        return torch.log(torch.expm1(value_tensor))
+
+    @property
+    def s6(self) -> torch.Tensor:
+        return F.softplus(self.raw_s6)
+
+    @property
+    def s8(self) -> torch.Tensor:
+        return F.softplus(self.raw_s8)
+
+    @property
+    def a1(self) -> torch.Tensor:
+        return F.softplus(self.raw_a1)
+
+    @property
+    def a2(self) -> torch.Tensor:
+        return F.softplus(self.raw_a2)
+
+    def as_fixed_parameters(self) -> D3BJParameters:
+        """Convert optimized tensors into ordinary stored parameter values."""
+        return D3BJParameters(
+            s6=self.s6.detach().item(),
+            s8=self.s8.detach().item(),
+            a1=self.a1.detach().item(),
+            a2=self.a2.detach().item(),
+        )
+
+
+class TorchD3BJ:
+    """Differentiable two-body D3(BJ) correction."""
+
+    def __init__(self, atomic_numbers: list[int], method: str = "hf"):
+        self.atomic_numbers = torch.tensor(atomic_numbers, dtype=torch.int64)
+        _validate_atomic_numbers(self.atomic_numbers)
+
+        self.method = method
+        self.parameters = D3BJParameters.from_method(method)
+        self.reference_data = D3ReferenceData.from_files()
+
+    def energy(
+        self,
+        coordinates: torch.Tensor,
+        parameters: D3BJParameters | None = None,
+    ) -> torch.Tensor:
+        """Compute the two-body D3(BJ) dispersion energy."""
+        self._validate_coordinates(coordinates)
+
+        if parameters is None:
+            parameters = self.parameters
+
+        c6, c8 = self._pairwise_coefficients(coordinates)
+        pair_energies, _ = self._two_body_pair_energies(
+            coordinates,
+            c6,
+            c8,
+            parameters,
+        )
+        return pair_energies.sum()
+
+    def energy_and_gradient(
+        self,
+        coordinates: torch.Tensor,
+        parameters: D3BJParameters | None = None,
+        *,
+        create_graph: bool = False,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        if not coordinates.requires_grad:
+            coordinates = coordinates.detach().clone().requires_grad_(True)
+
+        energy = self.energy(coordinates, parameters=parameters)
+        gradient = torch.autograd.grad(energy, coordinates, create_graph=create_graph)[
+            0
+        ]
+        return energy, gradient
+
+    def _two_body_pair_energies(
+        self,
+        coordinates: torch.Tensor,
+        c6: torch.Tensor,
+        c8: torch.Tensor,
+        parameters: D3BJParameters,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Return D3(BJ) pair-energy contributions and atom-pair indices."""
+        distances = self._pairwise_distances(coordinates)
+
+        pair_indices = torch.triu_indices(
+            coordinates.shape[0],
+            coordinates.shape[0],
+            offset=1,
+            device=coordinates.device,
+        )
+        atom_i, atom_j = pair_indices
+
+        pair_distances = distances[atom_i, atom_j]
+        pair_c6 = c6[atom_i, atom_j]
+        pair_c8 = c8[atom_i, atom_j]
+
+        r0 = torch.sqrt(pair_c8 / pair_c6)
+        damping_radius = parameters.a1 * r0 + parameters.a2
+
+        c6_term = parameters.s6 * pair_c6 / (pair_distances**6 + damping_radius**6)
+        c8_term = parameters.s8 * pair_c8 / (pair_distances**8 + damping_radius**8)
+
+        pair_energies = -(c6_term + c8_term)
+        return pair_energies, pair_indices
+
+    def _coordination_numbers(
+        self,
+        coordinates: torch.Tensor,
+    ) -> torch.Tensor:
+        """Compute D3 coordination numbers from nuclear coordinates.
+
+        Parameters
+        ----------
+        coordinates
+            Cartesian coordinates with shape ``(n_atoms, 3)``, in bohr.
+        atomic_numbers
+            Atomic numbers with shape ``(n_atoms,)``.
+
+        Returns
+        -------
+        torch.Tensor
+            Coordination numbers with shape ``(n_atoms,)``.
+
+        Notes
+        -----
+        Uses the simple-dftd3 coordination-number switching function:
+
+        ``CN_i = sum_{j != i} sigmoid[16 * ((R_cov,i + R_cov,j) / R_ij - 1)]``.
+        """
+        if coordinates.ndim != 2 or coordinates.shape[1] != 3:
+            raise ValueError(
+                "coordinates must have shape (n_atoms, 3), "
+                f"but has shape {tuple(coordinates.shape)}."
+            )
+
+        atomic_numbers = self.atomic_numbers.to(coordinates.device)
+        covalent_radii = self.reference_data._lookup(
+            self.reference_data.covalent_radii,
+            atomic_numbers,
+            dtype=coordinates.dtype,
+            device=coordinates.device,
+        )
+
+        n_atoms = coordinates.shape[0]
+        if covalent_radii.shape != (n_atoms,):
+            raise ValueError(
+                "atomic_numbers must have shape (n_atoms,), "
+                f"but has shape {tuple(atomic_numbers.shape)}."
+            )
+
+        if torch.any(covalent_radii <= 0):
+            raise ValueError("All covalent radii must be positive.")
+
+        distances = self._pairwise_distances(coordinates)
+
+        pair_mask = ~torch.eye(
+            n_atoms,
+            dtype=torch.bool,
+            device=coordinates.device,
+        )
+
+        # Replace the diagonal only before division; self-pairs are excluded below.
+        safe_distances = torch.where(pair_mask, distances, torch.ones_like(distances))
+        if torch.any(safe_distances[pair_mask] <= 0.0):
+            raise ValueError("coordinates must not contain coincident atoms.")
+        radii_sums = covalent_radii[:, None] + covalent_radii[None, :]
+
+        switching_argument = 16.0 * (radii_sums / safe_distances - 1.0)
+        pair_contributions = torch.sigmoid(switching_argument)
+
+        return torch.where(
+            pair_mask, pair_contributions, torch.zeros_like(distances)
+        ).sum(dim=1)
+
+    def _pairwise_c6(
+        self,
+        coordination_numbers: torch.Tensor,
+    ) -> torch.Tensor:
+        """Interpolate element-specific pairwise D3 C6 coefficients.
+
+        Parameters
+        ----------
+        atomic_numbers
+            Atomic numbers with shape ``(n_atoms,)``.
+        coordination_numbers
+            D3 coordination numbers with shape ``(n_atoms,)``.
+        Returns
+        -------
+        torch.Tensor
+            Interpolated C6 matrix with shape ``(n_atoms, n_atoms)``. Its
+            diagonal is zero because self-interactions are not used in D3.
+        """
+        atomic_numbers = self.atomic_numbers.to(coordination_numbers.device)
+
+        reference_data = self.reference_data
+        reference_coordination_numbers = self.reference_data.coordination_numbers
+        _validate_atomic_numbers(
+            atomic_numbers,
+        )
+        c6_reference = reference_data.c6_coefficients
+
+        elements = [int(atomic_number) for atomic_number in atomic_numbers.tolist()]
+        reference_weights: list[torch.Tensor] = []
+
+        for atom_index, element in enumerate(elements):
+            if element not in reference_coordination_numbers:
+                raise ValueError(f"No reference coordination data for Z={element}.")
+
+            reference_cn = reference_coordination_numbers[element].to(
+                device=coordination_numbers.device,
+                dtype=coordination_numbers.dtype,
+            )
+
+            if reference_cn.ndim != 1 or reference_cn.numel() == 0:
+                raise ValueError(
+                    f"Reference coordination data for Z={element} must be nonempty "
+                    "and one-dimensional."
+                )
+
+            weights = D3ReferenceData.reference_weights(
+                coordination_numbers[atom_index : atom_index + 1],
+                reference_cn,
+            )
+
+            reference_weights.append(weights[0])
+
+        rows: list[torch.Tensor] = []
+        zero = torch.zeros(
+            (), dtype=coordination_numbers.dtype, device=coordination_numbers.device
+        )
+
+        for atom_i, element_i in enumerate(elements):
+            row: list[torch.Tensor] = []
+
+            for atom_j, element_j in enumerate(elements):
+                if atom_i == atom_j:
+                    row.append(zero)
+                    continue
+
+                pair_key = tuple(sorted((element_i, element_j)))
+                if pair_key not in c6_reference:
+                    raise ValueError(
+                        f"No C6 reference data for element pair {pair_key}."
+                    )
+
+                c6_block = c6_reference[pair_key].to(
+                    device=coordination_numbers.device,
+                    dtype=coordination_numbers.dtype,
+                )
+                weights_i = reference_weights[atom_i]
+                weights_j = reference_weights[atom_j]
+
+                # Stored blocks use the sorted element order.
+                if element_i > element_j:
+                    c6_block = c6_block.T
+
+                expected_shape = (weights_i.numel(), weights_j.numel())
+                if c6_block.shape != expected_shape:
+                    raise ValueError(
+                        f"C6 block for {pair_key} has shape {tuple(c6_block.shape)}, "
+                        f"but expected {expected_shape}."
+                    )
+
+                pair_weights = weights_i[:, None] * weights_j[None, :]
+                valid_reference_pairs = c6_block > 0.0
+
+                if not bool(torch.any(valid_reference_pairs)):
+                    raise ValueError(f"C6 block for {pair_key} has no valid entries.")
+
+                # Real D3 normalizes over valid reference-state combinations only.
+                numerator = (c6_block * pair_weights).sum()
+                denominator = pair_weights[valid_reference_pairs].sum()
+                row.append(numerator / denominator)
+
+            rows.append(torch.stack(row))
+
+        return torch.stack(rows)
+
+    @staticmethod
+    def _pairwise_c8(
+        c6: torch.Tensor,
+        r4r2: torch.Tensor,
+    ) -> torch.Tensor:
+        """Construct pairwise D3 C8 coefficients from C6 and atomic factors."""
+        n_atoms = c6.shape[0]
+
+        if c6.shape != (n_atoms, n_atoms):
+            raise ValueError("c6 must have shape (n_atoms, n_atoms).")
+
+        if r4r2.shape != (n_atoms,):
+            raise ValueError("r4r2 must have shape (n_atoms,).")
+
+        return 3.0 * c6 * r4r2[:, None] * r4r2[None, :]
+
+    @staticmethod
+    def _pairwise_distances(coordinates: torch.Tensor) -> torch.Tensor:
+        """Return the matrix R_ij of interatomic distances."""
+        displacements = coordinates[:, None, :] - coordinates[None, :, :]
+        return torch.linalg.vector_norm(displacements, dim=-1)
+
+    def _validate_coordinates(self, coordinates: torch.Tensor) -> None:
+        if coordinates.ndim != 2 or coordinates.shape[1] != 3:
+            raise ValueError(
+                "coordinates must have shape (n_atoms, 3), "
+                f"but has shape {tuple(coordinates.shape)}."
+            )
+
+        if coordinates.shape[0] != self.atomic_numbers.numel():
+            raise ValueError(
+                "coordinates has the wrong number of atoms: "
+                f"expected {self.atomic_numbers.numel()}, "
+                f"got {coordinates.shape[0]}."
+            )
+
+        if not coordinates.is_floating_point():
+            raise TypeError("coordinates must have a floating-point dtype.")
+
+        if not torch.isfinite(coordinates).all():
+            raise ValueError("coordinates must contain only finite values.")
+
+    def _pairwise_coefficients(
+        self,
+        coordinates: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        atomic_numbers = self.atomic_numbers.to(coordinates.device)
+
+        coordination_numbers = self._coordination_numbers(coordinates)
+        c6 = self._pairwise_c6(coordination_numbers)
+
+        r4r2 = self.reference_data._lookup(
+            self.reference_data.r4r2_factors,
+            atomic_numbers,
+            dtype=coordinates.dtype,
+            device=coordinates.device,
+        )
+        c8 = self._pairwise_c8(c6, r4r2)
+        return c6, c8
+
+
+class TorchExternalD3BJ:
+    """Differentiable external D3(BJ) corrections for a set of fragments.
+
+    For fragment ``i``, the correction is
+
+    ``E_i = E_total - E_fragment,i - E_inverted_fragment,i``.
+    """
+
+    def __init__(
+        self,
+        atomic_numbers: list[int],
+        fragments: list[list[int]],
+        inverted_fragments: list[list[int]],
+        method: str = "hf",
+    ) -> None:
+        if len(fragments) != len(inverted_fragments):
+            raise ValueError(
+                "fragments and inverted_fragments must have the same length."
+            )
+
+        self.total_d3 = TorchD3BJ(atomic_numbers, method=method)
+        self.n_atoms = len(atomic_numbers)
+
+        self.fragment_indices = [
+            self._validate_atom_indices(indices, "fragment") for indices in fragments
+        ]
+        self.inverted_fragment_indices = [
+            self._validate_atom_indices(indices, "inverted fragment")
+            for indices in inverted_fragments
+        ]
+
+        self.fragment_d3 = [
+            TorchD3BJ(
+                self.total_d3.atomic_numbers[indices].tolist(),
+                method=method,
+            )
+            for indices in self.fragment_indices
+        ]
+        self.inverted_fragment_d3 = [
+            TorchD3BJ(
+                self.total_d3.atomic_numbers[indices].tolist(),
+                method=method,
+            )
+            for indices in self.inverted_fragment_indices
+        ]
+
+    def _validate_atom_indices(
+        self,
+        atom_indices: list[int],
+        label: str,
+    ) -> torch.Tensor:
+        indices = torch.as_tensor(atom_indices, dtype=torch.int64)
+
+        if indices.ndim != 1 or indices.numel() == 0:
+            raise ValueError(
+                f"{label} atom indices must be a nonempty one-dimensional sequence."
+            )
+
+        if torch.any(indices < 0) or torch.any(indices >= self.n_atoms):
+            raise ValueError(
+                f"{label} atom indices must lie between 0 and {self.n_atoms - 1}."
+            )
+
+        if torch.unique(indices).numel() != indices.numel():
+            raise ValueError(f"{label} atom indices must not contain duplicates.")
+
+        return indices
+
+    def energies(
+        self,
+        coordinates: torch.Tensor,
+        parameters: D3BJParameters | None = None,
+    ) -> torch.Tensor:
+        """Return one external D3 energy per fragment."""
+        total_energy = self.total_d3.energy(coordinates, parameters=parameters)
+
+        fragment_energies = []
+
+        for fragment_indices, inverted_indices, fragment_d3, inverted_d3 in zip(
+            self.fragment_indices,
+            self.inverted_fragment_indices,
+            self.fragment_d3,
+            self.inverted_fragment_d3,
+        ):
+            fragment_indices = fragment_indices.to(coordinates.device)
+            inverted_indices = inverted_indices.to(coordinates.device)
+
+            fragment_energy = fragment_d3.energy(
+                coordinates[fragment_indices],
+                parameters=parameters,
+            )
+            inverted_energy = inverted_d3.energy(
+                coordinates[inverted_indices],
+                parameters=parameters,
+            )
+
+            fragment_energies.append(total_energy - fragment_energy - inverted_energy)
+
+        return torch.stack(fragment_energies)
+
+    def energies_and_gradients(
+        self,
+        coordinates: torch.Tensor,
+        parameters: D3BJParameters | None = None,
+        *,
+        create_graph: bool = False,
+    ) -> tuple[torch.Tensor, list[torch.Tensor]]:
+        """Return external D3 energies and gradients for each fragment.
+
+        Each returned gradient has shape ``(n_fragment_atoms, 3)``.
+        """
+        if not coordinates.requires_grad:
+            coordinates = coordinates.detach().clone().requires_grad_(True)
+
+        external_energies = self.energies(
+            coordinates,
+            parameters=parameters,
+        )
+
+        fragment_gradients = []
+
+        for index, (energy, fragment_indices) in enumerate(
+            zip(external_energies, self.fragment_indices)
+        ):
+            full_gradient = torch.autograd.grad(
+                energy,
+                coordinates,
+                create_graph=create_graph,
+                retain_graph=create_graph or index < len(self.fragment_indices) - 1,
+            )[0]
+
+            fragment_indices = fragment_indices.to(coordinates.device)
+            fragment_gradients.append(full_gradient[fragment_indices])
+
+        return external_energies, fragment_gradients
