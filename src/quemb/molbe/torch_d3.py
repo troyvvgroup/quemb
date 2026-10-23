@@ -317,19 +317,23 @@ class TorchD3BJ:
         self.parameters = D3BJParameters.from_method(method)
         self.reference_data = D3ReferenceData.from_files()
 
-    def energy(self, coordinates: torch.Tensor) -> torch.Tensor:
-        """Compute the two-body D3(BJ) dispersion energy for ``method``.
-
-        Coordinates must be expressed in bohr. The D3(BJ) damping parameters are
-        loaded from the bundled simple-dftd3-compatible ``parameters.toml`` file.
-        """
+    def energy(
+        self,
+        coordinates: torch.Tensor,
+        parameters: D3BJParameters | None = None,
+    ) -> torch.Tensor:
+        """Compute the two-body D3(BJ) dispersion energy."""
         self._validate_coordinates(coordinates)
-        c6, c8 = self._pairwise_coefficients(coordinates)
 
+        if parameters is None:
+            parameters = self.parameters
+
+        c6, c8 = self._pairwise_coefficients(coordinates)
         pair_energies, _ = self._two_body_pair_energies(
             coordinates,
             c6,
             c8,
+            parameters,
         )
         return pair_energies.sum()
 
