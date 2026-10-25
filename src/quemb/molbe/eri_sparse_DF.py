@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import time
 from collections import defaultdict
 from collections.abc import (
     Callable,
@@ -680,7 +679,7 @@ def _run_rolling_window(
     stored = np.empty(0, dtype=np.int64)
     for i_frag in _order_by_overlap(used):
         fragobj = Fobjs[i_frag]
-        t_start = time.perf_counter()
+        window_timer = Timer(f"Rolling window, fragment {fragobj.dname}")
         needed = _get_pair_keys(S_abs, AO_coeff_epsilon, used[i_frag])
         evicted = np.setdiff1d(stored, needed, assume_unique=True)
         new = np.setdiff1d(needed, stored, assume_unique=True)
@@ -692,9 +691,10 @@ def _run_rolling_window(
         stored = needed
         window.set_active(needed)
         logger.info(
-            f"Rolling window, fragment {fragobj.dname}: {len(needed)} pairs, "
-            f"{len(new)} new, {len(evicted)} evicted; "
-            f"(P | mu nu) and L^-1 in {time.perf_counter() - t_start:.3f} s"
+            window_timer.str_elapsed(
+                f"{window_timer.message}: {len(needed)} pairs, "
+                f"{len(new)} new, {len(evicted)} evicted; time for (P | mu nu) and L^-1"
+            )
         )
 
         transformed = transform_precontracted_impl(
