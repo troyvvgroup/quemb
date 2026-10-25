@@ -13,7 +13,6 @@ from collections.abc import (
     Sequence,
     Set,
 )
-from concurrent.futures import ThreadPoolExecutor
 from itertools import chain, takewhile
 from typing import Final, TypeVar, cast
 
@@ -33,7 +32,6 @@ from scipy.linalg import cholesky
 from scipy.special import roots_hermite
 from typing_extensions import assert_never
 
-import quemb.molbe._cpp.eri_sparse_DF as cpp_transforms
 from quemb.molbe._cpp.eri_sparse_DF import (
     SemiSparseSym3DTensor,
     SemiSparseSym3DWindow,
@@ -47,7 +45,6 @@ from quemb.molbe.chemfrag import (
 from quemb.molbe.pfrag import Frags
 from quemb.shared.helper import (
     Timer,
-    ensure,
     gauss_sum,
     njit,
     ravel_symmetric,
@@ -62,8 +59,6 @@ from quemb.shared.typing import (
     OrbitalIdx,
     Real,
     ShellIdx,
-    Tensor3D,
-    Tensor4D,
     Vector,
 )
 
@@ -78,49 +73,6 @@ _T_target = TypeVar("_T_target", bound=np.integer)
 _T = TypeVar("_T", int, np.integer)
 
 logger = logging.getLogger(__name__)
-
-
-def _aux_e2(  # type: ignore[no-untyped-def]
-    mol: Mole,
-    auxmol_or_auxbasis: Mole | str,
-    intor: str = "int3c2e",
-    aosym: str = "s1",
-    comp: int | None = None,
-    out: Tensor4D[np.float64] | None = None,
-    cintopt=None,
-    shls_slice: tuple[int, int, int, int, int, int] | list[int] | None = None,
-) -> Tensor3D[np.float64]:
-    """3-center AO integrals (ij|L), where L is the auxiliary basis.
-
-    Fixes a bug in the original implementation :func:`pyscf.df.incore.aux_e2`
-    that does not accept all valid slices.
-    Replace with the original, as soon as https://github.com/pyscf/pyscf/pull/2734
-    is merged in the stable release.
-    """
-    if isinstance(auxmol_or_auxbasis, gto.MoleBase):
-        auxmol = auxmol_or_auxbasis
-    else:
-        auxbasis = auxmol_or_auxbasis
-        auxmol = make_auxmol(mol, auxbasis)
-    if shls_slice is None:
-        shls_slice = (0, mol.nbas, 0, mol.nbas, mol.nbas, mol.nbas + auxmol.nbas)
-    else:
-        assert len(shls_slice) == 6
-        # The following line is the difference to pyscf
-        assert shls_slice[5] <= auxmol.nbas
-        shls_slice = list(shls_slice)
-        shls_slice[4] += mol.nbas
-        shls_slice[5] += mol.nbas
-
-    intor = mol._add_suffix(intor)
-    hermi = 0
-    ao_loc = None
-    atm, bas, env = gto.mole.conc_env(
-        mol._atm, mol._bas, mol._env, auxmol._atm, auxmol._bas, auxmol._env
-    )
-    return getints(
-        intor, atm, bas, env, shls_slice, comp, hermi, aosym, ao_loc, cintopt, out
-    )
 
 
 _T_old_key = TypeVar("_T_old_key", bound=Hashable)
@@ -199,16 +151,6 @@ def get_atom_per_MO(
         i_MO: set().union(*(atom_per_AO[AO] for AO in AO_indices))
         for i_MO, AO_indices in large_enough.items()
     }
-
-
-def _modify_overlap(
-    AO_per_atom: Mapping[AOIdx, Set[AtomIdx]], S: Matrix[np.float64]
-) -> Matrix[np.float64]:
-    S_mod = S.copy()
-    for AOs_on_one_atom in AO_per_atom.values():
-        idx = list(AOs_on_one_atom)
-        S_mod[np.ix_(idx, idx)] = 1
-    return S_mod
 
 
 def _get_AO_per_MO(
@@ -411,23 +353,6 @@ def account_for_symmetry(
     }
 
 
-@njit(nogil=True)
-def _jit_account_for_symmetry(
-    reachable: list[Vector[_T_orb_idx]],
-) -> list[Vector[_T_orb_idx]]:
-    """Account for permutational symmetry and remove all q that are larger than p.
-
-    This is a jitted version of :func:`account_for_symmetry`.
-
-    Parameters
-    ----------
-    reachable :
-    """
-    return List(
-        [np.array([q for q in qs if p >= q]) for (p, qs) in enumerate(reachable)]
-    )
-
-
 def get_blocks(reachable: Sequence[_T]) -> list[tuple[_T, _T]]:
     """Return the value of the border elements of contiguous blocks in the sequence X."
 
@@ -493,8 +418,8 @@ def _fill_P_mu_nu_columns(
         exch_reachable_unique, AO_to_shell_id
     )
 
-    # Same as _aux_e2, but the concatenated environment, AO offsets, and the libcint
-    # optimizer are created once here instead of for every shell block.
+    # Same as pyscf.df.incore.aux_e2, but the concatenated environment, AO offsets,
+    # and the libcint optimizer are created once here instead of for every shell block.
     intor = mol._add_suffix("int3c2e")
     atm, bas, env = gto.mole.conc_env(
         mol._atm, mol._bas, mol._env, auxmol._atm, auxmol._bas, auxmol._env
@@ -630,15 +555,6 @@ def _flatten(
     }
 
 
-def _get_test_mol(atom1: str, atom2: str, r: float, basis: str) -> Mole:
-    """Return a PySCF Mole object with two atoms at a distance r."""
-    m = Cartesian.set_atom_coords([atom1, atom2], np.array([[0, 0, 0], [0, 0, r]]))
-    return m.to_pyscf(
-        basis=basis,
-        charge=m.add_data("atomic_number").loc[:, "atomic_number"].sum() % 2,
-    )
-
-
 def _cholesky_PQ(auxmol: Mole) -> Matrix[np.float64]:
     """Lower Cholesky factor of :math:`(P | Q)`, in Fortran order.
 
@@ -656,14 +572,10 @@ def _run_rolling_window(
     file_eri_handler: h5py.File,
     AO_coeff_epsilon: float,
     MO_coeff_epsilon: float,
-    transform_precontracted_impl: Callable[
-        [SemiSparseSym3DWindow, Matrix[np.floating], Matrix[np.floating], float],
-        Matrix[np.float64],
-    ],
     max_chunk_bytes=2**30,
 ) -> None:
     """On-the-fly sparse DF with a rolling window of :math:`L^{-1} (P | \\mu \\nu)`,
-    see :func:`_run_sparse_df_driver`.
+    see :func:`transform_sparse_DF_integral`.
 
     The new pairs of a fragment are computed and inserted in chunks of at most
     :python:`max_chunk_bytes`, to keep the memory on top of the window small.
@@ -697,37 +609,26 @@ def _run_rolling_window(
             )
         )
 
-        transformed = transform_precontracted_impl(
+        transformed = transform_integral_precontracted(
             window, fragobj.TA, S_abs, MO_coeff_epsilon
         )
         eri = restore("4", transformed, fragobj.TA.shape[1])
         file_eri_handler.create_dataset(fragobj.dname, data=eri)
 
 
-def _run_sparse_df_driver(
+def transform_sparse_DF_integral(
     mf: scf.hf.SCF,
     Fobjs: Sequence[Frags],
     auxbasis: str | None,
     file_eri_handler: h5py.File,
     AO_coeff_epsilon: float,
     MO_coeff_epsilon: float,
-    n_threads: int,
-    *,
-    transform_precontracted_impl: Callable[
-        [
-            SemiSparseSym3DTensor | SemiSparseSym3DWindow,
-            Matrix[np.floating],
-            Matrix[np.floating],
-            float,
-        ],
-        Matrix[np.float64],
-    ],
     precompute_P_mu_nu: bool,
 ) -> None:
     r"""Run the semi-sparse DF ERI transformation.
 
-    Uses dependency injection to handle both CPU vs. GPU transformation
-    in a unified function.
+    The fragments are transformed one after another;
+    the transformation of each fragment is parallelized with OpenMP and BLAS.
 
     Parameters
     ----------
@@ -739,25 +640,11 @@ def _run_sparse_df_driver(
         Auxiliary basis used for density fitting. If ``None``, the default
         auxiliary basis of ``mf`` is used.
     file_eri_handler :
-        Open HDF5 file handle containing the three-center DF integrals.
+        Open HDF5 file handle, the :math:`(ij | kl)` of every fragment go into it.
     AO_coeff_epsilon :
         Threshold for discarding negligible AO coefficients.
     MO_coeff_epsilon :
         Threshold for discarding negligible MO coefficients.
-    n_threads :
-        Number of threads used for the transformation.
-    transform_precontracted_impl :
-        Low-level transformation implementation that performs the
-        semi-sparse DF integral transformation either in CPU or GPU
-        The function takes:
-
-          • :math:`L^{-1}_{PQ} (Q \mid \mu\nu)` semi-sparse AO integrals,
-            either all of them or the rolling window of the on-the-fly version
-          • the AO-MO transformation matrix :math:`T^{\mathrm{A}}`
-          • the absolute-overlap matrix :math:`S_{\mathrm{abs}}`
-          • the MO screening threshold :math:`\varepsilon_{\mathrm{MO}}`
-
-        and returns the transformed MO integrals :math:`(ij | kl)`.
     precompute_P_mu_nu :
         Whether to precompute :math:`(P | \mu \nu)` for all pairs,
         or compute them on the fly (reduces peak memory usage).
@@ -767,10 +654,6 @@ def _run_sparse_df_driver(
         overlap strongly, and a rolling window holds :math:`L^{-1}_{PQ} (Q | \mu \nu)`
         of the current fragment: per fragment, only the pairs that are not yet
         in the window are computed, and the ones that are no longer needed are evicted.
-
-    Returns
-    -------
-        None
     """
     set_log_level(logging.getLogger().getEffectiveLevel())
 
@@ -779,34 +662,7 @@ def _run_sparse_df_driver(
 
     S_abs: Final[Matrix[np.floating]] = approx_S_abs(mol)
 
-    if precompute_P_mu_nu:
-        # Before (P | mu nu), such that (P | Q) and (P | mu nu) never coexist.
-        L_PQ = _cholesky_PQ(auxmol)
-        exch_reachable: Final = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
-        P_mu_nu: Final[SemiSparseSym3DTensor] = get_sparse_P_mu_nu(
-            mol, auxmol, exch_reachable
-        )
-        # The triangular solve is linear in mu nu, so it commutes with the
-        # contraction with TA. Do it once here, instead of for every fragment.
-        # This is always done on the CPU, which is faster than consumer GPUs
-        # with their low FP64 throughput and avoids storing L_PQ on the GPU.
-        apply_inv_cholesky_inplace(P_mu_nu, L_PQ)
-        del L_PQ
-
-        def worker(fragobj: Frags) -> None:
-            "One computation of P_mu_nu for every fragment"
-            transformed = transform_precontracted_impl(
-                P_mu_nu,
-                fragobj.TA,
-                S_abs,
-                MO_coeff_epsilon,
-            )
-            eri = restore("4", transformed, fragobj.TA.shape[1])
-            file_eri_handler.create_dataset(fragobj.dname, data=eri)
-    else:
-        ensure(
-            n_threads == 1, "The rolling window of the on-the-fly sparse DF is serial."
-        )
+    if not precompute_P_mu_nu:
         _run_rolling_window(
             mol,
             auxmol,
@@ -815,80 +671,25 @@ def _run_sparse_df_driver(
             file_eri_handler,
             AO_coeff_epsilon,
             MO_coeff_epsilon,
-            transform_precontracted_impl,
         )
         return
 
-    if n_threads > 1:
-        with ThreadPoolExecutor(max_workers=n_threads) as pool:
-            futures = [pool.submit(worker, fobj) for fobj in Fobjs]
-            for fut in futures:
-                fut.result()
-    else:
-        for fobj in Fobjs:
-            worker(fobj)
-
-
-def transform_sparse_DF_integral_cpu(
-    mf: scf.hf.SCF,
-    Fobjs: Sequence[Frags],
-    auxbasis: str | None,
-    file_eri_handler: h5py.File,
-    AO_coeff_epsilon: float,
-    MO_coeff_epsilon: float,
-    n_threads: int,
-    precompute_P_mu_nu: bool,
-) -> None:
-    return _run_sparse_df_driver(
-        mf=mf,
-        Fobjs=Fobjs,
-        auxbasis=auxbasis,
-        file_eri_handler=file_eri_handler,
-        AO_coeff_epsilon=AO_coeff_epsilon,
-        MO_coeff_epsilon=MO_coeff_epsilon,
-        n_threads=n_threads,
-        transform_precontracted_impl=transform_integral_precontracted,
-        precompute_P_mu_nu=precompute_P_mu_nu,
+    # Before (P | mu nu), such that (P | Q) and (P | mu nu) never coexist.
+    L_PQ = _cholesky_PQ(auxmol)
+    P_mu_nu: Final[SemiSparseSym3DTensor] = get_sparse_P_mu_nu(
+        mol, auxmol, _get_AO_per_AO(S_abs, AO_coeff_epsilon)
     )
+    # The triangular solve is linear in mu nu, so it commutes with the
+    # contraction with TA. Do it once here, instead of for every fragment.
+    apply_inv_cholesky_inplace(P_mu_nu, L_PQ)
+    del L_PQ
 
-
-def transform_sparse_DF_integral_gpu(
-    mf: scf.hf.SCF,
-    Fobjs: Sequence[Frags],
-    auxbasis: str | None,
-    file_eri_handler: h5py.File,
-    AO_coeff_epsilon: float,
-    MO_coeff_epsilon: float,
-    n_threads: int,
-    precompute_P_mu_nu: bool,
-) -> None:
-    return _run_sparse_df_driver(
-        mf=mf,
-        Fobjs=Fobjs,
-        auxbasis=auxbasis,
-        file_eri_handler=file_eri_handler,
-        AO_coeff_epsilon=AO_coeff_epsilon,
-        MO_coeff_epsilon=MO_coeff_epsilon,
-        n_threads=n_threads,
-        transform_precontracted_impl=cpp_transforms.transform_integral_precontracted_cuda,
-        precompute_P_mu_nu=precompute_P_mu_nu,
-    )
-
-
-@njit(nogil=True, parallel=True)
-def _account_for_symmetry(pqP: Tensor3D[np.float64]) -> Matrix[np.float64]:
-    """(n_orb, n_orb | n_aux) -> (n_aux | sym n_orb pairs)"""
-    n_orb, naux = len(pqP), pqP.shape[-1]
-    sym_bb = np.full(
-        (naux, ravel_symmetric(n_orb - 1, n_orb - 1) + 1),
-        fill_value=np.nan,
-        dtype=np.float64,
-    )
-
-    for i in prange(n_orb):  # type: ignore[attr-defined]
-        for j in range(i + 1):  # type: ignore[attr-defined]
-            sym_bb[:, ravel_symmetric(i, j)] = pqP[i, j, :]
-    return sym_bb
+    for fragobj in Fobjs:
+        transformed = transform_integral_precontracted(
+            P_mu_nu, fragobj.TA, S_abs, MO_coeff_epsilon
+        )
+        eri = restore("4", transformed, fragobj.TA.shape[1])
+        file_eri_handler.create_dataset(fragobj.dname, data=eri)
 
 
 @njit(fastmath=True, nogil=True)
