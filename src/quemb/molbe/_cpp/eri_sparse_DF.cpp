@@ -61,50 +61,6 @@ namespace py = pybind11;
         }                                                                                                              \
     } while (0)
 
-class GPU_MatrixHandle
-{
-  public:
-    explicit GPU_MatrixHandle(const Eigen::MatrixXd &L_host)
-        : _n_rows(L_host.rows()), _n_cols(L_host.cols()), _size(static_cast<size_t>(_n_rows * _n_cols))
-    {
-        const size_t bytes = _size * sizeof(Real);
-        CUDA_CHECK_ALLOC(cudaMalloc(reinterpret_cast<void **>(&d_L), bytes));
-        CUDA_CHECK_THROW(cudaMemcpy(d_L, L_host.data(), bytes, cudaMemcpyHostToDevice));
-    }
-
-    ~GPU_MatrixHandle()
-    {
-        if (d_L)
-            cudaFree(d_L);
-    }
-
-    const Real *cdata() const noexcept
-    {
-        return d_L;
-    }
-    Real *data() const noexcept
-    {
-        return d_L;
-    }
-    size_t size() const noexcept
-    {
-        return _size;
-    }
-    int_t rows() const noexcept
-    {
-        return _n_rows;
-    }
-    int_t cols() const noexcept
-    {
-        return _n_cols;
-    }
-
-  private:
-    Real *d_L = nullptr;
-    int_t _n_rows;
-    int_t _n_cols;
-    size_t _size;
-};
 #endif
 
 class SemiSparseSym3DTensor
@@ -545,8 +501,11 @@ SemiSparse3DTensor contract_with_TA_1st(const Matrix &TA,
 // instead of one vector update per (i, mu, nu) triple.
 // This reads every column (P | mu nu) once per mu instead of once per (i, mu).
 // The columns are gathered first, since only the nu <= mu part is stored contiguously.
+// Sym3DTensor is SemiSparseSym3DTensor or SemiSparseSym3DWindow; it has to provide
+// get_shape(), dense_data(), and exch_reachable_with_offsets().
+template <typename Sym3DTensor>
 SemiSparse3DTensor contract_with_TA_1st_gemm(const Matrix &TA,
-                                             const SemiSparseSym3DTensor &int_P_mu_nu,
+                                             const Sym3DTensor &int_P_mu_nu,
                                              const std::vector<std::vector<OrbitalIdx>> &AO_by_MO) noexcept
 {
     PROFILE_FUNCTION();
@@ -787,7 +746,7 @@ Matrix XtX_syrk(const Matrix &X) noexcept
 // Overwrites B in place with L⁻¹ B, where L_PQ is a lower triangular Cholesky factor.
 // Eigen does not parallelize triangular solves, so we split the right-hand
 // sides into column blocks.
-void solve_lower_inplace(const Matrix &L_PQ, Matrix &B)
+void solve_lower_inplace(const Eigen::Ref<const Matrix> &L_PQ, Eigen::Ref<Matrix> B)
 {
     if (L_PQ.rows() != B.rows() || L_PQ.cols() != B.rows()) {
         throw std::runtime_error("L_PQ must be a square matrix of size naux.");
@@ -806,12 +765,137 @@ void solve_lower_inplace(const Matrix &L_PQ, Matrix &B)
 // Overwrites (P | mu nu) in place with L⁻¹ (P | mu nu), where L_PQ is the
 // Cholesky factor of (P | Q). The solve is linear in mu nu, hence it commutes
 // with the contractions with TA. Doing it once for all mu nu pairs replaces
-// the triangular solve for every fragment in eval_via_cholesky.
-void apply_inv_cholesky_inplace(SemiSparseSym3DTensor &int_P_mu_nu, const Matrix &L_PQ)
+// the triangular solve of (P | ij) for every fragment.
+// L_PQ is a Ref, such that a Fortran-ordered numpy array is not copied.
+void apply_inv_cholesky_inplace(SemiSparseSym3DTensor &int_P_mu_nu, const Eigen::Ref<const Matrix> &L_PQ)
 {
     PROFILE_FUNCTION();
     solve_lower_inplace(L_PQ, int_P_mu_nu.mut_dense_data());
 }
+
+using KeyVector = Eigen::Matrix<int_t, Eigen::Dynamic, 1>;
+
+// Rolling window of L⁻¹ (P | mu nu) columns for the on-the-fly sparse DF.
+// Instead of (P | mu nu) for all pairs, it holds only the pairs of the current fragment.
+// If the fragments are traversed such that consecutive fragments overlap strongly,
+// only a few pairs have to be evicted and inserted per fragment.
+// The pairs are identified by their key ravel_symmetric(mu, nu); the columns are stored
+// in arbitrary slots of a buffer that is allocated once with a fixed capacity.
+// It can be used instead of a SemiSparseSym3DTensor in transform_integral_precontracted.
+class SemiSparseSym3DWindow
+{
+  public:
+    SemiSparseSym3DWindow(std::tuple<int, int, int> shape, const std::size_t capacity, Matrix L_PQ)
+        : _shape(std::move(shape)), _L_PQ(std::move(L_PQ)), _exch_reachable_with_offsets(std::get<1>(_shape))
+    {
+        const auto naux = std::get<0>(_shape);
+        if (_L_PQ.rows() != naux || _L_PQ.cols() != naux) {
+            throw std::runtime_error("L_PQ must be a square matrix of size naux.");
+        }
+        if (LOG_LEVEL <= LogLevel::Info) {
+            std::cout << "[MEMORY] about to allocate the window of L⁻¹ (P | mu nu) with "
+                      << bytes_to_gib(naux * capacity * sizeof(Real)) << " GiB for " << capacity << " pairs\n";
+        };
+        _data.resize(naux, to_eigen(capacity));
+        _free.reserve(capacity);
+        // Fill from the back, such that the first slots are used first.
+        for (std::size_t slot = capacity; slot > 0; --slot) {
+            _free.push_back(slot - 1);
+        }
+    }
+
+    // Frees the columns of the given pairs.
+    void evict(const Eigen::Ref<const KeyVector> &keys)
+    {
+        for (Eigen::Index k = 0; k < keys.size(); ++k) {
+            const auto it = _slots.find(keys[k]);
+            if (it == _slots.end()) {
+                throw std::runtime_error("Pair " + std::to_string(keys[k]) + " is not in the window.");
+            }
+            _free.push_back(it->second);
+            _slots.erase(it);
+        }
+    }
+
+    // Stores L⁻¹ (P | mu nu) for the given pairs, where raw holds their (P | mu nu)
+    // as columns in the order of keys. raw is overwritten with L⁻¹ raw.
+    void insert(const Eigen::Ref<const KeyVector> &keys, Eigen::Ref<Matrix> raw)
+    {
+        PROFILE_FUNCTION();
+        if (raw.rows() != _data.rows() || raw.cols() != keys.size()) {
+            throw std::runtime_error("raw must have the shape (naux, len(keys)).");
+        }
+        if (to_index(keys.size()) > _free.size()) {
+            throw std::runtime_error("Not enough free slots in the window.");
+        }
+        solve_lower_inplace(_L_PQ, raw);
+
+        std::vector<std::size_t> slots(to_index(keys.size()));
+        for (Eigen::Index k = 0; k < keys.size(); ++k) {
+            slots[to_index(k)] = _free.back();
+            _free.pop_back();
+            if (!_slots.emplace(keys[k], slots[to_index(k)]).second) {
+                throw std::runtime_error("Pair " + std::to_string(keys[k]) + " is already in the window.");
+            }
+        }
+#pragma omp parallel for
+        for (Eigen::Index k = 0; k < keys.size(); ++k) {
+            _data.col(to_eigen(slots[to_index(k)])) = raw.col(k);
+        }
+    }
+
+    // Sets the pairs (mu, nu) that are visible to the contraction with TA,
+    // i.e. the pairs of the current fragment; keys must be sorted and in the window.
+    void set_active(const Eigen::Ref<const KeyVector> &keys)
+    {
+        for (auto &pairs : _exch_reachable_with_offsets) {
+            pairs.clear();
+        }
+        // Increasing keys give increasing nu for every mu, as in SemiSparseSym3DTensor.
+        for (Eigen::Index k = 0; k < keys.size(); ++k) {
+            const auto it = _slots.find(keys[k]);
+            if (it == _slots.end()) {
+                throw std::runtime_error("Pair " + std::to_string(keys[k]) + " is not in the window.");
+            }
+            const auto [mu, nu] = unravel_symmetric(keys[k]);
+            _exch_reachable_with_offsets[to_index(mu)].emplace_back(it->second, nu);
+            if (mu != nu) {
+                _exch_reachable_with_offsets[to_index(nu)].emplace_back(it->second, mu);
+            }
+        }
+    }
+
+    // Accessors as in SemiSparseSym3DTensor, used by contract_with_TA_1st_gemm
+    const Matrix &dense_data() const noexcept
+    {
+        return _data;
+    }
+    const auto &exch_reachable_with_offsets() const noexcept
+    {
+        return _exch_reachable_with_offsets;
+    }
+    constexpr auto get_shape() const noexcept
+    {
+        return _shape;
+    }
+    std::size_t n_stored() const noexcept
+    {
+        return _slots.size();
+    }
+    std::size_t capacity() const noexcept
+    {
+        return to_index(_data.cols());
+    }
+
+  private:
+    std::tuple<int, int, int> _shape;
+    Matrix _L_PQ;
+    Matrix _data;
+    // key ravel_symmetric(mu, nu) -> column in _data
+    std::unordered_map<int_t, std::size_t> _slots;
+    std::vector<std::size_t> _free;
+    std::vector<std::vector<std::pair<std::size_t, OrbitalIdx>>> _exch_reachable_with_offsets;
+};
 
 // Computes the integral (p q | r s) from X = L⁻¹ (P | pq),
 // i.e. if apply_inv_cholesky_inplace was already applied to (P | mu nu).
@@ -825,28 +909,14 @@ Matrix eval_precontracted(const Matrix &X) noexcept
 #endif
 }
 
-// Computes the integral (p q | r s) from (P | pq) using the Cholesky
-// factorization of (P | Q). sym_P_pq is the (P | pq) matrix and uses a fused
-// indexing scheme for pq, accounting for symmetry of p and q. L_PQ is the
-// Cholesky factor of the (P | Q) matrix, which is lower triangular.
-Matrix eval_via_cholesky(Matrix sym_P_pq, const Matrix &L_PQ)
-{
-    PROFILE_FUNCTION();
-    // X = L⁻¹ sym_P_pq, in place
-    solve_lower_inplace(L_PQ, sym_P_pq);
-    return eval_precontracted(sym_P_pq);
-}
-
 #ifdef USE_CUDA
-// Computes Xᵀ X on the GPU, where X = L⁻¹ sym_P_pq.
-// If d_L is a nullptr, sym_P_pq is assumed to be already X.
-Matrix eval_XtX_cuda(const Matrix &sym_P_pq, const Real *d_L)
+// Computes the integral (p q | r s) from X = L⁻¹ (P | pq) on the GPU, i.e. Xᵀ X.
+Matrix eval_precontracted_cuda(const Matrix &X)
 {
     Timer timer{__func__};
-    const int n_aux = static_cast<int>(sym_P_pq.rows());
-    const int n_sym_pairs = static_cast<int>(sym_P_pq.cols());
+    const int n_aux = static_cast<int>(X.rows());
+    const int n_sym_pairs = static_cast<int>(X.cols());
 
-    const size_t bytes_sym_P_pq = sizeof(Real) * sym_P_pq.size();
     const size_t bytes_X = sizeof(Real) * n_aux * n_sym_pairs;
     const size_t bytes_res = sizeof(Real) * n_sym_pairs * n_sym_pairs;
 
@@ -866,10 +936,7 @@ Matrix eval_XtX_cuda(const Matrix &sym_P_pq, const Real *d_L)
     }
 
     // Copy data to device
-    // We will solve: L * X = sym_P_pq  → X = L⁻¹ * sym_P_pq
-    // But X will be initialized with sym_P_pq and then
-    // overwritten by the solution.
-    CUDA_CHECK_THROW(cudaMemcpy(d_X, sym_P_pq.data(), bytes_sym_P_pq, cudaMemcpyHostToDevice));
+    CUDA_CHECK_THROW(cudaMemcpy(d_X, X.data(), bytes_X, cudaMemcpyHostToDevice));
     if (LOG_LEVEL <= LogLevel::Info) {
         timer.print("copy to GPU finished");
     };
@@ -881,28 +948,6 @@ Matrix eval_XtX_cuda(const Matrix &sym_P_pq, const Real *d_L)
     const double alpha = 1.0;
     // d_result is uninitialized, so it must not be accumulated into.
     const double beta = 0.0;
-
-    if (d_L) {
-        // Solve: L * X = sym_P_pq  → X = L⁻¹ * sym_P_pq
-        // X is initialized with sym_P_pq and overwrite it with
-        // the solution.
-        CUBLAS_CHECK_THROW(cublasDtrsm(handle,
-                                       CUBLAS_SIDE_LEFT,
-                                       CUBLAS_FILL_MODE_LOWER,
-                                       CUBLAS_OP_N,
-                                       CUBLAS_DIAG_NON_UNIT,
-                                       n_aux,
-                                       n_sym_pairs,
-                                       &alpha,
-                                       d_L,
-                                       n_aux,
-                                       d_X,
-                                       n_aux));
-        if (LOG_LEVEL <= LogLevel::Info) {
-            CUDA_CHECK_THROW(cudaDeviceSynchronize());
-            timer.print("Triangular solve on GPU completed");
-        };
-    }
 
     // Compute: result = Xᵀ * X, only the lower triangle (as XtX_syrk on the CPU)
     CUBLAS_CHECK_THROW(cublasDsyrk(handle,
@@ -943,34 +988,8 @@ Matrix eval_XtX_cuda(const Matrix &sym_P_pq, const Real *d_L)
     return result;
 }
 
-Matrix eval_via_cholesky_cuda(const Matrix &sym_P_pq, const GPU_MatrixHandle &L_PQ)
-{
-    if (L_PQ.rows() != sym_P_pq.rows()) {
-        throw std::runtime_error("L_PQ and sym_P_pq must have naux rows.");
-    }
-    return eval_XtX_cuda(sym_P_pq, L_PQ.cdata());
-}
-
-Matrix eval_precontracted_cuda(const Matrix &X)
-{
-    return eval_XtX_cuda(X, nullptr);
-}
-#endif
-
-#ifdef USE_CUDA
-Matrix transform_integral_cuda(const SemiSparseSym3DTensor &int_P_mu_nu,
-                               const Matrix &TA,
-                               const Matrix &S_abs,
-                               const GPU_MatrixHandle &L_PQ,
-                               const double MO_coeff_epsilon)
-
-{
-    const auto AO_by_MO = get_AO_per_MO(TA, S_abs, MO_coeff_epsilon);
-    const SemiSparse3DTensor int_P_mu_i = contract_with_TA_1st_gemm(TA, int_P_mu_nu, AO_by_MO);
-    return eval_via_cholesky_cuda(contract_with_TA_2nd_gemm(int_P_mu_i, TA), L_PQ);
-}
-
-Matrix transform_integral_precontracted_cuda(const SemiSparseSym3DTensor &int_P_mu_nu,
+template <typename Sym3DTensor>
+Matrix transform_integral_precontracted_cuda(const Sym3DTensor &int_P_mu_nu,
                                              const Matrix &TA,
                                              const Matrix &S_abs,
                                              const double MO_coeff_epsilon)
@@ -982,21 +1001,10 @@ Matrix transform_integral_precontracted_cuda(const SemiSparseSym3DTensor &int_P_
 }
 #endif
 
-Matrix transform_integral(const SemiSparseSym3DTensor &int_P_mu_nu,
-                          const Matrix &TA,
-                          const Matrix &S_abs,
-                          const Matrix &L_PQ,
-                          const double MO_coeff_epsilon)
-
-{
-    const auto AO_by_MO = get_AO_per_MO(TA, S_abs, MO_coeff_epsilon);
-    const SemiSparse3DTensor int_P_mu_i = contract_with_TA_1st_gemm(TA, int_P_mu_nu, AO_by_MO);
-    return eval_via_cholesky(contract_with_TA_2nd_gemm(int_P_mu_i, TA), L_PQ);
-}
-
-// Same as transform_integral, but assumes that apply_inv_cholesky_inplace
-// was already applied to int_P_mu_nu.
-Matrix transform_integral_precontracted(const SemiSparseSym3DTensor &int_P_mu_nu,
+// Transforms int_P_mu_nu = L⁻¹ (P | mu nu), i.e. after apply_inv_cholesky_inplace
+// (or a SemiSparseSym3DWindow), to (ij | kl) of the fragment with TA.
+template <typename Sym3DTensor>
+Matrix transform_integral_precontracted(const Sym3DTensor &int_P_mu_nu,
                                         const Matrix &TA,
                                         const Matrix &S_abs,
                                         const double MO_coeff_epsilon) noexcept
@@ -1025,18 +1033,6 @@ PYBIND11_MODULE(eri_sparse_DF, m)
 
     m.def("get_log_level", &get_log_level);
     m.def("set_log_level", &set_log_level, py::arg("log_level"));
-
-#ifdef USE_CUDA
-    py::class_<GPU_MatrixHandle>(m, "GPU_MatrixHandle")
-        .def(py::init<const Eigen::MatrixXd &>(),
-             py::arg("L_host"),
-             "Create a GPU_MatrixHandle from a host matrix.\n"
-             "\n"
-             "This allocates memory on the GPU and copies the data from the host to the GPU.")
-        .def("__repr__", [](const GPU_MatrixHandle &self) {
-            return "<GPU_MatrixHandle of size " + std::to_string(self.size()) + ">";
-        });
-#endif
 
     py::class_<SemiSparseSym3DTensor>(m, "SemiSparseSym3DTensor")
         // Minimal constructor with allocation in C++
@@ -1090,6 +1086,29 @@ PYBIND11_MODULE(eri_sparse_DF, m)
                  "  - T_{ijk} = T_{jik} symmetry\n"
                  "  - Sparsity over (i, j), dense over k\n"
                  "  - Example use: 3-center integrals (μν|P)";
+
+    py::class_<SemiSparseSym3DWindow>(m, "SemiSparseSym3DWindow")
+        .def(py::init<std::tuple<int, int, int>, std::size_t, Matrix>(),
+             py::arg("shape"),
+             py::arg("capacity"),
+             py::arg("L_PQ"))
+        .def("evict", &SemiSparseSym3DWindow::evict, py::arg("keys"), "Free the columns of the given pairs.")
+        .def("insert",
+             &SemiSparseSym3DWindow::insert,
+             py::arg("keys"),
+             py::arg("raw").noconvert(),
+             py::call_guard<py::gil_scoped_release>(),
+             "Store L⁻¹ (P | mu nu) for the pairs keys = ravel_symmetric(mu, nu),\n"
+             "where raw (naux, len(keys)) holds their (P | mu nu) in Fortran order.\n"
+             "raw is overwritten with L⁻¹ raw.")
+        .def("set_active",
+             &SemiSparseSym3DWindow::set_active,
+             py::arg("keys"),
+             "Set the sorted pairs that are visible to the transformation.")
+        .def_property_readonly("shape", &SemiSparseSym3DWindow::get_shape)
+        .def_property_readonly("n_stored", &SemiSparseSym3DWindow::n_stored)
+        .def_property_readonly("capacity", &SemiSparseSym3DWindow::capacity)
+        .doc() = "Rolling window of L⁻¹ (P | mu nu) columns for the on-the-fly sparse DF";
 
     py::class_<SemiSparse3DTensor>(m, "SemiSparse3DTensor")
         // Minimal constructor that also does the allocation on the C++ side
@@ -1146,7 +1165,7 @@ PYBIND11_MODULE(eri_sparse_DF, m)
           py::call_guard<py::gil_scoped_release>());
 
     m.def("contract_with_TA_1st_gemm",
-          &contract_with_TA_1st_gemm,
+          &contract_with_TA_1st_gemm<SemiSparseSym3DTensor>,
           py::arg("TA"),
           py::arg("int_P_mu_nu"),
           py::arg("AO_by_MO"),
@@ -1188,17 +1207,6 @@ PYBIND11_MODULE(eri_sparse_DF, m)
           py::call_guard<py::gil_scoped_release>(),
           "Extract unique reachable AOs from the provided exch_reachable structure");
 
-    m.def("transform_integral",
-          &transform_integral,
-          py::arg("int_P_mu_nu"),
-          py::arg("TA"),
-          py::arg("S_abs"),
-          py::arg("L_PQ"),
-          py::arg("MO_coeff_epsilon"),
-          py::call_guard<py::gil_scoped_release>(),
-          "Transform the integral using TA, int_P_mu_nu, AO_by_MO, and L_PQ,\n"
-          "returning the transformed matrix");
-
     m.def("apply_inv_cholesky_inplace",
           &apply_inv_cholesky_inplace,
           py::arg("int_P_mu_nu"),
@@ -1208,7 +1216,7 @@ PYBIND11_MODULE(eri_sparse_DF, m)
           "where L_PQ is the lower Cholesky factor of (P | Q).");
 
     m.def("transform_integral_precontracted",
-          &transform_integral_precontracted,
+          &transform_integral_precontracted<SemiSparseSym3DTensor>,
           py::arg("int_P_mu_nu"),
           py::arg("TA"),
           py::arg("S_abs"),
@@ -1217,9 +1225,19 @@ PYBIND11_MODULE(eri_sparse_DF, m)
           "Transform the integral using TA and int_P_mu_nu = L⁻¹ (P | mu nu),\n"
           "i.e. after apply_inv_cholesky_inplace, returning the transformed matrix");
 
+    m.def("transform_integral_precontracted",
+          &transform_integral_precontracted<SemiSparseSym3DWindow>,
+          py::arg("int_P_mu_nu"),
+          py::arg("TA"),
+          py::arg("S_abs"),
+          py::arg("MO_coeff_epsilon"),
+          py::call_guard<py::gil_scoped_release>(),
+          "Transform the integral using TA and int_P_mu_nu = L⁻¹ (P | mu nu),\n"
+          "here the active pairs of the window, returning the transformed matrix");
+
 #ifdef USE_CUDA
     m.def("transform_integral_precontracted_cuda",
-          &transform_integral_precontracted_cuda,
+          &transform_integral_precontracted_cuda<SemiSparseSym3DTensor>,
           py::arg("int_P_mu_nu"),
           py::arg("TA"),
           py::arg("S_abs"),
@@ -1229,16 +1247,15 @@ PYBIND11_MODULE(eri_sparse_DF, m)
           "i.e. after apply_inv_cholesky_inplace, returning the transformed matrix.\n"
           "This uses CUDA for performance.");
 
-    m.def("transform_integral_cuda",
-          &transform_integral_cuda,
+    m.def("transform_integral_precontracted_cuda",
+          &transform_integral_precontracted_cuda<SemiSparseSym3DWindow>,
           py::arg("int_P_mu_nu"),
           py::arg("TA"),
           py::arg("S_abs"),
-          py::arg("L_PQ"),
           py::arg("MO_coeff_epsilon"),
           py::call_guard<py::gil_scoped_release>(),
-          "Transform the integral using TA, int_P_mu_nu, AO_by_MO, and L_PQ,\n"
-          "returning the transformed matrix.\n"
+          "Transform the integral using TA and int_P_mu_nu = L⁻¹ (P | mu nu),\n"
+          "here the active pairs of the window, returning the transformed matrix.\n"
           "This uses CUDA for performance.");
 #endif
 }
