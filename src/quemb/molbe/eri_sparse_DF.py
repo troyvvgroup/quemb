@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from collections import defaultdict
 from collections.abc import (
     Callable,
@@ -36,9 +37,9 @@ from typing_extensions import assert_never
 import quemb.molbe._cpp.eri_sparse_DF as cpp_transforms
 from quemb.molbe._cpp.eri_sparse_DF import (
     SemiSparseSym3DTensor,
+    SemiSparseSym3DWindow,
     apply_inv_cholesky_inplace,
     set_log_level,
-    transform_integral,
     transform_integral_precontracted,
 )
 from quemb.molbe.chemfrag import (
@@ -47,6 +48,7 @@ from quemb.molbe.chemfrag import (
 from quemb.molbe.pfrag import Frags
 from quemb.shared.helper import (
     Timer,
+    ensure,
     gauss_sum,
     njit,
     ravel_symmetric,
@@ -237,31 +239,58 @@ def _get_AO_per_AO(
     }
 
 
-def _get_AO_per_AO_for_MOs(
+def _get_used_AOs(
     S_abs: Matrix[np.floating],
-    AO_coeff_epsilon: float,
     TA: Matrix[np.floating],
     MO_coeff_epsilon: float,
-) -> dict[AOIdx, Sequence[AOIdx]]:
-    """AO pairs that are needed to transform :math:`(P | \\mu \\nu)` with :python:`TA`.
+) -> Vector[np.bool_]:
+    """The AOs :math:`\\mu` that the MO screening keeps for at least one MO of
+    :python:`TA` (cf. :func:`_get_AO_per_MO`)."""
+    return (S_abs @ np.abs(TA) >= MO_coeff_epsilon).any(axis=1)
+
+
+def _get_pair_keys(
+    S_abs: Matrix[np.floating],
+    AO_coeff_epsilon: float,
+    used: Vector[np.bool_],
+) -> Vector[np.int64]:
+    """Sorted keys :python:`ravel_symmetric(mu, nu)` of the AO pairs that are needed
+    to transform :math:`(P | \\mu \\nu)` with the MOs that use the AOs :python:`used`.
 
     The first contraction :math:`(P | \\mu i) = \\sum_\\nu (P | \\mu \\nu) T_{\\nu i}`
-    is evaluated for the AOs :math:`\\mu` that the MO screening keeps for at least one
-    MO :math:`i` (cf. :func:`_get_AO_per_MO`) and all :math:`\\nu`
-    with :math:`S^{\\text{abs}}_{\\mu \\nu} \\geq \\epsilon^{\\text{AO}}`.
-    Hence the result agrees with the screening of the precomputed
+    is evaluated for the used AOs :math:`\\mu` (cf. :func:`_get_used_AOs`)
+    and all :math:`\\nu` with
+    :math:`S^{\\text{abs}}_{\\mu \\nu} \\geq \\epsilon^{\\text{AO}}`.
+    Hence the pairs agree with the screening of the precomputed
     :math:`(P | \\mu \\nu)` from :func:`_get_AO_per_AO`.
-
-    The returned mapping is symmetric, i.e. it also contains :math:`\\nu \\to \\mu`,
-    because the semi-sparse tensor stores only the pairs :math:`\\nu \\leq \\mu`
-    of every :math:`\\mu`.
+    Every unordered pair appears once, as :math:`\\mu \\geq \\nu`.
     """
-    used = (S_abs @ np.abs(TA) >= MO_coeff_epsilon).any(axis=1)
     pairs = (S_abs >= AO_coeff_epsilon) & (used[:, None] | used[None, :])
-    return {
-        i_AO: cast(Sequence[AOIdx], pairs[i_AO].nonzero()[0])
-        for i_AO in cast(Sequence[AOIdx], pairs.any(axis=1).nonzero()[0])
-    }
+    # row-major order of the lower triangle, i.e. increasing keys
+    mu, nu = np.tril(pairs).nonzero()
+    return cast(Vector[np.int64], mu * (mu + 1) // 2 + nu)
+
+
+def _order_by_overlap(used: Matrix[np.bool_]) -> list[int]:
+    """Order the fragments, such that consecutive fragments overlap strongly.
+
+    Greedy nearest neighbour on the number of shared used AOs
+    (one row of :python:`used` per fragment, cf. :func:`_get_used_AOs`),
+    starting from the fragment with the smallest total overlap with all others,
+    e.g. an end of a chain.
+    """
+    n_frag = len(used)
+    U = used.astype(np.float32)
+    overlap = U @ U.T
+    np.fill_diagonal(overlap, 0.0)
+    order = [int(overlap.sum(axis=1).argmin())]
+    visited = np.zeros(n_frag, dtype=bool)
+    visited[order[0]] = True
+    for _ in range(n_frag - 1):
+        candidates = np.where(visited, -np.inf, overlap[order[-1]])
+        order.append(int(candidates.argmax()))
+        visited[order[-1]] = True
+    return order
 
 
 def conversions_AO_shell(
@@ -431,54 +460,39 @@ def _traverse_reachable(
             yield p, q
 
 
-def get_sparse_P_mu_nu(
+def _to_shell_reachable_by_shell(
+    exch_reachable: Mapping[AOIdx, Sequence[AOIdx]],
+    AO_to_shell_id: Mapping[AOIdx, ShellIdx],
+) -> Mapping[ShellIdx, list[ShellIdx]]:
+    """Also accepts `exch_reachable_unique` to return
+    symmetry-aware reachable shell mappings"""
+    shell_reachable_by_shell: dict[ShellIdx, set[ShellIdx]] = defaultdict(set)
+
+    for k, v in exch_reachable.items():
+        shell_reachable_by_shell[AO_to_shell_id[k]] |= {
+            AO_to_shell_id[orb] for orb in v
+        }
+    return {k: sorted(v) for k, v in shell_reachable_by_shell.items()}  # type: ignore[type-var]
+
+
+def _fill_P_mu_nu_columns(
     mol: Mole,
     auxmol: Mole,
-    exch_reachable: Mapping[AOIdx, Sequence[AOIdx]],
-) -> SemiSparseSym3DTensor:
-    """Return the 3-center 2-electron integrals in a sparse format."""
+    exch_reachable_unique: Mapping[AOIdx, Sequence[AOIdx]],
+    key_to_offset: Mapping[int, int],
+    out: Matrix[np.float64],
+) -> None:
+    """Write :math:`(P | \\mu \\nu)` of the pairs :python:`key_to_offset`
+    into the columns :python:`out[:, key_to_offset[ravel_symmetric(mu, nu)]]`.
 
-    def to_shell_reachable_by_shell(
-        exch_reachable: Mapping[AOIdx, Sequence[AOIdx]],
-        AO_to_shell_id: Mapping[AOIdx, ShellIdx],
-    ) -> Mapping[ShellIdx, list[ShellIdx]]:
-        """Also accepts `exch_reachable_unique` to return
-        symmetry-aware reachable shell mappings"""
-        shell_reachable_by_shell: dict[ShellIdx, set[ShellIdx]] = defaultdict(set)
-
-        for k, v in exch_reachable.items():
-            shell_reachable_by_shell[AO_to_shell_id[k]] |= {
-                AO_to_shell_id[orb] for orb in v
-            }
-        return {k: sorted(v) for k, v in shell_reachable_by_shell.items()}  # type: ignore[type-var]
-
-    AO_timer = Timer("Time to compute sparse (P | mu nu)")
-
-    result = SemiSparseSym3DTensor(
-        (auxmol.nao, mol.nao, mol.nao),
-        [
-            exch_reachable.get(mu, cast(Sequence[AOIdx], []))  # type:ignore[misc]
-            for mu in cast(Sequence[AOIdx], range(mol.nao))
-        ],
-    )
-    exch_reachable_unique = account_for_symmetry(exch_reachable)
-
-    n_unique = result.unique_dense_data.shape[1]
-
+    :python:`exch_reachable_unique` contains these pairs as :math:`\\mu \\geq \\nu`.
+    The integrals are computed per shell block, pairs of a block
+    that are not in :python:`key_to_offset` are skipped.
+    """
     shell_id_to_AO, AO_to_shell_id = conversions_AO_shell(mol)
-    shell_reachable_by_shell = to_shell_reachable_by_shell(
+    shell_reachable_by_shell = _to_shell_reachable_by_shell(
         exch_reachable_unique, AO_to_shell_id
     )
-    keys = np.array(
-        [
-            ravel_symmetric(p, q)
-            for (p, q) in _traverse_reachable(exch_reachable_unique)
-        ],
-        dtype=np.int64,
-    )
-    key_to_offset = {k: i for i, k in enumerate(keys)}
-
-    assert len(keys) == n_unique
 
     # Same as _aux_e2, but the concatenated environment, AO offsets, and the libcint
     # optimizer are created once here instead of for every shell block.
@@ -521,16 +535,77 @@ def get_sparse_P_mu_nu(
                         min(shell_id_to_AO[stop_block][-1] + 1, p + 1),  # type: ignore[index]
                     )
                 ):
-                    if ravel_symmetric(p, q) in key_to_offset:
-                        result.mut_unique_dense_data[
-                            :, key_to_offset[ravel_symmetric(p, q)]  # type: ignore[arg-type]
-                        ] = integrals[i, j, ::1]
+                    key = int(ravel_symmetric(p, q))
+                    if key in key_to_offset:
+                        out[:, key_to_offset[key]] = integrals[i, j, ::1]
+
+
+def get_sparse_P_mu_nu(
+    mol: Mole,
+    auxmol: Mole,
+    exch_reachable: Mapping[AOIdx, Sequence[AOIdx]],
+) -> SemiSparseSym3DTensor:
+    """Return the 3-center 2-electron integrals in a sparse format."""
+    AO_timer = Timer("Time to compute sparse (P | mu nu)")
+
+    result = SemiSparseSym3DTensor(
+        (auxmol.nao, mol.nao, mol.nao),
+        [
+            exch_reachable.get(mu, cast(Sequence[AOIdx], []))  # type:ignore[misc]
+            for mu in cast(Sequence[AOIdx], range(mol.nao))
+        ],
+    )
+    exch_reachable_unique = account_for_symmetry(exch_reachable)
+
+    n_unique = result.unique_dense_data.shape[1]
+
+    keys = np.array(
+        [
+            ravel_symmetric(p, q)
+            for (p, q) in _traverse_reachable(exch_reachable_unique)
+        ],
+        dtype=np.int64,
+    )
+    key_to_offset = {k: i for i, k in enumerate(keys)}
+
+    assert len(keys) == n_unique
+
+    _fill_P_mu_nu_columns(
+        mol, auxmol, exch_reachable_unique, key_to_offset, result.mut_unique_dense_data
+    )
 
     logger.info(AO_timer.str_elapsed())
 
     assert not np.isnan(result.unique_dense_data).any()
 
     return result
+
+
+def _compute_P_mu_nu_columns(
+    mol: Mole, auxmol: Mole, keys: Vector[np.int64]
+) -> Matrix[np.float64]:
+    """Return :math:`(P | \\mu \\nu)` for the pairs
+    :python:`keys = ravel_symmetric(mu, nu)` as columns of a Fortran-ordered
+    :python:`(naux, len(keys))` array."""
+    # invert keys = mu (mu + 1) / 2 + nu with mu >= nu
+    mu = ((np.sqrt(8 * keys.astype(np.float64) + 1) - 1) // 2).astype(np.int64)
+    nu = keys - mu * (mu + 1) // 2
+    assert ((0 <= nu) & (nu <= mu)).all()
+    starts = np.flatnonzero(np.r_[True, mu[1:] != mu[:-1]])
+    exch_reachable_unique = {
+        cast(AOIdx, int(mu[start])): cast(Sequence[AOIdx], nus.tolist())
+        for start, nus in zip(starts, np.split(nu, starts[1:]))
+    }
+    out = np.full((auxmol.nao, len(keys)), np.nan, order="F")
+    _fill_P_mu_nu_columns(
+        mol,
+        auxmol,
+        exch_reachable_unique,
+        {int(k): i for i, k in enumerate(keys)},
+        out,
+    )
+    assert not np.isnan(out).any()
+    return out
 
 
 def _flatten(
@@ -565,10 +640,68 @@ def _get_test_mol(atom1: str, atom2: str, r: float, basis: str) -> Mole:
     )
 
 
-# This type variable prevents mixing of GPU with CPU code.
-# The GPU handle has to be forward-declared using a string,
-# as CUDA-Blas is not alwyas available, then it is not defined.
-LPQ = TypeVar("LPQ", Matrix[np.float64], "cpp_transforms.GPU_MatrixHandle")
+def _cholesky_PQ(auxmol: Mole) -> Matrix[np.float64]:
+    """Lower Cholesky factor of :math:`(P | Q)`, in Fortran order.
+
+    :math:`(P | Q)` itself is not kept; both are :python:`naux x naux` matrices,
+    i.e. a few GB for large systems.
+    """
+    return cholesky(auxmol.intor("int2c2e"), lower=True)
+
+
+def _run_rolling_window(
+    mol: Mole,
+    auxmol: Mole,
+    Fobjs: Sequence[Frags],
+    S_abs: Matrix[np.floating],
+    file_eri_handler: h5py.File,
+    AO_coeff_epsilon: float,
+    MO_coeff_epsilon: float,
+    transform_precontracted_impl: Callable[
+        [SemiSparseSym3DWindow, Matrix[np.floating], Matrix[np.floating], float],
+        Matrix[np.float64],
+    ],
+    max_chunk_bytes: int = 2**30,
+) -> None:
+    """On-the-fly sparse DF with a rolling window of :math:`L^{-1} (P | \\mu \\nu)`,
+    see :func:`_run_sparse_df_driver`.
+
+    The new pairs of a fragment are computed and inserted in chunks of at most
+    :python:`max_chunk_bytes`, to keep the memory on top of the window small.
+    """
+    used = np.array([_get_used_AOs(S_abs, f.TA, MO_coeff_epsilon) for f in Fobjs])
+    capacity = max(len(_get_pair_keys(S_abs, AO_coeff_epsilon, u)) for u in used)
+    # The window keeps its own copy of L_PQ, so no reference must be kept here.
+    window = SemiSparseSym3DWindow(
+        (auxmol.nao, mol.nao, mol.nao), capacity, _cholesky_PQ(auxmol)
+    )
+    chunk_size = max(1, max_chunk_bytes // (8 * auxmol.nao))
+
+    stored = np.empty(0, dtype=np.int64)
+    for i_frag in _order_by_overlap(used):
+        fragobj = Fobjs[i_frag]
+        t_start = time.perf_counter()
+        needed = _get_pair_keys(S_abs, AO_coeff_epsilon, used[i_frag])
+        evicted = np.setdiff1d(stored, needed, assume_unique=True)
+        new = np.setdiff1d(needed, stored, assume_unique=True)
+
+        window.evict(evicted)
+        for start in range(0, len(new), chunk_size):
+            chunk = cast(Vector[np.int64], new[start : start + chunk_size])
+            window.insert(chunk, _compute_P_mu_nu_columns(mol, auxmol, chunk))
+        stored = needed
+        window.set_active(needed)
+        logger.info(
+            f"Rolling window, fragment {fragobj.dname}: {len(needed)} pairs, "
+            f"{len(new)} new, {len(evicted)} evicted; "
+            f"(P | mu nu) and L^-1 in {time.perf_counter() - t_start:.3f} s"
+        )
+
+        transformed = transform_precontracted_impl(
+            window, fragobj.TA, S_abs, MO_coeff_epsilon
+        )
+        eri = restore("4", transformed, fragobj.TA.shape[1])
+        file_eri_handler.create_dataset(fragobj.dname, data=eri)
 
 
 def _run_sparse_df_driver(
@@ -580,20 +713,9 @@ def _run_sparse_df_driver(
     MO_coeff_epsilon: float,
     n_threads: int,
     *,
-    build_lowtri_PQ: Callable[[Matrix[np.float64]], LPQ],
-    transform_integral_impl: Callable[
-        [
-            SemiSparseSym3DTensor,
-            Matrix[np.floating],
-            Matrix[np.floating],
-            LPQ,
-            float,
-        ],
-        Matrix[np.float64],
-    ],
     transform_precontracted_impl: Callable[
         [
-            SemiSparseSym3DTensor,
+            SemiSparseSym3DTensor | SemiSparseSym3DWindow,
             Matrix[np.floating],
             Matrix[np.floating],
             float,
@@ -624,34 +746,27 @@ def _run_sparse_df_driver(
         Threshold for discarding negligible MO coefficients.
     n_threads :
         Number of threads used for the transformation.
-    build_lowtri_PQ :
-        Take a cholesky decomposed lower triangular matrix of :math:`(P | Q) and either
-        keep it in memory, i.e. just the identity function,
-        or store it on a GPU device, i.e. return a GPU memory handle.
-    transform_integral_impl :
+    transform_precontracted_impl :
         Low-level transformation implementation that performs the
         semi-sparse DF integral transformation either in CPU or GPU
         The function takes:
 
-          • :math:`(P \mid \mu\nu)` semi-sparse AO integrals
+          • :math:`L^{-1}_{PQ} (Q \mid \mu\nu)` semi-sparse AO integrals,
+            either all of them or the rolling window of the on-the-fly version
           • the AO-MO transformation matrix :math:`T^{\mathrm{A}}`
           • the absolute-overlap matrix :math:`S_{\mathrm{abs}}`
-          • the lower-triangular Cholesky factors :math:`L_{PQ}`
-            of :math:`(P \mid Q)` (either in memory or on GPU)
           • the MO screening threshold :math:`\varepsilon_{\mathrm{MO}}`
 
-        and returns the transformed three-centre MO integrals
-        :math:`(P \mid ij)`.
-    transform_precontracted_impl :
-        Same as :python:`transform_integral_impl`, but takes
-        :math:`L^{-1}_{PQ} (Q \mid \mu\nu)` instead of :math:`(P \mid \mu\nu)`
-        and no :math:`L_{PQ}`.
-        Used if :python:`precompute_P_mu_nu` is true.
+        and returns the transformed MO integrals :math:`(ij | kl)`.
     precompute_P_mu_nu :
-        Whether to precompute :math:`(P | \mu \nu)`, or compute them on the fly
-        for every fragment (reduces peak memory usage).
-        If precomputed, :math:`L^{-1}_{PQ}` is applied once to all
-        :math:`(Q | \mu \nu)` instead of once per fragment.
+        Whether to precompute :math:`(P | \mu \nu)` for all pairs,
+        or compute them on the fly (reduces peak memory usage).
+        In both cases :math:`L^{-1}_{PQ}` is applied to every
+        :math:`(Q | \mu \nu)` instead of to :math:`(Q | ij)` of every fragment.
+        On the fly, the fragments are traversed such that consecutive fragments
+        overlap strongly, and a rolling window holds :math:`L^{-1}_{PQ} (Q | \mu \nu)`
+        of the current fragment: per fragment, only the pairs that are not yet
+        in the window are computed, and the ones that are no longer needed are evicted.
 
     Returns
     -------
@@ -664,9 +779,9 @@ def _run_sparse_df_driver(
 
     S_abs: Final[Matrix[np.floating]] = approx_S_abs(mol)
 
-    PQ: Final = auxmol.intor("int2c2e")
-
     if precompute_P_mu_nu:
+        # Before (P | mu nu), such that (P | Q) and (P | mu nu) never coexist.
+        L_PQ = _cholesky_PQ(auxmol)
         exch_reachable: Final = _get_AO_per_AO(S_abs, AO_coeff_epsilon)
         P_mu_nu: Final[SemiSparseSym3DTensor] = get_sparse_P_mu_nu(
             mol, auxmol, exch_reachable
@@ -675,7 +790,8 @@ def _run_sparse_df_driver(
         # contraction with TA. Do it once here, instead of for every fragment.
         # This is always done on the CPU, which is faster than consumer GPUs
         # with their low FP64 throughput and avoids storing L_PQ on the GPU.
-        apply_inv_cholesky_inplace(P_mu_nu, cholesky(PQ, lower=True))
+        apply_inv_cholesky_inplace(P_mu_nu, L_PQ)
+        del L_PQ
 
         def worker(fragobj: Frags) -> None:
             "One computation of P_mu_nu for every fragment"
@@ -688,24 +804,20 @@ def _run_sparse_df_driver(
             eri = restore("4", transformed, fragobj.TA.shape[1])
             file_eri_handler.create_dataset(fragobj.dname, data=eri)
     else:
-        lowtri: Final[LPQ] = build_lowtri_PQ(cholesky(PQ, lower=True))
-
-        def worker(fragobj: Frags) -> None:
-            "On the fly computation of P_mu_nu for every fragment"
-            exch_reachable = _get_AO_per_AO_for_MOs(
-                S_abs, AO_coeff_epsilon, fragobj.TA, MO_coeff_epsilon
-            )
-            P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
-
-            transformed = transform_integral_impl(
-                P_mu_nu,
-                fragobj.TA,
-                S_abs,
-                lowtri,
-                MO_coeff_epsilon,
-            )
-            eri = restore("4", transformed, fragobj.TA.shape[1])
-            file_eri_handler.create_dataset(fragobj.dname, data=eri)
+        ensure(
+            n_threads == 1, "The rolling window of the on-the-fly sparse DF is serial."
+        )
+        _run_rolling_window(
+            mol,
+            auxmol,
+            Fobjs,
+            S_abs,
+            file_eri_handler,
+            AO_coeff_epsilon,
+            MO_coeff_epsilon,
+            transform_precontracted_impl,
+        )
+        return
 
     if n_threads > 1:
         with ThreadPoolExecutor(max_workers=n_threads) as pool:
@@ -735,8 +847,6 @@ def transform_sparse_DF_integral_cpu(
         AO_coeff_epsilon=AO_coeff_epsilon,
         MO_coeff_epsilon=MO_coeff_epsilon,
         n_threads=n_threads,
-        build_lowtri_PQ=lambda x: x,
-        transform_integral_impl=transform_integral,
         transform_precontracted_impl=transform_integral_precontracted,
         precompute_P_mu_nu=precompute_P_mu_nu,
     )
@@ -760,8 +870,6 @@ def transform_sparse_DF_integral_gpu(
         AO_coeff_epsilon=AO_coeff_epsilon,
         MO_coeff_epsilon=MO_coeff_epsilon,
         n_threads=n_threads,
-        build_lowtri_PQ=cpp_transforms.GPU_MatrixHandle,
-        transform_integral_impl=cpp_transforms.transform_integral_cuda,
         transform_precontracted_impl=cpp_transforms.transform_integral_precontracted_cuda,
         precompute_P_mu_nu=precompute_P_mu_nu,
     )
