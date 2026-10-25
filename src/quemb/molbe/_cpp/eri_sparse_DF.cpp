@@ -724,8 +724,14 @@ using KeyVector = Eigen::Matrix<int_t, Eigen::Dynamic, 1>;
 class SemiSparseSym3DWindow
 {
   public:
-    SemiSparseSym3DWindow(std::tuple<int, int, int> shape, const std::size_t capacity, Matrix L_PQ)
-        : _shape(std::move(shape)), _L_PQ(std::move(L_PQ)), _exch_reachable_with_offsets(std::get<1>(_shape))
+    // L_PQ is not copied: the window keeps a reference to the (Fortran-ordered) numpy array
+    // and uses its memory, i.e. it must not be modified afterwards.
+    SemiSparseSym3DWindow(std::tuple<int, int, int> shape,
+                          const std::size_t capacity,
+                          py::array_t<Real, py::array::f_style> L_PQ)
+        : _shape(std::move(shape)), _L_owner(std::move(L_PQ)),
+          _L_PQ(_L_owner.data(), _L_owner.shape(0), _L_owner.shape(1)),
+          _exch_reachable_with_offsets(std::get<1>(_shape))
     {
         const auto naux = std::get<0>(_shape);
         if (_L_PQ.rows() != naux || _L_PQ.cols() != naux) {
@@ -828,7 +834,9 @@ class SemiSparseSym3DWindow
 
   private:
     std::tuple<int, int, int> _shape;
-    Matrix _L_PQ;
+    // keeps the numpy memory of L_PQ alive; declared before _L_PQ, which maps it
+    py::array_t<Real, py::array::f_style> _L_owner;
+    Eigen::Map<const Matrix> _L_PQ;
     Matrix _data;
     // key ravel_symmetric(mu, nu) -> column in _data
     std::unordered_map<int_t, std::size_t> _slots;
@@ -934,10 +942,10 @@ PYBIND11_MODULE(eri_sparse_DF, m)
                  "  - Example use: 3-center integrals (μν|P)";
 
     py::class_<SemiSparseSym3DWindow>(m, "SemiSparseSym3DWindow")
-        .def(py::init<std::tuple<int, int, int>, std::size_t, Matrix>(),
+        .def(py::init<std::tuple<int, int, int>, std::size_t, py::array_t<Real, py::array::f_style>>(),
              py::arg("shape"),
              py::arg("capacity"),
-             py::arg("L_PQ"))
+             py::arg("L_PQ").noconvert())
         .def("evict", &SemiSparseSym3DWindow::evict, py::arg("keys"), "Free the columns of the given pairs.")
         .def("insert",
              &SemiSparseSym3DWindow::insert,

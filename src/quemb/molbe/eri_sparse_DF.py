@@ -15,6 +15,7 @@ from collections.abc import (
 )
 from itertools import chain, takewhile
 from typing import Final, TypeVar, cast
+from warnings import warn
 
 import h5py
 import numpy as np
@@ -558,10 +559,18 @@ def _flatten(
 def _cholesky_PQ(auxmol: Mole) -> Matrix[np.float64]:
     """Lower Cholesky factor of :math:`(P | Q)`, in Fortran order.
 
-    :math:`(P | Q)` itself is not kept; both are :python:`naux x naux` matrices,
-    i.e. a few GB for large systems.
+    The factorisation overwrites :math:`(P | Q)`, i.e. only one
+    :python:`naux x naux` matrix is allocated (a few GB for large systems).
     """
-    return cholesky(auxmol.intor("int2c2e"), lower=True)
+    # intor returns a Fortran-ordered array, hence LAPACK works in place.
+    PQ = auxmol.intor("int2c2e")
+    L_PQ = cholesky(PQ, lower=True, overwrite_a=True, check_finite=False)
+    if not np.may_share_memory(L_PQ, PQ):
+        warn(
+            "The Cholesky factorisation of (P | Q) was not done in place, "
+            "two naux x naux matrices were allocated."
+        )
+    return L_PQ
 
 
 def _run_rolling_window(
@@ -582,7 +591,7 @@ def _run_rolling_window(
     """
     used = np.array([_get_used_AOs(S_abs, f.TA, MO_coeff_epsilon) for f in Fobjs])
     capacity = max(len(_get_pair_keys(S_abs, AO_coeff_epsilon, u)) for u in used)
-    # The window keeps its own copy of L_PQ, so no reference must be kept here.
+    # The window keeps a reference to L_PQ, no copy.
     window = SemiSparseSym3DWindow(
         (auxmol.nao, mol.nao, mol.nao), capacity, _cholesky_PQ(auxmol)
     )
