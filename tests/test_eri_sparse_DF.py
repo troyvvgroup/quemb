@@ -1,3 +1,5 @@
+from typing import cast
+
 import numpy as np
 import pytest
 from pyscf import scf
@@ -19,6 +21,7 @@ from quemb.molbe.eri_sparse_DF import (
 )
 from quemb.molbe.mbe import IntTransforms
 from quemb.shared.helper import clean_overlap, ravel_symmetric
+from quemb.shared.typing import AOIdx, Vector
 
 from ._expected_data_for_eri_sparse_DF import get_expected
 
@@ -139,7 +142,7 @@ def test_pair_keys() -> None:
     assert keys.tolist() == expected
 
     # A non-symmetric selection must not be accepted silently.
-    one_sided = {mu: list(full[mu]) for mu in (0, 1)}
+    one_sided = {mu: list(full[mu]) for mu in cast(list[AOIdx], [0, 1])}
     with pytest.raises(IndexError, match="unordered_map"):
         get_sparse_P_mu_nu(mol, make_auxmol(mol, auxbasis="weigend"), one_sided)
 
@@ -193,7 +196,7 @@ def test_rolling_window() -> None:
         window.evict(evicted)
         n_evicted += len(evicted)
         for start in range(0, len(new), 7):
-            chunk = new[start : start + 7]
+            chunk = cast(Vector[np.int64], new[start : start + 7])
             window.insert(chunk, _compute_P_mu_nu_columns(mol, auxmol, chunk))
         stored = keys[i_frag]
         window.set_active(stored)
