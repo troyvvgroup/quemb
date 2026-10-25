@@ -1,8 +1,7 @@
 """
 Perform the sparse DF ERI transformation using semi-sparse tensors.
 
-This module provides functionality to transform ERIs using semi-sparse tensors
-and optionally CUDA for GPU acceleration.
+This module provides functionality to transform ERIs using semi-sparse tensors.
 """
 
 from __future__ import annotations
@@ -24,7 +23,6 @@ __all__ = [
     "get_log_level",
     "set_log_level",
     "transform_integral_precontracted",
-    "transform_integral_precontracted_cuda",
 ]
 
 class SemiSparse3DTensor:
@@ -209,17 +207,4 @@ def transform_integral_precontracted(
     Transform the integral using TA and int_P_mu_nu = L⁻¹ (P | mu nu),
     i.e. after apply_inv_cholesky_inplace or the active pairs of a window,
     returning the transformed matrix
-    """
-
-def transform_integral_precontracted_cuda(
-    int_P_mu_nu: SemiSparseSym3DTensor | SemiSparseSym3DWindow,
-    TA: numpy.ndarray,
-    S_abs: numpy.ndarray,
-    MO_coeff_epsilon: float,
-) -> numpy.ndarray:
-    """
-    Transform the integral using TA and int_P_mu_nu = L⁻¹ (P | mu nu),
-    i.e. after apply_inv_cholesky_inplace or the active pairs of a window,
-    returning the transformed matrix.
-    This uses CUDA for performance.
     """

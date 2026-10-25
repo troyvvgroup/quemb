@@ -8,13 +8,6 @@
 #include <vector>
 
 #include <Eigen/Dense>
-#include <unsupported/Eigen/CXX11/Tensor>
-
-#ifdef USE_CUDA
-#include <cublas_v2.h>
-#include <cuda.h>
-#include <cuda_runtime_api.h>
-#endif
 
 #ifdef GCC
 #pragma GCC diagnostic push
@@ -24,7 +17,6 @@
 #pragma GCC diagnostic ignored "-Wnull-dereference"
 #endif
 #include <pybind11/eigen.h>
-#include <pybind11/functional.h>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -35,33 +27,6 @@
 #include "indexers.hpp"
 
 namespace py = pybind11;
-
-#ifdef USE_CUDA
-#define CUDA_CHECK_THROW(err)                                                                                          \
-    do {                                                                                                               \
-        const cudaError_t _err = (err);                                                                                \
-        if (_err != cudaSuccess) {                                                                                     \
-            throw std::runtime_error(cudaGetErrorString(_err));                                                        \
-        }                                                                                                              \
-    } while (0)
-
-#define CUBLAS_CHECK_THROW(err)                                                                                        \
-    do {                                                                                                               \
-        const cublasStatus_t _err = (err);                                                                             \
-        if (_err != CUBLAS_STATUS_SUCCESS) {                                                                           \
-            throw std::runtime_error("cuBLAS error");                                                                  \
-        }                                                                                                              \
-    } while (0)
-
-#define CUDA_CHECK_ALLOC(err)                                                                                          \
-    do {                                                                                                               \
-        const cudaError_t _err = (err);                                                                                \
-        if (_err != cudaSuccess) {                                                                                     \
-            throw std::bad_alloc();                                                                                    \
-        }                                                                                                              \
-    } while (0)
-
-#endif
 
 class SemiSparseSym3DTensor
 {
@@ -580,32 +545,6 @@ SemiSparse3DTensor contract_with_TA_1st_gemm(const Matrix &TA,
                               std::move(offsets));
 }
 
-py::array_t<Real> copy_to_numpy(const Tensor3D &g) noexcept
-{
-    py::gil_scoped_acquire gil;
-    auto shape = g.dimensions();
-    py::array_t<Real, py::array::f_style> arr({shape[0], shape[1], shape[2]});
-    std::memcpy(arr.mutable_data(), g.data(), sizeof(Real) * g.size());
-    return arr;
-}
-
-Tensor3D copy_from_numpy(py::array_t<Real, py::array::f_style> arr)
-{
-    py::gil_scoped_acquire gil;
-
-    if (arr.ndim() != 3) {
-        throw std::runtime_error("Input numpy array must "
-                                 "have 3 dimensions");
-    }
-
-    auto shape = arr.shape();
-    Tensor3D tensor(shape[0], shape[1], shape[2]);
-
-    std::memcpy(tensor.data(), arr.data(), sizeof(Real) * tensor.size());
-
-    return tensor;
-}
-
 Matrix contract_with_TA_2nd_to_sym_dense(const SemiSparse3DTensor &int_mu_i_P, const Matrix &TA) noexcept
 {
     PROFILE_FUNCTION();
@@ -909,98 +848,6 @@ Matrix eval_precontracted(const Matrix &X) noexcept
 #endif
 }
 
-#ifdef USE_CUDA
-// Computes the integral (p q | r s) from X = L⁻¹ (P | pq) on the GPU, i.e. Xᵀ X.
-Matrix eval_precontracted_cuda(const Matrix &X)
-{
-    Timer timer{__func__};
-    const int n_aux = static_cast<int>(X.rows());
-    const int n_sym_pairs = static_cast<int>(X.cols());
-
-    const size_t bytes_X = sizeof(Real) * n_aux * n_sym_pairs;
-    const size_t bytes_res = sizeof(Real) * n_sym_pairs * n_sym_pairs;
-
-    Real *d_X = nullptr, *d_result = nullptr;
-
-    if (LOG_LEVEL <= LogLevel::Debug) {
-        std::cout << __func__ << "[GPU MEMORY] about to allocate bytes_X " << bytes_to_gib(bytes_X) << " GiB\n";
-        std::cout << __func__ << "[GPU MEMORY] about to allocate bytes_res " << bytes_to_gib(bytes_res) << " GiB"
-                  << std::endl;
-    }
-
-    CUDA_CHECK_ALLOC(cudaMalloc(reinterpret_cast<void **>(&d_X), bytes_X));
-    CUDA_CHECK_ALLOC(cudaMalloc(reinterpret_cast<void **>(&d_result), bytes_res));
-    if (LOG_LEVEL <= LogLevel::Debug) {
-        std::cout << __func__ << "[MEMORY] bytes_X succesfully allocated\n";
-        std::cout << __func__ << "[MEMORY] bytes_res successfully allocated" << std::endl;
-    }
-
-    // Copy data to device
-    CUDA_CHECK_THROW(cudaMemcpy(d_X, X.data(), bytes_X, cudaMemcpyHostToDevice));
-    if (LOG_LEVEL <= LogLevel::Info) {
-        timer.print("copy to GPU finished");
-    };
-
-    // cuBLAS handle
-    cublasHandle_t handle;
-    CUBLAS_CHECK_THROW(cublasCreate(&handle));
-
-    const double alpha = 1.0;
-    // d_result is uninitialized, so it must not be accumulated into.
-    const double beta = 0.0;
-
-    // Compute: result = Xᵀ * X, only the lower triangle (as XtX_syrk on the CPU)
-    CUBLAS_CHECK_THROW(cublasDsyrk(handle,
-                                   CUBLAS_FILL_MODE_LOWER,
-                                   CUBLAS_OP_T,
-                                   n_sym_pairs,
-                                   n_aux,
-                                   &alpha,
-                                   d_X,
-                                   n_aux,
-                                   &beta,
-                                   d_result,
-                                   n_sym_pairs));
-    if (LOG_LEVEL <= LogLevel::Info) {
-        CUDA_CHECK_THROW(cudaDeviceSynchronize());
-        timer.print("Matrix multiplication on GPU completed");
-    };
-
-    // Transfer result to host
-    Matrix result(n_sym_pairs, n_sym_pairs);
-    CUDA_CHECK_THROW(cudaMemcpy(result.data(), d_result, bytes_res, cudaMemcpyDeviceToHost));
-
-    if (LOG_LEVEL <= LogLevel::Info) {
-        timer.print("Copy from GPU completed");
-    };
-
-    result.triangularView<Eigen::StrictlyUpper>() = result.transpose();
-
-    if (LOG_LEVEL <= LogLevel::Info) {
-        timer.print("Filling symmetries completed.");
-    };
-
-    // Cleanup
-    cublasDestroy(handle);
-    cudaFree(d_X);
-    cudaFree(d_result);
-
-    return result;
-}
-
-template <typename Sym3DTensor>
-Matrix transform_integral_precontracted_cuda(const Sym3DTensor &int_P_mu_nu,
-                                             const Matrix &TA,
-                                             const Matrix &S_abs,
-                                             const double MO_coeff_epsilon)
-
-{
-    const auto AO_by_MO = get_AO_per_MO(TA, S_abs, MO_coeff_epsilon);
-    const SemiSparse3DTensor int_P_mu_i = contract_with_TA_1st_gemm(TA, int_P_mu_nu, AO_by_MO);
-    return eval_precontracted_cuda(contract_with_TA_2nd_gemm(int_P_mu_i, TA));
-}
-#endif
-
 // Transforms int_P_mu_nu = L⁻¹ (P | mu nu), i.e. after apply_inv_cholesky_inplace
 // (or a SemiSparseSym3DWindow), to (ij | kl) of the fragment with TA.
 template <typename Sym3DTensor>
@@ -1028,8 +875,7 @@ PYBIND11_MODULE(eri_sparse_DF, m)
 {
     m.doc() = "Perform the sparse DF ERI transformation using semi-sparse tensors.\n"
               "\n"
-              "This module provides functionality to transform ERIs using semi-sparse tensors\n"
-              "and optionally CUDA for GPU acceleration.";
+              "This module provides functionality to transform ERIs using semi-sparse tensors.";
 
     m.def("get_log_level", &get_log_level);
     m.def("set_log_level", &set_log_level, py::arg("log_level"));
@@ -1234,28 +1080,4 @@ PYBIND11_MODULE(eri_sparse_DF, m)
           py::call_guard<py::gil_scoped_release>(),
           "Transform the integral using TA and int_P_mu_nu = L⁻¹ (P | mu nu),\n"
           "here the active pairs of the window, returning the transformed matrix");
-
-#ifdef USE_CUDA
-    m.def("transform_integral_precontracted_cuda",
-          &transform_integral_precontracted_cuda<SemiSparseSym3DTensor>,
-          py::arg("int_P_mu_nu"),
-          py::arg("TA"),
-          py::arg("S_abs"),
-          py::arg("MO_coeff_epsilon"),
-          py::call_guard<py::gil_scoped_release>(),
-          "Transform the integral using TA and int_P_mu_nu = L⁻¹ (P | mu nu),\n"
-          "i.e. after apply_inv_cholesky_inplace, returning the transformed matrix.\n"
-          "This uses CUDA for performance.");
-
-    m.def("transform_integral_precontracted_cuda",
-          &transform_integral_precontracted_cuda<SemiSparseSym3DWindow>,
-          py::arg("int_P_mu_nu"),
-          py::arg("TA"),
-          py::arg("S_abs"),
-          py::arg("MO_coeff_epsilon"),
-          py::call_guard<py::gil_scoped_release>(),
-          "Transform the integral using TA and int_P_mu_nu = L⁻¹ (P | mu nu),\n"
-          "here the active pairs of the window, returning the transformed matrix.\n"
-          "This uses CUDA for performance.");
-#endif
 }
