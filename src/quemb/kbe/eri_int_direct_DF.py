@@ -10,7 +10,7 @@ from pyscf.pbc.df.incore import aux_e2
 from pyscf.pbc.tools import get_coulG
 from scipy.linalg import LinAlgError, cholesky, eigh, solve_triangular
 
-from quemb.molbe.eri_onthefly import block_step_size
+from quemb.molbe.eri_int_direct_DF import block_step_size
 
 logger = logging.getLogger(__name__)
 

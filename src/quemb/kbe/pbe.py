@@ -17,7 +17,7 @@ from pyscf.pbc.df.df import GDF
 from pyscf.pbc.df.df_jk import _ewald_exxdiv_for_G0
 from pyscf.pbc.lib.kpts_helper import is_zero
 
-from quemb.kbe.eri_onthefly import integral_direct_DF
+from quemb.kbe.eri_int_direct_DF import integral_direct_DF
 from quemb.kbe.fragment import FragPart
 from quemb.kbe.lo import Mixin_k_Localize
 from quemb.kbe.misc import print_energy, storePBE
