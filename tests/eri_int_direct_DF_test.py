@@ -1,5 +1,5 @@
 """
-This script tests the on-the-fly DF-based ERI transformation routine for
+This script tests the int-direct-DF ERI transformation routine for
 molecular systems.
 
 Author(s): Minsik Cho
@@ -14,7 +14,7 @@ from pyscf import gto, scf
 from quemb.molbe import BE, fragmentate
 
 
-class TestDF_ontheflyERI(unittest.TestCase):
+class TestDF_int_direct_DF_ERI(unittest.TestCase):
     @unittest.skipUnless(
         (
             os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true"

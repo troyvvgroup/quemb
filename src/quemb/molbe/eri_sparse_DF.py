@@ -268,7 +268,7 @@ def _get_pair_keys(
     pairs = (S_abs >= AO_coeff_epsilon) & (used[:, None] | used[None, :])
     # row-major order of the lower triangle, i.e. increasing keys
     mu, nu = np.tril(pairs).nonzero()
-    return cast(Vector[np.int64], mu * (mu + 1) // 2 + nu)
+    return cast(Vector[np.int64], ravel_symmetric(mu, nu))
 
 
 def _order_by_overlap(used: Matrix[np.bool_]) -> list[int]:
@@ -589,7 +589,7 @@ def _compute_P_mu_nu_columns(
     :python:`(naux, len(keys))` array."""
     # invert keys = mu (mu + 1) / 2 + nu with mu >= nu
     mu = ((np.sqrt(8 * keys.astype(np.float64) + 1) - 1) // 2).astype(np.int64)
-    nu = keys - mu * (mu + 1) // 2
+    nu = keys - gauss_sum(mu)
     assert ((0 <= nu) & (nu <= mu)).all()
     starts = np.flatnonzero(np.r_[True, mu[1:] != mu[:-1]])
     exch_reachable_unique = {
@@ -661,7 +661,7 @@ def _run_rolling_window(
         [SemiSparseSym3DWindow, Matrix[np.floating], Matrix[np.floating], float],
         Matrix[np.float64],
     ],
-    max_chunk_bytes: int = 2**30,
+    max_chunk_bytes=2**30,
 ) -> None:
     """On-the-fly sparse DF with a rolling window of :math:`L^{-1} (P | \\mu \\nu)`,
     see :func:`_run_sparse_df_driver`.

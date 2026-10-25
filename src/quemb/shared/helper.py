@@ -14,6 +14,7 @@ from typing import Any, ParamSpec, TypeVar, overload
 
 import numba as nb
 import numpy as np
+import numpy.typing as npt
 from attrs import define, field
 from ordered_set import OrderedSet
 
@@ -21,6 +22,7 @@ from quemb.shared.typing import Integral, Matrix, SupportsRichComparison, T
 
 _Function = TypeVar("_Function", bound=Callable)
 _T_Integral = TypeVar("_T_Integral", bound=Integral)
+_T_int_dtype = TypeVar("_T_int_dtype", bound=np.integer)
 _T = TypeVar("_T")
 _R = TypeVar("_R")
 _P = ParamSpec("_P")
@@ -222,8 +224,14 @@ def njit(
         return nb.njit(f, cache=True, nogil=nogil, **kwargs)
 
 
+@overload
+def gauss_sum(n: _T_Integral) -> _T_Integral: ...
+@overload
+def gauss_sum(n: npt.NDArray[_T_int_dtype]) -> npt.NDArray[_T_int_dtype]: ...
 @njit(nogil=True)
-def gauss_sum(n: _T_Integral) -> _T_Integral:
+def gauss_sum(
+    n: _T_Integral | npt.NDArray[_T_int_dtype],
+) -> _T_Integral | npt.NDArray[_T_int_dtype]:
     r"""Return the sum :math:`\sum_{i=1}^n i`
 
     Parameters
@@ -233,8 +241,17 @@ def gauss_sum(n: _T_Integral) -> _T_Integral:
     return (n * (n + 1)) // 2  # type: ignore[return-value]
 
 
+@overload
+def ravel_symmetric(a: _T_Integral, b: _T_Integral) -> _T_Integral: ...
+@overload
+def ravel_symmetric(
+    a: npt.NDArray[_T_int_dtype], b: npt.NDArray[_T_int_dtype]
+) -> npt.NDArray[_T_int_dtype]: ...
 @njit(nogil=True)
-def ravel_symmetric(a: _T_Integral, b: _T_Integral) -> _T_Integral:
+def ravel_symmetric(
+    a: _T_Integral | npt.NDArray[_T_int_dtype],
+    b: _T_Integral | npt.NDArray[_T_int_dtype],
+) -> _T_Integral | npt.NDArray[_T_int_dtype]:
     """Flatten the index a, b assuming symmetry.
 
     The resulting indexation for a matrix looks like this::
@@ -244,12 +261,14 @@ def ravel_symmetric(a: _T_Integral, b: _T_Integral) -> _T_Integral:
         3   4   5
         6   7   8   9
 
+    Works element-wise for scalars and for arrays of indices.
+
     Parameters
     ----------
     a :
     b :
     """
-    return gauss_sum(a) + b if a > b else gauss_sum(b) + a  # type: ignore[return-value,operator]
+    return gauss_sum(np.maximum(a, b)) + np.minimum(a, b)
 
 
 @njit(nogil=True)
@@ -261,20 +280,34 @@ def n_symmetric(n: _T_Integral) -> _T_Integral:
 @njit(nogil=True)
 def unravel_symmetric(i: Integral) -> tuple[int, int]:
     a = int((np.sqrt(8 * i + 1) - 1) // 2)
-    offset = gauss_sum(a)
-    b = i - offset
-    if b > a:
-        a, b = b, a
-    return a, b
+    return a, i - gauss_sum(a)
 
 
-@njit(nogil=True)
+@overload
 def ravel_eri_idx(
     a: _T_Integral, b: _T_Integral, c: _T_Integral, d: _T_Integral
-) -> _T_Integral:
+) -> _T_Integral: ...
+@overload
+def ravel_eri_idx(
+    a: npt.NDArray[_T_int_dtype],
+    b: npt.NDArray[_T_int_dtype],
+    c: npt.NDArray[_T_int_dtype],
+    d: npt.NDArray[_T_int_dtype],
+) -> npt.NDArray[_T_int_dtype]: ...
+@njit(nogil=True)
+def ravel_eri_idx(
+    a: _T_Integral | npt.NDArray[_T_int_dtype],
+    b: _T_Integral | npt.NDArray[_T_int_dtype],
+    c: _T_Integral | npt.NDArray[_T_int_dtype],
+    d: _T_Integral | npt.NDArray[_T_int_dtype],
+) -> _T_Integral | npt.NDArray[_T_int_dtype]:
     """Return compound index given four indices using Yoshimine sort and
-    assuming 8-fold permutational symmetry"""
-    return ravel_symmetric(ravel_symmetric(a, b), ravel_symmetric(c, d))
+    assuming 8-fold permutational symmetry
+
+    Works element-wise for scalars and for arrays of indices.
+    """
+    # the union of the arguments matches no single overload of ravel_symmetric
+    return ravel_symmetric(ravel_symmetric(a, b), ravel_symmetric(c, d))  # type: ignore[type-var]
 
 
 @njit(nogil=True)
@@ -291,8 +324,18 @@ def n_eri(n: _T_Integral) -> _T_Integral:
     return ravel_eri_idx(n - 1, n - 1, n - 1, n - 1) + 1  # type: ignore[return-value]
 
 
+@overload
+def ravel_C(a: _T_Integral, b: _T_Integral, n_cols: _T_Integral) -> _T_Integral: ...
+@overload
+def ravel_C(
+    a: npt.NDArray[_T_int_dtype], b: npt.NDArray[_T_int_dtype], n_cols: Integral
+) -> npt.NDArray[_T_int_dtype]: ...
 @njit(nogil=True)
-def ravel_C(a: _T_Integral, b: _T_Integral, n_cols: _T_Integral) -> _T_Integral:
+def ravel_C(
+    a: _T_Integral | npt.NDArray[_T_int_dtype],
+    b: _T_Integral | npt.NDArray[_T_int_dtype],
+    n_cols: Integral,
+) -> _T_Integral | npt.NDArray[_T_int_dtype]:
     """Flatten the index a, b assuming row-mayor/C indexing
 
     The resulting indexation for a 3 by 4 matrix looks like this::
@@ -307,13 +350,27 @@ def ravel_C(a: _T_Integral, b: _T_Integral, n_cols: _T_Integral) -> _T_Integral:
     a :
     b :
     n_cols :
+
+    Works element-wise for scalars and for arrays of indices.
     """
-    assert b < n_cols  # type: ignore[operator]
+    assert np.all(b < n_cols)  # type: ignore[operator]
     return (a * n_cols) + b  # type: ignore[return-value,operator]
 
 
+@overload
+def ravel_Fortran(
+    a: _T_Integral, b: _T_Integral, n_rows: _T_Integral
+) -> _T_Integral: ...
+@overload
+def ravel_Fortran(
+    a: npt.NDArray[_T_int_dtype], b: npt.NDArray[_T_int_dtype], n_rows: Integral
+) -> npt.NDArray[_T_int_dtype]: ...
 @njit(nogil=True)
-def ravel_Fortran(a: _T_Integral, b: _T_Integral, n_rows: _T_Integral) -> _T_Integral:
+def ravel_Fortran(
+    a: _T_Integral | npt.NDArray[_T_int_dtype],
+    b: _T_Integral | npt.NDArray[_T_int_dtype],
+    n_rows: Integral,
+) -> _T_Integral | npt.NDArray[_T_int_dtype]:
     """Flatten the index a, b assuming column-mayor/Fortran indexing
 
     The resulting indexation for a 3 by 4 matrix looks like this::
@@ -328,13 +385,24 @@ def ravel_Fortran(a: _T_Integral, b: _T_Integral, n_rows: _T_Integral) -> _T_Int
     a :
     b :
     n_rows :
+
+    Works element-wise for scalars and for arrays of indices.
     """
-    assert a < n_rows  # type: ignore[operator]
+    assert np.all(a < n_rows)  # type: ignore[operator]
     return a + (b * n_rows)  # type: ignore[return-value,operator]
 
 
+@overload
+def symmetric_different_size(m: _T_Integral, n: _T_Integral) -> _T_Integral: ...
+@overload
+def symmetric_different_size(
+    m: npt.NDArray[_T_int_dtype], n: npt.NDArray[_T_int_dtype]
+) -> npt.NDArray[_T_int_dtype]: ...
 @njit(nogil=True)
-def symmetric_different_size(m: _T_Integral, n: _T_Integral) -> _T_Integral:
+def symmetric_different_size(
+    m: _T_Integral | npt.NDArray[_T_int_dtype],
+    n: _T_Integral | npt.NDArray[_T_int_dtype],
+) -> _T_Integral | npt.NDArray[_T_int_dtype]:
     r"""Return the number of unique elements in a symmetric matrix of different row
     and column length
 
@@ -354,10 +422,11 @@ def symmetric_different_size(m: _T_Integral, n: _T_Integral) -> _T_Integral:
     ----------
     m:
     n:
-    """
 
-    m, n = min(m, n), max(m, n)  # type: ignore[type-var]
-    return gauss_sum(m) + m * (n - m)  # type: ignore[operator,return-value]
+    Works element-wise for scalars and for arrays of indices.
+    """
+    lo, hi = np.minimum(m, n), np.maximum(m, n)
+    return gauss_sum(lo) + lo * (hi - lo)  # type: ignore[operator,return-value]
 
 
 @njit(nogil=True)
