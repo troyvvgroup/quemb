@@ -135,8 +135,9 @@ def test_pair_keys() -> None:
     keys = _get_pair_keys(S_abs, AO_eps, used)
     full = _get_AO_per_AO(S_abs, AO_eps)
 
+    used_AOs = cast(list[AOIdx], used.nonzero()[0].tolist())
     expected = sorted(
-        {int(ravel_symmetric(mu, nu)) for mu in used.nonzero()[0] for nu in full[mu]}
+        {int(ravel_symmetric(mu, nu)) for mu in used_AOs for nu in full[mu]}
     )
     assert 0 < used.sum() < mol.nao
     assert keys.tolist() == expected
