@@ -1,10 +1,11 @@
 import numpy as np
 import torch
-from quemb.molbe.torch_d3 import TorchExternalD3BJ
 from pyscf import gto
 
-mol = gto.M(
-    atom="""
+from quemb.molbe.chemfrag import Fragmented
+from quemb.molbe.torch_d3 import TorchExternalD3BJ, TrainableD3BJParameters
+
+GEOMETRY = """
     C -2.230000 -0.152000 2.591000
     C -0.950000 -0.739000 2.643000
     C 0.131000 0.153000 2.667000
@@ -92,28 +93,15 @@ mol = gto.M(
     H 0.865000 6.749000 -0.375000
     H -3.838000 5.995000 -0.639000
     H -1.596000 7.004000 -0.509000
-         """,
-    basis="sto-3g",
-)
+         """
 
-coordinates = mol.atom_coords()
-atomic_numbers = mol.atom_charges()
+BASIS = "sto-3g"
+FORCE_EMBEDDING_GRADIENT_PATH = "force_embedding_C3A.txt"
+REFERENCE_GRADIENT_PATH = "ref_C3A.txt"
 
-fragmented = Fragmented.from_mole(
-    mol,
-    n_BE=2,
-    h_treatment="treat_H_diff",
-)
 
-atoms_in_frag = fragmented.get_atoms_in_frag()
-
-print(f"atom_numbers are {atomic_numbers}")
-print(f"atoms_in_frag are {atoms_in_frag}")
-
-# Todo
-# extend to multiple geometries??
-# ensure units are compatible
 def load_gradient(path: str, n_atoms: int) -> torch.Tensor:
+    """Load a Cartesian gradient and validate its ``(n_atoms, 3)`` shape."""
     gradient = torch.as_tensor(
         np.loadtxt(path),
         dtype=torch.float64,
@@ -128,28 +116,39 @@ def load_gradient(path: str, n_atoms: int) -> torch.Tensor:
     return gradient
 
 
-force_embedding_gradient = load_gradient(
-    "force_embedding_C3A.txt",
-    n_atoms=len(atomic_numbers),
-)
-reference_gradient = load_gradient(
-    "ref_C3A.txt",
-    n_atoms=len(atomic_numbers),
-)
+def build_system():
+    """Build the PySCF molecule and its BE fragmentation."""
+    mol = gto.M(atom=GEOMETRY, basis=BASIS)
+    coordinates = torch.as_tensor(mol.atom_coords(), dtype=torch.float64)
+    atomic_numbers = mol.atom_charges()
 
-external_d3 = TorchExternalD3BJ(
-    atomic_numbers=atomic_numbers.tolist(),
-    fragments=fragments,
-    inverted_fragments=inverted_fragments,
-    method="hf",
-)
+    fragmented = Fragmented.from_mole(
+        mol,
+        n_BE=2,
+        h_treatment="treat_H_diff",
+    )
+    fragments = fragmented.get_atom_in_frag()
+    inverted_fragments = [
+        [atom for atom in range(mol.natm) if atom not in fragment]
+        for fragment in fragments
+    ]
 
-fit_parameters = TrainableD3BJParameters(external_d3.parameters)
+    return mol, coordinates, atomic_numbers, fragments, inverted_fragments
+
+
+def load_training_gradients(n_atoms: int) -> tuple[torch.Tensor, torch.Tensor]:
+    """Load the force-embedding and reference gradients used for fitting."""
+    return (
+        load_gradient(FORCE_EMBEDDING_GRADIENT_PATH, n_atoms),
+        load_gradient(REFERENCE_GRADIENT_PATH, n_atoms),
+    )
 
 
 def external_d3_gradient(
     coordinates: torch.Tensor,
     *,
+    external_d3: TorchExternalD3BJ,
+    fragments: list[list[int]],
     parameters: TrainableD3BJParameters,
     create_graph: bool,
 ) -> torch.Tensor:
@@ -199,39 +198,143 @@ def external_d3_gradient(
     return correction_gradient
 
 
-def closure() -> torch.Tensor:
-    optimizer.zero_grad()
-
+def evaluate_loss(
+    coordinates: torch.Tensor,
+    force_embedding_gradient: torch.Tensor,
+    reference_gradient: torch.Tensor,
+    external_d3: TorchExternalD3BJ,
+    fragments: list[list[int]],
+    parameters: TrainableD3BJParameters,
+) -> torch.Tensor:
+    """Return the MSE without building a graph or accumulating gradients."""
     d3_correction_gradient = external_d3_gradient(
         coordinates,
-        parameters=fit_parameters,
-        create_graph=True,
+        external_d3=external_d3,
+        fragments=fragments,
+        parameters=parameters,
+        create_graph=False,
+    )
+    residual = force_embedding_gradient + d3_correction_gradient - reference_gradient
+    return torch.mean(residual**2)
+
+
+def optimize_d3_parameters(
+    coordinates: torch.Tensor,
+    force_embedding_gradient: torch.Tensor,
+    reference_gradient: torch.Tensor,
+    external_d3: TorchExternalD3BJ,
+    fragments: list[list[int]],
+    fit_parameters: TrainableD3BJParameters,
+) -> tuple[object, int, float]:
+    """Fit D3(BJ) parameters using L-BFGS and report periodic diagnostics."""
+    optimizer = torch.optim.LBFGS(
+        fit_parameters.parameters(),
+        lr=1.0,
+        max_iter=100,
+        tolerance_grad=1.0e-10,
+        tolerance_change=1.0e-12,
+        line_search_fn="strong_wolfe",
+    )
+    closure_calls = 0
+
+    def closure() -> torch.Tensor:
+        nonlocal closure_calls
+        closure_calls += 1
+        optimizer.zero_grad()
+
+        d3_correction_gradient = external_d3_gradient(
+            coordinates,
+            external_d3=external_d3,
+            fragments=fragments,
+            parameters=fit_parameters,
+            create_graph=True,
+        )
+
+        gradient_residual = (
+            force_embedding_gradient + d3_correction_gradient - reference_gradient
+        )
+
+        loss = torch.mean(gradient_residual**2)
+        loss.backward()
+
+        if closure_calls == 1 or closure_calls % 10 == 0:
+            current = fit_parameters.as_fixed_parameters()
+            print(
+                f"[closure {closure_calls:3d}] "
+                f"MSE = {loss.item():.8e} | "
+                f"RMS residual = {torch.sqrt(loss).item():.8e} | "
+                f"s6={current.s6:.6f}, s8={current.s8:.6f}, "
+                f"a1={current.a1:.6f}, a2={current.a2:.6f}"
+            )
+
+        return loss
+
+    print("Starting L-BFGS optimization...")
+    initial_loss = evaluate_loss(
+        coordinates,
+        force_embedding_gradient,
+        reference_gradient,
+        external_d3,
+        fragments,
+        fit_parameters,
+    )
+    print(f"Initial MSE: {initial_loss.item():.8e}")
+    optimizer.step(closure)
+
+    final_loss = evaluate_loss(
+        coordinates,
+        force_embedding_gradient,
+        reference_gradient,
+        external_d3,
+        fragments,
+        fit_parameters,
+    )
+    return fit_parameters.as_fixed_parameters(), closure_calls, final_loss.item()
+
+
+def main() -> None:
+    print("Building molecular system...")
+    mol, coordinates, atomic_numbers, fragments, inverted_fragments = build_system()
+    print(f"Atoms: {mol.natm}")
+    print(f"Fragments: {len(fragments)}")
+    print(f"Fragment sizes: {[len(fragment) for fragment in fragments]}")
+
+    print("Loading reference gradients...")
+    force_embedding_gradient, reference_gradient = load_training_gradients(mol.natm)
+
+    print("Initializing external D3(BJ) model...")
+    external_d3 = TorchExternalD3BJ(
+        atomic_numbers=atomic_numbers.tolist(),
+        fragments=fragments,
+        inverted_fragments=inverted_fragments,
+        method="hf",
+    )
+    fit_parameters = TrainableD3BJParameters(external_d3.total_d3.parameters)
+    initial_parameters = external_d3.total_d3.parameters
+    print("Initial D3(BJ) parameters:")
+    print(f"  s6 = {initial_parameters.s6:.10f}")
+    print(f"  s8 = {initial_parameters.s8:.10f}")
+    print(f"  a1 = {initial_parameters.a1:.10f}")
+    print(f"  a2 = {initial_parameters.a2:.10f}")
+
+    optimized_parameters, closure_calls, final_loss = optimize_d3_parameters(
+        coordinates,
+        force_embedding_gradient,
+        reference_gradient,
+        external_d3,
+        fragments,
+        fit_parameters,
     )
 
-    gradient_residual = (
-        force_embedding_gradient + d3_correction_gradient - reference_gradient
-    )
+    print("\nOptimization complete.")
+    print(f"Closure evaluations: {closure_calls}")
+    print(f"Final MSE: {final_loss:.12e}")
+    print("Optimized D3(BJ) parameters:")
+    print(f"  s6 = {optimized_parameters.s6:.10f}")
+    print(f"  s8 = {optimized_parameters.s8:.10f}")
+    print(f"  a1 = {optimized_parameters.a1:.10f}")
+    print(f"  a2 = {optimized_parameters.a2:.10f}")
 
-    loss = torch.mean(gradient_residual**2)
-    loss.backward()
 
-    return loss
-
-
-optimizer = torch.optim.LBFGS(
-    fit_parameters.parameters(),
-    lr=1.0,
-    max_iter=100,
-    tolerance_grad=1.0e-10,
-    tolerance_change=1.0e-12,
-    line_search_fn="strong_wolfe",
-)
-
-optimizer.step(closure)
-optimized_parameters = fit_parameters.as_fixed_parameters()
-
-print(f"Final loss: {closure().item():.12e}")
-print(f"s6 = {optimized_parameters.s6:.10f}")
-print(f"s8 = {optimized_parameters.s8:.10f}")
-print(f"a1 = {optimized_parameters.a1:.10f}")
-print(f"a2 = {optimized_parameters.a2:.10f}")
+if __name__ == "__main__":
+    main()
