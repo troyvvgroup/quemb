@@ -5,11 +5,11 @@ import pytest
 from pyscf import scf
 from pyscf.df.addons import make_auxmol
 from pyscf.gto import M
-from scipy.linalg import cholesky
 
 import quemb.molbe._cpp.eri_sparse_DF as cpp
 from quemb.molbe import BE, fragmentate
 from quemb.molbe.eri_sparse_DF import (
+    _cholesky_PQ,
     _compute_P_mu_nu_columns,
     _get_AO_per_AO,
     _get_pair_keys,
@@ -174,7 +174,8 @@ def test_rolling_window() -> None:
     # truncating thresholds, such that the fragments need different pairs
     AO_eps, MO_eps = 1e-3, 1e-1
     S_abs = approx_S_abs(mol)
-    L_PQ = cholesky(auxmol.intor("int2c2e"), lower=True)
+    # Fortran order, as the window requires (scipy >= 1.18 returns copies in C order)
+    L_PQ = _cholesky_PQ(auxmol)
 
     P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, _get_AO_per_AO(S_abs, AO_eps))
     cpp.apply_inv_cholesky_inplace(P_mu_nu, L_PQ)
