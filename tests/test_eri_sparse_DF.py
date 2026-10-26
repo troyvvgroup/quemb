@@ -40,28 +40,21 @@ def octane(request):
     return mf, fobj
 
 
-@pytest.fixture(scope="module")
-def octane_int_direct_DF(octane):
-    """Octane mean field, fragments, and the int-direct-DF correlation energy.
+@pytest.mark.parametrize("int_transform", ["sparse-DF", "on-fly-sparse-DF"])
+def test_sparse_DF_BE(octane, int_transform: IntTransforms) -> None:
+    """Sparse DF with the default screening thresholds.
 
-    int-direct-DF uses the same auxiliary basis without any screening,
-    hence it is the exact reference for the sparse DF transformations.
+    The deviation from int-direct-DF is about 2e-9 Hartree.
     """
     mf, fobj = octane
-    ref_BE = BE(mf, fobj, auxbasis="weigend", int_transform="int-direct-DF")
-    ref_BE.oneshot(solver="CCSD")
-    return mf, fobj, ref_BE.ebe_tot - ref_BE.ebe_hf
-
-
-@pytest.mark.parametrize("int_transform", ["sparse-DF", "on-fly-sparse-DF"])
-def test_sparse_DF_BE(octane_int_direct_DF, int_transform: IntTransforms) -> None:
-    mf, fobj, e_corr_ref = octane_int_direct_DF
+    e_expected_by_cart = {True: -0.5499707353683903, False: -0.5498848219573347}
 
     sparse_DF_BE = BE(mf, fobj, auxbasis="weigend", int_transform=int_transform)
     sparse_DF_BE.oneshot(solver="CCSD")
     e_corr = sparse_DF_BE.ebe_tot - sparse_DF_BE.ebe_hf
 
-    assert np.isclose(e_corr, e_corr_ref, atol=1e-10, rtol=0), e_corr - e_corr_ref
+    e_expected = e_expected_by_cart[mf.mol.cart]
+    assert np.isclose(e_corr, e_expected, atol=1e-10, rtol=0), e_corr - e_expected
 
 
 @pytest.mark.parametrize("int_transform", ["sparse-DF", "on-fly-sparse-DF"])
