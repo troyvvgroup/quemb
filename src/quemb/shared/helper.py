@@ -344,14 +344,13 @@ def ravel_C(
         4   5   6   7
         8   9  10  11
 
+    Works element-wise for scalars and for arrays of indices.
 
     Parameters
     ----------
     a :
     b :
     n_cols :
-
-    Works element-wise for scalars and for arrays of indices.
     """
     assert np.all(b < n_cols)  # type: ignore[operator]
     return (a * n_cols) + b  # type: ignore[return-value,operator]
@@ -379,14 +378,13 @@ def ravel_Fortran(
         1   4   7  10
         2   5   8  11
 
+    Works element-wise for scalars and for arrays of indices.
 
     Parameters
     ----------
     a :
     b :
     n_rows :
-
-    Works element-wise for scalars and for arrays of indices.
     """
     assert np.all(a < n_rows)  # type: ignore[operator]
     return a + (b * n_rows)  # type: ignore[return-value,operator]
@@ -418,12 +416,12 @@ def symmetric_different_size(
 
     where the stars denote non-zero elements.
 
+    Works element-wise for scalars and for arrays of indices.
+
     Parameters
     ----------
     m:
     n:
-
-    Works element-wise for scalars and for arrays of indices.
     """
     lo, hi = np.minimum(m, n), np.maximum(m, n)
     return gauss_sum(lo) + lo * (hi - lo)  # type: ignore[operator,return-value]

@@ -648,7 +648,7 @@ def transform_sparse_DF_integral(
     auxbasis :
         Auxiliary basis used for density fitting. If ``None``, the default
         auxiliary basis of ``mf`` is used.
-    file_eri_handler :
+    file_eri_handler : h5py.File
         Open HDF5 file handle, the :math:`(ij | kl)` of every fragment go into it.
     AO_coeff_epsilon :
         Threshold for discarding negligible AO coefficients.
