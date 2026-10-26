@@ -128,12 +128,20 @@ def build_system():
         h_treatment="treat_H_diff",
     )
     fragments = fragmented.get_atom_in_frag()
+    frag_per_atom = fragmented.get_frag_per_atom()
     inverted_fragments = [
         [atom for atom in range(mol.natm) if atom not in fragment]
         for fragment in fragments
     ]
 
-    return mol, coordinates, atomic_numbers, fragments, inverted_fragments
+    return (
+        mol,
+        coordinates,
+        atomic_numbers,
+        fragments,
+        inverted_fragments,
+        frag_per_atom,
+    )
 
 
 def load_training_gradients(n_atoms: int) -> tuple[torch.Tensor, torch.Tensor]:
@@ -149,10 +157,11 @@ def external_d3_gradient(
     *,
     external_d3: TorchExternalD3BJ,
     fragments: list[list[int]],
+    frag_per_atom: list[int],
     parameters: TrainableD3BJParameters,
     create_graph: bool,
 ) -> torch.Tensor:
-    """Return the external D3 gradient for every atom in the full system."""
+    """Assemble one external-D3 gradient per atom from its owning fragment."""
     _, fragment_gradients = external_d3.energies_and_gradients(
         coordinates,
         parameters=parameters,
@@ -160,39 +169,36 @@ def external_d3_gradient(
     )
 
     correction_gradient = torch.zeros_like(coordinates)
-    atom_assignment_count = torch.zeros(
-        coordinates.shape[0],
-        dtype=torch.int64,
-        device=coordinates.device,
-    )
 
     for fragment_index, (fragment, fragment_gradient) in enumerate(
         zip(fragments, fragment_gradients)
     ):
-        if torch.count_nonzero(fragment_gradient).item() == 0:
-            raise RuntimeError(
-                f"External D3 gradient for fragment {fragment_index} "
-                "is identically zero."
-            )
+        # Atoms geometrically present in this fragment but *owned* by another
+        # fragment are buffer atoms: do not use this fragment's gradient for them.
+        owned_positions = [
+            local_index
+            for local_index, atom_index in enumerate(fragment)
+            if frag_per_atom[atom_index] == fragment_index
+        ]
 
+        if not owned_positions:
+            continue
+
+        local_indices = torch.tensor(
+            owned_positions,
+            dtype=torch.int64,
+            device=coordinates.device,
+        )
         atom_indices = torch.tensor(
-            fragment,
+            [fragment[index] for index in owned_positions],
             dtype=torch.int64,
             device=coordinates.device,
         )
 
-        # Each atom should receive the correction associated with its
-        # unique owning fragment.
         correction_gradient = correction_gradient.index_copy(
             dim=0,
             index=atom_indices,
-            source=fragment_gradient,
-        )
-        atom_assignment_count[atom_indices] += 1
-
-    if not torch.all(atom_assignment_count == 1):
-        raise ValueError(
-            "fragments must assign every system atom to exactly one fragment."
+            source=fragment_gradient[local_indices],
         )
 
     return correction_gradient
@@ -204,6 +210,7 @@ def evaluate_loss(
     reference_gradient: torch.Tensor,
     external_d3: TorchExternalD3BJ,
     fragments: list[list[int]],
+    frag_per_atom: list[int],
     parameters: TrainableD3BJParameters,
 ) -> torch.Tensor:
     """Return the MSE without building a graph or accumulating gradients."""
@@ -211,9 +218,11 @@ def evaluate_loss(
         coordinates,
         external_d3=external_d3,
         fragments=fragments,
+        frag_per_atom=frag_per_atom,
         parameters=parameters,
         create_graph=False,
     )
+
     residual = force_embedding_gradient + d3_correction_gradient - reference_gradient
     return torch.mean(residual**2)
 
@@ -224,6 +233,7 @@ def optimize_d3_parameters(
     reference_gradient: torch.Tensor,
     external_d3: TorchExternalD3BJ,
     fragments: list[list[int]],
+    frag_per_atom: list[int],
     fit_parameters: TrainableD3BJParameters,
 ) -> tuple[object, int, float]:
     """Fit D3(BJ) parameters using L-BFGS and report periodic diagnostics."""
@@ -246,6 +256,7 @@ def optimize_d3_parameters(
             coordinates,
             external_d3=external_d3,
             fragments=fragments,
+            frag_per_atom=frag_per_atom,
             parameters=fit_parameters,
             create_graph=True,
         )
@@ -276,6 +287,7 @@ def optimize_d3_parameters(
         reference_gradient,
         external_d3,
         fragments,
+        frag_per_atom,
         fit_parameters,
     )
     print(f"Initial MSE: {initial_loss.item():.8e}")
@@ -287,6 +299,7 @@ def optimize_d3_parameters(
         reference_gradient,
         external_d3,
         fragments,
+        frag_per_atom,
         fit_parameters,
     )
     return fit_parameters.as_fixed_parameters(), closure_calls, final_loss.item()
@@ -294,7 +307,15 @@ def optimize_d3_parameters(
 
 def main() -> None:
     print("Building molecular system...")
-    mol, coordinates, atomic_numbers, fragments, inverted_fragments = build_system()
+    (
+        mol,
+        coordinates,
+        atomic_numbers,
+        fragments,
+        inverted_fragments,
+        frag_per_atom,
+    ) = build_system()
+
     print(f"Atoms: {mol.natm}")
     print(f"Fragments: {len(fragments)}")
     print(f"Fragment sizes: {[len(fragment) for fragment in fragments]}")
@@ -323,6 +344,7 @@ def main() -> None:
         reference_gradient,
         external_d3,
         fragments,
+        frag_per_atom,
         fit_parameters,
     )
 
