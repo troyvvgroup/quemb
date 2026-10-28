@@ -69,6 +69,7 @@ def be_ref_data(mol, energy_args=None):
         mol=mol,
         n_BE=energy_args.n_BE,
         frag_type=energy_args.frag_type,
+        iao_valence_basis=energy_args.iao_valence_basis,
         frozen_core=energy_args.frozen_core,
         additional_args=energy_args.additional_args,
     )
@@ -105,6 +106,7 @@ def be_frag_ref_data(mol, energy_args=None):
         mol=mol,
         n_BE=energy_args.n_BE,
         frag_type=energy_args.frag_type,
+        iao_valence_basis=energy_args.iao_valence_basis,
         frozen_core=energy_args.frozen_core,
         additional_args=energy_args.additional_args,
     )
@@ -161,6 +163,7 @@ def energy_be(mol, energy_args=None, fd_info=None):
             mol=mol,
             n_BE=energy_args.n_BE,
             frag_type=energy_args.frag_type,
+            iao_valence_basis=energy_args.iao_valence_basis,
             frozen_core=energy_args.frozen_core,
             additional_args=energy_args.additional_args,
         )
