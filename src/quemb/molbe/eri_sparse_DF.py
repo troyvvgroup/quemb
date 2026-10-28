@@ -36,8 +36,10 @@ from typing_extensions import assert_never
 import quemb.molbe._cpp.eri_sparse_DF as cpp_transforms
 from quemb.molbe._cpp.eri_sparse_DF import (
     SemiSparseSym3DTensor,
+    apply_inv_cholesky_inplace,
     set_log_level,
     transform_integral,
+    transform_integral_precontracted,
 )
 from quemb.molbe.chemfrag import (
     _get_AOidx_per_atom,
@@ -214,7 +216,9 @@ def _get_AO_per_MO(
     epsilon: float,
 ) -> dict[MOIdx, Sequence[AOIdx]]:
     n_MO = TA.shape[-1]
-    X = np.abs(S_abs @ TA)
+    # Upper bound S_abs @ |TA|; |S_abs @ TA| would allow cancellation of
+    # coefficients with opposite sign.
+    X = S_abs @ np.abs(TA)
     return {
         i_MO: cast(Sequence[AOIdx], (X[:, i_MO] >= epsilon).nonzero()[0])
         for i_MO in cast(Sequence[MOIdx], range(n_MO))
@@ -552,6 +556,15 @@ def _run_sparse_df_driver(
         ],
         Matrix[np.float64],
     ],
+    transform_precontracted_impl: Callable[
+        [
+            SemiSparseSym3DTensor,
+            Matrix[np.floating],
+            Matrix[np.floating],
+            float,
+        ],
+        Matrix[np.float64],
+    ],
     precompute_P_mu_nu: bool,
 ) -> None:
     r"""Run the semi-sparse DF ERI transformation.
@@ -594,9 +607,16 @@ def _run_sparse_df_driver(
 
         and returns the transformed three-centre MO integrals
         :math:`(P \mid ij)`.
+    transform_precontracted_impl :
+        Same as :python:`transform_integral_impl`, but takes
+        :math:`L^{-1}_{PQ} (Q \mid \mu\nu)` instead of :math:`(P \mid \mu\nu)`
+        and no :math:`L_{PQ}`.
+        Used if :python:`precompute_P_mu_nu` is true.
     precompute_P_mu_nu :
         Whether to precompute :math:`(P | \mu \nu)`, or compute them on the fly
         for every fragment (reduces peak memory usage).
+        If precomputed, :math:`L^{-1}_{PQ}` is applied once to all
+        :math:`(Q | \mu \nu)` instead of once per fragment.
 
     Returns
     -------
@@ -610,26 +630,30 @@ def _run_sparse_df_driver(
     S_abs: Final[Matrix[np.floating]] = approx_S_abs(mol)
 
     PQ: Final = auxmol.intor("int2c2e")
-    lowtri: Final[LPQ] = build_lowtri_PQ(cholesky(PQ, lower=True))
 
     if precompute_P_mu_nu:
         exch_reachable: Final = _get_AO_per_AO(S_abs, AO_coeff_epsilon, None)
         P_mu_nu: Final[SemiSparseSym3DTensor] = get_sparse_P_mu_nu(
             mol, auxmol, exch_reachable
         )
+        # The triangular solve is linear in mu nu, so it commutes with the
+        # contraction with TA. Do it once here, instead of for every fragment.
+        # This is always done on the CPU, which is faster than consumer GPUs
+        # with their low FP64 throughput and avoids storing L_PQ on the GPU.
+        apply_inv_cholesky_inplace(P_mu_nu, cholesky(PQ, lower=True))
 
         def worker(fragobj: Frags) -> None:
             "One computation of P_mu_nu for every fragment"
-            transformed = transform_integral_impl(
+            transformed = transform_precontracted_impl(
                 P_mu_nu,
                 fragobj.TA,
                 S_abs,
-                lowtri,
                 MO_coeff_epsilon,
             )
             eri = restore("4", transformed, fragobj.TA.shape[1])
             file_eri_handler.create_dataset(fragobj.dname, data=eri)
     else:
+        lowtri: Final[LPQ] = build_lowtri_PQ(cholesky(PQ, lower=True))
 
         def worker(fragobj: Frags) -> None:
             "On the fly computation of P_mu_nu for every fragment"
@@ -676,6 +700,7 @@ def transform_sparse_DF_integral_cpu(
         n_threads=n_threads,
         build_lowtri_PQ=lambda x: x,
         transform_integral_impl=transform_integral,
+        transform_precontracted_impl=transform_integral_precontracted,
         precompute_P_mu_nu=precompute_P_mu_nu,
     )
 
@@ -700,6 +725,7 @@ def transform_sparse_DF_integral_gpu(
         n_threads=n_threads,
         build_lowtri_PQ=cpp_transforms.GPU_MatrixHandle,
         transform_integral_impl=cpp_transforms.transform_integral_cuda,
+        transform_precontracted_impl=cpp_transforms.transform_integral_precontracted_cuda,
         precompute_P_mu_nu=precompute_P_mu_nu,
     )
 
