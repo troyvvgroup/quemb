@@ -3,7 +3,7 @@
 import logging
 import pickle
 from dataclasses import dataclass
-from typing import Final, Literal, TypeAlias
+from typing import Literal, TypeAlias
 from warnings import warn
 
 import h5py
@@ -31,9 +31,7 @@ from typing_extensions import assert_never
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.chemfrag import ChemGenArgs
 from quemb.molbe.eri_int_direct_DF import integral_direct_DF
-from quemb.molbe.eri_sparse_DF import (
-    transform_sparse_DF_integral_cpu,
-)
+from quemb.molbe.eri_sparse_DF import transform_sparse_DF_integral
 from quemb.molbe.fragment import FragPart
 from quemb.molbe.lo import (
     IAO_LocMethods,
@@ -65,9 +63,7 @@ IntTransforms: TypeAlias = Literal[
     "out-core-DF",
     "int-direct-DF",
     "sparse-DF",
-    "sparse-DF-gpu",
     "on-fly-sparse-DF",
-    "on-fly-sparse-DF-gpu",
 ]
 r"""Literal type describing allowed transformation strategies.
 
@@ -81,11 +77,9 @@ r"""Literal type describing allowed transformation strategies.
   The required DF integrals :math:`(\mu, \nu | P)` are computed and fitted
   on-demand for each fragment.
 
-- :python:`"sparse-DF"`, :python:`"sparse-DF-gpu"`,
-  :python:`"on-fly-sparse-DF"`, and :python:`"on-fly-sparse-DF-gpu"`:
+- :python:`"sparse-DF"` and :python:`"on-fly-sparse-DF"`:
   Use a sparse, DF representation of integrals.
-  The :python:`"-gpu"` versions use GPU and require CUDABlas.
-  The :python:`"on-fly-"` versions use less memory but perform more
+  The :python:`"on-fly-"` version uses less memory but performs more
   on-the-fly computations.
 """
 
@@ -238,11 +232,9 @@ class BE:
             - :python:`"int-direct-DF"`: Use a dense, DF representation of integrals,
               the required DF integrals :math:`(\mu, \nu | P)` are computed and fitted
               on-demand for each fragment.
-            - :python:`"sparse-DF"`, :python:`"sparse-DF-gpu"`,
-              :python:`"on-fly-sparse-DF"`, and :python:`"on-fly-sparse-DF-gpu"`.
-              Use a sparse, DF representation of integrals.
-              The :python:`"-gpu"` versions use GPU and require CUDABlas,
-              the :python:`"on-fly-"` versions use less memory, but do more
+            - :python:`"sparse-DF"` and :python:`"on-fly-sparse-DF"`.
+              Use a sparse, DF representation of integrals,
+              the :python:`"on-fly-"` version uses less memory, but does more
               on the fly computations.
 
         auxbasis :
@@ -300,10 +292,6 @@ class BE:
 
         self.MO_coeff_epsilon = MO_coeff_epsilon
         self.AO_coeff_epsilon = AO_coeff_epsilon
-
-        # We hardcode it here, because in practice it is far better
-        # to use the parallelization in each fragment.
-        self.n_threads_integral_transform: Final = 1
 
         self.unrestricted = False
         self.nproc = nproc
@@ -1020,10 +1008,9 @@ class BE:
         2. Else, if (ij|P) intermediates from density fitting are available:
            - Use out-of-core ``ao2mo`` transformation with saved (ij|P).
         3. Else, if ``integral_direct_DF`` is requested:
-           - Use on-the-fly density-fitting integral evaluation.
+           - Use integral-direct density-fitting integral evaluation.
         4. Else, for a sparse, DF representation of integrals:
-           - Use ``sparse-DF`` for ``C++`` implementation.
-           - Use ``sparse-DF-gpu`` for ``C++`` + ``CUDDA`` implementation.
+           - Use ``sparse-DF`` or ``on-fly-sparse-DF`` (``C++`` implementation).
 
 
         Parameters
@@ -1054,61 +1041,16 @@ class BE:
                 file_eri,
                 auxbasis=self.auxbasis,
             )
-        elif int_transform == "sparse-DF":
+        elif int_transform == "sparse-DF" or int_transform == "on-fly-sparse-DF":
             ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-            transform_sparse_DF_integral_cpu(
+            transform_sparse_DF_integral(
                 self.mf,
                 self.Fobjs,
                 auxbasis=self.auxbasis,
                 file_eri_handler=file_eri,
                 MO_coeff_epsilon=self.MO_coeff_epsilon,
                 AO_coeff_epsilon=self.AO_coeff_epsilon,
-                n_threads=self.n_threads_integral_transform,
-                precompute_P_mu_nu=True,
-            )
-        elif int_transform == "on-fly-sparse-DF":
-            ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-            transform_sparse_DF_integral_cpu(
-                self.mf,
-                self.Fobjs,
-                auxbasis=self.auxbasis,
-                file_eri_handler=file_eri,
-                MO_coeff_epsilon=self.MO_coeff_epsilon,
-                AO_coeff_epsilon=self.AO_coeff_epsilon,
-                n_threads=self.n_threads_integral_transform,
-                precompute_P_mu_nu=False,
-            )
-        elif int_transform == "sparse-DF-gpu":
-            from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
-                transform_sparse_DF_integral_gpu,
-            )
-
-            ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-            transform_sparse_DF_integral_gpu(
-                self.mf,
-                self.Fobjs,
-                auxbasis=self.auxbasis,
-                file_eri_handler=file_eri,
-                MO_coeff_epsilon=self.MO_coeff_epsilon,
-                AO_coeff_epsilon=self.AO_coeff_epsilon,
-                n_threads=self.n_threads_integral_transform,
-                precompute_P_mu_nu=True,
-            )
-        elif int_transform == "on-fly-sparse-DF-gpu":
-            from quemb.molbe.eri_sparse_DF import (  # noqa: PLC0415
-                transform_sparse_DF_integral_gpu,
-            )
-
-            ensure(bool(self.auxbasis), "`auxbasis` has to be defined.")
-            transform_sparse_DF_integral_gpu(
-                self.mf,
-                self.Fobjs,
-                auxbasis=self.auxbasis,
-                file_eri_handler=file_eri,
-                MO_coeff_epsilon=self.MO_coeff_epsilon,
-                AO_coeff_epsilon=self.AO_coeff_epsilon,
-                n_threads=self.n_threads_integral_transform,
-                precompute_P_mu_nu=False,
+                precompute_P_mu_nu=(int_transform == "sparse-DF"),
             )
         else:
             assert_never(int_transform)

@@ -7,4 +7,3 @@ pandas-stubs
 types-PyYAML
 types-networkx
 pytest
-cupy-cuda12x

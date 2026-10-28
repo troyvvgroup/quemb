@@ -1,8 +1,7 @@
 """
 Perform the sparse DF ERI transformation using semi-sparse tensors.
 
-This module provides functionality to transform ERIs using semi-sparse tensors
-and optionally CUDA for GPU acceleration.
+This module provides functionality to transform ERIs using semi-sparse tensors.
 """
 
 from __future__ import annotations
@@ -12,9 +11,9 @@ import typing
 import numpy
 
 __all__ = [
-    "GPU_MatrixHandle",
     "SemiSparse3DTensor",
     "SemiSparseSym3DTensor",
+    "SemiSparseSym3DWindow",
     "apply_inv_cholesky_inplace",
     "contract_with_TA_1st",
     "contract_with_TA_2nd_to_sym_dense",
@@ -23,20 +22,8 @@ __all__ = [
     "get_AO_reachable_by_MO_with_offset",
     "get_log_level",
     "set_log_level",
-    "transform_integral",
-    "transform_integral_cuda",
     "transform_integral_precontracted",
-    "transform_integral_precontracted_cuda",
 ]
-
-class GPU_MatrixHandle:
-    def __init__(self, L_host: numpy.ndarray) -> None:
-        """
-        Create a GPU_MatrixHandle from a host matrix.
-
-        This allocates memory on the GPU and copies the data from the host to the GPU.
-        """
-    def __repr__(self) -> str: ...
 
 class SemiSparse3DTensor:
     def __getitem__(self, arg0: tuple[int, int]) -> numpy.ndarray: ...
@@ -128,6 +115,34 @@ class SemiSparseSym3DTensor:
     @property
     def unique_dense_data(self) -> numpy.ndarray: ...
 
+class SemiSparseSym3DWindow:
+    """
+    Rolling window of L⁻¹ (P | mu nu) columns for the on-the-fly sparse DF
+    """
+    def __init__(
+        self, shape: tuple[int, int, int], capacity: int, L_PQ: numpy.ndarray
+    ) -> None: ...
+    def evict(self, keys: numpy.ndarray) -> None:
+        """
+        Free the columns of the given pairs.
+        """
+    def insert(self, keys: numpy.ndarray, raw: numpy.ndarray) -> None:
+        """
+        Store L⁻¹ (P | mu nu) for the pairs keys = ravel_symmetric(mu, nu),
+        where raw (naux, len(keys)) holds their (P | mu nu) in Fortran order.
+        raw is overwritten with L⁻¹ raw.
+        """
+    def set_active(self, keys: numpy.ndarray) -> None:
+        """
+        Set the sorted pairs that are visible to the transformation.
+        """
+    @property
+    def capacity(self) -> int: ...
+    @property
+    def n_stored(self) -> int: ...
+    @property
+    def shape(self) -> tuple[int, int, int]: ...
+
 def apply_inv_cholesky_inplace(
     int_P_mu_nu: SemiSparseSym3DTensor, L_PQ: numpy.ndarray
 ) -> None:
@@ -182,50 +197,14 @@ def get_AO_reachable_by_MO_with_offset(
 
 def get_log_level() -> int: ...
 def set_log_level(log_level: int) -> None: ...
-def transform_integral(
-    int_P_mu_nu: SemiSparseSym3DTensor,
-    TA: numpy.ndarray,
-    S_abs: numpy.ndarray,
-    L_PQ: numpy.ndarray,
-    MO_coeff_epsilon: float,
-) -> numpy.ndarray:
-    """
-    Transform the integral using TA, int_P_mu_nu, AO_by_MO, and L_PQ,
-    returning the transformed matrix
-    """
-
-def transform_integral_cuda(
-    int_P_mu_nu: SemiSparseSym3DTensor,
-    TA: numpy.ndarray,
-    S_abs: numpy.ndarray,
-    L_PQ: GPU_MatrixHandle,
-    MO_coeff_epsilon: float,
-) -> numpy.ndarray:
-    """
-    Transform the integral using TA, int_P_mu_nu, AO_by_MO, and L_PQ,
-    returning the transformed matrix.
-    This uses CUDA for performance.
-    """
-
 def transform_integral_precontracted(
-    int_P_mu_nu: SemiSparseSym3DTensor,
+    int_P_mu_nu: SemiSparseSym3DTensor | SemiSparseSym3DWindow,
     TA: numpy.ndarray,
     S_abs: numpy.ndarray,
     MO_coeff_epsilon: float,
 ) -> numpy.ndarray:
     """
     Transform the integral using TA and int_P_mu_nu = L⁻¹ (P | mu nu),
-    i.e. after apply_inv_cholesky_inplace, returning the transformed matrix
-    """
-
-def transform_integral_precontracted_cuda(
-    int_P_mu_nu: SemiSparseSym3DTensor,
-    TA: numpy.ndarray,
-    S_abs: numpy.ndarray,
-    MO_coeff_epsilon: float,
-) -> numpy.ndarray:
-    """
-    Transform the integral using TA and int_P_mu_nu = L⁻¹ (P | mu nu),
-    i.e. after apply_inv_cholesky_inplace, returning the transformed matrix.
-    This uses CUDA for performance.
+    i.e. after apply_inv_cholesky_inplace or the active pairs of a window,
+    returning the transformed matrix
     """
