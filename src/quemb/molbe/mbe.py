@@ -30,7 +30,7 @@ from typing_extensions import assert_never
 
 from quemb.molbe.be_parallel import be_func_parallel
 from quemb.molbe.chemfrag import ChemGenArgs
-from quemb.molbe.eri_onthefly import integral_direct_DF
+from quemb.molbe.eri_int_direct_DF import integral_direct_DF
 from quemb.molbe.eri_sparse_DF import (
     transform_sparse_DF_integral_cpu,
 )
