@@ -53,7 +53,7 @@ def run_solver(
     veff: Matrix[float64] | None = None,
     veff0: Matrix[float64] | None = None,
     eeval: bool = True,
-    ret_vec: bool = False,
+    return_vec: bool = False,
     use_cumulant: bool = True,
     relax_density: bool = False,
     solver_args: UserSolverArgs | None = None,
@@ -101,8 +101,8 @@ def run_solver(
         If True, use the cumulant approximation for RDM2. Default is True.
     eeval :
         If True, evaluate the electronic energy. Default is True.
-    ret_vec :
-        If True, return vector with error and rdms. Default is True.
+    return_vec :
+        If True, return vector with error and rdms. Default is False.
     relax_density :
         If True, use CCSD relaxed density. Default is False
 
@@ -119,38 +119,39 @@ def run_solver(
     # Initialize SCF object
     mf_ = get_scfObj(h1, eri, nocc, dm0=dm0)
 
+    rdm2s = None  # must be initialized to ensure later check is safe
+
     # Select solver
+    # For each solver, rdm2s are computed only if needed
     if solver == "MP2":
         mc_mp2 = solve_mp2(mf_, mo_energy=mf_.mo_energy)
         rdm1_tmp = mc_mp2.make_rdm1()
+
         if eeval:
             rdm2s = mc_mp2.make_rdm2()
 
     elif solver == "CCSD":
+        _t1, _t2, rdm1_tmp, rdm2s_maybe = solve_ccsd(
+            mf_,
+            mo_energy=mf_.mo_energy,
+            relax=relax_density,
+            use_cumulant=use_cumulant,
+            rdm_return=True,
+            rdm2_return=eeval,
+        )
+
         if eeval:
-            t1, t2, rdm1_tmp, rdm2s = solve_ccsd(
-                mf_,
-                mo_energy=mf_.mo_energy,
-                relax=relax_density,
-                use_cumulant=use_cumulant,
-                rdm_return=True,
-                rdm2_return=True,
-            )
-        else:
-            t1, t2, rdm1_tmp, _ = solve_ccsd(
-                mf_,
-                mo_energy=mf_.mo_energy,
-                relax=relax_density,
-                use_cumulant=use_cumulant,
-                rdm_return=True,
-                rdm2_return=False,
-            )
+            rdm2s = rdm2s_maybe
 
     elif solver == "FCI":
         mc_fci = fci.FCI(mf_, mf_.mo_coeff)
         efci, civec = mc_fci.kernel()
         unused(efci)
+
         rdm1_tmp = mc_fci.make_rdm1(civec, mc_fci.norb, mc_fci.nelec)
+
+        if eeval:
+            rdm2s = mc_fci.make_rdm2(civec, mc_fci.norb, mc_fci.nelec)
 
     elif solver == "HCI":  # TODO
         # pylint: disable-next=E0611
@@ -253,8 +254,14 @@ def run_solver(
         ci.config["get_1rdm_csv"] = SHCI_args.return_frag_data
         ci.config["get_2rdm_csv"] = SHCI_args.return_frag_data
         ci.kernel(h1, eri, nmo, nelec)
-        # We always return 1 and 2rdms, for now
-        rdm1_tmp, rdm2s = ci.make_rdm12(0, nmo, nelec)
+        # SCI solver choice always return 1 and 2rdms, for now
+        # To match the pattern of the other solver choices,
+        # and in case rdm2s is not returned in the future,
+        # we follow the same format for returning rdm2s
+        rdm1_tmp, rdm2s_maybe = ci.make_rdm12(0, nmo, nelec)
+
+        if eeval:
+            rdm2s = rdm2s_maybe
 
     else:
         raise ValueError("Solver not implemented")
@@ -262,49 +269,54 @@ def run_solver(
     # Compute RDM1
     rdm1 = multi_dot((mf_.mo_coeff, rdm1_tmp, mf_.mo_coeff.T)) * 0.5
 
-    if eeval:
-        if solver == "FCI" or solver == "SCI":
-            if solver == "FCI":
-                rdm2s = mc_fci.make_rdm2(civec, mc_fci.norb, mc_fci.nelec)
-            if use_cumulant:
-                hf_dm = zeros_like(rdm1_tmp)
-                hf_dm[diag_indices(nocc)] += 2.0
-                del_rdm1 = rdm1_tmp.copy()
-                del_rdm1[diag_indices(nocc)] -= 2.0
-                nc = (
-                    einsum("ij,kl->ijkl", hf_dm, hf_dm)
-                    + einsum("ij,kl->ijkl", hf_dm, del_rdm1)
-                    + einsum("ij,kl->ijkl", del_rdm1, hf_dm)
-                )
-                nc -= (
-                    einsum("ij,kl->iklj", hf_dm, hf_dm)
-                    + einsum("ij,kl->iklj", hf_dm, del_rdm1)
-                    + einsum("ij,kl->iklj", del_rdm1, hf_dm)
-                ) * 0.5
-                rdm2s -= nc
-        e_f = get_frag_energy(
-            mf_.mo_coeff,
-            nocc,
-            n_frag,
-            weight_and_relAO_per_center,
-            TA,
-            h1_e,
-            rdm1_tmp,
-            rdm2s,
-            dname,
-            veff0,
-            veff,
-            use_cumulant,
-            eri_file,
+    # If we are not evaluating the electronic energy,
+    # return before e_f or rdm2s are needed
+    if not eeval:
+        return (None, mf_.mo_coeff, rdm1, None, rdm1_tmp)
+
+    # From this point onward, rdm2s is required
+    if rdm2s is None:
+        raise RuntimeError(
+            f"{solver} did not produce rdm2s, but eeval=True requires it."
         )
 
-    if eeval:
-        if ret_vec:
-            return (e_f, mf_.mo_coeff, rdm1, rdm2s, rdm1_tmp)
-        else:
-            return e_f
-    else:
-        return (None, mf_.mo_coeff, rdm1, None, rdm1_tmp)
+    if solver in {"FCI", "SCI"} and use_cumulant:
+        hf_dm = zeros_like(rdm1_tmp)
+        hf_dm[diag_indices(nocc)] += 2.0
+        del_rdm1 = rdm1_tmp.copy()
+        del_rdm1[diag_indices(nocc)] -= 2.0
+        nc = (
+            einsum("ij,kl->ijkl", hf_dm, hf_dm)
+            + einsum("ij,kl->ijkl", hf_dm, del_rdm1)
+            + einsum("ij,kl->ijkl", del_rdm1, hf_dm)
+        )
+        nc -= (
+            einsum("ij,kl->iklj", hf_dm, hf_dm)
+            + einsum("ij,kl->iklj", hf_dm, del_rdm1)
+            + einsum("ij,kl->iklj", del_rdm1, hf_dm)
+        ) * 0.5
+        rdm2s -= nc
+
+    e_f = get_frag_energy(
+        mf_.mo_coeff,
+        nocc,
+        n_frag,
+        weight_and_relAO_per_center,
+        TA,
+        h1_e,
+        rdm1_tmp,
+        rdm2s,
+        dname,
+        veff0,
+        veff,
+        use_cumulant,
+        eri_file,
+    )
+
+    if return_vec:
+        return (e_f, mf_.mo_coeff, rdm1, rdm2s, rdm1_tmp)
+
+    return e_f
 
 
 def run_solver_u(
@@ -516,39 +528,49 @@ def be_func_parallel(
 
         rdms = [result.get() for result in results]
 
-    if not return_vec:
-        # Compute and return fragment energy
-        # rdms are the returned energies, not density matrices!
+    if eeval:
+        if not return_vec:
+            # Compute and return fragment energy
+            # rdms are the returned energies, not density matrices!
+            e_1 = 0.0
+            e_2 = 0.0
+            e_c = 0.0
+            for i in range(len(rdms)):
+                e_1 += rdms[i][0]
+                e_2 += rdms[i][1]
+                e_c += rdms[i][2]
+            # matches be_func(eeval=True, return_vec=False) return
+            return (e_1 + e_2 + e_c, [e_1, e_2, e_c])
+
+        # Compute total energy
         e_1 = 0.0
         e_2 = 0.0
         e_c = 0.0
-        for i in range(len(rdms)):
-            e_1 += rdms[i][0]
-            e_2 += rdms[i][1]
-            e_c += rdms[i][2]
-        return (e_1 + e_2 + e_c, (e_1, e_2, e_c))
 
-    # Compute total energy
-    e_1 = 0.0
-    e_2 = 0.0
-    e_c = 0.0
+        # I have to type ignore here, because of stupid behaviour of
+        # :code:`zip` and :code:`enumerate`
+        # https://stackoverflow.com/questions/74374059/correctly-specify-the-types-of-unpacked-zip
+        for fobj, rdm in zip(Fobjs, rdms):  # type: ignore[assignment]
+            e_1 += rdm[0][0]
+            e_2 += rdm[0][1]
+            e_c += rdm[0][2]
+            fobj.mo_coeffs = rdm[1]
+            fobj._rdm1 = rdm[2]
+            fobj.rdm2__ = rdm[3]
 
-    # I have to type ignore here, because of stupid behaviour of
-    # :code:`zip` and :code:`enumerate`
-    # https://stackoverflow.com/questions/74374059/correctly-specify-the-types-of-unpacked-zip
+        del rdms
+        ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem)
+
+        return (ernorm, ervec, [e_1 + e_2 + e_c, [e_1, e_2, e_c]])
+
     for fobj, rdm in zip(Fobjs, rdms):  # type: ignore[assignment]
-        e_1 += rdm[0][0]
-        e_2 += rdm[0][1]
-        e_c += rdm[0][2]
-        fobj.mo_coeffs = rdm[1]
         fobj._rdm1 = rdm[2]
-        fobj.rdm2__ = rdm[3]
 
     del rdms
     ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem)
 
     if return_vec:
-        return (ernorm, ervec, [e_1 + e_2 + e_c, [e_1, e_2, e_c]])
+        return (ernorm, ervec)
 
     return ernorm
 
