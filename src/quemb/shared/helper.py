@@ -243,7 +243,7 @@ def jitclass(
     For a more detailed explanation of numba jitclasses,
     see https://numba.readthedocs.io/en/stable/user/jitclass.html
     """
-    return nb.experimental.jitclass(cls_or_spec, spec)
+    return nb.experimental.jitclass(cls_or_spec, spec)  # type: ignore[arg-type, return-value]
 
 
 @njit(nogil=True)
