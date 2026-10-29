@@ -883,11 +883,11 @@
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>mol</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><em>object</em></a>) – Reference molecule.</p></li>
+<li><p><strong>mol</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#object" title="(in Python v3.15)"><em>object</em></a>) – Reference molecule.</p></li>
 <li><p><strong>energy_func</strong> – Callable function with signature <code class="docutils literal notranslate"><span class="pre">energy_func(mol)</span> <span class="pre">-&gt;</span> <span class="pre">float</span></code> returning
 the total energy in Hartree. Should optionally accept <code class="docutils literal notranslate"><span class="pre">fd_info</span></code> and
 <code class="docutils literal notranslate"><span class="pre">energy_args</span></code> for additional keyword arguments.</p></li>
-<li><p><strong>displacement</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>optional</em>) – Finite difference displacement in Bohr, default is 1e-4.</p></li>
+<li><p><strong>displacement</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><em>float</em></a><em>, </em><em>optional</em>) – Finite difference displacement in Bohr, default is 1e-4.</p></li>
 <li><p><strong>energy_args</strong> (<em>optional</em>) – Additional keyword arguments passed to <code class="docutils literal notranslate"><span class="pre">energy_func</span></code>.</p></li>
 <li><p><strong>ref_data_func</strong> (<em>optional</em>) – Callable function with signature <code class="docutils literal notranslate"><span class="pre">ref_data_func(mol)</span> <span class="pre">-&gt;</span> <span class="pre">dict</span></code> returning
 a dictionary containing the necessary reference geometry info for
