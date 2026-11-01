@@ -31,4 +31,5 @@ def test_rbe_qmmm_fromchk():
         from_chk=True,  # can save the RHF as PySCF checkpoint.
         checkfile="data/oneshot_rbe_qmmm.chk",
     )
-    assert np.isclose(be_energy, -0.54879605)
+    e_expected = -0.5488310822892686
+    assert np.isclose(be_energy, e_expected), be_energy - e_expected

@@ -44,7 +44,7 @@ class UBE(BE):  # 🍠
         lo_method: LocMethods = "lowdin",
         pop_method: str | None = None,
         compute_hf: bool = True,
-        thr_bath: float = 1.0e-10,
+        thr_bath: float = 1e-8,
     ) -> None:
         """Initialize Unrestricted BE Object (ube🍠)
 
@@ -73,7 +73,7 @@ class UBE(BE):  # 🍠
             Method for calculating orbital population, by default 'meta-lowdin'
             See pyscf.lo for more details and options
         thr_bath : float,
-            Threshold for bath orbitals in Schmidt decomposition
+            Threshold for bath orbitals in Schmidt decomposition, by default 1e-8.
         """
         self.unrestricted = True
         self.thr_bath = thr_bath
