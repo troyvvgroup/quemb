@@ -179,7 +179,7 @@ class BE:
         restart_file: PathLike = "storebe.pk",
         nproc: int = 1,
         ompnum: int = 4,
-        thr_bath: float = 1.0e-10,
+        thr_bath: float = 1e-8,
         scratch_dir: WorkDir | None = None,
         int_transform: IntTransforms = "in-core",
         auxbasis: str | None = None,
@@ -219,7 +219,7 @@ class BE:
         ompnum :
             Number of OpenMP threads, by default 4.
         thr_bath : float,
-            Threshold for bath orbitals in Schmidt decomposition
+            Threshold for bath orbitals in Schmidt decomposition, by default 1e-8.
         scratch_dir :
             Scratch directory.
         int_transform :

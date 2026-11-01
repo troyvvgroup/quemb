@@ -48,7 +48,7 @@ def test_sparse_DF_BE(octane, int_transform: IntTransforms) -> None:
     The deviation from int-direct-DF is about 2e-9 Hartree.
     """
     mf, fobj = octane
-    e_expected_by_cart = {True: -0.5499707353683903, False: -0.5498848219573347}
+    e_expected_by_cart = {True: -0.5499750378891122, False: -0.5498891246613766}
 
     sparse_DF_BE = BE(mf, fobj, auxbasis="weigend", int_transform=int_transform)
     sparse_DF_BE.oneshot(solver="CCSD")
@@ -68,7 +68,7 @@ def test_screened_sparse_DF_BE(octane, int_transform: IntTransforms) -> None:
     MO_coeff_epsilon >= AO_coeff_epsilon both keep the same AO pairs and AOs per MO.
     """
     mf, fobj = octane
-    e_expected_by_cart = {True: -0.5499700118942314, False: -0.549884101392422}
+    e_expected_by_cart = {True: -0.5499743149176766, False: -0.5498884043902308}
 
     sparse_DF_BE = BE(
         mf,
