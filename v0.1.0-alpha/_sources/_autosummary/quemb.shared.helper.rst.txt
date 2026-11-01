@@ -25,7 +25,6 @@ quemb.shared.helper
       gauss_sum
       get_calling_function_name
       get_flexible_n_eri
-      jitclass
       n_eri
       n_symmetric
       ncore_
