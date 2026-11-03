@@ -29,7 +29,7 @@ from pyscf.gto import Mole
 from pyscf.gto.moleintor import getints, make_cintopt, make_loc
 from pyscf.pbc import dft as pbc_dft
 from pyscf.pbc.gto import Cell
-from scipy.linalg import cholesky
+from scipy.linalg import cholesky, eigh
 from scipy.special import roots_hermite
 from typing_extensions import assert_never
 
@@ -216,23 +216,19 @@ def _get_pair_keys(
 def _order_by_overlap(used: Matrix[np.bool_]) -> list[int]:
     """Order the fragments, such that consecutive fragments overlap strongly.
 
-    Greedy nearest neighbour on the number of shared used AOs
-    (one row of :python:`used` per fragment, cf. :func:`_get_used_AOs`),
-    starting from the fragment with the smallest total overlap with all others,
-    e.g. an end of a chain.
+    Spectral ordering of the graph whose edges are weighted by the number of
+    shared used AOs (one row of :python:`used` per fragment, cf. :func:`_get_used_AOs`):
+    the fragments are sorted by the Fiedler vector.
     """
     n_frag = len(used)
-    U = used.astype(np.float32)
+    if n_frag < 3:
+        return list(range(n_frag))
+    U = used.astype(np.float64)
     overlap = U @ U.T
     np.fill_diagonal(overlap, 0.0)
-    order = [int(overlap.sum(axis=1).argmin())]
-    visited = np.zeros(n_frag, dtype=bool)
-    visited[order[0]] = True
-    for _ in range(n_frag - 1):
-        candidates = np.where(visited, -np.inf, overlap[order[-1]])
-        order.append(int(candidates.argmax()))
-        visited[order[-1]] = True
-    return order
+    laplacian = np.diag(overlap.sum(axis=1)) - overlap
+    _, fiedler = eigh(laplacian, subset_by_index=[1, 1])
+    return np.argsort(fiedler[:, 0], kind="stable").tolist()
 
 
 def conversions_AO_shell(
@@ -573,6 +569,62 @@ def _cholesky_PQ(auxmol: Mole) -> Matrix[np.float64]:
     return L_PQ
 
 
+def _next_use(keys: Sequence[Vector[np.int64]]) -> list[Vector[np.int32]]:
+    """For every pair in :python:`keys[k]`, the position of the next fragment
+    that needs it again, or :python:`len(keys)` if none does.
+    The mapping of pairs to keys is done in :func:`_get_pair_keys`."""
+    all_keys = np.unique(np.concatenate(keys))
+    next_seen = np.full(len(all_keys), len(keys), dtype=np.int32)
+    next_use: list[Vector[np.int32]] = []
+    for k in reversed(range(len(keys))):
+        idx = np.searchsorted(all_keys, keys[k])
+        next_use.append(cast(Vector[np.int32], next_seen[idx]))
+        next_seen[idx] = k
+    return next_use[::-1]
+
+
+def _plan_window(
+    keys: Sequence[Vector[np.int64]], capacity: int
+) -> Iterator[tuple[Vector[np.int64], Vector[np.int64]]]:
+    """The pairs to evict from and to insert into the window of
+    :func:`_run_rolling_window`, for fragments that need the pairs
+    :python:`keys`, in this order.
+
+    Pairs are only evicted if the window of :python:`capacity` pairs would overflow,
+    and then the ones that are needed again the latest
+    (Belady's optimal policy, since the order of the fragments is known in advance).
+    Hence, every pair is computed once, if all of them fit into the window.
+    """
+    assert capacity >= max(map(len, keys))
+    stored = np.empty(0, dtype=np.int64)
+    stored_next = np.empty(0, dtype=np.int32)
+    # needed pairs, are the ones used in this fragment.
+    # needed_next give for the just used pairs the fragments where they are needed next
+    # note that "next" is the next in the order of :func:`_order_by_overlap`,
+    # not the input order of Fobjs
+    for needed, needed_next in zip(keys, _next_use(keys)):
+        new = np.setdiff1d(needed, stored, assume_unique=True)
+        n_evict = len(stored) + len(new) - capacity
+        if n_evict > 0:
+            # Since capacity >= len(needed), there are at least n_evict unneeded pairs.
+            unneeded = np.flatnonzero(~np.isin(stored, needed, assume_unique=True))
+            n_keep = len(unneeded) - n_evict
+            latest = unneeded[np.argpartition(stored_next[unneeded], n_keep)[n_keep:]]
+            evicted = np.sort(stored[latest])
+            keep = np.ones(len(stored), dtype=bool)
+            keep[latest] = False
+            stored, stored_next = stored[keep], stored_next[keep]
+        else:
+            evicted = np.empty(0, dtype=np.int64)
+        yield cast(Vector[np.int64], evicted), cast(Vector[np.int64], new)
+
+        merged = cast(Vector[np.int64], np.union1d(stored, new))
+        merged_next = np.empty(len(merged), dtype=np.int32)
+        merged_next[np.searchsorted(merged, stored)] = stored_next
+        merged_next[np.searchsorted(merged, needed)] = needed_next
+        stored, stored_next = merged, merged_next
+
+
 def _run_rolling_window(
     mol: Mole,
     auxmol: Mole,
@@ -590,31 +642,31 @@ def _run_rolling_window(
     :python:`max_chunk_bytes`, to keep the memory on top of the window small.
     """
     used = np.array([_get_used_AOs(S_abs, f.TA, MO_coeff_epsilon) for f in Fobjs])
-    capacity = max(len(_get_pair_keys(S_abs, AO_coeff_epsilon, u)) for u in used)
+    order = _order_by_overlap(used)
+    keys = [_get_pair_keys(S_abs, AO_coeff_epsilon, used[i_frag]) for i_frag in order]
+    capacity = max(map(len, keys))
     # The window keeps a reference to L_PQ, no copy.
     window = SemiSparseSym3DWindow(
         (auxmol.nao, mol.nao, mol.nao), capacity, _cholesky_PQ(auxmol)
     )
     chunk_size = max(1, max_chunk_bytes // (8 * auxmol.nao))
 
-    stored = np.empty(0, dtype=np.int64)
-    for i_frag in _order_by_overlap(used):
+    for i_frag, needed, (evicted, new) in zip(
+        order, keys, _plan_window(keys, capacity)
+    ):
         fragobj = Fobjs[i_frag]
         window_timer = Timer(f"Rolling window, fragment {fragobj.dname}")
-        needed = _get_pair_keys(S_abs, AO_coeff_epsilon, used[i_frag])
-        evicted = np.setdiff1d(stored, needed, assume_unique=True)
-        new = np.setdiff1d(needed, stored, assume_unique=True)
 
         window.evict(evicted)
         for start in range(0, len(new), chunk_size):
             chunk = cast(Vector[np.int64], new[start : start + chunk_size])
             window.insert(chunk, _compute_P_mu_nu_columns(mol, auxmol, chunk))
-        stored = needed
         window.set_active(needed)
         logger.info(
             window_timer.str_elapsed(
                 f"{window_timer.message}: {len(needed)} pairs, "
-                f"{len(new)} new, {len(evicted)} evicted; time for (P | mu nu) and L^-1"
+                f"{len(new)} new, {len(evicted)} evicted, {window.n_stored} stored; "
+                "time for (P | mu nu) and L^-1"
             )
         )
 
@@ -662,7 +714,8 @@ def transform_sparse_DF_integral(
         On the fly, the fragments are traversed such that consecutive fragments
         overlap strongly, and a rolling window holds :math:`L^{-1}_{PQ} (Q | \mu \nu)`
         of the current fragment: per fragment, only the pairs that are not yet
-        in the window are computed, and the ones that are no longer needed are evicted.
+        in the window are computed. Pairs are only evicted if the window is full,
+        and then the ones that are needed again the latest.
     """
     set_log_level(logging.getLogger().getEffectiveLevel())
 

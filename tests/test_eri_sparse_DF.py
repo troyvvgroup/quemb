@@ -16,6 +16,7 @@ from quemb.molbe.eri_sparse_DF import (
     _get_used_AOs,
     _invert_dict,
     _order_by_overlap,
+    _plan_window,
     approx_S_abs,
     get_sparse_P_mu_nu,
 )
@@ -161,9 +162,40 @@ def test_order_by_overlap() -> None:
     assert order in (list(range(n_frag)), list(reversed(range(n_frag))))
 
 
+def test_plan_window() -> None:
+    """The window never overflows and holds the needed pairs of every fragment.
+    Lazy eviction computes at most as many pairs as evicting every pair
+    that the current fragment does not need, and every pair once if all fit."""
+    rng = np.random.default_rng(42)
+    keys = [
+        cast(Vector[np.int64], np.unique(rng.integers(0, 200, size=n)))
+        for n in rng.integers(20, 80, size=30)
+    ]
+    n_eager = len(keys[0]) + sum(
+        len(np.setdiff1d(b, a, assume_unique=True)) for a, b in zip(keys, keys[1:])
+    )
+    n_all = len(np.unique(np.concatenate(keys)))
+
+    for capacity in (max(map(len, keys)), 100, n_all):
+        stored: set[int] = set()
+        n_computed = 0
+        for needed, (evicted, new) in zip(keys, _plan_window(keys, capacity)):
+            assert stored.issuperset(evicted.tolist())
+            assert stored.isdisjoint(new.tolist())
+            assert set(needed.tolist()).isdisjoint(evicted.tolist())
+            stored = stored.difference(evicted.tolist()).union(new.tolist())
+            assert len(stored) <= capacity
+            assert stored.issuperset(needed.tolist())
+            n_computed += len(new)
+        assert n_computed <= n_eager
+        if capacity == n_all:
+            assert n_computed == n_all
+
+
 def test_rolling_window() -> None:
     """The window of L⁻¹ (P | mu nu) gives the same (ij | kl) as the precomputed
-    L⁻¹ (P | mu nu), also if pairs are evicted and inserted again in small chunks."""
+    L⁻¹ (P | mu nu), also if pairs are evicted and inserted again in small chunks,
+    and if the window holds more pairs than the current fragment needs."""
     # In octane every fragment uses all AOs, hence a longer chain.
     mol = M("xyz/E-polyacetylene/20.xyz", basis="sto-3g")
     mf = scf.RHF(mol)
@@ -184,25 +216,23 @@ def test_rolling_window() -> None:
         _get_pair_keys(S_abs, AO_eps, _get_used_AOs(S_abs, f.TA, MO_eps))
         for f in fragments
     ]
-    window = cpp.SemiSparseSym3DWindow(
-        (auxmol.nao, mol.nao, mol.nao), max(map(len, keys)), L_PQ
-    )
-    stored = np.empty(0, dtype=np.int64)
+    capacity = max(map(len, keys))
+    window = cpp.SemiSparseSym3DWindow((auxmol.nao, mol.nao, mol.nao), capacity, L_PQ)
     n_evicted = 0
+    n_more_stored = 0
     # every fragment twice in random order
     rng = np.random.default_rng(42)
     order = np.concatenate([rng.permutation(len(fragments)) for _ in range(2)])
-    for i_frag in order:
-        evicted = np.setdiff1d(stored, keys[i_frag], assume_unique=True)
-        new = np.setdiff1d(keys[i_frag], stored, assume_unique=True)
+    ordered_keys = [keys[i_frag] for i_frag in order]
+    for i_frag, (evicted, new) in zip(order, _plan_window(ordered_keys, capacity)):
         window.evict(evicted)
         n_evicted += len(evicted)
         for start in range(0, len(new), 7):
             chunk = cast(Vector[np.int64], new[start : start + 7])
             window.insert(chunk, _compute_P_mu_nu_columns(mol, auxmol, chunk))
-        stored = keys[i_frag]
-        window.set_active(stored)
-        assert window.n_stored == len(stored)
+        window.set_active(keys[i_frag])
+        assert len(keys[i_frag]) <= window.n_stored <= capacity
+        n_more_stored += window.n_stored > len(keys[i_frag])
 
         TA = fragments[i_frag].TA
         assert np.allclose(
@@ -212,6 +242,7 @@ def test_rolling_window() -> None:
             rtol=0,
         )
     assert n_evicted > 0
+    assert n_more_stored > 0
 
 
 def test_invert_dict() -> None:
