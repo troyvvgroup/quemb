@@ -15,6 +15,7 @@ __all__ = [
     "GPU_MatrixHandle",
     "SemiSparse3DTensor",
     "SemiSparseSym3DTensor",
+    "apply_inv_cholesky_inplace",
     "contract_with_TA_1st",
     "contract_with_TA_2nd_to_sym_dense",
     "extract_unique",
@@ -24,6 +25,8 @@ __all__ = [
     "set_log_level",
     "transform_integral",
     "transform_integral_cuda",
+    "transform_integral_precontracted",
+    "transform_integral_precontracted_cuda",
 ]
 
 class GPU_MatrixHandle:
@@ -57,6 +60,7 @@ class SemiSparse3DTensor:
         AO_reachable_by_MO_with_offsets: list[list[tuple[int, int]]],
         offsets: dict[int, int],
     ) -> None: ...
+    def __repr__(self) -> str: ...
     @property
     def AO_reachable_by_MO(self) -> list[list[int]]: ...
     @property
@@ -106,6 +110,7 @@ class SemiSparseSym3DTensor:
         exch_reachable_unique_with_offsets: list[list[tuple[int, int]]],
         offsets: dict[int, int],
     ) -> None: ...
+    def __repr__(self) -> str: ...
     @property
     def exch_reachable(self) -> list[list[int]]: ...
     @property
@@ -122,6 +127,14 @@ class SemiSparseSym3DTensor:
     def size(self) -> int: ...
     @property
     def unique_dense_data(self) -> numpy.ndarray: ...
+
+def apply_inv_cholesky_inplace(
+    int_P_mu_nu: SemiSparseSym3DTensor, L_PQ: numpy.ndarray
+) -> None:
+    """
+    Overwrite (P | mu nu) in place with L⁻¹ (P | mu nu),
+    where L_PQ is the lower Cholesky factor of (P | Q).
+    """
 
 def contract_with_TA_1st(
     TA: numpy.ndarray, int_P_mu_nu: SemiSparseSym3DTensor, AO_by_MO: list[list[int]]
@@ -177,5 +190,28 @@ def transform_integral_cuda(
     """
     Transform the integral using TA, int_P_mu_nu, AO_by_MO, and L_PQ,
     returning the transformed matrix.
+    This uses CUDA for performance.
+    """
+
+def transform_integral_precontracted(
+    int_P_mu_nu: SemiSparseSym3DTensor,
+    TA: numpy.ndarray,
+    S_abs: numpy.ndarray,
+    MO_coeff_epsilon: float,
+) -> numpy.ndarray:
+    """
+    Transform the integral using TA and int_P_mu_nu = L⁻¹ (P | mu nu),
+    i.e. after apply_inv_cholesky_inplace, returning the transformed matrix
+    """
+
+def transform_integral_precontracted_cuda(
+    int_P_mu_nu: SemiSparseSym3DTensor,
+    TA: numpy.ndarray,
+    S_abs: numpy.ndarray,
+    MO_coeff_epsilon: float,
+) -> numpy.ndarray:
+    """
+    Transform the integral using TA and int_P_mu_nu = L⁻¹ (P | mu nu),
+    i.e. after apply_inv_cholesky_inplace, returning the transformed matrix.
     This uses CUDA for performance.
     """
