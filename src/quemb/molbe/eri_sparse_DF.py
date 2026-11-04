@@ -16,6 +16,7 @@ from collections.abc import (
 from concurrent.futures import ThreadPoolExecutor
 from itertools import chain, takewhile
 from typing import Final, TypeVar, cast
+from warnings import warn
 
 import h5py
 import numpy as np
@@ -26,19 +27,19 @@ from pyscf import dft, gto, scf
 from pyscf.ao2mo.addons import restore
 from pyscf.df.addons import make_auxmol
 from pyscf.gto import Mole
-from pyscf.gto.moleintor import getints
+from pyscf.gto.moleintor import getints, make_cintopt, make_loc
 from pyscf.pbc import dft as pbc_dft
 from pyscf.pbc.gto import Cell
-from scipy.linalg import cholesky
+from scipy.linalg import cholesky, eigh
 from scipy.special import roots_hermite
 from typing_extensions import assert_never
 
 import quemb.molbe._cpp.eri_sparse_DF as cpp_transforms
 from quemb.molbe._cpp.eri_sparse_DF import (
     SemiSparseSym3DTensor,
+    SemiSparseSym3DWindow,
     apply_inv_cholesky_inplace,
     set_log_level,
-    transform_integral,
     transform_integral_precontracted,
 )
 from quemb.molbe.chemfrag import (
@@ -47,6 +48,7 @@ from quemb.molbe.chemfrag import (
 from quemb.molbe.pfrag import Frags
 from quemb.shared.helper import (
     Timer,
+    ensure,
     gauss_sum,
     njit,
     ravel_symmetric,
@@ -244,6 +246,56 @@ def _get_AO_per_AO(
     }
 
 
+def _get_used_AOs(
+    S_abs: Matrix[np.floating],
+    TA: Matrix[np.floating],
+    MO_coeff_epsilon: float,
+) -> Vector[np.bool_]:
+    """The AOs :math:`\\mu` that the MO screening keeps for at least one MO of
+    :python:`TA` (cf. :func:`_get_AO_per_MO`)."""
+    return (S_abs @ np.abs(TA) >= MO_coeff_epsilon).any(axis=1)
+
+
+def _get_pair_keys(
+    S_abs: Matrix[np.floating],
+    AO_coeff_epsilon: float,
+    used: Vector[np.bool_],
+) -> Vector[np.int64]:
+    """Sorted keys :python:`ravel_symmetric(mu, nu)` of the AO pairs that are needed
+    to transform :math:`(P | \\mu \\nu)` with the MOs that use the AOs :python:`used`.
+
+    The first contraction :math:`(P | \\mu i) = \\sum_\\nu (P | \\mu \\nu) T_{\\nu i}`
+    is evaluated for the used AOs :math:`\\mu` (cf. :func:`_get_used_AOs`)
+    and all :math:`\\nu` with
+    :math:`S^{\\text{abs}}_{\\mu \\nu} \\geq \\epsilon^{\\text{AO}}`.
+    Hence the pairs agree with the screening of the precomputed
+    :math:`(P | \\mu \\nu)` from :func:`_get_AO_per_AO`.
+    Every unordered pair appears once, as :math:`\\mu \\geq \\nu`.
+    """
+    pairs = (S_abs >= AO_coeff_epsilon) & (used[:, None] | used[None, :])
+    # row-major order of the lower triangle, i.e. increasing keys
+    mu, nu = np.tril(pairs).nonzero()
+    return cast(Vector[np.int64], ravel_symmetric(mu, nu))
+
+
+def _order_by_overlap(used: Matrix[np.bool_]) -> list[int]:
+    """Order the fragments, such that consecutive fragments overlap strongly.
+
+    Spectral ordering of the graph whose edges are weighted by the number of
+    shared used AOs (one row of :python:`used` per fragment, cf. :func:`_get_used_AOs`):
+    the fragments are sorted by the Fiedler vector.
+    """
+    n_frag = len(used)
+    if n_frag < 3:
+        return list(range(n_frag))
+    U = used.astype(np.float64)
+    overlap = U @ U.T
+    np.fill_diagonal(overlap, 0.0)
+    laplacian = np.diag(overlap.sum(axis=1)) - overlap
+    _, fiedler = eigh(laplacian, subset_by_index=[1, 1])
+    return np.argsort(fiedler[:, 0], kind="stable").tolist()
+
+
 def conversions_AO_shell(
     mol: Mole,
 ) -> tuple[dict[ShellIdx, list[AOIdx]], dict[AOIdx, ShellIdx]]:
@@ -411,27 +463,92 @@ def _traverse_reachable(
             yield p, q
 
 
+def _to_shell_reachable_by_shell(
+    exch_reachable: Mapping[AOIdx, Sequence[AOIdx]],
+    AO_to_shell_id: Mapping[AOIdx, ShellIdx],
+) -> Mapping[ShellIdx, list[ShellIdx]]:
+    """Also accepts `exch_reachable_unique` to return
+    symmetry-aware reachable shell mappings"""
+    shell_reachable_by_shell: dict[ShellIdx, set[ShellIdx]] = defaultdict(set)
+
+    for k, v in exch_reachable.items():
+        shell_reachable_by_shell[AO_to_shell_id[k]] |= {
+            AO_to_shell_id[orb] for orb in v
+        }
+    return {k: sorted(v) for k, v in shell_reachable_by_shell.items()}  # type: ignore[type-var]
+
+
+def _fill_P_mu_nu_columns(
+    mol: Mole,
+    auxmol: Mole,
+    exch_reachable_unique: Mapping[AOIdx, Sequence[AOIdx]],
+    key_to_offset: Mapping[int, int],
+    out: Matrix[np.float64],
+) -> None:
+    """Write :math:`(P | \\mu \\nu)` of the pairs :python:`key_to_offset`
+    into the columns :python:`out[:, key_to_offset[ravel_symmetric(mu, nu)]]`.
+
+    :python:`exch_reachable_unique` contains these pairs as :math:`\\mu \\geq \\nu`.
+    The integrals are computed per shell block, pairs of a block
+    that are not in :python:`key_to_offset` are skipped.
+    """
+    shell_id_to_AO, AO_to_shell_id = conversions_AO_shell(mol)
+    shell_reachable_by_shell = _to_shell_reachable_by_shell(
+        exch_reachable_unique, AO_to_shell_id
+    )
+
+    # Same as _aux_e2, but the concatenated environment, AO offsets, and the libcint
+    # optimizer are created once here instead of for every shell block.
+    intor = mol._add_suffix("int3c2e")
+    atm, bas, env = gto.mole.conc_env(
+        mol._atm, mol._bas, mol._env, auxmol._atm, auxmol._bas, auxmol._env
+    )
+    ao_loc = make_loc(bas, intor)
+    cintopt = make_cintopt(atm, bas, env, intor)
+
+    for i_shell, reachable in shell_reachable_by_shell.items():
+        for start_block, stop_block in get_blocks(reachable):
+            integrals = np.asarray(  # type: ignore[call-overload]
+                getints(
+                    intor,
+                    atm,
+                    bas,
+                    env,
+                    (
+                        i_shell,
+                        i_shell + 1,
+                        start_block,
+                        stop_block + 1,
+                        mol.nbas,
+                        mol.nbas + auxmol.nbas,
+                    ),
+                    None,
+                    0,
+                    "s1",
+                    ao_loc,
+                    cintopt,
+                ),
+                order="C",
+            )
+            for i, p in enumerate(shell_id_to_AO[i_shell]):
+                for j, q in enumerate(
+                    range(
+                        shell_id_to_AO[start_block][0],  # type: ignore[index]
+                        # still ensure p <= q
+                        min(shell_id_to_AO[stop_block][-1] + 1, p + 1),  # type: ignore[index]
+                    )
+                ):
+                    key = int(ravel_symmetric(p, q))
+                    if key in key_to_offset:
+                        out[:, key_to_offset[key]] = integrals[i, j, ::1]
+
+
 def get_sparse_P_mu_nu(
     mol: Mole,
     auxmol: Mole,
     exch_reachable: Mapping[AOIdx, Sequence[AOIdx]],
 ) -> SemiSparseSym3DTensor:
     """Return the 3-center 2-electron integrals in a sparse format."""
-
-    def to_shell_reachable_by_shell(
-        exch_reachable: Mapping[AOIdx, Sequence[AOIdx]],
-        AO_to_shell_id: Mapping[AOIdx, ShellIdx],
-    ) -> Mapping[ShellIdx, list[ShellIdx]]:
-        """Also accepts `exch_reachable_unique` to return
-        symmetry-aware reachable shell mappings"""
-        shell_reachable_by_shell: dict[ShellIdx, set[ShellIdx]] = defaultdict(set)
-
-        for k, v in exch_reachable.items():
-            shell_reachable_by_shell[AO_to_shell_id[k]] |= {
-                AO_to_shell_id[orb] for orb in v
-            }
-        return {k: sorted(v) for k, v in shell_reachable_by_shell.items()}  # type: ignore[type-var]
-
     AO_timer = Timer("Time to compute sparse (P | mu nu)")
 
     result = SemiSparseSym3DTensor(
@@ -445,10 +562,6 @@ def get_sparse_P_mu_nu(
 
     n_unique = result.unique_dense_data.shape[1]
 
-    shell_id_to_AO, AO_to_shell_id = conversions_AO_shell(mol)
-    shell_reachable_by_shell = to_shell_reachable_by_shell(
-        exch_reachable_unique, AO_to_shell_id
-    )
     keys = np.array(
         [
             ravel_symmetric(p, q)
@@ -460,42 +573,42 @@ def get_sparse_P_mu_nu(
 
     assert len(keys) == n_unique
 
-    for i_shell, reachable in shell_reachable_by_shell.items():
-        for start_block, stop_block in get_blocks(reachable):
-            integrals = np.asarray(  # type: ignore[call-overload]
-                _aux_e2(
-                    mol,
-                    auxmol,
-                    intor="int3c2e",
-                    shls_slice=(  # type: ignore[arg-type]
-                        i_shell,
-                        i_shell + 1,
-                        start_block,
-                        stop_block + 1,
-                        0,
-                        auxmol.nbas,
-                    ),
-                ),
-                order="C",
-            )
-            for i, p in enumerate(shell_id_to_AO[i_shell]):
-                for j, q in enumerate(
-                    range(
-                        shell_id_to_AO[start_block][0],  # type: ignore[index]
-                        # still ensure p <= q
-                        min(shell_id_to_AO[stop_block][-1] + 1, p + 1),  # type: ignore[index]
-                    )
-                ):
-                    if ravel_symmetric(p, q) in key_to_offset:
-                        result.mut_unique_dense_data[
-                            :, key_to_offset[ravel_symmetric(p, q)]  # type: ignore[arg-type]
-                        ] = integrals[i, j, ::1]
+    _fill_P_mu_nu_columns(
+        mol, auxmol, exch_reachable_unique, key_to_offset, result.mut_unique_dense_data
+    )
 
     logger.info(AO_timer.str_elapsed())
 
     assert not np.isnan(result.unique_dense_data).any()
 
     return result
+
+
+def _compute_P_mu_nu_columns(
+    mol: Mole, auxmol: Mole, keys: Vector[np.int64]
+) -> Matrix[np.float64]:
+    """Return :math:`(P | \\mu \\nu)` for the pairs
+    :python:`keys = ravel_symmetric(mu, nu)` as columns of a Fortran-ordered
+    :python:`(naux, len(keys))` array."""
+    # invert keys = mu (mu + 1) / 2 + nu with mu >= nu
+    mu = ((np.sqrt(8 * keys.astype(np.float64) + 1) - 1) // 2).astype(np.int64)
+    nu = keys - gauss_sum(mu)
+    assert ((0 <= nu) & (nu <= mu)).all()
+    starts = np.flatnonzero(np.r_[True, mu[1:] != mu[:-1]])
+    exch_reachable_unique = {
+        cast(AOIdx, int(mu[start])): cast(Sequence[AOIdx], nus.tolist())
+        for start, nus in zip(starts, np.split(nu, starts[1:]))
+    }
+    out = np.full((auxmol.nao, len(keys)), np.nan, order="F")
+    _fill_P_mu_nu_columns(
+        mol,
+        auxmol,
+        exch_reachable_unique,
+        {int(k): i for i, k in enumerate(keys)},
+        out,
+    )
+    assert not np.isnan(out).any()
+    return out
 
 
 def _flatten(
@@ -530,10 +643,176 @@ def _get_test_mol(atom1: str, atom2: str, r: float, basis: str) -> Mole:
     )
 
 
-# This type variable prevents mixing of GPU with CPU code.
-# The GPU handle has to be forward-declared using a string,
-# as CUDA-Blas is not alwyas available, then it is not defined.
-LPQ = TypeVar("LPQ", Matrix[np.float64], "cpp_transforms.GPU_MatrixHandle")
+def _cholesky_PQ(auxmol: Mole) -> Matrix[np.float64]:
+    """Lower Cholesky factor of :math:`(P | Q)`, in Fortran order.
+
+    The factorisation overwrites :math:`(P | Q)`, i.e. only one
+    :python:`naux x naux` matrix is allocated (a few GB for large systems).
+    """
+    # intor returns a Fortran-ordered array, hence LAPACK works in place.
+    PQ = auxmol.intor("int2c2e")
+    L_PQ = cholesky(PQ, lower=True, overwrite_a=True, check_finite=False)
+    if not np.may_share_memory(L_PQ, PQ):
+        warn(
+            "The Cholesky factorisation of (P | Q) was not done in place, "
+            "two naux x naux matrices were allocated."
+        )
+    return L_PQ
+
+
+def _next_use(keys: Sequence[Vector[np.int64]]) -> list[Vector[np.int32]]:
+    """For every pair in :python:`keys[k]`, the position of the next fragment
+    that needs it again, or :python:`len(keys)` if none does.
+    The mapping of pairs to keys is done in :func:`_get_pair_keys`."""
+    all_keys = np.unique(np.concatenate(keys))
+    next_seen = np.full(len(all_keys), len(keys), dtype=np.int32)
+    next_use: list[Vector[np.int32]] = []
+    for k in reversed(range(len(keys))):
+        idx = np.searchsorted(all_keys, keys[k])
+        next_use.append(cast(Vector[np.int32], next_seen[idx]))
+        next_seen[idx] = k
+    return next_use[::-1]
+
+
+def _plan_window(
+    keys: Sequence[Vector[np.int64]], capacity: int, batch_size: int = 1
+) -> Iterator[tuple[Vector[np.int64], Vector[np.int64]]]:
+    """The pairs to evict from and to insert into the window of
+    :func:`_run_rolling_window`, for fragments that need the pairs
+    :python:`keys`, in this order.
+
+    Pairs are only evicted if the window of :python:`capacity` pairs would overflow,
+    and then the ones that are needed again the latest
+    (Belady's optimal policy, since the order of the fragments is known in advance).
+    Hence, every pair is computed once, if all of them fit into the window.
+
+    If a fragment misses pairs, the missing pairs of the following fragments
+    are computed in the same batch, until the batch has :python:`batch_size` pairs
+    or the pairs of these fragments would not fit into the window together.
+    Every batch pays the triangular solve with the dense :math:`L`,
+    whose cost for a few columns is dominated by reading :math:`L`.
+    The pairs of all fragments of the batch are protected from eviction,
+    hence batching never evicts a pair that is needed before the end of the batch.
+    :python:`batch_size = 1` computes only the missing pairs of the current fragment.
+    """
+    assert capacity >= max(map(len, keys))
+    assert batch_size >= 1
+    stored = np.empty(0, dtype=np.int64)
+    stored_next = np.empty(0, dtype=np.int32)
+    # needed pairs, are the ones used in this fragment.
+    # needed_next give for the just used pairs the fragments where they are needed next
+    # note that "next" is the next in the order of :func:`_order_by_overlap`,
+    # not the input order of Fobjs
+    for k, (needed, needed_next) in enumerate(zip(keys, _next_use(keys))):
+        new = cast(Vector[np.int64], np.setdiff1d(needed, stored, assume_unique=True))
+        # For every new pair, the first fragment of the batch that needs it.
+        new_first = cast(Vector[np.int32], np.full(len(new), k, dtype=np.int32))
+        protected = needed
+        j = k + 1
+        while 0 < len(new) < batch_size and j < len(keys):
+            more_protected = cast(Vector[np.int64], np.union1d(protected, keys[j]))
+            if len(more_protected) > capacity:
+                break
+            more = np.setdiff1d(
+                np.setdiff1d(keys[j], stored, assume_unique=True),
+                new,
+                assume_unique=True,
+            )
+            protected = more_protected
+            new = cast(Vector[np.int64], np.concatenate([new, more]))
+            new_first = cast(
+                Vector[np.int32],
+                np.concatenate([new_first, np.full(len(more), j, np.int32)]),
+            )
+            j += 1
+        sort = np.argsort(new, kind="stable")
+        new = cast(Vector[np.int64], new[sort])
+        new_first = cast(Vector[np.int32], new_first[sort])
+
+        n_evict = len(stored) + len(new) - capacity
+        if n_evict > 0:
+            # Since capacity >= len(protected), there are at least n_evict
+            # unprotected pairs.
+            unneeded = np.flatnonzero(~np.isin(stored, protected, assume_unique=True))
+            n_keep = len(unneeded) - n_evict
+            latest = unneeded[np.argpartition(stored_next[unneeded], n_keep)[n_keep:]]
+            evicted = np.sort(stored[latest])
+            keep = np.ones(len(stored), dtype=bool)
+            keep[latest] = False
+            stored, stored_next = stored[keep], stored_next[keep]
+        else:
+            evicted = np.empty(0, dtype=np.int64)
+        yield cast(Vector[np.int64], evicted), cast(Vector[np.int64], new)
+
+        merged = cast(Vector[np.int64], np.union1d(stored, new))
+        merged_next = np.empty(len(merged), dtype=np.int32)
+        merged_next[np.searchsorted(merged, stored)] = stored_next
+        # pairs computed for later fragments of the batch are needed first there
+        merged_next[np.searchsorted(merged, new)] = new_first
+        merged_next[np.searchsorted(merged, needed)] = needed_next
+        stored, stored_next = merged, merged_next
+
+
+def _run_rolling_window(
+    mol: Mole,
+    auxmol: Mole,
+    Fobjs: Sequence[Frags],
+    S_abs: Matrix[np.floating],
+    file_eri_handler: h5py.File,
+    AO_coeff_epsilon: float,
+    MO_coeff_epsilon: float,
+    transform_precontracted_impl: Callable[
+        [SemiSparseSym3DWindow, Matrix[np.floating], Matrix[np.floating], float],
+        Matrix[np.float64],
+    ],
+    max_chunk_bytes=2**30,
+    batch_bytes=2**30,
+) -> None:
+    """On-the-fly sparse DF with a rolling window of :math:`L^{-1} (P | \\mu \\nu)`,
+    see :func:`_run_sparse_df_driver`.
+
+    The new pairs of a fragment are computed and inserted in chunks of at most
+    :python:`max_chunk_bytes`, to keep the memory on top of the window small.
+    The missing pairs of consecutive fragments are computed together in batches
+    of about :python:`batch_bytes` (cf. :func:`_plan_window`);
+    the window holds this many bytes on top of the largest fragment.
+    """
+    used = np.array([_get_used_AOs(S_abs, f.TA, MO_coeff_epsilon) for f in Fobjs])
+    order = _order_by_overlap(used)
+    keys = [_get_pair_keys(S_abs, AO_coeff_epsilon, used[i_frag]) for i_frag in order]
+    batch_size = max(1, batch_bytes // (8 * auxmol.nao))
+    n_pairs = len(np.unique(np.concatenate(keys)))
+    capacity = min(max(map(len, keys)) + batch_size, n_pairs)
+    # The window keeps a reference to L_PQ, no copy.
+    window = SemiSparseSym3DWindow(
+        (auxmol.nao, mol.nao, mol.nao), capacity, _cholesky_PQ(auxmol)
+    )
+    chunk_size = max(1, max_chunk_bytes // (8 * auxmol.nao))
+
+    for i_frag, needed, (evicted, new) in zip(
+        order, keys, _plan_window(keys, capacity, batch_size)
+    ):
+        fragobj = Fobjs[i_frag]
+        window_timer = Timer(f"Rolling window, fragment {fragobj.dname}")
+
+        window.evict(evicted)
+        for start in range(0, len(new), chunk_size):
+            chunk = cast(Vector[np.int64], new[start : start + chunk_size])
+            window.insert(chunk, _compute_P_mu_nu_columns(mol, auxmol, chunk))
+        window.set_active(needed)
+        logger.info(
+            window_timer.str_elapsed(
+                f"{window_timer.message}: {len(needed)} pairs, "
+                f"{len(new)} new, {len(evicted)} evicted, {window.n_stored} stored; "
+                "time for (P | mu nu) and L^-1"
+            )
+        )
+
+        transformed = transform_precontracted_impl(
+            window, fragobj.TA, S_abs, MO_coeff_epsilon
+        )
+        eri = restore("4", transformed, fragobj.TA.shape[1])
+        file_eri_handler.create_dataset(fragobj.dname, data=eri)
 
 
 def _run_sparse_df_driver(
@@ -545,20 +824,9 @@ def _run_sparse_df_driver(
     MO_coeff_epsilon: float,
     n_threads: int,
     *,
-    build_lowtri_PQ: Callable[[Matrix[np.float64]], LPQ],
-    transform_integral_impl: Callable[
-        [
-            SemiSparseSym3DTensor,
-            Matrix[np.floating],
-            Matrix[np.floating],
-            LPQ,
-            float,
-        ],
-        Matrix[np.float64],
-    ],
     transform_precontracted_impl: Callable[
         [
-            SemiSparseSym3DTensor,
+            SemiSparseSym3DTensor | SemiSparseSym3DWindow,
             Matrix[np.floating],
             Matrix[np.floating],
             float,
@@ -581,42 +849,39 @@ def _run_sparse_df_driver(
     auxbasis :
         Auxiliary basis used for density fitting. If ``None``, the default
         auxiliary basis of ``mf`` is used.
-    file_eri_handler :
-        Open HDF5 file handle containing the three-center DF integrals.
+    file_eri_handler : h5py.File
+        Open HDF5 file handle, the :math:`(ij | kl)` of every fragment go into it.
     AO_coeff_epsilon :
         Threshold for discarding negligible AO coefficients.
     MO_coeff_epsilon :
         Threshold for discarding negligible MO coefficients.
     n_threads :
         Number of threads used for the transformation.
-    build_lowtri_PQ :
-        Take a cholesky decomposed lower triangular matrix of :math:`(P | Q) and either
-        keep it in memory, i.e. just the identity function,
-        or store it on a GPU device, i.e. return a GPU memory handle.
-    transform_integral_impl :
+    transform_precontracted_impl :
         Low-level transformation implementation that performs the
         semi-sparse DF integral transformation either in CPU or GPU
         The function takes:
 
-          • :math:`(P \mid \mu\nu)` semi-sparse AO integrals
+          • :math:`L^{-1}_{PQ} (Q \mid \mu\nu)` semi-sparse AO integrals,
+            either all of them or the rolling window of the on-the-fly version
           • the AO-MO transformation matrix :math:`T^{\mathrm{A}}`
           • the absolute-overlap matrix :math:`S_{\mathrm{abs}}`
-          • the lower-triangular Cholesky factors :math:`L_{PQ}`
-            of :math:`(P \mid Q)` (either in memory or on GPU)
           • the MO screening threshold :math:`\varepsilon_{\mathrm{MO}}`
 
-        and returns the transformed three-centre MO integrals
-        :math:`(P \mid ij)`.
-    transform_precontracted_impl :
-        Same as :python:`transform_integral_impl`, but takes
-        :math:`L^{-1}_{PQ} (Q \mid \mu\nu)` instead of :math:`(P \mid \mu\nu)`
-        and no :math:`L_{PQ}`.
-        Used if :python:`precompute_P_mu_nu` is true.
+        and returns the transformed MO integrals :math:`(ij | kl)`.
     precompute_P_mu_nu :
-        Whether to precompute :math:`(P | \mu \nu)`, or compute them on the fly
-        for every fragment (reduces peak memory usage).
-        If precomputed, :math:`L^{-1}_{PQ}` is applied once to all
-        :math:`(Q | \mu \nu)` instead of once per fragment.
+        Whether to precompute :math:`(P | \mu \nu)` for all pairs,
+        or compute them on the fly (reduces peak memory usage).
+        In both cases :math:`L^{-1}_{PQ}` is applied to every
+        :math:`(Q | \mu \nu)` instead of to :math:`(Q | ij)` of every fragment.
+        On the fly, the fragments are traversed such that consecutive fragments
+        overlap strongly, and a rolling window holds :math:`L^{-1}_{PQ} (Q | \mu \nu)`
+        of the current fragment: per fragment, only the pairs that are not yet
+        in the window are computed. Pairs are only evicted if the window is full,
+        and then the ones that are needed again the latest.
+        The missing pairs of consecutive fragments are computed together
+        in batches of about 1 GiB, for which the window holds 1 GiB on top
+        of the pairs of the largest fragment.
 
     Returns
     -------
@@ -629,9 +894,9 @@ def _run_sparse_df_driver(
 
     S_abs: Final[Matrix[np.floating]] = approx_S_abs(mol)
 
-    PQ: Final = auxmol.intor("int2c2e")
-
     if precompute_P_mu_nu:
+        # Before (P | mu nu), such that (P | Q) and (P | mu nu) never coexist.
+        L_PQ = _cholesky_PQ(auxmol)
         exch_reachable: Final = _get_AO_per_AO(S_abs, AO_coeff_epsilon, None)
         P_mu_nu: Final[SemiSparseSym3DTensor] = get_sparse_P_mu_nu(
             mol, auxmol, exch_reachable
@@ -640,7 +905,8 @@ def _run_sparse_df_driver(
         # contraction with TA. Do it once here, instead of for every fragment.
         # This is always done on the CPU, which is faster than consumer GPUs
         # with their low FP64 throughput and avoids storing L_PQ on the GPU.
-        apply_inv_cholesky_inplace(P_mu_nu, cholesky(PQ, lower=True))
+        apply_inv_cholesky_inplace(P_mu_nu, L_PQ)
+        del L_PQ
 
         def worker(fragobj: Frags) -> None:
             "One computation of P_mu_nu for every fragment"
@@ -653,22 +919,20 @@ def _run_sparse_df_driver(
             eri = restore("4", transformed, fragobj.TA.shape[1])
             file_eri_handler.create_dataset(fragobj.dname, data=eri)
     else:
-        lowtri: Final[LPQ] = build_lowtri_PQ(cholesky(PQ, lower=True))
-
-        def worker(fragobj: Frags) -> None:
-            "On the fly computation of P_mu_nu for every fragment"
-            exch_reachable = _get_AO_per_AO(S_abs, AO_coeff_epsilon, fragobj.TA)
-            P_mu_nu = get_sparse_P_mu_nu(mol, auxmol, exch_reachable)
-
-            transformed = transform_integral_impl(
-                P_mu_nu,
-                fragobj.TA,
-                S_abs,
-                lowtri,
-                MO_coeff_epsilon,
-            )
-            eri = restore("4", transformed, fragobj.TA.shape[1])
-            file_eri_handler.create_dataset(fragobj.dname, data=eri)
+        ensure(
+            n_threads == 1, "The rolling window of the on-the-fly sparse DF is serial."
+        )
+        _run_rolling_window(
+            mol,
+            auxmol,
+            Fobjs,
+            S_abs,
+            file_eri_handler,
+            AO_coeff_epsilon,
+            MO_coeff_epsilon,
+            transform_precontracted_impl,
+        )
+        return
 
     if n_threads > 1:
         with ThreadPoolExecutor(max_workers=n_threads) as pool:
@@ -698,8 +962,6 @@ def transform_sparse_DF_integral_cpu(
         AO_coeff_epsilon=AO_coeff_epsilon,
         MO_coeff_epsilon=MO_coeff_epsilon,
         n_threads=n_threads,
-        build_lowtri_PQ=lambda x: x,
-        transform_integral_impl=transform_integral,
         transform_precontracted_impl=transform_integral_precontracted,
         precompute_P_mu_nu=precompute_P_mu_nu,
     )
@@ -723,8 +985,6 @@ def transform_sparse_DF_integral_gpu(
         AO_coeff_epsilon=AO_coeff_epsilon,
         MO_coeff_epsilon=MO_coeff_epsilon,
         n_threads=n_threads,
-        build_lowtri_PQ=cpp_transforms.GPU_MatrixHandle,
-        transform_integral_impl=cpp_transforms.transform_integral_cuda,
         transform_precontracted_impl=cpp_transforms.transform_integral_precontracted_cuda,
         precompute_P_mu_nu=precompute_P_mu_nu,
     )
