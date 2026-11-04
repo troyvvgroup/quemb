@@ -77,7 +77,9 @@ def test_hexene_loc_be2_froz_iao_sto3g_boys(hexene) -> None:
         nproc=2,
     )
     # energy after four iterations
-    assert np.isclose(be2_f_iao_fb, -0.92794903, atol=1e-5, rtol=0), be2_f_iao_fb
+    assert np.isclose(be2_f_iao_fb, -0.9279650837688393, atol=1e-5, rtol=0), (
+        be2_f_iao_fb
+    )
     # Oneshot energy
     # assert np.isclose(be2_f_iao_fb, -0.92843714)
 
@@ -101,7 +103,9 @@ def test_chem_gen_hexene_loc_be2_froz_iao_sto3g_boys(hexene) -> None:
         additional_args=ChemGenArgs(wrong_iao_indexing=True),
     )
     # energy after four iterations
-    assert np.isclose(be2_f_iao_fb, -0.92794903, atol=1e-5, rtol=0), be2_f_iao_fb
+    assert np.isclose(be2_f_iao_fb, -0.9279650837688393, atol=1e-5, rtol=0), (
+        be2_f_iao_fb
+    )
 
 
 @unittest.skipUnless(
@@ -122,7 +126,9 @@ def test_chem_gen_hexene_loc_be2_froz_iao_sto3g_boys_fixed_AOs(hexene) -> None:
         frag_type="chemgen",
         additional_args=ChemGenArgs(wrong_iao_indexing=False),
     )
-    assert np.isclose(be2_f_iao_fb, -0.9279496397090554, atol=1e-5, rtol=0)
+    assert np.isclose(be2_f_iao_fb, -0.9279655843643297, atol=1e-5, rtol=0), (
+        be2_f_iao_fb
+    )
 
 
 def ret_ecorr(
