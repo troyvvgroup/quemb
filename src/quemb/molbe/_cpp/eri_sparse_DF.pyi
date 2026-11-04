@@ -15,11 +15,7 @@ __all__ = [
     "SemiSparseSym3DTensor",
     "SemiSparseSym3DWindow",
     "apply_inv_cholesky_inplace",
-    "contract_with_TA_1st",
-    "contract_with_TA_2nd_to_sym_dense",
-    "extract_unique",
     "get_AO_per_MO",
-    "get_AO_reachable_by_MO_with_offset",
     "get_log_level",
     "set_log_level",
     "transform_integral_precontracted",
@@ -153,31 +149,19 @@ def apply_inv_cholesky_inplace(
 
 def contract_with_TA_1st(
     TA: numpy.ndarray, int_P_mu_nu: SemiSparseSym3DTensor, AO_by_MO: list[list[int]]
-) -> SemiSparse3DTensor: ...
-def contract_with_TA_1st_gemm(
-    TA: numpy.ndarray, int_P_mu_nu: SemiSparseSym3DTensor, AO_by_MO: list[list[int]]
 ) -> SemiSparse3DTensor:
     """
-    Same as contract_with_TA_1st, but with one dense GEMM per AO mu.
+    Compute (P | mu i) = sum_nu (P | mu nu) TA(nu, i) for the AOs mu of every MO i,
+    with one dense GEMM per AO mu.
     """
 
 def contract_with_TA_2nd_to_sym_dense(
     int_mu_i_P: SemiSparse3DTensor, TA: numpy.ndarray
 ) -> numpy.ndarray:
     """
-    Contract with TA to get a symmetric dense tensor (P | i, j)
-    """
-
-def contract_with_TA_2nd_gemm(
-    int_mu_i_P: SemiSparse3DTensor, TA: numpy.ndarray
-) -> numpy.ndarray:
-    """
-    Same as contract_with_TA_2nd_to_sym_dense, but with one dense GEMM per MO i.
-    """
-
-def extract_unique(exch_reachable: list[list[int]]) -> list[list[int]]:
-    """
-    Extract unique reachable AOs from the provided exch_reachable structure
+    Compute (P | i j) = sum_mu (P | mu i) TA(mu, j) for j >= i (the AOs of the smaller
+    index i) in the symmetric pair index,
+    with one dense GEMM per MO i.
     """
 
 def get_AO_per_MO(
@@ -185,14 +169,6 @@ def get_AO_per_MO(
 ) -> list[list[int]]:
     """
     Get AOs per MO based on TA and S_abs matrices with a threshold epsilon
-    """
-
-def get_AO_reachable_by_MO_with_offset(
-    AO_reachable_by_MO: list[list[int]],
-) -> list[list[tuple[int, int]]]:
-    """
-    Get AO reachable by MO with offsets based on the
-    provided AO_reachable_by_MO structure
     """
 
 def get_log_level() -> int: ...

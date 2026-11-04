@@ -5,33 +5,27 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from collections.abc import (
-    Callable,
     Collection,
     Hashable,
     Iterator,
     Mapping,
     Sequence,
-    Set,
 )
-from itertools import chain, takewhile
+from itertools import takewhile
 from typing import Final, TypeVar, cast
 from warnings import warn
 
 import h5py
 import numpy as np
-from chemcoord import Cartesian
 from numba import prange  # type: ignore[attr-defined]
-from numba.typed import List
-from pyscf import dft, gto, scf
+from pyscf import gto, scf
 from pyscf.ao2mo.addons import restore
 from pyscf.df.addons import make_auxmol
 from pyscf.gto import Mole
 from pyscf.gto.moleintor import getints, make_cintopt, make_loc
-from pyscf.pbc import dft as pbc_dft
 from pyscf.pbc.gto import Cell
 from scipy.linalg import cholesky, eigh
 from scipy.special import roots_hermite
-from typing_extensions import assert_never
 
 from quemb.molbe._cpp.eri_sparse_DF import (
     SemiSparseSym3DTensor,
@@ -39,9 +33,6 @@ from quemb.molbe._cpp.eri_sparse_DF import (
     apply_inv_cholesky_inplace,
     set_log_level,
     transform_integral_precontracted,
-)
-from quemb.molbe.chemfrag import (
-    _get_AOidx_per_atom,
 )
 from quemb.molbe.pfrag import Frags
 from quemb.shared.helper import (
@@ -54,18 +45,14 @@ from quemb.shared.helper import (
 )
 from quemb.shared.typing import (
     AOIdx,
-    AtomIdx,
     Matrix,
-    MOIdx,
     OrbitalIdx,
-    Real,
     ShellIdx,
     Vector,
 )
 
 _T_chemsystem = TypeVar("_T_chemsystem", Mole, Cell)
 
-_T_orb_idx = TypeVar("_T_orb_idx", bound=OrbitalIdx)
 _T_start_orb = TypeVar("_T_start_orb", bound=OrbitalIdx)
 _T_target_orb = TypeVar("_T_target_orb", bound=OrbitalIdx)
 
@@ -78,95 +65,6 @@ logger = logging.getLogger(__name__)
 
 _T_old_key = TypeVar("_T_old_key", bound=Hashable)
 _T_new_key = TypeVar("_T_new_key", bound=Hashable)
-
-
-def _invert_dict(
-    D: Mapping[_T_old_key, Collection[_T_new_key]],
-) -> dict[_T_new_key, set[_T_old_key]]:
-    inverted_D = defaultdict(set)
-    for old_key, new_keys in D.items():
-        for new_key in new_keys:
-            inverted_D[new_key].add(old_key)
-    return {key: inverted_D[key] for key in sorted(inverted_D.keys())}  # type: ignore[type-var]
-
-
-def get_orbs_per_atom(
-    atom_per_orb: Mapping[_T_orb_idx, Set[AtomIdx]],
-) -> dict[AtomIdx, set[_T_orb_idx]]:
-    return _invert_dict(atom_per_orb)
-
-
-def get_orbs_reachable_by_atom(
-    orb_per_atom: Mapping[AtomIdx, Set[_T_orb_idx]],
-    screened: Mapping[AtomIdx, Set[AtomIdx]],
-) -> dict[AtomIdx, dict[AtomIdx, Set[_T_orb_idx]]]:
-    return {
-        i_atom: {
-            j_atom: orb_per_atom.get(j_atom, set())
-            for j_atom in sorted(connected)  # type: ignore[type-var]
-        }
-        for i_atom, connected in screened.items()
-    }
-
-
-def get_orbs_reachable_by_orb(
-    atom_per_orb: Mapping[_T_start_orb, Set[AtomIdx]],
-    reachable_orb_per_atom: Mapping[AtomIdx, Mapping[AtomIdx, Set[_T_target_orb]]],
-) -> dict[_T_start_orb, dict[AtomIdx, Mapping[AtomIdx, Set[_T_target_orb]]]]:
-    """Concatenate the :python:`atom_per_orb` and :python:`reachable_orb_per_atom`
-    Such that it becomes a mapping :python:`i_orb -> i_atom -> j_atom`
-    """
-    return {
-        i_AO: {atom: reachable_orb_per_atom[atom] for atom in atoms}
-        for i_AO, atoms in atom_per_orb.items()
-    }
-
-
-def get_atom_per_AO(mol: Mole) -> dict[AOIdx, set[AtomIdx]]:
-    AOs_per_atom = _get_AOidx_per_atom(mol, frozen_core=False)
-    n_AO = AOs_per_atom[-1][-1] + 1
-
-    def get_atom(i_AO: AOIdx, AO_per_atom: Sequence[Sequence[AOIdx]]) -> AtomIdx:
-        for i_atom, AOs in enumerate(AO_per_atom):
-            if i_AO in AOs:
-                return cast(AtomIdx, i_atom)
-        raise ValueError(f"{i_AO} not contained in AO_per_atom")
-
-    return {
-        i_AO: {get_atom(i_AO, AOs_per_atom)}
-        for i_AO in cast(Sequence[AOIdx], range(n_AO))
-    }
-
-
-def get_atom_per_MO(
-    atom_per_AO: Mapping[AOIdx, Set[AtomIdx]],
-    TA: Matrix[np.float64],
-    epsilon: float = 1e-8,
-) -> dict[MOIdx, set[AtomIdx]]:
-    n_MO = TA.shape[-1]
-    large_enough = {
-        i_MO: cast(Sequence[AOIdx], (TA[:, i_MO] ** 2 > epsilon).nonzero()[0])
-        for i_MO in cast(Sequence[MOIdx], range(n_MO))
-    }
-    return {
-        i_MO: set().union(*(atom_per_AO[AO] for AO in AO_indices))
-        for i_MO, AO_indices in large_enough.items()
-    }
-
-
-def _get_AO_per_MO(
-    TA: Matrix[np.float64],
-    S_abs: Matrix[np.float64],
-    epsilon: float,
-) -> dict[MOIdx, Sequence[AOIdx]]:
-    n_MO = TA.shape[-1]
-    # Upper bound S_abs @ |TA|; |S_abs @ TA| would allow cancellation of
-    # coefficients with opposite sign.
-    X = S_abs @ np.abs(TA)
-    return {
-        i_MO: cast(Sequence[AOIdx], (X[:, i_MO] >= epsilon).nonzero()[0])
-        for i_MO in cast(Sequence[MOIdx], range(n_MO))
-    }
 
 
 @timer.timeit
@@ -187,7 +85,7 @@ def _get_used_AOs(
     MO_coeff_epsilon: float,
 ) -> Vector[np.bool_]:
     """The AOs :math:`\\mu` that the MO screening keeps for at least one MO of
-    :python:`TA` (cf. :func:`_get_AO_per_MO`)."""
+    :python:`TA`."""
     return (S_abs @ np.abs(TA) >= MO_coeff_epsilon).any(axis=1)
 
 
@@ -256,78 +154,6 @@ def conversions_AO_shell(
         for AO in AOs
     }
     return shell_id_to_AO, AO_to_shell_id
-
-
-def get_screened(
-    mol: Mole, screening_radius: Real | Callable[[Real], Real] | Mapping[str, Real]
-) -> dict[AtomIdx, set[AtomIdx]]:
-    m = Cartesian.from_pyscf(mol)
-    return m.get_bonds(modify_element_data=screening_radius, self_bonding_allowed=True)
-
-
-def get_reachable(
-    atoms_per_start_orb: Mapping[_T_start_orb, Set[AtomIdx]],
-    atoms_per_target_orb: Mapping[_T_target_orb, Set[AtomIdx]],
-    screened_connection: Mapping[AtomIdx, Set[AtomIdx]],
-) -> dict[_T_start_orb, list[_T_target_orb]]:
-    """Return the sorted orbitals that can by reached for each orbital after screening.
-
-    Parameters
-    ----------
-    mol :
-        The molecule.
-    atoms_per_orb :
-        The atoms per orbital. For AOs this is the atom the AO is centered on,
-        i.e. a set containing only one element,
-        but for delocalised MOs there can be more than one atom.
-    screening_radius :
-        The screening cutoff is given by the overlap of van der Waals radii.
-        By default, all radii are set to 5 Å, i.e. the screening distance is 10 Å.
-        Alternatively, a callable or a dictionary can be passed.
-        The callable is called with the tabulated van der Waals radius
-        of the atom as argument and can be used to scale it up.
-        The dictionary can be used to define different van der Waals radii
-        for different elements. Compare to the :python:`modify_element_data`
-        argument of :meth:`~chemcoord.Cartesian.get_bonds`.
-    """
-    return _flatten(
-        get_orbs_reachable_by_orb(
-            atoms_per_start_orb,
-            get_orbs_reachable_by_atom(
-                get_orbs_per_atom(atoms_per_target_orb), screened_connection
-            ),
-        )
-    )
-
-
-def get_complement(
-    reachable: Mapping[_T_start, Sequence[_T_target]],
-) -> dict[_T_start, list[_T_target]]:
-    """Return the orbitals that cannot be reached by an orbital after screening."""
-    total: Final = cast(set[_T_target], set(range(len(reachable))))
-    return {i_AO: sorted(total - set(reachable[i_AO])) for i_AO in reachable}  # type: ignore[type-var]
-
-
-def to_numba_input(
-    exch_reachable: Mapping[_T_start_orb, Collection[_T_target_orb]],
-) -> List[Vector[_T_target_orb]]:
-    """Convert the reachable orbitals to a list of numpy arrays.
-
-    This contains the same information but is a far more efficient layout for numba.
-    Ensures that the start orbs are contiguos and sorted and the target orbs are sorted
-    (but not necessarily contiguos).
-    """
-    sorted_exch_reachable = {
-        k: exch_reachable[k]
-        for k in sorted(exch_reachable.keys())  # type: ignore[type-var]
-    }
-    assert list(sorted_exch_reachable.keys()) == list(range(len(sorted_exch_reachable)))
-    return List(
-        [
-            np.array(sorted(orbitals), dtype=np.int64)  # type: ignore[type-var]
-            for orbitals in sorted_exch_reachable.values()
-        ]
-    )
 
 
 def account_for_symmetry(
@@ -527,29 +353,6 @@ def _compute_P_mu_nu_columns(
     )
     assert not np.isnan(out).any()
     return out
-
-
-def _flatten(
-    orb_reachable_by_orb: Mapping[
-        _T_start_orb, Mapping[AtomIdx, Mapping[AtomIdx, Set[_T_target_orb]]]
-    ],
-) -> dict[_T_start_orb, list[_T_target_orb]]:
-    return {
-        i_orb: sorted(  # type: ignore[type-var]
-            set(
-                chain(
-                    *(
-                        orb_reachable_by_orb[i_orb][start_atom][target_atom]
-                        for start_atom, target_atoms in orb_reachable_by_orb[
-                            i_orb
-                        ].items()
-                        for target_atom in target_atoms
-                    )
-                )
-            )
-        )
-        for i_orb in sorted(orb_reachable_by_orb.keys())  # type: ignore[type-var]
-    }
 
 
 def _cholesky_PQ(auxmol: Mole) -> Matrix[np.float64]:
@@ -1042,48 +845,6 @@ def approx_S_abs(mol: Mole, nroots: int = 500) -> Matrix[np.float64]:
 def _ensure_normalization(S_abs: Matrix[np.floating]) -> Matrix[np.float64]:
     N: Final = np.sqrt(np.diag(S_abs))
     return S_abs / (N[:, None] * N[None, :])
-
-
-@timer.timeit
-def grid_S_abs(
-    mol: _T_chemsystem,
-    grid_level: int = 2,
-    kpts: Matrix[np.floating] = np.zeros((1, 3)),
-) -> Matrix[np.float64]:
-    r"""
-    Calculates the overlap matrix :math:`S_ij = \int |phi_i(r)| |phi_j(r)| dr`
-    using numerical integration on a DFT grid.
-
-    Parameters
-    -----------
-    mol :
-    grid_level :
-        Directly passed on to `pyscf grid generation <https://github.com/pyscf/pyscf/blob/master/examples/dft/11-grid_scheme.py>`_.
-    """
-    if isinstance(mol, Mole):
-        grids = dft.gen_grid.Grids(mol)
-    elif isinstance(mol, Cell):
-        grids = pbc_dft.gen_grid.BeckeGrids(mol)
-    else:
-        raise TypeError(f"Input should be a PySCF Mole or Cell, got {type(mol)}")
-        assert_never(mol)
-    grids.level = grid_level
-    grids.build()
-    if isinstance(mol, Mole):
-        AO_abs_val = np.abs(dft.numint.eval_ao(mol, grids.coords, deriv=0))
-        result = (AO_abs_val * grids.weights[:, np.newaxis]).T @ AO_abs_val
-        assert np.allclose(result, result.T)
-    elif isinstance(mol, Cell):  # (nkpt, nao, nao)
-        AO_abs_val = np.abs(
-            pbc_dft.numint.eval_ao_kpts(mol, grids.coords, deriv=0, kpts=kpts)
-        )
-        result = [
-            (AO_abs_val_k * grids.weights[:, np.newaxis]).T @ AO_abs_val_k
-            for AO_abs_val_k in AO_abs_val
-        ]
-        assert np.all([np.allclose(r, r.T) for r in result])
-
-    return result
 
 
 def identify_contiguous_blocks(X: Sequence[_T]) -> list[tuple[int, int]]:

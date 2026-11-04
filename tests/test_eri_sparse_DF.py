@@ -14,14 +14,13 @@ from quemb.molbe.eri_sparse_DF import (
     _get_AO_per_AO,
     _get_pair_keys,
     _get_used_AOs,
-    _invert_dict,
     _order_by_overlap,
     _plan_window,
     approx_S_abs,
     get_sparse_P_mu_nu,
 )
 from quemb.molbe.mbe import IntTransforms
-from quemb.shared.helper import clean_overlap, ravel_symmetric
+from quemb.shared.helper import clean_overlap, ravel_symmetric, unravel_symmetric
 from quemb.shared.typing import AOIdx, Vector
 
 from ._expected_data_for_eri_sparse_DF import get_expected
@@ -86,9 +85,13 @@ def test_screened_sparse_DF_BE(octane, int_transform: IntTransforms) -> None:
 
 
 @pytest.mark.parametrize("MO_coeff_epsilon", [1e-12, 1e-3])
-def test_contract_with_TA_gemm(octane, MO_coeff_epsilon: float) -> None:
-    """The GEMM variants of both contractions with TA agree with the original loops.
+def test_contract_with_TA(octane, MO_coeff_epsilon: float) -> None:
+    r"""The contractions with TA agree with dense einsums with equal screening.
 
+    The first contraction is :math:`(P | \mu i) = \sum_\nu (P | \mu \nu) T_{\nu i}`
+    for the AOs :math:`\mu` of MO :math:`i`, the second
+    :math:`(P | i j) = \sum_\mu (P | \mu j) T_{\mu i}` for :math:`i \geq j`,
+    i.e. over the AOs of the smaller index :math:`j`.
     MO_coeff_epsilon = 1e-3 truncates the AOs per MO, so that the per-mu and per-i
     blocks have different sizes.
     """
@@ -100,20 +103,41 @@ def test_contract_with_TA_gemm(octane, MO_coeff_epsilon: float) -> None:
     P_mu_nu = get_sparse_P_mu_nu(
         mol, make_auxmol(mol, "weigend"), _get_AO_per_AO(S_abs, 1e-8)
     )
+    naux, nao, _ = P_mu_nu.shape
+    # dense (P | mu nu), zero for the screened pairs
+    dense_P_mu_nu = np.zeros((naux, nao, nao))
+    for key, offset in P_mu_nu.offsets.items():
+        mu, nu = unravel_symmetric(key)
+        dense_P_mu_nu[:, mu, nu] = P_mu_nu.unique_dense_data[:, offset]
+        dense_P_mu_nu[:, nu, mu] = P_mu_nu.unique_dense_data[:, offset]
+
     for fragobj in fragments:
         TA = fragobj.TA
+        nmo = TA.shape[1]
         AO_by_MO = cpp.get_AO_per_MO(TA, S_abs, MO_coeff_epsilon)
+        AO_of_MO = np.zeros((nao, nmo), dtype=bool)
+        for i, mus in enumerate(AO_by_MO):
+            AO_of_MO[mus, i] = True
 
+        expected_P_mu_i = np.einsum("Pmn,ni->Pmi", dense_P_mu_nu, TA) * AO_of_MO
         P_mu_i = cpp.contract_with_TA_1st(TA, P_mu_nu, AO_by_MO)
-        P_mu_i_gemm = cpp.contract_with_TA_1st_gemm(TA, P_mu_nu, AO_by_MO)
-        assert np.allclose(
-            P_mu_i_gemm.dense_data, P_mu_i.dense_data, atol=1e-12, rtol=0
-        )
+        assert len(P_mu_i.offsets) == AO_of_MO.sum()
+        for key, offset in P_mu_i.offsets.items():
+            i, mu = divmod(key, nao)
+            assert np.allclose(
+                P_mu_i.dense_data[:, offset],
+                expected_P_mu_i[:, mu, i],
+                atol=1e-12,
+                rtol=0,
+            )
 
+        lower_i, lower_j = np.tril_indices(nmo)
+        expected_P_ij = np.einsum("Pmj,mi->Pij", expected_P_mu_i, TA)[
+            :, lower_i, lower_j
+        ]
         P_ij = cpp.contract_with_TA_2nd_to_sym_dense(P_mu_i, TA)
-        P_ij_gemm = cpp.contract_with_TA_2nd_gemm(P_mu_i_gemm, TA)
-        assert P_ij_gemm.shape == P_ij.shape
-        assert np.allclose(P_ij_gemm, P_ij, atol=1e-12, rtol=0)
+        assert P_ij.shape == expected_P_ij.shape
+        assert np.allclose(P_ij, expected_P_ij, atol=1e-12, rtol=0)
 
 
 def test_pair_keys() -> None:
@@ -254,12 +278,6 @@ def test_rolling_window() -> None:
         )
     assert n_evicted > 0
     assert n_more_stored > 0
-
-
-def test_invert_dict() -> None:
-    X = {0: {1, 2}, 1: {2, 3, 4}}
-    expected = {1: {0}, 2: {0, 1}, 3: {1}, 4: {1}}
-    assert _invert_dict(X) == expected
 
 
 def test_reuse_schmidt_fragment_MOs(ikosan) -> None:

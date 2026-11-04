@@ -406,61 +406,7 @@ std::vector<std::vector<std::pair<std::size_t, OrbitalIdx>>> get_AO_reachable_by
     return result;
 }
 
-SemiSparse3DTensor contract_with_TA_1st(const Matrix &TA,
-                                        const SemiSparseSym3DTensor &int_P_mu_nu,
-                                        const std::vector<std::vector<OrbitalIdx>> &AO_by_MO) noexcept
-{
-    PROFILE_FUNCTION();
-    const OrbitalIdx nao = TA.rows();
-    const OrbitalIdx nmo = TA.cols();
-    const OrbitalIdx naux = std::get<0>(int_P_mu_nu.get_shape());
-
-    // Not const, because it is moved into the returned tensor at the end;
-    // std::move on a const object silently copies.
-    // Read it only via the const view in between.
-    auto AO_by_MO_with_offsets = get_AO_reachable_by_MO_with_offset(AO_by_MO);
-    const auto &AO_by_MO_with_offsets_view = AO_by_MO_with_offsets;
-
-    std::size_t n_unique = 0;
-    for (const auto &offsets : AO_by_MO_with_offsets_view) {
-        n_unique += offsets.size();
-    }
-
-    if (LOG_LEVEL <= LogLevel::Info) {
-        std::cout << "(P | mu i) [MEMORY] sparse " << bytes_to_gib(naux * n_unique * sizeof(Real)) << " GiB" << "\n";
-        std::cout << "(P | mu i) [MEMORY] dense " << bytes_to_gib(naux * nao * nmo * sizeof(Real)) << " GiB" << "\n";
-        std::cout << "(P | mu i) [MEMORY] sparsity "
-                  << (1. - static_cast<double>(n_unique) / static_cast<double>(nao * nmo)) * 100. << " %" << "\n";
-    };
-
-    Matrix g_unique = Matrix::Zero(naux, n_unique);
-    std::unordered_map<std::size_t, std::size_t> offsets;
-    offsets.reserve(n_unique);
-
-    // Modifying the offsets map to store the offsets for
-    // each (mu, i) pair cannot be parallelized.
-    for (OrbitalIdx i = 0; i < nmo; ++i) {
-        for (const auto &[offset, mu] : AO_by_MO_with_offsets_view[i]) {
-            offsets[ravel_Fortran(mu, i, nao)] = offset;
-        }
-    }
-    offsets = rebuild_unordered_map(offsets);
-#pragma omp parallel for
-    for (OrbitalIdx i = 0; i < nmo; ++i) {
-        for (const auto &[offset, mu] : AO_by_MO_with_offsets_view[i]) {
-            for (const auto &[inner_offset, nu] : int_P_mu_nu.exch_reachable_with_offsets()[mu]) {
-                g_unique.col(offset) += TA(nu, i) * int_P_mu_nu.dense_data().col(inner_offset);
-            }
-        }
-    }
-    return SemiSparse3DTensor(std::move(g_unique),
-                              std::make_tuple(naux, nao, nmo),
-                              AO_by_MO,
-                              std::move(AO_by_MO_with_offsets),
-                              std::move(offsets));
-}
-
-// Same result as contract_with_TA_1st, but organised per AO mu:
+// Computes (P | mu i) organised per AO mu:
 //     (P | mu i) = sum_nu (P | mu nu) TA(nu, i)   for all i with mu in AO_by_MO[i]
 // is one dense GEMM  B_mu (naux x n_nu) * TA_mu (n_nu x n_i)  per mu,
 // instead of one vector update per (i, mu, nu) triple.
@@ -469,9 +415,9 @@ SemiSparse3DTensor contract_with_TA_1st(const Matrix &TA,
 // Sym3DTensor is SemiSparseSym3DTensor or SemiSparseSym3DWindow; it has to provide
 // get_shape(), dense_data(), and exch_reachable_with_offsets().
 template <typename Sym3DTensor>
-SemiSparse3DTensor contract_with_TA_1st_gemm(const Matrix &TA,
-                                             const Sym3DTensor &int_P_mu_nu,
-                                             const std::vector<std::vector<OrbitalIdx>> &AO_by_MO) noexcept
+SemiSparse3DTensor contract_with_TA_1st(const Matrix &TA,
+                                        const Sym3DTensor &int_P_mu_nu,
+                                        const std::vector<std::vector<OrbitalIdx>> &AO_by_MO) noexcept
 {
     PROFILE_FUNCTION();
     const OrbitalIdx nao = TA.rows();
@@ -545,63 +491,15 @@ SemiSparse3DTensor contract_with_TA_1st_gemm(const Matrix &TA,
                               std::move(offsets));
 }
 
-Matrix contract_with_TA_2nd_to_sym_dense(const SemiSparse3DTensor &int_mu_i_P, const Matrix &TA) noexcept
-{
-    PROFILE_FUNCTION();
-#ifndef CLANG
-    const auto [naux, nao, nmo] = int_mu_i_P.get_shape();
-#else
-    // Clang does not yet support capturing structured
-    // bindings in OpenMP. Use the structured binding, if it
-    // works in the future.
-    // https://github.com/llvm/llvm-project/issues/33025
-    const auto shape = int_mu_i_P.get_shape();
-    const auto naux = std::get<0>(shape);
-    const auto nao = std::get<1>(shape);
-    UNUSED(nao); // Unused in release
-    const auto nmo = std::get<2>(shape);
-#endif
-    assert(TA.rows() == nao && "TA.shape[0] must match int_mu_i_P.shape[1]");
-    assert(TA.cols() == nmo && "TA.shape[1] must match int_mu_i_P.shape[2]");
-
-    const auto n_sym_pairs = to_eigen(ravel_symmetric(nmo - 1, nmo - 1) + 1);
-
-    if (LOG_LEVEL <= LogLevel::Info) {
-        std::cout << "[MEMORY] about to allocate (ij | P) as sym_P_pq(naux, n_sym_pairs) with "
-                  << bytes_to_gib(naux * n_sym_pairs * sizeof(Real)) << " GiB" << std::endl;
-    }
-    Matrix sym_P_pq(naux, n_sym_pairs);
-
-#pragma omp parallel
-    {
-        Eigen::VectorXd tmp = Eigen::VectorXd::Zero(naux); // one per thread
-
-        // instead of looping over i and then looping over j <= i
-        // we loop over a symmetric index `ij_sym`
-#pragma omp for
-        for (OrbitalIdx ij_sym = 0; ij_sym < n_sym_pairs; ++ij_sym) {
-            const auto &[i, j] = unravel_symmetric(ij_sym);
-            tmp.setZero(); // reuse same memory
-            for (const auto &[offset, mu] : int_mu_i_P.exch_reachable_with_offsets()[i]) {
-                tmp.noalias() += TA(mu, j) * int_mu_i_P.dense_data().col(offset);
-            }
-            sym_P_pq.col(ij_sym) = tmp;
-        }
-    }
-
-    return sym_P_pq;
-}
-
-// Same result as contract_with_TA_2nd_to_sym_dense, but organised per MO i:
+// Computes (P | i j) in the symmetric pair index, organised per MO i:
 //     (P | i j) = sum_mu (P | mu i) TA(mu, j)   for all j >= i, mu in AO_by_MO[i]
 // is one dense GEMM  C_i (naux x n_mu) * TA_i (n_mu x n_j)  per i,
 // instead of one vector update per (i, j, mu) triple.
 // This reads every column (P | mu i) once per i instead of once per (i, j).
 // The columns of C_i are contiguous in int_mu_i_P, because every constructor of
 // SemiSparse3DTensor numbers the (mu, i) offsets of one i consecutively; no gather is needed.
-// As in contract_with_TA_2nd_to_sym_dense, the sum runs over the AOs of the smaller index i,
-// hence the result is the same up to rounding.
-Matrix contract_with_TA_2nd_gemm(const SemiSparse3DTensor &int_mu_i_P, const Matrix &TA) noexcept
+// The sum runs over the AOs of the index i, not of j.
+Matrix contract_with_TA_2nd_to_sym_dense(const SemiSparse3DTensor &int_mu_i_P, const Matrix &TA) noexcept
 {
     PROFILE_FUNCTION();
     const auto shape = int_mu_i_P.get_shape();
@@ -810,7 +708,7 @@ class SemiSparseSym3DWindow
         }
     }
 
-    // Accessors as in SemiSparseSym3DTensor, used by contract_with_TA_1st_gemm
+    // Accessors as in SemiSparseSym3DTensor, used by contract_with_TA_1st
     const Matrix &dense_data() const noexcept
     {
         return _data;
@@ -866,8 +764,8 @@ Matrix transform_integral_precontracted(const Sym3DTensor &int_P_mu_nu,
 
 {
     const auto AO_by_MO = get_AO_per_MO(TA, S_abs, MO_coeff_epsilon);
-    const SemiSparse3DTensor int_P_mu_i = contract_with_TA_1st_gemm(TA, int_P_mu_nu, AO_by_MO);
-    return eval_precontracted(contract_with_TA_2nd_gemm(int_P_mu_i, TA));
+    const SemiSparse3DTensor int_P_mu_i = contract_with_TA_1st(TA, int_P_mu_nu, AO_by_MO);
+    return eval_precontracted(contract_with_TA_2nd_to_sym_dense(int_P_mu_i, TA));
 }
 
 // Automatically generate python type stub pages via the following bash command
@@ -1012,33 +910,22 @@ PYBIND11_MODULE(eri_sparse_DF, m)
         );
 
     m.def("contract_with_TA_1st",
-          &contract_with_TA_1st,
-          py::arg("TA"),
-          py::arg("int_P_mu_nu"),
-          py::arg("AO_by_MO"),
-          py::call_guard<py::gil_scoped_release>());
-
-    m.def("contract_with_TA_1st_gemm",
-          &contract_with_TA_1st_gemm<SemiSparseSym3DTensor>,
+          &contract_with_TA_1st<SemiSparseSym3DTensor>,
           py::arg("TA"),
           py::arg("int_P_mu_nu"),
           py::arg("AO_by_MO"),
           py::call_guard<py::gil_scoped_release>(),
-          "Same as contract_with_TA_1st, but with one dense GEMM per AO mu.");
+          "Compute (P | mu i) = sum_nu (P | mu nu) TA(nu, i) for the AOs mu of every MO i,\n"
+          "with one dense GEMM per AO mu.");
 
     m.def("contract_with_TA_2nd_to_sym_dense",
           &contract_with_TA_2nd_to_sym_dense,
           py::arg("int_mu_i_P"),
           py::arg("TA"),
           py::call_guard<py::gil_scoped_release>(),
-          "Contract with TA to get a symmetric dense tensor (P | i, j)");
-
-    m.def("contract_with_TA_2nd_gemm",
-          &contract_with_TA_2nd_gemm,
-          py::arg("int_mu_i_P"),
-          py::arg("TA"),
-          py::call_guard<py::gil_scoped_release>(),
-          "Same as contract_with_TA_2nd_to_sym_dense, but with one dense GEMM per MO i.");
+          "Compute (P | i j) = sum_mu (P | mu i) TA(mu, j) for j >= i (the AOs of the smaller\n"
+          "index i) in the symmetric pair index,\n"
+          "with one dense GEMM per MO i.");
 
     m.def("get_AO_per_MO",
           &get_AO_per_MO,
@@ -1047,19 +934,6 @@ PYBIND11_MODULE(eri_sparse_DF, m)
           py::arg("epsilon"),
           py::call_guard<py::gil_scoped_release>(),
           "Get AOs per MO based on TA and S_abs matrices with a threshold epsilon");
-
-    m.def("get_AO_reachable_by_MO_with_offset",
-          &get_AO_reachable_by_MO_with_offset,
-          py::arg("AO_reachable_by_MO"),
-          py::call_guard<py::gil_scoped_release>(),
-          "Get AO reachable by MO with offsets based on the\n"
-          "provided AO_reachable_by_MO structure");
-
-    m.def("extract_unique",
-          &extract_unique,
-          py::arg("exch_reachable"),
-          py::call_guard<py::gil_scoped_release>(),
-          "Extract unique reachable AOs from the provided exch_reachable structure");
 
     m.def("apply_inv_cholesky_inplace",
           &apply_inv_cholesky_inplace,
