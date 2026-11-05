@@ -496,7 +496,7 @@ def choose_cnos(
             # proportional scheme by adding a certain number of occupieds and virtuals,
             # as closely as possible
             else:
-                nocc_cno_add = np.round(args.tot_active_orbs / prop) - nsocc
+                nocc_cno_add = int(np.round(args.tot_active_orbs / prop) - nsocc)
                 nvir_cno_add = args.tot_active_orbs - n_f - n_b - nocc_cno_add
     if args.cno_scheme != "Threshold":
         print("Intended # OCNOs and VCNOs:", nocc_cno_add, nvir_cno_add)

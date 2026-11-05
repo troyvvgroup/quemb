@@ -48,7 +48,7 @@ def run_solver(
     weight_and_relAO_per_center: ListOverFrag[tuple[float, list[RelAOIdx]]],
     TA: Matrix[float64],
     h1_e: Matrix[float64],
-    # mo_coeff: Matrix[float64],  # Frankenstein Energy TODO
+    mo_coeff: Matrix[float64],  # Frankenstein Energy TODO
     solver: Solvers = "CCSD",
     eri_file: str = "eri_file.h5",
     veff: Matrix[float64] | None = None,
@@ -285,7 +285,7 @@ def run_solver(
                 rdm2s -= nc
         e_f = get_frag_energy(
             mf_.mo_coeff,
-            # mo_coeff,  # Frankenstein energy TODO
+            mo_coeff,  # Frankenstein energy TODO
             nocc,
             n_frag,
             weight_and_relAO_per_center,
@@ -500,7 +500,7 @@ def be_func_parallel(
                 fobj.weight_and_relAO_per_center,
                 fobj.TA,
                 fobj.h1,
-                # fobj._mo_coeffs,  # Frankenstein Energy, TODO
+                fobj._mo_coeffs,  # Frankenstein Energy, TODO
                 solver,
                 fobj.eri_file,
                 fobj.veff if not use_cumulant else None,
@@ -526,6 +526,9 @@ def be_func_parallel(
             e_1 += rdms[i][0]
             e_2 += rdms[i][1]
             e_c += rdms[i][2]
+        print(f"Correlation Energy at iteration: {e_1 + e_2 + e_c:>f} Ha", flush=True)
+        print(f"E F delta P: {e_1 + e_c:>f} Ha", flush=True)
+        print(f"E cumulant: {e_2:>f} Ha", flush=True)
         return (e_1 + e_2 + e_c, (e_1, e_2, e_c))
 
     # Compute total energy
@@ -543,6 +546,9 @@ def be_func_parallel(
         fobj.mo_coeffs = rdm[1]
         fobj._rdm1 = rdm[2]
         fobj.rdm2__ = rdm[3]
+    print(f"Correlation Energy at iteration: {e_1 + e_2 + e_c:>f} Ha", flush=True)
+    print(f"E F delta P: {e_1 + e_c:>f} Ha", flush=True)
+    print(f"E cumulant: {e_2:>f} Ha", flush=True)
 
     del rdms
     ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem)
