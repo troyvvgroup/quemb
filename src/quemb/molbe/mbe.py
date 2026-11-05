@@ -28,7 +28,7 @@ from pyscf.gto import Mole
 from typing_extensions import assert_never
 
 from quemb.molbe.be_parallel import be_func_parallel
-from quemb.molbe.chemfrag import ChemFragPart
+from quemb.molbe.chemfrag import ChemFragPart, ChemGenArgs
 from quemb.molbe.cno_utils import (
     CNOArgs,
     augment_w_cnos,
