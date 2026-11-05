@@ -8,43 +8,140 @@ entire grid locally and write ``d3_damping_scan_local.csv``.
 
 import csv
 import os
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from itertools import product
 from pathlib import Path
-from quemb.molbe.torch_d3 import (
-    D3BJParameters,
-    D3TTParameters,
-    TorchExternalD3BJ,
-)
+from typing import Callable
+
 import numpy as np
 import torch
 from pyscf import gto
 
 from quemb.molbe.chemfrag import Fragmented
-from quemb.molbe.torch_d3 import TorchExternalD3BJ
-
+from quemb.molbe.torch_d3 import (
+    BeckeJohnsonDamping,
+    D3BJParameters,
+    D3Parameters,
+    D3TTParameters,
+    DampingModel,
+    TangToenniesDamping,
+    TorchExternalD3,
+)
 
 GEOMETRY_FILE = "geometry.xyz"
 FORCE_EMBEDDING_FILE = "force_embedding_C3A.txt"
 REFERENCE_FILE = "ref_C3A.txt"
 BASIS = "sto-3g"
 
-DAMPING = "tt"  # "bj" or "tt"
+METHOD = "hf"
+DAMPING = "tt"
 
 A1_VALUES = [0.2, 0.3, 0.4, 0.5, 0.6]
 A2_VALUES = [3.0, 4.0, 5.0, 6.0, 7.0]
 
-# Units: bohr^-1. These are trial values; calibrate the range for your system.
-TT_B_VALUES = [0.003030, 0.006061, 0.009091, 0.012121, 0.015152, 0.018182, 0.021212, 0.024242, 0.027273,
-0.030303, 0.033333, 0.036364, 0.039394, 0.042424, 0.045455, 0.048485, 0.051515, 0.054545, 0.057576,
-0.060606, 0.063636, 0.066667, 0.069697, 0.072727, 0.075758, 0.078788, 0.081818, 0.084848, 0.087879,
-0.090909, 0.093939, 0.096970, 0.100000, 0.103030, 0.106061, 0.109091, 0.112121, 0.115152, 0.118182,
-0.121212, 0.124242, 0.127273, 0.130303, 0.133333, 0.136364, 0.139394, 0.142424, 0.145455, 0.148485,
-0.151515, 0.154545, 0.157576, 0.160606, 0.163636, 0.166667, 0.169697, 0.172727, 0.175758, 0.178788,
-0.181818, 0.184848, 0.187879, 0.190909, 0.193939, 0.196970, 0.200000, 0.203030, 0.206061, 0.209091,
-0.212121, 0.215152, 0.218182, 0.221212, 0.224242, 0.227273, 0.230303, 0.233333, 0.236364, 0.239394,
-0.242424, 0.245455, 0.248485, 0.251515, 0.254545, 0.257576, 0.260606, 0.263636, 0.266667, 0.269697,
-0.272727, 0.275758, 0.278788, 0.281818, 0.284848, 0.287879, 0.290909, 0.293939, 0.296970, 0.300000]
+# Units: bohr^-1.
+TT_B_VALUES = np.linspace(0.003030, 0.300000, 100)
+
+Point = tuple[float, ...]
+
+
+@dataclass(frozen=True)
+class ScanConfiguration:
+    """Everything that varies between damping-model scans."""
+
+    name: str
+    damping: DampingModel
+    default_parameters: D3Parameters
+    parameter_names: tuple[str, ...]
+    parameter_units: tuple[str, ...]
+    points: tuple[Point, ...]
+
+    def parameters_for(self, point: Point) -> D3Parameters:
+        """Construct the D3 parameters represented by one scan point."""
+        if len(point) != len(self.parameter_names):
+            raise ValueError(
+                f"Expected {len(self.parameter_names)} scan values, got {len(point)}."
+            )
+
+        changes = dict(zip(self.parameter_names, point, strict=True))
+        return replace(self.default_parameters, **changes)
+
+    def row_for(self, point: Point) -> dict[str, float]:
+        """Return the CSV columns for one scan point, excluding MSE."""
+        return dict(zip(self.parameter_names, point, strict=True))
+
+    def label_for(self, point: Point) -> str:
+        """Return a readable progress label for one scan point."""
+        fields = []
+
+        for name, value, unit in zip(
+            self.parameter_names,
+            point,
+            self.parameter_units,
+            strict=True,
+        ):
+            suffix = f" {unit}" if unit else ""
+            fields.append(f"{name}={value:.6g}{suffix}")
+
+        return "  ".join(fields)
+
+
+def make_bj_scan(method: str) -> ScanConfiguration:
+    damping = BeckeJohnsonDamping()
+    default_parameters = damping.default_parameters(method)
+
+    return ScanConfiguration(
+        name="bj",
+        damping=damping,
+        default_parameters=default_parameters,
+        parameter_names=("a1", "a2"),
+        parameter_units=("", ""),
+        points=tuple(product(A1_VALUES, A2_VALUES)),
+    )
+
+
+def make_tt_scan(method: str) -> ScanConfiguration:
+    damping = TangToenniesDamping()
+
+    # Temporary choice: reuse the HF-D3(BJ) scale factors.
+    # Replace this when you establish TT-specific fitted defaults.
+    bj_defaults = D3BJParameters.from_method(method)
+    default_parameters = D3TTParameters(
+        s6=bj_defaults.s6,
+        s8=bj_defaults.s8,
+        b=float(TT_B_VALUES[0]),
+    )
+
+    return ScanConfiguration(
+        name="tt",
+        damping=damping,
+        default_parameters=default_parameters,
+        parameter_names=("b",),
+        parameter_units=("bohr^-1",),
+        points=tuple((float(b),) for b in TT_B_VALUES),
+    )
+
+
+SCAN_CONFIG_FACTORIES: dict[
+    str,
+    Callable[[str], ScanConfiguration],
+] = {
+    "bj": make_bj_scan,
+    "tt": make_tt_scan,
+}
+
+
+def get_scan_configuration(name: str, method: str) -> ScanConfiguration:
+    """Construct the selected damping-model scan configuration."""
+    try:
+        factory = SCAN_CONFIG_FACTORIES[name.lower()]
+    except KeyError as exc:
+        available = ", ".join(sorted(SCAN_CONFIG_FACTORIES))
+        raise ValueError(
+            f"Unknown damping model {name!r}; choose one of: {available}."
+        ) from exc
+
+    return factory(method)
 
 
 def load_gradient(filename: str, n_atoms: int) -> torch.Tensor:
@@ -70,7 +167,7 @@ def build_system():
 
 def d3_gradient(
     coordinates: torch.Tensor,
-    d3: TorchExternalD3BJ,
+    d3: TorchExternalD3,
     fragments,
     frag_per_atom,
     parameters,
@@ -87,15 +184,22 @@ def d3_gradient(
         frag_per_atom, device=coordinates.device, dtype=torch.long
     )
 
-    for fragment_number, (fragment, gradient) in enumerate(
+    for fragment_number, (fragment_atoms, gradient) in enumerate(
         zip(fragments, fragment_gradients)
     ):
-        fragment = torch.as_tensor(
-            fragment, device=coordinates.device, dtype=torch.long
+        fragment_indices = torch.as_tensor(
+            fragment_atoms,
+            device=coordinates.device,
+            dtype=torch.long,
         )
-        owned_mask = frag_per_atom[fragment] == fragment_number
+        owned_mask = frag_per_atom[fragment_indices] == fragment_number
+
         if owned_mask.any():
-            correction.index_copy_(0, fragment[owned_mask], gradient[owned_mask])
+            correction.index_copy_(
+                0,
+                fragment_indices[owned_mask],
+                gradient[owned_mask],
+            )
 
     return correction
 
@@ -104,19 +208,23 @@ def mse(
     coordinates: torch.Tensor,
     force_embedding: torch.Tensor,
     reference: torch.Tensor,
-    d3: TorchExternalD3BJ,
+    d3: TorchExternalD3,
     fragments,
     frag_per_atom,
     parameters,
 ) -> float:
     """Return the mean-squared error for one D3(BJ) parameter combination."""
-    residual = force_embedding + d3_gradient(
-        coordinates, d3, fragments, frag_per_atom, parameters
-    ) - reference
+    residual = (
+        force_embedding
+        + d3_gradient(coordinates, d3, fragments, frag_per_atom, parameters)
+        - reference
+    )
     return torch.mean(residual.square()).item()
 
 
-def assigned_points(all_points: list[tuple[float, float]]):
+def assigned_points(
+    all_points: tuple[Point, ...],
+) -> tuple[int, int, tuple[Point, ...]]:
     """Return this Slurm array task's round-robin share of the grid."""
     task_id = int(os.environ.get("SLURM_ARRAY_TASK_ID", "0"))
     task_count = int(os.environ.get("SLURM_ARRAY_TASK_COUNT", "1"))
@@ -125,21 +233,17 @@ def assigned_points(all_points: list[tuple[float, float]]):
         raise ValueError(
             f"Invalid Slurm array task {task_id} for {task_count} array tasks."
         )
+
     return task_id, task_count, all_points[task_id::task_count]
 
 
 def write_results(
     rows: list[dict[str, float]],
     task_label: str,
-    damping: str,
+    config: ScanConfiguration,
 ) -> Path:
-    filename = Path(f"d3_{damping}_damping_scan_{task_label}.csv")
-
-    fieldnames = (
-        ["a1", "a2", "mse"]
-        if damping == "bj"
-        else ["b", "mse"]
-    )
+    filename = Path(f"d3_{config.name}_damping_scan_{task_label}.csv")
+    fieldnames = [*config.parameter_names, "mse"]
 
     with filename.open("w", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
@@ -158,67 +262,34 @@ def main() -> None:
     force_embedding = load_gradient(FORCE_EMBEDDING_FILE, mol.natm)
     reference = load_gradient(REFERENCE_FILE, mol.natm)
 
+    config = get_scan_configuration(DAMPING, METHOD)
 
-    bj_default = D3BJParameters.from_method("hf")
-    
-    if DAMPING == "bj":
-        d3 = TorchExternalD3BJ(
-            atomic_numbers=mol.atom_charges().tolist(),
-            fragments=fragments,
-            inverted_fragments=inverted_fragments,
-            method="hf",
-            damping="bj",
-        )
-        default = d3.total_d3.parameters
-        all_points = list(product(A1_VALUES, A2_VALUES))
-    
-    elif DAMPING == "tt":
-        # This borrows HF-D3(BJ)'s s6/s8 as initial fixed scale factors.
-        # For a production TT model, consider fitting them with b.
-        default = D3TTParameters(
-            s6=bj_default.s6,
-            s8=bj_default.s8,
-            b=TT_B_VALUES[0],
-        )
-        d3 = TorchExternalD3BJ(
-            atomic_numbers=mol.atom_charges().tolist(),
-            fragments=fragments,
-            inverted_fragments=inverted_fragments,
-            method="hf",
-            damping="tt",
-            tt_parameters=default,
-        )
-        all_points = [(b,) for b in TT_B_VALUES]
+    d3 = TorchExternalD3(
+        atomic_numbers=mol.atom_charges().tolist(),
+        fragments=fragments,
+        inverted_fragments=inverted_fragments,
+        method=METHOD,
+        damping=config.damping,
+        parameters=config.default_parameters,
+    )
 
-    else:
-        raise ValueError(f"Unsupported DAMPING={DAMPING!r}.")
-
-
-    task_id, task_count, points = assigned_points(all_points)
+    task_id, task_count, points = assigned_points(config.points)
     task_label = os.environ.get("SLURM_ARRAY_TASK_ID", "local")
 
     print(
         f"Array task {task_id + 1}/{task_count}: evaluating {len(points)} "
-        f"of {len(all_points)} points with default "
-        f"s6={default.s6:.4f} and s8={default.s8:.4f}.",
+        f"of {len(config.points)} points with default "
+        f"s6={config.default_parameters.s6:.4f} and "
+        f"s8={config.default_parameters.s8:.4f}.",
         flush=True,
     )
 
-    
     rows = []
 
     for point in points:
-        if DAMPING == "bj":
-            a1, a2 = point
-            parameters = replace(default, a1=a1, a2=a2)
-            row = {"a1": a1, "a2": a2}
-            label = f"a1={a1:.4f}  a2={a2:.4f}"
-
-        else:
-            (b,) = point
-            parameters = replace(default, b=b)
-            row = {"b": b}
-            label = f"b={b:.4f} bohr^-1"
+        parameters = config.parameters_for(point)
+        row = config.row_for(point)
+        label = config.label_for(point)
 
         value = mse(
             coordinates,
@@ -233,8 +304,8 @@ def main() -> None:
         row["mse"] = value
         rows.append(row)
         print(f"{label}  MSE={value:.8e}", flush=True)
-    
-    results_file = write_results(rows, task_label, DAMPING)
+
+    results_file = write_results(rows, task_label, config)
     print(f"Wrote {results_file}.", flush=True)
 
 

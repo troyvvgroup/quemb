@@ -2,7 +2,8 @@ import re
 from dataclasses import dataclass
 from functools import cache
 from importlib.resources import files
-from typing import Literal, TypeAlias
+from typing import Protocol, TypeAlias
+
 import numpy as np
 import tomli
 import torch
@@ -276,6 +277,7 @@ class D3ReferenceData:
 
         return torch.cat((torch.zeros(1, dtype=torch.float64), factors))
 
+
 @dataclass(frozen=True)
 class D3TTParameters:
     """Parameters for Tang--Toennies-damped D3."""
@@ -287,7 +289,6 @@ class D3TTParameters:
     def __post_init__(self) -> None:
         if self.b <= 0.0:
             raise ValueError("Tang--Toennies parameter b must be positive.")
-
 
 
 @dataclass(frozen=True)
@@ -319,7 +320,104 @@ class D3BJParameters:
             a2=float(values["a2"]),
         )
 
+
 D3Parameters: TypeAlias = D3BJParameters | D3TTParameters
+
+
+class DampingModel(Protocol):
+    """Interface implemented by one D3 damping prescription."""
+
+    name: str
+
+    def default_parameters(self, method: str) -> D3Parameters:
+        """Return default parameters for this damping model."""
+        ...
+
+    def pair_energies(
+        self,
+        distances: torch.Tensor,
+        c6: torch.Tensor,
+        c8: torch.Tensor,
+        parameters: D3Parameters,
+    ) -> torch.Tensor:
+        """Return one damped D3 pair energy per atom pair."""
+        ...
+
+
+class BeckeJohnsonDamping:
+    """D3(BJ) damping."""
+
+    name = "bj"
+
+    def default_parameters(self, method: str) -> D3BJParameters:
+        return D3BJParameters.from_method(method)
+
+    def pair_energies(
+        self,
+        distances: torch.Tensor,
+        c6: torch.Tensor,
+        c8: torch.Tensor,
+        parameters: D3Parameters,
+    ) -> torch.Tensor:
+        if not isinstance(parameters, D3BJParameters):
+            raise TypeError(
+                "BeckeJohnsonDamping requires D3BJParameters, "
+                f"not {type(parameters).__name__}."
+            )
+
+        damping_radius = parameters.a1 * torch.sqrt(c8 / c6) + parameters.a2
+
+        c6_term = parameters.s6 * c6 / (distances**6 + damping_radius**6)
+        c8_term = parameters.s8 * c8 / (distances**8 + damping_radius**8)
+
+        return -(c6_term + c8_term)
+
+
+class TangToenniesDamping:
+    """Tang--Toennies-damped D3."""
+
+    name = "tt"
+
+    def default_parameters(self, _method: str) -> D3Parameters:
+        raise ValueError(
+            "TangToenniesDamping has no method-specific defaults yet. "
+            "Supply D3TTParameters explicitly."
+        )
+
+    @staticmethod
+    def _factor(x: torch.Tensor, order: int) -> torch.Tensor:
+        """Return f_n(x) = 1 - exp(-x) sum_{k=0}^n x^k / k!."""
+        term = torch.ones_like(x)
+        series = term.clone()
+
+        for k in range(1, order + 1):
+            term = term * x / k
+            series = series + term
+
+        return 1.0 - torch.exp(-x) * series
+
+    def pair_energies(
+        self,
+        distances: torch.Tensor,
+        c6: torch.Tensor,
+        c8: torch.Tensor,
+        parameters: D3Parameters,
+    ) -> torch.Tensor:
+        if not isinstance(parameters, D3TTParameters):
+            raise TypeError(
+                "TangToenniesDamping requires D3TTParameters, "
+                f"not {type(parameters).__name__}."
+            )
+
+        x = parameters.b * distances
+        f6 = self._factor(x, order=6)
+        f8 = self._factor(x, order=8)
+
+        c6_term = parameters.s6 * c6 * f6 / distances**6
+        c8_term = parameters.s8 * c8 * f8 / distances**8
+
+        return -(c6_term + c8_term)
+
 
 class TrainableD3BJParameters(torch.nn.Module):
     """Positive, trainable D3(BJ) damping parameters."""
@@ -363,7 +461,7 @@ class TrainableD3BJParameters(torch.nn.Module):
         )
 
 
-class TorchD3BJ:
+class TorchD3:
     """Differentiable two-body D3 correction with BJ or TT damping."""
 
     def __init__(
@@ -371,43 +469,35 @@ class TorchD3BJ:
         atomic_numbers: list[int],
         method: str = "hf",
         *,
-        damping: Literal["bj", "tt"] = "bj",
-        tt_parameters: D3TTParameters | None = None,
+        damping: DampingModel | None = None,
+        parameters: D3Parameters | None = None,
     ):
         self.atomic_numbers = torch.tensor(atomic_numbers, dtype=torch.int64)
         _validate_atomic_numbers(self.atomic_numbers)
 
         self.method = method
-        self.damping = damping.lower()
+        self.damping = damping if damping is not None else BeckeJohnsonDamping()
         self.reference_data = D3ReferenceData.from_files()
 
-        if self.damping == "bj":
-            self.parameters = D3BJParameters.from_method(method)
-        elif self.damping == "tt":
-            if tt_parameters is None:
-                raise ValueError(
-                    "tt_parameters must be supplied when damping='tt'."
-                )
-            self.parameters = tt_parameters
-        else:
-            raise ValueError(
-                f"Unknown damping model {damping!r}; use 'bj' or 'tt'."
-            )
-            
+        self.parameters = (
+            self.damping.default_parameters(method)
+            if parameters is None
+            else parameters
+        )
+
     def energy(
         self,
         coordinates: torch.Tensor,
         parameters: D3Parameters | None = None,
     ) -> torch.Tensor:
-        
         self._validate_coordinates(coordinates)
-    
+
         if parameters is None:
             parameters = self.parameters
-    
+
         distances = self._pairwise_distances(coordinates)
         c6, c8 = self._pairwise_coefficients(coordinates, distances)
-    
+
         pair_energies, _ = self._two_body_pair_energies(
             distances,
             c6,
@@ -416,12 +506,10 @@ class TorchD3BJ:
         )
         return pair_energies.sum()
 
-
     def energy_and_gradient(
         self,
         coordinates: torch.Tensor,
-        parameters: D3BJParameters | None = None,
-        *,
+        parameters: D3Parameters | None = None,
         create_graph: bool = False,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         if not coordinates.requires_grad:
@@ -433,61 +521,30 @@ class TorchD3BJ:
         ]
         return energy, gradient
 
-    @staticmethod
-    def _tang_toennies_factor(x: torch.Tensor, order: int) -> torch.Tensor:
-        """Return f_order(x) = 1 - exp(-x) * sum_{k=0}^order x^k / k!."""
-        term = torch.ones_like(x)
-        series = term.clone()
-    
-        for k in range(1, order + 1):
-            term = term * x / k
-            series = series + term
-    
-        return 1.0 - torch.exp(-x) * series
-    
-    
     def _two_body_pair_energies(
         self,
         distances: torch.Tensor,
         c6: torch.Tensor,
         c8: torch.Tensor,
         parameters: D3Parameters,
-    ):
-        """Return damped pair-energy contributions and atom-pair indices."""
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Return damped pair energies and upper-triangle atom-pair indices."""
         n_atoms = distances.shape[0]
         pair_indices = torch.triu_indices(
-            n_atoms, n_atoms, offset=1, device=distances.device
+            n_atoms,
+            n_atoms,
+            offset=1,
+            device=distances.device,
         )
         atom_i, atom_j = pair_indices
-    
-        pair_distances = distances[atom_i, atom_j]
-        pair_c6 = c6[atom_i, atom_j]
-        pair_c8 = c8[atom_i, atom_j]
-    
-        if isinstance(parameters, D3BJParameters):
-            damping_radius = (
-                parameters.a1 * torch.sqrt(pair_c8 / pair_c6) + parameters.a2
-            )
-            c6_term = parameters.s6 * pair_c6 / (
-                pair_distances**6 + damping_radius**6
-            )
-            c8_term = parameters.s8 * pair_c8 / (
-                pair_distances**8 + damping_radius**8
-            )
-    
-        elif isinstance(parameters, D3TTParameters):
-            x = parameters.b * pair_distances
-            f6 = self._tang_toennies_factor(x, order=6)
-            f8 = self._tang_toennies_factor(x, order=8)
-    
-            c6_term = parameters.s6 * pair_c6 * f6 / pair_distances**6
-            c8_term = parameters.s8 * pair_c8 * f8 / pair_distances**8
-    
-        else:
-            raise TypeError(f"Unsupported D3 parameters: {type(parameters).__name__}")
-    
-        return -(c6_term + c8_term), pair_indices
 
+        pair_energies = self.damping.pair_energies(
+            distances[atom_i, atom_j],
+            c6[atom_i, atom_j],
+            c8[atom_i, atom_j],
+            parameters,
+        )
+        return pair_energies, pair_indices
 
     def _coordination_numbers(self, coordinates, distances):
         """Compute D3 coordination numbers from nuclear coordinates.
@@ -715,7 +772,7 @@ class TorchD3BJ:
         return c6, c8
 
 
-class TorchExternalD3BJ:
+class TorchExternalD3:
     """Differentiable external D3(BJ) corrections for a set of fragments.
 
     For fragment ``i``, the correction is
@@ -730,23 +787,21 @@ class TorchExternalD3BJ:
         inverted_fragments: list[list[int]],
         method: str = "hf",
         *,
-        damping: Literal["bj", "tt"] = "bj",
-        tt_parameters: D3TTParameters | None = None,
+        damping: DampingModel | None = None,
+        parameters: D3Parameters | None = None,
     ) -> None:
-    
-    
         if len(fragments) != len(inverted_fragments):
             raise ValueError(
                 "fragments and inverted_fragments must have the same length."
             )
 
-        self.total_d3 = TorchD3BJ(
+        self.total_d3 = TorchD3(
             atomic_numbers,
             method=method,
             damping=damping,
-            tt_parameters=tt_parameters,
+            parameters=parameters,
         )
-        
+
         self.n_atoms = len(atomic_numbers)
 
         self.fragment_indices = [
@@ -758,25 +813,24 @@ class TorchExternalD3BJ:
         ]
 
         self.fragment_d3 = [
-            TorchD3BJ(
+            TorchD3(
                 self.total_d3.atomic_numbers[indices].tolist(),
                 method=method,
-                damping=damping,
-                tt_parameters=tt_parameters,
+                damping=self.total_d3.damping,
+                parameters=self.total_d3.parameters,
             )
             for indices in self.fragment_indices
         ]
-        
+
         self.inverted_fragment_d3 = [
-            TorchD3BJ(
+            TorchD3(
                 self.total_d3.atomic_numbers[indices].tolist(),
                 method=method,
-                damping=damping,
-                tt_parameters=tt_parameters,
+                damping=self.total_d3.damping,
+                parameters=self.total_d3.parameters,
             )
             for indices in self.inverted_fragment_indices
         ]
-
 
     def _validate_atom_indices(
         self,
@@ -803,7 +857,7 @@ class TorchExternalD3BJ:
     def energies(
         self,
         coordinates: torch.Tensor,
-        parameters: D3BJParameters | None = None,
+        parameters: D3Parameters | None = None,
     ) -> torch.Tensor:
         """Return one external D3 energy per fragment."""
         total_energy = self.total_d3.energy(coordinates, parameters=parameters)
@@ -816,15 +870,15 @@ class TorchExternalD3BJ:
             self.fragment_d3,
             self.inverted_fragment_d3,
         ):
-            fragment_indices = fragment_indices.to(coordinates.device)
-            inverted_indices = inverted_indices.to(coordinates.device)
+            fragment_atom_indices = fragment_indices.to(coordinates.device)
+            inverted_atom_indices = inverted_indices.to(coordinates.device)
 
             fragment_energy = fragment_d3.energy(
-                coordinates[fragment_indices],
+                coordinates[fragment_atom_indices],
                 parameters=parameters,
             )
             inverted_energy = inverted_d3.energy(
-                coordinates[inverted_indices],
+                coordinates[inverted_atom_indices],
                 parameters=parameters,
             )
 
@@ -835,66 +889,59 @@ class TorchExternalD3BJ:
     def fragment_gradients(
         self,
         coordinates: torch.Tensor,
-        parameters: D3BJParameters | None = None,
+        parameters: D3Parameters | None = None,
         *,
         create_graph: bool = False,
     ) -> list[torch.Tensor]:
-        """Return external-D3 gradients, one tensor per fragment.
-    
-        Unlike energies_and_gradients(), this does not retain the forward graphs
-        for every fragment and complement simultaneously.
+        """Return external-D3 gradients on each fragment's own atoms.
+
+        For fragment A and complement B,
+
+            d/dR_A [E_total - E_A - E_B] = dE_total/dR_A - dE_A/dR_A,
+
+        because E_B does not depend on the coordinates of atoms in A.
         """
         if not coordinates.requires_grad:
             coordinates = coordinates.detach().clone().requires_grad_(True)
-    
-        # The total-system graph must remain available for every fragment.
-        total_energy = self.total_d3.energy(coordinates, parameters=parameters)
-        gradients = []
-        n_fragments = len(self.fragment_indices)
-    
-        for index, (
-            fragment_indices,
-            inverted_indices,
-            fragment_d3,
-            inverted_d3,
-        ) in enumerate(
-            zip(
-                self.fragment_indices,
-                self.inverted_fragment_indices,
-                self.fragment_d3,
-                self.inverted_fragment_d3,
-            )
+
+        total_energy = self.total_d3.energy(
+            coordinates,
+            parameters=parameters,
+        )
+        total_gradient = torch.autograd.grad(
+            total_energy,
+            coordinates,
+            create_graph=create_graph,
+        )[0]
+
+        fragment_gradients: list[torch.Tensor] = []
+
+        for fragment_indices, fragment_d3 in zip(
+            self.fragment_indices,
+            self.fragment_d3,
         ):
-            fragment_indices = fragment_indices.to(coordinates.device)
-            inverted_indices = inverted_indices.to(coordinates.device)
-    
-            external_energy = (
-                total_energy
-                - fragment_d3.energy(
-                    coordinates[fragment_indices],
-                    parameters=parameters,
-                )
-                - inverted_d3.energy(
-                    coordinates[inverted_indices],
-                    parameters=parameters,
-                )
+            fragment_atom_indices = fragment_indices.to(coordinates.device)
+            fragment_coordinates = coordinates[fragment_atom_indices]
+
+            fragment_energy = fragment_d3.energy(
+                fragment_coordinates,
+                parameters=parameters,
             )
-    
-            full_gradient = torch.autograd.grad(
-                external_energy,
-                coordinates,
+            fragment_gradient = torch.autograd.grad(
+                fragment_energy,
+                fragment_coordinates,
                 create_graph=create_graph,
-                retain_graph=create_graph or index < n_fragments - 1,
             )[0]
-    
-            gradients.append(full_gradient[fragment_indices])
-    
-        return gradients
+
+            external_gradient = total_gradient[fragment_indices] - fragment_gradient
+            fragment_gradients.append(external_gradient)
+
+        return fragment_gradients
 
     def energies_and_gradients(
         self,
         coordinates: torch.Tensor,
-        parameters: D3BJParameters | None = None,
+        parameters: D3Parameters | None = None,
         *,
         create_graph: bool = False,
     ) -> tuple[torch.Tensor, list[torch.Tensor]]:
@@ -922,7 +969,7 @@ class TorchExternalD3BJ:
                 retain_graph=create_graph or index < len(self.fragment_indices) - 1,
             )[0]
 
-            fragment_indices = fragment_indices.to(coordinates.device)
-            fragment_gradients.append(full_gradient[fragment_indices])
+            fragment_atom_indices = fragment_indices.to(coordinates.device)
+            fragment_gradients.append(full_gradient[fragment_atom_indices])
 
         return external_energies, fragment_gradients
