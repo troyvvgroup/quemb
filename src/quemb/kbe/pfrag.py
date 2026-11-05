@@ -18,6 +18,7 @@ from numpy import (
     zeros_like,
 )
 from numpy.linalg import multi_dot
+from scipy.linalg import svd
 
 from quemb.kbe.helper import get_veff
 from quemb.kbe.misc import get_phase, get_phase1
@@ -307,6 +308,7 @@ class Frags:
         nsocc_ = trace(P_)
         nsocc = int(round(nsocc_.real) / 2)
 
+        self._mo_coeffs = svd(P_)[0]
         self.nsocc = nsocc
         return P_
 

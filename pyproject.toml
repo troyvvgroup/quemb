@@ -26,7 +26,7 @@ dependencies = [
     "numba",
     "ordered-set",
     "libdmet @ git+https://github.com/gkclab/libdmet_preview.git",
-    "chemcoord @ git+https://github.com/mcocdawc/chemcoord.git",
+    "chemcoord>=2.2.0",
     "pathos",
 ]
 

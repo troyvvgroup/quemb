@@ -369,3 +369,69 @@ def test_shared_hydrogens():
     }
 
     assert fos_c3h4 == expected[get_calling_function_name()]["c3h4"]
+
+
+def test_get_frag_per_atom():
+    mol = Cartesian.read_xyz("xyz/octane.xyz").to_pyscf()
+
+    fragmented = Fragmented.from_mole(mol, 2)
+    expected = [
+        0,
+        1,
+        1,
+        0,
+        1,
+        0,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        4,
+        5,
+        4,
+        5,
+        4,
+        5,
+        4,
+        5,
+        4,
+        5,
+        4,
+        5,
+        5,
+        4,
+    ]
+    assert expected == fragmented.get_frag_per_atom()
+
+    fragmented = Fragmented.from_mole(mol, 2, h_treatment="treat_H_like_heavy_atom")
+    expected = [
+        0,
+        1,
+        1,
+        0,
+        1,
+        0,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        4,
+        5,
+        4,
+        5,
+        4,
+        5,
+        6,
+        7,
+        6,
+        7,
+        6,
+        7,
+        7,
+        6,
+    ]
+    assert expected == fragmented.get_frag_per_atom()

@@ -44,6 +44,10 @@ class Test_kBE_Full(unittest.TestCase):
             cell, kpt, 1, "C2 (kBE1)", "chemgen", -102.16547952, only_chem=True
         )
 
+        self.periodic_intdirect_test(
+            cell, kpt, 1, "C2 (kBE1, int-direct-DF)", "chemgen", only_chem=True
+        )
+
     @unittest.skipUnless(
         os.getenv("QUEMB_DO_EXPENSIVE_TESTS") == "true",
         "Skipped expensive tests for QuEmb.",
@@ -159,6 +163,57 @@ class Test_kBE_Full(unittest.TestCase):
             mykbe.ebe_tot,
             target,
             msg="kBE Correlation Energy for "
+            + test_name
+            + " does not match the expected correlation energy!",
+            delta=delta,
+        )
+
+    def periodic_intdirect_test(
+        self,
+        cell,
+        kpt,
+        n_BE,
+        test_name,
+        frag_type,
+        delta=1e-4,
+        solver="CCSD",
+        only_chem=True,
+        frozen_core=False,
+    ) -> None:
+        kpts = cell.make_kpts(kpt, wrap_around=True)
+        mydf = df.GDF(cell, kpts)
+        mydf.build()
+
+        kmf = scf.KRHF(cell, kpts)
+        kmf.with_df = mydf
+        kmf.exxdiv = None
+        kmf.conv_tol = 1e-12
+        kmf.kernel()
+
+        kfrag = fragmentate(
+            n_BE=n_BE,
+            mol=cell,
+            frag_type=frag_type,
+            kpt=kpt,
+            frozen_core=frozen_core,
+        )
+        mykbe = BE(kmf, kfrag, kpts=kpts, exxdiv=None)
+        mykbe.optimize(solver=solver, only_chem=only_chem)
+
+        mykbe_intdirect = BE(
+            kmf,
+            kfrag,
+            kpts=kpts,
+            exxdiv=None,
+            int_transform="int-direct-DF",
+            auxbasis="def2-svp-jkfit",
+        )
+        mykbe_intdirect.optimize(solver=solver, only_chem=only_chem)
+
+        self.assertAlmostEqual(
+            mykbe.ebe_tot,
+            mykbe_intdirect.ebe_tot,
+            msg="kBE Correlation Energy (w/ int-direct-DF) for "
             + test_name
             + " does not match the expected correlation energy!",
             delta=delta,
