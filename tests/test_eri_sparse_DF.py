@@ -4,6 +4,7 @@ from pyscf import scf
 from pyscf.df.addons import make_auxmol
 from pyscf.gto import M
 
+import quemb.molbe._cpp.eri_sparse_DF as cpp
 from quemb.molbe import BE, fragmentate
 from quemb.molbe.eri_sparse_DF import (
     _get_AO_per_AO,
@@ -80,6 +81,37 @@ def test_screened_sparse_DF_BE(octane, int_transform: IntTransforms) -> None:
 
     e_expected = e_expected_by_cart[mf.mol.cart]
     assert np.isclose(e_corr, e_expected, atol=1e-10, rtol=0), e_corr - e_expected
+
+
+@pytest.mark.parametrize("MO_coeff_epsilon", [1e-12, 1e-3])
+def test_contract_with_TA_gemm(octane, MO_coeff_epsilon: float) -> None:
+    """The GEMM variants of both contractions with TA agree with the original loops.
+
+    MO_coeff_epsilon = 1e-3 truncates the AOs per MO, so that the per-mu and per-i
+    blocks have different sizes.
+    """
+    mf, fobj = octane
+    mol = mf.mol
+    fragments = BE(mf, fobj, auxbasis="weigend", int_transform="int-direct-DF").Fobjs
+
+    S_abs = approx_S_abs(mol)
+    P_mu_nu = get_sparse_P_mu_nu(
+        mol, make_auxmol(mol, "weigend"), _get_AO_per_AO(S_abs, 1e-8)
+    )
+    for fragobj in fragments:
+        TA = fragobj.TA
+        AO_by_MO = cpp.get_AO_per_MO(TA, S_abs, MO_coeff_epsilon)
+
+        P_mu_i = cpp.contract_with_TA_1st(TA, P_mu_nu, AO_by_MO)
+        P_mu_i_gemm = cpp.contract_with_TA_1st_gemm(TA, P_mu_nu, AO_by_MO)
+        assert np.allclose(
+            P_mu_i_gemm.dense_data, P_mu_i.dense_data, atol=1e-12, rtol=0
+        )
+
+        P_ij = cpp.contract_with_TA_2nd_to_sym_dense(P_mu_i, TA)
+        P_ij_gemm = cpp.contract_with_TA_2nd_gemm(P_mu_i_gemm, TA)
+        assert P_ij_gemm.shape == P_ij.shape
+        assert np.allclose(P_ij_gemm, P_ij, atol=1e-12, rtol=0)
 
 
 def test_invert_dict() -> None:
