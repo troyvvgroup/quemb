@@ -69,6 +69,7 @@ intersphinx_mapping = {
     "numpy": ("https://numpy.org/doc/stable/", None),
     "pandas": ("https://pandas.pydata.org/docs/", None),
     "python": ("https://docs.python.org/3", None),
+    "torch": ("https://pytorch.org/docs/stable", None),
     "pyscf": ("https://pyscf.org/", None),
     "h5py": ("https://docs.h5py.org/en/stable/", None),
     "networkx": ("https://networkx.org/documentation/stable/", None),
