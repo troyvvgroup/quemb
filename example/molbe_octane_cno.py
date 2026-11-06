@@ -119,7 +119,7 @@ mybe = BE(
 mybe.optimize(solver="CCSD", nproc=8, only_chem=True)
 
 ########################################################################################
-##                                  Expected Results                                  ##
+##                       Expected Results - QuEmb Energy                              ##
 ########################################################################################
 #                                   Correlation     Ave. # Schmidt   Ave. #     Ave. # #
 #                                   energy (Ha),      Space Orbs,    OCNOs,     VCNOs  #
@@ -128,3 +128,14 @@ mybe.optimize(solver="CCSD", nproc=8, only_chem=True)
 # CNO-BE(1)-HalfFilled:             -1.17364571,         50.5,        18.0,       0.0  #
 # CNO-BE(1)-Threshold=1e-4:         -1.28464935,        72.25,        7.75,      32.0  #
 # CNO-BE(1)-ExactFragmentSize=38:   -1.21041018,         35.0,         0.0        5.5  #
+
+########################################################################################
+##                   Expected Results - Frankenstein Energy                           ##
+########################################################################################
+#                                   Correlation     Ave. # Schmidt   Ave. #     Ave. # #
+#                                   energy (Ha),      Space Orbs,    OCNOs,     VCNOs  #
+# CNO-BE(1)-Proportional:           -1.23296019,         44.5,         0.0,      12.0  #
+# CNO-BE(1)-ProportionalQQ:         -1.23368502,         45.0,         0.0,      12.5  #
+# CNO-BE(1)-HalfFilled:             -1.17382427,         50.5,        18.0,       0.0  #
+# CNO-BE(1)-Threshold=1e-4:         -1.28437067,        72.25,        7.75,      32.0  #
+# CNO-BE(1)-ExactFragmentSize=38:   -1.20903675,         35.0,         0.0        5.5  #
