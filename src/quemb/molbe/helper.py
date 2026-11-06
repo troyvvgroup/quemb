@@ -319,7 +319,7 @@ def get_frag_energy(
 
     # Construct the Hartree-Fock 1-RDM
     hf_1rdm = mo_coeff[:, :nsocc] @ mo_coeff[:, :nsocc].conj().T  # Frank Energy TODO
-    #hf_1rdm = mo_coeffs[:, :nsocc] @ mo_coeffs[:, :nsocc].conj().T
+    # hf_1rdm = mo_coeffs[:, :nsocc] @ mo_coeffs[:, :nsocc].conj().T
 
     if use_cumulant:
         # Compute the difference between the rotated RDM1 and the Hartree-Fock 1-RDM

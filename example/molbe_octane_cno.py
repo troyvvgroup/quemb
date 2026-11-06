@@ -12,7 +12,7 @@ from quemb.molbe import BE, fragmentate
 from quemb.molbe.cno_utils import CNOArgs
 from quemb.shared.config import settings
 
-# Set the scratch directory for this calculation (optional scrach setting)
+# Set the scratch directory for this calculation (optional scratch setting)
 settings.SCRATCH_ROOT = pathlib.Path("path/to/scratch")
 
 # Perform pyscf HF calculation to get mol & mf objects
@@ -122,9 +122,9 @@ mybe.optimize(solver="CCSD", nproc=8, only_chem=True)
 ##                                  Expected Results                                  ##
 ########################################################################################
 #                                   Correlation     Ave. # Schmidt   Ave. #     Ave. # #
-#                                    enegy (mHa),     Space Orbs,    OCNOs,     VCNOs  #
+#                                   energy (Ha),      Space Orbs,    OCNOs,     VCNOs  #
 # CNO-BE(1)-Proportional:           -1.23419551,         44.5,         0.0,      12.0  #
-# CNO-BE(1)-ProprtionalQQ:          -1.23492060,         45.0,         0.0,      12.5  #
+# CNO-BE(1)-ProportionalQQ:         -1.23492060,         45.0,         0.0,      12.5  #
 # CNO-BE(1)-HalfFilled:             -1.17364571,         50.5,        18.0,       0.0  #
 # CNO-BE(1)-Threshold=1e-4:         -1.28464935,        72.25,        7.75,      32.0  #
 # CNO-BE(1)-ExactFragmentSize=38:   -1.21041018,         35.0,         0.0        5.5  #
