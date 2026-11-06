@@ -3,8 +3,8 @@ import torch
 from dftd3.interface import DispersionModel, RationalDampingParam
 
 from quemb.molbe.torch_d3 import (
-    TorchD3BJ,
-    TorchExternalD3BJ,
+    TorchD3,
+    TorchExternalD3,
 )
 
 
@@ -45,13 +45,13 @@ def reference_energy_and_gradient(
     )
 
 
-def test_torch_hf_d3bj_two_body_energy_and_gradient_match_expectations():
+def test_torch_d3_default_bj_energy_and_gradient_match_expectations():
     atomic_numbers = torch.tensor(
         [6, 1, 1, 1, 1, 6, 1, 1, 1, 1],
         dtype=torch.int64,
     )
 
-    d3 = TorchD3BJ(
+    d3 = TorchD3(
         atomic_numbers=atomic_numbers.tolist(),
         method="hf",
     )
@@ -104,7 +104,7 @@ def test_torch_hf_d3bj_two_body_energy_and_gradient_match_expectations():
     )
 
 
-def test_torch_external_d3bj_energies_and_gradients_match_dftd3():
+def test_torch_external_d3_default_bj_energies_and_gradients_match_dftd3():
     atomic_numbers = torch.tensor(
         [6, 1, 1, 1, 1, 6, 1, 1, 1, 1],
         dtype=torch.int64,
@@ -138,7 +138,7 @@ def test_torch_external_d3bj_energies_and_gradients_match_dftd3():
         [0, 1, 2, 3, 4],
     ]
 
-    external_d3 = TorchExternalD3BJ(
+    external_d3 = TorchExternalD3(
         atomic_numbers=atomic_numbers.tolist(),
         fragments=fragments,
         inverted_fragments=inverted_fragments,
