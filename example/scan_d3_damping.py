@@ -40,7 +40,7 @@ A1_VALUES = [0.2, 0.3, 0.4, 0.5, 0.6]
 A2_VALUES = [3.0, 4.0, 5.0, 6.0, 7.0]
 
 # Units: bohr^-1.
-TT_B_VALUES = np.linspace(0.003030, 0.300000, 100)
+TT_B_VALUES = np.linspace(0.0001, 0.0003, 100)
 
 Point = tuple[float, ...]
 AtomIndices = Sequence[int]
@@ -132,7 +132,7 @@ def make_tt_scan(method: str) -> ScanConfiguration:
         damping=damping,
         default_parameters=default_parameters,
         parameter_names=("b",),
-        parameter_units=("bohr^-1",),
+        parameter_units=("",),
         points=tuple((float(b),) for b in TT_B_VALUES),
     )
 
@@ -280,6 +280,54 @@ def write_results(
 
     return filename
 
+def write_tt_damping_curves(
+    points: tuple[Point, ...],
+    task_label: str,
+    config: ScanConfiguration,
+) -> Path:
+    """Write f6 and f8 versus the reduced TT distance for each scanned b."""
+    if config.name != "tt":
+        raise ValueError("TT damping curves are only defined for the TT scan.")
+
+    filename = Path(f"d3_tt_damping_function_{task_label}.csv")
+
+    # x is the dimensionless argument used by TangToenniesDamping._factor.
+    x_values = torch.linspace(0.0, 10.0, 1000, dtype=torch.float64)
+
+    with filename.open("w", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=["b", "reduced_distance", "distance_over_reference", "f6", "f8"],
+        )
+        writer.writeheader()
+
+        for point in points:
+            parameters = config.parameters_for(point)
+            assert isinstance(parameters, D3TTParameters)
+
+            # In the energy code: x = b * R / R_ref.
+            f6 = TangToenniesDamping._factor(x_values, order=6)
+            f8 = TangToenniesDamping._factor(x_values, order=8)
+            distance_over_reference = x_values / parameters.b
+
+            for x, r_scaled, value6, value8 in zip(
+                x_values.tolist(),
+                distance_over_reference.tolist(),
+                f6.tolist(),
+                f8.tolist(),
+                strict=True,
+            ):
+                writer.writerow(
+                    {
+                        "b": parameters.b,
+                        "reduced_distance": x,
+                        "distance_over_reference": r_scaled,
+                        "f6": value6,
+                        "f8": value8,
+                    }
+                )
+
+    return filename
 
 def main() -> None:
     # One process per array task: prevent PyTorch from creating extra CPU threads.
@@ -335,6 +383,10 @@ def main() -> None:
 
     results_file = write_results(rows, task_label, config)
     print(f"Wrote {results_file}.", flush=True)
+
+    if config.name == "tt":
+        damping_file = write_tt_damping_curves(points, task_label, config)
+        print(f"Wrote {damping_file}.", flush=True)
 
 
 if __name__ == "__main__":

@@ -280,12 +280,12 @@ class D3ReferenceData:
 
 @dataclass(frozen=True)
 class D3TTParameters:
-    """Parameters for Tang--Toennies-damped D3."""
+    """Parameters for covalent-radius-scaled Tang--Toennies D3."""
 
     s6: float
     s8: float
-    b: float  # In bohr^-1 because coordinates are in bohr.
-
+    b: float  # Dimensionless: x = b * R_AB / R0_AB.
+    
     def __post_init__(self) -> None:
         if self.b <= 0.0:
             raise ValueError("Tang--Toennies parameter b must be positive.")
@@ -355,10 +355,12 @@ class BeckeJohnsonDamping:
     def pair_energies(
         self,
         distances: torch.Tensor,
+        _reference_distances: torch.Tensor,
         c6: torch.Tensor,
         c8: torch.Tensor,
         parameters: D3Parameters,
     ) -> torch.Tensor:
+
         if not isinstance(parameters, D3BJParameters):
             raise TypeError(
                 "BeckeJohnsonDamping requires D3BJParameters, "
@@ -399,17 +401,24 @@ class TangToenniesDamping:
     def pair_energies(
         self,
         distances: torch.Tensor,
+        reference_distances: torch.Tensor,
         c6: torch.Tensor,
         c8: torch.Tensor,
         parameters: D3Parameters,
     ) -> torch.Tensor:
+        """Return one damped D3 pair energy per atom pair."""
+        ...
+    
         if not isinstance(parameters, D3TTParameters):
             raise TypeError(
                 "TangToenniesDamping requires D3TTParameters, "
                 f"not {type(parameters).__name__}."
             )
 
-        x = parameters.b * distances
+        if torch.any(reference_distances <= 0.0):
+            raise ValueError("TT reference distances must be positive.")
+
+        x = parameters.b * distances / reference_distances
         f6 = self._factor(x, order=6)
         f8 = self._factor(x, order=8)
 
@@ -485,6 +494,22 @@ class TorchD3:
             else parameters
         )
 
+    def _pair_reference_distances(
+        self,
+        *,
+        dtype: torch.dtype,
+        device: torch.device,
+    ) -> torch.Tensor:
+        """Return R0_AB = r_cov,A + r_cov,B for every atom pair, in bohr."""
+        atomic_numbers = self.atomic_numbers.to(device)
+        covalent_radii = self.reference_data._lookup(
+            self.reference_data.covalent_radii,
+            atomic_numbers,
+            dtype=dtype,
+            device=device,
+        )
+        return covalent_radii[:, None] + covalent_radii[None, :]
+
     def energy(
         self,
         coordinates: torch.Tensor,
@@ -496,14 +521,20 @@ class TorchD3:
             parameters = self.parameters
 
         distances = self._pairwise_distances(coordinates)
+        reference_distances = self._pair_reference_distances(
+            dtype=coordinates.dtype,
+            device=coordinates.device,
+        )
         c6, c8 = self._pairwise_coefficients(coordinates, distances)
 
         pair_energies, _ = self._two_body_pair_energies(
             distances,
+            reference_distances,
             c6,
             c8,
             parameters,
         )
+
         return pair_energies.sum()
 
     def energy_and_gradient(
@@ -524,10 +555,12 @@ class TorchD3:
     def _two_body_pair_energies(
         self,
         distances: torch.Tensor,
+        reference_distances: torch.Tensor,
         c6: torch.Tensor,
         c8: torch.Tensor,
         parameters: D3Parameters,
     ) -> tuple[torch.Tensor, torch.Tensor]:
+    
         """Return damped pair energies and upper-triangle atom-pair indices."""
         n_atoms = distances.shape[0]
         pair_indices = torch.triu_indices(
@@ -540,10 +573,12 @@ class TorchD3:
 
         pair_energies = self.damping.pair_energies(
             distances[atom_i, atom_j],
+            reference_distances[atom_i, atom_j],
             c6[atom_i, atom_j],
             c8[atom_i, atom_j],
             parameters,
         )
+
         return pair_energies, pair_indices
 
     def _coordination_numbers(self, coordinates, distances):
