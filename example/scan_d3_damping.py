@@ -64,8 +64,22 @@ class ScanConfiguration:
                 f"Expected {len(self.parameter_names)} scan values, got {len(point)}."
             )
 
-        changes = dict(zip(self.parameter_names, point, strict=True))
-        return replace(self.default_parameters, **changes)
+        # ``dataclasses.replace`` cannot type-check a dynamically constructed
+        # ``**dict`` against a union of two dataclass types.  Narrow the
+        # parameter type first, then name its fields explicitly.
+        if isinstance(self.default_parameters, D3BJParameters):
+            if self.parameter_names != ("a1", "a2"):
+                raise ValueError("D3(BJ) scans must vary a1 and a2.")
+            a1, a2 = point
+            return replace(self.default_parameters, a1=a1, a2=a2)
+
+        if isinstance(self.default_parameters, D3TTParameters):
+            if self.parameter_names != ("b",):
+                raise ValueError("Tang-Toennies scans must vary b.")
+            (b,) = point
+            return replace(self.default_parameters, b=b)
+
+        raise TypeError("Unsupported D3 parameter type.")
 
     def row_for(self, point: Point) -> dict[str, float]:
         """Return the CSV columns for one scan point, excluding MSE."""
@@ -157,13 +171,21 @@ def build_system() -> tuple[
     gto.Mole,
     list[list[int]],
     list[list[int]],
-    Sequence[int],
+    list[int],
 ]:
     """Build the molecule and the fragment data used for the D3 correction."""
-    mol = gto.M(atom=GEOMETRY_FILE.read_text(), basis=BASIS)
+    mol: gto.Mole = gto.M(atom=GEOMETRY_FILE.read_text(), basis=BASIS)
     fragmented = Fragmented.from_mole(mol, n_BE=2, h_treatment="treat_H_diff")
-    fragments = fragmented.get_atom_in_frag()
-    frag_per_atom = fragmented.get_frag_per_atom()
+    # QuEmb exposes distinct ``AtomIdx`` and ``FragmentIdx`` types.  Convert
+    # them at this boundary because ``TorchExternalD3`` deliberately accepts
+    # ordinary mutable ``list[list[int]]`` fragment definitions.
+    fragments = [
+        [int(atom_index) for atom_index in fragment]
+        for fragment in fragmented.get_atom_in_frag()
+    ]
+    frag_per_atom = [
+        int(fragment_index) for fragment_index in fragmented.get_frag_per_atom()
+    ]
     inverted_fragments = [
         [atom for atom in range(mol.natm) if atom not in fragment]
         for fragment in fragments
@@ -186,7 +208,7 @@ def d3_gradient(
     )
 
     correction = torch.zeros_like(coordinates)
-    frag_per_atom = torch.as_tensor(
+    frag_per_atom_tensor = torch.as_tensor(
         frag_per_atom, device=coordinates.device, dtype=torch.long
     )
 
@@ -198,7 +220,7 @@ def d3_gradient(
             device=coordinates.device,
             dtype=torch.long,
         )
-        owned_mask = frag_per_atom[fragment_indices] == fragment_number
+        owned_mask = frag_per_atom_tensor[fragment_indices] == fragment_number
 
         if owned_mask.any():
             correction.index_copy_(
