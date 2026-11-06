@@ -280,6 +280,7 @@ def write_results(
 
     return filename
 
+
 def write_tt_damping_curves(
     points: tuple[Point, ...],
     task_label: str,
@@ -328,6 +329,7 @@ def write_tt_damping_curves(
                 )
 
     return filename
+
 
 def main() -> None:
     # One process per array task: prevent PyTorch from creating extra CPU threads.
