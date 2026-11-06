@@ -11,7 +11,7 @@ import os
 from dataclasses import dataclass, replace
 from itertools import product
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Sequence
 
 import numpy as np
 import torch
@@ -28,9 +28,9 @@ from quemb.molbe.torch_d3 import (
     TorchExternalD3,
 )
 
-GEOMETRY_FILE = "geometry.xyz"
-FORCE_EMBEDDING_FILE = "force_embedding_C3A.txt"
-REFERENCE_FILE = "ref_C3A.txt"
+GEOMETRY_FILE = Path("geometry.xyz")
+FORCE_EMBEDDING_FILE = Path("force_embedding_C3A.txt")
+REFERENCE_FILE = Path("ref_C3A.txt")
 BASIS = "sto-3g"
 
 METHOD = "hf"
@@ -43,6 +43,7 @@ A2_VALUES = [3.0, 4.0, 5.0, 6.0, 7.0]
 TT_B_VALUES = np.linspace(0.003030, 0.300000, 100)
 
 Point = tuple[float, ...]
+AtomIndices = Sequence[int]
 
 
 @dataclass(frozen=True)
@@ -144,17 +145,22 @@ def get_scan_configuration(name: str, method: str) -> ScanConfiguration:
     return factory(method)
 
 
-def load_gradient(filename: str, n_atoms: int) -> torch.Tensor:
+def load_gradient(path: Path, n_atoms: int) -> torch.Tensor:
     """Load a Cartesian gradient and validate its dimensions."""
-    gradient = torch.tensor(np.loadtxt(filename), dtype=torch.float64)
+    gradient = torch.tensor(np.loadtxt(path), dtype=torch.float64)
     if gradient.shape != (n_atoms, 3):
-        raise ValueError(f"{filename} must have shape ({n_atoms}, 3).")
+        raise ValueError(f"{path} must have shape ({n_atoms}, 3).")
     return gradient
 
 
-def build_system():
+def build_system() -> tuple[
+    gto.Mole,
+    list[list[int]],
+    list[list[int]],
+    Sequence[int],
+]:
     """Build the molecule and the fragment data used for the D3 correction."""
-    mol = gto.M(atom=Path(GEOMETRY_FILE).read_text(), basis=BASIS)
+    mol = gto.M(atom=GEOMETRY_FILE.read_text(), basis=BASIS)
     fragmented = Fragmented.from_mole(mol, n_BE=2, h_treatment="treat_H_diff")
     fragments = fragmented.get_atom_in_frag()
     frag_per_atom = fragmented.get_frag_per_atom()
@@ -168,9 +174,9 @@ def build_system():
 def d3_gradient(
     coordinates: torch.Tensor,
     d3: TorchExternalD3,
-    fragments,
-    frag_per_atom,
-    parameters,
+    fragments: Sequence[AtomIndices],
+    frag_per_atom: Sequence[int],
+    parameters: D3Parameters,
 ) -> torch.Tensor:
     """Assemble the force-embedding D3 gradient from owned fragment atoms."""
     fragment_gradients = d3.fragment_gradients(
@@ -185,7 +191,7 @@ def d3_gradient(
     )
 
     for fragment_number, (fragment_atoms, gradient) in enumerate(
-        zip(fragments, fragment_gradients)
+        zip(fragments, fragment_gradients, strict=True)
     ):
         fragment_indices = torch.as_tensor(
             fragment_atoms,
@@ -209,9 +215,9 @@ def mse(
     force_embedding: torch.Tensor,
     reference: torch.Tensor,
     d3: TorchExternalD3,
-    fragments,
-    frag_per_atom,
-    parameters,
+    fragments: Sequence[AtomIndices],
+    frag_per_atom: Sequence[int],
+    parameters: D3Parameters,
 ) -> float:
     """Return the mean-squared error for one D3(BJ) parameter combination."""
     residual = (
@@ -255,7 +261,7 @@ def write_results(
 
 def main() -> None:
     # One process per array task: prevent PyTorch from creating extra CPU threads.
-    torch.set_num_threads(int(os.environ.get("OMP_NUM_THREADS", "1")))
+    torch.set_num_threads(max(1, int(os.environ.get("OMP_NUM_THREADS", "1"))))
 
     mol, fragments, inverted_fragments, frag_per_atom = build_system()
     coordinates = torch.tensor(mol.atom_coords(), dtype=torch.float64)
@@ -284,7 +290,7 @@ def main() -> None:
         flush=True,
     )
 
-    rows = []
+    rows: list[dict[str, float]] = []
 
     for point in points:
         parameters = config.parameters_for(point)
