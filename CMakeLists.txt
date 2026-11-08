@@ -13,29 +13,6 @@ pybind11_add_module(eri_sparse_DF src/quemb/molbe/_cpp/eri_sparse_DF.cpp)
 # Include Eigen
 target_include_directories(eri_sparse_DF SYSTEM PRIVATE ${CMAKE_SOURCE_DIR}/external/eigen)
 
-# Optional CUDA (cuBLAS), for the sparse-DF-gpu variants.
-#   -DCUDA=AUTO (default): use CUDA if the toolkit is found.
-#   -DCUDA=ON:   require CUDA, fail if the toolkit is not found.
-#   -DCUDA=OFF:  build without CUDA.
-set(CUDA "AUTO" CACHE STRING "CUDA support: AUTO, ON or OFF")
-set_property(CACHE CUDA PROPERTY STRINGS AUTO ON OFF)
-if(NOT CUDA MATCHES "^(AUTO|ON|OFF)$")
-    message(FATAL_ERROR "CUDA must be AUTO, ON or OFF, got '${CUDA}'")
-endif()
-if(NOT CUDA STREQUAL "OFF")
-    find_package(CUDAToolkit QUIET)
-endif()
-if(CUDAToolkit_FOUND)
-    message(STATUS "CUDA ${CUDAToolkit_VERSION} found: building with cuBLAS")
-    target_link_libraries(eri_sparse_DF PRIVATE CUDA::cublas CUDA::cuda_driver CUDA::cudart)
-    target_compile_definitions(eri_sparse_DF PRIVATE USE_CUDA)
-elseif(CUDA STREQUAL "ON")
-    message(FATAL_ERROR "CUDA=ON, but no CUDA toolkit found. "
-        "Point CMake to it with -DCUDAToolkit_ROOT=..., or build with -DCUDA=AUTO or OFF.")
-else()
-    message(STATUS "Building without CUDA (CUDA=${CUDA})")
-endif()
-
 # OpenMP
 find_package(OpenMP REQUIRED)
 target_link_libraries(eri_sparse_DF PRIVATE OpenMP::OpenMP_CXX)

@@ -5,36 +5,28 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from collections.abc import (
-    Callable,
     Collection,
     Hashable,
     Iterator,
     Mapping,
     Sequence,
-    Set,
 )
-from concurrent.futures import ThreadPoolExecutor
-from itertools import chain, takewhile
+from itertools import takewhile
 from typing import Final, TypeVar, cast
 from warnings import warn
 
 import h5py
 import numpy as np
-from chemcoord import Cartesian
 from numba import prange  # type: ignore[attr-defined]
-from numba.typed import List
-from pyscf import dft, gto, scf
+from pyscf import gto, scf
 from pyscf.ao2mo.addons import restore
 from pyscf.df.addons import make_auxmol
 from pyscf.gto import Mole
 from pyscf.gto.moleintor import getints, make_cintopt, make_loc
-from pyscf.pbc import dft as pbc_dft
 from pyscf.pbc.gto import Cell
 from scipy.linalg import cholesky, eigh
 from scipy.special import roots_hermite
-from typing_extensions import assert_never
 
-import quemb.molbe._cpp.eri_sparse_DF as cpp_transforms
 from quemb.molbe._cpp.eri_sparse_DF import (
     SemiSparseSym3DTensor,
     SemiSparseSym3DWindow,
@@ -42,13 +34,9 @@ from quemb.molbe._cpp.eri_sparse_DF import (
     set_log_level,
     transform_integral_precontracted,
 )
-from quemb.molbe.chemfrag import (
-    _get_AOidx_per_atom,
-)
 from quemb.molbe.pfrag import Frags
 from quemb.shared.helper import (
     Timer,
-    ensure,
     gauss_sum,
     njit,
     ravel_symmetric,
@@ -57,20 +45,14 @@ from quemb.shared.helper import (
 )
 from quemb.shared.typing import (
     AOIdx,
-    AtomIdx,
     Matrix,
-    MOIdx,
     OrbitalIdx,
-    Real,
     ShellIdx,
-    Tensor3D,
-    Tensor4D,
     Vector,
 )
 
 _T_chemsystem = TypeVar("_T_chemsystem", Mole, Cell)
 
-_T_orb_idx = TypeVar("_T_orb_idx", bound=OrbitalIdx)
 _T_start_orb = TypeVar("_T_start_orb", bound=OrbitalIdx)
 _T_target_orb = TypeVar("_T_target_orb", bound=OrbitalIdx)
 
@@ -81,168 +63,19 @@ _T = TypeVar("_T", int, np.integer)
 logger = logging.getLogger(__name__)
 
 
-def _aux_e2(  # type: ignore[no-untyped-def]
-    mol: Mole,
-    auxmol_or_auxbasis: Mole | str,
-    intor: str = "int3c2e",
-    aosym: str = "s1",
-    comp: int | None = None,
-    out: Tensor4D[np.float64] | None = None,
-    cintopt=None,
-    shls_slice: tuple[int, int, int, int, int, int] | list[int] | None = None,
-) -> Tensor3D[np.float64]:
-    """3-center AO integrals (ij|L), where L is the auxiliary basis.
-
-    Fixes a bug in the original implementation :func:`pyscf.df.incore.aux_e2`
-    that does not accept all valid slices.
-    Replace with the original, as soon as https://github.com/pyscf/pyscf/pull/2734
-    is merged in the stable release.
-    """
-    if isinstance(auxmol_or_auxbasis, gto.MoleBase):
-        auxmol = auxmol_or_auxbasis
-    else:
-        auxbasis = auxmol_or_auxbasis
-        auxmol = make_auxmol(mol, auxbasis)
-    if shls_slice is None:
-        shls_slice = (0, mol.nbas, 0, mol.nbas, mol.nbas, mol.nbas + auxmol.nbas)
-    else:
-        assert len(shls_slice) == 6
-        # The following line is the difference to pyscf
-        assert shls_slice[5] <= auxmol.nbas
-        shls_slice = list(shls_slice)
-        shls_slice[4] += mol.nbas
-        shls_slice[5] += mol.nbas
-
-    intor = mol._add_suffix(intor)
-    hermi = 0
-    ao_loc = None
-    atm, bas, env = gto.mole.conc_env(
-        mol._atm, mol._bas, mol._env, auxmol._atm, auxmol._bas, auxmol._env
-    )
-    return getints(
-        intor, atm, bas, env, shls_slice, comp, hermi, aosym, ao_loc, cintopt, out
-    )
-
-
 _T_old_key = TypeVar("_T_old_key", bound=Hashable)
 _T_new_key = TypeVar("_T_new_key", bound=Hashable)
-
-
-def _invert_dict(
-    D: Mapping[_T_old_key, Collection[_T_new_key]],
-) -> dict[_T_new_key, set[_T_old_key]]:
-    inverted_D = defaultdict(set)
-    for old_key, new_keys in D.items():
-        for new_key in new_keys:
-            inverted_D[new_key].add(old_key)
-    return {key: inverted_D[key] for key in sorted(inverted_D.keys())}  # type: ignore[type-var]
-
-
-def get_orbs_per_atom(
-    atom_per_orb: Mapping[_T_orb_idx, Set[AtomIdx]],
-) -> dict[AtomIdx, set[_T_orb_idx]]:
-    return _invert_dict(atom_per_orb)
-
-
-def get_orbs_reachable_by_atom(
-    orb_per_atom: Mapping[AtomIdx, Set[_T_orb_idx]],
-    screened: Mapping[AtomIdx, Set[AtomIdx]],
-) -> dict[AtomIdx, dict[AtomIdx, Set[_T_orb_idx]]]:
-    return {
-        i_atom: {
-            j_atom: orb_per_atom.get(j_atom, set())
-            for j_atom in sorted(connected)  # type: ignore[type-var]
-        }
-        for i_atom, connected in screened.items()
-    }
-
-
-def get_orbs_reachable_by_orb(
-    atom_per_orb: Mapping[_T_start_orb, Set[AtomIdx]],
-    reachable_orb_per_atom: Mapping[AtomIdx, Mapping[AtomIdx, Set[_T_target_orb]]],
-) -> dict[_T_start_orb, dict[AtomIdx, Mapping[AtomIdx, Set[_T_target_orb]]]]:
-    """Concatenate the :python:`atom_per_orb` and :python:`reachable_orb_per_atom`
-    Such that it becomes a mapping :python:`i_orb -> i_atom -> j_atom`
-    """
-    return {
-        i_AO: {atom: reachable_orb_per_atom[atom] for atom in atoms}
-        for i_AO, atoms in atom_per_orb.items()
-    }
-
-
-def get_atom_per_AO(mol: Mole) -> dict[AOIdx, set[AtomIdx]]:
-    AOs_per_atom = _get_AOidx_per_atom(mol, frozen_core=False)
-    n_AO = AOs_per_atom[-1][-1] + 1
-
-    def get_atom(i_AO: AOIdx, AO_per_atom: Sequence[Sequence[AOIdx]]) -> AtomIdx:
-        for i_atom, AOs in enumerate(AO_per_atom):
-            if i_AO in AOs:
-                return cast(AtomIdx, i_atom)
-        raise ValueError(f"{i_AO} not contained in AO_per_atom")
-
-    return {
-        i_AO: {get_atom(i_AO, AOs_per_atom)}
-        for i_AO in cast(Sequence[AOIdx], range(n_AO))
-    }
-
-
-def get_atom_per_MO(
-    atom_per_AO: Mapping[AOIdx, Set[AtomIdx]],
-    TA: Matrix[np.float64],
-    epsilon: float = 1e-8,
-) -> dict[MOIdx, set[AtomIdx]]:
-    n_MO = TA.shape[-1]
-    large_enough = {
-        i_MO: cast(Sequence[AOIdx], (TA[:, i_MO] ** 2 > epsilon).nonzero()[0])
-        for i_MO in cast(Sequence[MOIdx], range(n_MO))
-    }
-    return {
-        i_MO: set().union(*(atom_per_AO[AO] for AO in AO_indices))
-        for i_MO, AO_indices in large_enough.items()
-    }
-
-
-def _modify_overlap(
-    AO_per_atom: Mapping[AOIdx, Set[AtomIdx]], S: Matrix[np.float64]
-) -> Matrix[np.float64]:
-    S_mod = S.copy()
-    for AOs_on_one_atom in AO_per_atom.values():
-        idx = list(AOs_on_one_atom)
-        S_mod[np.ix_(idx, idx)] = 1
-    return S_mod
-
-
-def _get_AO_per_MO(
-    TA: Matrix[np.float64],
-    S_abs: Matrix[np.float64],
-    epsilon: float,
-) -> dict[MOIdx, Sequence[AOIdx]]:
-    n_MO = TA.shape[-1]
-    # Upper bound S_abs @ |TA|; |S_abs @ TA| would allow cancellation of
-    # coefficients with opposite sign.
-    X = S_abs @ np.abs(TA)
-    return {
-        i_MO: cast(Sequence[AOIdx], (X[:, i_MO] >= epsilon).nonzero()[0])
-        for i_MO in cast(Sequence[MOIdx], range(n_MO))
-    }
 
 
 @timer.timeit
 def _get_AO_per_AO(
     S_abs: Matrix[np.floating],
     epsilon: float,
-    TA: Matrix[np.floating] | None = None,
 ) -> dict[AOIdx, Sequence[AOIdx]]:
-    if TA is None:
-        n_AO = len(S_abs)
-        sources = cast(Sequence[AOIdx], range(n_AO))
-    else:
-        sources = cast(
-            Sequence[AOIdx], ((S_abs @ abs(TA)).max(axis=1) > epsilon).nonzero()[0]
-        )
+    n_AO = len(S_abs)
     return {
         i_AO: cast(Sequence[AOIdx], (S_abs[:, i_AO] >= epsilon).nonzero()[0])
-        for i_AO in sources
+        for i_AO in cast(Sequence[AOIdx], range(n_AO))
     }
 
 
@@ -252,7 +85,7 @@ def _get_used_AOs(
     MO_coeff_epsilon: float,
 ) -> Vector[np.bool_]:
     """The AOs :math:`\\mu` that the MO screening keeps for at least one MO of
-    :python:`TA` (cf. :func:`_get_AO_per_MO`)."""
+    :python:`TA`."""
     return (S_abs @ np.abs(TA) >= MO_coeff_epsilon).any(axis=1)
 
 
@@ -323,78 +156,6 @@ def conversions_AO_shell(
     return shell_id_to_AO, AO_to_shell_id
 
 
-def get_screened(
-    mol: Mole, screening_radius: Real | Callable[[Real], Real] | Mapping[str, Real]
-) -> dict[AtomIdx, set[AtomIdx]]:
-    m = Cartesian.from_pyscf(mol)
-    return m.get_bonds(modify_element_data=screening_radius, self_bonding_allowed=True)
-
-
-def get_reachable(
-    atoms_per_start_orb: Mapping[_T_start_orb, Set[AtomIdx]],
-    atoms_per_target_orb: Mapping[_T_target_orb, Set[AtomIdx]],
-    screened_connection: Mapping[AtomIdx, Set[AtomIdx]],
-) -> dict[_T_start_orb, list[_T_target_orb]]:
-    """Return the sorted orbitals that can by reached for each orbital after screening.
-
-    Parameters
-    ----------
-    mol :
-        The molecule.
-    atoms_per_orb :
-        The atoms per orbital. For AOs this is the atom the AO is centered on,
-        i.e. a set containing only one element,
-        but for delocalised MOs there can be more than one atom.
-    screening_radius :
-        The screening cutoff is given by the overlap of van der Waals radii.
-        By default, all radii are set to 5 Å, i.e. the screening distance is 10 Å.
-        Alternatively, a callable or a dictionary can be passed.
-        The callable is called with the tabulated van der Waals radius
-        of the atom as argument and can be used to scale it up.
-        The dictionary can be used to define different van der Waals radii
-        for different elements. Compare to the :python:`modify_element_data`
-        argument of :meth:`~chemcoord.Cartesian.get_bonds`.
-    """
-    return _flatten(
-        get_orbs_reachable_by_orb(
-            atoms_per_start_orb,
-            get_orbs_reachable_by_atom(
-                get_orbs_per_atom(atoms_per_target_orb), screened_connection
-            ),
-        )
-    )
-
-
-def get_complement(
-    reachable: Mapping[_T_start, Sequence[_T_target]],
-) -> dict[_T_start, list[_T_target]]:
-    """Return the orbitals that cannot be reached by an orbital after screening."""
-    total: Final = cast(set[_T_target], set(range(len(reachable))))
-    return {i_AO: sorted(total - set(reachable[i_AO])) for i_AO in reachable}  # type: ignore[type-var]
-
-
-def to_numba_input(
-    exch_reachable: Mapping[_T_start_orb, Collection[_T_target_orb]],
-) -> List[Vector[_T_target_orb]]:
-    """Convert the reachable orbitals to a list of numpy arrays.
-
-    This contains the same information but is a far more efficient layout for numba.
-    Ensures that the start orbs are contiguos and sorted and the target orbs are sorted
-    (but not necessarily contiguos).
-    """
-    sorted_exch_reachable = {
-        k: exch_reachable[k]
-        for k in sorted(exch_reachable.keys())  # type: ignore[type-var]
-    }
-    assert list(sorted_exch_reachable.keys()) == list(range(len(sorted_exch_reachable)))
-    return List(
-        [
-            np.array(sorted(orbitals), dtype=np.int64)  # type: ignore[type-var]
-            for orbitals in sorted_exch_reachable.values()
-        ]
-    )
-
-
 def account_for_symmetry(
     reachable: Mapping[_T_start, Collection[_T_target]],
 ) -> dict[_T_start, list[_T_target]]:
@@ -413,23 +174,6 @@ def account_for_symmetry(
         p: list(takewhile(lambda q: p >= q, sorted(qs)))  # type: ignore[type-var]
         for (p, qs) in reachable.items()
     }
-
-
-@njit(nogil=True)
-def _jit_account_for_symmetry(
-    reachable: list[Vector[_T_orb_idx]],
-) -> list[Vector[_T_orb_idx]]:
-    """Account for permutational symmetry and remove all q that are larger than p.
-
-    This is a jitted version of :func:`account_for_symmetry`.
-
-    Parameters
-    ----------
-    reachable :
-    """
-    return List(
-        [np.array([q for q in qs if p >= q]) for (p, qs) in enumerate(reachable)]
-    )
 
 
 def get_blocks(reachable: Sequence[_T]) -> list[tuple[_T, _T]]:
@@ -497,8 +241,8 @@ def _fill_P_mu_nu_columns(
         exch_reachable_unique, AO_to_shell_id
     )
 
-    # Same as _aux_e2, but the concatenated environment, AO offsets, and the libcint
-    # optimizer are created once here instead of for every shell block.
+    # Same as pyscf.df.incore.aux_e2, but the concatenated environment, AO offsets,
+    # and the libcint optimizer are created once here instead of for every shell block.
     intor = mol._add_suffix("int3c2e")
     atm, bas, env = gto.mole.conc_env(
         mol._atm, mol._bas, mol._env, auxmol._atm, auxmol._bas, auxmol._env
@@ -609,38 +353,6 @@ def _compute_P_mu_nu_columns(
     )
     assert not np.isnan(out).any()
     return out
-
-
-def _flatten(
-    orb_reachable_by_orb: Mapping[
-        _T_start_orb, Mapping[AtomIdx, Mapping[AtomIdx, Set[_T_target_orb]]]
-    ],
-) -> dict[_T_start_orb, list[_T_target_orb]]:
-    return {
-        i_orb: sorted(  # type: ignore[type-var]
-            set(
-                chain(
-                    *(
-                        orb_reachable_by_orb[i_orb][start_atom][target_atom]
-                        for start_atom, target_atoms in orb_reachable_by_orb[
-                            i_orb
-                        ].items()
-                        for target_atom in target_atoms
-                    )
-                )
-            )
-        )
-        for i_orb in sorted(orb_reachable_by_orb.keys())  # type: ignore[type-var]
-    }
-
-
-def _get_test_mol(atom1: str, atom2: str, r: float, basis: str) -> Mole:
-    """Return a PySCF Mole object with two atoms at a distance r."""
-    m = Cartesian.set_atom_coords([atom1, atom2], np.array([[0, 0, 0], [0, 0, r]]))
-    return m.to_pyscf(
-        basis=basis,
-        charge=m.add_data("atomic_number").loc[:, "atomic_number"].sum() % 2,
-    )
 
 
 def _cholesky_PQ(auxmol: Mole) -> Matrix[np.float64]:
@@ -761,15 +473,11 @@ def _run_rolling_window(
     file_eri_handler: h5py.File,
     AO_coeff_epsilon: float,
     MO_coeff_epsilon: float,
-    transform_precontracted_impl: Callable[
-        [SemiSparseSym3DWindow, Matrix[np.floating], Matrix[np.floating], float],
-        Matrix[np.float64],
-    ],
     max_chunk_bytes=2**30,
     batch_bytes=2**30,
 ) -> None:
     """On-the-fly sparse DF with a rolling window of :math:`L^{-1} (P | \\mu \\nu)`,
-    see :func:`_run_sparse_df_driver`.
+    see :func:`transform_sparse_DF_integral`.
 
     The new pairs of a fragment are computed and inserted in chunks of at most
     :python:`max_chunk_bytes`, to keep the memory on top of the window small.
@@ -808,37 +516,26 @@ def _run_rolling_window(
             )
         )
 
-        transformed = transform_precontracted_impl(
+        transformed = transform_integral_precontracted(
             window, fragobj.TA, S_abs, MO_coeff_epsilon
         )
         eri = restore("4", transformed, fragobj.TA.shape[1])
         file_eri_handler.create_dataset(fragobj.dname, data=eri)
 
 
-def _run_sparse_df_driver(
+def transform_sparse_DF_integral(
     mf: scf.hf.SCF,
     Fobjs: Sequence[Frags],
     auxbasis: str | None,
     file_eri_handler: h5py.File,
     AO_coeff_epsilon: float,
     MO_coeff_epsilon: float,
-    n_threads: int,
-    *,
-    transform_precontracted_impl: Callable[
-        [
-            SemiSparseSym3DTensor | SemiSparseSym3DWindow,
-            Matrix[np.floating],
-            Matrix[np.floating],
-            float,
-        ],
-        Matrix[np.float64],
-    ],
     precompute_P_mu_nu: bool,
 ) -> None:
     r"""Run the semi-sparse DF ERI transformation.
 
-    Uses dependency injection to handle both CPU vs. GPU transformation
-    in a unified function.
+    The fragments are transformed one after another;
+    the transformation of each fragment is parallelized with OpenMP and BLAS.
 
     Parameters
     ----------
@@ -855,20 +552,6 @@ def _run_sparse_df_driver(
         Threshold for discarding negligible AO coefficients.
     MO_coeff_epsilon :
         Threshold for discarding negligible MO coefficients.
-    n_threads :
-        Number of threads used for the transformation.
-    transform_precontracted_impl :
-        Low-level transformation implementation that performs the
-        semi-sparse DF integral transformation either in CPU or GPU
-        The function takes:
-
-          • :math:`L^{-1}_{PQ} (Q \mid \mu\nu)` semi-sparse AO integrals,
-            either all of them or the rolling window of the on-the-fly version
-          • the AO-MO transformation matrix :math:`T^{\mathrm{A}}`
-          • the absolute-overlap matrix :math:`S_{\mathrm{abs}}`
-          • the MO screening threshold :math:`\varepsilon_{\mathrm{MO}}`
-
-        and returns the transformed MO integrals :math:`(ij | kl)`.
     precompute_P_mu_nu :
         Whether to precompute :math:`(P | \mu \nu)` for all pairs,
         or compute them on the fly (reduces peak memory usage).
@@ -882,10 +565,6 @@ def _run_sparse_df_driver(
         The missing pairs of consecutive fragments are computed together
         in batches of about 1 GiB, for which the window holds 1 GiB on top
         of the pairs of the largest fragment.
-
-    Returns
-    -------
-        None
     """
     set_log_level(logging.getLogger().getEffectiveLevel())
 
@@ -894,34 +573,7 @@ def _run_sparse_df_driver(
 
     S_abs: Final[Matrix[np.floating]] = approx_S_abs(mol)
 
-    if precompute_P_mu_nu:
-        # Before (P | mu nu), such that (P | Q) and (P | mu nu) never coexist.
-        L_PQ = _cholesky_PQ(auxmol)
-        exch_reachable: Final = _get_AO_per_AO(S_abs, AO_coeff_epsilon, None)
-        P_mu_nu: Final[SemiSparseSym3DTensor] = get_sparse_P_mu_nu(
-            mol, auxmol, exch_reachable
-        )
-        # The triangular solve is linear in mu nu, so it commutes with the
-        # contraction with TA. Do it once here, instead of for every fragment.
-        # This is always done on the CPU, which is faster than consumer GPUs
-        # with their low FP64 throughput and avoids storing L_PQ on the GPU.
-        apply_inv_cholesky_inplace(P_mu_nu, L_PQ)
-        del L_PQ
-
-        def worker(fragobj: Frags) -> None:
-            "One computation of P_mu_nu for every fragment"
-            transformed = transform_precontracted_impl(
-                P_mu_nu,
-                fragobj.TA,
-                S_abs,
-                MO_coeff_epsilon,
-            )
-            eri = restore("4", transformed, fragobj.TA.shape[1])
-            file_eri_handler.create_dataset(fragobj.dname, data=eri)
-    else:
-        ensure(
-            n_threads == 1, "The rolling window of the on-the-fly sparse DF is serial."
-        )
+    if not precompute_P_mu_nu:
         _run_rolling_window(
             mol,
             auxmol,
@@ -930,80 +582,25 @@ def _run_sparse_df_driver(
             file_eri_handler,
             AO_coeff_epsilon,
             MO_coeff_epsilon,
-            transform_precontracted_impl,
         )
         return
 
-    if n_threads > 1:
-        with ThreadPoolExecutor(max_workers=n_threads) as pool:
-            futures = [pool.submit(worker, fobj) for fobj in Fobjs]
-            for fut in futures:
-                fut.result()
-    else:
-        for fobj in Fobjs:
-            worker(fobj)
-
-
-def transform_sparse_DF_integral_cpu(
-    mf: scf.hf.SCF,
-    Fobjs: Sequence[Frags],
-    auxbasis: str | None,
-    file_eri_handler: h5py.File,
-    AO_coeff_epsilon: float,
-    MO_coeff_epsilon: float,
-    n_threads: int,
-    precompute_P_mu_nu: bool,
-) -> None:
-    return _run_sparse_df_driver(
-        mf=mf,
-        Fobjs=Fobjs,
-        auxbasis=auxbasis,
-        file_eri_handler=file_eri_handler,
-        AO_coeff_epsilon=AO_coeff_epsilon,
-        MO_coeff_epsilon=MO_coeff_epsilon,
-        n_threads=n_threads,
-        transform_precontracted_impl=transform_integral_precontracted,
-        precompute_P_mu_nu=precompute_P_mu_nu,
+    # Before (P | mu nu), such that (P | Q) and (P | mu nu) never coexist.
+    L_PQ = _cholesky_PQ(auxmol)
+    P_mu_nu: Final[SemiSparseSym3DTensor] = get_sparse_P_mu_nu(
+        mol, auxmol, _get_AO_per_AO(S_abs, AO_coeff_epsilon)
     )
+    # The triangular solve is linear in mu nu, so it commutes with the
+    # contraction with TA. Do it once here, instead of for every fragment.
+    apply_inv_cholesky_inplace(P_mu_nu, L_PQ)
+    del L_PQ
 
-
-def transform_sparse_DF_integral_gpu(
-    mf: scf.hf.SCF,
-    Fobjs: Sequence[Frags],
-    auxbasis: str | None,
-    file_eri_handler: h5py.File,
-    AO_coeff_epsilon: float,
-    MO_coeff_epsilon: float,
-    n_threads: int,
-    precompute_P_mu_nu: bool,
-) -> None:
-    return _run_sparse_df_driver(
-        mf=mf,
-        Fobjs=Fobjs,
-        auxbasis=auxbasis,
-        file_eri_handler=file_eri_handler,
-        AO_coeff_epsilon=AO_coeff_epsilon,
-        MO_coeff_epsilon=MO_coeff_epsilon,
-        n_threads=n_threads,
-        transform_precontracted_impl=cpp_transforms.transform_integral_precontracted_cuda,
-        precompute_P_mu_nu=precompute_P_mu_nu,
-    )
-
-
-@njit(nogil=True, parallel=True)
-def _account_for_symmetry(pqP: Tensor3D[np.float64]) -> Matrix[np.float64]:
-    """(n_orb, n_orb | n_aux) -> (n_aux | sym n_orb pairs)"""
-    n_orb, naux = len(pqP), pqP.shape[-1]
-    sym_bb = np.full(
-        (naux, ravel_symmetric(n_orb - 1, n_orb - 1) + 1),
-        fill_value=np.nan,
-        dtype=np.float64,
-    )
-
-    for i in prange(n_orb):  # type: ignore[attr-defined]
-        for j in range(i + 1):  # type: ignore[attr-defined]
-            sym_bb[:, ravel_symmetric(i, j)] = pqP[i, j, :]
-    return sym_bb
+    for fragobj in Fobjs:
+        transformed = transform_integral_precontracted(
+            P_mu_nu, fragobj.TA, S_abs, MO_coeff_epsilon
+        )
+        eri = restore("4", transformed, fragobj.TA.shape[1])
+        file_eri_handler.create_dataset(fragobj.dname, data=eri)
 
 
 @njit(fastmath=True, nogil=True)
@@ -1248,48 +845,6 @@ def approx_S_abs(mol: Mole, nroots: int = 500) -> Matrix[np.float64]:
 def _ensure_normalization(S_abs: Matrix[np.floating]) -> Matrix[np.float64]:
     N: Final = np.sqrt(np.diag(S_abs))
     return S_abs / (N[:, None] * N[None, :])
-
-
-@timer.timeit
-def grid_S_abs(
-    mol: _T_chemsystem,
-    grid_level: int = 2,
-    kpts: Matrix[np.floating] = np.zeros((1, 3)),
-) -> Matrix[np.float64]:
-    r"""
-    Calculates the overlap matrix :math:`S_ij = \int |phi_i(r)| |phi_j(r)| dr`
-    using numerical integration on a DFT grid.
-
-    Parameters
-    -----------
-    mol :
-    grid_level :
-        Directly passed on to `pyscf grid generation <https://github.com/pyscf/pyscf/blob/master/examples/dft/11-grid_scheme.py>`_.
-    """
-    if isinstance(mol, Mole):
-        grids = dft.gen_grid.Grids(mol)
-    elif isinstance(mol, Cell):
-        grids = pbc_dft.gen_grid.BeckeGrids(mol)
-    else:
-        raise TypeError(f"Input should be a PySCF Mole or Cell, got {type(mol)}")
-        assert_never(mol)
-    grids.level = grid_level
-    grids.build()
-    if isinstance(mol, Mole):
-        AO_abs_val = np.abs(dft.numint.eval_ao(mol, grids.coords, deriv=0))
-        result = (AO_abs_val * grids.weights[:, np.newaxis]).T @ AO_abs_val
-        assert np.allclose(result, result.T)
-    elif isinstance(mol, Cell):  # (nkpt, nao, nao)
-        AO_abs_val = np.abs(
-            pbc_dft.numint.eval_ao_kpts(mol, grids.coords, deriv=0, kpts=kpts)
-        )
-        result = [
-            (AO_abs_val_k * grids.weights[:, np.newaxis]).T @ AO_abs_val_k
-            for AO_abs_val_k in AO_abs_val
-        ]
-        assert np.all([np.allclose(r, r.T) for r in result])
-
-    return result
 
 
 def identify_contiguous_blocks(X: Sequence[_T]) -> list[tuple[int, int]]:
