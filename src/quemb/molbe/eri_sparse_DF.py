@@ -849,7 +849,7 @@ def _run_sparse_df_driver(
     auxbasis :
         Auxiliary basis used for density fitting. If ``None``, the default
         auxiliary basis of ``mf`` is used.
-    file_eri_handler : h5py.File
+    file_eri_handler :
         Open HDF5 file handle, the :math:`(ij | kl)` of every fragment go into it.
     AO_coeff_epsilon :
         Threshold for discarding negligible AO coefficients.
