@@ -6,7 +6,7 @@ from numpy import array, complex128, eye, zeros
 from quemb.shared.helper import unused
 
 
-def schmidt_decomp_svd(rdm, Frag_sites, thr_bath=1.0e-10):
+def schmidt_decomp_svd(rdm, Frag_sites, thr_bath=1e-8):
     """
     Perform  decomposition on the orbital coefficients in the real space.
 
@@ -21,7 +21,7 @@ def schmidt_decomp_svd(rdm, Frag_sites, thr_bath=1.0e-10):
     Frag_sites : list of int
         List of fragment sites (indices).
     thr_bath : float,
-            Threshold for bath orbitals in Schmidt decomposition
+            Threshold for bath orbitals in Schmidt decomposition, by default 1e-8.
 
     Returns
     -------
