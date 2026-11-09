@@ -292,6 +292,23 @@ class D3TTParameters:
 
 
 @dataclass(frozen=True)
+class D3JohnsonSineParameters:
+    """Parameters for covalent-radius-scaled Johnson sine damping.
+
+    ``d`` locates the beginning of the two-unit-wide damping interval in
+    ``x = R_AB / (r_cov,A + r_cov,B)``.
+    """
+
+    s6: float
+    s8: float
+    d: float
+
+    def __post_init__(self) -> None:
+        if self.d <= 0.0:
+            raise ValueError("Johnson sine parameter d must be positive.")
+
+
+@dataclass(frozen=True)
 class D3BJParameters:
     s6: float
     s8: float
@@ -321,7 +338,7 @@ class D3BJParameters:
         )
 
 
-D3Parameters: TypeAlias = D3BJParameters | D3TTParameters
+D3Parameters: TypeAlias = D3BJParameters | D3TTParameters | D3JohnsonSineParameters
 
 
 class DampingModel(Protocol):
@@ -336,6 +353,7 @@ class DampingModel(Protocol):
     def pair_energies(
         self,
         distances: torch.Tensor,
+        reference_distances: torch.Tensor,
         c6: torch.Tensor,
         c8: torch.Tensor,
         parameters: D3Parameters,
@@ -428,6 +446,62 @@ class TangToenniesDamping:
         return -(c6_term + c8_term)
 
 
+class JohnsonSineDamping:
+    """Covalent-radius-scaled Johnson sine damping.
+
+    For ``x = R_AB / R0_AB``, use the piecewise switching function
+    ``f(x) = 0`` for ``x <= d``,
+    ``f(x) = [1 + sin(pi * (x - d - 1) / 2)] / 2`` for
+    ``d < x < d + 2``, and ``f(x) = 1`` otherwise.
+    """
+
+    name = "sine"
+
+    def default_parameters(self, _method: str) -> D3Parameters:
+        raise ValueError(
+            "JohnsonSineDamping has no method-specific defaults yet. "
+            "Supply D3JohnsonSineParameters explicitly."
+        )
+
+    @staticmethod
+    def _factor(x: torch.Tensor, d: float) -> torch.Tensor:
+        """Return the piecewise Johnson sine damping factor."""
+        transition = 0.5 * (
+            1.0 + torch.sin(0.5 * torch.pi * (x - d - 1.0))
+        )
+        return torch.where(
+            x <= d,
+            torch.zeros_like(x),
+            torch.where(x >= d + 2.0, torch.ones_like(x), transition),
+        )
+
+    def pair_energies(
+        self,
+        distances: torch.Tensor,
+        reference_distances: torch.Tensor,
+        c6: torch.Tensor,
+        c8: torch.Tensor,
+        parameters: D3Parameters,
+    ) -> torch.Tensor:
+        """Return one Johnson-sine-damped D3 pair energy per atom pair."""
+        if not isinstance(parameters, D3JohnsonSineParameters):
+            raise TypeError(
+                "JohnsonSineDamping requires D3JohnsonSineParameters, "
+                f"not {type(parameters).__name__}."
+            )
+
+        if torch.any(reference_distances <= 0.0):
+            raise ValueError("Johnson sine reference distances must be positive.")
+
+        x = distances / reference_distances
+        damping_factor = self._factor(x, parameters.d)
+
+        c6_term = parameters.s6 * c6 * damping_factor / distances**6
+        c8_term = parameters.s8 * c8 * damping_factor / distances**8
+
+        return -(c6_term + c8_term)
+
+
 class TrainableD3BJParameters(torch.nn.Module):
     """Positive, trainable D3(BJ) damping parameters."""
 
@@ -471,7 +545,7 @@ class TrainableD3BJParameters(torch.nn.Module):
 
 
 class TorchD3:
-    """Differentiable two-body D3 correction with BJ or TT damping."""
+    """Differentiable two-body D3 correction with BJ, TT, or sine damping."""
 
     def __init__(
         self,

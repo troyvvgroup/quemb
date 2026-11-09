@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Scan D3(BJ) a1/a2 damping parameters using a Slurm job array.
+"""Scan D3 damping parameters using a Slurm job array.
 
 Each array task evaluates a disjoint subset of the parameter grid and writes
 ``d3_damping_scan_<array-task-id>.csv``.  Run without Slurm to evaluate the
@@ -21,9 +21,11 @@ from quemb.molbe.chemfrag import Fragmented
 from quemb.molbe.torch_d3 import (
     BeckeJohnsonDamping,
     D3BJParameters,
+    D3JohnsonSineParameters,
     D3Parameters,
     D3TTParameters,
     DampingModel,
+    JohnsonSineDamping,
     TangToenniesDamping,
     TorchExternalD3,
 )
@@ -34,13 +36,17 @@ REFERENCE_FILE = Path("ref_C3A.txt")
 BASIS = "sto-3g"
 
 METHOD = "hf"
-DAMPING = "tt"
+DAMPING = "sine"
 
 A1_VALUES = [0.2, 0.3, 0.4, 0.5, 0.6]
 A2_VALUES = [3.0, 4.0, 5.0, 6.0, 7.0]
 
-# Units: bohr^-1.
+# Dimensionless coefficient in x = b * R_AB / R0_AB.
 TT_B_VALUES = np.linspace(0.0001, 0.0003, 100)
+
+# Dimensionless onset in x = R_AB / (r_cov,A + r_cov,B).  The sine transition
+# runs from x = d to x = d + 2.
+SINE_D_VALUES = np.linspace(0.01, 2.0, 100)
 
 Point = tuple[float, ...]
 AtomIndices = Sequence[int]
@@ -78,6 +84,12 @@ class ScanConfiguration:
                 raise ValueError("Tang-Toennies scans must vary b.")
             (b,) = point
             return replace(self.default_parameters, b=b)
+
+        if isinstance(self.default_parameters, D3JohnsonSineParameters):
+            if self.parameter_names != ("d",):
+                raise ValueError("Johnson sine scans must vary d.")
+            (d,) = point
+            return replace(self.default_parameters, d=d)
 
         raise TypeError("Unsupported D3 parameter type.")
 
@@ -137,12 +149,37 @@ def make_tt_scan(method: str) -> ScanConfiguration:
     )
 
 
+def make_sine_scan(method: str) -> ScanConfiguration:
+    """Scan the onset of covalent-radius-scaled Johnson sine damping."""
+    damping = JohnsonSineDamping()
+
+    # Temporary choice: reuse the HF-D3(BJ) scale factors.
+    # Replace this when you establish sine-specific fitted defaults.
+    bj_defaults = D3BJParameters.from_method(method)
+    default_parameters = D3JohnsonSineParameters(
+        s6=bj_defaults.s6,
+        s8=bj_defaults.s8,
+        d=float(SINE_D_VALUES[0]),
+    )
+
+    return ScanConfiguration(
+        name="sine",
+        damping=damping,
+        default_parameters=default_parameters,
+        parameter_names=("d",),
+        parameter_units=("",),
+        points=tuple((float(d),) for d in SINE_D_VALUES),
+    )
+
+
 SCAN_CONFIG_FACTORIES: dict[
     str,
     Callable[[str], ScanConfiguration],
 ] = {
     "bj": make_bj_scan,
     "tt": make_tt_scan,
+    "sine": make_sine_scan,
+    "johnson_sine": make_sine_scan,
 }
 
 
@@ -241,7 +278,7 @@ def mse(
     frag_per_atom: Sequence[int],
     parameters: D3Parameters,
 ) -> float:
-    """Return the mean-squared error for one D3(BJ) parameter combination."""
+    """Return the mean-squared error for one damping-parameter combination."""
     residual = (
         force_embedding
         + d3_gradient(coordinates, d3, fragments, frag_per_atom, parameters)
