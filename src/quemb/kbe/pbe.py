@@ -8,8 +8,8 @@ from warnings import warn
 
 import h5py
 import numpy as np
+from loky import ProcessPoolExecutor
 from numpy import array, einsum, floating, result_type, zeros, zeros_like
-from pathos.pools import ProcessPool
 from pyscf import ao2mo
 from pyscf.pbc import df, gto, scf
 from pyscf.pbc.df.df import GDF
@@ -542,10 +542,10 @@ class BE(Mixin_k_Localize):
             else:
                 # Use cderi (Path)
                 nprocs = max(1, self.nproc // self.ompnum)
-                with ProcessPool(nprocs) as pool_:
+                with ProcessPoolExecutor(nprocs) as pool_:
                     results = []
                     for frg in range(self.fobj.n_frag):
-                        result = pool_.apipe(
+                        result = pool_.submit(
                             with_omp_threads(eritransform_parallel, self.ompnum),
                             self.mf.cell.a,
                             self.mf.cell.atom,
@@ -556,7 +556,7 @@ class BE(Mixin_k_Localize):
                             self.cderi,
                         )
                         results.append(result)
-                    eris = [result.get() for result in results]
+                    eris = [result.result() for result in results]
 
                 for frg in range(self.fobj.n_frag):
                     file_eri.create_dataset(self.Fobjs[frg].dname, data=eris[frg])
@@ -612,10 +612,10 @@ class BE(Mixin_k_Localize):
 
             nprocs = self.nproc // self.ompnum
 
-            with ProcessPool(nprocs) as pool_:
+            with ProcessPoolExecutor(nprocs) as pool_:
                 results = []
                 for frg in range(self.fobj.n_frag):
-                    result = pool_.apipe(
+                    result = pool_.submit(
                         with_omp_threads(parallel_fock_wrapper, self.ompnum),
                         self.Fobjs[frg].dname,
                         self.Fobjs[frg].nao,
@@ -626,7 +626,7 @@ class BE(Mixin_k_Localize):
                         self.eri_file,
                     )
                     results.append(result)
-                veffs = [result.get() for result in results]
+                veffs = [result.result() for result in results]
 
             for frg in range(self.fobj.n_frag):
                 veff0, veff_ = veffs[frg]
@@ -660,14 +660,14 @@ class BE(Mixin_k_Localize):
                 self.Fobjs[frg].scf(fs=True, dm0=self.Fobjs[frg].dm_init)
         else:
             nprocs = int(self.nproc / self.ompnum)
-            with ProcessPool(nprocs) as pool_:
+            with ProcessPoolExecutor(nprocs) as pool_:
                 results = []
                 for frg in range(self.fobj.n_frag):
                     nao = self.Fobjs[frg].nao
                     nocc = self.Fobjs[frg].nsocc
                     dname = self.Fobjs[frg].dname
                     h1 = self.Fobjs[frg].fock + self.Fobjs[frg].heff
-                    result = pool_.apipe(
+                    result = pool_.submit(
                         with_omp_threads(parallel_scf_wrapper, self.ompnum),
                         dname,
                         nao,
@@ -677,7 +677,7 @@ class BE(Mixin_k_Localize):
                         self.eri_file,
                     )
                     results.append(result)
-                mo_coeffs = [result.get() for result in results]
+                mo_coeffs = [result.result() for result in results]
 
             for frg in range(self.fobj.n_frag):
                 self.Fobjs[frg]._mo_coeffs = mo_coeffs[frg]

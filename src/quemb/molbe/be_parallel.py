@@ -1,11 +1,12 @@
 # Author(s): Oinam Romesh Meitei, Leah Weisburn
 
+from collections.abc import Sequence
 from pathlib import Path
 from warnings import warn
 
+from loky import ProcessPoolExecutor
 from numpy import diag_indices, einsum, float64, zeros_like
 from numpy.linalg import multi_dot
-from pathos.pools import ProcessPool
 from pyscf import ao2mo, fci, mcscf
 
 from quemb.kbe.pfrag import Frags as pFrags
@@ -30,8 +31,8 @@ from quemb.shared.external.unrestricted_utils import make_uhf_obj
 from quemb.shared.helper import unused, with_omp_threads
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import (
-    ListOverFrag,
     Matrix,
+    PathLike,
     RelAOIdx,
 )
 
@@ -44,11 +45,11 @@ def run_solver(
     nao: int,
     nocc: int,
     n_frag: int,
-    weight_and_relAO_per_center: ListOverFrag[tuple[float, list[RelAOIdx]]],
+    weight_and_relAO_per_center: tuple[float, Sequence[RelAOIdx]],
     TA: Matrix[float64],
     h1_e: Matrix[float64],
     solver: Solvers = "CCSD",
-    eri_file: str = "eri_file.h5",
+    eri_file: PathLike = "eri_file.h5",
     veff: Matrix[float64] | None = None,
     veff0: Matrix[float64] | None = None,
     eeval: bool = True,
@@ -82,7 +83,7 @@ def run_solver(
         Number of fragment sites.
     weight_and_relAO_per_center :
         Scaling factor for the electronic energy **and**
-        the relative AO indices per center per frag
+        the relative AO indices per center of this fragment
     TA :
         Transformation matrix for embedding orbitals.
     h1_e :
@@ -413,7 +414,7 @@ def be_func_parallel(
     pot: list[float] | None,
     Fobjs: list[Frags] | list[pFrags],
     Nocc: int,
-    solver: str,
+    solver: Solvers,
     enuc: float,  # noqa: ARG001
     scratch_dir: WorkDir,
     solver_args: UserSolverArgs | None,
@@ -478,7 +479,7 @@ def be_func_parallel(
         for fobj in Fobjs:
             fobj.update_heff(pot, only_chem=only_chem)
 
-    with ProcessPool(nprocs) as pool_:
+    with ProcessPoolExecutor(nprocs) as pool_:
         results = []  # type: ignore[var-annotated]
         # Run solver in parallel for each fragment
         for fobj in Fobjs:
@@ -486,7 +487,7 @@ def be_func_parallel(
                 fobj.fock is not None and fobj.heff is not None and fobj.dm0 is not None
             )
 
-            result = pool_.apipe(
+            result = pool_.submit(
                 with_omp_threads(run_solver, ompnum),
                 fobj.fock + fobj.heff,
                 fobj.dm0.copy(),
@@ -511,7 +512,7 @@ def be_func_parallel(
 
             results.append(result)
 
-        rdms = [result.get() for result in results]
+        rdms = [result.result() for result in results]
 
     if not return_vec:
         # Compute and return fragment energy
@@ -601,11 +602,11 @@ def be_func_parallel_u(
     """
     nprocs = nproc // ompnum
 
-    with ProcessPool(nprocs) as pool_:
+    with ProcessPoolExecutor(nprocs) as pool_:
         results = []
         # Run solver in parallel for each fragment
         for fobj_a, fobj_b in Fobjs:
-            result = pool_.apipe(
+            result = pool_.submit(
                 with_omp_threads(run_solver_u, ompnum),
                 fobj_a,
                 fobj_b,
@@ -618,7 +619,7 @@ def be_func_parallel_u(
             )
             results.append(result)
 
-        energy_list = [result.get() for result in results]
+        energy_list = [result.result() for result in results]
 
     # Compute and return fragment energy
     e_1 = 0.0

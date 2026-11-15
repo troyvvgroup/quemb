@@ -27,7 +27,7 @@ dependencies = [
     "ordered-set",
     "libdmet @ git+https://github.com/gkclab/libdmet_preview.git",
     "chemcoord>=2.2.0",
-    "pathos",
+    "loky",
 ]
 
 [project.license]

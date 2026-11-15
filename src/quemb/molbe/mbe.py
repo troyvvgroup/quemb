@@ -220,8 +220,8 @@ class BE:
         restart_file :
             Path to the file storing restart information, by default 'storebe.pk'.
         nproc :
-            Number of processors for parallel calculations, by default 1. If set to >1,
-            threaded parallel computation is invoked.
+            Number of processors for parallel calculations, by default 1.
+            If set to >1, the fragments are solved in parallel processes.
         ompnum :
             Number of OpenMP threads, by default 4.
         thr_bath : float,
@@ -882,9 +882,10 @@ class BE:
             Maximum number of optimization steps, by default 500
         nproc :
             Total number of processors assigned for the optimization. Defaults to 1.
-            When nproc > 1, Python multithreading is invoked.
+            If set to >1, the fragments are solved in parallel processes.
         ompnum :
-            If nproc > 1, ompnum sets the number of cores for OpenMP parallelization.
+            If nproc > 1, ompnum sets the number of OpenMP threads
+            inside each fragment process.
             Defaults to 4
         jac_solver :
             Method to form Jacobian used in optimization routine, by default HF.
@@ -1258,7 +1259,7 @@ class BE:
             Whether to use the cumulant energy expression, by default True.
         nproc :
             Number of processors for parallel calculations, by default 1.
-            If set to >1, multi-threaded parallel computation is invoked.
+            If set to >1, the fragments are solved in parallel processes.
         ompnum :
             Number of OpenMP threads, by default 4.
         """
