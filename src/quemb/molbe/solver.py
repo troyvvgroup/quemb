@@ -39,7 +39,9 @@ from quemb.shared.helper import delete_multiple_files, unused
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix, Vector
 
-Solvers: TypeAlias = Literal["MP2", "CCSD", "FCI", "HCI", "SHCI", "SCI", "DMRG"]
+Solvers: TypeAlias = Literal[
+    "MP2", "CCSD", "CCSDT", "CCSDTQ", "FCI", "HCI", "SHCI", "SCI", "DMRG"
+]
 USolvers: TypeAlias = Literal["UCCSD"]
 
 
@@ -296,6 +298,19 @@ def be_func(
     """
     if eeval:
         total_e = [0.0, 0.0, 0.0]
+
+    # PySCF does not have RDMs for CCSDT and Q yet.
+    # For these we fall back to center-site Hamiltonian scheme.
+    if solver in ["CCSDT", "CCSDTQ"]:
+        warn(
+            "CCSDT and CCSDTQ do not have RDMs implemented in PySCF yet. "
+            "Using center-site Hamiltonian scheme."
+        )
+
+        if use_cumulant:
+            raise NotImplementedError(
+                "Cumulant-based energy expression is not implemented for CCSDT and CCSDTQ."
+            )
 
     # Loop over each fragment and solve using the specified solver
     for fobj in Fobjs:
