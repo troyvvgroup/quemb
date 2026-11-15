@@ -1,6 +1,5 @@
 # Author(s): Oinam Romesh Meitei, Leah Weisburn
 
-import os
 from pathlib import Path
 from warnings import warn
 
@@ -28,7 +27,7 @@ from quemb.molbe.solver import (
     solve_uccsd,
 )
 from quemb.shared.external.unrestricted_utils import make_uhf_obj
-from quemb.shared.helper import unused
+from quemb.shared.helper import unused, with_omp_threads
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import (
     ListOverFrag,
@@ -472,8 +471,6 @@ def be_func_parallel(
         Depending on the parameters, returns the error norm or a tuple containing
         the error norm, error vector, and the computed energy.
     """
-    # Set the number of OpenMP threads
-    os.system("export OMP_NUM_THREADS=" + str(ompnum))
     nprocs = nproc // ompnum
 
     # Update the effective Hamiltonian with potentials
@@ -490,7 +487,7 @@ def be_func_parallel(
             )
 
             result = pool_.apipe(
-                run_solver,
+                with_omp_threads(run_solver, ompnum),
                 fobj.fock + fobj.heff,
                 fobj.dm0.copy(),
                 scratch_dir,
@@ -602,8 +599,6 @@ def be_func_parallel_u(
     float
         Returns the computed energy
     """
-    # Set the number of OpenMP threads
-    os.system("export OMP_NUM_THREADS=" + str(ompnum))
     nprocs = nproc // ompnum
 
     with ProcessPool(nprocs) as pool_:
@@ -611,7 +606,7 @@ def be_func_parallel_u(
         # Run solver in parallel for each fragment
         for fobj_a, fobj_b in Fobjs:
             result = pool_.apipe(
-                run_solver_u,
+                with_omp_threads(run_solver_u, ompnum),
                 fobj_a,
                 fobj_b,
                 solver,

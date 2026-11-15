@@ -16,6 +16,7 @@ import numba as nb
 import numpy as np
 from attrs import define, field
 from ordered_set import OrderedSet
+from pyscf import lib
 
 from quemb.shared.typing import Integral, Matrix, SupportsRichComparison, T
 
@@ -99,6 +100,24 @@ def add_init_docstring(obj: type) -> type:
 
 def unused(*args: Any) -> None:
     pass
+
+
+def with_omp_threads(func: Callable[_P, _R], n_threads: int) -> Callable[_P, _R]:
+    """Return :python:`func` wrapped to run with :python:`n_threads` OpenMP threads.
+
+    Setting the environment variable :python:`OMP_NUM_THREADS`
+    after the start of the process has no effect!
+    The previous number of threads is restored after each call.
+    Note that this does not limit the threads of a BLAS library
+    that does not use OpenMP, such as OpenBLAS with pthreads.
+    """
+
+    @functools.wraps(func)
+    def wrapped(*args: _P.args, **kwargs: _P.kwargs) -> _R:
+        with lib.with_omp_threads(n_threads):
+            return func(*args, **kwargs)
+
+    return wrapped
 
 
 def ncore_(z: int) -> int:

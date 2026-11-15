@@ -2,7 +2,6 @@
 
 import contextlib
 import io
-import os
 import pickle
 from typing import Literal, TypeAlias
 from warnings import warn
@@ -29,7 +28,7 @@ from quemb.molbe.solver import Solvers, UserSolverArgs, be_func
 from quemb.shared.external.optqn import (
     get_be_error_jacobian as _ext_get_be_error_jacobian,
 )
-from quemb.shared.helper import copy_docstring, ensure, timer
+from quemb.shared.helper import copy_docstring, ensure, timer, with_omp_threads
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix, PathLike
 
@@ -543,12 +542,11 @@ class BE(Mixin_k_Localize):
             else:
                 # Use cderi (Path)
                 nprocs = max(1, self.nproc // self.ompnum)
-                os.system("export OMP_NUM_THREADS=" + str(self.ompnum))
                 with ProcessPool(nprocs) as pool_:
                     results = []
                     for frg in range(self.fobj.n_frag):
                         result = pool_.apipe(
-                            eritransform_parallel,
+                            with_omp_threads(eritransform_parallel, self.ompnum),
                             self.mf.cell.a,
                             self.mf.cell.atom,
                             self.mf.cell.basis,
@@ -613,13 +611,12 @@ class BE(Mixin_k_Localize):
                 raise ValueError("If cderi is set, try again with nproc > 1")
 
             nprocs = self.nproc // self.ompnum
-            os.system("export OMP_NUM_THREADS=" + str(self.ompnum))
 
             with ProcessPool(nprocs) as pool_:
                 results = []
                 for frg in range(self.fobj.n_frag):
                     result = pool_.apipe(
-                        parallel_fock_wrapper,
+                        with_omp_threads(parallel_fock_wrapper, self.ompnum),
                         self.Fobjs[frg].dname,
                         self.Fobjs[frg].nao,
                         self.hf_dm,
@@ -664,7 +661,6 @@ class BE(Mixin_k_Localize):
         else:
             nprocs = int(self.nproc / self.ompnum)
             with ProcessPool(nprocs) as pool_:
-                os.system("export OMP_NUM_THREADS=" + str(self.ompnum))
                 results = []
                 for frg in range(self.fobj.n_frag):
                     nao = self.Fobjs[frg].nao
@@ -672,7 +668,7 @@ class BE(Mixin_k_Localize):
                     dname = self.Fobjs[frg].dname
                     h1 = self.Fobjs[frg].fock + self.Fobjs[frg].heff
                     result = pool_.apipe(
-                        parallel_scf_wrapper,
+                        with_omp_threads(parallel_scf_wrapper, self.ompnum),
                         dname,
                         nao,
                         nocc,
