@@ -221,7 +221,8 @@ class BE:
             Path to the file storing restart information, by default 'storebe.pk'.
         nproc :
             Number of processors for parallel calculations, by default 1.
-            If set to >1, the fragments are solved in parallel processes.
+            If set to >1, the fragments are solved in ``nproc // ompnum``
+            parallel processes.
         ompnum :
             Number of OpenMP threads, by default 4.
         thr_bath : float,
@@ -882,7 +883,8 @@ class BE:
             Maximum number of optimization steps, by default 500
         nproc :
             Total number of processors assigned for the optimization. Defaults to 1.
-            If set to >1, the fragments are solved in parallel processes.
+            If set to >1, the fragments are solved in ``nproc // ompnum``
+            parallel processes.
         ompnum :
             If nproc > 1, ompnum sets the number of OpenMP threads
             inside each fragment process.
@@ -1259,7 +1261,8 @@ class BE:
             Whether to use the cumulant energy expression, by default True.
         nproc :
             Number of processors for parallel calculations, by default 1.
-            If set to >1, the fragments are solved in parallel processes.
+            If set to >1, the fragments are solved in ``nproc // ompnum``
+            parallel processes.
         ompnum :
             Number of OpenMP threads, by default 4.
         """
