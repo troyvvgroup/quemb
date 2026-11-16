@@ -12,6 +12,11 @@ on:
 permissions:
   contents: read
 
+# Cancel superseded runs of the same PR; never cancel runs on main.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   analysis:
     runs-on: ubuntu-latest
@@ -93,6 +98,8 @@ jobs:
 
   testsuite:
     runs-on: ubuntu-latest
+    # Normally takes ~12 min; prevents a hang from burning the default 6 h.
+    timeout-minutes: 45
     needs: analysis
     strategy:
       matrix:
@@ -129,6 +136,8 @@ jobs:
 
   testsuite-expensive:
     runs-on: ubuntu-latest
+    # Normally takes ~40 min; prevents a hang from burning the default 6 h.
+    timeout-minutes: 120
     needs: testsuite
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     strategy:
