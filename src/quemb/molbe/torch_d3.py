@@ -338,7 +338,28 @@ class D3BJParameters:
         )
 
 
-D3Parameters: TypeAlias = D3BJParameters | D3TTParameters | D3JohnsonSineParameters
+@dataclass(frozen=True)
+class D3BJSineParameters:
+    s6: float
+    s8: float
+    a1: float
+    a2: float
+    d: float
+
+    def __post_init__(self) -> None:
+        if self.a1 < 0.0:
+            raise ValueError("a1 must be non-negative.")
+        if self.a2 < 0.0:
+            raise ValueError("a2 must be non-negative.")
+        if self.d <= 0.0:
+            raise ValueError("d must be positive.")
+        
+D3Parameters: TypeAlias = (
+    D3BJParameters
+    | D3TTParameters
+    | D3JohnsonSineParameters
+    | D3BJSineParameters
+)
 
 
 class DampingModel(Protocol):
@@ -502,6 +523,48 @@ class JohnsonSineDamping:
         return -(c6_term + c8_term)
 
 
+class BeckeJohnsonSineDamping:
+    """D3(BJ) with an additional Johnson-sine short-range switch."""
+
+    name = "bj_sine"
+
+    def default_parameters(self, _method: str) -> D3Parameters:
+        raise ValueError(
+            "BeckeJohnsonSineDamping requires explicitly supplied parameters."
+        )
+
+    def pair_energies(
+        self,
+        distances: torch.Tensor,
+        reference_distances: torch.Tensor,
+        c6: torch.Tensor,
+        c8: torch.Tensor,
+        parameters: D3Parameters,
+    ) -> torch.Tensor:
+        if not isinstance(parameters, D3BJSineParameters):
+            raise TypeError(
+                "BeckeJohnsonSineDamping requires D3BJSineParameters."
+            )
+
+        if torch.any(reference_distances <= 0.0):
+            raise ValueError("Johnson-sine reference distances must be positive.")
+
+        bj_radius = parameters.a1 * torch.sqrt(c8 / c6) + parameters.a2
+
+        x = distances / reference_distances
+        sine_factor = JohnsonSineDamping._factor(x, parameters.d)
+
+        c6_term = (
+            parameters.s6 * c6 * sine_factor
+            / (distances**6 + bj_radius**6)
+        )
+        c8_term = (
+            parameters.s8 * c8 * sine_factor
+            / (distances**8 + bj_radius**8)
+        )
+
+        return -(c6_term + c8_term)
+    
 class TrainableD3BJParameters(torch.nn.Module):
     """Positive, trainable D3(BJ) damping parameters."""
 

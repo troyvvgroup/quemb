@@ -2,8 +2,13 @@
 """Scan D3 damping parameters using a Slurm job array.
 
 Each array task evaluates a disjoint subset of the parameter grid and writes
-``d3_damping_scan_<array-task-id>.csv``.  Run without Slurm to evaluate the
-entire grid locally and write ``d3_damping_scan_local.csv``.
+``d3_<model>_damping_scan_<array-task-id>.csv``.  Run without Slurm to
+evaluate the entire grid locally and write a corresponding ``*_local.csv``.
+
+Set ``DAMPING = \"bj_sine\"`` to fit the custom model in which the Johnson
+sine switching factor multiplies the D3(BJ) energy.  This is a three-
+parameter scan over ``a1``, ``a2``, and ``d``; it is not the sum of separate
+D3(BJ) and D3(sine) corrections.
 """
 
 import csv
@@ -20,7 +25,9 @@ from pyscf import gto
 from quemb.molbe.chemfrag import Fragmented
 from quemb.molbe.torch_d3 import (
     BeckeJohnsonDamping,
+    BeckeJohnsonSineDamping,
     D3BJParameters,
+    D3BJSineParameters,
     D3JohnsonSineParameters,
     D3Parameters,
     D3TTParameters,
@@ -36,7 +43,8 @@ REFERENCE_FILE = Path("ref_C3A.txt")
 BASIS = "sto-3g"
 
 METHOD = "hf"
-DAMPING = "sine"
+# Choose one of: "bj", "sine", "tt", or "bj_sine".
+DAMPING = "bj_sine"
 
 A1_VALUES = [0.2, 0.3, 0.4, 0.5, 0.6]
 A2_VALUES = [3.0, 4.0, 5.0, 6.0, 7.0]
@@ -71,7 +79,7 @@ class ScanConfiguration:
             )
 
         # ``dataclasses.replace`` cannot type-check a dynamically constructed
-        # ``**dict`` against a union of two dataclass types.  Narrow the
+        # ``**dict`` against a union of dataclass types.  Narrow the
         # parameter type first, then name its fields explicitly.
         if isinstance(self.default_parameters, D3BJParameters):
             if self.parameter_names != ("a1", "a2"):
@@ -90,6 +98,12 @@ class ScanConfiguration:
                 raise ValueError("Johnson sine scans must vary d.")
             (d,) = point
             return replace(self.default_parameters, d=d)
+
+        if isinstance(self.default_parameters, D3BJSineParameters):
+            if self.parameter_names != ("a1", "a2", "d"):
+                raise ValueError("D3(BJ+sine) scans must vary a1, a2, and d.")
+            a1, a2, d = point
+            return replace(self.default_parameters, a1=a1, a2=a2, d=d)
 
         raise TypeError("Unsupported D3 parameter type.")
 
@@ -162,6 +176,36 @@ def make_sine_scan(method: str) -> ScanConfiguration:
         d=float(SINE_D_VALUES[0]),
     )
 
+
+def make_bj_sine_scan(method: str) -> ScanConfiguration:
+    """Scan the custom D3(BJ+sine) damping model.
+
+    The Johnson sine factor is applied multiplicatively to the D3(BJ) pair
+    energy, so it supplies extra short-range damping without double-counting
+    the asymptotic dispersion energy.
+    """
+    damping = BeckeJohnsonSineDamping()
+    bj_defaults = D3BJParameters.from_method(method)
+    default_parameters = D3BJSineParameters(
+        s6=bj_defaults.s6,
+        s8=bj_defaults.s8,
+        a1=float(A1_VALUES[0]),
+        a2=float(A2_VALUES[0]),
+        d=float(SINE_D_VALUES[0]),
+    )
+
+    return ScanConfiguration(
+        name="bj_sine",
+        damping=damping,
+        default_parameters=default_parameters,
+        parameter_names=("a1", "a2", "d"),
+        parameter_units=("", "", ""),
+        points=tuple(
+            (float(a1), float(a2), float(d))
+            for a1, a2, d in product(A1_VALUES, A2_VALUES, SINE_D_VALUES)
+        ),
+    )
+
     return ScanConfiguration(
         name="sine",
         damping=damping,
@@ -180,6 +224,8 @@ SCAN_CONFIG_FACTORIES: dict[
     "tt": make_tt_scan,
     "sine": make_sine_scan,
     "johnson_sine": make_sine_scan,
+    "bj_sine": make_bj_sine_scan,
+    "becke_johnson_sine": make_bj_sine_scan,
 }
 
 
