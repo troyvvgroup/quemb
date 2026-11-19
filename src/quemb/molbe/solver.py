@@ -1,5 +1,6 @@
 # Author(s): Oinam Romesh Meitei, Leah Weisburn, Shaun Weatherly
 
+import functools
 import os
 from abc import ABC
 from pathlib import Path
@@ -35,7 +36,7 @@ from quemb.shared.external.ccsd_rdm import (
 )
 from quemb.shared.external.uccsd_eri import make_eris_incore
 from quemb.shared.external.unrestricted_utils import make_uhf_obj
-from quemb.shared.helper import delete_multiple_files, unused
+from quemb.shared.helper import delete_multiple_files, unused, with_omp_threads
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import Matrix, Vector
 
@@ -241,6 +242,10 @@ class _SHCI_Args:
         )
 
 
+# Make this function run with one OpenMP thread always
+# and leave the parallelization to BLAS.
+# Otherwise we get oversubscription. (I timed it)
+@functools.partial(with_omp_threads, n_threads=1)
 def be_func(
     pot: list[float] | None,
     Fobjs: list[Frags] | list[pFrags],
@@ -260,6 +265,8 @@ def be_func(
 
     This function computes the energy and/or error for each fragment in a
     molecular system using various quantum chemistry solvers.
+
+    It is always run with one thread, leaving the parallelization to BLAS.
 
     Parameters
     ----------
@@ -562,6 +569,8 @@ def be_func(
             return ernorm
 
 
+# see comment at :func:`be_func`
+@functools.partial(with_omp_threads, n_threads=1)
 def be_func_u(
     pot,  # noqa: ARG001
     Fobjs: list[tuple[Frags, Frags]],
@@ -577,6 +586,8 @@ def be_func_u(
 
     This function computes the energy and/or error for each fragment in a
     molecular system using various quantum chemistry solvers.
+
+    It is always run with one thread, leaving the parallelization to BLAS.
 
     Parameters
     ----------

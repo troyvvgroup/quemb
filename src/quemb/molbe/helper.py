@@ -184,9 +184,10 @@ def get_eri(i_frag, Nao, symm=8, ignore_symm=False, eri_file="eri_file.h5"):
 
         # Optionally restore the symmetry of the ERI
         if not ignore_symm:
-            # Set the number of threads for the library to 1
-            lib.num_threads(1)
-            eri__ = ao2mo.restore(symm, eri__, Nao)
+            # Restore the symmetry with one thread to avoid oversubscription.
+            # *BUT* go back to the previous thread numbers!
+            with lib.with_omp_threads(1):
+                eri__ = ao2mo.restore(symm, eri__, Nao)
 
     return eri__
 

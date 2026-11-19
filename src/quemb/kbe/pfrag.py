@@ -107,7 +107,7 @@ class Frags:
 
         self.TA: Matrix[float64]
         self.TA_lo_eo: Matrix[float64]
-        self.h1 = None
+        self.h1: Matrix[float64]
         self.nao: int
         self.mo_coeffs: Matrix[float64]
         self._mo_coeffs: Matrix[float64]
