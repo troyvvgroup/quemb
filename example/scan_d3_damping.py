@@ -616,7 +616,7 @@ def main() -> None:
         row = config.row_for(point)
         label = config.label_for(point)
 
-        value = mse(
+        value = rmse(
             coordinates,
             force_embedding,
             reference,
