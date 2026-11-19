@@ -48,8 +48,8 @@ METHOD = "hf"
 # "population": D3(BJ) times s_A^pop s_B^pop from fragment TA matrices.
 BJ_SWITCH = "population"
 
-A1_VALUES = [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
-A2_VALUES = [3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]
+A1_VALUES = [0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5]
+A2_VALUES = [5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 10.1, 10.2]
 
 # Dimensionless coefficient in x = b * R_AB / R0_AB.
 TT_B_VALUES = np.linspace(0.0001, 0.0003, 100)
@@ -569,6 +569,10 @@ def main() -> None:
     coordinates = torch.tensor(mol.atom_coords(), dtype=torch.float64)
     force_embedding = load_gradient(FORCE_EMBEDDING_FILE, mol.natm)
     reference = load_gradient(REFERENCE_FILE, mol.natm)
+
+    uncorrected_rmse = torch.sqrt(
+        torch.mean((force_embedding - reference).square())).item()
+    print(f"Uncorrected RMSE={uncorrected_rmse:.8e}", flush=True)
 
     if BJ_SWITCH == "r":
         # Fit a1, a2, and the distance-based sine onset d.
