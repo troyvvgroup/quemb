@@ -16,3 +16,4 @@ py:class Function
 py:class pyscf.mp.mp2.MP2
 py:class RHF
 py:class quemb.molbe._cpp.eri_sparse_DF.SemiSparseSym3DTensor
+py:class numpy._typing._array_like.GenericAlias
