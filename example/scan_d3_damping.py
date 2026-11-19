@@ -11,6 +11,7 @@ the slide.  Both choices multiply a D3(BJ) pair energy, but only the
 distance-dependent version has the additional parameter ``d``.
 """
 
+import re
 import csv
 import os
 from dataclasses import dataclass, replace
@@ -47,8 +48,8 @@ METHOD = "hf"
 # "population": D3(BJ) times s_A^pop s_B^pop from fragment TA matrices.
 BJ_SWITCH = "population"
 
-A1_VALUES = [0.2, 0.3, 0.4, 0.5, 0.6]
-A2_VALUES = [3.0, 4.0, 5.0, 6.0, 7.0]
+A1_VALUES = [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+A2_VALUES = [3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]
 
 # Dimensionless coefficient in x = b * R_AB / R0_AB.
 TT_B_VALUES = np.linspace(0.0001, 0.0003, 100)
@@ -62,36 +63,70 @@ AtomIndices = Sequence[int]
 
 
 def atom_populations_from_ta(mol: gto.Mole, ta: np.ndarray) -> torch.Tensor:
-    """Average the slide's AO-site populations over the AOs on each atom.
+    """Return atom populations from an S-orthonormal TA matrix.
 
-    For an orthonormal AO/site representation of TA, the AO population is
-    p_mu = sum_k TA[mu, k]**2.  D3 is atom-pair based, so this routine uses
-    p_A = mean_{mu on A}(p_mu), which preserves p_A = 1 for fragment AOs and
-    p_A = 0 for pure environment AOs.
+    If TA satisfies TA^† S TA = I in the nonorthogonal AO basis, first form
+    T_orth = S^(1/2) TA. The AO-site populations are then
+
+        p_mu = sum_k |T_orth[mu, k]|^2,
+
+    which lie in [0, 1]. D3 is atom-pair based, so each atom's population is
+    the mean of the populations of its AO sites.
     """
-    ta = np.asarray(ta, dtype=float)
+    ta = np.asarray(ta, dtype=np.complex128)
     nao = mol.nao_nr()
+
     if ta.ndim != 2 or ta.shape[0] != nao:
         raise ValueError(
-            "Each fragment TA must have shape (mol.nao_nr(), n_embedding_orbitals); "
+            "Each fragment TA must have shape "
+            "(mol.nao_nr(), n_embedding_orbitals); "
             f"got {ta.shape}, expected first dimension {nao}."
         )
 
-    p_ao = np.einsum("ik,ik->i", ta, ta)
+    overlap = mol.intor("int1e_ovlp")
+    overlap = 0.5 * (overlap + overlap.T.conj())
+
+    eigenvalues, eigenvectors = np.linalg.eigh(overlap)
+    overlap_tolerance = 1.0e-12
+
+    if np.any(eigenvalues <= overlap_tolerance):
+        raise ValueError(
+            "The AO overlap matrix is singular or nearly singular; "
+            "cannot construct S^(1/2)."
+        )
+
+    sqrt_overlap = (
+        eigenvectors * np.sqrt(eigenvalues)
+    ) @ eigenvectors.T.conj()
+
+    # Optional but useful: verify that the supplied matrix is S-orthonormal.
+    metric_overlap = ta.T.conj() @ overlap @ ta
+    identity = np.eye(ta.shape[1], dtype=metric_overlap.dtype)
+
+    if not np.allclose(metric_overlap, identity, rtol=1.0e-8, atol=1.0e-10):
+        max_error = np.max(np.abs(metric_overlap - identity))
+        raise ValueError(
+            "TA is not S-orthonormal: TA^† S TA differs from I by up to "
+            f"{max_error:.3e}."
+        )
+
+    ta_orth = sqrt_overlap @ ta
+    p_ao = np.einsum("ik,ik->i", ta_orth.conj(), ta_orth).real
+
     tolerance = 1.0e-10
     if np.any(p_ao < -tolerance) or np.any(p_ao > 1.0 + tolerance):
         raise ValueError(
-            "TA row norms must lie in [0, 1]. Orthogonalize TA into an "
-            "orthonormal AO/site basis before saving it."
+            "Löwdin-orthogonalized TA row norms must lie in [0, 1]."
         )
+
     p_ao = np.clip(p_ao, 0.0, 1.0)
 
     # PySCF returns AO start/stop indices in columns 2 and 3.
-    ao_slices = mol.aoslice_by_atom()
     p_atom = np.array(
-        [p_ao[ao_start:ao_stop].mean() for _, _, ao_start, ao_stop in ao_slices],
+        [p_ao[ao_start:ao_stop].mean() for _, _, ao_start, ao_stop in mol.aoslice_by_atom()],
         dtype=float,
     )
+
     return torch.tensor(p_atom, dtype=torch.float64)
 
 
