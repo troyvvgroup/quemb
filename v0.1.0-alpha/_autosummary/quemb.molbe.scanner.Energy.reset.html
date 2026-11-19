@@ -877,8 +877,12 @@
 <h1>quemb.molbe.scanner.Energy.reset<a class="headerlink" href="#quemb-molbe-scanner-energy-reset" title="Link to this heading">¶</a></h1>
 <dl class="py method">
 <dt class="sig sig-object py" id="quemb.molbe.scanner.Energy.reset">
-<span class="sig-prename descclassname"><span class="pre">Energy.</span></span><span class="sig-name descname"><span class="pre">reset</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#quemb.molbe.scanner.Energy.reset" title="Link to this definition">¶</a></dt>
-<dd><p>Clean up intermediates</p>
+<span class="sig-prename descclassname"><span class="pre">Energy.</span></span><span class="sig-name descname"><span class="pre">reset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#quemb.molbe.scanner.Energy.reset" title="Link to this definition">¶</a></dt>
+<dd><p>Reset the wrapper, optionally to a new molecule.</p>
+<p><code class="docutils literal notranslate"><span class="pre">lib.StreamObject.reset</span></code> takes no <code class="docutils literal notranslate"><span class="pre">mol</span></code> argument and raises
+<code class="docutils literal notranslate"><span class="pre">NotImplementedError</span></code>, but <code class="docutils literal notranslate"><span class="pre">pyscf.tools.finite_diff</span></code> (since PySCF 2.15)
+calls <code class="docutils literal notranslate"><span class="pre">reset(mol)</span></code> on the underlying mean-field object after the
+displacements. There are no cached intermediates to clean up here.</p>
 </dd></dl>
 
 </section>
