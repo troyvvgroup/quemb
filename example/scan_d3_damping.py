@@ -61,6 +61,22 @@ SINE_D_VALUES = np.linspace(0.01, 2.0, 100)
 Point = tuple[float, ...]
 AtomIndices = Sequence[int]
 
+def rmse(
+    coordinates: torch.Tensor,
+    force_embedding: torch.Tensor,
+    reference: torch.Tensor,
+    d3: TorchExternalD3,
+    fragments: Sequence[AtomIndices],
+    frag_per_atom: Sequence[int],
+    parameters: D3Parameters,
+) -> float:
+    """Return the root-mean-squared error for one damping-parameter combination."""
+    residual = (
+        force_embedding
+        + d3_gradient(coordinates, d3, fragments, frag_per_atom, parameters)
+        - reference
+    )
+    return torch.sqrt(torch.mean(residual.square())).item()
 
 def atom_populations_from_ta(mol: gto.Mole, ta: np.ndarray) -> torch.Tensor:
     """Return atom populations from an S-orthonormal TA matrix.
@@ -212,7 +228,7 @@ class ScanConfiguration:
         raise TypeError("Unsupported D3 parameter type.")
 
     def row_for(self, point: Point) -> dict[str, float]:
-        """Return the CSV columns for one scan point, excluding MSE."""
+        """Return the CSV columns for one scan point, excluding RMSE."""
         return dict(zip(self.parameter_names, point, strict=True))
 
     def label_for(self, point: Point) -> str:
@@ -445,7 +461,7 @@ def d3_gradient(
     return correction
 
 
-def mse(
+def rmse(
     coordinates: torch.Tensor,
     force_embedding: torch.Tensor,
     reference: torch.Tensor,
@@ -484,7 +500,7 @@ def write_results(
     config: ScanConfiguration,
 ) -> Path:
     filename = Path(f"d3_{config.name}_damping_scan_{task_label}.csv")
-    fieldnames = [*config.parameter_names, "mse"]
+    fieldnames = [*config.parameter_names, "rmse"]
 
     with filename.open("w", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
@@ -610,9 +626,10 @@ def main() -> None:
             parameters,
         )
 
-        row["mse"] = value
+        row["rmse"] = value
+        print(f"{label}  RMSE={value:.8e}", flush=True)
+
         rows.append(row)
-        print(f"{label}  MSE={value:.8e}", flush=True)
 
     results_file = write_results(rows, task_label, config)
     print(f"Wrote {results_file}.", flush=True)
