@@ -1,8 +1,7 @@
 """
 Perform the sparse DF ERI transformation using semi-sparse tensors.
 
-This module provides functionality to transform ERIs using semi-sparse tensors
-and optionally CUDA for GPU acceleration.
+This module provides functionality to transform ERIs using semi-sparse tensors.
 """
 
 from __future__ import annotations
@@ -12,32 +11,15 @@ import typing
 import numpy
 
 __all__ = [
-    "GPU_MatrixHandle",
     "SemiSparse3DTensor",
     "SemiSparseSym3DTensor",
     "SemiSparseSym3DWindow",
     "apply_inv_cholesky_inplace",
-    "contract_with_TA_1st",
-    "contract_with_TA_2nd_to_sym_dense",
-    "extract_unique",
     "get_AO_per_MO",
-    "get_AO_reachable_by_MO_with_offset",
     "get_log_level",
     "set_log_level",
-    "transform_integral",
-    "transform_integral_cuda",
     "transform_integral_precontracted",
-    "transform_integral_precontracted_cuda",
 ]
-
-class GPU_MatrixHandle:
-    def __init__(self, L_host: numpy.ndarray) -> None:
-        """
-        Create a GPU_MatrixHandle from a host matrix.
-
-        This allocates memory on the GPU and copies the data from the host to the GPU.
-        """
-    def __repr__(self) -> str: ...
 
 class SemiSparse3DTensor:
     def __getitem__(self, arg0: tuple[int, int]) -> numpy.ndarray: ...
@@ -167,31 +149,19 @@ def apply_inv_cholesky_inplace(
 
 def contract_with_TA_1st(
     TA: numpy.ndarray, int_P_mu_nu: SemiSparseSym3DTensor, AO_by_MO: list[list[int]]
-) -> SemiSparse3DTensor: ...
-def contract_with_TA_1st_gemm(
-    TA: numpy.ndarray, int_P_mu_nu: SemiSparseSym3DTensor, AO_by_MO: list[list[int]]
 ) -> SemiSparse3DTensor:
     """
-    Same as contract_with_TA_1st, but with one dense GEMM per AO mu.
+    Compute (P | mu i) = sum_nu (P | mu nu) TA(nu, i) for the AOs mu of every MO i,
+    with one dense GEMM per AO mu.
     """
 
 def contract_with_TA_2nd_to_sym_dense(
     int_mu_i_P: SemiSparse3DTensor, TA: numpy.ndarray
 ) -> numpy.ndarray:
     """
-    Contract with TA to get a symmetric dense tensor (P | i, j)
-    """
-
-def contract_with_TA_2nd_gemm(
-    int_mu_i_P: SemiSparse3DTensor, TA: numpy.ndarray
-) -> numpy.ndarray:
-    """
-    Same as contract_with_TA_2nd_to_sym_dense, but with one dense GEMM per MO i.
-    """
-
-def extract_unique(exch_reachable: list[list[int]]) -> list[list[int]]:
-    """
-    Extract unique reachable AOs from the provided exch_reachable structure
+    Compute (P | i j) = sum_mu (P | mu i) TA(mu, j) for j >= i (the AOs of the smaller
+    index i) in the symmetric pair index,
+    with one dense GEMM per MO i.
     """
 
 def get_AO_per_MO(
@@ -201,41 +171,8 @@ def get_AO_per_MO(
     Get AOs per MO based on TA and S_abs matrices with a threshold epsilon
     """
 
-def get_AO_reachable_by_MO_with_offset(
-    AO_reachable_by_MO: list[list[int]],
-) -> list[list[tuple[int, int]]]:
-    """
-    Get AO reachable by MO with offsets based on the
-    provided AO_reachable_by_MO structure
-    """
-
 def get_log_level() -> int: ...
 def set_log_level(log_level: int) -> None: ...
-def transform_integral(
-    int_P_mu_nu: SemiSparseSym3DTensor,
-    TA: numpy.ndarray,
-    S_abs: numpy.ndarray,
-    L_PQ: numpy.ndarray,
-    MO_coeff_epsilon: float,
-) -> numpy.ndarray:
-    """
-    Transform the integral using TA, int_P_mu_nu, AO_by_MO, and L_PQ,
-    returning the transformed matrix
-    """
-
-def transform_integral_cuda(
-    int_P_mu_nu: SemiSparseSym3DTensor,
-    TA: numpy.ndarray,
-    S_abs: numpy.ndarray,
-    L_PQ: GPU_MatrixHandle,
-    MO_coeff_epsilon: float,
-) -> numpy.ndarray:
-    """
-    Transform the integral using TA, int_P_mu_nu, AO_by_MO, and L_PQ,
-    returning the transformed matrix.
-    This uses CUDA for performance.
-    """
-
 def transform_integral_precontracted(
     int_P_mu_nu: SemiSparseSym3DTensor | SemiSparseSym3DWindow,
     TA: numpy.ndarray,
@@ -246,17 +183,4 @@ def transform_integral_precontracted(
     Transform the integral using TA and int_P_mu_nu = L⁻¹ (P | mu nu),
     i.e. after apply_inv_cholesky_inplace or the active pairs of a window,
     returning the transformed matrix
-    """
-
-def transform_integral_precontracted_cuda(
-    int_P_mu_nu: SemiSparseSym3DTensor | SemiSparseSym3DWindow,
-    TA: numpy.ndarray,
-    S_abs: numpy.ndarray,
-    MO_coeff_epsilon: float,
-) -> numpy.ndarray:
-    """
-    Transform the integral using TA and int_P_mu_nu = L⁻¹ (P | mu nu),
-    i.e. after apply_inv_cholesky_inplace or the active pairs of a window,
-    returning the transformed matrix.
-    This uses CUDA for performance.
     """
