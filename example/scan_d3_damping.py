@@ -5,10 +5,10 @@ Each array task evaluates a disjoint subset of the parameter grid and writes
 ``d3_<model>_damping_scan_<array-task-id>.csv``.  Run without Slurm to
 evaluate the entire grid locally and write a corresponding ``*_local.csv``.
 
-Set ``DAMPING = \"bj_sine\"`` to fit the custom model in which the Johnson
-sine switching factor multiplies the D3(BJ) energy.  This is a three-
-parameter scan over ``a1``, ``a2``, and ``d``; it is not the sum of separate
-D3(BJ) and D3(sine) corrections.
+Set ``BJ_SWITCH = "r"`` to fit the existing distance-dependent Johnson sine
+factor, or ``BJ_SWITCH = "population"`` to use the population factor from
+the slide.  Both choices multiply a D3(BJ) pair energy, but only the
+distance-dependent version has the additional parameter ``d``.
 """
 
 import csv
@@ -20,9 +20,11 @@ from typing import Callable, Sequence
 
 import numpy as np
 import torch
-from pyscf import gto
+from pyscf import gto, scf
 
+from quemb.molbe import BE
 from quemb.molbe.chemfrag import Fragmented
+from quemb.molbe.fragment import fragmentate
 from quemb.molbe.torch_d3 import (
     BeckeJohnsonDamping,
     BeckeJohnsonSineDamping,
@@ -37,14 +39,13 @@ from quemb.molbe.torch_d3 import (
     TorchExternalD3,
 )
 
-GEOMETRY_FILE = Path("geometry.xyz")
 FORCE_EMBEDDING_FILE = Path("force_embedding_C3A.txt")
 REFERENCE_FILE = Path("ref_C3A.txt")
-BASIS = "sto-3g"
 
 METHOD = "hf"
-# Choose one of: "bj", "sine", "tt", or "bj_sine".
-DAMPING = "bj_sine"
+# "r": D3(BJ) times the existing Johnson sine factor f(R_AB / R0_AB).
+# "population": D3(BJ) times s_A^pop s_B^pop from fragment TA matrices.
+BJ_SWITCH = "population"
 
 A1_VALUES = [0.2, 0.3, 0.4, 0.5, 0.6]
 A2_VALUES = [3.0, 4.0, 5.0, 6.0, 7.0]
@@ -59,6 +60,74 @@ SINE_D_VALUES = np.linspace(0.01, 2.0, 100)
 Point = tuple[float, ...]
 AtomIndices = Sequence[int]
 
+
+def atom_populations_from_ta(mol: gto.Mole, ta: np.ndarray) -> torch.Tensor:
+    """Average the slide's AO-site populations over the AOs on each atom.
+
+    For an orthonormal AO/site representation of TA, the AO population is
+    p_mu = sum_k TA[mu, k]**2.  D3 is atom-pair based, so this routine uses
+    p_A = mean_{mu on A}(p_mu), which preserves p_A = 1 for fragment AOs and
+    p_A = 0 for pure environment AOs.
+    """
+    ta = np.asarray(ta, dtype=float)
+    nao = mol.nao_nr()
+    if ta.ndim != 2 or ta.shape[0] != nao:
+        raise ValueError(
+            "Each fragment TA must have shape (mol.nao_nr(), n_embedding_orbitals); "
+            f"got {ta.shape}, expected first dimension {nao}."
+        )
+
+    p_ao = np.einsum("ik,ik->i", ta, ta)
+    tolerance = 1.0e-10
+    if np.any(p_ao < -tolerance) or np.any(p_ao > 1.0 + tolerance):
+        raise ValueError(
+            "TA row norms must lie in [0, 1]. Orthogonalize TA into an "
+            "orthonormal AO/site basis before saving it."
+        )
+    p_ao = np.clip(p_ao, 0.0, 1.0)
+
+    # PySCF returns AO start/stop indices in columns 2 and 3.
+    ao_slices = mol.aoslice_by_atom()
+    p_atom = np.array(
+        [p_ao[ao_start:ao_stop].mean() for _, _, ao_start, ao_stop in ao_slices],
+        dtype=float,
+    )
+    return torch.tensor(p_atom, dtype=torch.float64)
+
+
+def atom_populations_from_saved_tas(
+    mol: gto.Mole,
+    ta_directory: str | Path,
+    n_fragments: int,
+) -> list[torch.Tensor]:
+    """Build one full-system population vector from each saved fragment TA."""
+    ta_directory = Path(ta_directory)
+
+    ta_paths = sorted(
+        ta_directory.glob("frag*_TA.txt"),
+        key=lambda path: int(re.fullmatch(r"frag(\d+)_TA\.txt", path.name).group(1)),
+    )
+
+    if len(ta_paths) != n_fragments:
+        raise ValueError(
+            f"Found {len(ta_paths)} TA files in {ta_directory}, "
+            f"but expected {n_fragments}."
+        )
+
+    expected_names = [f"frag{i}_TA.txt" for i in range(n_fragments)]
+    actual_names = [path.name for path in ta_paths]
+    if actual_names != expected_names:
+        raise ValueError(
+            "TA files must be consecutively numbered from "
+            f"frag0_TA.txt through frag{n_fragments - 1}_TA.txt. "
+            f"Found: {actual_names}"
+        )
+
+    return [
+        atom_populations_from_ta(mol, np.loadtxt(ta_path, ndmin=2))
+        for ta_path in ta_paths
+    ]
+    
 
 @dataclass(frozen=True)
 class ScanConfiguration:
@@ -250,29 +319,55 @@ def load_gradient(path: Path, n_atoms: int) -> torch.Tensor:
     return gradient
 
 
-def build_system() -> tuple[
+def build_system(
+    xyz_file: str | Path,
+) -> tuple[
     gto.Mole,
     list[list[int]],
     list[list[int]],
     list[int],
 ]:
-    """Build the molecule and the fragment data used for the D3 correction."""
-    mol: gto.Mole = gto.M(atom=GEOMETRY_FILE.read_text(), basis=BASIS)
-    fragmented = Fragmented.from_mole(mol, n_BE=2, h_treatment="treat_H_diff")
-    # QuEmb exposes distinct ``AtomIdx`` and ``FragmentIdx`` types.  Convert
-    # them at this boundary because ``TorchExternalD3`` deliberately accepts
-    # ordinary mutable ``list[list[int]]`` fragment definitions.
+    """Build the molecule and fragment data for an XYZ geometry file."""
+    xyz_file = Path(xyz_file)
+    lines = xyz_file.read_text().splitlines()
+
+    try:
+        natoms = int(lines[0].strip())
+    except (IndexError, ValueError) as exc:
+        raise ValueError(f"{xyz_file} is not a valid XYZ file.") from exc
+
+    geometry = "\n".join(lines[2 : 2 + natoms])
+
+    if len(geometry.splitlines()) != natoms:
+        raise ValueError(
+            f"{xyz_file} declares {natoms} atoms but does not contain enough coordinates."
+        )
+
+    mol = gto.M(
+        atom=geometry,
+        basis="sto-3g",
+        unit="Angstrom",  # standard XYZ-coordinate convention
+    )
+
+    fragmented = Fragmented.from_mole(
+        mol,
+        n_BE=2,
+        h_treatment="treat_H_diff",
+    )
+
     fragments = [
         [int(atom_index) for atom_index in fragment]
         for fragment in fragmented.get_atom_in_frag()
     ]
     frag_per_atom = [
-        int(fragment_index) for fragment_index in fragmented.get_frag_per_atom()
+        int(fragment_index)
+        for fragment_index in fragmented.get_frag_per_atom()
     ]
     inverted_fragments = [
         [atom for atom in range(mol.natm) if atom not in fragment]
         for fragment in fragments
     ]
+
     return mol, fragments, inverted_fragments, frag_per_atom
 
 
@@ -418,12 +513,29 @@ def main() -> None:
     # One process per array task: prevent PyTorch from creating extra CPU threads.
     torch.set_num_threads(max(1, int(os.environ.get("OMP_NUM_THREADS", "1"))))
 
-    mol, fragments, inverted_fragments, frag_per_atom = build_system()
+    mol, fragments, inverted_fragments, frag_per_atom = build_system("C3A.xyz")
+    print("Done building system", flush=True)
     coordinates = torch.tensor(mol.atom_coords(), dtype=torch.float64)
     force_embedding = load_gradient(FORCE_EMBEDDING_FILE, mol.natm)
     reference = load_gradient(REFERENCE_FILE, mol.natm)
 
-    config = get_scan_configuration(DAMPING, METHOD)
+    if BJ_SWITCH == "r":
+        # Fit a1, a2, and the distance-based sine onset d.
+        config = get_scan_configuration("bj_sine", METHOD)
+        fragment_atom_populations = None
+    elif BJ_SWITCH == "population":
+        print("Doing Johnson sine damping based on population", flush=True)
+        # Fit a1 and a2.  The population factor has no adjustable d parameter.
+        config = get_scan_configuration("bj", METHOD)
+
+        fragment_atom_populations = atom_populations_from_saved_tas(
+            mol,
+            ta_directory="TA_matrices",
+            n_fragments=len(fragments),
+        )
+        
+    else:
+        raise ValueError("BJ_SWITCH must be either 'r' or 'population'.")
 
     d3 = TorchExternalD3(
         atomic_numbers=mol.atom_charges().tolist(),
@@ -432,6 +544,7 @@ def main() -> None:
         method=METHOD,
         damping=config.damping,
         parameters=config.default_parameters,
+        fragment_atom_populations=fragment_atom_populations,
     )
 
     task_id, task_count, points = assigned_points(config.points)

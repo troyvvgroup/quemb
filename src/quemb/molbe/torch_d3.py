@@ -651,7 +651,16 @@ class TorchD3:
         self,
         coordinates: torch.Tensor,
         parameters: D3Parameters | None = None,
+        atom_populations: torch.Tensor | None = None,
     ) -> torch.Tensor:
+        """Return the D3 energy.
+
+        ``atom_populations`` contains the population ``p_A`` from the
+        population-damping construction for every atom.  When supplied, each
+        atom-pair D3 energy is multiplied by ``s_A s_B``, where
+        ``s_A = [1 - cos(pi * (1 - p_A))] / 2``.  Passing ``None`` leaves the
+        selected distance-dependent damping model unchanged.
+        """
         self._validate_coordinates(coordinates)
 
         if parameters is None:
@@ -670,6 +679,7 @@ class TorchD3:
             c6,
             c8,
             parameters,
+            atom_populations=atom_populations,
         )
 
         return pair_energies.sum()
@@ -678,12 +688,17 @@ class TorchD3:
         self,
         coordinates: torch.Tensor,
         parameters: D3Parameters | None = None,
+        atom_populations: torch.Tensor | None = None,
         create_graph: bool = False,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         if not coordinates.requires_grad:
             coordinates = coordinates.detach().clone().requires_grad_(True)
 
-        energy = self.energy(coordinates, parameters=parameters)
+        energy = self.energy(
+            coordinates,
+            parameters=parameters,
+            atom_populations=atom_populations,
+        )
         gradient = torch.autograd.grad(energy, coordinates, create_graph=create_graph)[
             0
         ]
@@ -696,6 +711,8 @@ class TorchD3:
         c6: torch.Tensor,
         c8: torch.Tensor,
         parameters: D3Parameters,
+        *,
+        atom_populations: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
     
         """Return damped pair energies and upper-triangle atom-pair indices."""
@@ -715,6 +732,28 @@ class TorchD3:
             c8[atom_i, atom_j],
             parameters,
         )
+
+        if atom_populations is not None:
+            atom_populations = torch.as_tensor(
+                atom_populations,
+                dtype=distances.dtype,
+                device=distances.device,
+            )
+            if atom_populations.shape != (n_atoms,):
+                raise ValueError(
+                    "atom_populations must have shape (n_atoms,) for this D3 system."
+                )
+            if torch.any(atom_populations < 0.0) or torch.any(atom_populations > 1.0):
+                raise ValueError("atom_populations must lie in [0, 1].")
+
+            # Slide definition: s_A = [1 - cos(pi * (1 - p_A))] / 2.
+            site_switch = 0.5 * (
+                1.0 - torch.cos(torch.pi * (1.0 - atom_populations))
+            )
+
+            # Pair convention: a pair is damped if either atom is
+            # fragment-like, so s_AB^pop = s_A^pop s_B^pop.
+            pair_energies = pair_energies * site_switch[atom_i] * site_switch[atom_j]
 
         return pair_energies, pair_indices
 
@@ -961,6 +1000,7 @@ class TorchExternalD3:
         *,
         damping: DampingModel | None = None,
         parameters: D3Parameters | None = None,
+        fragment_atom_populations: list[torch.Tensor] | None = None,
     ) -> None:
         if len(fragments) != len(inverted_fragments):
             raise ValueError(
@@ -975,6 +1015,28 @@ class TorchExternalD3:
         )
 
         self.n_atoms = len(atomic_numbers)
+
+        if fragment_atom_populations is not None:
+            if len(fragment_atom_populations) != len(fragments):
+                raise ValueError(
+                    "fragment_atom_populations must provide one (n_atoms,) vector "
+                    "for each fragment."
+                )
+            self.fragment_atom_populations = []
+            for fragment_number, populations in enumerate(fragment_atom_populations):
+                populations = torch.as_tensor(populations, dtype=torch.float64)
+                if populations.shape != (self.n_atoms,):
+                    raise ValueError(
+                        f"Population vector for fragment {fragment_number} must have "
+                        "shape (n_atoms,)."
+                    )
+                if torch.any(populations < 0.0) or torch.any(populations > 1.0):
+                    raise ValueError(
+                        "All fragment atom populations must lie in [0, 1]."
+                    )
+                self.fragment_atom_populations.append(populations)
+        else:
+            self.fragment_atom_populations = None
 
         self.fragment_indices = [
             self._validate_atom_indices(indices, "fragment") for indices in fragments
@@ -1032,31 +1094,60 @@ class TorchExternalD3:
         parameters: D3Parameters | None = None,
     ) -> torch.Tensor:
         """Return one external D3 energy per fragment."""
-        total_energy = self.total_d3.energy(coordinates, parameters=parameters)
-
         fragment_energies = []
 
-        for fragment_indices, inverted_indices, fragment_d3, inverted_d3 in zip(
+        for fragment_number, (
+            fragment_indices,
+            inverted_indices,
+            fragment_d3,
+            inverted_d3,
+        ) in enumerate(zip(
             self.fragment_indices,
             self.inverted_fragment_indices,
             self.fragment_d3,
             self.inverted_fragment_d3,
-        ):
+        )):
             fragment_atom_indices = fragment_indices.to(coordinates.device)
             inverted_atom_indices = inverted_indices.to(coordinates.device)
+            populations = self._populations_for(fragment_number, coordinates)
+
+            total_energy = self.total_d3.energy(
+                coordinates,
+                parameters=parameters,
+                atom_populations=populations,
+            )
 
             fragment_energy = fragment_d3.energy(
                 coordinates[fragment_atom_indices],
                 parameters=parameters,
+                atom_populations=(
+                    None if populations is None else populations[fragment_atom_indices]
+                ),
             )
             inverted_energy = inverted_d3.energy(
                 coordinates[inverted_atom_indices],
                 parameters=parameters,
+                atom_populations=(
+                    None if populations is None else populations[inverted_atom_indices]
+                ),
             )
 
             fragment_energies.append(total_energy - fragment_energy - inverted_energy)
 
         return torch.stack(fragment_energies)
+
+    def _populations_for(
+        self,
+        fragment_number: int,
+        coordinates: torch.Tensor,
+    ) -> torch.Tensor | None:
+        """Return the full-system population vector for one embedding fragment."""
+        if self.fragment_atom_populations is None:
+            return None
+        return self.fragment_atom_populations[fragment_number].to(
+            dtype=coordinates.dtype,
+            device=coordinates.device,
+        )
 
     def fragment_gradients(
         self,
@@ -1076,28 +1167,33 @@ class TorchExternalD3:
         if not coordinates.requires_grad:
             coordinates = coordinates.detach().clone().requires_grad_(True)
 
-        total_energy = self.total_d3.energy(
-            coordinates,
-            parameters=parameters,
-        )
-        total_gradient = torch.autograd.grad(
-            total_energy,
-            coordinates,
-            create_graph=create_graph,
-        )[0]
-
         fragment_gradients: list[torch.Tensor] = []
 
-        for fragment_indices, fragment_d3 in zip(
+        for fragment_number, (fragment_indices, fragment_d3) in enumerate(zip(
             self.fragment_indices,
             self.fragment_d3,
-        ):
+        )):
             fragment_atom_indices = fragment_indices.to(coordinates.device)
             fragment_coordinates = coordinates[fragment_atom_indices]
+            populations = self._populations_for(fragment_number, coordinates)
+
+            total_energy = self.total_d3.energy(
+                coordinates,
+                parameters=parameters,
+                atom_populations=populations,
+            )
+            total_gradient = torch.autograd.grad(
+                total_energy,
+                coordinates,
+                create_graph=create_graph,
+            )[0]
 
             fragment_energy = fragment_d3.energy(
                 fragment_coordinates,
                 parameters=parameters,
+                atom_populations=(
+                    None if populations is None else populations[fragment_atom_indices]
+                ),
             )
             fragment_gradient = torch.autograd.grad(
                 fragment_energy,
