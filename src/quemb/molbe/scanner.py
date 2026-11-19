@@ -432,6 +432,18 @@ class Energy(lib.StreamObject):
         self.conv_tol = 1e-12
         self.converged = True
 
+    def reset(self, mol=None):
+        r"""Reset the wrapper, optionally to a new molecule.
+
+        ``lib.StreamObject.reset`` takes no ``mol`` argument and raises
+        ``NotImplementedError``, but ``pyscf.tools.finite_diff`` (since PySCF 2.15)
+        calls ``reset(mol)`` on the underlying mean-field object after the
+        displacements. There are no cached intermediates to clean up here.
+        """
+        if mol is not None:
+            self.mol = mol
+        return self
+
     def kernel(self, mol=None, fd_info=None):
         r"""Evaluate the energy for a molecule.
 
@@ -576,15 +588,21 @@ class Energy(lib.StreamObject):
                     elif len(displaced_idx) > 1:
                         fd_info.kind = "multi_displacement"
 
-                parent.mol = mol
-                parent.e_tot = parent.energy_func(
+                # Do not touch ``parent.mol``: since PySCF 2.15, finite_diff passes
+                # displaced copies of the molecule and no longer restores the
+                # original geometry in place, so the parent would be left at the
+                # last displacement.
+                self.mol = mol
+                self.e_tot = parent.energy_func(
                     mol, fd_info=fd_info, energy_args=parent.energy_args
                 )
 
-                self.mol = mol
-                self.e_tot = parent.e_tot
-
                 return self.e_tot
+
+            def reset(self, mol=None):
+                if mol is not None:
+                    self.mol = mol
+                return self
 
         scanner = Scanner()
         scanner.mol = parent.mol

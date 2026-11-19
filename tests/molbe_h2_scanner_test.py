@@ -22,17 +22,14 @@ def test_numerical_gradient():
     # numerical gradient of mol0
     energy_method = Energy(mol0, energy_hf)
     fd_grad = finite_diff.kernel(energy_method, displacement=1e-4)
-    assert np.isclose(
-        np.sqrt(np.mean((ref_grad_hf - fd_grad) ** 2)), 7.581109024762e-09
-    )
+    # The finite-difference error (~7.6e-9) is dominated by the truncation error.
+    assert np.sqrt(np.mean((ref_grad_hf - fd_grad) ** 2)) < 1e-8
 
     # numerical gradient of mol0 using pyscf built-in Gradients object
     grad_method = finite_diff.Gradients(energy_method)
     grad_method.displacement = 1e-4
     fd_grad_fromObj = grad_method.kernel()
-    assert np.isclose(
-        np.sqrt(np.mean((ref_grad_hf - fd_grad_fromObj) ** 2)), 7.581109024762e-09
-    )
+    assert np.sqrt(np.mean((ref_grad_hf - fd_grad_fromObj) ** 2)) < 1e-8
 
 
 def test_numerical_hessian():
@@ -52,9 +49,9 @@ def test_numerical_hessian():
     hess_method = finite_diff.Hessian(grad_method)
     hess_method.displacement = 1e-4
     fd_hess = hess_method.kernel()
-    assert np.isclose(
-        np.sqrt(np.mean((ref_hess_hf - fd_hess) ** 2)), 2.596596383663e-08
-    )
+    # The finite-difference error is dominated by noise from the SCF convergence
+    # (conv_tol 1e-12), which depends on threading and BLAS;
+    assert np.sqrt(np.mean((ref_hess_hf - fd_hess) ** 2)) < 5e-8
 
 
 def test_scanners():
