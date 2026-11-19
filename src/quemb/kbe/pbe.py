@@ -91,7 +91,7 @@ class BE(Mixin_k_Localize):
         kpts: list[list[float]] | None = None,
         cderi: PathLike | None = None,
         iao_wannier: bool = False,
-        thr_bath: float = 1.0e-10,
+        thr_bath: float = 1e-8,
         scratch_dir: WorkDir | None = None,
         int_transform: IntTransforms = "out-core-DF",
         auxbasis: str | None = None,
@@ -125,7 +125,7 @@ class BE(Mixin_k_Localize):
         ompnum :
             Number of OpenMP threads, by default 4.
         thr_bath : float,
-            Threshold for bath orbitals in Schmidt decomposition
+            Threshold for bath orbitals in Schmidt decomposition, by default 1e-8.
         scratch_dir :
             Scratch directory.
         """

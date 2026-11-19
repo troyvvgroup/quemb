@@ -404,7 +404,7 @@ def schmidt_decomposition(
     mo_coeff: Matrix[float64],
     nocc: int,
     AO_in_frag: Sequence[GlobalAOIdx],
-    thr_bath: float = 1.0e-10,
+    thr_bath: float = 1e-8,
     cinv: Matrix[float64] | None = None,
     rdm: Matrix[float64] | None = None,
     norb: int | None = None,
@@ -425,7 +425,7 @@ def schmidt_decomposition(
     Frag_sites : list of int
         List of fragment sites (indices).
     thr_bath :
-        Threshold for bath orbitals in Schmidt decomposition
+        Threshold for bath orbitals in Schmidt decomposition, by default 1e-8.
     cinv :
         Inverse of the transformation matrix. Defaults to None.
     rdm :

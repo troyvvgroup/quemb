@@ -83,4 +83,5 @@ def test_QM_MM_BE():
     # if rerunning from chk (from_chk=True), name the checkfile here
     #            ecp = ecp) # can add ECP for heavy atoms as: {'Ru': 'def2-SVP'}
 
-    assert np.isclose(be_energy, -0.5452459950497537)
+    e_expected = -0.5452689387905139
+    assert np.isclose(be_energy, e_expected), be_energy - e_expected
