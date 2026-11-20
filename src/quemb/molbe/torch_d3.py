@@ -285,7 +285,7 @@ class D3TTParameters:
     s6: float
     s8: float
     b: float  # Dimensionless: x = b * R_AB / R0_AB.
-    
+
     def __post_init__(self) -> None:
         if self.b <= 0.0:
             raise ValueError("Tang--Toennies parameter b must be positive.")
@@ -353,12 +353,10 @@ class D3BJSineParameters:
             raise ValueError("a2 must be non-negative.")
         if self.d <= 0.0:
             raise ValueError("d must be positive.")
-        
+
+
 D3Parameters: TypeAlias = (
-    D3BJParameters
-    | D3TTParameters
-    | D3JohnsonSineParameters
-    | D3BJSineParameters
+    D3BJParameters | D3TTParameters | D3JohnsonSineParameters | D3BJSineParameters
 )
 
 
@@ -399,7 +397,6 @@ class BeckeJohnsonDamping:
         c8: torch.Tensor,
         parameters: D3Parameters,
     ) -> torch.Tensor:
-
         if not isinstance(parameters, D3BJParameters):
             raise TypeError(
                 "BeckeJohnsonDamping requires D3BJParameters, "
@@ -447,7 +444,7 @@ class TangToenniesDamping:
     ) -> torch.Tensor:
         """Return one damped D3 pair energy per atom pair."""
         ...
-    
+
         if not isinstance(parameters, D3TTParameters):
             raise TypeError(
                 "TangToenniesDamping requires D3TTParameters, "
@@ -487,9 +484,7 @@ class JohnsonSineDamping:
     @staticmethod
     def _factor(x: torch.Tensor, d: float) -> torch.Tensor:
         """Return the piecewise Johnson sine damping factor."""
-        transition = 0.5 * (
-            1.0 + torch.sin(0.5 * torch.pi * (x - d - 1.0))
-        )
+        transition = 0.5 * (1.0 + torch.sin(0.5 * torch.pi * (x - d - 1.0)))
         return torch.where(
             x <= d,
             torch.zeros_like(x),
@@ -542,9 +537,7 @@ class BeckeJohnsonSineDamping:
         parameters: D3Parameters,
     ) -> torch.Tensor:
         if not isinstance(parameters, D3BJSineParameters):
-            raise TypeError(
-                "BeckeJohnsonSineDamping requires D3BJSineParameters."
-            )
+            raise TypeError("BeckeJohnsonSineDamping requires D3BJSineParameters.")
 
         if torch.any(reference_distances <= 0.0):
             raise ValueError("Johnson-sine reference distances must be positive.")
@@ -554,17 +547,12 @@ class BeckeJohnsonSineDamping:
         x = distances / reference_distances
         sine_factor = JohnsonSineDamping._factor(x, parameters.d)
 
-        c6_term = (
-            parameters.s6 * c6 * sine_factor
-            / (distances**6 + bj_radius**6)
-        )
-        c8_term = (
-            parameters.s8 * c8 * sine_factor
-            / (distances**8 + bj_radius**8)
-        )
+        c6_term = parameters.s6 * c6 * sine_factor / (distances**6 + bj_radius**6)
+        c8_term = parameters.s8 * c8 * sine_factor / (distances**8 + bj_radius**8)
 
         return -(c6_term + c8_term)
-    
+
+
 class TrainableD3BJParameters(torch.nn.Module):
     """Positive, trainable D3(BJ) damping parameters."""
 
@@ -714,7 +702,6 @@ class TorchD3:
         *,
         atom_populations: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-    
         """Return damped pair energies and upper-triangle atom-pair indices."""
         n_atoms = distances.shape[0]
         pair_indices = torch.triu_indices(
@@ -746,14 +733,14 @@ class TorchD3:
             if torch.any(atom_populations < 0.0) or torch.any(atom_populations > 1.0):
                 raise ValueError("atom_populations must lie in [0, 1].")
 
-            # Slide definition: s_A = [1 - cos(pi * (1 - p_A))] / 2.
-            site_switch = 0.5 * (
-                1.0 - torch.cos(torch.pi * (1.0 - atom_populations))
-            )
+            # Pair population and pair switch:
+            # p_AB = p_A p_B
+            # u_AB = 1 - p_AB
+            # s_AB^pop = [1 - cos(pi * u_AB)] / 2.
+            pair_populations = atom_populations[atom_i] * atom_populations[atom_j]
+            pair_switch = 0.5 * (1.0 - torch.cos(torch.pi * (1.0 - pair_populations)))
 
-            # Pair convention: a pair is damped if either atom is
-            # fragment-like, so s_AB^pop = s_A^pop s_B^pop.
-            pair_energies = pair_energies * site_switch[atom_i] * site_switch[atom_j]
+            pair_energies = pair_energies * pair_switch
 
         return pair_energies, pair_indices
 
@@ -1022,19 +1009,27 @@ class TorchExternalD3:
                     "fragment_atom_populations must provide one (n_atoms,) vector "
                     "for each fragment."
                 )
+
             self.fragment_atom_populations = []
-            for fragment_number, populations in enumerate(fragment_atom_populations):
-                populations = torch.as_tensor(populations, dtype=torch.float64)
+
+            for fragment_number, population_values in enumerate(
+                fragment_atom_populations
+            ):
+                populations = torch.as_tensor(population_values, dtype=torch.float64)
+
                 if populations.shape != (self.n_atoms,):
                     raise ValueError(
                         f"Population vector for fragment {fragment_number} must have "
                         "shape (n_atoms,)."
                     )
+
                 if torch.any(populations < 0.0) or torch.any(populations > 1.0):
                     raise ValueError(
                         "All fragment atom populations must lie in [0, 1]."
                     )
+
                 self.fragment_atom_populations.append(populations)
+
         else:
             self.fragment_atom_populations = None
 
@@ -1101,12 +1096,14 @@ class TorchExternalD3:
             inverted_indices,
             fragment_d3,
             inverted_d3,
-        ) in enumerate(zip(
-            self.fragment_indices,
-            self.inverted_fragment_indices,
-            self.fragment_d3,
-            self.inverted_fragment_d3,
-        )):
+        ) in enumerate(
+            zip(
+                self.fragment_indices,
+                self.inverted_fragment_indices,
+                self.fragment_d3,
+                self.inverted_fragment_d3,
+            )
+        ):
             fragment_atom_indices = fragment_indices.to(coordinates.device)
             inverted_atom_indices = inverted_indices.to(coordinates.device)
             populations = self._populations_for(fragment_number, coordinates)
@@ -1169,10 +1166,12 @@ class TorchExternalD3:
 
         fragment_gradients: list[torch.Tensor] = []
 
-        for fragment_number, (fragment_indices, fragment_d3) in enumerate(zip(
-            self.fragment_indices,
-            self.fragment_d3,
-        )):
+        for fragment_number, (fragment_indices, fragment_d3) in enumerate(
+            zip(
+                self.fragment_indices,
+                self.fragment_d3,
+            )
+        ):
             fragment_atom_indices = fragment_indices.to(coordinates.device)
             fragment_coordinates = coordinates[fragment_atom_indices]
             populations = self._populations_for(fragment_number, coordinates)

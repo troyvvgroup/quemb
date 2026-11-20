@@ -8,16 +8,19 @@ factor, or ``BJ_SWITCH = "population"`` to use the population factor from
 the slide.  Both choices multiply a D3(BJ) pair energy, but only the
 distance-dependent version has the additional parameter ``d``.
 """
-import re
+
 import csv
 import os
+import re
 from dataclasses import dataclass, replace
 from itertools import product
 from pathlib import Path
 from typing import Callable, Sequence
+
 import numpy as np
 import torch
 from pyscf import gto
+
 from quemb.molbe.chemfrag import Fragmented
 from quemb.molbe.torch_d3 import (
     BeckeJohnsonDamping,
@@ -32,6 +35,7 @@ from quemb.molbe.torch_d3 import (
     TangToenniesDamping,
     TorchExternalD3,
 )
+
 # "r": D3(BJ) times the existing Johnson sine factor f(R_AB / R0_AB).
 # "population": D3(BJ) times s_A^pop s_B^pop from fragment TA matrices.
 BJ_SWITCH = "population"
@@ -44,6 +48,8 @@ TT_B_VALUES = np.linspace(0.0001, 0.0003, 100)
 SINE_D_VALUES = np.linspace(0.01, 2.0, 100)
 Point = tuple[float, ...]
 AtomIndices = Sequence[int]
+
+
 def rmse(
     coordinates: torch.Tensor,
     force_embedding: torch.Tensor,
@@ -60,6 +66,8 @@ def rmse(
         - reference
     )
     return torch.sqrt(torch.mean(residual.square())).item()
+
+
 def atom_populations_from_ta(mol: gto.Mole, ta: np.ndarray) -> torch.Tensor:
     """Return atom populations from an S-orthonormal TA matrix.
     If TA satisfies TA^† S TA = I in the nonorthogonal AO basis, first form
@@ -85,9 +93,7 @@ def atom_populations_from_ta(mol: gto.Mole, ta: np.ndarray) -> torch.Tensor:
             "The AO overlap matrix is singular or nearly singular; "
             "cannot construct S^(1/2)."
         )
-    sqrt_overlap = (
-        eigenvectors * np.sqrt(eigenvalues)
-    ) @ eigenvectors.T.conj()
+    sqrt_overlap = (eigenvectors * np.sqrt(eigenvalues)) @ eigenvectors.T.conj()
     # Optional but useful: verify that the supplied matrix is S-orthonormal.
     metric_overlap = ta.T.conj() @ overlap @ ta
     identity = np.eye(ta.shape[1], dtype=metric_overlap.dtype)
@@ -101,16 +107,19 @@ def atom_populations_from_ta(mol: gto.Mole, ta: np.ndarray) -> torch.Tensor:
     p_ao = np.einsum("ik,ik->i", ta_orth.conj(), ta_orth).real
     tolerance = 1.0e-10
     if np.any(p_ao < -tolerance) or np.any(p_ao > 1.0 + tolerance):
-        raise ValueError(
-            "Löwdin-orthogonalized TA row norms must lie in [0, 1]."
-        )
+        raise ValueError("Löwdin-orthogonalized TA row norms must lie in [0, 1].")
     p_ao = np.clip(p_ao, 0.0, 1.0)
     # PySCF returns AO start/stop indices in columns 2 and 3.
     p_atom = np.array(
-        [p_ao[ao_start:ao_stop].mean() for _, _, ao_start, ao_stop in mol.aoslice_by_atom()],
+        [
+            p_ao[ao_start:ao_stop].mean()
+            for _, _, ao_start, ao_stop in mol.aoslice_by_atom()
+        ],
         dtype=float,
     )
     return torch.tensor(p_atom, dtype=torch.float64)
+
+
 def atom_populations_from_saved_tas(
     mol: gto.Mole,
     ta_directory: str | Path,
@@ -139,15 +148,19 @@ def atom_populations_from_saved_tas(
         atom_populations_from_ta(mol, np.loadtxt(ta_path, ndmin=2))
         for ta_path in ta_paths
     ]
+
+
 @dataclass(frozen=True)
 class ScanConfiguration:
     """Everything that varies between damping-model scans."""
+
     name: str
     damping: DampingModel
     default_parameters: D3Parameters
     parameter_names: tuple[str, ...]
     parameter_units: tuple[str, ...]
     points: tuple[Point, ...]
+
     def parameters_for(self, point: Point) -> D3Parameters:
         """Construct the D3 parameters represented by one scan point."""
         if len(point) != len(self.parameter_names):
@@ -178,9 +191,11 @@ class ScanConfiguration:
             a1, a2, d = point
             return replace(self.default_parameters, a1=a1, a2=a2, d=d)
         raise TypeError("Unsupported D3 parameter type.")
+
     def row_for(self, point: Point) -> dict[str, float]:
         """Return the CSV columns for one scan point, excluding RMSE."""
         return dict(zip(self.parameter_names, point, strict=True))
+
     def label_for(self, point: Point) -> str:
         """Return a readable progress label for one scan point."""
         fields = []
@@ -193,6 +208,8 @@ class ScanConfiguration:
             suffix = f" {unit}" if unit else ""
             fields.append(f"{name}={value:.6g}{suffix}")
         return "  ".join(fields)
+
+
 def make_bj_scan(method: str) -> ScanConfiguration:
     damping = BeckeJohnsonDamping()
     default_parameters = damping.default_parameters(method)
@@ -204,6 +221,8 @@ def make_bj_scan(method: str) -> ScanConfiguration:
         parameter_units=("", ""),
         points=tuple(product(A1_VALUES, A2_VALUES)),
     )
+
+
 def make_tt_scan(method: str) -> ScanConfiguration:
     damping = TangToenniesDamping()
     # Temporary choice: reuse the HF-D3(BJ) scale factors.
@@ -222,6 +241,8 @@ def make_tt_scan(method: str) -> ScanConfiguration:
         parameter_units=("",),
         points=tuple((float(b),) for b in TT_B_VALUES),
     )
+
+
 def make_sine_scan(method: str) -> ScanConfiguration:
     """Scan the onset of covalent-radius-scaled Johnson sine damping."""
     damping = JohnsonSineDamping()
@@ -241,6 +262,8 @@ def make_sine_scan(method: str) -> ScanConfiguration:
         parameter_units=("",),
         points=tuple((float(d),) for d in SINE_D_VALUES),
     )
+
+
 def make_bj_sine_scan(method: str) -> ScanConfiguration:
     """Scan the custom D3(BJ+sine) damping model.
     The Johnson sine factor is applied multiplicatively to the D3(BJ) pair
@@ -267,6 +290,8 @@ def make_bj_sine_scan(method: str) -> ScanConfiguration:
             for a1, a2, d in product(A1_VALUES, A2_VALUES, SINE_D_VALUES)
         ),
     )
+
+
 SCAN_CONFIG_FACTORIES: dict[
     str,
     Callable[[str], ScanConfiguration],
@@ -278,6 +303,8 @@ SCAN_CONFIG_FACTORIES: dict[
     "bj_sine": make_bj_sine_scan,
     "becke_johnson_sine": make_bj_sine_scan,
 }
+
+
 def get_scan_configuration(name: str, method: str) -> ScanConfiguration:
     """Construct the selected damping-model scan configuration."""
     try:
@@ -288,12 +315,16 @@ def get_scan_configuration(name: str, method: str) -> ScanConfiguration:
             f"Unknown damping model {name!r}; choose one of: {available}."
         ) from exc
     return factory(method)
+
+
 def load_gradient(path: Path, n_atoms: int) -> torch.Tensor:
     """Load a Cartesian gradient and validate its dimensions."""
     gradient = torch.tensor(np.loadtxt(path), dtype=torch.float64)
     if gradient.shape != (n_atoms, 3):
         raise ValueError(f"{path} must have shape ({n_atoms}, 3).")
     return gradient
+
+
 def build_system(
     xyz_file: str | Path,
 ) -> tuple[
@@ -311,7 +342,7 @@ def build_system(
     geometry = "\n".join(lines[2 : 2 + natoms])
     if len(geometry.splitlines()) != natoms:
         raise ValueError(
-            f"{xyz_file} declares {natoms} atoms but does not contain enough coordinates."
+            f"{xyz_file} declares {natoms} atoms but not enough coordinates."
         )
     mol = gto.M(
         atom=geometry,
@@ -328,14 +359,15 @@ def build_system(
         for fragment in fragmented.get_atom_in_frag()
     ]
     frag_per_atom = [
-        int(fragment_index)
-        for fragment_index in fragmented.get_frag_per_atom()
+        int(fragment_index) for fragment_index in fragmented.get_frag_per_atom()
     ]
     inverted_fragments = [
         [atom for atom in range(mol.natm) if atom not in fragment]
         for fragment in fragments
     ]
     return mol, fragments, inverted_fragments, frag_per_atom
+
+
 def d3_gradient(
     coordinates: torch.Tensor,
     d3: TorchExternalD3,
@@ -369,6 +401,8 @@ def d3_gradient(
                 gradient[owned_mask],
             )
     return correction
+
+
 def assigned_points(
     all_points: tuple[Point, ...],
 ) -> tuple[int, int, tuple[Point, ...]]:
@@ -380,6 +414,8 @@ def assigned_points(
             f"Invalid Slurm array task {task_id} for {task_count} array tasks."
         )
     return task_id, task_count, all_points[task_id::task_count]
+
+
 def write_results(
     rows: list[dict[str, float]],
     task_label: str,
@@ -392,6 +428,8 @@ def write_results(
         writer.writeheader()
         writer.writerows(rows)
     return filename
+
+
 def write_tt_damping_curves(
     points: tuple[Point, ...],
     task_label: str,
@@ -433,6 +471,8 @@ def write_tt_damping_curves(
                     }
                 )
     return filename
+
+
 def main() -> None:
     # One process per array task: prevent PyTorch from creating extra CPU threads.
     torch.set_num_threads(max(1, int(os.environ.get("OMP_NUM_THREADS", "1"))))
@@ -442,7 +482,8 @@ def main() -> None:
     force_embedding = load_gradient("force_embedding_C2C2PD.txt", mol.natm)
     reference = load_gradient("ref_C2C2PD.txt", mol.natm)
     uncorrected_rmse = torch.sqrt(
-        torch.mean((force_embedding - reference).square())).item()
+        torch.mean((force_embedding - reference).square())
+    ).item()
     print(f"Uncorrected RMSE={uncorrected_rmse:.8e}", flush=True)
     if BJ_SWITCH == "r":
         # Fit a1, a2, and the distance-based sine onset d.
@@ -499,5 +540,7 @@ def main() -> None:
     if config.name == "tt":
         damping_file = write_tt_damping_curves(points, task_label, config)
         print(f"Wrote {damping_file}.", flush=True)
+
+
 if __name__ == "__main__":
     main()
