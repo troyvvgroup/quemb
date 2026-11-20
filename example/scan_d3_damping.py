@@ -32,9 +32,6 @@ from quemb.molbe.torch_d3 import (
     TangToenniesDamping,
     TorchExternalD3,
 )
-FORCE_EMBEDDING_FILE = Path("force_embedding_C3A.txt")
-REFERENCE_FILE = Path("ref_C3A.txt")
-METHOD = "hf"
 # "r": D3(BJ) times the existing Johnson sine factor f(R_AB / R0_AB).
 # "population": D3(BJ) times s_A^pop s_B^pop from fragment TA matrices.
 BJ_SWITCH = "population"
@@ -59,7 +56,7 @@ def rmse(
     """Return the root-mean-squared error for one damping-parameter combination."""
     residual = (
         force_embedding
-        + d3_gradient(coordinates, d3, fragments, frag_per_atom, parameters)
+        - d3_gradient(coordinates, d3, fragments, frag_per_atom, parameters)
         - reference
     )
     return torch.sqrt(torch.mean(residual.square())).item()
@@ -305,7 +302,6 @@ def build_system(
     list[list[int]],
     list[int],
 ]:
-    """Build the molecule and fragment data for an XYZ geometry file."""
     xyz_file = Path(xyz_file)
     lines = xyz_file.read_text().splitlines()
     try:
@@ -440,25 +436,25 @@ def write_tt_damping_curves(
 def main() -> None:
     # One process per array task: prevent PyTorch from creating extra CPU threads.
     torch.set_num_threads(max(1, int(os.environ.get("OMP_NUM_THREADS", "1"))))
-    mol, fragments, inverted_fragments, frag_per_atom = build_system("C3A.xyz")
+    mol, fragments, inverted_fragments, frag_per_atom = build_system("C2C2PD.xyz")
     print("Done building system", flush=True)
     coordinates = torch.tensor(mol.atom_coords(), dtype=torch.float64)
-    force_embedding = load_gradient(FORCE_EMBEDDING_FILE, mol.natm)
-    reference = load_gradient(REFERENCE_FILE, mol.natm)
+    force_embedding = load_gradient("force_embedding_C2C2PD.txt", mol.natm)
+    reference = load_gradient("ref_C2C2PD.txt", mol.natm)
     uncorrected_rmse = torch.sqrt(
         torch.mean((force_embedding - reference).square())).item()
     print(f"Uncorrected RMSE={uncorrected_rmse:.8e}", flush=True)
     if BJ_SWITCH == "r":
         # Fit a1, a2, and the distance-based sine onset d.
-        config = get_scan_configuration("bj_sine", METHOD)
+        config = get_scan_configuration("bj_sine", "hf")
         fragment_atom_populations = None
     elif BJ_SWITCH == "population":
         print("Doing Johnson sine damping based on population", flush=True)
         # Fit a1 and a2.  The population factor has no adjustable d parameter.
-        config = get_scan_configuration("bj", METHOD)
+        config = get_scan_configuration("bj", "hf")
         fragment_atom_populations = atom_populations_from_saved_tas(
             mol,
-            ta_directory="TA_matrices",
+            ta_directory="TA_matrices/C2C2PD",
             n_fragments=len(fragments),
         )
     else:
@@ -467,7 +463,7 @@ def main() -> None:
         atomic_numbers=mol.atom_charges().tolist(),
         fragments=fragments,
         inverted_fragments=inverted_fragments,
-        method=METHOD,
+        method="hf",
         damping=config.damping,
         parameters=config.default_parameters,
         fragment_atom_populations=fragment_atom_populations,
