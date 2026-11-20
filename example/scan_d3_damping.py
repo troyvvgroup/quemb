@@ -37,7 +37,6 @@ from quemb.molbe.torch_d3 import (
 )
 
 # "r": D3(BJ) times the existing Johnson sine factor f(R_AB / R0_AB).
-# "population": D3(BJ) times s_A^pop s_B^pop from fragment TA matrices.
 BJ_SWITCH = "population"
 A1_VALUES = [0.8, 0.9, 1.0, 1.1, 1.2]
 A2_VALUES = [5.0, 6.0, 7.0, 8.0, 9.0]
@@ -127,10 +126,18 @@ def atom_populations_from_saved_tas(
 ) -> list[torch.Tensor]:
     """Build one full-system population vector from each saved fragment TA."""
     ta_directory = Path(ta_directory)
+
+    def fragment_index(path: Path) -> int:
+        match = re.fullmatch(r"frag(\d+)_TA\.txt", path.name)
+        if match is None:
+            raise ValueError(f"Unexpected TA filename: {path.name}")
+        return int(match.group(1))
+
     ta_paths = sorted(
         ta_directory.glob("frag*_TA.txt"),
-        key=lambda path: int(re.fullmatch(r"frag(\d+)_TA\.txt", path.name).group(1)),
+        key=fragment_index,
     )
+
     if len(ta_paths) != n_fragments:
         raise ValueError(
             f"Found {len(ta_paths)} TA files in {ta_directory}, "
@@ -479,8 +486,8 @@ def main() -> None:
     mol, fragments, inverted_fragments, frag_per_atom = build_system("C2C2PD.xyz")
     print("Done building system", flush=True)
     coordinates = torch.tensor(mol.atom_coords(), dtype=torch.float64)
-    force_embedding = load_gradient("force_embedding_C2C2PD.txt", mol.natm)
-    reference = load_gradient("ref_C2C2PD.txt", mol.natm)
+    force_embedding = load_gradient(Path("force_embedding_C2C2PD.txt"), mol.natm)
+    reference = load_gradient(Path("ref_C2C2PD.txt"), mol.natm)
     uncorrected_rmse = torch.sqrt(
         torch.mean((force_embedding - reference).square())
     ).item()

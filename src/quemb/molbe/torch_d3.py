@@ -1002,6 +1002,7 @@ class TorchExternalD3:
         )
 
         self.n_atoms = len(atomic_numbers)
+        self.fragment_atom_populations: list[torch.Tensor] | None
 
         if fragment_atom_populations is not None:
             if len(fragment_atom_populations) != len(fragments):
