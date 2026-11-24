@@ -51,8 +51,8 @@ AtomIndices = Sequence[int]
 
 def rmse_for_both_signs(
     coordinates: torch.Tensor,
-    force_embedding: torch.Tensor,
-    reference: torch.Tensor,
+    be_gradient: torch.Tensor,
+    reference_gradient: torch.Tensor,
     d3: TorchExternalD3,
     fragments: Sequence[AtomIndices],
     frag_per_atom: Sequence[int],
@@ -68,11 +68,11 @@ def rmse_for_both_signs(
     )
 
     rmse_minus = torch.sqrt(
-        torch.mean((force_embedding - correction - reference).square())
+        torch.mean((be_gradient - correction - reference_gradient).square())
     ).item()
 
     rmse_plus = torch.sqrt(
-        torch.mean((force_embedding + correction - reference).square())
+        torch.mean((be_gradient + correction - reference_gradient).square())
     ).item()
 
     return rmse_minus, rmse_plus
@@ -497,10 +497,13 @@ def main() -> None:
     mol, fragments, inverted_fragments, frag_per_atom = build_system("C2C2PD.xyz")
     print("Done building system", flush=True)
     coordinates = torch.tensor(mol.atom_coords(), dtype=torch.float64)
-    force_embedding = load_gradient(Path("force_embedding_C2C2PD.txt"), mol.natm)
-    reference = load_gradient(Path("ref_C2C2PD.txt"), mol.natm)
+    be_gradient = load_gradient(Path("be_gradient_C2C2PD.txt"), mol.natm)
+    reference_gradient = load_gradient(
+        Path("reference_gradient_C2C2PD.txt"),
+        mol.natm,
+    )
     uncorrected_rmse = torch.sqrt(
-        torch.mean((force_embedding - reference).square())
+        torch.mean((be_gradient - reference_gradient).square())
     ).item()
     print(f"Uncorrected RMSE={uncorrected_rmse:.8e}", flush=True)
     if BJ_SWITCH == "r":
@@ -516,6 +519,7 @@ def main() -> None:
             ta_directory="TA_matrices/C2C2PD",
             n_fragments=len(fragments),
         )
+
     else:
         raise ValueError("BJ_SWITCH must be either 'r' or 'population'.")
     d3 = TorchExternalD3(
@@ -544,8 +548,8 @@ def main() -> None:
 
         rmse_minus, rmse_plus = rmse_for_both_signs(
             coordinates,
-            force_embedding,
-            reference,
+            be_gradient,
+            reference_gradient,
             d3,
             fragments,
             frag_per_atom,
