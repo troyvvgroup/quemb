@@ -38,7 +38,7 @@ from quemb.molbe.torch_d3 import (
 
 # "r": D3(BJ) times the existing Johnson sine factor f(R_AB / R0_AB).
 BJ_SWITCH = "population"
-A1_VALUES = [0.8, 0.9, 1.0, 1.1, 1.2]
+A1_VALUES = [0.2, 0.3, 0.4, 0.5, 0.6]
 A2_VALUES = [5.0, 6.0, 7.0, 8.0, 9.0]
 # Dimensionless coefficient in x = b * R_AB / R0_AB.
 TT_B_VALUES = np.linspace(0.0001, 0.0003, 100)
@@ -49,7 +49,7 @@ Point = tuple[float, ...]
 AtomIndices = Sequence[int]
 
 
-def rmse(
+def rmse_for_both_signs(
     coordinates: torch.Tensor,
     force_embedding: torch.Tensor,
     reference: torch.Tensor,
@@ -57,14 +57,25 @@ def rmse(
     fragments: Sequence[AtomIndices],
     frag_per_atom: Sequence[int],
     parameters: D3Parameters,
-) -> float:
-    """Return the root-mean-squared error for one damping-parameter combination."""
-    residual = (
-        force_embedding
-        - d3_gradient(coordinates, d3, fragments, frag_per_atom, parameters)
-        - reference
+) -> tuple[float, float]:
+    """Return RMSEs for BE - D3 and BE + D3 corrections, respectively."""
+    correction = d3_gradient(
+        coordinates,
+        d3,
+        fragments,
+        frag_per_atom,
+        parameters,
     )
-    return torch.sqrt(torch.mean(residual.square())).item()
+
+    rmse_minus = torch.sqrt(
+        torch.mean((force_embedding - correction - reference).square())
+    ).item()
+
+    rmse_plus = torch.sqrt(
+        torch.mean((force_embedding + correction - reference).square())
+    ).item()
+
+    return rmse_minus, rmse_plus
 
 
 def atom_populations_from_ta(mol: gto.Mole, ta: np.ndarray) -> torch.Tensor:
@@ -429,7 +440,7 @@ def write_results(
     config: ScanConfiguration,
 ) -> Path:
     filename = Path(f"d3_{config.name}_damping_scan_{task_label}.csv")
-    fieldnames = [*config.parameter_names, "rmse"]
+    fieldnames = [*config.parameter_names, "rmse_minus_d3", "rmse_plus_d3"]
     with filename.open("w", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
@@ -530,7 +541,8 @@ def main() -> None:
         parameters = config.parameters_for(point)
         row = config.row_for(point)
         label = config.label_for(point)
-        value = rmse(
+
+        rmse_minus, rmse_plus = rmse_for_both_signs(
             coordinates,
             force_embedding,
             reference,
@@ -539,8 +551,15 @@ def main() -> None:
             frag_per_atom,
             parameters,
         )
-        row["rmse"] = value
-        print(f"{label}  RMSE={value:.8e}", flush=True)
+
+        row["rmse_minus_d3"] = rmse_minus
+        row["rmse_plus_d3"] = rmse_plus
+
+        print(
+            f"{label}  RMSE(BE - D3)={rmse_minus:.8e}  RMSE(BE + D3)={rmse_plus:.8e}",
+            flush=True,
+        )
+
         rows.append(row)
     results_file = write_results(rows, task_label, config)
     print(f"Wrote {results_file}.", flush=True)
