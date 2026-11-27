@@ -546,16 +546,18 @@ def be_func(
             total_e = [sum(x) for x in zip(total_e, e_f)]
             fobj.update_ebe_hf()
 
-    Ecorr = sum(total_e)
-
-    if eeval and not return_vec:
-        return (Ecorr, total_e)
-
-    ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem)
-
     if eeval:
-        return (ernorm, ervec, [Ecorr, total_e])
+        Ecorr = sum(total_e)
+        print(f"Correlation Energy at iteration: {sum(total_e):>f} Ha")
+        print(f"E F delta P: {total_e[0] + total_e[2]:>f} Ha")
+        print(f"E cumulant: {total_e[1]:>f} Ha")
+        if not return_vec:
+            return (Ecorr, total_e)
+        else:
+            ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem)
+            return (ernorm, ervec, [Ecorr, total_e])
     else:
+        ernorm, ervec = solve_error(Fobjs, Nocc, only_chem=only_chem)
         if return_vec:
             return (ernorm, ervec, None)
         else:
